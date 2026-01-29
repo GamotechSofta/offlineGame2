@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 25s linear infinite;
+  display: inline-block;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  button, a {
+    touch-action: manipulation;
+  }
+}
