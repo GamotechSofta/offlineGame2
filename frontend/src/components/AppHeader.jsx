@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
 const AppHeader = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
 
   const menuItems = [
     { label: 'Home', path: '/' },
@@ -22,6 +23,44 @@ const AppHeader = () => {
     { label: 'Share App', path: '/support' },
     { label: 'Logout', path: '/login' }
   ];
+
+  useEffect(() => {
+    // Check if user is logged in
+    const checkUser = () => {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        try {
+          setUser(JSON.parse(userData));
+        } catch (e) {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    checkUser();
+
+    // Listen for storage changes (when user logs in/out in another tab)
+    window.addEventListener('storage', checkUser);
+    
+    // Listen for custom login event
+    window.addEventListener('userLogin', checkUser);
+    window.addEventListener('userLogout', checkUser);
+
+    return () => {
+      window.removeEventListener('storage', checkUser);
+      window.removeEventListener('userLogin', checkUser);
+      window.removeEventListener('userLogout', checkUser);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    setUser(null);
+    window.dispatchEvent(new Event('userLogout'));
+    navigate('/login');
+  };
 
   return (
     <>
@@ -79,6 +118,48 @@ const AppHeader = () => {
           />
           <span className="text-sm md:text-base lg:text-lg font-bold text-white">2,853</span>
         </button>
+
+        {/* Profile Icon - Desktop only, shows when logged in */}
+        {user ? (
+          <div 
+            onClick={handleLogout}
+            className="hidden md:flex w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 shrink-0 rounded-full bg-gray-800 border border-yellow-500/50 flex items-center justify-center cursor-pointer hover:bg-yellow-500/10 transition-colors"
+            title={`${user.username} - Click to logout`}
+          >
+            <svg 
+              className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 text-yellow-400" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path 
+                fillRule="evenodd" 
+                d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" 
+                clipRule="evenodd" 
+              />
+            </svg>
+          </div>
+        ) : (
+          /* Sign In/Sign Up Icon - Desktop only, shows when not logged in */
+          <div 
+            onClick={() => navigate('/login')}
+            className="hidden md:flex w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
+            title="Sign In / Sign Up"
+          >
+            <svg 
+              className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 text-white" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth="2" 
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+              />
+            </svg>
+          </div>
+        )}
 
         {/* Notification Bell - responsive size */}
           <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors relative">

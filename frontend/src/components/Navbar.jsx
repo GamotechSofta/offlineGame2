@@ -1,8 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Check if user is logged in
+    const checkUser = () => {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        try {
+          setUser(JSON.parse(userData));
+        } catch (e) {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    checkUser();
+
+    // Listen for storage changes (when user logs in/out in another tab)
+    window.addEventListener('storage', checkUser);
+    
+    // Listen for custom login event
+    window.addEventListener('userLogin', checkUser);
+    window.addEventListener('userLogout', checkUser);
+
+    return () => {
+      window.removeEventListener('storage', checkUser);
+      window.removeEventListener('userLogin', checkUser);
+      window.removeEventListener('userLogout', checkUser);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    setUser(null);
+    window.dispatchEvent(new Event('userLogout'));
+    navigate('/login');
+  };
 
   return (
     <nav className="bg-black w-full px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between shadow-sm">
@@ -50,28 +89,55 @@ const Navbar = () => {
           Bank
         </button>
         
-        {/* User Profile Icon - Clickable to Login */}
-        <div 
-          onClick={() => navigate('/login')}
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-gray-600 bg-gray-800 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
-        >
-          <svg 
-            className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" 
-            fill="currentColor" 
-            viewBox="0 0 20 20"
+        {/* User Profile Icon or Sign In/Sign Up */}
+        {user ? (
+          <>
+            {/* Profile Icon - Clickable to profile or logout */}
+            <div 
+              onClick={handleLogout}
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-yellow-500/50 bg-gray-800 flex items-center justify-center cursor-pointer hover:bg-yellow-500/10 transition-colors"
+              title="Logout"
+            >
+              <svg 
+                className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" 
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path 
+                  fillRule="evenodd" 
+                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" 
+                  clipRule="evenodd" 
+                />
+              </svg>
+            </div>
+            
+            {/* Username - Hidden on very small screens */}
+            <span className="text-yellow-400 font-medium text-sm sm:text-base md:text-lg hidden sm:inline">
+              {user.username}
+            </span>
+          </>
+        ) : (
+          /* Sign In/Sign Up Icon */
+          <div 
+            onClick={() => navigate('/login')}
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-gray-600 bg-gray-800 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
+            title="Sign In / Sign Up"
           >
-            <path 
-              fillRule="evenodd" 
-              d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" 
-              clipRule="evenodd" 
-            />
-          </svg>
-        </div>
-        
-        {/* Username - Hidden on very small screens */}
-        <span className="text-blue-400 font-medium text-sm sm:text-base md:text-lg hidden sm:inline">
-          Test001
-        </span>
+            <svg 
+              className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth="2" 
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+              />
+            </svg>
+          </div>
+        )}
       </div>
     </nav>
   );

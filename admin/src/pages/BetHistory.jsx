@@ -55,9 +55,9 @@ const BetHistory = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white flex">
+        <div className="min-h-screen bg-gray-900 text-white">
             <Sidebar onLogout={handleLogout} />
-            <div className="flex-1">
+            <div className="ml-64">
                 <div className="p-8">
                     <h1 className="text-3xl font-bold mb-6">Bet History</h1>
 

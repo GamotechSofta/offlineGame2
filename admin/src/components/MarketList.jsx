@@ -182,18 +182,6 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
                                         />
                                     </div>
                                 )}
-                                {numberType === 'win' && (
-                                    <div>
-                                        <label className="block text-xs text-gray-300 mb-1">Win Number</label>
-                                        <input
-                                            type="text"
-                                            value={winNumber}
-                                            onChange={(e) => setWinNumber(e.target.value)}
-                                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white text-sm"
-                                            placeholder="123 or 123-65-456"
-                                        />
-                                    </div>
-                                )}
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => handleSubmitNumber(market._id)}
@@ -218,7 +206,7 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
 
                         {/* Action Buttons */}
                         <div className="space-y-2">
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                                 <button
                                     onClick={() => handleSetNumber(market._id, 'opening')}
                                     className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-semibold"
@@ -230,12 +218,6 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
                                     className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm font-semibold"
                                 >
                                     Closing
-                                </button>
-                                <button
-                                    onClick={() => handleSetNumber(market._id, 'win')}
-                                    className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm font-semibold"
-                                >
-                                    Win #
                                 </button>
                             </div>
                             <div className="grid grid-cols-2 gap-2">

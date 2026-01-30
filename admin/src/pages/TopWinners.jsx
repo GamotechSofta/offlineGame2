@@ -42,9 +42,9 @@ const TopWinners = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white flex">
+        <div className="min-h-screen bg-gray-900 text-white">
             <Sidebar onLogout={handleLogout} />
-            <div className="flex-1">
+            <div className="ml-64">
                 <div className="p-8">
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-3xl font-bold">Top Winners</h1>
