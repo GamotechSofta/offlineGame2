@@ -1,20 +1,45 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
 const AppHeader = () => {
   const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const menuItems = [
+    { label: 'Home', path: '/' },
+    { label: 'Whatsapp Channel', path: '/support' },
+    { label: 'Telegram Channel', path: '/support' },
+    { label: 'My Bids', path: '/bids' },
+    { label: 'Passbook', path: '/passbook' },
+    { label: 'Funds', path: '/funds' },
+    { label: 'Notification', path: '/support' },
+    { label: 'Game Chart', path: '/support' },
+    { label: 'Game Rate', path: '/support' },
+    { label: 'Time Table', path: '/support' },
+    { label: 'Notice board / Rules', path: '/support' },
+    { label: 'Settings', path: '/support' },
+    { label: 'How to play', path: '/support' },
+    { label: 'Share App', path: '/support' },
+    { label: 'Logout', path: '/login' }
+  ];
 
   return (
-    <div className="w-full bg-black px-3 sm:px-5 md:px-6 lg:px-8 py-2.5 sm:py-3 md:py-4">
-      <div className="flex items-center justify-between gap-1.5 sm:gap-2 md:gap-3">
-        {/* Hamburger Menu - responsive size */}
-        <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors">
+    <>
+      <div className="w-full bg-black px-3 sm:px-5 md:px-6 lg:px-8 py-2.5 sm:py-3 md:py-4">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 md:gap-3">
+          {/* Hamburger Menu - responsive size */}
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen(true)}
+            className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
+            aria-label="Open menu"
+          >
           <div className="flex flex-col gap-1 sm:gap-1.5">
             <div className="w-4 sm:w-5 md:w-5 h-0.5 bg-white"></div>
             <div className="w-3 sm:w-4 md:w-4 h-0.5 bg-white"></div>
             <div className="w-2.5 sm:w-3 md:w-3 h-0.5 bg-white"></div>
           </div>
-        </div>
+          </button>
 
         {/* Logo with Star - responsive text and icon */}
         <Link
@@ -56,14 +81,72 @@ const AppHeader = () => {
         </button>
 
         {/* Notification Bell - responsive size */}
-        <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors relative">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors relative">
           <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
           <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full"></div>
+          </div>
         </div>
       </div>
-    </div>
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-[60]">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsMenuOpen(false)}
+            aria-label="Close menu overlay"
+          />
+          <aside className="relative h-full w-[82%] max-w-[360px] bg-black shadow-[6px_0_18px_rgba(0,0,0,0.5)]">
+            <div className="px-4 pt-6 pb-4 border-b border-gray-800">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-[#0f2c5a] flex items-center justify-center text-white">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 14a4 4 0 10-8 0v3h8v-3z" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold text-white">Prajwal</div>
+                    <div className="text-sm text-gray-300">8788626281</div>
+                    <div className="text-sm text-gray-400">Since 28/01/2026</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-red-500 text-2xl leading-none"
+                  aria-label="Close menu"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="px-4 py-4 space-y-3 overflow-y-auto h-[calc(100%-128px)] scrollbar-hidden">
+              {menuItems.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    navigate(item.path);
+                  }}
+                  className="w-full bg-gray-900 rounded-2xl px-3 py-3 flex items-center gap-4 border border-gray-800 shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#0f2c5a] text-white flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full border-2 border-white"></div>
+                  </div>
+                  <span className="text-base font-semibold text-white">{item.label}</span>
+                </button>
+              ))}
+              <div className="text-center text-xs text-gray-500 pt-2">Version: 1.0.0</div>
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
   );
 };
 
