@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import Navbar from '../components/Navbar';
+import AppHeader from '../components/AppHeader';
 import Header from '../components/Header';
 import BottomNavbar from '../components/BottomNavbar';
 import Home from '../pages/Home';
@@ -22,15 +22,12 @@ const Layout = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Home page: Mobile shows WalletSection, Desktop shows Navbar/Header
+  // Same header (logoipsum, Download App, bell) for all pages - mobile-style
   if (isHomePage) {
     return (
-      <div className="min-h-screen pb-16 md:pb-0">
-        {/* Desktop Navbar and Header */}
-        <div className="hidden md:block">
-          <Navbar />
-          <Header />
-        </div>
+      <div className="min-h-screen pb-16 md:pb-0 bg-black">
+        <AppHeader />
+        <Header />
         {children}
         <BottomNavbar />
       </div>
@@ -39,7 +36,7 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
-      <Navbar />
+      <AppHeader />
       <Header />
       {children}
       <BottomNavbar />
