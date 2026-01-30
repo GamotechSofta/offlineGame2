@@ -3,7 +3,18 @@ import dotenv from 'dotenv';
 import connectDB from './config/db_Connection.js';
 import marketRoutes from './routes/market/marketRoutes.js';
 import adminRoutes from './routes/admin/adminRoutes.js';
+import userRoutes from './routes/user/userRoutes.js';
+import betRoutes from './routes/bet/betRoutes.js';
+import paymentRoutes from './routes/payment/paymentRoutes.js';
+import walletRoutes from './routes/wallet/walletRoutes.js';
+import reportRoutes from './routes/report/reportRoutes.js';
+import helpDeskRoutes from './routes/helpDesk/helpDeskRoutes.js';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 const app = express();
@@ -14,11 +25,20 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.get('/', (req, res) => {
     res.send('Hello World!');
 });
 app.use('/api/v1/markets', marketRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/bets', betRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/wallet', walletRoutes);
+app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/help-desk', helpDeskRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

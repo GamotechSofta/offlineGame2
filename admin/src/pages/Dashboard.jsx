@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
 import MarketList from '../components/MarketList';
 import MarketForm from '../components/MarketForm';
 
@@ -73,32 +74,19 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white">
-            {/* Header */}
-            <header className="bg-gray-800 border-b border-gray-700">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex justify-between items-center">
-                        <h1 className="text-2xl font-bold text-yellow-500">Super Admin Panel</h1>
-                        <button
-                            onClick={handleLogout}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-                        >
-                            Logout
-                        </button>
-                    </div>
-                </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="min-h-screen bg-gray-900 text-white flex">
+            <Sidebar onLogout={handleLogout} />
+            <div className="flex-1">
+                <div className="p-8">
                 {error && (
                     <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
                         {error}
                     </div>
                 )}
 
-                <div className="mb-6 flex justify-between items-center">
-                    <h2 className="text-xl font-semibold">Markets Management</h2>
+                <h1 className="text-3xl font-bold mb-6">Markets Management</h1>
+                
+                <div className="mb-6">
                     <button
                         onClick={handleCreate}
                         className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-lg transition-colors"
@@ -130,7 +118,8 @@ const Dashboard = () => {
                         getAuthHeaders={getAuthHeaders}
                     />
                 )}
-            </main>
+                </div>
+            </div>
         </div>
     );
 };

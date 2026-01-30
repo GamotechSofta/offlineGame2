@@ -9,7 +9,7 @@ const Login = () => {
       <div className="relative z-10 w-full flex flex-col items-center justify-center flex-1">
         {/* Image - Full width */}
         <div className="w-full mb-6 flex justify-center">
-          <img 
+          <img
             src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769708293/Untitled_1080_x_1080_px_1080_x_1080_px_2_zsih9r.svg"
             alt="Login illustration"
             className="w-full max-w-sm h-auto"
