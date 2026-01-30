@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import MarketList from '../components/MarketList';
 import MarketForm from '../components/MarketForm';
 
-const API_BASE_URL = 'http://localhost:3010/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
 const Dashboard = () => {
     const [markets, setMarkets] = useState([]);
