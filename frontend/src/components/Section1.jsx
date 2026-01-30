@@ -170,18 +170,8 @@ const Section1 = () => {
               {/* Play Now Button */}
               <button
                 className={`w-full py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm transition-colors ${market.isOpen
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
                   ? 'bg-yellow-500 text-black hover:bg-yellow-600'
                   : 'bg-gray-600 text-white hover:bg-gray-700'
-=======
-                    ? 'bg-yellow-500 text-black hover:bg-yellow-600'
-                    : 'bg-gray-600 text-white hover:bg-gray-700'
->>>>>>> Stashed changes
-=======
-                    ? 'bg-yellow-500 text-black hover:bg-yellow-600'
-                    : 'bg-gray-600 text-white hover:bg-gray-700'
->>>>>>> Stashed changes
                   }`}
               >
                 PLAY NOW
