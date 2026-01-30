@@ -9,6 +9,8 @@ import GameBid from '../pages/GameBid';
 import Bank from '../pages/Bank';
 import Download from '../pages/Download';
 import Login from '../pages/Login';
+import Passbook from '../pages/Passbook';
+import Support from '../pages/Support';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -54,6 +56,8 @@ const AppRoutes = () => {
           <Route path="/game-bid" element={<GameBid />} />
           <Route path="/bank" element={<Bank />} />
           <Route path="/download" element={<Download />} />
+          <Route path="/passbook" element={<Passbook />} />
+          <Route path="/support" element={<Support />} />
           <Route path="/login" element={<Login />} />
         </Routes>
       </Layout>

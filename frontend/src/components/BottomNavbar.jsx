@@ -7,23 +7,15 @@ const BottomNavbar = () => {
 
   const navItems = [
     {
-      id: 'home',
-      label: 'Home',
-      path: '/',
+      id: 'my-bids',
+      label: 'My Bids',
+      path: '/bidoptions',
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-      )
-    },
-    {
-      id: 'markets',
-      label: 'Markets',
-      path: '/',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777192/auction_ofhpps.png"
+          alt="My Bids"
+          className="w-5 h-5 object-contain"
+        />
       )
     },
     {
@@ -31,19 +23,48 @@ const BottomNavbar = () => {
       label: 'Bank',
       path: '/bank',
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-        </svg>
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777283/bank_il6uwi.png"
+          alt="Bank"
+          className="w-5 h-5 object-contain"
+        />
       )
     },
     {
-      id: 'profile',
-      label: 'Profile',
-      path: '/login',
+      id: 'home',
+      label: 'Home',
+      path: '/',
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777716/home_pvawyw.png"
+          alt="Home"
+          className="w-5 h-5 object-contain"
+        />
+      ),
+      isCenter: true
+    },
+    {
+      id: 'funds',
+      label: 'Funds',
+      path: '/bank',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777500/funding_zjmbzp.png"
+          alt="Funds"
+          className="w-5 h-5 object-contain"
+        />
+      )
+    },
+    {
+      id: 'support',
+      label: 'Support',
+      path: '/support',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777618/customer-support_du0zcj.png"
+          alt="Support"
+          className="w-5 h-5 object-contain"
+        />
       )
     }
   ];
@@ -56,24 +77,41 @@ const BottomNavbar = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-700 z-50 md:hidden">
-      <div className="flex items-center justify-around px-2 py-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden px-3 pb-3 pt-1">
+      <div className="bg-black rounded-3xl border border-gray-700 shadow-[0_4px_20px_rgba(0,0,0,0.4)] flex items-end justify-around px-1 py-2 min-h-[64px]">
         {navItems.map((item) => {
           const active = isActive(item.path);
+          const isCenter = item.isCenter;
+
+          if (isCenter) {
+            return (
+              <button
+                key={item.id}
+                onClick={() => navigate(item.path)}
+                className="flex flex-col items-center justify-center -mt-6 relative z-10"
+              >
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(243,182,27,0.35)] ${
+                    active ? 'bg-[#f3b61b] text-black' : 'bg-gray-800 border border-gray-700 text-gray-400'
+                  }`}
+                >
+                  {item.icon}
+                </div>
+                <span className="text-[10px] sm:text-xs font-bold text-white mt-1">{item.label}</span>
+              </button>
+            );
+          }
+
           return (
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors ${
-                active
-                  ? 'text-yellow-500'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
+              className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-xl transition-colors min-w-[56px]"
             >
-              <div className={active ? 'text-yellow-500' : 'text-gray-400'}>
+              <div className={active ? 'text-[#f3b61b]' : 'text-gray-400'}>
                 {item.icon}
               </div>
-              <span className="text-xs font-medium">{item.label}</span>
+              <span className="text-[10px] sm:text-xs font-bold text-white">{item.label}</span>
             </button>
           );
         })}
