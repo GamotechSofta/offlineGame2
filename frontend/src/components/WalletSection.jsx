@@ -120,6 +120,14 @@ const WalletSection = () => {
         </button>
       </div>
 
+      <div className="mt-5 sm:hidden">
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769709356/Black_and_White_Minimalist_Casino_Night_Facebook_Cover_1920_x_600_mm_iocl92.png"
+          alt="Casino banner"
+          className="w-full rounded-2xl shadow-[0_10px_25px_rgba(0,0,0,0.35)]"
+        />
+      </div>
+
       {/* Market Category Buttons */}
       <div className="mt-5 sm:mt-6 grid grid-cols-2 gap-3 sm:gap-4">
         <button className="relative rounded-2xl bg-[#2a2721] p-4 sm:p-5 text-left shadow-[0_8px_20px_rgba(0,0,0,0.35)] ring-1 ring-white/5 hover:bg-[#302c25] transition-colors">
