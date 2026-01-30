@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Section1 = () => {
+  const navigate = useNavigate();
   const markets = [
     {
       gameName: "Rudraksh Morning",
@@ -114,9 +116,10 @@ const Section1 = () => {
       {/* Market Cards Grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {markets.map((market, index) => (
-          <div 
+          <div
             key={index}
-            className="bg-gray-800 rounded-lg overflow-hidden shadow-lg"
+            onClick={() => navigate('/bidoptions')}
+            className="bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform hover:scale-[1.02] transition-transform duration-200"
           >
             {/* Status Banner */}
             <div className={`${market.isOpen ? 'bg-green-600' : 'bg-red-600'} py-2 px-3 text-center`}>
@@ -129,10 +132,10 @@ const Section1 = () => {
             <div className="p-3 sm:p-4">
               {/* Time with Clock Icon */}
               <div className="flex items-center gap-1.5 mb-2">
-                <svg 
-                  className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -153,12 +156,11 @@ const Section1 = () => {
               </div>
 
               {/* Play Now Button */}
-              <button 
-                className={`w-full py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm transition-colors ${
-                  market.isOpen 
-                    ? 'bg-yellow-500 text-black hover:bg-yellow-600' 
+              <button
+                className={`w-full py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm transition-colors ${market.isOpen
+                    ? 'bg-yellow-500 text-black hover:bg-yellow-600'
                     : 'bg-gray-600 text-white hover:bg-gray-700'
-                }`}
+                  }`}
               >
                 PLAY NOW
               </button>
