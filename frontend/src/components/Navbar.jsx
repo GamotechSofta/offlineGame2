@@ -33,8 +33,11 @@ const Navbar = () => {
         {/* Download App Button */}
         <button 
           onClick={() => navigate('/download')}
-          className="bg-yellow-500 text-black px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg shadow-md hover:bg-yellow-600 transition-colors font-medium text-xs sm:text-sm md:text-base"
+          className="bg-yellow-500 text-black px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg shadow-md hover:bg-yellow-600 transition-colors font-medium text-xs sm:text-sm md:text-base flex items-center gap-1.5"
         >
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
           <span className="hidden sm:inline">Download App</span>
           <span className="sm:hidden">App</span>
         </button>

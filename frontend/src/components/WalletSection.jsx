@@ -1,12 +1,15 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const WalletSection = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="w-full bg-black py-6 sm:py-10 px-4 sm:px-6">
-      {/* Top Navigation Bar */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Top Navigation Bar - Download App in header for all views */}
+      <div className="flex items-center justify-between gap-2 mb-6">
         {/* Hamburger Menu */}
-        <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors">
+        <div className="w-10 h-10 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors">
           <div className="flex flex-col gap-1.5">
             <div className="w-5 h-0.5 bg-white"></div>
             <div className="w-4 h-0.5 bg-white"></div>
@@ -15,7 +18,7 @@ const WalletSection = () => {
         </div>
 
         {/* Logo with Star */}
-        <div className="flex items-center gap-1 relative">
+        <div className="flex items-center gap-1 relative min-w-0 flex-1 justify-center">
           <h1 className="text-yellow-500 text-xl sm:text-2xl font-bold lowercase relative">
             logoipsum
             {/* Underlines */}
@@ -28,8 +31,19 @@ const WalletSection = () => {
           </h1>
         </div>
 
+        {/* Download App - in header */}
+        <button
+          onClick={() => navigate('/download')}
+          className="shrink-0 rounded-lg sm:rounded-xl bg-[#f3b61b] px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-black shadow-[0_4px_12px_rgba(243,182,27,0.35)] hover:bg-[#e5a914] transition-colors flex items-center gap-1.5"
+        >
+          <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span>Download App</span>
+        </button>
+
         {/* Notification Bell with Red Dot */}
-        <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors relative">
+        <div className="w-10 h-10 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors relative">
           <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
@@ -112,12 +126,6 @@ const WalletSection = () => {
             </div>
           </button>
         </div>
-      </div>
-
-      <div className="flex justify-center mt-2 sm:mt-3">
-        <button className="rounded-full bg-[#f3b61b] px-8 sm:px-12 py-3 sm:py-3.5 text-base sm:text-lg font-semibold text-black shadow-[0_6px_18px_rgba(243,182,27,0.35)] hover:bg-[#e5a914] transition-colors">
-          Download App
-        </button>
       </div>
 
       <div className="mt-5 sm:hidden">
