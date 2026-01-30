@@ -39,8 +39,9 @@ const WalletSection = () => {
       </div>
 
       {/* Available Points Balance Card */}
-      <div className="bg-[#1e1f23] rounded-2xl p-5 sm:p-6 mb-5 flex items-center justify-between shadow-[0_10px_30px_rgba(0,0,0,0.35)] border border-white/5">
-        <div className="flex items-center gap-4">
+      <div className="bg-[#1e1f23] rounded-2xl p-4 sm:p-5 mb-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] border border-white/5">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
           {/* Wallet Icon with Green Bills */}
           <div className="relative w-12 h-12 sm:w-14 sm:h-14">
             {/* Bills */}
@@ -53,34 +54,61 @@ const WalletSection = () => {
           </div>
           
           {/* Balance Info */}
-          <div>
+            <div className="text-left">
             <p className="text-white text-3xl sm:text-4xl font-semibold tracking-wide">2,853</p>
             <p className="text-gray-400 text-xs sm:text-sm tracking-wide">Available Points Balance</p>
+            </div>
           </div>
         </div>
         
-        {/* Add Button removed */}
-      </div>
-
-      <div className="mb-5 flex flex-row items-center justify-center gap-3 sm:gap-4">
-        <button className="min-w-[170px] sm:min-w-[200px] inline-flex items-center justify-center gap-3 rounded-full bg-[#4caf50] px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-base font-semibold uppercase text-white shadow-[0_6px_16px_rgba(76,175,80,0.35)] hover:bg-[#439a46] transition-colors">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#4caf50] text-lg font-bold">₹</span>
-          Add Money
-        </button>
-        <button className="min-w-[170px] sm:min-w-[200px] inline-flex items-center justify-center gap-3 rounded-full bg-[#ef4444] px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-base font-semibold uppercase text-white shadow-[0_6px_16px_rgba(239,68,68,0.35)] hover:bg-[#dc3c3c] transition-colors">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#ef4444]">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 7v10m0 0l-3-3m3 3l3-3" />
-              <rect x="5" y="3" width="14" height="18" rx="2" />
-            </svg>
-          </span>
-          Withdraw
-        </button>
+        {/* Add/Withdraw Buttons */}
+          <div className="mt-2 flex flex-row items-center justify-between gap-2 sm:gap-3">
+          <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#4caf50] px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold uppercase text-white shadow-[0_6px_16px_rgba(76,175,80,0.35)] hover:bg-[#439a46] transition-colors">
+            <span className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-white text-[#4caf50] text-sm sm:text-base font-bold">₹</span>
+            Add Money
+          </button>
+          <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#ef4444] px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold uppercase text-white shadow-[0_6px_16px_rgba(239,68,68,0.35)] hover:bg-[#dc3c3c] transition-colors">
+            <span className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-white text-[#ef4444]">
+              <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 7v10m0 0l-3-3m3 3l3-3" />
+                <rect x="5" y="3" width="14" height="18" rx="2" />
+              </svg>
+            </span>
+            Withdraw
+          </button>
+        </div>
       </div>
 
       <div className="flex justify-center">
         <button className="rounded-full bg-[#f3b61b] px-8 sm:px-12 py-3 sm:py-3.5 text-base sm:text-lg font-semibold text-black shadow-[0_6px_18px_rgba(243,182,27,0.35)] hover:bg-[#e5a914] transition-colors">
           Download App
+        </button>
+      </div>
+
+      {/* Market Category Buttons */}
+      <div className="mt-5 sm:mt-6 grid grid-cols-2 gap-3 sm:gap-4">
+        <button className="relative rounded-2xl bg-[#2a2721] p-4 sm:p-5 text-left shadow-[0_8px_20px_rgba(0,0,0,0.35)] ring-1 ring-white/5 hover:bg-[#302c25] transition-colors">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-xl bg-[#f2c14e] text-[#4b3608] flex items-center justify-center text-2xl font-bold shadow-[0_6px_12px_rgba(242,193,78,0.35)]">
+                ★
+              </div>
+              <p className="text-white text-sm sm:text-base font-semibold tracking-wide">STARTLINE</p>
+            </div>
+            <span className="text-white/40 text-lg">›</span>
+          </div>
+        </button>
+
+        <button className="relative rounded-2xl bg-[#2a2721] p-4 sm:p-5 text-left shadow-[0_8px_20px_rgba(0,0,0,0.35)] ring-1 ring-white/5 hover:bg-[#302c25] transition-colors">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-xl bg-[#e8e1ff] text-[#4a3c9a] flex items-center justify-center text-2xl shadow-[0_6px_12px_rgba(232,225,255,0.35)]">
+                🎲
+              </div>
+              <p className="text-white text-sm sm:text-base font-semibold tracking-wide">GALI-DISAWAR</p>
+            </div>
+            <span className="text-white/40 text-lg">›</span>
+          </div>
         </button>
       </div>
 
