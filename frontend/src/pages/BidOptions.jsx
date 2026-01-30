@@ -12,7 +12,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769756244/Untitled_90_x_160_px_1080_x_1080_px_1_yinraf.svg"
           alt="Single Digit"
-          className="w-20 h-20 object-contain"
+          className="w-30 h-30 object-contain"
         />
       ),
     },
@@ -23,7 +23,7 @@ const BidOptions = () => {
         <img
         src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769756244/Untitled_90_x_160_px_1080_x_1080_px_1_yinraf.svg"
         alt="Single Digit"
-        className="w-20 h-20 object-contain"
+        className="w-30 h-30 object-contain"
       />
       ),
     },
@@ -34,7 +34,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714108/Untitled_1080_x_1080_px_1080_x_1080_px_7_rpzykt.svg"
           alt="Jodi"
-          className="w-20 h-20 object-contain"
+          className="w-30 h-30 object-contain"
         />
       ),
     },
@@ -45,7 +45,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714108/Untitled_1080_x_1080_px_1080_x_1080_px_7_rpzykt.svg"
           alt="Jodi Bulk"
-          className="w-20 h-20 object-contain"
+          className="w-30 h-30 object-contain"
         />
       ),
     },
@@ -56,7 +56,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
           alt="Single Pana"
-          className="w-20 h-20 object-contain"
+          className="w-30 h-30 object-contain"
         />
       ),
     },
@@ -67,7 +67,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
           alt="Single Pana Bulk"
-          className="w-20 h-20 object-contain"
+          className="w-30 h-30 object-contain"
         />
       ),
     },
@@ -78,7 +78,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769713943/Untitled_1080_x_1080_px_1080_x_1080_px_6_uccv7o.svg"
           alt="Double Pana"
-          className="w-20 h-20 object-contain"
+          className="w-30 h-30 object-contain"
         />
       ),
     },
@@ -89,7 +89,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769713943/Untitled_1080_x_1080_px_1080_x_1080_px_6_uccv7o.svg"
           alt="Double Pana Bulk"
-          className="w-20 h-20 object-contain"
+          className="w-30 h-30 object-contain"
         />
       ),
     },
@@ -100,7 +100,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714392/Untitled_1080_x_1080_px_1080_x_1080_px_9_ugcdef.svg"
           alt="Triple Pana"
-          className="w-20 h-20 object-contain"
+          className="w-30 h-30 object-contain"
         />
       ),
     },
@@ -190,7 +190,7 @@ const BidOptions = () => {
             className="relative rounded-2xl bg-gradient-to-br from-[#1b1d22] via-[#15171b] to-[#0f1013] border border-white/10 p-3 flex flex-col items-center justify-center gap-2 hover:from-[#23262d] hover:via-[#1a1d22] hover:to-[#121418] active:scale-[0.98] transition-all cursor-pointer shadow-[0_10px_25px_rgba(0,0,0,0.35)] group"
           >
             {/* Icon Container with subtle glow effect */}
-            <div className="flex items-center justify-center w-20 h-20 transform scale-90 group-hover:scale-100 transition-transform duration-300">
+            <div className="flex items-center justify-center w-30 h-30 transform scale-90 group-hover:scale-100 transition-transform duration-300">
               {option.icon}
             </div>
 
