@@ -13,7 +13,7 @@ const WalletSection = () => {
             <div className="w-3 h-0.5 bg-white"></div>
           </div>
         </div>
-        
+
         {/* Logo with Star */}
         <div className="flex items-center gap-1 relative">
           <h1 className="text-yellow-500 text-xl sm:text-2xl font-bold lowercase relative">
@@ -27,7 +27,7 @@ const WalletSection = () => {
             </svg>
           </h1>
         </div>
-        
+
         {/* Notification Bell with Red Dot */}
         <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors relative">
           <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,42 +39,77 @@ const WalletSection = () => {
       </div>
 
       {/* Available Points Balance Card */}
-      <div className="bg-[#1e1f23] rounded-2xl p-4 sm:p-5 mb-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] border border-white/5">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-          {/* Wallet Icon with Green Bills */}
-          <div className="relative w-12 h-12 sm:w-14 sm:h-14">
-            {/* Bills */}
-            <div className="absolute -top-1 -left-1 w-7 h-5 bg-emerald-400 rounded-sm rotate-[-10deg] shadow-sm"></div>
-            <div className="absolute -top-0.5 -left-0.5 w-6 h-4 bg-emerald-500 rounded-sm rotate-[-4deg] shadow-sm"></div>
-            {/* Wallet */}
-            <div className="relative w-full h-full bg-gradient-to-br from-[#5a4a6a] to-[#3c3246] rounded-xl flex items-center justify-center border border-white/10">
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_6px_rgba(255,140,0,0.8)]"></div>
+      {/* Available Points Balance Card */}
+      {/* Available Points Balance Card */}
+      <div className="relative w-full max-w-lg mx-auto mb-16">
+        {/* Main Card */}
+        <div className="relative bg-[#202124] rounded-3xl px-6 pt-3 pb-10 sm:px-8 sm:pt-5 sm:pb-14 shadow-2xl border border-white/5 z-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {/* Wallet Icon - Cleaner CSS Illustration */}
+              <img
+                src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769766330/Untitled_90_x_160_px_1080_x_1080_px_1_1_vrybhs.png"
+                alt="Wallet Icon"
+                className="w-20 h-20 object-contain shrink-0"
+              />
+
+              <div className="flex flex-col gap-0.5">
+                <h2 className="text-[2.5rem] leading-none font-bold text-white tracking-tight font-sans">2,853</h2>
+                <p className="text-gray-400 text-sm font-light tracking-wide">Available Points Balance</p>
+              </div>
             </div>
-          </div>
-          
-          {/* Balance Info */}
-            <div className="text-left">
-            <p className="text-white text-3xl sm:text-4xl font-semibold tracking-wide">2,853</p>
-            <p className="text-gray-400 text-xs sm:text-sm tracking-wide">Available Points Balance</p>
-            </div>
+
+            {/* Add Money Button */}
+            <button
+              type="button"
+              className="group relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-white overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124]"
+              aria-label="Add Money"
+            >
+              {/* Background gradient */}
+              <span className="absolute inset-0 bg-gradient-to-br from-[#25d366] via-[#20bd5a] to-[#1a9e47] rounded-full" />
+              {/* Shine overlay */}
+              <span className="absolute inset-0 rounded-full bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-80" />
+              {/* Shadow / depth */}
+              <span className="absolute inset-0 rounded-full shadow-[0_4px_20px_rgba(37,211,102,0.45),inset_0_1px_0_rgba(255,255,255,0.2)] group-hover:shadow-[0_6px_28px_rgba(37,211,102,0.55),inset_0_1px_0_rgba(255,255,255,0.25)] transition-shadow duration-300" />
+              {/* Icon: Rupee + Plus */}
+              <span className="relative flex items-center justify-center gap-0.5">
+                <span className="text-xl sm:text-2xl font-bold drop-shadow-sm">₹</span>
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M19 12H5" />
+                </svg>
+              </span>
+            </button>
           </div>
         </div>
-        
-        {/* Add/Withdraw Buttons */}
-          <div className="mt-2 flex flex-row items-center justify-between gap-2 sm:gap-3">
-          <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#4caf50] px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold uppercase text-white shadow-[0_6px_16px_rgba(76,175,80,0.35)] hover:bg-[#439a46] transition-colors">
-            <span className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-white text-[#4caf50] text-sm sm:text-base font-bold">₹</span>
-            Add Money
-          </button>
-          <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#ef4444] px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-sm font-semibold uppercase text-white shadow-[0_6px_16px_rgba(239,68,68,0.35)] hover:bg-[#dc3c3c] transition-colors">
-            <span className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-white text-[#ef4444]">
-              <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 7v10m0 0l-3-3m3 3l3-3" />
-                <rect x="5" y="3" width="14" height="18" rx="2" />
-              </svg>
-            </span>
-            Withdraw
+
+        {/* Withdraw Section - Tab Style */}
+        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 z-20">
+          <button className="relative group cursor-pointer active:scale-95 transition-transform duration-200">
+            {/* Shape Container with CSS Clip Path */}
+            <div
+              className="w-[200px] h-[48px] bg-black flex items-center justify-center gap-3 shadow-2xl"
+              style={{
+                clipPath: 'polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)',
+                paddingBottom: '4px'
+              }}
+            >
+              {/* Inner Content */}
+              <div className="flex items-center gap-2">
+                {/* Icon Box - Solid Gold */}
+                <div className="w-6 h-6 rounded bg-[#cca84d] flex items-center justify-center text-black">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </div>
+                {/* Text */}
+                <span className="text-[#cca84d] font-bold text-[15px] tracking-[0.08em] uppercase">
+                  Withdraw
+                </span>
+              </div>
+
+              {/* Shine Effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 pointer-events-none"></div>
+            </div>
           </button>
         </div>
       </div>
