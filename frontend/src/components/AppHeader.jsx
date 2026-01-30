@@ -236,7 +236,99 @@ const AppHeader = () => {
                   className="w-full bg-gray-900 rounded-2xl px-3 py-3 sm:px-4 sm:py-3.5 flex items-center gap-4 border border-gray-800 shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
                 >
                   <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#0f2c5a] text-white flex items-center justify-center">
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white"></div>
+                    {item.label === 'Home' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769797366/home_m76m2c.png"
+                        alt="Home"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Top Winners' || item.label === 'Starline Winners' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769797561/podium_swqjij.png"
+                        alt={item.label}
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Telegram Channel' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769797952/telegram_yw9hf1.png"
+                        alt="Telegram"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'My Bids' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777192/auction_ofhpps.png"
+                        alt="My Bids"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Bank' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777283/bank_il6uwi.png"
+                        alt="Bank"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Funds' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777500/funding_zjmbzp.png"
+                        alt="Funds"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Notification' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798359/notification_1_pflwit.png"
+                        alt="Notification"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Game Chart' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798462/start_eotpxc.png"
+                        alt="Game Chart"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Game Rate' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798548/stars_v1jfzk.png"
+                        alt="Game Rate"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Time Table' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798627/schedule_frf8zc.png"
+                        alt="Time Table"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Notice board / Rules' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798736/checklist_xnr6yh.png"
+                        alt="Notice board / Rules"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Settings' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769799001/settings_kszedz.png"
+                        alt="Settings"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Share App' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798998/share_a6shgt.png"
+                        alt="Share App"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'How to play' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798998/play-button-arrowhead_uxpf7o.png"
+                        alt="How to play"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : item.label === 'Logout' ? (
+                      <img
+                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798997/logout_mttqvy.png"
+                        alt="Logout"
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white"></div>
+                    )}
                   </div>
                   <span className="text-sm sm:text-base font-semibold text-white">{item.label}</span>
                 </button>
