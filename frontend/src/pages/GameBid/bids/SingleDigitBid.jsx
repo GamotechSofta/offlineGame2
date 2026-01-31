@@ -145,10 +145,33 @@ const SingleDigitBid = ({ market, title }) => {
         </div>
     );
 
-    const rightColumn = <BidsTable labelKey="Digit" />;
+    const submitBidsCard = (
+        <div className="mt-4 w-full bg-[#202124]/95 backdrop-blur-sm border border-white/10 rounded-2xl shadow-xl shadow-black/30 px-4 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-6 sm:gap-8 shrink-0">
+                <div className="text-center">
+                    <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Bids</div>
+                    <div className="text-base sm:text-lg font-bold text-[#f2c14e]">{bids.length}</div>
+                </div>
+                <div className="text-center">
+                    <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Points</div>
+                    <div className="text-base sm:text-lg font-bold text-[#f2c14e]">{totalPoints}</div>
+                </div>
+            </div>
+            <button className="flex-1 w-full sm:w-auto sm:min-w-[140px] bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3 px-6 rounded-xl shadow-lg hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98] text-sm sm:text-base">
+                Submit Bids
+            </button>
+        </div>
+    );
+
+    const rightColumn = (
+        <div>
+            <BidsTable labelKey="Digit" />
+            {submitBidsCard}
+        </div>
+    );
 
     return (
-        <BidLayout market={market} title={title} bidsCount={bids.length} totalPoints={totalPoints} showDateSession={false} extraHeader={null} session={session} setSession={setSession} footerRightOnDesktop>
+        <BidLayout market={market} title={title} bidsCount={bids.length} totalPoints={totalPoints} showDateSession={false} extraHeader={null} session={session} setSession={setSession} hideFooter>
             <div className="px-3 sm:px-4 py-4 sm:py-2 md:grid md:grid-cols-2 md:gap-6 md:max-w-7xl md:mx-auto md:items-start">
                 <div className="md:pr-4 md:border-r md:border-white/10">{leftColumn}</div>
                 <div className="mt-6 md:mt-0 md:pl-4">{rightColumn}</div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSession = true, extraHeader, session = 'OPEN', setSession = () => {}, footerRightOnDesktop = false }) => {
+const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSession = true, extraHeader, session = 'OPEN', setSession = () => {}, footerRightOnDesktop = false, hideFooter = false }) => {
     const navigate = useNavigate();
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 
@@ -59,11 +59,12 @@ const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSe
                 </div>
             )}
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden pb-44 md:pb-32 w-full max-w-full">
+            <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full ${hideFooter ? 'pb-6' : 'pb-44 md:pb-32'}`}>
                 {children}
             </div>
 
-            {/* Footer - Card centered in right 50% on desktop */}
+            {/* Footer - Card centered in right 50% on desktop (hidden when submit card is in content) */}
+            {!hideFooter && (
             <div className="fixed bottom-[88px] left-0 right-0 md:bottom-0 z-10 px-3 sm:px-4 py-3 md:grid md:grid-cols-2 md:gap-0">
                 <div className="hidden md:block" />
                 <div className="flex justify-center md:justify-center">
@@ -84,6 +85,7 @@ const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSe
                     </div>
                 </div>
             </div>
+            )}
         </div>
     );
 };
