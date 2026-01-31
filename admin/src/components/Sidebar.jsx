@@ -1,15 +1,15 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
+import {
     FaTachometerAlt,
-    FaChartBar, 
-    FaUserPlus, 
-    FaPlusCircle, 
-    FaHistory, 
-    FaTrophy, 
-    FaChartLine, 
-    FaCreditCard, 
-    FaWallet, 
+    FaChartBar,
+    FaUserPlus,
+    FaPlusCircle,
+    FaHistory,
+    FaTrophy,
+    FaChartLine,
+    FaCreditCard,
+    FaWallet,
     FaLifeRing,
     FaSignOutAlt,
     FaUsers,
@@ -45,7 +45,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-screen w-64 sm:w-72 bg-gray-800 border-r border-gray-700 flex flex-col z-50 overflow-y-auto
+            className={`fixed left-0 top-0 h-screen w-64 sm:w-72 bg-gray-800/95 backdrop-blur-sm border-r border-gray-700/50 flex flex-col z-50 overflow-y-auto shadow-2xl
                 transform transition-transform duration-200 ease-in-out
                 lg:translate-x-0
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -70,11 +70,10 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
                     <button
                         key={item.path}
                         onClick={() => handleNav(item.path)}
-                        className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
-                            isActive(item.path)
-                                ? 'bg-yellow-500 text-black font-semibold'
-                                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl transition-all duration-200 text-sm sm:text-base ${isActive(item.path)
+                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-semibold shadow-lg shadow-yellow-500/20'
+                            : 'text-gray-300 hover:bg-gray-700/50 hover:text-white hover:-translate-y-0.5'
+                            }`}
                     >
                         <item.icon className="w-5 h-5 sm:text-xl shrink-0" />
                         <span className="truncate">{item.label}</span>
@@ -83,10 +82,10 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             </nav>
 
             {/* Logout */}
-            <div className="p-3 sm:p-4 border-t border-gray-700 shrink-0">
+            <div className="p-3 sm:p-4 border-t border-gray-700/50 shrink-0">
                 <button
                     onClick={onLogout}
-                    className="w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors text-sm sm:text-base"
+                    className="w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold transition-all duration-200 text-sm sm:text-base glow-red hover:-translate-y-0.5"
                 >
                     <FaSignOutAlt className="w-5 h-5 sm:text-xl shrink-0" />
                     <span>Logout</span>

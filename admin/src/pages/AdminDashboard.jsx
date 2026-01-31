@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
+import { SkeletonCard, LoadingOverlay } from '../components/Skeleton';
+import StatCard from '../components/StatCard';
+import { FaChartLine, FaUsers, FaMoneyBillWave, FaChartBar } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -59,8 +62,16 @@ const AdminDashboard = () => {
     if (loading) {
         return (
             <AdminLayout onLogout={handleLogout} title="Dashboard">
-                <div className="flex items-center justify-center min-h-[50vh]">
-                    <p className="text-gray-400">Loading dashboard...</p>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 animate-fadeIn">Dashboard Overview</h1>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                    {[...Array(4)].map((_, i) => (
+                        <SkeletonCard key={i} />
+                    ))}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {[...Array(3)].map((_, i) => (
+                        <SkeletonCard key={i} />
+                    ))}
                 </div>
             </AdminLayout>
         );
@@ -69,8 +80,19 @@ const AdminDashboard = () => {
     if (error) {
         return (
             <AdminLayout onLogout={handleLogout} title="Dashboard">
-                <div className="flex items-center justify-center min-h-[50vh]">
-                    <p className="text-red-400">{error}</p>
+                <div className="flex flex-col items-center justify-center min-h-[50vh] animate-fadeIn">
+                    <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+                        <svg className="w-8 h-8 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                    </div>
+                    <p className="text-red-400 text-lg font-medium mb-2">{error}</p>
+                    <button
+                        onClick={fetchDashboardStats}
+                        className="mt-4 px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-semibold rounded-xl transition-all duration-200 glow-yellow hover:-translate-y-0.5"
+                    >
+                        Retry
+                    </button>
                 </div>
             </AdminLayout>
         );
@@ -78,204 +100,186 @@ const AdminDashboard = () => {
 
     return (
         <AdminLayout onLogout={handleLogout} title="Dashboard">
-                    <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Dashboard Overview</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 animate-fadeIn">Dashboard Overview</h1>
 
-                    {/* Revenue Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                        <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg p-4 sm:p-6 shadow-lg">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-gray-200 text-sm font-medium">Total Revenue</h3>
-                                <svg className="w-6 h-6 text-green-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                            <p className="text-2xl sm:text-3xl font-bold text-white">{formatCurrency(stats?.revenue?.total || 0)}</p>
-                            <div className="mt-4 flex gap-4 text-xs text-green-100">
-                                <div>
-                                    <span className="text-green-200">Today: </span>
-                                    <span className="font-semibold">{formatCurrency(stats?.revenue?.today || 0)}</span>
-                                </div>
-                                <div>
-                                    <span className="text-green-200">This Week: </span>
-                                    <span className="font-semibold">{formatCurrency(stats?.revenue?.thisWeek || 0)}</span>
-                                </div>
-                            </div>
+            {/* Revenue Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                <StatCard
+                    title="Total Revenue"
+                    value={formatCurrency(stats?.revenue?.total || 0)}
+                    icon={FaMoneyBillWave}
+                    color="green"
+                    delay={0}
+                    details={[
+                        { label: 'Today', value: formatCurrency(stats?.revenue?.today || 0) },
+                        { label: 'Week', value: formatCurrency(stats?.revenue?.thisWeek || 0) }
+                    ]}
+                />
+
+                <StatCard
+                    title="Net Profit"
+                    value={formatCurrency(stats?.revenue?.netProfit || 0)}
+                    icon={FaChartLine}
+                    color="blue"
+                    delay={0.1}
+                    details={[
+                        { label: 'Payouts', value: formatCurrency(stats?.revenue?.payouts || 0) }
+                    ]}
+                />
+
+                <StatCard
+                    title="Total Users"
+                    value={stats?.users?.total || 0}
+                    icon={FaUsers}
+                    color="purple"
+                    delay={0.2}
+                    details={[
+                        { label: 'Active', value: stats?.users?.active || 0 },
+                        { label: 'New', value: stats?.users?.newToday || 0 }
+                    ]}
+                />
+
+                <StatCard
+                    title="Total Bets"
+                    value={stats?.bets?.total || 0}
+                    icon={FaChartBar}
+                    color="yellow"
+                    delay={0.3}
+                    details={[
+                        { label: 'Win Rate', value: `${stats?.bets?.winRate || 0}%` },
+                        { label: 'Today', value: stats?.bets?.today || 0 }
+                    ]}
+                />
+            </div>
+
+            {/* Secondary Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                {/* Markets Card */}
+                <div className="glass rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 hover:-translate-y-0.5 animate-slideUp" style={{ animationDelay: '0.4s' }}>
+                    <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                        Markets
+                    </h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
+                            <span className="text-gray-400 text-sm">Total Markets</span>
+                            <span className="text-white font-bold font-mono">{stats?.markets?.total || 0}</span>
                         </div>
-
-                        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-4 sm:p-6 shadow-lg">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-gray-200 text-sm font-medium">Net Profit</h3>
-                                <svg className="w-6 h-6 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                </svg>
-                            </div>
-                            <p className="text-3xl font-bold text-white">{formatCurrency(stats?.revenue?.netProfit || 0)}</p>
-                            <div className="mt-4 text-xs text-blue-100">
-                                <span className="text-blue-200">Payouts: </span>
-                                <span className="font-semibold">{formatCurrency(stats?.revenue?.payouts || 0)}</span>
-                            </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg p-4 sm:p-6 shadow-lg">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-gray-200 text-sm font-medium">Total Users</h3>
-                                <svg className="w-6 h-6 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                            </div>
-                            <p className="text-3xl font-bold text-white">{stats?.users?.total || 0}</p>
-                            <div className="mt-4 flex gap-4 text-xs text-purple-100">
-                                <div>
-                                    <span className="text-purple-200">Active: </span>
-                                    <span className="font-semibold">{stats?.users?.active || 0}</span>
-                                </div>
-                                <div>
-                                    <span className="text-purple-200">New Today: </span>
-                                    <span className="font-semibold">{stats?.users?.newToday || 0}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 rounded-lg p-4 sm:p-6 shadow-lg">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-gray-200 text-sm font-medium">Total Bets</h3>
-                                <svg className="w-6 h-6 text-yellow-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                </svg>
-                            </div>
-                            <p className="text-3xl font-bold text-white">{stats?.bets?.total || 0}</p>
-                            <div className="mt-4 flex gap-4 text-xs text-yellow-100">
-                                <div>
-                                    <span className="text-yellow-200">Win Rate: </span>
-                                    <span className="font-semibold">{stats?.bets?.winRate || 0}%</span>
-                                </div>
-                                <div>
-                                    <span className="text-yellow-200">Today: </span>
-                                    <span className="font-semibold">{stats?.bets?.today || 0}</span>
-                                </div>
-                            </div>
+                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
+                            <span className="text-gray-400 text-sm">Open Now</span>
+                            <span className="text-green-400 font-bold font-mono">{stats?.markets?.open || 0}</span>
                         </div>
                     </div>
+                </div>
 
-                    {/* Secondary Stats */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                        {/* Markets Card */}
-                        <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                            <h3 className="text-lg font-semibold mb-4 text-gray-300">Markets</h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Total Markets</span>
-                                    <span className="text-white font-bold">{stats?.markets?.total || 0}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Open Now</span>
-                                    <span className="text-green-400 font-bold">{stats?.markets?.open || 0}</span>
-                                </div>
-                            </div>
+                {/* Bet Status Card */}
+                <div className="glass rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 hover:-translate-y-0.5 animate-slideUp" style={{ animationDelay: '0.5s' }}>
+                    <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                        Bet Status
+                    </h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
+                            <span className="text-gray-400 text-sm">Winning</span>
+                            <span className="text-green-400 font-bold font-mono">{stats?.bets?.winning || 0}</span>
                         </div>
-
-                        {/* Bet Status Card */}
-                        <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                            <h3 className="text-lg font-semibold mb-4 text-gray-300">Bet Status</h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Winning</span>
-                                    <span className="text-green-400 font-bold">{stats?.bets?.winning || 0}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Losing</span>
-                                    <span className="text-red-400 font-bold">{stats?.bets?.losing || 0}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Pending</span>
-                                    <span className="text-yellow-400 font-bold">{stats?.bets?.pending || 0}</span>
-                                </div>
-                            </div>
+                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
+                            <span className="text-gray-400 text-sm">Losing</span>
+                            <span className="text-red-400 font-bold font-mono">{stats?.bets?.losing || 0}</span>
                         </div>
-
-                        {/* Payments Card */}
-                        <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                            <h3 className="text-lg font-semibold mb-4 text-gray-300">Payments</h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Total Deposits</span>
-                                    <span className="text-green-400 font-bold">{formatCurrency(stats?.payments?.totalDeposits || 0)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Total Withdrawals</span>
-                                    <span className="text-red-400 font-bold">{formatCurrency(stats?.payments?.totalWithdrawals || 0)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Pending</span>
-                                    <span className="text-yellow-400 font-bold">{stats?.payments?.pending || 0}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Wallet Card */}
-                        <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                            <h3 className="text-lg font-semibold mb-4 text-gray-300">Wallet</h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Total Balance</span>
-                                    <span className="text-yellow-400 font-bold text-xl">{formatCurrency(stats?.wallet?.totalBalance || 0)}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* User Growth Card */}
-                        <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                            <h3 className="text-lg font-semibold mb-4 text-gray-300">User Growth</h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">This Week</span>
-                                    <span className="text-green-400 font-bold">{stats?.users?.newThisWeek || 0}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">This Month</span>
-                                    <span className="text-green-400 font-bold">{stats?.users?.newThisMonth || 0}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Help Desk Card */}
-                        <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                            <h3 className="text-lg font-semibold mb-4 text-gray-300">Help Desk</h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Total Tickets</span>
-                                    <span className="text-white font-bold">{stats?.helpDesk?.total || 0}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Open</span>
-                                    <span className="text-yellow-400 font-bold">{stats?.helpDesk?.open || 0}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">In Progress</span>
-                                    <span className="text-blue-400 font-bold">{stats?.helpDesk?.inProgress || 0}</span>
-                                </div>
-                            </div>
+                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
+                            <span className="text-gray-400 text-sm">Pending</span>
+                            <span className="text-yellow-400 font-bold font-mono">{stats?.bets?.pending || 0}</span>
                         </div>
                     </div>
+                </div>
 
-                    {/* Revenue Timeline */}
-                        <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                        <h3 className="text-lg font-semibold mb-4 text-gray-300">Revenue Timeline</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-gray-700 rounded-lg p-4">
-                                <p className="text-gray-400 text-sm mb-2">Today</p>
-                                <p className="text-2xl font-bold text-green-400">{formatCurrency(stats?.revenue?.today || 0)}</p>
-                            </div>
-                            <div className="bg-gray-700 rounded-lg p-4">
-                                <p className="text-gray-400 text-sm mb-2">This Week</p>
-                                <p className="text-2xl font-bold text-green-400">{formatCurrency(stats?.revenue?.thisWeek || 0)}</p>
-                            </div>
-                            <div className="bg-gray-700 rounded-lg p-4">
-                                <p className="text-gray-400 text-sm mb-2">This Month</p>
-                                <p className="text-2xl font-bold text-green-400">{formatCurrency(stats?.revenue?.thisMonth || 0)}</p>
-                            </div>
+                {/* Payments Card */}
+                <div className="glass rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 hover:-translate-y-0.5 animate-slideUp" style={{ animationDelay: '0.6s' }}>
+                    <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-purple-400"></div>
+                        Payments
+                    </h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
+                            <span className="text-gray-400 text-sm">Total Deposits</span>
+                            <span className="text-green-400 font-bold font-mono text-sm">{formatCurrency(stats?.payments?.totalDeposits || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
+                            <span className="text-gray-400 text-sm">Total Withdrawals</span>
+                            <span className="text-red-400 font-bold font-mono text-sm">{formatCurrency(stats?.payments?.totalWithdrawals || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
+                            <span className="text-gray-400 text-sm">Pending</span>
+                            <span className="text-yellow-400 font-bold font-mono">{stats?.payments?.pending || 0}</span>
                         </div>
                     </div>
+                </div>
+
+                {/* Wallet Card */}
+                <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-300">Wallet</h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">Total Balance</span>
+                            <span className="text-yellow-400 font-bold text-xl">{formatCurrency(stats?.wallet?.totalBalance || 0)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* User Growth Card */}
+                <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-300">User Growth</h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">This Week</span>
+                            <span className="text-green-400 font-bold">{stats?.users?.newThisWeek || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">This Month</span>
+                            <span className="text-green-400 font-bold">{stats?.users?.newThisMonth || 0}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Help Desk Card */}
+                <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-300">Help Desk</h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">Total Tickets</span>
+                            <span className="text-white font-bold">{stats?.helpDesk?.total || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">Open</span>
+                            <span className="text-yellow-400 font-bold">{stats?.helpDesk?.open || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-400">In Progress</span>
+                            <span className="text-blue-400 font-bold">{stats?.helpDesk?.inProgress || 0}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Revenue Timeline */}
+            <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
+                <h3 className="text-lg font-semibold mb-4 text-gray-300">Revenue Timeline</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-700 rounded-lg p-4">
+                        <p className="text-gray-400 text-sm mb-2">Today</p>
+                        <p className="text-2xl font-bold text-green-400">{formatCurrency(stats?.revenue?.today || 0)}</p>
+                    </div>
+                    <div className="bg-gray-700 rounded-lg p-4">
+                        <p className="text-gray-400 text-sm mb-2">This Week</p>
+                        <p className="text-2xl font-bold text-green-400">{formatCurrency(stats?.revenue?.thisWeek || 0)}</p>
+                    </div>
+                    <div className="bg-gray-700 rounded-lg p-4">
+                        <p className="text-gray-400 text-sm mb-2">This Month</p>
+                        <p className="text-2xl font-bold text-green-400">{formatCurrency(stats?.revenue?.thisMonth || 0)}</p>
+                    </div>
+                </div>
+            </div>
         </AdminLayout>
     );
 };
