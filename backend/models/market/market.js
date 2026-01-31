@@ -37,6 +37,11 @@ const marketSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    /** Bet closure time in seconds – after this many seconds from market start, bets are no longer accepted. */
+    betClosureTime: {
+        type: Number,
+        default: null,
+    },
     /** Opening market number (3 digits), e.g. "123". Set when opening is announced. */
     openingNumber: {
         type: String,

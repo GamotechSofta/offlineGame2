@@ -2,18 +2,19 @@ import Market from '../models/market/market.js';
 
 /**
  * Create a new market.
- * Body: { marketName, startingTime, closingTime }
+ * Body: { marketName, startingTime, closingTime, betClosureTime? }
  */
 export const createMarket = async (req, res) => {
     try {
-        const { marketName, startingTime, closingTime } = req.body;
+        const { marketName, startingTime, closingTime, betClosureTime } = req.body;
         if (!marketName || !startingTime || !closingTime) {
             return res.status(400).json({
                 success: false,
                 message: 'marketName, startingTime and closingTime are required',
             });
         }
-        const market = new Market({ marketName, startingTime, closingTime });
+        const betClosureSec = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
+        const market = new Market({ marketName, startingTime, closingTime, betClosureTime: betClosureSec });
         await market.save();
         const response = market.toObject();
         response.displayResult = market.getDisplayResult();
@@ -76,16 +77,17 @@ export const getMarketById = async (req, res) => {
 
 /**
  * Update market (name, times). Does not set opening/closing numbers; use setOpeningNumber / setClosingNumber.
- * Body: { marketName?, startingTime?, closingTime? }
+ * Body: { marketName?, startingTime?, closingTime?, betClosureTime? }
  */
 export const updateMarket = async (req, res) => {
     try {
         const { id } = req.params;
-        const { marketName, startingTime, closingTime } = req.body;
+        const { marketName, startingTime, closingTime, betClosureTime } = req.body;
         const updates = {};
         if (marketName !== undefined) updates.marketName = marketName;
         if (startingTime !== undefined) updates.startingTime = startingTime;
         if (closingTime !== undefined) updates.closingTime = closingTime;
+        if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
 
         const market = await Market.findByIdAndUpdate(
             id,

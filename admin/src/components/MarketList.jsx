@@ -55,7 +55,9 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
                         <div className="space-y-2 mb-4 text-sm text-gray-300">
                             <p><span className="font-semibold">Opening:</span> {market.startingTime}</p>
                             <p><span className="font-semibold">Closing:</span> {market.closingTime}</p>
-                            <p><span className="font-semibold">Result:</span> <span className="text-yellow-400 font-mono">{market.displayResult || '***-**-***'}</span></p>
+                            {market.betClosureTime != null && market.betClosureTime !== '' && (
+                                <p><span className="font-semibold">Bet Closure:</span> {market.betClosureTime} Seconds</p>
+                            )}
                             {market.winNumber && (
                                 <p><span className="font-semibold">Win Number:</span> <span className="text-green-400 font-mono">{market.winNumber}</span></p>
                             )}
