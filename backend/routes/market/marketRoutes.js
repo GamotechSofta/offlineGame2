@@ -18,11 +18,11 @@ router.get('/get-markets', getMarkets);
 router.get('/get-market/:id', getMarketById);
 
 // Super admin only - market management
-router.post('/create-market', ...verifySuperAdmin, createMarket);
-router.patch('/update-market/:id', ...verifySuperAdmin, updateMarket);
-router.patch('/set-opening-number/:id', ...verifySuperAdmin, setOpeningNumber);
-router.patch('/set-closing-number/:id', ...verifySuperAdmin, setClosingNumber);
-router.patch('/set-win-number/:id', ...verifySuperAdmin, setWinNumber);
-router.delete('/delete-market/:id', ...verifySuperAdmin, deleteMarket);
+router.post('/create-market', verifySuperAdmin, createMarket);
+router.patch('/update-market/:id', verifySuperAdmin, updateMarket);
+router.patch('/set-opening-number/:id', verifySuperAdmin, setOpeningNumber);
+router.patch('/set-closing-number/:id', verifySuperAdmin, setClosingNumber);
+router.patch('/set-win-number/:id', verifySuperAdmin, setWinNumber);
+router.delete('/delete-market/:id', verifySuperAdmin, deleteMarket);
 
 export default router;

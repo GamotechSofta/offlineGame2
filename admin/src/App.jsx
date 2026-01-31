@@ -4,7 +4,6 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import Markets from './pages/Markets';
 import AddUser from './pages/AddUser';
-import CreateBookie from './pages/CreateBookie';
 import AddMarket from './pages/AddMarket';
 import BetHistory from './pages/BetHistory';
 import TopWinners from './pages/TopWinners';
@@ -44,14 +43,6 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <AddUser />
-                        </PrivateRoute>
-                    }
-                />
-                <Route
-                    path="/create-bookie"
-                    element={
-                        <PrivateRoute>
-                            <CreateBookie />
                         </PrivateRoute>
                     }
                 />

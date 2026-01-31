@@ -6,6 +6,6 @@ const router = express.Router();
 
 router.get('/all', verifyAdmin, getAllWallets);
 router.get('/transactions', verifyAdmin, getTransactions);
-router.post('/adjust', ...verifySuperAdmin, adjustBalance);
+router.post('/adjust', verifySuperAdmin, adjustBalance);
 
 export default router;

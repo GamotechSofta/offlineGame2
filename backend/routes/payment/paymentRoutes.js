@@ -5,6 +5,6 @@ import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 const router = express.Router();
 
 router.get('/', verifyAdmin, getPayments);
-router.patch('/:id/status', ...verifySuperAdmin, updatePaymentStatus);
+router.patch('/:id/status', verifySuperAdmin, updatePaymentStatus);
 
 export default router;

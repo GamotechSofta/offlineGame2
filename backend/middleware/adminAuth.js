@@ -6,10 +6,12 @@ import Admin from '../models/admin/admin.js';
  * In production, use JWT tokens
  */
 export const verifyAdmin = async (req, res, next) => {
+    if (typeof next !== 'function') {
+        return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
     try {
         let username, password;
 
-        // Try to get from Authorization header first
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Basic ')) {
             try {
@@ -20,10 +22,9 @@ export const verifyAdmin = async (req, res, next) => {
             }
         }
 
-        // Fallback to body if not in headers
         if (!username || !password) {
-            username = req.body.username;
-            password = req.body.password;
+            username = req.body?.username;
+            password = req.body?.password;
         }
 
         if (!username || !password) {
@@ -52,7 +53,7 @@ export const verifyAdmin = async (req, res, next) => {
         req.admin = admin;
         next();
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -67,8 +68,19 @@ export const requireSuperAdmin = (req, res, next) => {
     next();
 };
 
-/** Chain: verifyAdmin + requireSuperAdmin */
-export const verifySuperAdmin = [verifyAdmin, requireSuperAdmin];
+/** Combined: verifyAdmin + requireSuperAdmin - single middleware to avoid "next is not a function" */
+export const verifySuperAdmin = (req, res, next) => {
+    const checkRoleAndContinue = () => {
+        if (req.admin?.role !== 'super_admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Super admin access required',
+            });
+        }
+        next();
+    };
+    verifyAdmin(req, res, checkRoleAndContinue);
+};
 
 /** Only bookie can access - use after verifyAdmin */
 export const requireBookie = (req, res, next) => {
