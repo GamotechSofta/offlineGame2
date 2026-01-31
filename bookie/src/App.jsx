@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Markets from './pages/Markets';
 import AddUser from './pages/AddUser';
+import MyUsers from './pages/MyUsers';
 import ReferralLink from './pages/ReferralLink';
 import BetHistory from './pages/BetHistory';
 import TopWinners from './pages/TopWinners';
@@ -31,6 +32,7 @@ const AppRoutes = () => (
     <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/my-users" element={<PrivateRoute><MyUsers /></PrivateRoute>} />
         <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
         <Route path="/referral-link" element={<PrivateRoute><ReferralLink /></PrivateRoute>} />

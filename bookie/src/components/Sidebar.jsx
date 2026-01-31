@@ -12,6 +12,7 @@ import {
     FaLifeRing,
     FaLink,
     FaSignOutAlt,
+    FaUsers,
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout }) => {
@@ -20,6 +21,7 @@ const Sidebar = ({ onLogout }) => {
 
     const menuItems = [
         { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
+        { path: '/my-users', label: 'My Users', icon: FaUsers },
         { path: '/markets', label: 'Markets', icon: FaChartBar },
         { path: '/add-user', label: 'Add User', icon: FaUserPlus },
         { path: '/referral-link', label: 'My Referral Link', icon: FaLink },

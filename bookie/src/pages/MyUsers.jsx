@@ -31,18 +31,28 @@ const MyUsers = () => {
     const fetchUsers = async () => {
         try {
             setLoading(true);
+            const headers = getBookieAuthHeaders();
+            console.log('Fetching users with headers:', headers);
+            
             const response = await fetch(`${API_BASE_URL}/users`, {
-                headers: getBookieAuthHeaders(),
+                headers: headers,
             });
+            
+            console.log('Response status:', response.status);
             const data = await response.json();
+            console.log('Response data:', data);
+            
             if (data.success) {
                 setUsers(data.data);
                 setFilteredUsers(data.data);
+                console.log('Users loaded:', data.data.length);
             } else {
                 setError(data.message || 'Failed to fetch users');
+                console.error('API Error:', data.message);
             }
         } catch (err) {
             setError('Network error. Please check if the server is running.');
+            console.error('Network error:', err);
         } finally {
             setLoading(false);
         }
