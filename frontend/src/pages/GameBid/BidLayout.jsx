@@ -6,7 +6,7 @@ const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSe
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 
     return (
-        <div className="min-h-screen bg-gray-100 font-sans">
+        <div className="min-h-screen bg-gray-100 font-sans w-full max-w-full overflow-x-hidden">
             {/* Header */}
             <div className="bg-gray-200 px-3 sm:px-4 py-3 flex items-center justify-between gap-2 shadow-sm sticky top-0 z-10">
                 <button
@@ -61,7 +61,7 @@ const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSe
                 </div>
             )}
 
-            <div className="flex-1 overflow-y-auto pb-44 md:pb-32">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden pb-44 md:pb-32 w-full max-w-full">
                 {children}
             </div>
 

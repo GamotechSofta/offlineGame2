@@ -36,7 +36,7 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
+    <div className="min-h-screen bg-gray-50 pb-16 md:pb-0 w-full max-w-full overflow-x-hidden">
       <AppHeader />
       {children}
       <BottomNavbar />

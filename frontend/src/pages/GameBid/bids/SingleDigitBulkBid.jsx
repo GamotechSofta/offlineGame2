@@ -20,10 +20,10 @@ const SingleDigitBulkBid = ({ market, title }) => {
 
     return (
         <BidLayout market={market} title={title} bidsCount={bulkBidsCount} totalPoints={bulkTotalPoints} showDateSession={false} extraHeader={extraHeader} session={session} setSession={setSession}>
-            <div className="px-3 sm:px-4 py-4 sm:py-2">
-                <div className="flex flex-col md:grid md:grid-cols-2 md:gap-6 md:items-center gap-4 md:gap-6">
-                    <div className="w-full md:flex md:justify-center md:items-center">
-                        <div className="flex flex-col md:grid md:grid-cols-2 gap-3 sm:gap-4 mb-2 md:mb-0 max-w-sm w-full">
+            <div className="px-3 sm:px-4 py-4 sm:py-2 w-full max-w-full overflow-x-hidden">
+                <div className="flex flex-col md:grid md:grid-cols-2 md:gap-6 md:items-center gap-4 md:gap-6 w-full">
+                    <div className="w-full min-w-0 md:flex md:justify-center md:items-center">
+                        <div className="flex flex-col md:grid md:grid-cols-2 gap-3 sm:gap-4 mb-2 md:mb-0 w-full md:max-w-sm">
                             <div className="flex flex-row md:flex-col items-center gap-2 md:gap-1.5 md:items-stretch">
                                 <label className="text-gray-700 text-sm font-medium shrink-0 w-24 md:w-auto md:pl-1">Date:</label>
                                 <div className="relative flex-1 w-full min-w-0">
@@ -46,8 +46,8 @@ const SingleDigitBulkBid = ({ market, title }) => {
                             </div>
                         </div>
                     </div>
-                    <div className="w-full md:flex md:justify-center md:items-center pt-2 md:pt-6">
-                        <div className="grid grid-cols-3 gap-2 sm:gap-2 md:gap-3 max-w-[180px] sm:max-w-[160px] md:max-w-[200px] w-full mx-auto">
+                    <div className="w-full min-w-0 md:flex md:justify-center md:items-center pt-2 md:pt-6">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-3 w-full max-w-[280px] md:max-w-[200px] mx-auto">
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                                 <button key={num} type="button" onClick={() => handleDigitClick(num)} className="relative aspect-square min-h-[44px] sm:min-h-[38px] md:min-h-[44px] bg-[#0F172A] hover:bg-[#1e293b] text-white rounded-lg font-bold text-base flex items-center justify-center transition-all active:scale-95 shadow-md">
                                     {num}
