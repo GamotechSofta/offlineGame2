@@ -35,8 +35,10 @@ const Layout = ({ children }) => {
     );
   }
 
+  const isBidPage = location.pathname.includes('game-bid') || location.pathname === '/bidoptions';
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 md:pb-0 w-full max-w-full overflow-x-hidden">
+    <div className={`min-h-screen pb-16 md:pb-0 w-full max-w-full overflow-x-hidden ${isBidPage ? 'bg-black' : 'bg-gray-50'}`}>
       <AppHeader />
       {children}
       <BottomNavbar />
