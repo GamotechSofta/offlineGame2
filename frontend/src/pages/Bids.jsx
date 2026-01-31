@@ -13,7 +13,8 @@ const Bids = () => {
     {
       title: 'Game Results',
       subtitle: 'You can view your market result history',
-      color: '#25d366'
+      color: '#25d366',
+      iconUrl: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769799295/result_ekwn16.png'
     },
     {
       title: 'Sara Starline Bid History',
@@ -55,10 +56,18 @@ const Bids = () => {
                   className="w-14 h-14 rounded-full flex items-center justify-center text-black shadow-[0_6px_14px_rgba(0,0,0,0.35)]"
                   style={{ backgroundColor: item.color }}
                 >
-                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
-                    <circle cx="12" cy="12" r="8" />
-                  </svg>
+                  {item.iconUrl ? (
+                    <img
+                      src={item.iconUrl}
+                      alt={item.title}
+                      className="w-7 h-7 object-contain"
+                    />
+                  ) : (
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
+                      <circle cx="12" cy="12" r="8" />
+                    </svg>
+                  )}
                 </div>
                 <div>
                   <p className="text-base sm:text-lg font-semibold">{item.title}</p>
