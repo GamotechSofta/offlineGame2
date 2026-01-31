@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import BidLayout from '../BidLayout';
+import BidReviewModal from './BidReviewModal';
 
 const SingleDigitBulkBid = ({ market, title }) => {
     const [session, setSession] = useState('OPEN');
     const [inputPoints, setInputPoints] = useState('');
     const [specialBids, setSpecialBids] = useState(Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i, 0])));
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
 
     const handleDigitClick = (num) => {
         const pts = Number(inputPoints);
@@ -15,11 +17,62 @@ const SingleDigitBulkBid = ({ market, title }) => {
     const bulkBidsCount = Object.values(specialBids).filter((v) => Number(v) > 0).length;
     const bulkTotalPoints = Object.values(specialBids).reduce((sum, v) => sum + Number(v || 0), 0);
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    const dateText = new Date().toLocaleDateString('en-GB');
+    const marketTitle = market?.gameName || market?.marketName || title;
+
+    const walletBefore = useMemo(() => {
+        try {
+            const u = JSON.parse(localStorage.getItem('user') || 'null');
+            const val =
+                u?.wallet ||
+                u?.balance ||
+                u?.points ||
+                u?.walletAmount ||
+                u?.wallet_amount ||
+                u?.amount ||
+                0;
+            const n = Number(val);
+            return Number.isFinite(n) ? n : 0;
+        } catch (e) {
+            return 0;
+        }
+    }, []);
+
+    const rows = Object.entries(specialBids)
+        .filter(([, pts]) => Number(pts) > 0)
+        .map(([num, pts]) => ({
+            id: `${num}-${pts}`,
+            number: String(num),
+            points: String(pts),
+            type: session,
+        }));
+
+    const clearAll = () => {
+        setIsReviewOpen(false);
+        setInputPoints('');
+        setSpecialBids(Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i, 0])));
+    };
+
+    const handleSubmitBet = () => {
+        // Integrate API later. For now, close and clear.
+        clearAll();
+    };
 
     const extraHeader = null;
 
     return (
-        <BidLayout market={market} title={title} bidsCount={bulkBidsCount} totalPoints={bulkTotalPoints} showDateSession={false} extraHeader={extraHeader} session={session} setSession={setSession}>
+        <BidLayout
+            market={market}
+            title={title}
+            bidsCount={bulkBidsCount}
+            totalPoints={bulkTotalPoints}
+            showDateSession={false}
+            extraHeader={extraHeader}
+            session={session}
+            setSession={setSession}
+            hideFooter
+            walletBalance={walletBefore}
+        >
             <div className="px-3 sm:px-4 py-4 sm:py-2 w-full max-w-full overflow-x-hidden">
                 <div className="flex flex-col md:grid md:grid-cols-2 md:gap-6 md:items-center gap-4 md:gap-6 w-full">
                     <div className="w-full min-w-0 md:flex md:justify-center md:items-center">
@@ -61,9 +114,32 @@ const SingleDigitBulkBid = ({ market, title }) => {
                                 </button>
                             </div>
                         </div>
+
+                        {bulkBidsCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setIsReviewOpen(true)}
+                                className="mt-5 w-full max-w-[280px] md:max-w-[200px] mx-auto bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98]"
+                            >
+                                Proceed to Payment
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
+
+            <BidReviewModal
+                open={isReviewOpen}
+                onClose={clearAll}
+                onSubmit={handleSubmitBet}
+                marketTitle={marketTitle}
+                dateText={dateText}
+                labelKey="Digit"
+                rows={rows}
+                walletBefore={walletBefore}
+                totalBids={bulkBidsCount}
+                totalAmount={bulkTotalPoints}
+            />
         </BidLayout>
     );
 };

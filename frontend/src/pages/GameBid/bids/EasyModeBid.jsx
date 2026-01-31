@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import BidLayout from '../BidLayout';
+import BidReviewModal from './BidReviewModal';
 
 const EasyModeBid = ({ market, title, label, maxLength = 3, validateInput }) => {
     const [session, setSession] = useState('OPEN');
     const [bids, setBids] = useState([]);
     const [inputNumber, setInputNumber] = useState('');
     const [inputPoints, setInputPoints] = useState('');
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
 
     const defaultValidate = (n) => {
         if (!n || !n.toString().trim()) return false;
@@ -16,12 +18,30 @@ const EasyModeBid = ({ market, title, label, maxLength = 3, validateInput }) => 
     const handleAddBid = () => {
         if (!inputPoints || Number(inputPoints) <= 0) return;
         if (!isValid(inputNumber)) return;
-        setBids([...bids, { id: Date.now(), number: inputNumber.toString().trim(), points: inputPoints, type: session }]);
+        const next = [...bids, { id: Date.now(), number: inputNumber.toString().trim(), points: inputPoints, type: session }];
+        setBids(next);
         setInputNumber('');
         setInputPoints('');
+        setIsReviewOpen(true);
     };
 
-    const handleDeleteBid = (id) => setBids(bids.filter((b) => b.id !== id));
+    const walletBefore = useMemo(() => {
+        try {
+            const u = JSON.parse(localStorage.getItem('user') || 'null');
+            const val =
+                u?.wallet ||
+                u?.balance ||
+                u?.points ||
+                u?.walletAmount ||
+                u?.wallet_amount ||
+                u?.amount ||
+                0;
+            const n = Number(val);
+            return Number.isFinite(n) ? n : 0;
+        } catch (e) {
+            return 0;
+        }
+    }, []);
 
     const handleNumberInputChange = (e) => {
         const val = e.target.value;
@@ -35,9 +55,37 @@ const EasyModeBid = ({ market, title, label, maxLength = 3, validateInput }) => 
 
     const totalPoints = bids.reduce((sum, b) => sum + Number(b.points), 0);
     const labelKey = label?.split(' ').pop() || 'Number';
+    const dateText = new Date().toLocaleDateString('en-GB'); // dd/mm/yyyy
+    const marketTitle = market?.gameName || market?.marketName || title;
+
+    const clearAll = () => {
+        setBids([]);
+        setInputNumber('');
+        setInputPoints('');
+    };
+
+    const handleCancelBet = () => {
+        setIsReviewOpen(false);
+        clearAll();
+    };
+
+    const handleSubmitBet = () => {
+        // Integrate API later. For now, close modal and clear current bets.
+        setIsReviewOpen(false);
+        clearAll();
+    };
 
     return (
-        <BidLayout market={market} title={title} bidsCount={bids.length} totalPoints={totalPoints} session={session} setSession={setSession}>
+        <BidLayout
+            market={market}
+            title={title}
+            bidsCount={bids.length}
+            totalPoints={totalPoints}
+            session={session}
+            setSession={setSession}
+            hideFooter
+            walletBalance={walletBefore}
+        >
             <div className="px-3 sm:px-4 py-4 sm:py-2">
                 <div className="flex flex-col gap-3 mb-4">
                     <div className="flex flex-row items-center gap-2">
@@ -62,31 +110,20 @@ const EasyModeBid = ({ market, title, label, maxLength = 3, validateInput }) => 
                     </div>
                 </div>
                 <button onClick={handleAddBid} className="w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98] mb-5 sm:mb-6">Add</button>
-                <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-[#d4af37] font-bold text-xs sm:text-sm mb-2 px-1">
-                    <div>{labelKey}</div>
-                    <div>Point</div>
-                    <div>Type</div>
-                    <div>Delete</div>
-                </div>
-                <div className="h-px bg-white/10 w-full mb-2"></div>
-                <div className="space-y-2">
-                    {bids.map((bid) => (
-                        <div key={bid.id} className="grid grid-cols-4 gap-1 sm:gap-2 text-center items-center py-2.5 px-2 bg-[#202124] rounded-lg border border-white/10 text-sm">
-                            <div className="font-bold text-white">{bid.number}</div>
-                            <div className="font-bold text-[#f2c14e]">{bid.points}</div>
-                            <div className="text-sm text-gray-400">{bid.type}</div>
-                            <div className="flex justify-center">
-                                <button onClick={() => handleDeleteBid(bid.id)} className="p-2 text-red-400 hover:text-red-300 active:scale-95">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                    {bids.length === 0 && <div className="text-center text-gray-500 py-10 sm:py-8 text-sm">No bids added yet</div>}
-                </div>
             </div>
+
+            <BidReviewModal
+                open={isReviewOpen}
+                onClose={handleCancelBet}
+                onSubmit={handleSubmitBet}
+                marketTitle={marketTitle}
+                dateText={dateText}
+                labelKey={labelKey}
+                rows={bids}
+                walletBefore={walletBefore}
+                totalBids={bids.length}
+                totalAmount={totalPoints}
+            />
         </BidLayout>
     );
 };

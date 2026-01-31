@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import BidLayout from '../BidLayout';
+import BidReviewModal from './BidReviewModal';
 
 const SingleDigitBid = ({ market, title }) => {
     const [activeTab, setActiveTab] = useState('easy');
@@ -7,20 +8,31 @@ const SingleDigitBid = ({ market, title }) => {
     const [bids, setBids] = useState([]);
     const [inputNumber, setInputNumber] = useState('');
     const [inputPoints, setInputPoints] = useState('');
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
     const [specialModeInputs, setSpecialModeInputs] = useState(
         Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i, '']))
     );
+
+    const resetSpecialInputs = () =>
+        setSpecialModeInputs(Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i, ''])));
+
+    const clearAll = () => {
+        setBids([]);
+        setInputNumber('');
+        setInputPoints('');
+        resetSpecialInputs();
+    };
 
     const handleAddBid = () => {
         if (!inputPoints || Number(inputPoints) <= 0) return;
         const n = inputNumber.toString().trim();
         if (!n || !/^[0-9]$/.test(n)) return;
-        setBids([...bids, { id: Date.now(), number: n, points: inputPoints, type: session }]);
+        const next = [...bids, { id: Date.now(), number: n, points: inputPoints, type: session }];
+        setBids(next);
         setInputNumber('');
         setInputPoints('');
+        setIsReviewOpen(true);
     };
-
-    const handleDeleteBid = (id) => setBids(bids.filter((b) => b.id !== id));
 
     const handleNumberInputChange = (e) => {
         const digit = e.target.value.replace(/\D/g, '').slice(-1);
@@ -32,12 +44,34 @@ const SingleDigitBid = ({ market, title }) => {
             .filter(([, pts]) => Number(pts) > 0)
             .map(([num, pts]) => ({ id: Date.now() + parseInt(num, 10), number: num, points: String(pts), type: session }));
         if (toAdd.length === 0) return;
-        setBids([...bids, ...toAdd]);
+        const next = [...bids, ...toAdd];
+        setBids(next);
         setSpecialModeInputs(Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i, ''])));
+        setIsReviewOpen(true);
     };
 
     const totalPoints = bids.reduce((sum, b) => sum + Number(b.points), 0);
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    const dateText = new Date().toLocaleDateString('en-GB');
+    const marketTitle = market?.gameName || market?.marketName || title;
+
+    const walletBefore = useMemo(() => {
+        try {
+            const u = JSON.parse(localStorage.getItem('user') || 'null');
+            const val =
+                u?.wallet ||
+                u?.balance ||
+                u?.points ||
+                u?.walletAmount ||
+                u?.wallet_amount ||
+                u?.amount ||
+                0;
+            const n = Number(val);
+            return Number.isFinite(n) ? n : 0;
+        } catch (e) {
+            return 0;
+        }
+    }, []);
 
     const modeTabs = (
         <div className="grid grid-cols-2 gap-3">
@@ -78,35 +112,6 @@ const SingleDigitBid = ({ market, title }) => {
         </div>
     );
 
-    const BidsTable = ({ labelKey }) => (
-        <>
-            <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-[#d4af37] font-bold text-xs sm:text-sm mb-2 px-1">
-                <div>{labelKey}</div>
-                <div>Point</div>
-                <div>Type</div>
-                <div>Delete</div>
-            </div>
-            <div className="h-px bg-white/10 w-full mb-2"></div>
-            <div className="space-y-2">
-                {bids.map((bid) => (
-                    <div key={bid.id} className="grid grid-cols-4 gap-1 sm:gap-2 text-center items-center py-2.5 px-2 bg-[#202124] rounded-lg border border-white/10 text-sm">
-                        <div className="font-bold text-white">{bid.number}</div>
-                        <div className="font-bold text-[#f2c14e]">{bid.points}</div>
-                        <div className="text-sm text-gray-400">{bid.type}</div>
-                        <div className="flex justify-center">
-                            <button onClick={() => handleDeleteBid(bid.id)} className="p-2 text-red-400 hover:text-red-300 active:scale-95">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                ))}
-                {bids.length === 0 && <div className="text-center text-gray-500 py-10 sm:py-8 text-sm">No bids added yet</div>}
-            </div>
-        </>
-    );
-
     const leftColumn = (
         <div className="space-y-4">
             {modeTabs}
@@ -142,40 +147,38 @@ const SingleDigitBid = ({ market, title }) => {
                     <button onClick={handleAddSpecialModeBids} className="w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3 rounded-md shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all">Add to List</button>
                 </>
             )}
+
         </div>
     );
 
-    const submitBidsCard = (
-        <div className="mt-4 w-full bg-[#202124]/95 backdrop-blur-sm border border-white/10 rounded-2xl shadow-xl shadow-black/30 px-4 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-            <div className="flex items-center gap-6 sm:gap-8 shrink-0">
-                <div className="text-center">
-                    <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Bids</div>
-                    <div className="text-base sm:text-lg font-bold text-[#f2c14e]">{bids.length}</div>
-                </div>
-                <div className="text-center">
-                    <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Points</div>
-                    <div className="text-base sm:text-lg font-bold text-[#f2c14e]">{totalPoints}</div>
-                </div>
-            </div>
-            <button className="flex-1 w-full sm:w-auto sm:min-w-[140px] bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3 px-6 rounded-xl shadow-lg hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98] text-sm sm:text-base">
-                Submit Bids
-            </button>
-        </div>
-    );
+    const handleSubmitBet = () => {
+        setIsReviewOpen(false);
+        clearAll();
+    };
 
-    const rightColumn = (
-        <div>
-            <BidsTable labelKey="Digit" />
-            {submitBidsCard}
-        </div>
-    );
+    const handleCancelBet = () => {
+        setIsReviewOpen(false);
+        clearAll();
+    };
 
     return (
-        <BidLayout market={market} title={title} bidsCount={bids.length} totalPoints={totalPoints} showDateSession={false} extraHeader={null} session={session} setSession={setSession} hideFooter>
-            <div className="px-3 sm:px-4 py-4 sm:py-2 md:grid md:grid-cols-2 md:gap-6 md:max-w-7xl md:mx-auto md:items-start">
-                <div className="md:pr-4 md:border-r md:border-white/10">{leftColumn}</div>
-                <div className="mt-6 md:mt-0 md:pl-4">{rightColumn}</div>
+        <BidLayout market={market} title={title} bidsCount={bids.length} totalPoints={totalPoints} showDateSession={false} extraHeader={null} session={session} setSession={setSession} hideFooter walletBalance={walletBefore}>
+            <div className="px-3 sm:px-4 py-4 sm:py-2 md:max-w-3xl md:mx-auto md:items-start">
+                {leftColumn}
             </div>
+
+            <BidReviewModal
+                open={isReviewOpen}
+                onClose={handleCancelBet}
+                onSubmit={handleSubmitBet}
+                marketTitle={marketTitle}
+                dateText={dateText}
+                labelKey="Digit"
+                rows={bids}
+                walletBefore={walletBefore}
+                totalBids={bids.length}
+                totalAmount={totalPoints}
+            />
         </BidLayout>
     );
 };

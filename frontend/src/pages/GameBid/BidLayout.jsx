@@ -1,9 +1,28 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSession = true, extraHeader, session = 'OPEN', setSession = () => {}, footerRightOnDesktop = false, hideFooter = false }) => {
+const getWalletFromStorage = () => {
+    try {
+        const u = JSON.parse(localStorage.getItem('user') || 'null');
+        const val =
+            u?.wallet ||
+            u?.balance ||
+            u?.points ||
+            u?.walletAmount ||
+            u?.wallet_amount ||
+            u?.amount ||
+            0;
+        const n = Number(val);
+        return Number.isFinite(n) ? n : 0;
+    } catch (e) {
+        return 0;
+    }
+};
+
+const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSession = true, extraHeader, session = 'OPEN', setSession = () => {}, footerRightOnDesktop = false, hideFooter = false, walletBalance }) => {
     const navigate = useNavigate();
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    const wallet = Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage();
 
     return (
         <div className="min-h-screen bg-black font-sans w-full max-w-full overflow-x-hidden">
@@ -22,7 +41,7 @@ const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSe
                 </h1>
                 <div className="bg-[#f2c14e] text-[#4b3608] px-2.5 sm:px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs sm:text-sm font-bold shadow-md shrink-0">
                     <div className="w-5 h-5 bg-[#4b3608] rounded flex items-center justify-center text-[#f2c14e] text-xs font-bold">₹</div>
-                    96.0
+                    {wallet.toFixed(1)}
                 </div>
             </div>
 
