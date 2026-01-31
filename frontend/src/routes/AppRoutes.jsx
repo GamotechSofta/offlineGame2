@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import BottomNavbar from '../components/BottomNavbar';
 import Home from '../pages/Home';
 import BidOptions from '../pages/BidOptions';
-import GameBid from '../pages/GameBid';
+import GameBid from '../pages/GameBid/index';
 import Bank from '../pages/Bank';
 import Funds from '../pages/Funds';
 import Download from '../pages/Download';
