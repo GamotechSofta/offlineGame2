@@ -12,7 +12,8 @@ import {
     FaWallet, 
     FaLifeRing,
     FaSignOutAlt,
-    FaUsers
+    FaUsers,
+    FaEdit
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout }) => {
@@ -23,6 +24,7 @@ const Sidebar = ({ onLogout }) => {
         { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
         { path: '/bookie-management', label: 'Bookie Accounts', icon: FaUsers },
         { path: '/markets', label: 'Markets', icon: FaChartBar },
+        { path: '/add-result', label: 'Add Result', icon: FaEdit },
         { path: '/add-user', label: 'Add User', icon: FaUserPlus },
         { path: '/add-market', label: 'Add New Market', icon: FaPlusCircle },
         { path: '/bet-history', label: 'Bet History', icon: FaHistory },

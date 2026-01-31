@@ -121,20 +121,22 @@ export const updateMarket = async (req, res) => {
 
 /**
  * Set opening number (3 digits). Body: { openingNumber: "123" }
+ * Send null or "" to clear (keep blank).
  */
 export const setOpeningNumber = async (req, res) => {
     try {
         const { id } = req.params;
         const { openingNumber } = req.body;
-        if (!openingNumber || !/^\d{3}$/.test(openingNumber)) {
+        const value = openingNumber == null || openingNumber === '' ? null : openingNumber;
+        if (value !== null && !/^\d{3}$/.test(value)) {
             return res.status(400).json({
                 success: false,
-                message: 'openingNumber must be exactly 3 digits',
+                message: 'openingNumber must be exactly 3 digits or empty to clear',
             });
         }
         const market = await Market.findByIdAndUpdate(
             id,
-            { openingNumber },
+            { openingNumber: value },
             { new: true, runValidators: true }
         );
         if (!market) {
@@ -160,21 +162,23 @@ export const setOpeningNumber = async (req, res) => {
 
 /**
  * Set closing number (3 digits). Body: { closingNumber: "456" }
- * Result (e.g. 123-65-456) is computed and stored on save.
+ * Send null or "" to clear (keep blank).
+ * Result (e.g. 123-65-456) is computed when both opening and closing are set.
  */
 export const setClosingNumber = async (req, res) => {
     try {
         const { id } = req.params;
         const { closingNumber } = req.body;
-        if (!closingNumber || !/^\d{3}$/.test(closingNumber)) {
+        const value = closingNumber == null || closingNumber === '' ? null : closingNumber;
+        if (value !== null && !/^\d{3}$/.test(value)) {
             return res.status(400).json({
                 success: false,
-                message: 'closingNumber must be exactly 3 digits',
+                message: 'closingNumber must be exactly 3 digits or empty to clear',
             });
         }
         const market = await Market.findByIdAndUpdate(
             id,
-            { closingNumber },
+            { closingNumber: value },
             { new: true, runValidators: true }
         );
         if (!market) {

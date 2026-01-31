@@ -25,24 +25,13 @@ const Markets = () => {
         }
     };
 
+    // ***-**-*** → Open (green), 156-2*-*** → Running (green), 987-45-456 → Closed (red)
     const getMarketStatus = (market) => {
-        try {
-            const now = new Date();
-            const currentTime = now.getHours() * 60 + now.getMinutes();
-            const parse = (t) => {
-                if (!t) return null;
-                const [h, m] = t.split(':').map(Number);
-                return h >= 0 && h < 24 && m >= 0 && m < 60 ? h * 60 + m : null;
-            };
-            const start = parse(market.startingTime);
-            const end = parse(market.closingTime);
-            if (!start || !end) return { status: 'unknown', color: 'bg-gray-600' };
-            if (currentTime < start) return { status: 'upcoming', color: 'bg-blue-600' };
-            if (currentTime >= start && currentTime <= end) return { status: 'open', color: 'bg-green-600' };
-            return { status: 'closed', color: 'bg-red-600' };
-        } catch {
-            return { status: 'unknown', color: 'bg-gray-600' };
-        }
+        const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
+        const hasClosing = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
+        if (hasOpening && hasClosing) return { status: 'closed', color: 'bg-red-600' };
+        if (hasOpening && !hasClosing) return { status: 'running', color: 'bg-green-600' };
+        return { status: 'open', color: 'bg-green-600' };
     };
 
     return (
@@ -58,7 +47,11 @@ const Markets = () => {
                             const { status, color } = getMarketStatus(market);
                             return (
                                 <div key={market._id} className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                                    <div className={`${color} text-white text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4`}>{status.toUpperCase()}</div>
+                                    <div className={`${color} text-white text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4`}>
+                                        {status === 'open' && 'OPEN'}
+                                        {status === 'running' && 'CLOSED IS RUNNING'}
+                                        {status === 'closed' && 'CLOSED'}
+                                    </div>
                                     <h3 className="text-xl font-bold text-white mb-2">{market.marketName}</h3>
                                     <div className="space-y-2 text-sm text-gray-300">
                                         <p><span className="font-semibold">Opening:</span> {market.startingTime}</p>

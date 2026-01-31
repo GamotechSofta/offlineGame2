@@ -17,67 +17,21 @@ const Section1 = () => {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Parse time string to minutes since midnight
-  const parseTimeToMinutes = (timeStr) => {
-    if (!timeStr) return null;
-    const [hour, min] = timeStr.split(':').map(Number);
-    if (hour >= 0 && hour < 24 && min >= 0 && min < 60) {
-      return hour * 60 + min;
-    }
-    return null;
-  };
-
-  // Calculate market status and countdown
+  // Status based on result format only:
+  // ***-**-*** → Open (green)
+  // 156-2*-*** (opening set, closing not) → Closed is running (green)
+  // 987-45-456 (full result) → Market Closed (red)
   const getMarketStatus = (market) => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMin = now.getMinutes();
-    const currentSec = now.getSeconds();
-    const currentTime = currentHour * 60 + currentMin;
+    const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
+    const hasClosing = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
 
-    const startTime = parseTimeToMinutes(market.startingTime);
-    const endTime = parseTimeToMinutes(market.closingTime);
-
-    if (startTime === null || endTime === null) {
-      return { isOpen: false, timer: null };
+    if (hasOpening && hasClosing) {
+      return { status: 'closed', timer: null };
     }
-
-    if (currentTime < startTime) {
-      // Market hasn't started yet - calculate time until opening
-      const totalSeconds = (startTime - currentTime) * 60 - currentSec;
-      const hours = Math.floor(totalSeconds / 3600);
-      const mins = Math.floor((totalSeconds % 3600) / 60);
-      const secs = totalSeconds % 60;
-      
-      let timerStr = '';
-      if (hours > 0) timerStr += `${hours} Hr${hours > 1 ? 's' : ''}: `;
-      if (mins > 0 || hours > 0) timerStr += `${mins} Min${mins !== 1 ? 's' : ''}: `;
-      timerStr += `${secs} Sec${secs !== 1 ? '' : ''}`;
-      
-      return {
-        isOpen: false,
-        timer: timerStr.trim()
-      };
-    } else if (currentTime >= startTime && currentTime <= endTime) {
-      // Market is open - calculate time until closing
-      const totalSeconds = (endTime - currentTime) * 60 - currentSec;
-      const hours = Math.floor(totalSeconds / 3600);
-      const mins = Math.floor((totalSeconds % 3600) / 60);
-      const secs = totalSeconds % 60;
-      
-      let timerStr = '';
-      if (hours > 0) timerStr += `${hours} Hr${hours > 1 ? 's' : ''}: `;
-      if (mins > 0 || hours > 0) timerStr += `${mins} Min${mins !== 1 ? 's' : ''}: `;
-      timerStr += `${secs} Sec${secs !== 1 ? '' : ''}`;
-      
-      return {
-        isOpen: true,
-        timer: timerStr.trim()
-      };
-    } else {
-      // Market is closed
-      return { isOpen: false, timer: null };
+    if (hasOpening && !hasClosing) {
+      return { status: 'running', timer: null };
     }
+    return { status: 'open', timer: null };
   };
 
   // Fetch markets from API
@@ -91,17 +45,19 @@ const Section1 = () => {
         if (data.success) {
           // Transform API data to match UI format
           const transformedMarkets = data.data.map((market) => {
-            const status = getMarketStatus(market);
+            const st = getMarketStatus(market);
             return {
               id: market._id,
               gameName: market.marketName,
               timeRange: `${formatTime(market.startingTime)} - ${formatTime(market.closingTime)}`,
               result: market.displayResult || '***-**-***',
-              isOpen: status.isOpen,
-              timer: status.timer,
+              status: st.status,
+              timer: st.timer,
               winNumber: market.winNumber,
               startingTime: market.startingTime,
-              closingTime: market.closingTime
+              closingTime: market.closingTime,
+              openingNumber: market.openingNumber,
+              closingNumber: market.closingNumber
             };
           });
           setMarkets(transformedMarkets);
@@ -121,27 +77,6 @@ const Section1 = () => {
     return () => clearInterval(dataInterval);
   }, []);
 
-  // Update timers every second for real-time countdown
-  useEffect(() => {
-    const timerInterval = setInterval(() => {
-      setMarkets((prevMarkets) => 
-        prevMarkets.map((market) => {
-          if (!market.startingTime || !market.closingTime) return market;
-          const status = getMarketStatus({
-            startingTime: market.startingTime,
-            closingTime: market.closingTime
-          });
-          return {
-            ...market,
-            isOpen: status.isOpen,
-            timer: status.timer
-          };
-        })
-      );
-    }, 1000);
-
-    return () => clearInterval(timerInterval);
-  }, []);
 
   return (
     <section className="w-full bg-black py-4 sm:py-6 px-3 sm:px-4 md:px-8">
@@ -181,10 +116,14 @@ const Section1 = () => {
               onClick={() => navigate('/bidoptions')}
               className="bg-gray-800 rounded-lg overflow-hidden shadow-lg cursor-pointer transform hover:scale-[1.02] transition-transform duration-200"
             >
-              {/* Status Banner */}
-              <div className={`${market.isOpen ? 'bg-green-600' : 'bg-red-600'} py-2 px-3 text-center`}>
+              {/* Status: ***-**-***=Open(green), 156-2*-***=Running(green), 987-45-456=Closed(red) */}
+              <div className={`${
+                market.status === 'closed' ? 'bg-red-600' : 'bg-green-600'
+              } py-2 px-3 text-center`}>
                 <p className="text-white text-xs sm:text-sm font-semibold">
-                  {market.isOpen ? market.timer : 'MARKET CLOSED'}
+                  {market.status === 'open' && 'MARKET IS OPEN'}
+                  {market.status === 'running' && 'CLOSED IS RUNNING'}
+                  {market.status === 'closed' && 'MARKET CLOSED'}
                 </p>
               </div>
 

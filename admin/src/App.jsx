@@ -12,6 +12,7 @@ import PaymentManagement from './pages/PaymentManagement';
 import Wallet from './pages/Wallet';
 import HelpDesk from './pages/HelpDesk';
 import BookieManagement from './pages/BookieManagement';
+import AddResult from './pages/AddResult';
 
 const PrivateRoute = ({ children }) => {
     const admin = localStorage.getItem('admin');
@@ -36,6 +37,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <Markets />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/add-result"
+                    element={
+                        <PrivateRoute>
+                            <AddResult />
                         </PrivateRoute>
                     }
                 />
