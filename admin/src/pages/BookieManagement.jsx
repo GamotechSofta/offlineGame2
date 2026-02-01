@@ -176,7 +176,7 @@ const BookieManagement = () => {
             const data = await response.json();
             
             if (data.success) {
-                setSuccess(`Bookie ${data.data.status === 'active' ? 'activated' : 'deactivated'} successfully!`);
+                setSuccess(`Bookie ${data.data.status === 'active' ? 'unsuspended' : 'suspended'} successfully!`);
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 3000);
             } else {
@@ -320,7 +320,7 @@ const BookieManagement = () => {
                                                         ? 'bg-green-900/50 text-green-400 border border-green-700' 
                                                         : 'bg-red-900/50 text-red-400 border border-red-700'
                                                 }`}>
-                                                    {bookie.status === 'active' ? 'Active' : 'Inactive'}
+                                                    {bookie.status === 'active' ? 'Active' : 'Suspended'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-300">
@@ -339,7 +339,7 @@ const BookieManagement = () => {
                                                                 ? 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
                                                                 : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                                                         }`}
-                                                        title={bookie.status === 'active' ? 'Deactivate' : 'Activate'}
+                                                        title={bookie.status === 'active' ? 'Suspend' : 'Unsuspend'}
                                                     >
                                                         {bookie.status === 'active' ? <FaToggleOn size={18} /> : <FaToggleOff size={18} />}
                                                     </button>
@@ -373,7 +373,7 @@ const BookieManagement = () => {
                         <div className="text-gray-300 space-y-2 text-sm sm:text-base">
                             <p><strong>Bookie Panel URL:</strong> <code className="bg-gray-700 px-2 py-1 rounded">/bookie</code></p>
                             <p><strong>Login:</strong> Bookies use their Username as Login ID and the password you set.</p>
-                            <p><strong>Status:</strong> Inactive bookies cannot login to the bookie panel.</p>
+                            <p><strong>Status:</strong> Suspended bookies cannot login to the bookie panel.</p>
                         </div>
                     </div>
 

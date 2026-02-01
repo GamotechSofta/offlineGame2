@@ -152,7 +152,7 @@ const HelpDesk = () => {
                                     </div>
 
                                     <div className="mb-4">
-                                        <p className="text-gray-400 text-sm mb-1">User</p>
+                                        <p className="text-gray-400 text-sm mb-1">Player</p>
                                         <p className="font-semibold">{selectedTicket.userId?.username || selectedTicket.userId}</p>
                                     </div>
 

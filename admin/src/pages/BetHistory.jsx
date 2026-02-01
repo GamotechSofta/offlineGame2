@@ -62,7 +62,7 @@ const BetHistory = () => {
                     <div className="bg-gray-800 rounded-lg p-4 mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                         <input
                             type="text"
-                            placeholder="User ID"
+                            placeholder="Player ID"
                             value={filters.userId}
                             onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
                             className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
@@ -111,7 +111,7 @@ const BetHistory = () => {
                                 <thead className="bg-gray-700">
                                     <tr>
                                         <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">ID</th>
-                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">User</th>
+                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Player</th>
                                         <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Market</th>
                                         <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Bet Type</th>
                                         <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Amount</th>

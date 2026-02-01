@@ -90,7 +90,7 @@ const Reports = () => {
                                 <p className="text-2xl font-bold">{report.totalBets}</p>
                             </div>
                             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                                <h3 className="text-gray-400 text-sm mb-2">Active Users</h3>
+                                <h3 className="text-gray-400 text-sm mb-2">Active Players</h3>
                                 <p className="text-2xl font-bold">{report.activeUsers}</p>
                             </div>
                             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">

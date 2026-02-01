@@ -15,7 +15,8 @@ import {
     FaUsers,
     FaUserFriends,
     FaEdit,
-    FaTimes
+    FaTimes,
+    FaClipboardList
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
@@ -24,11 +25,11 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
 
     const menuItems = [
         { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
-        { path: '/all-users', label: 'All Users', icon: FaUserFriends },
+        { path: '/all-users', label: 'All Players', icon: FaUserFriends },
         { path: '/bookie-management', label: 'Bookie Accounts', icon: FaUsers },
         { path: '/markets', label: 'Markets', icon: FaChartBar },
         { path: '/add-result', label: 'Add Result', icon: FaEdit },
-        { path: '/add-user', label: 'Add User', icon: FaUserPlus },
+        { path: '/add-user', label: 'Add Player', icon: FaUserPlus },
         { path: '/add-market', label: 'Add New Market', icon: FaPlusCircle },
         { path: '/bet-history', label: 'Bet History', icon: FaHistory },
         { path: '/top-winners', label: 'Top Winners', icon: FaTrophy },
@@ -36,6 +37,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/payment-management', label: 'Payments', icon: FaCreditCard },
         { path: '/wallet', label: 'Wallet', icon: FaWallet },
         { path: '/help-desk', label: 'Help Desk', icon: FaLifeRing },
+        { path: '/logs', label: 'Logs', icon: FaClipboardList },
     ];
 
     const isActive = (path) => location.pathname === path;

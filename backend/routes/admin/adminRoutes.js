@@ -10,6 +10,7 @@ import {
     deleteBookie,
     toggleBookieStatus
 } from '../../controllers/adminController.js';
+import { getLogs } from '../../controllers/activityLogController.js';
 import { verifyAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.post('/create', createAdmin); // For initial admin setup
 
 // Super Admin management routes (Super Admin only)
 router.get('/super-admins', verifyAdmin, getAllSuperAdmins); // Get all super admins
+router.get('/logs', verifyAdmin, getLogs); // Get activity logs
 
 // Bookie management routes (Super Admin only)
 router.post('/bookies', verifyAdmin, createBookie); // Create new bookie

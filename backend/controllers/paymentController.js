@@ -1,6 +1,7 @@
 import Payment from '../models/payment/payment.js';
 import { Wallet } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
 export const getPayments = async (req, res) => {
     try {
@@ -52,6 +53,17 @@ export const updatePaymentStatus = async (req, res) => {
             }
             await wallet.save();
         }
+
+        await logActivity({
+            action: 'payment_status_update',
+            performedBy: req.admin?.username || 'Admin',
+            performedByType: req.admin?.role || 'admin',
+            targetType: 'payment',
+            targetId: id,
+            details: `Payment ${payment.type} ₹${payment.amount} for "${payment.userId?.username || payment.userId}" updated to ${status}`,
+            meta: { paymentId: id, status, type: payment.type, amount: payment.amount },
+            ip: getClientIp(req),
+        });
 
         res.status(200).json({ success: true, data: payment });
     } catch (error) {

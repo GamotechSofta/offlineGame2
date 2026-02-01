@@ -1,6 +1,7 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useHeartbeat } from './hooks/useHeartbeat';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Markets from './pages/Markets';
@@ -14,6 +15,11 @@ import Payments from './pages/Payments';
 import Wallet from './pages/Wallet';
 import HelpDesk from './pages/HelpDesk';
 
+const BookieHeartbeat = () => {
+    useHeartbeat();
+    return null;
+};
+
 const PrivateRoute = ({ children }) => {
     const { bookie, loading } = useAuth();
 
@@ -25,7 +31,14 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-    return bookie ? children : <Navigate to="/" replace />;
+    return bookie ? (
+        <>
+            <BookieHeartbeat />
+            {children}
+        </>
+    ) : (
+        <Navigate to="/" replace />
+    );
 };
 
 const AppRoutes = () => (

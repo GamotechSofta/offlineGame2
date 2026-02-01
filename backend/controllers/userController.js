@@ -2,6 +2,7 @@ import User from '../models/user/user.js';
 import bcrypt from 'bcryptjs';
 import { Wallet } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -33,11 +34,19 @@ export const userLogin = async (req, res) => {
             });
         }
 
-        const user = await User.findOne({ username, isActive: true });
+        const user = await User.findOne({ username });
         if (!user) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid credentials',
+            });
+        }
+
+        if (!user.isActive) {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account has been suspended. Please contact admin for assistance.',
+                code: 'ACCOUNT_SUSPENDED',
             });
         }
 
@@ -50,6 +59,16 @@ export const userLogin = async (req, res) => {
         }
 
         await User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } });
+
+        await logActivity({
+            action: 'player_login',
+            performedBy: user.username,
+            performedByType: 'user',
+            targetType: 'user',
+            targetId: user._id.toString(),
+            details: `Player "${user.username}" logged in (frontend)`,
+            ip: getClientIp(req),
+        });
 
         // Get wallet balance
         const wallet = await Wallet.findOne({ userId: user._id });
@@ -76,6 +95,13 @@ export const userHeartbeat = async (req, res) => {
         const { userId } = req.body;
         if (!userId) {
             return res.status(400).json({ success: false, message: 'userId is required' });
+        }
+        const user = await User.findById(userId).select('isActive').lean();
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found', code: 'ACCOUNT_SUSPENDED' });
+        }
+        if (!user.isActive) {
+            return res.status(403).json({ success: false, message: 'Account suspended', code: 'ACCOUNT_SUSPENDED' });
         }
         await User.updateOne({ _id: userId }, { $set: { lastActiveAt: new Date() } });
         res.status(200).json({ success: true, message: 'Heartbeat updated' });
@@ -139,6 +165,17 @@ export const userSignup = async (req, res) => {
 
         const user = await User.collection.insertOne(userDoc);
         const userId = user.insertedId;
+
+        await logActivity({
+            action: 'player_signup',
+            performedBy: username,
+            performedByType: 'user',
+            targetType: 'user',
+            targetId: userId.toString(),
+            details: `Player "${username}" signed up (${source === 'bookie' ? 'via bookie link' : 'direct frontend'})`,
+            meta: { email: userDoc.email, source },
+            ip: getClientIp(req),
+        });
 
         // Create wallet for user
         await Wallet.collection.insertOne({
@@ -225,6 +262,18 @@ export const createUser = async (req, res) => {
             updatedAt: new Date(),
         });
 
+        if (req.admin) {
+            await logActivity({
+                action: 'create_player',
+                performedBy: req.admin.username,
+                performedByType: req.admin.role || 'admin',
+                targetType: 'user',
+                targetId: userId.toString(),
+                details: `Player "${username}" created`,
+                ip: getClientIp(req),
+            });
+        }
+
         res.status(201).json({
             success: true,
             message: 'User created successfully',
@@ -288,6 +337,57 @@ export const getUsers = async (req, res) => {
         users = addOnlineStatus(users);
 
         res.status(200).json({ success: true, data: users });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Toggle player account status (suspend/unsuspend)
+ * Only super_admin can toggle. Sets isActive to false (suspended) or true (active).
+ */
+export const togglePlayerStatus = async (req, res) => {
+    try {
+        if (req.admin?.role !== 'super_admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Only Super Admin can suspend or unsuspend player accounts',
+            });
+        }
+
+        const { id } = req.params;
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Player not found',
+            });
+        }
+
+        user.isActive = !user.isActive;
+        await user.save();
+
+        const action = user.isActive ? 'unsuspend_player' : 'suspend_player';
+        await logActivity({
+            action,
+            performedBy: req.admin?.username || 'Admin',
+            performedByType: req.admin?.role || 'admin',
+            targetType: 'user',
+            targetId: user._id.toString(),
+            details: `Player "${user.username}" ${user.isActive ? 'unsuspended (account active)' : 'suspended (account blocked)'}`,
+            ip: getClientIp(req),
+        });
+
+        res.status(200).json({
+            success: true,
+            message: `Player ${user.isActive ? 'unsuspended' : 'suspended'} successfully`,
+            data: {
+                id: user._id,
+                username: user.username,
+                isActive: user.isActive,
+            },
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

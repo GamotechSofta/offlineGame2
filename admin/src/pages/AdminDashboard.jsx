@@ -128,7 +128,7 @@ const AdminDashboard = () => {
                 />
 
                 <StatCard
-                    title="Total Users"
+                    title="Total Players"
                     value={stats?.users?.total || 0}
                     icon={FaUsers}
                     color="purple"
@@ -227,9 +227,9 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                {/* User Growth Card */}
+                {/* Player Growth Card */}
                 <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-300">User Growth</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-gray-300">Player Growth</h3>
                     <div className="space-y-3">
                         <div className="flex justify-between">
                             <span className="text-gray-400">This Week</span>

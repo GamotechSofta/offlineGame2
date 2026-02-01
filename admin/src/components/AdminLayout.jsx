@@ -38,8 +38,8 @@ const AdminLayout = ({ children, onLogout, title }) => {
             )}
 
             {/* Main content */}
-            <main className="pt-14 lg:pt-0 lg:ml-72 min-h-screen">
-                <div className="p-4 sm:p-6 lg:p-8 lg:pl-10">
+            <main className="pt-14 lg:pt-0 lg:ml-72 min-h-screen overflow-x-hidden">
+                <div className="p-4 sm:p-6 lg:p-8 lg:pl-10 min-w-0 max-w-full">
                     {children}
                 </div>
             </main>

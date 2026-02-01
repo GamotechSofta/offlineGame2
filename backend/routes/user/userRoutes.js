@@ -1,6 +1,6 @@
 import express from 'express';
-import { createUser, userLogin, userSignup, userHeartbeat, getUsers } from '../../controllers/userController.js';
-import { verifyAdmin } from '../../middleware/adminAuth.js';
+import { createUser, userLogin, userSignup, userHeartbeat, getUsers, togglePlayerStatus } from '../../controllers/userController.js';
+import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
 
@@ -12,5 +12,6 @@ router.post('/heartbeat', userHeartbeat);
 // Admin/Bookie routes
 router.get('/', verifyAdmin, getUsers);
 router.post('/create', verifyAdmin, createUser);
+router.patch('/:id/toggle-status', verifySuperAdmin, togglePlayerStatus);
 
 export default router;

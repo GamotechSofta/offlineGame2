@@ -1,5 +1,7 @@
 import HelpDesk from '../models/helpDesk/helpDesk.js';
+import User from '../models/user/user.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -53,6 +55,18 @@ export const createTicket = async (req, res) => {
         });
         await ticket.save();
 
+        const user = await User.findById(userId).select('username').lean();
+        await logActivity({
+            action: 'help_ticket_create',
+            performedBy: user?.username || userId,
+            performedByType: 'user',
+            targetType: 'help_ticket',
+            targetId: ticket._id.toString(),
+            details: `Player "${user?.username || userId}" created ticket: ${subject}`,
+            meta: { subject },
+            ip: getClientIp(req),
+        });
+
         res.status(201).json({ success: true, data: ticket });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -92,6 +106,18 @@ export const updateTicketStatus = async (req, res) => {
         ticket.status = status;
         if (adminResponse) ticket.adminResponse = adminResponse;
         await ticket.save();
+
+        const performer = req.admin?.username || 'Admin';
+        await logActivity({
+            action: 'help_ticket_update',
+            performedBy: performer,
+            performedByType: req.admin?.role || 'admin',
+            targetType: 'help_ticket',
+            targetId: id,
+            details: `Ticket "${ticket.subject}" status updated to ${status} by ${performer}`,
+            meta: { status, adminResponse: adminResponse ? true : false },
+            ip: getClientIp(req),
+        });
 
         res.status(200).json({ success: true, data: ticket });
     } catch (error) {

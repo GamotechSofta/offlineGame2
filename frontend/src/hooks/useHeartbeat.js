@@ -1,7 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../config/api';
 
-const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also used to detect suspended accounts
+
+const logoutSuspendedUser = () => {
+  localStorage.removeItem('user');
+  window.dispatchEvent(new Event('userLogout'));
+  window.location.href = '/login';
+};
 
 export const useHeartbeat = () => {
   const intervalRef = useRef(null);
@@ -14,13 +20,19 @@ export const useHeartbeat = () => {
         const user = JSON.parse(userData);
         const userId = user?.id || user?._id;
         if (!userId) return;
-        await fetch(`${API_BASE_URL}/users/heartbeat`, {
+        const res = await fetch(`${API_BASE_URL}/users/heartbeat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId }),
         });
+        const data = await res.json();
+        if (!data.success && data.code === 'ACCOUNT_SUSPENDED') {
+          logoutSuspendedUser();
+        } else if (!res.ok && res.status === 403) {
+          logoutSuspendedUser();
+        }
       } catch {
-        // Silently ignore
+        // Silently ignore network errors
       }
     };
 
@@ -29,6 +41,11 @@ export const useHeartbeat = () => {
 
     sendHeartbeat();
     intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') sendHeartbeat();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const handleLogout = () => {
       if (intervalRef.current) {
@@ -40,6 +57,7 @@ export const useHeartbeat = () => {
     window.addEventListener('userLogout', handleLogout);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('userLogout', handleLogout);
     };
   }, []);

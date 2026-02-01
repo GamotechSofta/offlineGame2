@@ -1,4 +1,5 @@
 import Market from '../models/market/market.js';
+import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
 /**
  * Create a new market.
@@ -16,6 +17,19 @@ export const createMarket = async (req, res) => {
         const betClosureSec = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
         const market = new Market({ marketName, startingTime, closingTime, betClosureTime: betClosureSec });
         await market.save();
+
+        if (req.admin) {
+            await logActivity({
+                action: 'create_market',
+                performedBy: req.admin.username,
+                performedByType: req.admin.role || 'super_admin',
+                targetType: 'market',
+                targetId: market._id.toString(),
+                details: `Market "${marketName}" created`,
+                ip: getClientIp(req),
+            });
+        }
+
         const response = market.toObject();
         response.displayResult = market.getDisplayResult();
         res.status(201).json({ success: true, data: response });
@@ -97,6 +111,19 @@ export const updateMarket = async (req, res) => {
         if (!market) {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
+
+        if (req.admin) {
+            await logActivity({
+                action: 'update_market',
+                performedBy: req.admin.username,
+                performedByType: req.admin.role || 'super_admin',
+                targetType: 'market',
+                targetId: market._id.toString(),
+                details: `Market "${market.marketName}" updated`,
+                ip: getClientIp(req),
+            });
+        }
+
         const response = market.toObject();
         response.displayResult = market.getDisplayResult();
         res.status(200).json({ success: true, data: response });
@@ -144,6 +171,19 @@ export const setOpeningNumber = async (req, res) => {
         if (!market) {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
+
+        if (req.admin) {
+            await logActivity({
+                action: 'set_opening_number',
+                performedBy: req.admin.username,
+                performedByType: req.admin.role || 'super_admin',
+                targetType: 'market',
+                targetId: market._id.toString(),
+                details: `Market "${market.marketName}" – opening number set to ${value || '(cleared)'}`,
+                ip: getClientIp(req),
+            });
+        }
+
         const response = market.toObject();
         response.displayResult = market.getDisplayResult();
         res.status(200).json({ success: true, data: response });
@@ -186,6 +226,19 @@ export const setClosingNumber = async (req, res) => {
         if (!market) {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
+
+        if (req.admin) {
+            await logActivity({
+                action: 'set_closing_number',
+                performedBy: req.admin.username,
+                performedByType: req.admin.role || 'super_admin',
+                targetType: 'market',
+                targetId: market._id.toString(),
+                details: `Market "${market.marketName}" – closing number set to ${value || '(cleared)'}`,
+                ip: getClientIp(req),
+            });
+        }
+
         const response = market.toObject();
         response.displayResult = market.getDisplayResult();
         res.status(200).json({ success: true, data: response });
@@ -242,10 +295,25 @@ export const setWinNumber = async (req, res) => {
 export const deleteMarket = async (req, res) => {
     try {
         const { id } = req.params;
-        const market = await Market.findByIdAndDelete(id);
+        const market = await Market.findById(id);
         if (!market) {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
+        const marketName = market.marketName;
+        await Market.findByIdAndDelete(id);
+
+        if (req.admin) {
+            await logActivity({
+                action: 'delete_market',
+                performedBy: req.admin.username,
+                performedByType: req.admin.role || 'super_admin',
+                targetType: 'market',
+                targetId: id,
+                details: `Market "${marketName}" deleted`,
+                ip: getClientIp(req),
+            });
+        }
+
         res.status(200).json({ success: true, message: 'Market deleted', data: { id } });
     } catch (error) {
         if (error.name === 'CastError') {

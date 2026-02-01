@@ -11,6 +11,7 @@ import Reports from './pages/Reports';
 import PaymentManagement from './pages/PaymentManagement';
 import Wallet from './pages/Wallet';
 import HelpDesk from './pages/HelpDesk';
+import Logs from './pages/Logs';
 import BookieManagement from './pages/BookieManagement';
 import AllUsers from './pages/AllUsers';
 import AddResult from './pages/AddResult';
@@ -114,6 +115,14 @@ const App = () => {
                     }
                 />
                 <Route
+                    path="/logs"
+                    element={
+                        <PrivateRoute>
+                            <Logs />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
                     path="/all-users"
                     element={
                         <PrivateRoute>
@@ -121,6 +130,8 @@ const App = () => {
                         </PrivateRoute>
                     }
                 />
+                <Route path="/suspend-player" element={<Navigate to="/all-users" replace />} />
+                <Route path="/suspend-bookie" element={<Navigate to="/bookie-management" replace />} />
                 <Route
                     path="/bookie-management"
                     element={

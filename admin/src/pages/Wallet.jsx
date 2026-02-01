@@ -100,7 +100,7 @@ const Wallet = () => {
                                 activeTab === 'wallets' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-400'
                             }`}
                         >
-                            User Wallets
+                            Player Wallets
                         </button>
                         <button
                             onClick={() => setActiveTab('transactions')}
@@ -122,7 +122,7 @@ const Wallet = () => {
                                 <table className="w-full text-sm sm:text-base">
                                 <thead className="bg-gray-700">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">User</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Player</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Balance</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Actions</th>
                                     </tr>
@@ -174,7 +174,7 @@ const Wallet = () => {
                                 <table className="w-full text-sm sm:text-base">
                                 <thead className="bg-gray-700">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">User</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Player</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Type</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Amount</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Date</th>

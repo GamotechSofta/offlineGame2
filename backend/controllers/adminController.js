@@ -1,4 +1,5 @@
 import Admin from '../models/admin/admin.js';
+import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
 /**
  * Admin login
@@ -31,7 +32,16 @@ export const adminLogin = async (req, res) => {
             });
         }
 
-        // Simple session-based auth (you can enhance with JWT later)
+        await logActivity({
+            action: 'admin_login',
+            performedBy: admin.username,
+            performedByType: admin.role === 'super_admin' ? 'super_admin' : 'bookie',
+            targetType: 'admin',
+            targetId: admin._id.toString(),
+            details: `${admin.username} logged in (${admin.role === 'super_admin' ? 'Admin Panel' : 'Bookie Panel'})`,
+            ip: getClientIp(req),
+        });
+
         res.status(200).json({
             success: true,
             message: 'Login successful',
@@ -70,6 +80,16 @@ export const createAdmin = async (req, res) => {
 
         const admin = new Admin({ username, password });
         await admin.save();
+
+        await logActivity({
+            action: 'create_admin',
+            performedBy: 'System',
+            performedByType: 'system',
+            targetType: 'admin',
+            targetId: admin._id.toString(),
+            details: `Super admin "${username}" created`,
+            ip: getClientIp(req),
+        });
 
         res.status(201).json({
             success: true,
@@ -138,6 +158,16 @@ export const createBookie = async (req, res) => {
             status: 'active'
         });
         await bookie.save();
+
+        await logActivity({
+            action: 'create_bookie',
+            performedBy: req.admin?.username || 'Admin',
+            performedByType: req.admin?.role || 'admin',
+            targetType: 'bookie',
+            targetId: bookie._id.toString(),
+            details: `Bookie "${bookie.username}" created`,
+            ip: getClientIp(req),
+        });
 
         res.status(201).json({
             success: true,
@@ -302,6 +332,16 @@ export const updateBookie = async (req, res) => {
 
         await bookie.save();
 
+        await logActivity({
+            action: 'update_bookie',
+            performedBy: req.admin?.username || 'Admin',
+            performedByType: req.admin?.role || 'admin',
+            targetType: 'bookie',
+            targetId: bookie._id.toString(),
+            details: `Bookie "${bookie.username}" updated`,
+            ip: getClientIp(req),
+        });
+
         res.status(200).json({
             success: true,
             message: 'Bookie updated successfully',
@@ -340,13 +380,26 @@ export const deleteBookie = async (req, res) => {
 
         const { id } = req.params;
 
-        const bookie = await Admin.findOneAndDelete({ _id: id, role: 'bookie' });
+        const bookie = await Admin.findOne({ _id: id, role: 'bookie' });
         if (!bookie) {
             return res.status(404).json({
                 success: false,
                 message: 'Bookie not found',
             });
         }
+
+        const username = bookie.username;
+        await Admin.findByIdAndDelete(id);
+
+        await logActivity({
+            action: 'delete_bookie',
+            performedBy: req.admin?.username || 'Admin',
+            performedByType: req.admin?.role || 'admin',
+            targetType: 'bookie',
+            targetId: id,
+            details: `Bookie "${username}" deleted`,
+            ip: getClientIp(req),
+        });
 
         res.status(200).json({
             success: true,
@@ -382,6 +435,16 @@ export const toggleBookieStatus = async (req, res) => {
 
         bookie.status = bookie.status === 'active' ? 'inactive' : 'active';
         await bookie.save();
+
+        await logActivity({
+            action: 'toggle_bookie_status',
+            performedBy: req.admin?.username || 'Admin',
+            performedByType: req.admin?.role || 'admin',
+            targetType: 'bookie',
+            targetId: bookie._id.toString(),
+            details: `Bookie "${bookie.username}" ${bookie.status === 'active' ? 'activated' : 'deactivated'}`,
+            ip: getClientIp(req),
+        });
 
         res.status(200).json({
             success: true,

@@ -1,6 +1,7 @@
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import User from '../models/user/user.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
 export const getAllWallets = async (req, res) => {
     try {
@@ -74,6 +75,20 @@ export const adjustBalance = async (req, res) => {
             amount,
             description: `Admin ${type}: ₹${amount}`,
         });
+
+        const player = await User.findById(userId).select('username').lean();
+        if (req.admin) {
+            await logActivity({
+                action: 'wallet_adjust',
+                performedBy: req.admin.username,
+                performedByType: req.admin.role || 'admin',
+                targetType: 'wallet',
+                targetId: String(userId),
+                details: `Wallet ${type} ₹${amount} for player "${player?.username || userId}"`,
+                meta: { userId, amount, type },
+                ip: getClientIp(req),
+            });
+        }
 
         res.status(200).json({ success: true, data: wallet });
     } catch (error) {
