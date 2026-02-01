@@ -6,7 +6,7 @@ const HeroSection = () => {
 
   const banners = [
     {
-      desktop: "https://res.cloudinary.com/dzd47mpdo/image/upload/v1769708814/Black_and_White_Minimalist_Casino_Night_Banner_Lanscape_1920_x_600_mm_iauows.png",
+      desktop: "https://res.cloudinary.com/dzd47mpdo/image/upload/v1769946386/goa_games_first_banner_1_whcjgm.jpg",
       mobile: "https://res.cloudinary.com/dzd47mpdo/image/upload/v1769709880/Black_and_White_Minimalist_Casino_Night_Banner_Lanscape_1080_x_1080_px_3_j3swst.svg",
       alt: "Modern Furniture Sofa Banner"
     },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
-import { FaUserSlash, FaUserCheck, FaUserPlus } from 'react-icons/fa';
+import { FaUserSlash, FaUserCheck, FaUserPlus, FaSearch } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
@@ -32,6 +32,7 @@ const AllUsers = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [togglingId, setTogglingId] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
     const [, setTick] = useState(0);
 
     const getAuthHeaders = () => {
@@ -153,6 +154,16 @@ const AllUsers = () => {
     const list = getCurrentList();
     const isUserList = ['all', 'super_admin_users', 'bookie_users'].includes(activeTab);
 
+    const q = searchQuery.trim().toLowerCase();
+    const filteredList = q
+        ? list.filter((item) => {
+            const username = (item.username || '').toLowerCase();
+            const email = (item.email || '').toLowerCase();
+            const phone = (item.phone || '').toString();
+            return username.includes(q) || email.includes(q) || phone.includes(q);
+        })
+        : list;
+
     const getUsersForBookie = (bookieId) => {
         return bookieUsersList.filter(
             (u) => u.referredBy && (u.referredBy._id === bookieId || u.referredBy === bookieId)
@@ -174,7 +185,7 @@ const AllUsers = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+            <div className="flex flex-wrap gap-2 mb-4">
                 {TABS.map((tab) => (
                     <button
                         key={tab.id}
@@ -188,6 +199,29 @@ const AllUsers = () => {
                         {tab.label}
                     </button>
                 ))}
+            </div>
+
+            {/* Search */}
+            <div className="mb-4 sm:mb-6">
+                <div className="relative max-w-md">
+                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <input
+                        type="text"
+                        placeholder="Search by username, email or phone..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className={`w-full pl-10 py-2.5 bg-gray-700/80 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
+                    />
+                    {searchQuery && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
             </div>
 
             {error && (
@@ -211,6 +245,10 @@ const AllUsers = () => {
                 ) : list.length === 0 ? (
                     <div className="p-8 text-center text-gray-400">
                         No {TABS.find(t => t.id === activeTab)?.label?.toLowerCase()} found.
+                    </div>
+                ) : filteredList.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                        No results match your search. Try a different term.
                     </div>
                 ) : activeTab === 'all_bookies' ? (
                     <div>
@@ -238,7 +276,7 @@ const AllUsers = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700/60">
-                                    {allBookies.map((bookie, index) => {
+                                    {filteredList.map((bookie, index) => {
                                         const bookieUsers = getUsersForBookie(bookie._id);
                                         const isExpanded = expandedBookieId === bookie._id;
                                         return (
@@ -367,7 +405,7 @@ const AllUsers = () => {
 
                         {/* Mobile cards */}
                         <div className="md:hidden divide-y divide-gray-700/60">
-                            {allBookies.map((bookie, index) => {
+                            {filteredList.map((bookie, index) => {
                                 const bookieUsers = getUsersForBookie(bookie._id);
                                 const isExpanded = expandedBookieId === bookie._id;
                                 return (
@@ -483,7 +521,7 @@ const AllUsers = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-700">
-                                {list.map((item, index) => (
+                                {filteredList.map((item, index) => (
                                     <tr key={item._id} className="hover:bg-gray-700/50">
                                         <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-300">{index + 1}</td>
                                         <td className="px-2 sm:px-4 py-2 sm:py-3 font-medium text-white truncate max-w-[70px] sm:max-w-none">{item.username}</td>
@@ -592,7 +630,10 @@ const AllUsers = () => {
 
             {!loading && list.length > 0 && (
                 <p className="mt-4 text-gray-400 text-sm">
-                    Showing {list.length} {TABS.find(t => t.id === activeTab)?.label?.toLowerCase()}
+                    Showing {filteredList.length} {TABS.find(t => t.id === activeTab)?.label?.toLowerCase()}
+                    {searchQuery && filteredList.length !== list.length && (
+                        <span> (filtered from {list.length})</span>
+                    )}
                 </p>
             )}
         </AdminLayout>
