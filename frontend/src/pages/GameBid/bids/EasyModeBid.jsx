@@ -19,6 +19,7 @@ const EasyModeBid = ({
     const [activeTab, setActiveTab] = useState('easy'); // easy | special
     const [session, setSession] = useState('OPEN');
     const [bids, setBids] = useState([]);
+    const [reviewRows, setReviewRows] = useState([]);
     const [inputNumber, setInputNumber] = useState('');
     const [inputPoints, setInputPoints] = useState('');
     const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -72,7 +73,10 @@ const EasyModeBid = ({
         setBids(next);
         setInputNumber('');
         setInputPoints('');
-        if (openReviewOnAdd) setIsReviewOpen(true);
+        if (openReviewOnAdd) {
+            setReviewRows(next);
+            setIsReviewOpen(true);
+        }
     };
 
     const handleDeleteBid = (id) => setBids((prev) => prev.filter((b) => b.id !== id));
@@ -92,6 +96,29 @@ const EasyModeBid = ({
             return;
         }
         setBids((prev) => [...prev, ...toAdd]);
+        setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+    };
+
+    const handleSubmitFromSpecial = () => {
+        if (specialModeType !== 'jodi') return;
+        const toAdd = Object.entries(specialInputs)
+            .filter(([, pts]) => Number(pts) > 0)
+            .map(([num, pts]) => ({
+                id: Date.now() + Number(num),
+                number: num,
+                points: String(pts),
+                type: session,
+            }));
+
+        if (!toAdd.length && bids.length === 0) {
+            showWarning('Please enter points for at least one Jodi (00-99).');
+            return;
+        }
+
+        const next = [...bids, ...toAdd];
+        setBids(next);
+        setReviewRows(next);
+        setIsReviewOpen(true);
         setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
     };
 
@@ -133,9 +160,10 @@ const EasyModeBid = ({
     const marketTitle = market?.gameName || market?.marketName || title;
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 
-    const submitBtnClass = bids.length
-        ? 'w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98]'
-        : 'w-full bg-white/10 text-gray-400 border border-white/10 font-bold py-3.5 min-h-[48px] rounded-lg cursor-not-allowed';
+    const submitBtnClass = (enabled) =>
+        enabled
+            ? 'w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98]'
+            : 'w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md opacity-50 cursor-not-allowed';
 
     const modeHeader = showModeTabs ? (
         <div className="space-y-3">
@@ -267,7 +295,10 @@ const EasyModeBid = ({
             setSession={setSession}
             hideFooter={!showFooterSubmit}
             walletBalance={walletBefore}
-            onSubmit={() => setIsReviewOpen(true)}
+            onSubmit={() => {
+                setReviewRows(bids);
+                setIsReviewOpen(true);
+            }}
             showDateSession={!showModeTabs}
             extraHeader={null}
         >
@@ -307,14 +338,6 @@ const EasyModeBid = ({
                                         </div>
                                     ))}
                                 </div>
-
-                                <button
-                                    type="button"
-                                    onClick={handleAddSpecialToList}
-                                    className="mt-4 w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98]"
-                                >
-                                    Add to List
-                                </button>
                             </>
                         ) : (
                             <div className="bg-[#202124] border border-white/10 rounded-2xl p-4 text-center text-gray-300">
@@ -324,14 +347,55 @@ const EasyModeBid = ({
                         )}
 
                         {showInlineSubmit && (
-                            <button
-                                type="button"
-                                disabled={!bids.length}
-                                onClick={() => setIsReviewOpen(true)}
-                                className={`mt-4 ${submitBtnClass}`}
-                            >
-                                Submit Bet
-                            </button>
+                            <>
+                                {/* Mobile sticky submit above bottom navbar */}
+                                <div className="md:hidden fixed left-0 right-0 bottom-[88px] z-20 px-3">
+                                    {(() => {
+                                        const enabled =
+                                            specialModeType === 'jodi'
+                                                ? bids.length > 0 || Object.values(specialInputs).some((v) => Number(v) > 0)
+                                                : bids.length > 0;
+                                        return (
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            specialModeType === 'jodi'
+                                                ? bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0)
+                                                : !bids.length
+                                        }
+                                        onClick={specialModeType === 'jodi' ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
+                                        className={submitBtnClass(enabled)}
+                                    >
+                                        Submit Bet
+                                    </button>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Desktop/Tablet inline submit */}
+                                <div className="hidden md:block mt-4">
+                                    {(() => {
+                                        const enabled =
+                                            specialModeType === 'jodi'
+                                                ? bids.length > 0 || Object.values(specialInputs).some((v) => Number(v) > 0)
+                                                : bids.length > 0;
+                                        return (
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            specialModeType === 'jodi'
+                                                ? bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0)
+                                                : !bids.length
+                                        }
+                                        onClick={specialModeType === 'jodi' ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
+                                        className={submitBtnClass(enabled)}
+                                    >
+                                        Submit Bet
+                                    </button>
+                                        );
+                                    })()}
+                                </div>
+                            </>
                         )}
 
                         {showBidsList && bids.length > 0 && (
@@ -389,8 +453,8 @@ const EasyModeBid = ({
                                     <button
                                         type="button"
                                         disabled={!bids.length}
-                                        onClick={() => setIsReviewOpen(true)}
-                                className={`mb-5 sm:mb-6 ${submitBtnClass}`}
+                                        onClick={() => { setReviewRows(bids); setIsReviewOpen(true); }}
+                                        className={`mb-5 sm:mb-6 ${submitBtnClass(!!bids.length)}`}
                                     >
                                         Submit Bet
                                     </button>
