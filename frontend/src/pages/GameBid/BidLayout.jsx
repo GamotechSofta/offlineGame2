@@ -19,7 +19,7 @@ const getWalletFromStorage = () => {
     }
 };
 
-const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSession = true, extraHeader, session = 'OPEN', setSession = () => {}, footerRightOnDesktop = false, hideFooter = false, walletBalance, onSubmit = () => {} }) => {
+const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSession = true, extraHeader, session = 'OPEN', setSession = () => {}, footerRightOnDesktop = false, hideFooter = false, walletBalance, onSubmit = () => {}, showFooterStats = true, submitLabel = 'Submit Bids', contentPaddingClass }) => {
     const navigate = useNavigate();
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     const wallet = Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage();
@@ -78,7 +78,11 @@ const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSe
                 </div>
             )}
 
-            <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full ${hideFooter ? 'pb-6' : 'pb-44 md:pb-32'}`}>
+            <div
+                className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full ${
+                    contentPaddingClass ?? (hideFooter ? 'pb-6' : 'pb-44 md:pb-32')
+                }`}
+            >
                 {children}
             </div>
 
@@ -87,17 +91,25 @@ const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSe
             <div className="fixed bottom-[88px] left-0 right-0 md:bottom-0 z-10 px-3 sm:px-4 py-3 md:grid md:grid-cols-2 md:gap-0">
                 <div className="hidden md:block" />
                 <div className="flex justify-center md:justify-center">
-                    <div className="w-full max-w-sm md:max-w-md bg-[#202124]/95 backdrop-blur-sm border border-white/10 rounded-2xl shadow-xl shadow-black/30 px-4 py-4 flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-                        <div className="flex items-center gap-6 sm:gap-8 shrink-0">
-                            <div className="text-center">
-                                <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Bids</div>
-                                <div className="text-base sm:text-lg font-bold text-[#f2c14e]">{bidsCount}</div>
+                    <div
+                        className={`w-full max-w-sm md:max-w-md rounded-2xl flex flex-col sm:flex-row items-center gap-4 sm:gap-6 ${
+                            showFooterStats
+                                ? 'bg-[#202124]/95 backdrop-blur-sm border border-white/10 shadow-xl shadow-black/30 px-4 py-4'
+                                : 'bg-transparent border-0 shadow-none p-0'
+                        }`}
+                    >
+                        {showFooterStats && (
+                            <div className="flex items-center gap-6 sm:gap-8 shrink-0">
+                                <div className="text-center">
+                                    <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Bids</div>
+                                    <div className="text-base sm:text-lg font-bold text-[#f2c14e]">{bidsCount}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Points</div>
+                                    <div className="text-base sm:text-lg font-bold text-[#f2c14e]">{totalPoints}</div>
+                                </div>
                             </div>
-                            <div className="text-center">
-                                <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Points</div>
-                                <div className="text-base sm:text-lg font-bold text-[#f2c14e]">{totalPoints}</div>
-                            </div>
-                        </div>
+                        )}
                         <button
                             type="button"
                             onClick={onSubmit}
@@ -105,10 +117,10 @@ const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSe
                             className={`flex-1 w-full sm:w-auto sm:min-w-[140px] font-bold py-3 px-6 rounded-xl shadow-lg transition-all text-sm sm:text-base ${
                                 bidsCount
                                     ? 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] hover:from-[#e5c04a] hover:to-[#d4af37] active:scale-[0.98]'
-                                    : 'bg-white/10 text-gray-400 border border-white/10 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] opacity-50 cursor-not-allowed'
                             }`}
                         >
-                            Submit Bids
+                            {submitLabel}
                         </button>
                     </div>
                 </div>
