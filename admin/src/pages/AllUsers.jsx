@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
-import { FaUserSlash, FaUserCheck } from 'react-icons/fa';
+import { FaUserSlash, FaUserCheck, FaUserPlus } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
@@ -161,7 +161,17 @@ const AllUsers = () => {
 
     return (
         <AdminLayout onLogout={handleLogout} title="All Players">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">All Players</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+                <h1 className="text-2xl sm:text-3xl font-bold">All Players</h1>
+                <button
+                    type="button"
+                    onClick={() => navigate('/add-user')}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-yellow-500 hover:bg-yellow-500/90 text-black font-semibold transition-colors text-sm sm:text-base shrink-0"
+                >
+                    <FaUserPlus className="w-5 h-5" />
+                    Add Player
+                </button>
+            </div>
 
             {/* Tabs */}
             <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">

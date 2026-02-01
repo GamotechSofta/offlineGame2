@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
+import { FaArrowLeft, FaUserPlus } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -19,9 +20,10 @@ const AddUser = () => {
     const [success, setSuccess] = useState('');
 
     const handleChange = (e) => {
+        const { name, value } = e.target;
         setFormData({
             ...formData,
-            [e.target.name]: e.target.value,
+            [name]: name === 'balance' ? (value === '' ? 0 : parseFloat(value) || 0) : value,
         });
     };
 
@@ -70,120 +72,185 @@ const AddUser = () => {
         navigate('/');
     };
 
+    const inputClass = "w-full px-4 py-2.5 bg-gray-700/80 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all";
+    const labelClass = "block text-gray-300 text-sm font-medium mb-1.5";
+
     return (
         <AdminLayout onLogout={handleLogout} title="Add Player">
-                    <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Add New Player</h1>
+            <div className="max-w-2xl">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-6">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/all-users')}
+                        className="p-2 rounded-lg bg-gray-700/80 hover:bg-gray-600 border border-gray-600 text-gray-300 hover:text-white transition-colors"
+                        title="Back to All Players"
+                    >
+                        <FaArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold">Add New Player</h1>
+                        <p className="text-gray-400 text-sm mt-0.5">Create a new player account</p>
+                    </div>
+                </div>
 
-                    {error && (
-                        <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
-                            {error}
+                {error && (
+                    <div className="mb-6 p-4 bg-red-900/30 border border-red-700/60 rounded-xl text-red-200 text-sm">
+                        {error}
+                    </div>
+                )}
+
+                {success && (
+                    <div className="mb-6 p-4 bg-green-900/30 border border-green-700/60 rounded-xl text-green-200 text-sm flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        {success}
+                    </div>
+                )}
+
+                {/* Form Card */}
+                <form onSubmit={handleSubmit} className="bg-gray-800/60 rounded-2xl border border-gray-700/80 overflow-hidden shadow-xl">
+                    <div className="p-5 sm:p-8">
+                        {/* Basic Info Section */}
+                        <div className="mb-8">
+                            <h2 className="text-base font-semibold text-yellow-500 mb-4 flex items-center gap-2">
+                                <span className="w-1 h-5 bg-yellow-500 rounded-full" />
+                                Basic Information
+                            </h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <div>
+                                    <label htmlFor="username" className={labelClass}>Username *</label>
+                                    <input
+                                        id="username"
+                                        type="text"
+                                        name="username"
+                                        value={formData.username}
+                                        onChange={handleChange}
+                                        placeholder="Enter username"
+                                        className={inputClass}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="email" className={labelClass}>Email *</label>
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        name="email"
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        placeholder="player@example.com"
+                                        className={inputClass}
+                                        required
+                                    />
+                                </div>
+                            </div>
                         </div>
-                    )}
 
-                    {success && (
-                        <div className="mb-4 p-4 bg-green-900/50 border border-green-700 rounded-lg text-green-200">
-                            {success}
+                        {/* Security Section */}
+                        <div className="mb-8">
+                            <h2 className="text-base font-semibold text-yellow-500 mb-4 flex items-center gap-2">
+                                <span className="w-1 h-5 bg-yellow-500 rounded-full" />
+                                Account Security
+                            </h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <div>
+                                    <label htmlFor="password" className={labelClass}>Password *</label>
+                                    <input
+                                        id="password"
+                                        type="password"
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        placeholder="Min 6 characters"
+                                        className={inputClass}
+                                        required
+                                        minLength={6}
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">Minimum 6 characters required</p>
+                                </div>
+                                <div>
+                                    <label htmlFor="phone" className={labelClass}>Phone</label>
+                                    <input
+                                        id="phone"
+                                        type="tel"
+                                        name="phone"
+                                        value={formData.phone}
+                                        onChange={handleChange}
+                                        placeholder="Optional"
+                                        className={inputClass}
+                                    />
+                                </div>
+                            </div>
                         </div>
-                    )}
 
-                    <form onSubmit={handleSubmit} className="bg-gray-800 rounded-lg p-4 sm:p-6 max-w-2xl w-full">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-gray-300 text-sm font-medium mb-2">
-                                    Username *
-                                </label>
-                                <input
-                                    type="text"
-                                    name="username"
-                                    value={formData.username}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                                    required
-                                />
+                        {/* Account Details Section */}
+                        <div className="mb-8">
+                            <h2 className="text-base font-semibold text-yellow-500 mb-4 flex items-center gap-2">
+                                <span className="w-1 h-5 bg-yellow-500 rounded-full" />
+                                Account Details
+                            </h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <div>
+                                    <label htmlFor="role" className={labelClass}>Role *</label>
+                                    <select
+                                        id="role"
+                                        name="role"
+                                        value={formData.role}
+                                        onChange={handleChange}
+                                        className={`${inputClass} cursor-pointer`}
+                                        required
+                                    >
+                                        <option value="user">Player</option>
+                                        <option value="bookie">Bookie</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label htmlFor="balance" className={labelClass}>Initial Balance (₹)</label>
+                                    <input
+                                        id="balance"
+                                        type="number"
+                                        name="balance"
+                                        value={formData.balance}
+                                        onChange={handleChange}
+                                        placeholder="0"
+                                        min="0"
+                                        step="1"
+                                        className={inputClass}
+                                    />
+                                </div>
                             </div>
+                        </div>
 
-                            <div>
-                                <label className="block text-gray-300 text-sm font-medium mb-2">
-                                    Email *
-                                </label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-300 text-sm font-medium mb-2">
-                                    Password *
-                                </label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                                    required
-                                    minLength="6"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-300 text-sm font-medium mb-2">
-                                    Phone
-                                </label>
-                                <input
-                                    type="tel"
-                                    name="phone"
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-300 text-sm font-medium mb-2">
-                                    Role *
-                                </label>
-                                <select
-                                    name="role"
-                                    value={formData.role}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                                    required
-                                >
-                                    <option value="user">Player</option>
-                                    <option value="bookie">Bookie</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-300 text-sm font-medium mb-2">
-                                    Initial Balance
-                                </label>
-                                <input
-                                    type="number"
-                                    name="balance"
-                                    value={formData.balance}
-                                    onChange={handleChange}
-                                    min="0"
-                                    step="0.01"
-                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                                />
-                            </div>
-
+                        {/* Submit */}
+                        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => navigate('/all-users')}
+                                className="px-6 py-3 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-yellow-500 hover:bg-yellow-500/90 text-black font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {loading ? 'Creating...' : 'Create Player'}
+                                {loading ? (
+                                    <>
+                                        <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                        Creating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <FaUserPlus className="w-5 h-5" />
+                                        Create Player
+                                    </>
+                                )}
                             </button>
                         </div>
-                    </form>
+                    </div>
+                </form>
+            </div>
         </AdminLayout>
     );
 };
