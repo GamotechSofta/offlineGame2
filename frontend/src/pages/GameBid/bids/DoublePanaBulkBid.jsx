@@ -186,15 +186,15 @@ const DoublePanaBulkBid = ({ market, title }) => {
             hideFooter
             contentPaddingClass="pb-28 md:pb-8"
         >
-            <div className="px-2 sm:px-4 md:px-6 py-2 sm:py-3">
+            <div className="px-3 sm:px-6 py-3">
                 {warning && (
-                    <div className="mb-3 bg-red-500/10 border border-red-500/30 text-red-200 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm">
+                    <div className="mb-3 bg-red-500/10 border border-red-500/30 text-red-200 rounded-xl px-4 py-3 text-sm">
                         {warning}
                     </div>
                 )}
 
-                {/* Responsive grid: 1 col mobile, 2 cols tablet, 4 cols desktop */}
-                <div className="space-y-4 sm:space-y-5 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-x-4 lg:gap-x-5 md:gap-y-8 lg:gap-y-10 md:items-start">
+                {/* Same UI as SinglePanaBulkBid */}
+                <div className="space-y-5 md:space-y-0 md:grid md:grid-cols-4 md:gap-x-5 md:gap-y-10 md:items-start">
                     {Array.from({ length: 10 }, (_, d) => String(d)).map((groupKey) => {
                         const list = panasBySumDigit[groupKey] || [];
                         if (!list.length) return null;
@@ -215,10 +215,10 @@ const DoublePanaBulkBid = ({ market, title }) => {
                         };
 
                         return (
-                            <div key={groupKey} className="space-y-2 sm:space-y-3 bg-[#1a1a1a]/50 rounded-lg p-2 sm:p-3 border border-white/5">
-                                {/* Group header: responsive and touch-friendly */}
-                                <div className="flex items-center gap-1.5 sm:gap-2">
-                                    <div className="w-9 h-8 sm:w-10 sm:h-9 bg-[#202124] border border-white/10 text-[#f2c14e] flex items-center justify-center rounded-l-md font-bold text-xs shrink-0">
+                            <div key={groupKey} className="space-y-3">
+                                {/* Group header: same "box + input" style */}
+                                <div className="flex items-center gap-2">
+                                    <div className="w-10 h-9 bg-[#202124] border border-white/10 text-[#f2c14e] flex items-center justify-center rounded-l-md font-bold text-xs shrink-0">
                                         {groupKey}
                                     </div>
                                     <input
@@ -235,15 +235,15 @@ const DoublePanaBulkBid = ({ market, title }) => {
                                             if (e.key === 'Enter' && groupBulk[groupKey]) applyGroup(groupBulk[groupKey]);
                                         }}
                                         placeholder="All pts"
-                                        className="no-spinner flex-1 min-w-0 sm:w-[96px] md:w-[72px] lg:w-[80px] h-8 sm:h-9 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/20 px-2 text-xs font-semibold text-center"
+                                        className="no-spinner w-[86px] sm:w-[96px] md:w-[72px] lg:w-[80px] h-9 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded focus:outline-none focus:border-[#d4af37] px-2 text-xs md:text-[11px] font-semibold text-center"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => groupBulk[groupKey] && applyGroup(groupBulk[groupKey])}
                                         disabled={!groupBulk[groupKey]}
-                                        className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-md font-bold text-xs border transition-all active:scale-95 min-w-[60px] sm:min-w-[70px] ${
+                                        className={`h-9 px-3 rounded-md font-bold text-xs border transition-colors ${
                                             groupBulk[groupKey]
-                                                ? 'bg-[#202124] border-[#d4af37]/40 text-[#f2c14e] hover:border-[#d4af37] hover:bg-[#202124]/90'
+                                                ? 'bg-[#202124] border-[#d4af37]/40 text-[#f2c14e] hover:border-[#d4af37]'
                                                 : 'bg-[#202124] border-white/10 text-gray-500 cursor-not-allowed'
                                         }`}
                                         title="Apply points to all numbers in this group"
@@ -252,11 +252,11 @@ const DoublePanaBulkBid = ({ market, title }) => {
                                     </button>
                                 </div>
 
-                                {/* Responsive grid: 2 cols mobile, 3 cols tablet, auto-fit desktop */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-[max-content_max-content] gap-2 sm:gap-2.5 md:gap-3 lg:justify-start lg:gap-x-4 lg:gap-y-2 max-h-[300px] sm:max-h-[400px] md:max-h-none overflow-y-auto custom-scrollbar">
+                                {/* Two-column layout: tighten + left align only on desktop */}
+                                <div className="grid grid-cols-2 gap-3 md:grid-cols-[max-content_max-content] md:justify-start md:gap-x-4 md:gap-y-2">
                                     {list.map((num) => (
-                                        <div key={num} className="flex items-center gap-1 sm:gap-1.5">
-                                            <div className="w-9 h-8 sm:w-10 sm:h-9 bg-[#202124] border border-white/10 text-[#f2c14e] flex items-center justify-center rounded-l-md font-bold text-xs shrink-0">
+                                        <div key={num} className="flex items-center gap-1.5">
+                                            <div className="w-10 h-9 bg-[#202124] border border-white/10 text-[#f2c14e] flex items-center justify-center rounded-l-md font-bold text-xs shrink-0">
                                                 {num}
                                             </div>
                                             <input
@@ -270,7 +270,7 @@ const DoublePanaBulkBid = ({ market, title }) => {
                                                         [num]: sanitizePoints(e.target.value),
                                                     }))
                                                 }
-                                                className="no-spinner flex-1 min-w-0 sm:w-[64px] md:w-[56px] lg:w-[64px] xl:w-[72px] h-8 sm:h-9 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-r-md focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/20 px-1.5 sm:px-2 text-xs font-semibold text-center"
+                                                className="no-spinner w-full md:w-[64px] lg:w-[72px] h-9 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-r-md focus:outline-none focus:border-[#d4af37] px-2 text-xs md:text-[11px] font-semibold text-center"
                                             />
                                         </div>
                                     ))}
@@ -281,7 +281,7 @@ const DoublePanaBulkBid = ({ market, title }) => {
                 </div>
             </div>
 
-            {/* Submit Bet: match Single Pana Bulk (mobile sticky, desktop inline) */}
+            {/* Submit Bet: same as SinglePanaBulkBid (mobile sticky, desktop top button) */}
             <div className="md:hidden fixed left-0 right-0 bottom-[88px] z-20 px-3">
                 <button type="button" onClick={openReview} disabled={!canSubmit} className={submitBtnClass(canSubmit)}>
                     Submit Bet
