@@ -643,27 +643,27 @@ const EasyModeBid = ({
                             <div>
                                 {showModeTabs && desktopSplit && <div className="mb-4">{modeHeader}</div>}
 
-                                <div className="flex flex-col gap-3 mb-4">
-                                    <div className="flex flex-row items-center gap-2">
-                                        <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
+                <div className="flex flex-col gap-3 mb-4">
+                    <div className="flex flex-row items-center gap-2">
+                        <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
                                         <div className="flex-1 min-w-0 bg-[#202124] border border-white/10 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-white">
                                             {session}
                                         </div>
-                                    </div>
-                                    <div className="flex flex-row items-center gap-2">
-                                        <label className="text-gray-400 text-sm font-medium shrink-0 w-32">{label}:</label>
-                                        <input
+                    </div>
+                    <div className="flex flex-row items-center gap-2">
+                        <label className="text-gray-400 text-sm font-medium shrink-0 w-32">{label}:</label>
+                        <input
                                             type={maxLength === 1 || maxLength === 2 ? 'text' : 'number'}
-                                            inputMode="numeric"
-                                            value={inputNumber}
-                                            onChange={handleNumberInputChange}
-                                            placeholder={labelKey}
-                                            maxLength={maxLength}
-                                            className="flex-1 min-w-0 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#d4af37] focus:border-[#d4af37] focus:outline-none"
-                                        />
-                                    </div>
-                                    <div className="flex flex-row items-center gap-2">
-                                        <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Enter Points:</label>
+                            inputMode="numeric"
+                            value={inputNumber}
+                            onChange={handleNumberInputChange}
+                            placeholder={labelKey}
+                            maxLength={maxLength}
+                            className="flex-1 min-w-0 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#d4af37] focus:border-[#d4af37] focus:outline-none"
+                        />
+                    </div>
+                    <div className="flex flex-row items-center gap-2">
+                        <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Enter Points:</label>
                                         <input
                                             type="text"
                                             inputMode="numeric"
@@ -672,8 +672,8 @@ const EasyModeBid = ({
                                             placeholder="Point"
                                             className="no-spinner flex-1 min-w-0 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#d4af37] focus:border-[#d4af37] focus:outline-none"
                                         />
-                                    </div>
-                                </div>
+                    </div>
+                </div>
 
                                 <button
                                     onClick={handleAddBid}
