@@ -64,7 +64,9 @@ const Layout = ({ children }) => {
       <div className="min-h-screen pb-16 md:pb-0 bg-black">
         <AppHeader />
         <Header />
-        {children}
+        <div className="pt-[100px] sm:pt-[110px] md:pt-[125px]">
+          {children}
+        </div>
         <BottomNavbar />
       </div>
     );
@@ -75,7 +77,9 @@ const Layout = ({ children }) => {
   return (
     <div className={`min-h-screen pb-16 md:pb-0 w-full max-w-full overflow-x-hidden ${isBidPage ? 'bg-black' : 'bg-gray-50'}`}>
       <AppHeader />
-      {children}
+      <div className="pt-[60px] sm:pt-[68px] md:pt-[80px]">
+        {children}
+      </div>
       <BottomNavbar />
     </div>
   );

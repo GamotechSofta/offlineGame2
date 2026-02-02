@@ -82,7 +82,7 @@ const AppHeader = () => {
 
   return (
     <>
-      <div className="w-full bg-black px-3 sm:px-5 md:px-6 lg:px-8 py-2.5 sm:py-3 md:py-4">
+      <div className="fixed top-0 left-0 right-0 z-50 w-full bg-black px-3 sm:px-5 md:px-6 lg:px-8 py-2.5 sm:py-3 md:py-4">
         <div className="flex items-center justify-between gap-1.5 sm:gap-2 md:gap-3">
           {/* Hamburger Menu - responsive size */}
           <button
