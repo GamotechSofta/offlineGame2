@@ -16,6 +16,7 @@ const isValidPana = (v) => {
 };
 
 const FullSangamBid = ({ market, title }) => {
+    // Full Sangam: force OPEN only (no CLOSE selection)
     const [session, setSession] = useState('OPEN');
     const [openPana, setOpenPana] = useState('');
     const [closePana, setClosePana] = useState('');
@@ -29,8 +30,6 @@ const FullSangamBid = ({ market, title }) => {
         window.clearTimeout(showWarning._t);
         showWarning._t = window.setTimeout(() => setWarning(''), 2200);
     };
-
-    // Full Sangam: Type should be OPEN only (locked)
 
     const walletBefore = useMemo(() => {
         try {
@@ -112,9 +111,8 @@ const FullSangamBid = ({ market, title }) => {
             extraHeader={null}
             session={session}
             setSession={setSession}
-            forceSessionValue="OPEN"
             sessionOptionsOverride={['OPEN']}
-            lockSession
+            lockSessionSelect
             hideFooter
             walletBalance={walletBefore}
             contentPaddingClass="pb-6"

@@ -170,33 +170,27 @@ const EasyModeBid = ({
         setMatchingPanas(matches);
         setSelectedSum(num);
         
-        // If points are entered, add all matching numbers to bids (increase points if already exists)
+        // If points are entered, add all matching numbers to bids (avoid duplicates)
         if (pts && pts > 0) {
             if (matches.length > 0) {
                 setBids((prev) => {
-                    const bidsMap = new Map(prev.map(b => [b.number, { ...b, points: Number(b.points) || 0 }]));
-                    
-                    // For each matching pana, either add new bid or increase points
-                    matches.forEach((pana) => {
-                        if (bidsMap.has(pana)) {
-                            // Increase points for existing bid
-                            const existingBid = bidsMap.get(pana);
-                            existingBid.points = existingBid.points + pts;
-                            existingBid.points = String(existingBid.points);
-                        } else {
-                            // Add new bid
-                            bidsMap.set(pana, {
-                                id: Date.now() + Math.random() + Math.random() * matches.indexOf(pana),
-                                number: pana,
-                                points: String(pts),
-                                type: session
-                            });
-                        }
-                    });
-                    
-                    return Array.from(bidsMap.values());
+                    const existingNumbers = new Set(prev.map(b => b.number));
+                    const newBids = matches
+                        .filter(pana => !existingNumbers.has(pana))
+                        .map((pana) => ({
+                            id: Date.now() + Math.random() + Math.random() * matches.indexOf(pana),
+                            number: pana,
+                            points: String(pts),
+                            type: session
+                        }));
+                    const addedCount = newBids.length;
+                    if (addedCount > 0) {
+                        showWarning(`Added ${addedCount} double pana numbers with sum ${num}${addedCount < matches.length ? ` (${matches.length - addedCount} already in list)` : ''}`);
+                    } else {
+                        showWarning(`All ${matches.length} double pana numbers with sum ${num} are already in the list`);
+                    }
+                    return [...prev, ...newBids];
                 });
-                showWarning(`Added ${matches.length} double pana numbers with sum ${num}`);
             } else {
                 showWarning(`No valid double pana numbers found with sum ${num}`);
             }
@@ -252,33 +246,6 @@ const EasyModeBid = ({
     const marketTitle = market?.gameName || market?.marketName || title;
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 
-    // Calculate total points betted for each sum number (0-9)
-    const pointsBySum = useMemo(() => {
-        if (specialModeType !== 'doublePana' || !validDoublePanas || validDoublePanas.length === 0) {
-            return Object.fromEntries(Array.from({ length: 10 }, (_, d) => [d, 0]));
-        }
-        
-        const pointsMap = Object.fromEntries(Array.from({ length: 10 }, (_, d) => [d, 0]));
-        const bidsMap = new Map(bids.map(b => [b.number, Number(b.points) || 0]));
-        
-        // For each sum number (0-9), find matching panas and sum their points
-        for (let targetNum = 0; targetNum < 10; targetNum++) {
-            let totalPoints = 0;
-            // Find matching panas (same logic as findDoublePanaBySum)
-            for (const pana of validDoublePanas) {
-                const digits = pana.split('').map(Number);
-                const sum = digits[0] + digits[1] + digits[2];
-                const unitPlace = sum % 10;
-                if (sum === targetNum || unitPlace === targetNum) {
-                    totalPoints += bidsMap.get(pana) || 0;
-                }
-            }
-            pointsMap[targetNum] = totalPoints;
-        }
-        
-        return pointsMap;
-    }, [bids, validDoublePanas, specialModeType]);
-
     const submitBtnClass = (enabled) =>
         enabled
             ? 'w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98]'
@@ -314,15 +281,32 @@ const EasyModeBid = ({
             <div className="grid grid-cols-2 gap-3">
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                        <div
+                            className={`${
+                                specialModeType === 'jodi' && activeTab === 'special'
+                                    ? 'w-9 h-9 rounded-full bg-black/25 flex items-center justify-center'
+                                    : ''
+                            }`}
+                        >
+                            <svg
+                                className={`${
+                                    specialModeType === 'jodi' && activeTab === 'special'
+                                        ? 'h-4 w-4 text-gray-300'
+                                        : 'h-5 w-5 text-gray-400'
+                                }`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
                     </div>
                     <input
                         type="text"
                         value={todayDate}
                         readOnly
-                        className="w-full pl-10 py-3 sm:py-2.5 min-h-[44px] bg-[#202124] border border-white/10 text-white rounded-full text-sm font-bold text-center focus:outline-none"
+                        className="w-full pl-12 py-3 sm:py-2.5 min-h-[44px] bg-[#202124] border border-white/10 text-white rounded-full text-sm font-bold text-center focus:outline-none"
                     />
                 </div>
                 <div className="relative">
@@ -330,7 +314,9 @@ const EasyModeBid = ({
                         value={session}
                         onChange={(e) => setSession(e.target.value)}
                         disabled={isRunning}
-                        className={`w-full appearance-none bg-[#202124] border border-white/10 text-white font-bold text-sm py-3 sm:py-2.5 min-h-[44px] px-4 rounded-full text-center focus:outline-none focus:border-[#d4af37] ${isRunning ? 'opacity-80 cursor-not-allowed' : ''}`}
+                        className={`w-full appearance-none bg-[#202124] border border-white/10 text-white font-bold text-sm py-3 sm:py-2.5 min-h-[44px] px-4 ${
+                            specialModeType === 'jodi' && activeTab === 'special' ? 'pr-12' : ''
+                        } rounded-full text-center focus:outline-none focus:border-[#d4af37] ${isRunning ? 'opacity-80 cursor-not-allowed' : ''}`}
                     >
                         {isRunning ? (
                             <option value="CLOSE">CLOSE</option>
@@ -341,10 +327,18 @@ const EasyModeBid = ({
                             </>
                         )}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">
+                        <div
+                            className={`${
+                                specialModeType === 'jodi' && activeTab === 'special'
+                                    ? 'w-9 h-9 rounded-full bg-black/25 flex items-center justify-center'
+                                    : ''
+                            }`}
+                        >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -353,30 +347,30 @@ const EasyModeBid = ({
 
     const bidsList = showBidsList ? (
         <>
-            <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-[#d4af37] font-bold text-[10px] sm:text-xs md:text-sm mb-2 px-1">
-                <div className="truncate">{labelKey}</div>
-                <div className="truncate">Point</div>
-                <div className="truncate">Type</div>
-                <div className="truncate">Delete</div>
+            <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-[#d4af37] font-bold text-xs sm:text-sm mb-2 px-1">
+                <div>{labelKey}</div>
+                <div>Point</div>
+                <div>Type</div>
+                <div>Delete</div>
             </div>
             <div className="h-px bg-white/10 w-full mb-2"></div>
-            <div className="space-y-1.5 sm:space-y-2 max-h-[400px] sm:max-h-[500px] overflow-y-auto custom-scrollbar pb-20 md:pb-0">
+            <div className="space-y-2">
                 {bids.map((bid) => (
                     <div
                         key={bid.id}
-                        className="grid grid-cols-4 gap-1 sm:gap-2 text-center items-center py-2 sm:py-2.5 px-1.5 sm:px-2 bg-[#202124] rounded-lg border border-white/10 text-xs sm:text-sm"
+                        className="grid grid-cols-4 gap-1 sm:gap-2 text-center items-center py-2.5 px-2 bg-[#202124] rounded-lg border border-white/10 text-sm"
                     >
-                        <div className="font-bold text-white truncate">{bid.number}</div>
-                        <div className="font-bold text-[#f2c14e] truncate">{bid.points}</div>
-                        <div className="text-xs sm:text-sm text-gray-400 truncate">{bid.type}</div>
+                        <div className="font-bold text-white">{bid.number}</div>
+                        <div className="font-bold text-[#f2c14e]">{bid.points}</div>
+                        <div className="text-sm text-gray-400">{bid.type}</div>
                         <div className="flex justify-center">
                             <button
                                 type="button"
                                 onClick={() => handleDeleteBid(bid.id)}
-                                className="p-1.5 sm:p-2 text-red-400 hover:text-red-300 active:scale-95 transition-transform"
+                                className="p-2 text-red-400 hover:text-red-300 active:scale-95"
                                 aria-label="Delete"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                     <path
                                         fillRule="evenodd"
                                         d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
@@ -435,7 +429,7 @@ const EasyModeBid = ({
             <div className="px-3 sm:px-4 py-4 sm:py-2 md:max-w-7xl md:mx-auto">
                 {showModeTabs && !desktopSplit && <div className="mb-4">{modeHeader}</div>}
                 {warning && (
-                    <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-black/95 border border-green-500/50 text-green-400 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md backdrop-blur-sm">
+                    <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-200 rounded-xl px-4 py-3 text-sm">
                         {warning}
                     </div>
                 )}
@@ -477,75 +471,63 @@ const EasyModeBid = ({
                                     <div>
                                         {showModeTabs && desktopSplit && <div className="mb-4">{modeHeader}</div>}
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4">
-                                            <div className="flex items-center gap-2">
-                                                <label className="text-gray-400 text-xs sm:text-sm font-medium shrink-0 w-20 sm:w-24">Game Type:</label>
-                                                <div className="flex-1 min-w-0 bg-[#202124] border border-white/10 rounded-lg py-1.5 sm:py-2 min-h-[36px] sm:min-h-[40px] px-2 sm:px-3 flex items-center justify-center text-xs sm:text-sm font-bold text-white">
+                                        <div className="flex flex-col gap-3 mb-4">
+                                            <div className="flex flex-row items-center gap-2">
+                                                <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
+                                                <div className="flex-1 min-w-0 bg-[#202124] border border-white/10 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-white">
                                                     {session}
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <label className="text-gray-400 text-xs sm:text-sm font-medium shrink-0 w-20 sm:w-24">Points:</label>
+                                            <div className="flex flex-row items-center gap-2">
+                                                <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Enter Points:</label>
                                                 <input
                                                     type="text"
                                                     inputMode="numeric"
                                                     value={inputPoints}
                                                     onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                                    placeholder="Enter"
-                                                    className="no-spinner flex-1 min-w-0 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-lg py-1.5 sm:py-2 min-h-[36px] sm:min-h-[40px] px-2 sm:px-3 text-center text-xs sm:text-sm focus:ring-2 focus:ring-[#d4af37] focus:border-[#d4af37] focus:outline-none"
+                                                    placeholder="Point"
+                                                    className="no-spinner flex-1 min-w-0 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#d4af37] focus:border-[#d4af37] focus:outline-none"
                                                 />
                                             </div>
                                         </div>
 
-                                        {/* Select Sum Keypad with Submit Button - Responsive */}
-                                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
-                                            <div className="flex-1 bg-[#202124] border border-white/10 rounded-xl p-3 sm:p-4">
-                                                <h3 className="text-sm sm:text-base font-bold text-[#f2c14e] mb-3 sm:mb-4 text-center">Select Sum</h3>
-                                                <div className="grid grid-cols-5 sm:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
-                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
-                                                        const totalPointsForSum = pointsBySum[num] || 0;
-                                                        const hasPoints = Number(inputPoints) > 0;
-                                                        return (
-                                                            <button
-                                                                key={num}
-                                                                type="button"
-                                                                disabled={!hasPoints}
-                                                                onClick={(e) => {
-                                                                    if (!hasPoints) return;
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    handleKeypadClick(num);
-                                                                }}
-                                                                onTouchStart={(e) => {
-                                                                    if (!hasPoints) return;
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    handleKeypadClick(num);
-                                                                }}
-                                                                className={`relative aspect-square min-h-[44px] sm:min-h-[50px] md:min-h-[56px] text-white rounded-lg sm:rounded-xl font-bold text-base sm:text-lg flex items-center justify-center transition-all active:scale-90 shadow-lg select-none bg-[#2a2d32] border-2 border-white/10 ${
-                                                                    hasPoints 
-                                                                        ? 'cursor-pointer hover:border-[#d4af37]/60 hover:bg-[#2a2d32]/80 active:bg-[#2a2d32]' 
-                                                                        : 'cursor-not-allowed opacity-50'
-                                                                }`}
-                                                                style={{ 
-                                                                    touchAction: 'manipulation',
-                                                                    WebkitTapHighlightColor: 'transparent',
-                                                                    userSelect: 'none',
-                                                                    WebkitUserSelect: 'none'
-                                                                }}
-                                                            >
-                                                                {num}
-                                                                {totalPointsForSum > 0 && (
-                                                                    <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 bg-[#d4af37] text-[#4b3608] text-[9px] sm:text-[10px] font-bold rounded-full min-w-[16px] sm:min-w-[18px] h-4 sm:h-4.5 px-1 sm:px-1.5 flex items-center justify-center shadow-md">
-                                                                        {totalPointsForSum > 999 ? '999+' : totalPointsForSum}
-                                                                    </span>
-                                                                )}
-                                                            </button>
-                                                        );
-                                                    })}
+                                        {/* Select Sum Keypad with Submit Button */}
+                                        <div className="flex gap-4 mb-4">
+                                            <div className="flex-1 bg-[#202124] border border-white/10 rounded-xl p-3">
+                                                <h3 className="text-base font-bold text-[#f2c14e] mb-4 text-center">Select Sum</h3>
+                                                <div className="grid grid-cols-5 gap-4">
+                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                                                        <button
+                                                            key={num}
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                handleKeypadClick(num);
+                                                            }}
+                                                            onTouchStart={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                handleKeypadClick(num);
+                                                            }}
+                                                            className={`aspect-square min-h-[50px] text-white rounded-xl font-bold text-lg flex items-center justify-center transition-all active:scale-90 shadow-lg cursor-pointer select-none ${
+                                                                selectedSum === num 
+                                                                    ? 'bg-gradient-to-br from-[#d4af37] to-[#cca84d] text-[#4b3608] ring-2 ring-[#f2c14e] shadow-[#d4af37]/50 scale-105 z-10' 
+                                                                    : 'bg-[#2a2d32] border-2 border-white/10 hover:border-[#d4af37]/60 hover:bg-[#2a2d32]/80 active:bg-[#2a2d32]'
+                                                            }`}
+                                                            style={{ 
+                                                                touchAction: 'manipulation',
+                                                                WebkitTapHighlightColor: 'transparent',
+                                                                userSelect: 'none',
+                                                                WebkitUserSelect: 'none'
+                                                            }}
+                                                        >
+                                                            {num}
+                                                        </button>
+                                                    ))}
                                                 </div>
                                             </div>
-                                            <div className="hidden md:flex items-center justify-center sm:justify-start">
+                                            <div className="flex items-center">
                                                 <button
                                                     type="button"
                                                     disabled={
@@ -554,7 +536,7 @@ const EasyModeBid = ({
                                                             : !bids.length
                                                     }
                                                     onClick={(specialModeType === 'jodi' || specialModeType === 'doublePana') ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
-                                                    className={`w-full sm:w-auto py-3 px-4 sm:px-6 bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold rounded-lg sm:rounded-xl shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98] text-sm sm:text-base ${
+                                                    className={`py-3 px-6 bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold rounded-xl shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98] ${
                                                         (specialModeType === 'jodi' || specialModeType === 'doublePana')
                                                             ? (bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0))
                                                                 ? 'opacity-50 cursor-not-allowed'
@@ -568,6 +550,47 @@ const EasyModeBid = ({
                                                 </button>
                                             </div>
                                         </div>
+
+                                        {/* Display Matching Panas */}
+                                        {matchingPanas.length > 0 && (
+                                            <div className="bg-[#202124] border border-white/10 rounded-xl p-4 shadow-lg mb-4">
+                                                <div className="flex justify-between items-center mb-3 pb-3 border-b border-white/10">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-sm font-bold text-[#f2c14e]">Sum {selectedSum}</h3>
+                                                        <span className="text-xs text-gray-400 bg-[#2a2d32] px-2.5 py-1 rounded-full border border-white/10">
+                                                            {matchingPanas.length} numbers
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setMatchingPanas([]);
+                                                            setSelectedSum(null);
+                                                        }}
+                                                        className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10"
+                                                    >
+                                                        Hide
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-2.5 max-h-60 overflow-y-auto custom-scrollbar">
+                                                    {matchingPanas.map((pana) => {
+                                                        const isInBids = bids.some(b => b.number === pana);
+                                                        return (
+                                                            <div
+                                                                key={pana}
+                                                                className={`text-center py-2.5 px-2 text-sm font-bold rounded-lg transition-all ${
+                                                                    isInBids
+                                                                        ? 'bg-[#d4af37]/25 border-2 border-[#d4af37] text-[#f2c14e]'
+                                                                        : 'bg-[#2a2d32] border border-white/15 text-white hover:border-[#d4af37]/60 hover:bg-[#2a2d32]/90'
+                                                                }`}
+                                                            >
+                                                                {pana}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Mobile: keep list below on small screens */}
                                         {desktopSplit && <div className="md:hidden mt-4">{bidsList}</div>}

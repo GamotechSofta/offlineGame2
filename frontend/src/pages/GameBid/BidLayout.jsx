@@ -19,21 +19,51 @@ const getWalletFromStorage = () => {
     }
 };
 
-const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSession = true, extraHeader, session = 'OPEN', setSession = () => {}, sessionRightSlot = null, dateSessionControlClassName = '', dateSessionGridClassName = '', sessionOptionsOverride = null, lockSession = false, forceSessionValue = null, footerRightOnDesktop = false, hideFooter = false, walletBalance, onSubmit = () => {}, showFooterStats = true, submitLabel = 'Submit Bids', contentPaddingClass }) => {
+const BidLayout = ({
+    market,
+    title,
+    children,
+    bidsCount,
+    totalPoints,
+    showDateSession = true,
+    extraHeader,
+    session = 'OPEN',
+    setSession = () => {},
+    sessionRightSlot = null,
+    // Optional: override allowed session options for this page (e.g. ['OPEN'])
+    sessionOptionsOverride = null,
+    // Optional: lock session dropdown (prevents selecting OPEN/CLOSE)
+    lockSessionSelect = false,
+    dateSessionControlClassName = '',
+    dateSessionGridClassName = '',
+    footerRightOnDesktop = false,
+    hideFooter = false,
+    walletBalance,
+    onSubmit = () => {},
+    showFooterStats = true,
+    submitLabel = 'Submit Bids',
+    contentPaddingClass,
+}) => {
     const navigate = useNavigate();
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     const wallet = Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage();
 
     const marketStatus = market?.status;
     const isRunning = marketStatus === 'running'; // "CLOSED IS RUNNING"
-    const sessionOptions = sessionOptionsOverride || (isRunning ? ['CLOSE'] : ['OPEN', 'CLOSE']);
-    const isSessionLocked = Boolean(lockSession) || Boolean(forceSessionValue) || isRunning;
+    const sessionOptions =
+        Array.isArray(sessionOptionsOverride) && sessionOptionsOverride.length
+            ? sessionOptionsOverride
+            : (isRunning ? ['CLOSE'] : ['OPEN', 'CLOSE']);
 
     useEffect(() => {
-        if (forceSessionValue && session !== forceSessionValue) setSession(forceSessionValue);
         // If market is "CLOSED IS RUNNING", force session to CLOSE and lock it.
+        if (Array.isArray(sessionOptionsOverride) && sessionOptionsOverride.length) {
+            const desired = sessionOptionsOverride[0];
+            if (desired && session !== desired) setSession(desired);
+            return;
+        }
         if (isRunning && session !== 'CLOSE') setSession('CLOSE');
-    }, [forceSessionValue, isRunning, session, setSession]);
+    }, [isRunning, session, setSession, sessionOptionsOverride]);
 
     return (
         <div className="min-h-screen bg-black font-sans w-full max-w-full overflow-x-hidden">
@@ -78,8 +108,8 @@ const BidLayout = ({ market, title, children, bidsCount, totalPoints, showDateSe
                             <select
                                 value={session}
                                 onChange={(e) => setSession(e.target.value)}
-                                disabled={isSessionLocked}
-                                className={`w-full appearance-none bg-[#202124] border border-white/10 text-white font-bold text-sm py-3 sm:py-2.5 min-h-[44px] px-4 rounded-full text-center focus:outline-none focus:border-[#d4af37] ${isSessionLocked ? 'opacity-80 cursor-not-allowed' : ''} ${dateSessionControlClassName}`}
+                                disabled={lockSessionSelect || isRunning}
+                                className={`w-full appearance-none bg-[#202124] border border-white/10 text-white font-bold text-sm py-3 sm:py-2.5 min-h-[44px] px-4 rounded-full text-center focus:outline-none focus:border-[#d4af37] ${(lockSessionSelect || isRunning) ? 'opacity-80 cursor-not-allowed' : ''} ${dateSessionControlClassName}`}
                             >
                                 {sessionOptions.map((opt) => (
                                     <option key={opt} value={opt}>
