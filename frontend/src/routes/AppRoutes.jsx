@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useHeartbeat } from '../hooks/useHeartbeat';
 import AppHeader from '../components/AppHeader';
@@ -15,8 +15,6 @@ import Passbook from '../pages/Passbook';
 import Support from '../pages/Support';
 import Bids from '../pages/Bids';
 
-<<<<<<< Updated upstream
-=======
 // Scroll to top on route change
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -51,8 +49,6 @@ const ScrollToTop = () => {
 
   return null;
 };
-
->>>>>>> Stashed changes
 const Layout = ({ children }) => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
@@ -89,6 +85,7 @@ const AppRoutes = () => {
   useHeartbeat();
   return (
     <Router>
+      <ScrollToTop />
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
