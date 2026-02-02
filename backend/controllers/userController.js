@@ -58,7 +58,11 @@ export const userLogin = async (req, res) => {
             });
         }
 
-        await User.updateOne({ _id: user._id }, { $set: { lastActiveAt: new Date() } });
+        const clientIp = getClientIp(req);
+        await User.updateOne(
+            { _id: user._id },
+            { $set: { lastActiveAt: new Date(), lastLoginIp: clientIp || undefined } }
+        );
 
         await logActivity({
             action: 'player_login',
@@ -318,7 +322,7 @@ export const getUsers = async (req, res) => {
         }
 
         let users = await User.find(query)
-            .select('username email phone role isActive source referredBy lastActiveAt createdAt')
+            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp createdAt')
             .populate('referredBy', 'username')
             .sort(filter === 'bookie' ? { referredBy: 1, createdAt: -1 } : { createdAt: -1 })
             .limit(500)
@@ -352,7 +356,7 @@ export const getSingleUser = async (req, res) => {
         const bookieUserIds = await getBookieUserIds(req.admin);
 
         const user = await User.findById(id)
-            .select('username email phone role isActive source referredBy lastActiveAt createdAt')
+            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp createdAt')
             .populate('referredBy', 'username')
             .lean();
 

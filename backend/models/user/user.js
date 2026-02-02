@@ -54,6 +54,11 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: null,
     },
+    /** Last login IP address (set on player login) */
+    lastLoginIp: {
+        type: String,
+        default: null,
+    },
 }, {
     timestamps: true,
 });

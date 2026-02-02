@@ -301,6 +301,13 @@ const PlayerDetail = () => {
 
     const formatCurrency = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
+    const formatIpDisplay = (ip) => {
+        if (!ip) return '—';
+        const trimmed = String(ip).trim();
+        if (trimmed === '::1' || trimmed === '127.0.0.1') return 'localhost';
+        return trimmed;
+    };
+
     if (loading) {
         return (
             <AdminLayout onLogout={handleLogout} title="Players">
@@ -392,6 +399,10 @@ const PlayerDetail = () => {
                         <div className="min-w-0 col-span-2 sm:col-span-1">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Id</p>
                             <p className="text-gray-300 font-mono text-xs truncate break-all" title={player._id}>{player._id}</p>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-gray-500 uppercase tracking-wider text-xs">IP Address</p>
+                            <p className="text-gray-300 font-mono text-xs truncate" title={player.lastLoginIp || ''}>{formatIpDisplay(player.lastLoginIp)}</p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Status</p>
