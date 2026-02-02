@@ -1,11 +1,19 @@
 import ActivityLog from '../models/activityLog/activityLog.js';
 
-/** Extract client IP from request */
+/**
+ * Extract real client IP; safe behind Render/reverse proxy.
+ * Priority: (a) X-Forwarded-For first IP, (b) req.ip, (c) req.socket.remoteAddress.
+ */
 export const getClientIp = (req) => {
     if (!req) return null;
-    const forwarded = req.headers?.['x-forwarded-for'];
-    if (forwarded) return forwarded.split(',')[0]?.trim();
-    return req.ip || req.connection?.remoteAddress || null;
+    const xForwardedFor = req.headers?.['x-forwarded-for'];
+    if (xForwardedFor) {
+        const first = String(xForwardedFor).split(',')[0]?.trim();
+        if (first) return first;
+    }
+    if (req.ip) return req.ip;
+    if (req.socket?.remoteAddress) return req.socket.remoteAddress;
+    return null;
 };
 
 /**

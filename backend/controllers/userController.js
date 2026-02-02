@@ -25,7 +25,7 @@ const addOnlineStatus = (users) => {
 
 export const userLogin = async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password, deviceId } = req.body;
         
         if (!username || !password) {
             return res.status(400).json({
@@ -59,10 +59,26 @@ export const userLogin = async (req, res) => {
         }
 
         const clientIp = getClientIp(req);
-        await User.updateOne(
-            { _id: user._id },
-            { $set: { lastActiveAt: new Date(), lastLoginIp: clientIp || undefined } }
-        );
+        const trimmedDeviceId = deviceId && typeof deviceId === 'string' ? deviceId.trim() : '';
+        const update = {
+            lastActiveAt: new Date(),
+            lastLoginIp: clientIp || undefined,
+            ...(trimmedDeviceId ? { lastLoginDeviceId: trimmedDeviceId } : {}),
+        };
+        await User.updateOne({ _id: user._id }, { $set: update });
+
+        if (trimmedDeviceId) {
+            const doc = await User.findById(user._id).select('loginDevices').lean();
+            const loginDevices = Array.isArray(doc?.loginDevices) ? [...doc.loginDevices] : [];
+            const now = new Date();
+            const idx = loginDevices.findIndex((d) => String(d.deviceId) === trimmedDeviceId);
+            if (idx >= 0) {
+                loginDevices[idx].lastLoginAt = now;
+            } else {
+                loginDevices.push({ deviceId: trimmedDeviceId, firstLoginAt: now, lastLoginAt: now });
+            }
+            await User.updateOne({ _id: user._id }, { $set: { loginDevices } });
+        }
 
         await logActivity({
             action: 'player_login',
@@ -322,7 +338,7 @@ export const getUsers = async (req, res) => {
         }
 
         let users = await User.find(query)
-            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp createdAt')
+            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt')
             .populate('referredBy', 'username')
             .sort(filter === 'bookie' ? { referredBy: 1, createdAt: -1 } : { createdAt: -1 })
             .limit(500)
@@ -356,7 +372,7 @@ export const getSingleUser = async (req, res) => {
         const bookieUserIds = await getBookieUserIds(req.admin);
 
         const user = await User.findById(id)
-            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp createdAt')
+            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt')
             .populate('referredBy', 'username')
             .lean();
 
@@ -434,6 +450,53 @@ export const togglePlayerStatus = async (req, res) => {
                 username: user.username,
                 isActive: user.isActive,
             },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Delete a player (Super Admin only). Removes user and their wallet.
+ */
+export const deletePlayer = async (req, res) => {
+    try {
+        if (req.admin?.role !== 'super_admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Only Super Admin can delete players',
+            });
+        }
+
+        const { id } = req.params;
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Player not found',
+            });
+        }
+
+        const username = user.username;
+
+        await Wallet.deleteOne({ userId: user._id });
+        await User.findByIdAndDelete(user._id);
+
+        await logActivity({
+            action: 'delete_player',
+            performedBy: req.admin?.username || 'Admin',
+            performedByType: 'admin',
+            targetType: 'user',
+            targetId: id,
+            details: `Player "${username}" deleted`,
+            ip: getClientIp(req),
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Player deleted successfully',
+            data: { id },
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

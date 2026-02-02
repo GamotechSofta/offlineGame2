@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck } from 'react-icons/fa';
+import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -96,6 +96,7 @@ const PlayerDetail = () => {
     const [loadingTab, setLoadingTab] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
     const [toggleMessage, setToggleMessage] = useState('');
+    const [deletingPlayer, setDeletingPlayer] = useState(false);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -299,6 +300,31 @@ const PlayerDetail = () => {
         }
     };
 
+    const handleDeletePlayer = async () => {
+        if (!userId || !player?.username) return;
+        if (!window.confirm(`Delete player "${player.username}"? This will remove their account and wallet. This cannot be undone.`)) {
+            return;
+        }
+        setDeletingPlayer(true);
+        setError('');
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+            });
+            const data = await res.json();
+            if (data.success) {
+                navigate('/all-users');
+            } else {
+                setError(data.message || 'Failed to delete player');
+            }
+        } catch (err) {
+            setError('Network error. Please try again.');
+        } finally {
+            setDeletingPlayer(false);
+        }
+    };
+
     const formatCurrency = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
     const formatIpDisplay = (ip) => {
@@ -367,6 +393,15 @@ const PlayerDetail = () => {
                                 <><FaUserCheck className="w-4 h-4" /> Unsuspend</>
                             )}
                         </button>
+                        <button
+                            type="button"
+                            onClick={handleDeletePlayer}
+                            disabled={deletingPlayer}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gray-600 hover:bg-red-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete player"
+                        >
+                            {deletingPlayer ? <span className="animate-spin">⏳</span> : <><FaTrash className="w-4 h-4" /> Delete</>}
+                        </button>
                         {toggleMessage && (
                             <span className={`text-sm ${toggleMessage.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
                                 {toggleMessage}
@@ -400,6 +435,10 @@ const PlayerDetail = () => {
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Id</p>
                             <p className="text-gray-300 font-mono text-xs truncate break-all" title={player._id}>{player._id}</p>
                         </div>
+                        <div className="min-w-0 col-span-2 sm:col-span-1">
+                            <p className="text-gray-500 uppercase tracking-wider text-xs">Device ID</p>
+                            <p className="text-gray-300 font-mono text-xs truncate break-all" title={player.lastLoginDeviceId || ''}>{player.lastLoginDeviceId || '—'}</p>
+                        </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">IP Address</p>
                             <p className="text-gray-300 font-mono text-xs truncate" title={player.lastLoginIp || ''}>{formatIpDisplay(player.lastLoginIp)}</p>
@@ -423,6 +462,48 @@ const PlayerDetail = () => {
                             <p className="text-gray-300">0</p>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Multiple devices warning + Devices list (admin-only) */}
+            {Array.isArray(player.loginDevices) && player.loginDevices.length > 1 && (
+                <div className="mb-6 min-w-0">
+                    <div className="rounded-xl border border-amber-500/60 bg-amber-500/10 px-4 py-3 text-amber-200 text-sm font-medium">
+                        ⚠️ User has logged in from multiple devices
+                    </div>
+                </div>
+            )}
+            <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden mb-6 min-w-0">
+                <div className="px-4 sm:px-6 py-3 border-b border-gray-700">
+                    <h2 className="text-base font-semibold text-yellow-500">Devices used</h2>
+                </div>
+                <div className="p-4 sm:p-6 min-w-0 overflow-x-auto">
+                    {!player.loginDevices || player.loginDevices.length === 0 ? (
+                        <p className="text-gray-500 text-sm">—</p>
+                    ) : (
+                        <table className="w-full text-sm min-w-[320px]">
+                            <thead>
+                                <tr className="border-b border-gray-600">
+                                    <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">Device ID</th>
+                                    <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">First Login Date</th>
+                                    <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">Last Login Date</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-700">
+                                {player.loginDevices.map((d, i) => (
+                                    <tr key={(d.deviceId || i).toString()} className="hover:bg-gray-700/30">
+                                        <td className="py-2.5 pr-4 font-mono text-gray-300 truncate max-w-[200px] sm:max-w-none" title={d.deviceId}>{d.deviceId || '—'}</td>
+                                        <td className="py-2.5 pr-4 text-gray-400">
+                                            {d.firstLoginAt ? new Date(d.firstLoginAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                                        </td>
+                                        <td className="py-2.5 pr-4 text-gray-400">
+                                            {d.lastLoginAt ? new Date(d.lastLoginAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             </div>
 

@@ -59,6 +59,17 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: null,
     },
+    /** Device ID from which user last logged in (sent by frontend) */
+    lastLoginDeviceId: {
+        type: String,
+        default: null,
+    },
+    /** List of devices used to log in: { deviceId, firstLoginAt, lastLoginAt } */
+    loginDevices: [{
+        deviceId: { type: String, required: true },
+        firstLoginAt: { type: Date, required: true },
+        lastLoginAt: { type: Date, required: true },
+    }],
 }, {
     timestamps: true,
 });

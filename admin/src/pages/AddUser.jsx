@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import { useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaUserPlus } from 'react-icons/fa';
+import { useNavigate, Link } from 'react-router-dom';
+import { FaArrowLeft, FaUserPlus, FaUser } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -13,17 +13,18 @@ const AddUser = () => {
         password: '',
         phone: '',
         role: 'user',
-        balance: 0,
+        balance: '', // empty = 0 on submit; user can clear field
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [createdPlayers, setCreatedPlayers] = useState([]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({
             ...formData,
-            [name]: name === 'balance' ? (value === '' ? 0 : parseFloat(value) || 0) : value,
+            [name]: name === 'balance' ? value : value,
         });
     };
 
@@ -36,13 +37,17 @@ const AddUser = () => {
         try {
             const admin = JSON.parse(localStorage.getItem('admin'));
             const password = sessionStorage.getItem('adminPassword') || '';
+            const payload = {
+                ...formData,
+                balance: formData.balance === '' ? 0 : (parseFloat(formData.balance) || 0),
+            };
             const response = await fetch(`${API_BASE_URL}/users/create`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Basic ${btoa(`${admin.username}:${password}`)}`,
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             const data = await response.json();
@@ -54,8 +59,17 @@ const AddUser = () => {
                     password: '',
                     phone: '',
                     role: 'user',
-                    balance: 0,
+                    balance: '',
                 });
+                setCreatedPlayers((prev) => [
+                    {
+                        id: data.data?.id,
+                        username: data.data?.username ?? formData.username,
+                        email: data.data?.email ?? formData.email,
+                        createdAt: new Date(),
+                    },
+                    ...prev,
+                ].slice(0, 20));
             } else {
                 setError(data.message || 'Failed to create player');
             }
@@ -77,7 +91,9 @@ const AddUser = () => {
 
     return (
         <AdminLayout onLogout={handleLogout} title="Add Player">
-            <div className="max-w-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8">
+                {/* Left: Form */}
+            <div className="min-w-0 flex-1 max-w-2xl">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-6">
                     <button
@@ -216,6 +232,7 @@ const AddUser = () => {
                                         min="0"
                                         step="1"
                                         className={inputClass}
+                                        autoComplete="off"
                                     />
                                 </div>
                             </div>
@@ -250,6 +267,42 @@ const AddUser = () => {
                         </div>
                     </div>
                 </form>
+            </div>
+
+                {/* Right: Created players list */}
+                <div className="lg:w-80 xl:w-96 shrink-0">
+                    <div className="bg-gray-800/60 rounded-2xl border border-gray-700/80 overflow-hidden sticky top-4">
+                        <div className="px-4 py-3 border-b border-gray-700 bg-gray-700/30">
+                            <h2 className="text-sm font-semibold text-yellow-500 flex items-center gap-2">
+                                <FaUser className="w-4 h-4" />
+                                Created Players
+                            </h2>
+                            <p className="text-gray-500 text-xs mt-0.5">Recently added in this session</p>
+                        </div>
+                        <div className="max-h-[60vh] overflow-y-auto p-3">
+                            {createdPlayers.length === 0 ? (
+                                <p className="text-gray-500 text-sm py-4 text-center">No players created yet</p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {createdPlayers.map((p) => (
+                                        <li key={(p.id || p.createdAt?.getTime?.()) ?? Math.random()}>
+                                            <Link
+                                                to={p.id ? `/all-users/${p.id}` : '/all-users'}
+                                                className="block p-3 rounded-xl bg-gray-700/50 border border-gray-600/50 hover:border-yellow-500/50 hover:bg-gray-700 transition-colors"
+                                            >
+                                                <p className="font-medium text-white truncate">{p.username}</p>
+                                                <p className="text-gray-400 text-xs truncate mt-0.5">{p.email || '—'}</p>
+                                                <p className="text-gray-500 text-xs mt-1">
+                                                    {p.createdAt ? new Date(p.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+                                                </p>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
         </AdminLayout>
     );
