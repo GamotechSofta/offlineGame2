@@ -35,14 +35,14 @@ const BidReviewModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center p-0 sm:p-6">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-6">
       {/* Overlay */}
       <button type="button" onClick={handleClose} aria-label="Close" className="absolute inset-0 bg-black/60" />
 
       {/* Modal */}
       <div className="relative w-full max-w-md sm:max-w-lg">
         <div
-          className="bg-[#202124] rounded-t-2xl sm:rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.55)] overflow-hidden border border-white/10 max-h-[calc(100svh-12px)] sm:max-h-[calc(100vh-48px)] flex flex-col"
+          className="bg-[#202124] rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.55)] overflow-hidden border border-white/10 max-h-[min(90svh,720px)] sm:max-h-[calc(100vh-48px)] flex flex-col"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0px)' }}
         >
           {/* Title bar */}
@@ -50,10 +50,10 @@ const BidReviewModal = ({
             {formatDateTitle(marketTitle, dateText)}
           </div>
 
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto overscroll-contain">
-            {/* Table */}
-            <div className="px-3 sm:px-4 pt-3 sm:pt-4">
+          {/* Content: only history list scrolls */}
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* History (scroll only this section) */}
+            <div className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-4 pt-3 sm:pt-4 min-h-0">
               <div className="grid grid-cols-3 text-center font-semibold text-[#d4af37] text-[11px] sm:text-base">
                 <div className="truncate">{labelKey}</div>
                 <div className="truncate">Points</div>
@@ -73,7 +73,7 @@ const BidReviewModal = ({
             </div>
 
             {/* Summary 2x2 */}
-            <div className="px-3 sm:px-4 pt-3 sm:pt-4">
+            <div className="px-3 sm:px-4 pt-3 sm:pt-4 shrink-0">
               <div className="rounded-2xl overflow-hidden border border-white/10">
                 <div className="grid grid-cols-2">
                   <div className="p-3 sm:p-4 text-center border-r border-b border-white/10">
@@ -97,7 +97,7 @@ const BidReviewModal = ({
             </div>
 
             {/* Note */}
-            <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-3 sm:pb-4 text-center text-red-400 font-semibold text-[12px] sm:text-base">
+            <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-3 sm:pb-4 text-center text-red-400 font-semibold text-[12px] sm:text-base shrink-0">
               *Note: Bid once played cannot be cancelled*
             </div>
           </div>

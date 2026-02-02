@@ -433,6 +433,10 @@ const EasyModeBid = ({
                                         </div>
                                     ))}
                                 </div>
+                                {/* Mobile-only spacer so sticky button doesn't overlap last row */}
+                                {showInlineSubmit && (
+                                    <div className="md:hidden h-24" />
+                                )}
                             </>
                         ) : specialModeType === 'doublePana' && validDoublePanas.length > 0 ? (
                             <>
