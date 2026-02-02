@@ -13,8 +13,9 @@ const EasyModeBid = ({
     showFooterSubmit = false,
     showInlineSubmit = false,
     showModeTabs = false,
-    specialModeType = null, // 'jodi'
+    specialModeType = null, // 'jodi' | 'doublePana'
     desktopSplit = false,
+    validDoublePanas = [],
 }) => {
     const [activeTab, setActiveTab] = useState('easy'); // easy | special
     const [session, setSession] = useState(() => (market?.status === 'running' ? 'CLOSE' : 'OPEN'));
@@ -24,6 +25,8 @@ const EasyModeBid = ({
     const [inputPoints, setInputPoints] = useState('');
     const [isReviewOpen, setIsReviewOpen] = useState(false);
     const [warning, setWarning] = useState('');
+    const [matchingPanas, setMatchingPanas] = useState([]);
+    const [selectedSum, setSelectedSum] = useState(null);
     const showWarning = (msg) => {
         setWarning(msg);
         window.clearTimeout(showWarning._t);
@@ -39,9 +42,14 @@ const EasyModeBid = ({
         () => Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0')),
         []
     );
-    const [specialInputs, setSpecialInputs] = useState(() =>
-        Object.fromEntries(Array.from({ length: 100 }, (_, i) => [String(i).padStart(2, '0'), '']))
-    );
+    const [specialInputs, setSpecialInputs] = useState(() => {
+        if (specialModeType === 'jodi') {
+            return Object.fromEntries(Array.from({ length: 100 }, (_, i) => [String(i).padStart(2, '0'), '']));
+        } else if (specialModeType === 'doublePana' && validDoublePanas && validDoublePanas.length > 0) {
+            return Object.fromEntries(validDoublePanas.map(pana => [pana, '']));
+        }
+        return {};
+    });
 
     const defaultValidate = (n) => {
         if (!n || !n.toString().trim()) return false;
@@ -87,36 +95,42 @@ const EasyModeBid = ({
     const handleDeleteBid = (id) => setBids((prev) => prev.filter((b) => b.id !== id));
 
     const handleAddSpecialToList = () => {
-        if (specialModeType !== 'jodi') return;
+        if (specialModeType !== 'jodi' && specialModeType !== 'doublePana') return;
         const toAdd = Object.entries(specialInputs)
             .filter(([, pts]) => Number(pts) > 0)
             .map(([num, pts]) => ({
-                id: Date.now() + Number(num),
+                id: Date.now() + Number(num) + Math.random(),
                 number: num,
                 points: String(pts),
                 type: session,
             }));
         if (!toAdd.length) {
-            showWarning('Please enter points for at least one Jodi (00-99).');
+            const label = specialModeType === 'jodi' ? 'Jodi (00-99)' : 'Double Pana';
+            showWarning(`Please enter points for at least one ${label}.`);
             return;
         }
         setBids((prev) => [...prev, ...toAdd]);
-        setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+        if (specialModeType === 'jodi') {
+            setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+        } else if (specialModeType === 'doublePana' && validDoublePanas.length > 0) {
+            setSpecialInputs(Object.fromEntries(validDoublePanas.map((n) => [n, ''])));
+        }
     };
 
     const handleSubmitFromSpecial = () => {
-        if (specialModeType !== 'jodi') return;
+        if (specialModeType !== 'jodi' && specialModeType !== 'doublePana') return;
         const toAdd = Object.entries(specialInputs)
             .filter(([, pts]) => Number(pts) > 0)
             .map(([num, pts]) => ({
-                id: Date.now() + Number(num),
+                id: Date.now() + Number(num) + Math.random(),
                 number: num,
                 points: String(pts),
                 type: session,
             }));
 
         if (!toAdd.length && bids.length === 0) {
-            showWarning('Please enter points for at least one Jodi (00-99).');
+            const label = specialModeType === 'jodi' ? 'Jodi (00-99)' : 'Double Pana';
+            showWarning(`Please enter points for at least one ${label}.`);
             return;
         }
 
@@ -124,7 +138,70 @@ const EasyModeBid = ({
         setBids(next);
         setReviewRows(next);
         setIsReviewOpen(true);
-        setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+        if (specialModeType === 'jodi') {
+            setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+        } else if (specialModeType === 'doublePana' && validDoublePanas.length > 0) {
+            setSpecialInputs(Object.fromEntries(validDoublePanas.map((n) => [n, ''])));
+        }
+    };
+
+    // Find all double pana numbers whose digit sum matches the target (or unit place matches)
+    const findDoublePanaBySum = (targetNum) => {
+        if (specialModeType !== 'doublePana' || !validDoublePanas || validDoublePanas.length === 0) return [];
+        const matches = [];
+        for (const pana of validDoublePanas) {
+            const digits = pana.split('').map(Number);
+            const sum = digits[0] + digits[1] + digits[2];
+            // Check if sum equals target, or if unit place of sum equals target
+            const unitPlace = sum % 10;
+            if (sum === targetNum || unitPlace === targetNum) {
+                matches.push(pana);
+            }
+        }
+        return matches;
+    };
+
+    const handleKeypadClick = (num) => {
+        if (specialModeType !== 'doublePana') return;
+        const pts = Number(inputPoints);
+        
+        // Find all matching double pana numbers
+        const matches = findDoublePanaBySum(num);
+        setMatchingPanas(matches);
+        setSelectedSum(num);
+        
+        // If points are entered, add all matching numbers to bids (avoid duplicates)
+        if (pts && pts > 0) {
+            if (matches.length > 0) {
+                setBids((prev) => {
+                    const existingNumbers = new Set(prev.map(b => b.number));
+                    const newBids = matches
+                        .filter(pana => !existingNumbers.has(pana))
+                        .map((pana) => ({
+                            id: Date.now() + Math.random() + Math.random() * matches.indexOf(pana),
+                            number: pana,
+                            points: String(pts),
+                            type: session
+                        }));
+                    const addedCount = newBids.length;
+                    if (addedCount > 0) {
+                        showWarning(`Added ${addedCount} double pana numbers with sum ${num}${addedCount < matches.length ? ` (${matches.length - addedCount} already in list)` : ''}`);
+                    } else {
+                        showWarning(`All ${matches.length} double pana numbers with sum ${num} are already in the list`);
+                    }
+                    return [...prev, ...newBids];
+                });
+            } else {
+                showWarning(`No valid double pana numbers found with sum ${num}`);
+            }
+        } else {
+            // If no points, just show the matching numbers
+            if (matches.length > 0) {
+                showWarning(`Found ${matches.length} double pana numbers with sum ${num}. Enter points to add them.`);
+            } else {
+                showWarning(`No valid double pana numbers found with sum ${num}`);
+            }
+        }
     };
 
     const walletBefore = useMemo(() => {
@@ -154,6 +231,10 @@ const EasyModeBid = ({
             // Allow only 2 digits (00-99) and keep leading zeros
             const twoDigits = val.replace(/\D/g, '').slice(0, 2);
             setInputNumber(twoDigits);
+        } else if (maxLength === 3) {
+            // Allow only 3 digits
+            const threeDigits = val.replace(/\D/g, '').slice(0, 3);
+            setInputNumber(threeDigits);
         } else {
             setInputNumber(val);
         }
@@ -281,8 +362,12 @@ const EasyModeBid = ({
         setBids([]);
         setInputNumber('');
         setInputPoints('');
+        setMatchingPanas([]);
+        setSelectedSum(null);
         if (specialModeType === 'jodi') {
             setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+        } else if (specialModeType === 'doublePana' && validDoublePanas.length > 0) {
+            setSpecialInputs(Object.fromEntries(validDoublePanas.map((n) => [n, ''])));
         }
     };
 
@@ -324,8 +409,6 @@ const EasyModeBid = ({
 
                 {showModeTabs && activeTab === 'special' ? (
                     <>
-                        {showModeTabs && desktopSplit && <div className="mb-4">{modeHeader}</div>}
-
                         {specialModeType === 'jodi' ? (
                             <>
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 xl:grid-rows-10 xl:grid-flow-col xl:gap-2">
@@ -351,6 +434,142 @@ const EasyModeBid = ({
                                     ))}
                                 </div>
                             </>
+                        ) : specialModeType === 'doublePana' && validDoublePanas.length > 0 ? (
+                            <>
+                                <div className={desktopSplit ? 'md:grid md:grid-cols-2 md:gap-6 md:items-start' : ''}>
+                                    <div>
+                                        {showModeTabs && desktopSplit && <div className="mb-4">{modeHeader}</div>}
+
+                                        <div className="flex flex-col gap-3 mb-4">
+                                            <div className="flex flex-row items-center gap-2">
+                                                <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
+                                                <div className="flex-1 min-w-0 bg-[#202124] border border-white/10 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-white">
+                                                    {session}
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-row items-center gap-2">
+                                                <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Enter Points:</label>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={inputPoints}
+                                                    onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                    placeholder="Point"
+                                                    className="no-spinner flex-1 min-w-0 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#d4af37] focus:border-[#d4af37] focus:outline-none"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Select Sum Keypad with Submit Button */}
+                                        <div className="flex gap-4 mb-4">
+                                            <div className="flex-1 bg-[#202124] border border-white/10 rounded-xl p-3">
+                                                <h3 className="text-base font-bold text-[#f2c14e] mb-4 text-center">Select Sum</h3>
+                                                <div className="grid grid-cols-5 gap-4">
+                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                                                        <button
+                                                            key={num}
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                handleKeypadClick(num);
+                                                            }}
+                                                            onTouchStart={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                handleKeypadClick(num);
+                                                            }}
+                                                            className={`aspect-square min-h-[50px] text-white rounded-xl font-bold text-lg flex items-center justify-center transition-all active:scale-90 shadow-lg cursor-pointer select-none ${
+                                                                selectedSum === num 
+                                                                    ? 'bg-gradient-to-br from-[#d4af37] to-[#cca84d] text-[#4b3608] ring-2 ring-[#f2c14e] shadow-[#d4af37]/50 scale-105 z-10' 
+                                                                    : 'bg-[#2a2d32] border-2 border-white/10 hover:border-[#d4af37]/60 hover:bg-[#2a2d32]/80 active:bg-[#2a2d32]'
+                                                            }`}
+                                                            style={{ 
+                                                                touchAction: 'manipulation',
+                                                                WebkitTapHighlightColor: 'transparent',
+                                                                userSelect: 'none',
+                                                                WebkitUserSelect: 'none'
+                                                            }}
+                                                        >
+                                                            {num}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center">
+                                                <button
+                                                    type="button"
+                                                    disabled={
+                                                        (specialModeType === 'jodi' || specialModeType === 'doublePana')
+                                                            ? bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0)
+                                                            : !bids.length
+                                                    }
+                                                    onClick={(specialModeType === 'jodi' || specialModeType === 'doublePana') ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
+                                                    className={`py-3 px-6 bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold rounded-xl shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98] ${
+                                                        (specialModeType === 'jodi' || specialModeType === 'doublePana')
+                                                            ? (bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0))
+                                                                ? 'opacity-50 cursor-not-allowed'
+                                                                : ''
+                                                            : !bids.length
+                                                                ? 'opacity-50 cursor-not-allowed'
+                                                                : ''
+                                                    }`}
+                                                >
+                                                    Submit Bet
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Display Matching Panas */}
+                                        {matchingPanas.length > 0 && (
+                                            <div className="bg-[#202124] border border-white/10 rounded-xl p-4 shadow-lg mb-4">
+                                                <div className="flex justify-between items-center mb-3 pb-3 border-b border-white/10">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-sm font-bold text-[#f2c14e]">Sum {selectedSum}</h3>
+                                                        <span className="text-xs text-gray-400 bg-[#2a2d32] px-2.5 py-1 rounded-full border border-white/10">
+                                                            {matchingPanas.length} numbers
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setMatchingPanas([]);
+                                                            setSelectedSum(null);
+                                                        }}
+                                                        className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10"
+                                                    >
+                                                        Hide
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-2.5 max-h-60 overflow-y-auto custom-scrollbar">
+                                                    {matchingPanas.map((pana) => {
+                                                        const isInBids = bids.some(b => b.number === pana);
+                                                        return (
+                                                            <div
+                                                                key={pana}
+                                                                className={`text-center py-2.5 px-2 text-sm font-bold rounded-lg transition-all ${
+                                                                    isInBids
+                                                                        ? 'bg-[#d4af37]/25 border-2 border-[#d4af37] text-[#f2c14e]'
+                                                                        : 'bg-[#2a2d32] border border-white/15 text-white hover:border-[#d4af37]/60 hover:bg-[#2a2d32]/90'
+                                                                }`}
+                                                            >
+                                                                {pana}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Mobile: keep list below on small screens */}
+                                        {desktopSplit && <div className="md:hidden mt-4">{bidsList}</div>}
+                                        {!desktopSplit && bidsList}
+                                    </div>
+
+                                    {/* Desktop: list on right side */}
+                                    {desktopSplit && <div className="hidden md:block">{bidsList}</div>}
+                                </div>
+                            </>
                         ) : (
                             <div className="bg-[#202124] border border-white/10 rounded-2xl p-4 text-center text-gray-300">
                                 <div className="text-white font-semibold mb-1">Special Mode</div>
@@ -364,18 +583,18 @@ const EasyModeBid = ({
                                 <div className="md:hidden fixed left-0 right-0 bottom-[88px] z-20 px-3">
                                     {(() => {
                                         const enabled =
-                                            specialModeType === 'jodi'
+                                            (specialModeType === 'jodi' || specialModeType === 'doublePana')
                                                 ? bids.length > 0 || Object.values(specialInputs).some((v) => Number(v) > 0)
                                                 : bids.length > 0;
                                         return (
                                     <button
                                         type="button"
                                         disabled={
-                                            specialModeType === 'jodi'
+                                            (specialModeType === 'jodi' || specialModeType === 'doublePana')
                                                 ? bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0)
                                                 : !bids.length
                                         }
-                                        onClick={specialModeType === 'jodi' ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
+                                        onClick={(specialModeType === 'jodi' || specialModeType === 'doublePana') ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
                                         className={submitBtnClass(enabled)}
                                     >
                                         Submit Bet
@@ -388,18 +607,18 @@ const EasyModeBid = ({
                                 <div className="hidden md:block mt-4">
                                     {(() => {
                                         const enabled =
-                                            specialModeType === 'jodi'
+                                            (specialModeType === 'jodi' || specialModeType === 'doublePana')
                                                 ? bids.length > 0 || Object.values(specialInputs).some((v) => Number(v) > 0)
                                                 : bids.length > 0;
                                         return (
                                     <button
                                         type="button"
                                         disabled={
-                                            specialModeType === 'jodi'
+                                            (specialModeType === 'jodi' || specialModeType === 'doublePana')
                                                 ? bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0)
                                                 : !bids.length
                                         }
-                                        onClick={specialModeType === 'jodi' ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
+                                        onClick={(specialModeType === 'jodi' || specialModeType === 'doublePana') ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
                                         className={submitBtnClass(enabled)}
                                     >
                                         Submit Bet
@@ -408,12 +627,6 @@ const EasyModeBid = ({
                                     })()}
                                 </div>
                             </>
-                        )}
-
-                        {showBidsList && bids.length > 0 && (
-                            <div className="mt-4 space-y-2">
-                                {bidsList}
-                            </div>
                         )}
                     </>
                 ) : (
