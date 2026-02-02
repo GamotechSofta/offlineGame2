@@ -242,8 +242,8 @@ const AllUsers = () => {
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 min-w-0 max-w-full">
+            {/* Table - overflow-x-auto so Action column is visible when table is wide */}
+            <div className="bg-gray-800 rounded-lg overflow-x-auto overflow-y-hidden border border-gray-700 min-w-0 max-w-full">
                 {loading ? (
                     <div className="p-8 text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto" />
@@ -513,36 +513,36 @@ const AllUsers = () => {
                                 )}
                             </div>
                         )}
-                        <div>
-                        <table className="w-full text-sm sm:text-base table-fixed md:table-auto">
+                        <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[800px]">
                             <thead className="bg-gray-700">
                                 <tr>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase w-8">#</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase min-w-0 truncate">Username</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase hidden sm:table-cell">Email</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase hidden lg:table-cell">Phone</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase hidden md:table-cell">Role</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase hidden md:table-cell">Wallet</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase hidden sm:table-cell">Account</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase hidden lg:table-cell">Created</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase w-20 sm:w-24">Action</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase w-8">#</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Username</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Email</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Phone</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Role</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Wallet</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Account</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Created</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase w-28 whitespace-nowrap">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-700">
                                 {filteredList.map((item, index) => (
                                     <tr key={item._id} className="hover:bg-gray-700/50">
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-300">{index + 1}</td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 font-medium truncate max-w-[70px] sm:max-w-none">
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300">{index + 1}</td>
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 font-medium">
                                             {isUserList ? (
-                                                <Link to={`/all-users/${item._id}`} className="text-yellow-400 hover:text-yellow-300 hover:underline block truncate">{item.username}</Link>
+                                                <Link to={`/all-users/${item._id}`} className="text-yellow-400 hover:text-yellow-300 hover:underline truncate block max-w-[120px]">{item.username}</Link>
                                             ) : (
-                                                <span className="text-white">{item.username}</span>
+                                                <span className="text-white truncate block max-w-[120px]">{item.username}</span>
                                             )}
                                         </td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-300 hidden sm:table-cell truncate max-w-[90px] lg:max-w-none">{item.email || '—'}</td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-300 hidden lg:table-cell">{item.phone || '—'}</td>
-                                        <td className="px-4 sm:px-6 py-3">
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300 truncate max-w-[140px]">{item.email || '—'}</td>
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300">{item.phone || '—'}</td>
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3">
                                             {(activeTab === 'super_admins') ? (
                                                 <span className="px-2 py-1 rounded text-xs font-medium bg-gray-600 text-gray-200">Super Admin</span>
                                             ) : (
@@ -551,7 +551,7 @@ const AllUsers = () => {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3">
                                             {(activeTab === 'super_admins') ? (
                                                 <span className="text-gray-400">—</span>
                                             ) : (
@@ -560,7 +560,7 @@ const AllUsers = () => {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-4 sm:px-6 py-3">
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3">
                                             {(activeTab === 'super_admins') ? (
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${
                                                     item.status === 'active' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
@@ -583,7 +583,7 @@ const AllUsers = () => {
                                                 })()
                                             )}
                                         </td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 hidden sm:table-cell">
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3">
                                             {(activeTab === 'super_admins') ? (
                                                 <span className="text-gray-400">—</span>
                                             ) : (
@@ -596,14 +596,14 @@ const AllUsers = () => {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-300 hidden lg:table-cell text-xs">
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300 text-xs">
                                             {item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-IN', {
                                                 day: '2-digit',
                                                 month: 'short',
                                                 year: 'numeric',
                                             }) : '—'}
                                         </td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
                                             {(activeTab === 'super_admins') ? (
                                                 <span className="text-gray-400">—</span>
                                             ) : (
@@ -611,7 +611,7 @@ const AllUsers = () => {
                                                     type="button"
                                                     onClick={() => handleTogglePlayerStatus(item._id)}
                                                     disabled={togglingId === item._id}
-                                                    className={`inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
+                                                    className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                                         item.isActive !== false
                                                             ? 'bg-red-600 hover:bg-red-500 text-white'
                                                             : 'bg-green-600 hover:bg-green-500 text-white'
@@ -622,12 +622,12 @@ const AllUsers = () => {
                                                         <span className="animate-spin">⏳</span>
                                                     ) : item.isActive !== false ? (
                                                         <>
-                                                            <FaUserSlash className="w-3 h-3 shrink-0" />
+                                                            <FaUserSlash className="w-3.5 h-3.5 shrink-0" />
                                                             Suspend
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <FaUserCheck className="w-3 h-3 shrink-0" />
+                                                            <FaUserCheck className="w-3.5 h-3.5 shrink-0" />
                                                             Unsuspend
                                                         </>
                                                     )}

@@ -95,7 +95,7 @@ const PlayerDetail = () => {
     const [bets, setBets] = useState([]);
     const [loadingTab, setLoadingTab] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
-    const [successMsg, setSuccessMsg] = useState('');
+    const [toggleMessage, setToggleMessage] = useState('');
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -265,7 +265,7 @@ const PlayerDetail = () => {
     const handleTogglePlayerStatus = async () => {
         if (!userId) return;
         setTogglingStatus(true);
-        setSuccessMsg('');
+        setToggleMessage('');
         setError('');
         try {
             const res = await fetch(`${API_BASE_URL}/users/${userId}/toggle-status`, {
@@ -274,16 +274,14 @@ const PlayerDetail = () => {
             });
             const data = await res.json();
             if (data.success) {
-                setError('');
-                setSuccessMsg(data.data?.isActive ? 'Player unsuspended successfully' : 'Player suspended successfully');
+                setToggleMessage(data.data.isActive ? 'Player unsuspended successfully' : 'Player suspended successfully');
                 fetchPlayer();
-                setTimeout(() => setSuccessMsg(''), 3000);
+                setTimeout(() => setToggleMessage(''), 3000);
             } else {
-                setSuccessMsg('');
-                setError(data.message || 'Failed to update status');
+                setToggleMessage(data.message || 'Failed to update status');
             }
         } catch (err) {
-            setError('Network error. Please try again.');
+            setToggleMessage('Network error. Please try again.');
         } finally {
             setTogglingStatus(false);
         }
@@ -343,30 +341,32 @@ const PlayerDetail = () => {
             <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden mb-6 min-w-0">
                 <div className="px-4 sm:px-6 py-4 border-b border-gray-700 flex flex-wrap items-center justify-between gap-3">
                     <h2 className="text-lg font-semibold text-yellow-500">Player Information</h2>
-                    <button
-                        type="button"
-                        onClick={handleTogglePlayerStatus}
-                        disabled={togglingStatus}
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                            player.isActive !== false
-                                ? 'bg-red-600 hover:bg-red-500 text-white'
-                                : 'bg-green-600 hover:bg-green-500 text-white'
-                        }`}
-                    >
-                        {togglingStatus ? (
-                            <span className="animate-spin">⏳</span>
-                        ) : player.isActive !== false ? (
-                            <><FaUserSlash className="w-4 h-4" /> Suspend</>
-                        ) : (
-                            <><FaUserCheck className="w-4 h-4" /> Unsuspend</>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleTogglePlayerStatus}
+                            disabled={togglingStatus}
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                player.isActive !== false
+                                    ? 'bg-red-600 hover:bg-red-500 text-white'
+                                    : 'bg-green-600 hover:bg-green-500 text-white'
+                            }`}
+                        >
+                            {togglingStatus ? (
+                                <span className="animate-spin">⏳</span>
+                            ) : player.isActive !== false ? (
+                                <><FaUserSlash className="w-4 h-4" /> Suspend</>
+                            ) : (
+                                <><FaUserCheck className="w-4 h-4" /> Unsuspend</>
+                            )}
+                        </button>
+                        {toggleMessage && (
+                            <span className={`text-sm ${toggleMessage.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
+                                {toggleMessage}
+                            </span>
                         )}
-                    </button>
-                </div>
-                {(successMsg || error) && (
-                    <div className={`px-4 sm:px-6 py-2 text-sm ${successMsg ? 'text-green-400 bg-green-900/20' : 'text-red-400 bg-red-900/20'}`}>
-                        {successMsg || error}
                     </div>
-                )}
+                </div>
                 <div className="p-4 sm:p-6 min-w-0">
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 text-sm">
                         <div className="min-w-0">
