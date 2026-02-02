@@ -4,16 +4,24 @@ import BidReviewModal from './BidReviewModal';
 
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
 
+// Valid Single Panna chart (as per screenshots) grouped by sum digit (0-9)
+const SINGLE_PANA_BY_SUM = {
+    '0': ['127','136','145','190','235','280','370','389','460','479','569','578'],
+    '1': ['128','137','146','236','245','290','380','470','489','560','579','678'],
+    '2': ['129','138','147','156','237','246','345','390','480','570','589','679'],
+    '3': ['120','139','148','157','238','247','256','346','490','580','670','689'],
+    '4': ['130','149','158','167','239','248','257','347','356','590','680','789'],
+    '5': ['140','159','168','230','249','258','267','348','357','456','690','780'],
+    '6': ['123','150','169','178','240','259','268','349','358','367','457','790'],
+    '7': ['124','133','142','151','160','179','250','278','340','359','467','890'],
+    '8': ['125','134','170','189','260','279','350','369','378','459','468','567'],
+    '9': ['126','135','180','234','270','289','360','379','450','469','478','568'],
+};
+
 const buildSinglePanas = () =>
-    Array.from({ length: 10 }, (_, i) => i).flatMap((a) =>
-        Array.from({ length: 10 }, (_, j) => j)
-            .filter((b) => b > a)
-            .flatMap((b) =>
-                Array.from({ length: 10 }, (_, k) => k)
-                    .filter((c) => c > b)
-                    .map((c) => `${a}${b}${c}`)
-            )
-    );
+    Object.keys(SINGLE_PANA_BY_SUM)
+        .sort()
+        .flatMap((k) => SINGLE_PANA_BY_SUM[k]);
 
 const SinglePanaBulkBid = ({ market, title }) => {
     const [session, setSession] = useState(() => (market?.status === 'running' ? 'CLOSE' : 'OPEN'));
@@ -61,14 +69,7 @@ const SinglePanaBulkBid = ({ market, title }) => {
         Object.fromEntries(Array.from({ length: 10 }, (_, d) => [String(d), '']))
     );
 
-    const panasBySumDigit = useMemo(() => {
-        const groups = Object.fromEntries(Array.from({ length: 10 }, (_, d) => [String(d), []]));
-        for (const n of singlePanas) {
-            const s = (Number(n[0]) + Number(n[1]) + Number(n[2])) % 10;
-            groups[String(s)].push(n);
-        }
-        return groups;
-    }, [singlePanas]);
+    const panasBySumDigit = useMemo(() => ({ ...SINGLE_PANA_BY_SUM }), []);
 
     const specialCount = useMemo(
         () => Object.values(specialInputs).filter((v) => Number(v) > 0).length,
