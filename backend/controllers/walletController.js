@@ -22,10 +22,14 @@ export const getAllWallets = async (req, res) => {
 
 export const getTransactions = async (req, res) => {
     try {
+        const { userId } = req.query;
         const query = {};
         const bookieUserIds = await getBookieUserIds(req.admin);
         if (bookieUserIds !== null) {
             query.userId = { $in: bookieUserIds };
+        }
+        if (userId) {
+            query.userId = userId;
         }
         const transactions = await WalletTransaction.find(query)
             .populate('userId', 'username email')

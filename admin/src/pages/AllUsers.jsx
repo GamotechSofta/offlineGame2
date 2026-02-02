@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { FaUserSlash, FaUserCheck, FaUserPlus, FaSearch } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -358,7 +358,9 @@ const AllUsers = () => {
                                                                                 {bookieUsers.map((u, i) => (
                                                                                     <tr key={u._id} className="hover:bg-gray-700/20 transition-colors">
                                                                                         <td className="px-4 py-2.5 text-gray-400">{i + 1}</td>
-                                                                                        <td className="px-4 py-2.5 font-medium text-white">{u.username}</td>
+                                                                                        <td className="px-4 py-2.5 font-medium">
+                                                                                            <Link to={`/all-users/${u._id}`} className="text-yellow-400 hover:text-yellow-300 hover:underline">{u.username}</Link>
+                                                                                        </td>
                                                                                         <td className="px-4 py-2.5 text-gray-300 truncate max-w-[120px] lg:max-w-[160px]">{u.email || '—'}</td>
                                                                                         <td className="px-4 py-2.5 text-gray-300 hidden lg:table-cell">{u.phone || '—'}</td>
                                                                                         <td className="px-4 py-2.5">
@@ -465,7 +467,7 @@ const AllUsers = () => {
                                                     bookieUsers.map((u, i) => (
                                                         <div key={u._id} className="p-3 rounded-lg bg-gray-800/80 border border-gray-600/50">
                                                             <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                                                                <span className="font-medium text-white text-sm">{u.username}</span>
+                                                                <Link to={`/all-users/${u._id}`} className="font-medium text-yellow-400 hover:text-yellow-300 hover:underline text-sm">{u.username}</Link>
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${computeIsOnline(u) ? 'text-green-400' : 'text-gray-500'}`}>
                                                                         <span className={`w-1.5 h-1.5 rounded-full ${computeIsOnline(u) ? 'bg-green-500' : 'bg-gray-500'}`} />
@@ -531,7 +533,13 @@ const AllUsers = () => {
                                 {filteredList.map((item, index) => (
                                     <tr key={item._id} className="hover:bg-gray-700/50">
                                         <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-300">{index + 1}</td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 font-medium text-white truncate max-w-[70px] sm:max-w-none">{item.username}</td>
+                                        <td className="px-2 sm:px-4 py-2 sm:py-3 font-medium truncate max-w-[70px] sm:max-w-none">
+                                            {isUserList ? (
+                                                <Link to={`/all-users/${item._id}`} className="text-yellow-400 hover:text-yellow-300 hover:underline block truncate">{item.username}</Link>
+                                            ) : (
+                                                <span className="text-white">{item.username}</span>
+                                            )}
+                                        </td>
                                         <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-300 hidden sm:table-cell truncate max-w-[90px] lg:max-w-none">{item.email || '—'}</td>
                                         <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-300 hidden lg:table-cell">{item.phone || '—'}</td>
                                         <td className="px-4 sm:px-6 py-3">

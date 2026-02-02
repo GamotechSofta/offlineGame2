@@ -6,6 +6,25 @@ import { Wallet } from '../models/wallet/wallet.js';
 import HelpDesk from '../models/helpDesk/helpDesk.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 
+/** Parse from/to query (YYYY-MM-DD). Default to today if missing. Returns { start, end } in UTC-like range for DB. */
+function getDateRange(fromStr, toStr) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let start = new Date(today);
+    let end = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
+    if (fromStr && toStr) {
+        const [y1, m1, d1] = fromStr.split('-').map(Number);
+        const [y2, m2, d2] = toStr.split('-').map(Number);
+        if (!Number.isNaN(y1) && !Number.isNaN(m1) && !Number.isNaN(d1)) {
+            start = new Date(y1, m1 - 1, d1);
+        }
+        if (!Number.isNaN(y2) && !Number.isNaN(m2) && !Number.isNaN(d2)) {
+            end = new Date(y2, m2 - 1, d2, 23, 59, 59, 999);
+        }
+    }
+    return { start, end };
+}
+
 export const getDashboardStats = async (req, res) => {
     try {
         const bookieUserIds = await getBookieUserIds(req.admin);
@@ -15,21 +34,16 @@ export const getDashboardStats = async (req, res) => {
         const walletMatch = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
         const helpDeskFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
 
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const thisWeek = new Date(today);
-        thisWeek.setDate(thisWeek.getDate() - 7);
-        const thisMonth = new Date(today);
-        thisMonth.setMonth(thisMonth.getMonth() - 1);
+        const { from, to } = req.query;
+        const { start: rangeStart, end: rangeEnd } = getDateRange(from, to);
+        const dateMatch = { createdAt: { $gte: rangeStart, $lte: rangeEnd } };
 
-        // Total Users
+        // Total Users (all-time)
         const totalUsers = await User.countDocuments(userFilter);
         const activeUsers = await User.countDocuments({ ...userFilter, isActive: true });
-        const newUsersToday = await User.countDocuments({ ...userFilter, createdAt: { $gte: today } });
-        const newUsersThisWeek = await User.countDocuments({ ...userFilter, createdAt: { $gte: thisWeek } });
-        const newUsersThisMonth = await User.countDocuments({ ...userFilter, createdAt: { $gte: thisMonth } });
+        const newUsersInRange = await User.countDocuments({ ...userFilter, ...dateMatch });
 
-        // Total Markets
+        // Total Markets (all-time, current open)
         const totalMarkets = await Market.countDocuments();
         const openMarkets = await Market.find().then(markets => {
             return markets.filter(m => {
@@ -41,77 +55,58 @@ export const getDashboardStats = async (req, res) => {
             }).length;
         });
 
-        // Revenue Stats
+        // Revenue & Bets in selected range
         const totalRevenue = await Bet.aggregate([
-            { $match: betFilter },
+            { $match: { ...dateMatch, ...betFilter } },
             { $group: { _id: null, total: { $sum: '$amount' } } },
         ]);
         const totalPayouts = await Bet.aggregate([
-            { $match: { status: 'won', ...betFilter } },
+            { $match: { status: 'won', ...dateMatch, ...betFilter } },
             { $group: { _id: null, total: { $sum: '$payout' } } },
         ]);
-        const revenueToday = await Bet.aggregate([
-            { $match: { createdAt: { $gte: today }, ...betFilter } },
-            { $group: { _id: null, total: { $sum: '$amount' } } },
-        ]);
-        const revenueThisWeek = await Bet.aggregate([
-            { $match: { createdAt: { $gte: thisWeek }, ...betFilter } },
-            { $group: { _id: null, total: { $sum: '$amount' } } },
-        ]);
-        const revenueThisMonth = await Bet.aggregate([
-            { $match: { createdAt: { $gte: thisMonth }, ...betFilter } },
-            { $group: { _id: null, total: { $sum: '$amount' } } },
-        ]);
-
-        // Bet Stats
-        const totalBets = await Bet.countDocuments(betFilter);
-        const betsToday = await Bet.countDocuments({ createdAt: { $gte: today }, ...betFilter });
-        const betsThisWeek = await Bet.countDocuments({ createdAt: { $gte: thisWeek }, ...betFilter });
-        const betsThisMonth = await Bet.countDocuments({ createdAt: { $gte: thisMonth }, ...betFilter });
-        const winningBets = await Bet.countDocuments({ status: 'won', ...betFilter });
-        const losingBets = await Bet.countDocuments({ status: 'lost', ...betFilter });
+        const totalBets = await Bet.countDocuments({ ...dateMatch, ...betFilter });
+        const winningBets = await Bet.countDocuments({ status: 'won', ...dateMatch, ...betFilter });
+        const losingBets = await Bet.countDocuments({ status: 'lost', ...dateMatch, ...betFilter });
         const pendingBets = await Bet.countDocuments({ status: 'pending', ...betFilter });
 
-        // Payment Stats
-        const totalPayments = await Payment.countDocuments(paymentFilter);
-        const pendingPayments = await Payment.countDocuments({ status: 'pending', ...paymentFilter });
+        // Payments in range (deposits/withdrawals completed in period)
         const totalDeposits = await Payment.aggregate([
-            { $match: { type: 'deposit', status: { $in: ['approved', 'completed'] }, ...paymentFilter } },
+            { $match: { type: 'deposit', status: { $in: ['approved', 'completed'] }, ...dateMatch, ...paymentFilter } },
             { $group: { _id: null, total: { $sum: '$amount' } } },
         ]);
         const totalWithdrawals = await Payment.aggregate([
-            { $match: { type: 'withdrawal', status: { $in: ['approved', 'completed'] }, ...paymentFilter } },
+            { $match: { type: 'withdrawal', status: { $in: ['approved', 'completed'] }, ...dateMatch, ...paymentFilter } },
             { $group: { _id: null, total: { $sum: '$amount' } } },
         ]);
 
-        // Wallet Stats
+        // All-time payment counts (for reference)
+        const totalPayments = await Payment.countDocuments(paymentFilter);
+        const pendingPayments = await Payment.countDocuments({ status: 'pending', ...paymentFilter });
+
+        // Wallet & Help Desk (all-time)
         const totalWalletBalance = await Wallet.aggregate([
             ...(Object.keys(walletMatch).length ? [{ $match: walletMatch }] : []),
             { $group: { _id: null, total: { $sum: '$balance' } } },
         ]);
-
-        // Help Desk Stats
         const totalTickets = await HelpDesk.countDocuments(helpDeskFilter);
         const openTickets = await HelpDesk.countDocuments({ status: 'open', ...helpDeskFilter });
         const inProgressTickets = await HelpDesk.countDocuments({ status: 'in-progress', ...helpDeskFilter });
 
-        // Calculate net profit
         const revenue = totalRevenue[0]?.total || 0;
         const payouts = totalPayouts[0]?.total || 0;
         const netProfit = revenue - payouts;
-
-        // Win rate
         const winRate = totalBets > 0 ? ((winningBets / totalBets) * 100).toFixed(2) : 0;
 
         res.status(200).json({
             success: true,
             data: {
+                dateRange: { from: rangeStart.toISOString(), to: rangeEnd.toISOString() },
                 users: {
                     total: totalUsers,
                     active: activeUsers,
-                    newToday: newUsersToday,
-                    newThisWeek: newUsersThisWeek,
-                    newThisMonth: newUsersThisMonth,
+                    newToday: newUsersInRange,
+                    newThisWeek: newUsersInRange,
+                    newThisMonth: newUsersInRange,
                 },
                 markets: {
                     total: totalMarkets,
@@ -119,17 +114,17 @@ export const getDashboardStats = async (req, res) => {
                 },
                 revenue: {
                     total: revenue,
-                    today: revenueToday[0]?.total || 0,
-                    thisWeek: revenueThisWeek[0]?.total || 0,
-                    thisMonth: revenueThisMonth[0]?.total || 0,
+                    today: revenue,
+                    thisWeek: revenue,
+                    thisMonth: revenue,
                     payouts: payouts,
                     netProfit: netProfit,
                 },
                 bets: {
                     total: totalBets,
-                    today: betsToday,
-                    thisWeek: betsThisWeek,
-                    thisMonth: betsThisMonth,
+                    today: totalBets,
+                    thisWeek: totalBets,
+                    thisMonth: totalBets,
                     winning: winningBets,
                     losing: losingBets,
                     pending: pendingBets,

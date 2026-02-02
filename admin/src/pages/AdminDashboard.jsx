@@ -1,17 +1,98 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCard, LoadingOverlay } from '../components/Skeleton';
 import StatCard from '../components/StatCard';
-import { FaChartLine, FaUsers, FaMoneyBillWave, FaChartBar } from 'react-icons/fa';
+import { FaChartLine, FaUsers, FaMoneyBillWave, FaChartBar, FaCalendarAlt } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
+
+const PRESETS = [
+    { id: 'today', label: '1 Day (Today)', getRange: () => {
+        const d = new Date();
+        const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
+        const from = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return { from, to: from };
+    }},
+    { id: 'tomorrow', label: 'Tomorrow', getRange: () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
+        const from = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return { from, to: from };
+    }},
+    { id: 'this_week', label: 'This Week', getRange: () => {
+        const d = new Date();
+        const day = d.getDay();
+        const sun = new Date(d);
+        sun.setDate(d.getDate() - day);
+        const sat = new Date(sun);
+        sat.setDate(sun.getDate() + 6);
+        const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+        return { from: fmt(sun), to: fmt(sat) };
+    }},
+    { id: 'last_week', label: 'Last Week', getRange: () => {
+        const d = new Date();
+        const day = d.getDay();
+        const sun = new Date(d);
+        sun.setDate(d.getDate() - day - 7);
+        const sat = new Date(sun);
+        sat.setDate(sun.getDate() + 6);
+        const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+        return { from: fmt(sun), to: fmt(sat) };
+    }},
+    { id: 'this_month', label: 'This Month', getRange: () => {
+        const d = new Date();
+        const y = d.getFullYear(), m = d.getMonth();
+        const last = new Date(y, m + 1, 0);
+        const from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+        const to = `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+        return { from, to };
+    }},
+    { id: 'last_month', label: 'Last Month', getRange: () => {
+        const d = new Date();
+        const y = d.getFullYear(), m = d.getMonth() - 1;
+        const from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+        const last = new Date(y, m + 1, 0);
+        const to = `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+        return { from, to };
+    }},
+];
+
+const formatRangeLabel = (from, to) => {
+    if (!from || !to) return '1 Day (Today)';
+    if (from === to) {
+        const d = new Date(from + 'T12:00:00');
+        return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    const a = new Date(from + 'T12:00:00');
+    const b = new Date(to + 'T12:00:00');
+    return `${a.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${b.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+};
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [datePreset, setDatePreset] = useState('today');
+    const [customFrom, setCustomFrom] = useState('');
+    const [customTo, setCustomTo] = useState('');
+    const [calendarOpen, setCalendarOpen] = useState(false);
+    const [customMode, setCustomMode] = useState(false);
+    const dropdownRef = useRef(null);
+
+    const getFromTo = () => {
+        if (customMode && customFrom && customTo) return { from: customFrom, to: customTo };
+        const preset = PRESETS.find((p) => p.id === datePreset);
+        return preset ? preset.getRange() : PRESETS[0].getRange();
+    };
+
+    const getDisplayLabel = () => {
+        if (customMode && customFrom && customTo) return formatRangeLabel(customFrom, customTo);
+        const preset = PRESETS.find((p) => p.id === datePreset);
+        return preset ? preset.label : '1 Day (Today)';
+    };
 
     useEffect(() => {
         const admin = localStorage.getItem('admin');
@@ -22,12 +103,23 @@ const AdminDashboard = () => {
         fetchDashboardStats();
     }, [navigate]);
 
-    const fetchDashboardStats = async () => {
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setCalendarOpen(false);
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
+
+    const fetchDashboardStats = async (rangeOverride) => {
         try {
             setLoading(true);
+            setError('');
+            const { from, to } = rangeOverride || getFromTo();
             const admin = JSON.parse(localStorage.getItem('admin'));
             const password = sessionStorage.getItem('adminPassword') || '';
-            const response = await fetch(`${API_BASE_URL}/dashboard/stats`, {
+            const url = `${API_BASE_URL}/dashboard/stats${from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ''}`;
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Basic ${btoa(`${admin.username}:${password}`)}`,
                 },
@@ -43,6 +135,23 @@ const AdminDashboard = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handlePresetSelect = (presetId) => {
+        setDatePreset(presetId);
+        setCustomMode(false);
+        setCalendarOpen(false);
+        const preset = PRESETS.find((p) => p.id === presetId);
+        const range = preset ? preset.getRange() : PRESETS[0].getRange();
+        fetchDashboardStats(range);
+    };
+
+    const handleCustomApply = () => {
+        if (!customFrom || !customTo) return;
+        if (new Date(customFrom) > new Date(customTo)) return;
+        setCustomMode(true);
+        setCalendarOpen(false);
+        fetchDashboardStats({ from: customFrom, to: customTo });
     };
 
     const handleLogout = () => {
@@ -62,7 +171,38 @@ const AdminDashboard = () => {
     if (loading) {
         return (
             <AdminLayout onLogout={handleLogout} title="Dashboard">
-                <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 animate-fadeIn">Dashboard Overview</h1>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl font-bold animate-fadeIn">Dashboard Overview</h1>
+                    <div className="relative shrink-0" ref={dropdownRef}>
+                        <button
+                            type="button"
+                            onClick={() => setCalendarOpen((o) => !o)}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-200 font-medium text-sm transition-colors"
+                        >
+                            <FaCalendarAlt className="w-4 h-4 text-yellow-500" />
+                            {getDisplayLabel()}
+                        </button>
+                        {calendarOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-gray-800 border border-gray-600 shadow-xl z-50 py-2">
+                                {PRESETS.map((p) => (
+                                    <button key={p.id} type="button" onClick={() => handlePresetSelect(p.id)} className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2">
+                                        {datePreset === p.id && !customMode ? <span className="text-yellow-500">●</span> : <span className="w-2" />}
+                                        {p.label}
+                                    </button>
+                                ))}
+                                <div className="border-t border-gray-600 my-2" />
+                                <div className="px-4 py-2 text-xs text-gray-400 uppercase tracking-wider">Custom Date Range</div>
+                                <div className="px-4 py-2 flex flex-col gap-2">
+                                    <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                    <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                    <button type="button" onClick={handleCustomApply} disabled={!customFrom || !customTo} className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm">
+                                        Apply
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
                     {[...Array(4)].map((_, i) => (
                         <SkeletonCard key={i} />
@@ -80,6 +220,38 @@ const AdminDashboard = () => {
     if (error) {
         return (
             <AdminLayout onLogout={handleLogout} title="Dashboard">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl font-bold animate-fadeIn">Dashboard Overview</h1>
+                    <div className="relative shrink-0" ref={dropdownRef}>
+                        <button
+                            type="button"
+                            onClick={() => setCalendarOpen((o) => !o)}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-200 font-medium text-sm transition-colors"
+                        >
+                            <FaCalendarAlt className="w-4 h-4 text-yellow-500" />
+                            {getDisplayLabel()}
+                        </button>
+                        {calendarOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-gray-800 border border-gray-600 shadow-xl z-50 py-2">
+                                {PRESETS.map((p) => (
+                                    <button key={p.id} type="button" onClick={() => handlePresetSelect(p.id)} className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2">
+                                        {datePreset === p.id && !customMode ? <span className="text-yellow-500">●</span> : <span className="w-2" />}
+                                        {p.label}
+                                    </button>
+                                ))}
+                                <div className="border-t border-gray-600 my-2" />
+                                <div className="px-4 py-2 text-xs text-gray-400 uppercase tracking-wider">Custom Date Range</div>
+                                <div className="px-4 py-2 flex flex-col gap-2">
+                                    <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                    <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                    <button type="button" onClick={handleCustomApply} disabled={!customFrom || !customTo} className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm">
+                                        Apply
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
                 <div className="flex flex-col items-center justify-center min-h-[50vh] animate-fadeIn">
                     <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
                         <svg className="w-8 h-8 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -100,7 +272,38 @@ const AdminDashboard = () => {
 
     return (
         <AdminLayout onLogout={handleLogout} title="Dashboard">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 animate-fadeIn">Dashboard Overview</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+                <h1 className="text-2xl sm:text-3xl font-bold animate-fadeIn">Dashboard Overview</h1>
+                <div className="relative shrink-0" ref={dropdownRef}>
+                    <button
+                        type="button"
+                        onClick={() => setCalendarOpen((o) => !o)}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-200 font-medium text-sm transition-colors"
+                    >
+                        <FaCalendarAlt className="w-4 h-4 text-yellow-500" />
+                        {getDisplayLabel()}
+                    </button>
+                    {calendarOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-gray-800 border border-gray-600 shadow-xl z-50 py-2">
+                            {PRESETS.map((p) => (
+                                <button key={p.id} type="button" onClick={() => handlePresetSelect(p.id)} className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2">
+                                    {datePreset === p.id && !customMode ? <span className="text-yellow-500">●</span> : <span className="w-2" />}
+                                    {p.label}
+                                </button>
+                            ))}
+                            <div className="border-t border-gray-600 my-2" />
+                            <div className="px-4 py-2 text-xs text-gray-400 uppercase tracking-wider">Custom Date Range</div>
+                            <div className="px-4 py-2 flex flex-col gap-2">
+                                <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                <button type="button" onClick={handleCustomApply} disabled={!customFrom || !customTo} className="w-full py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm">
+                                    Apply
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Revenue Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">

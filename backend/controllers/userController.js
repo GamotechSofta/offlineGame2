@@ -343,6 +343,49 @@ export const getUsers = async (req, res) => {
 };
 
 /**
+ * Get single player by id (for admin player detail screen).
+ * Bookie can only view their own referred users.
+ */
+export const getSingleUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const bookieUserIds = await getBookieUserIds(req.admin);
+
+        const user = await User.findById(id)
+            .select('username email phone role isActive source referredBy lastActiveAt createdAt')
+            .populate('referredBy', 'username')
+            .lean();
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Player not found' });
+        }
+
+        if (bookieUserIds !== null) {
+            const allowed = bookieUserIds.some((uid) => uid.toString() === id);
+            if (!allowed) {
+                return res.status(403).json({ success: false, message: 'Access denied to this player' });
+            }
+        }
+
+        const usersWithWallet = await addWalletBalanceToUsers([{ ...user, _id: user._id }]);
+        const withBalance = usersWithWallet[0] || user;
+        const lastActive = user.lastActiveAt ? new Date(user.lastActiveAt).getTime() : 0;
+        const isOnline = lastActive > 0 && Date.now() - lastActive < ONLINE_THRESHOLD_MS;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                ...withBalance,
+                walletBalance: withBalance.walletBalance ?? 0,
+                isOnline,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
  * Toggle player account status (suspend/unsuspend)
  * Only super_admin can toggle. Sets isActive to false (suspended) or true (active).
  */

@@ -14,6 +14,7 @@ import HelpDesk from './pages/HelpDesk';
 import Logs from './pages/Logs';
 import BookieManagement from './pages/BookieManagement';
 import AllUsers from './pages/AllUsers';
+import PlayerDetail from './pages/PlayerDetail';
 import AddResult from './pages/AddResult';
 
 const PrivateRoute = ({ children }) => {
@@ -127,6 +128,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <AllUsers />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/all-users/:userId"
+                    element={
+                        <PrivateRoute>
+                            <PlayerDetail />
                         </PrivateRoute>
                     }
                 />
