@@ -301,15 +301,10 @@ const PlayerDetail = () => {
     };
 
     const handleDeletePlayer = async () => {
-<<<<<<< Updated upstream
         if (!userId || !player?.username) return;
         if (!window.confirm(`Delete player "${player.username}"? This will remove their account and wallet. This cannot be undone.`)) {
             return;
         }
-=======
-        if (!userId || !player) return;
-        if (!window.confirm(`Delete player "${player.username}"? This cannot be undone.`)) return;
->>>>>>> Stashed changes
         setDeletingPlayer(true);
         setError('');
         try {
@@ -401,17 +396,12 @@ const PlayerDetail = () => {
                         <button
                             type="button"
                             onClick={handleDeletePlayer}
-<<<<<<< Updated upstream
                             disabled={deletingPlayer}
-=======
-                            disabled={togglingStatus || deletingPlayer}
->>>>>>> Stashed changes
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gray-600 hover:bg-red-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Delete player"
                         >
                             {deletingPlayer ? <span className="animate-spin">⏳</span> : <><FaTrash className="w-4 h-4" /> Delete</>}
                         </button>
-<<<<<<< Updated upstream
                         <Link
                             to={`/all-users/${userId}/devices`}
                             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
@@ -430,8 +420,6 @@ const PlayerDetail = () => {
                                 </span>
                             )}
                         </Link>
-=======
->>>>>>> Stashed changes
                         {toggleMessage && (
                             <span className={`text-sm ${toggleMessage.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
                                 {toggleMessage}
