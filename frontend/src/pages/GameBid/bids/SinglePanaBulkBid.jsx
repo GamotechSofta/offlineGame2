@@ -171,7 +171,10 @@ const SinglePanaBulkBid = ({ market, title }) => {
                             }
                             setSpecialInputs((prev) => {
                                 const next = { ...prev };
-                                for (const num of list) next[num] = String(n);
+                                for (const num of list) {
+                                    const cur = Number(next[num] || 0) || 0;
+                                    next[num] = String(cur + n);
+                                }
                                 return next;
                             });
                             setGroupBulk((prev) => ({ ...prev, [groupKey]: '' }));

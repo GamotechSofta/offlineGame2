@@ -77,15 +77,25 @@ const FullSangamBid = ({ market, title }) => {
             return;
         }
 
-        setBids((prev) => [
-            ...prev,
-            {
-                id: Date.now() + Math.random(),
-                number: `${openPana}-${closePana}`,
-                points: String(pts),
-                type: session,
-            },
-        ]);
+        const numberKey = `${openPana}-${closePana}`;
+        setBids((prev) => {
+            const next = [...prev];
+            const idx = next.findIndex((b) => String(b.number) === numberKey && String(b.type) === String(session));
+            if (idx >= 0) {
+                const cur = Number(next[idx].points || 0) || 0;
+                next[idx] = { ...next[idx], points: String(cur + pts) };
+                return next;
+            }
+            return [
+                ...next,
+                {
+                    id: Date.now() + Math.random(),
+                    number: numberKey,
+                    points: String(pts),
+                    type: session,
+                },
+            ];
+        });
         setOpenPana('');
         setClosePana('');
         setPoints('');

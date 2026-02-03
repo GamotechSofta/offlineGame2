@@ -62,6 +62,35 @@ const EasyModeBid = ({
     };
     const isValid = validateInput || defaultValidate;
 
+    // Merge bids by (number + type) and sum points (prevents duplicates in list)
+    const mergeBids = (prev, incoming) => {
+        const map = new Map();
+        for (const b of prev || []) {
+            const num = (b?.number ?? '').toString().trim();
+            const type = (b?.type ?? '').toString().trim();
+            const key = `${num}__${type}`;
+            map.set(key, { ...b, number: num, type, points: String(Number(b?.points || 0) || 0) });
+        }
+        for (const b of incoming || []) {
+            const num = (b?.number ?? '').toString().trim();
+            const type = (b?.type ?? '').toString().trim();
+            const key = `${num}__${type}`;
+            const pts = Number(b?.points || 0) || 0;
+            const existing = map.get(key);
+            if (existing) {
+                existing.points = String((Number(existing.points || 0) || 0) + pts);
+            } else {
+                map.set(key, {
+                    id: b?.id ?? `${Date.now()}-${Math.random()}`,
+                    number: num,
+                    points: String(pts),
+                    type,
+                });
+            }
+        }
+        return Array.from(map.values());
+    };
+
     const handleAddBid = () => {
         const pts = Number(inputPoints);
         const n = inputNumber?.toString().trim() || '';
@@ -87,14 +116,17 @@ const EasyModeBid = ({
             return;
         }
 
-        const next = [...bids, { id: Date.now(), number: inputNumber.toString().trim(), points: inputPoints, type: session }];
-        setBids(next);
+        const bid = { id: Date.now() + Math.random(), number: inputNumber.toString().trim(), points: String(pts), type: session };
+        setBids((prev) => {
+            const next = mergeBids(prev, [bid]);
+            if (openReviewOnAdd) {
+                setReviewRows(next);
+                setIsReviewOpen(true);
+            }
+            return next;
+        });
         setInputNumber('');
         setInputPoints('');
-        if (openReviewOnAdd) {
-            setReviewRows(next);
-            setIsReviewOpen(true);
-        }
     };
 
     const handleDeleteBid = (id) => setBids((prev) => prev.filter((b) => b.id !== id));
@@ -116,7 +148,7 @@ const EasyModeBid = ({
             showWarning(`Please enter points for at least one ${label}.`);
             return;
         }
-        setBids((prev) => [...prev, ...toAdd]);
+        setBids((prev) => mergeBids(prev, toAdd));
         if (specialModeType === 'jodi') {
             setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
         } else if (isPanaSumMode && validPanasForSumMode.length > 0) {
@@ -143,10 +175,12 @@ const EasyModeBid = ({
             return;
         }
 
-        const next = [...bids, ...toAdd];
-        setBids(next);
-        setReviewRows(next);
-        setIsReviewOpen(true);
+        setBids((prev) => {
+            const next = mergeBids(prev, toAdd);
+            setReviewRows(next);
+            setIsReviewOpen(true);
+            return next;
+        });
         if (specialModeType === 'jodi') {
             setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
         } else if (isPanaSumMode && validPanasForSumMode.length > 0) {
