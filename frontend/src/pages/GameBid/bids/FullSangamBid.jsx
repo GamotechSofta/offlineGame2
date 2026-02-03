@@ -165,24 +165,26 @@ const FullSangamBid = ({ market, title }) => {
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={handleAdd}
-                            className="w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98]"
-                        >
-                            Add to List
-                        </button>
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
+                            <button
+                                type="button"
+                                onClick={handleAdd}
+                                className="w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98]"
+                            >
+                                Add to List
+                            </button>
 
-                        <button
-                            type="button"
-                            onClick={openReview}
-                            disabled={!bids.length}
-                            className={`w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md transition-all ${
-                                bids.length ? 'hover:from-[#e5c04a] hover:to-[#d4af37] active:scale-[0.98]' : 'opacity-50 cursor-not-allowed'
-                            }`}
-                        >
-                            Submit Bet
-                        </button>
+                            <button
+                                type="button"
+                                onClick={openReview}
+                                disabled={!bids.length}
+                                className={`w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md transition-all ${
+                                    bids.length ? 'hover:from-[#e5c04a] hover:to-[#d4af37] active:scale-[0.98]' : 'opacity-50 cursor-not-allowed'
+                                }`}
+                            >
+                                Submit Bet
+                            </button>
+                        </div>
                     </div>
 
                     {/* Right: list */}

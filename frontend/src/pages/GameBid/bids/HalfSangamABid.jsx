@@ -171,22 +171,24 @@ const HalfSangamABid = ({ market, title }) => {
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={handleAdd}
-                            className="w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98] mb-5 sm:mb-6"
-                        >
-                            Add to List
-                        </button>
+                        <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6 md:grid-cols-1">
+                            <button
+                                type="button"
+                                onClick={handleAdd}
+                                className="w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98]"
+                            >
+                                Add to List
+                            </button>
 
-                        <button
-                            type="button"
-                            onClick={openReview}
-                            disabled={!bids.length}
-                            className={`hidden md:block mb-5 sm:mb-6 ${submitBtnClass(!!bids.length)}`}
-                        >
-                            Submit Bet
-                        </button>
+                            <button
+                                type="button"
+                                onClick={openReview}
+                                disabled={!bids.length}
+                                className={submitBtnClass(!!bids.length)}
+                            >
+                                Submit Bet
+                            </button>
+                        </div>
                     </div>
 
                     {/* Right: list */}
@@ -229,18 +231,6 @@ const HalfSangamABid = ({ market, title }) => {
                         )}
                     </div>
                 </div>
-            </div>
-
-            {/* Sticky Submit above mobile navbar */}
-            <div className="fixed left-0 right-0 bottom-[88px] z-20 px-3 sm:px-4 md:hidden">
-                <button
-                    type="button"
-                    onClick={openReview}
-                    disabled={!bids.length}
-                    className={submitBtnClass(!!bids.length)}
-                >
-                    Submit Bet
-                </button>
             </div>
 
             <BidReviewModal
