@@ -26,16 +26,24 @@ const addOnlineStatus = (users) => {
 
 export const userLogin = async (req, res) => {
     try {
-        const { username, password, deviceId } = req.body;
+        const { username, phone, password, deviceId } = req.body;
         
-        if (!username || !password) {
+        // Support both username and phone for login
+        const loginIdentifier = phone || username;
+        
+        if (!loginIdentifier || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Username and password are required',
+                message: 'Phone number (or username) and password are required',
             });
         }
 
-        const user = await User.findOne({ username });
+        // Try to find user by phone first, then by username
+        let user = phone ? await User.findOne({ phone }) : null;
+        if (!user && username) {
+            user = await User.findOne({ username });
+        }
+        
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -100,6 +108,7 @@ export const userLogin = async (req, res) => {
             id: user._id,
             username: user.username,
             email: user.email,
+            phone: user.phone || '',
             role: user.role,
             balance: balance,
         };
@@ -218,7 +227,9 @@ export const userSignup = async (req, res) => {
             id: userId,
             username: userDoc.username,
             email: userDoc.email,
+            phone: userDoc.phone || '',
             role: userDoc.role,
+            balance: 0,
         };
         if (referredBy) {
             signupData.referredBy = referredBy;

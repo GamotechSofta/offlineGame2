@@ -7,7 +7,6 @@ const Login = () => {
   const [searchParams] = useSearchParams();
   const refParam = searchParams.get('ref');
   const [isLogin, setIsLogin] = useState(!refParam);
-  const [loginMethod, setLoginMethod] = useState('phone'); // 'phone' or 'email'
   const [formData, setFormData] = useState({
     username: '',
     firstName: '',
@@ -53,30 +52,18 @@ const Login = () => {
     }
 
     if (isLogin) {
-      // Login
-      if (loginMethod === 'phone') {
-        if (!formData.phone || !formData.otp) {
-          setError('Phone number and OTP are required');
-          return;
-        }
-        if (!/^[6-9]\d{9}$/.test(formData.phone)) {
-          setError('Please enter a valid 10-digit phone number');
-          return;
-        }
-        if (!/^\d{4,6}$/.test(formData.otp)) {
-          setError('OTP must be 4-6 digits');
+      // Login - Phone & Password
+      if (!formData.phone || !formData.password) {
+        setError('Phone number and password are required');
         return;
-        }
-      } else {
-        // Email/Password login
-        if (!formData.email || !formData.password) {
-          setError('Email and password are required');
-          return;
-        }
+      }
+      if (!/^[6-9]\d{9}$/.test(formData.phone)) {
+        setError('Please enter a valid 10-digit phone number');
+        return;
       }
     } else {
       // Signup
-      if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.otp || !formData.password || !formData.confirmPassword) {
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword) {
         setError('All fields are required');
         return;
       }
@@ -86,10 +73,6 @@ const Login = () => {
       }
       if (formData.password !== formData.confirmPassword) {
         setError('Passwords do not match');
-        return;
-      }
-      if (!/^\d{4,6}$/.test(formData.otp)) {
-        setError('OTP must be 4-6 digits');
         return;
       }
       if (!/^[6-9]\d{9}$/.test(formData.phone)) {
@@ -119,16 +102,13 @@ const Login = () => {
         }
       }
       const body = isLogin
-        ? (loginMethod === 'phone'
-            ? { phone: formData.phone, otp: formData.otp, deviceId: deviceId || undefined }
-            : { email: formData.email, password: formData.password, deviceId: deviceId || undefined })
+        ? { phone: formData.phone, password: formData.password, deviceId: deviceId || undefined }
         : { 
             username: `${formData.firstName} ${formData.lastName}`.trim(),
             firstName: formData.firstName,
             lastName: formData.lastName,
             email: formData.email,
             phone: formData.phone,
-            otp: formData.otp,
             password: formData.password,
             referredBy: refParam || undefined 
           };
@@ -167,8 +147,8 @@ const Login = () => {
         localStorage.setItem('user', JSON.stringify(userPayload));
         // Dispatch custom event to update navbar
         window.dispatchEvent(new Event('userLogin'));
-        // Redirect to home
-        navigate('/');
+        // Redirect to profile after signup, home after login
+        navigate(isLogin ? '/' : '/profile');
       } else {
         setError(data.message || 'Something went wrong');
       }
@@ -214,7 +194,6 @@ const Login = () => {
               type="button"
               onClick={() => {
                 setIsLogin(true);
-                setLoginMethod('phone');
                 setError('');
                 setFormData({
                   username: '',
@@ -239,7 +218,6 @@ const Login = () => {
               type="button"
               onClick={() => {
                 setIsLogin(false);
-                setLoginMethod('phone');
                 setError('');
                 setFormData({
                   username: '',
@@ -272,60 +250,10 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Login Method Toggle (only for login) - Improved styling */}
-              {isLogin && (
-                <div className="flex gap-2 mb-4 bg-gray-800/50 backdrop-blur-sm rounded-xl p-1.5 border border-gray-700/50">
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginMethod('phone');
-                  setError('');
-                  setFormData({
-                    ...formData,
-                    email: '',
-                    password: '',
-                  });
-                }}
-                  className={`flex-1 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
-                    loginMethod === 'phone'
-                      ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-md'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  Phone & OTP
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginMethod('email');
-                    setError('');
-                    setFormData({
-                      ...formData,
-                      phone: '',
-                      otp: '',
-                    });
-                  }}
-                  className={`flex-1 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
-                    loginMethod === 'email'
-                      ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-md'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Email & Password
-                </button>
-            </div>
-          )}
-
               {/* Form - Improved spacing and styling */}
               <form onSubmit={handleSubmit} className={isLogin ? "space-y-3" : "space-y-2"}>
-                {/* Phone & OTP Login Fields */}
-                {isLogin && loginMethod === 'phone' && (
+                {/* Login Fields */}
+                {isLogin && (
                   <>
                     <div>
                       <label className="block text-gray-300 text-xs font-medium mb-1.5">
@@ -345,56 +273,6 @@ const Login = () => {
                           maxLength="10"
                           className="w-full bg-gray-800/80 border border-gray-700/50 rounded-lg px-3 pl-10 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm text-sm"
                           placeholder="10-digit phone number"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-gray-300 text-xs font-medium mb-1.5">
-                        OTP Verification Code <span className="text-yellow-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
-                        </div>
-                        <input
-                          type="text"
-                          name="otp"
-                          value={formData.otp}
-                          onChange={handleChange}
-                          maxLength="6"
-                          inputMode="numeric"
-                          className="w-full bg-gray-800/80 border border-gray-700/50 rounded-lg px-3 pl-10 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm text-sm"
-                          placeholder="Enter 4-6 digit OTP"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Email & Password Login Fields */}
-                {isLogin && loginMethod === 'email' && (
-                  <>
-                    <div>
-                      <label className="block text-gray-300 text-xs font-medium mb-1.5">
-                        Email Address <span className="text-yellow-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          className="w-full bg-gray-800/80 border border-gray-700/50 rounded-lg px-3 pl-10 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm text-sm"
-                          placeholder="your.email@example.com"
                           required
                         />
                       </div>
@@ -502,33 +380,6 @@ const Login = () => {
                         maxLength="10"
                         className="w-full bg-gray-800/80 border border-gray-700/50 rounded-lg px-3 pl-9 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm text-sm"
                         placeholder="10-digit phone number"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* OTP Verification (only for signup) */}
-                {!isLogin && (
-                  <div>
-                    <label className="block text-gray-300 text-xs font-medium mb-1">
-                      OTP Verification Code <span className="text-yellow-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      </div>
-                      <input
-                        type="text"
-                        name="otp"
-                        value={formData.otp}
-                        onChange={handleChange}
-                        maxLength="6"
-                        inputMode="numeric"
-                        className="w-full bg-gray-800/80 border border-gray-700/50 rounded-lg px-3 pl-9 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm text-sm"
-                        placeholder="Enter 4-6 digit OTP"
                         required
                       />
                     </div>
@@ -679,19 +530,18 @@ const Login = () => {
                 type="button"
               onClick={() => {
                 setIsLogin(true);
-                  setLoginMethod('phone');
                 setError('');
-                  setFormData({
-                    username: '',
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    otp: '',
-                    password: '',
-                    confirmPassword: '',
-                  });
-                }}
+                setFormData({
+                  username: '',
+                  firstName: '',
+                  lastName: '',
+                  email: '',
+                  phone: '',
+                  otp: '',
+                  password: '',
+                  confirmPassword: '',
+                });
+              }}
                 className={`flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
                 isLogin
                     ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg shadow-yellow-500/30'
@@ -702,21 +552,20 @@ const Login = () => {
             </button>
             <button
                 type="button"
-              onClick={() => {
-                setIsLogin(false);
-                  setLoginMethod('phone');
-                setError('');
-                  setFormData({
-                    username: '',
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    otp: '',
-                    password: '',
-                    confirmPassword: '',
-                  });
-                }}
+                 onClick={() => {
+                   setIsLogin(false);
+                   setError('');
+                   setFormData({
+                     username: '',
+                     firstName: '',
+                     lastName: '',
+                     email: '',
+                     phone: '',
+                     otp: '',
+                     password: '',
+                     confirmPassword: '',
+                   });
+                 }}
                 className={`flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
                 !isLogin
                     ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg shadow-yellow-500/30'
@@ -737,60 +586,10 @@ const Login = () => {
               </div>
             )}
 
-            {/* Login Method Toggle (only for login) - Improved styling */}
-            {isLogin && (
-              <div className="flex gap-2 mb-5 bg-gray-800/50 backdrop-blur-sm rounded-xl p-1.5 border border-gray-700/50">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginMethod('phone');
-                    setError('');
-                    setFormData({
-                      ...formData,
-                      email: '',
-                      password: '',
-                    });
-                  }}
-                  className={`flex-1 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
-                    loginMethod === 'phone'
-                      ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-md'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  Phone & OTP
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginMethod('email');
-                    setError('');
-                    setFormData({
-                      ...formData,
-                      phone: '',
-                      otp: '',
-                    });
-                  }}
-                  className={`flex-1 py-2 rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
-                    loginMethod === 'email'
-                      ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-md'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Email & Password
-                </button>
-            </div>
-          )}
-
             {/* Form - Improved spacing and styling */}
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-              {/* Phone & OTP Login Fields */}
-              {isLogin && loginMethod === 'phone' && (
+              {/* Login Fields */}
+              {isLogin && (
                 <>
                   <div>
                     <label className="block text-gray-300 text-sm font-medium mb-2.5">
@@ -810,56 +609,6 @@ const Login = () => {
                         maxLength="10"
                         className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 pl-12 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
                         placeholder="10-digit phone number"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-gray-300 text-sm font-medium mb-2.5">
-                      OTP Verification Code <span className="text-yellow-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      </div>
-                      <input
-                        type="text"
-                        name="otp"
-                        value={formData.otp}
-                        onChange={handleChange}
-                        maxLength="6"
-                        inputMode="numeric"
-                        className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 pl-12 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
-                        placeholder="Enter 4-6 digit OTP"
-                        required
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Email & Password Login Fields */}
-              {isLogin && loginMethod === 'email' && (
-                <>
-                  <div>
-                    <label className="block text-gray-300 text-sm font-medium mb-2.5">
-                      Email Address <span className="text-yellow-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 pl-12 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
-                        placeholder="your.email@example.com"
                         required
                       />
                     </div>
@@ -959,11 +708,11 @@ const Login = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
                     </div>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
                       maxLength="10"
                       className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 pl-12 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
                       placeholder="10-digit phone number"
@@ -972,33 +721,6 @@ const Login = () => {
                   </div>
                 </div>
               )}
-
-              {/* OTP Verification (only for signup) */}
-              {!isLogin && (
-                <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-2.5">
-                    OTP Verification Code <span className="text-yellow-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      name="otp"
-                      value={formData.otp}
-                      onChange={handleChange}
-                      maxLength="6"
-                      inputMode="numeric"
-                      className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 pl-12 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
-                      placeholder="Enter 4-6 digit OTP"
-                      required
-                    />
-                  </div>
-              </div>
-            )}
 
               {/* Password (only for signup) */}
               {!isLogin && (

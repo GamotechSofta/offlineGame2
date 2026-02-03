@@ -8,6 +8,7 @@ const AppHeader = () => {
 
   const menuItems = [
     { label: 'Home', path: '/' },
+    { label: 'Profile', path: '/profile' },
     { label: 'Top Winners', path: '/support' },
     { label: 'Starline Winners', path: '/support' },
     { label: 'Telegram Channel', path: '/support' },
@@ -139,10 +140,11 @@ const AppHeader = () => {
 
         {/* Profile Icon - Desktop only, shows when logged in */}
         {user ? (
-          <div 
-            onClick={handleLogout}
+          <button
+            type="button"
+            onClick={() => navigate('/profile')}
             className="hidden md:flex w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 shrink-0 rounded-full bg-gray-800 border border-yellow-500/50 flex items-center justify-center cursor-pointer hover:bg-yellow-500/10 transition-colors"
-            title={`${user.username} - Click to logout`}
+            title={`${user.username} - View Profile`}
           >
             <svg 
               className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 text-yellow-400" 
@@ -155,7 +157,7 @@ const AppHeader = () => {
                 clipRule="evenodd" 
               />
             </svg>
-          </div>
+          </button>
         ) : (
           /* Sign In/Sign Up Icon - Desktop only, shows when not logged in */
           <div 

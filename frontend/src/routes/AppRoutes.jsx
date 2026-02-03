@@ -14,6 +14,7 @@ import Login from '../pages/Login';
 import Passbook from '../pages/Passbook';
 import Support from '../pages/Support';
 import Bids from '../pages/Bids';
+import Profile from '../pages/Profile';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -102,6 +103,7 @@ const AppRoutes = () => {
           <Route path="/support" element={<Support />} />
           <Route path="/login" element={<Login />} />
           <Route path="/bids" element={<Bids />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </Layout>
     </Router>

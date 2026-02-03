@@ -31,6 +31,7 @@ const Profile = () => {
       username: pick(u, ['username', 'name', 'fullName']),
       phone: pick(u, ['phone', 'mobile', 'mobileNumber', 'phoneNumber', 'phone_number', 'mobilenumber']),
       email: pick(u, ['email']),
+      role: pick(u, ['role']),
     };
   }, [user]);
 
@@ -46,7 +47,12 @@ const Profile = () => {
       setUser(null);
       navigate('/login');
     };
+    const onLogin = () => {
+      const u = readUserFromStorage();
+      if (u) setUser(u);
+    };
     window.addEventListener('userLogout', onLogout);
+    window.addEventListener('userLogin', onLogin);
     window.addEventListener('storage', () => {
       const u = readUserFromStorage();
       if (!u) onLogout();
@@ -54,6 +60,7 @@ const Profile = () => {
     });
     return () => {
       window.removeEventListener('userLogout', onLogout);
+      window.removeEventListener('userLogin', onLogin);
     };
   }, [navigate]);
 
@@ -192,39 +199,66 @@ const Profile = () => {
 
             {activeSection === 'profile' ? (
               <div className="p-5 sm:p-6 space-y-4">
+                {/* User Information Display */}
                 <div className="grid gap-3 sm:gap-4">
+                  <div className="mb-2">
+                    <h3 className="text-yellow-400 font-semibold text-sm mb-4 uppercase tracking-wide">Account Information</h3>
+                  </div>
+                  
                   <div>
-                    <label className="block text-gray-300 text-sm font-medium mb-2">Username</label>
-                    <input
-                      value={form.username}
-                      onChange={updateForm('username')}
-                      className="w-full bg-[#111214] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#f3b61b] focus:border-transparent"
-                      placeholder="Enter username"
-                      inputMode="text"
-                    />
+                    <label className="block text-gray-400 text-xs font-medium mb-1.5 uppercase tracking-wide">User ID</label>
+                    <div className="w-full bg-[#111214] border border-white/10 rounded-xl px-4 py-3 text-gray-300">
+                      {user?.id || user?._id || 'N/A'}
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-gray-300 text-sm font-medium mb-2">Phone</label>
-                    <input
-                      value={form.phone}
-                      onChange={updateForm('phone')}
-                      className="w-full bg-[#111214] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#f3b61b] focus:border-transparent"
-                      placeholder="Enter phone"
-                      inputMode="tel"
-                    />
+                    <label className="block text-gray-400 text-xs font-medium mb-1.5 uppercase tracking-wide">Username</label>
+                    <div className="w-full bg-[#111214] border border-white/10 rounded-xl px-4 py-3 text-white">
+                      {form.username || 'Not set'}
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-gray-300 text-sm font-medium mb-2">Email</label>
-                    <input
-                      value={form.email}
-                      onChange={updateForm('email')}
-                      className="w-full bg-[#111214] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#f3b61b] focus:border-transparent"
-                      placeholder="Enter email"
-                      inputMode="email"
-                    />
+                    <label className="block text-gray-400 text-xs font-medium mb-1.5 uppercase tracking-wide">Email Address</label>
+                    <div className="w-full bg-[#111214] border border-white/10 rounded-xl px-4 py-3 text-white">
+                      {form.email || 'Not set'}
+                    </div>
                   </div>
+
+                  <div>
+                    <label className="block text-gray-400 text-xs font-medium mb-1.5 uppercase tracking-wide">Phone Number</label>
+                    <div className="w-full bg-[#111214] border border-white/10 rounded-xl px-4 py-3 text-white">
+                      {form.phone || 'Not set'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 text-xs font-medium mb-1.5 uppercase tracking-wide">Role</label>
+                    <div className="w-full bg-[#111214] border border-white/10 rounded-xl px-4 py-3 text-white capitalize">
+                      {form.role || 'User'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 text-xs font-medium mb-1.5 uppercase tracking-wide">Account Balance</label>
+                    <div className="w-full bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 border border-yellow-500/30 rounded-xl px-4 py-3 text-yellow-400 font-bold text-lg">
+                      ₹{walletValue !== null ? walletValue.toFixed(2) : '0.00'}
+                    </div>
+                  </div>
+
+                  {user?.createdAt && (
+                    <div>
+                      <label className="block text-gray-400 text-xs font-medium mb-1.5 uppercase tracking-wide">Member Since</label>
+                      <div className="w-full bg-[#111214] border border-white/10 rounded-xl px-4 py-3 text-gray-300">
+                        {new Date(user.createdAt).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
