@@ -77,8 +77,8 @@ const JodiBulkBid = ({ market, title }) => {
             const next = { ...prev };
             for (const c of DIGITS) {
                 const key = `${r}${c}`;
-                const cur = Number(next[key] || 0);
-                if (!cur) next[key] = String(p);
+                const cur = Number(next[key] || 0) || 0;
+                next[key] = String(cur + p);
             }
             return next;
         });
@@ -95,8 +95,8 @@ const JodiBulkBid = ({ market, title }) => {
             const next = { ...prev };
             for (const r of DIGITS) {
                 const key = `${r}${c}`;
-                const cur = Number(next[key] || 0);
-                if (!cur) next[key] = String(p);
+                const cur = Number(next[key] || 0) || 0;
+                next[key] = String(cur + p);
             }
             return next;
         });
