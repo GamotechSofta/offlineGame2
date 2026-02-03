@@ -1,11 +1,5 @@
 @import "tailwindcss";
 
-/* Bookie-scoped theme: only bookie's users get custom --theme-primary/--theme-accent */
-:root {
-  --theme-primary: #f3b61b;
-  --theme-accent: #e5a914;
-}
-
 @keyframes scroll {
   0% {
     transform: translateX(0);

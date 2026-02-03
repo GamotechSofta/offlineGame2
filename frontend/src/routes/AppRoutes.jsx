@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useHeartbeat } from '../hooks/useHeartbeat';
-import { applyBookieTheme } from '../utils/theme';
 import AppHeader from '../components/AppHeader';
 import Header from '../components/Header';
 import BottomNavbar from '../components/BottomNavbar';
@@ -15,7 +14,6 @@ import Login from '../pages/Login';
 import Passbook from '../pages/Passbook';
 import Support from '../pages/Support';
 import Bids from '../pages/Bids';
-import Profile from '../pages/Profile';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -79,7 +77,7 @@ const Layout = ({ children }) => {
   return (
     <div className={`min-h-screen pb-16 md:pb-0 w-full max-w-full overflow-x-hidden ${isBidPage ? 'bg-black' : 'bg-gray-50'}`}>
       <AppHeader />
-      <div className={isBidPage ? 'pt-[68px] sm:pt-[76px] md:pt-[88px]' : 'pt-[60px] sm:pt-[68px] md:pt-[80px]'}>
+      <div className="pt-[60px] sm:pt-[68px] md:pt-[80px]">
         {children}
       </div>
       <BottomNavbar />
@@ -89,18 +87,6 @@ const Layout = ({ children }) => {
 
 const AppRoutes = () => {
   useHeartbeat();
-  useEffect(() => {
-    applyBookieTheme();
-    const onUserChange = () => applyBookieTheme();
-    window.addEventListener('userLogin', onUserChange);
-    window.addEventListener('userLogout', onUserChange);
-    window.addEventListener('storage', onUserChange);
-    return () => {
-      window.removeEventListener('userLogin', onUserChange);
-      window.removeEventListener('userLogout', onUserChange);
-      window.removeEventListener('storage', onUserChange);
-    };
-  }, []);
   return (
     <Router>
       <ScrollToTop />
@@ -116,7 +102,6 @@ const AppRoutes = () => {
           <Route path="/support" element={<Support />} />
           <Route path="/login" element={<Login />} />
           <Route path="/bids" element={<Bids />} />
-          <Route path="/profile" element={<Profile />} />
         </Routes>
       </Layout>
     </Router>

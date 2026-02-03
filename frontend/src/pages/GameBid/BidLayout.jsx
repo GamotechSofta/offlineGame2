@@ -86,7 +86,7 @@ const BidLayout = ({
     return (
         <div className="min-h-screen bg-black font-sans w-full max-w-full overflow-x-hidden">
             {/* Header - Home theme dark */}
-            <div className="bg-[#202124] border-b border-white/10 px-4 sm:px-6 py-3 flex items-center justify-between gap-2 sticky top-0 z-10">
+            <div className="bg-[#202124] border-b border-white/10 px-4 sm:px-6 py-2 flex items-center justify-between gap-2 sticky top-0 z-10">
                 <button
                     onClick={() => market ? navigate('/bidoptions', { state: { market } }) : navigate(-1)}
                     className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full active:scale-95 transition-colors"
@@ -149,7 +149,7 @@ const BidLayout = ({
 
             <div
                 ref={contentRef}
-                className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full pt-3 ${
+                className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full ${
                     contentPaddingClass ?? (hideFooter ? 'pb-6' : 'pb-44 md:pb-32')
                 }`}
             >

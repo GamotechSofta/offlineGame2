@@ -14,7 +14,6 @@ import Reports from './pages/Reports';
 import Payments from './pages/Payments';
 import Wallet from './pages/Wallet';
 import HelpDesk from './pages/HelpDesk';
-import ThemeSettings from './pages/ThemeSettings';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -65,7 +64,6 @@ const AppRoutes = () => (
         <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
         <Route path="/referral-link" element={<PrivateRoute><ReferralLink /></PrivateRoute>} />
-        <Route path="/theme-settings" element={<PrivateRoute><ThemeSettings /></PrivateRoute>} />
         <Route path="/bet-history" element={<PrivateRoute><BetHistory /></PrivateRoute>} />
         <Route path="/top-winners" element={<PrivateRoute><TopWinners /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
