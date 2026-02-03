@@ -81,6 +81,10 @@ const AppHeader = () => {
     : 'Since -';
   const avatarInitial = displayName ? displayName.charAt(0).toUpperCase() : 'U';
 
+  const handleProfileClick = () => {
+    navigate(user ? '/profile' : '/login');
+  };
+
   return (
     <>
       <div className="fixed top-0 left-0 right-0 z-50 w-full bg-black px-3 sm:px-5 md:px-6 lg:px-8 py-2.5 sm:py-3 md:py-4">
@@ -138,56 +142,29 @@ const AppHeader = () => {
           <span className="text-sm md:text-base lg:text-lg font-bold text-white">2,853</span>
         </button>
 
-        {/* Profile Icon - Desktop only, shows when logged in */}
-        {user ? (
-          <button
-            type="button"
-            onClick={() => navigate('/profile')}
-            className="hidden md:flex w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 shrink-0 rounded-full bg-gray-800 border border-yellow-500/50 flex items-center justify-center cursor-pointer hover:bg-yellow-500/10 transition-colors"
-            title={`${user.username} - View Profile`}
+        {/* Profile Icon (replaces notification icon on mobile) */}
+        <button
+          type="button"
+          onClick={handleProfileClick}
+          className={`w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 shrink-0 rounded-full bg-gray-800 border flex items-center justify-center cursor-pointer transition-colors ${
+            user ? 'border-yellow-500/50 hover:bg-yellow-500/10' : 'border-gray-700 hover:bg-gray-700'
+          }`}
+          title={user ? `${user.username} - View Profile` : 'Sign In / Sign Up'}
+          aria-label="Profile"
+        >
+          <svg
+            className={`w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 ${user ? 'text-yellow-400' : 'text-white'}`}
+            fill={user ? 'currentColor' : 'none'}
+            stroke={user ? 'none' : 'currentColor'}
+            viewBox="0 0 20 20"
           >
-            <svg 
-              className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 text-yellow-400" 
-              fill="currentColor" 
-              viewBox="0 0 20 20"
-            >
-              <path 
-                fillRule="evenodd" 
-                d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" 
-                clipRule="evenodd" 
-              />
-            </svg>
-          </button>
-        ) : (
-          /* Sign In/Sign Up Icon - Desktop only, shows when not logged in */
-          <div 
-            onClick={() => navigate('/login')}
-            className="hidden md:flex w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
-            title="Sign In / Sign Up"
-          >
-            <svg 
-              className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 text-white" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth="2" 
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-              />
-            </svg>
-          </div>
-        )}
-
-        {/* Notification Bell - responsive size */}
-          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors relative">
-          <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            <path
+              fillRule="evenodd"
+              d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+              clipRule="evenodd"
+            />
           </svg>
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full"></div>
-          </div>
+        </button>
         </div>
       </div>
       {isMenuOpen && (

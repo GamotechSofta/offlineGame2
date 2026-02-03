@@ -65,7 +65,8 @@ const Layout = ({ children }) => {
       <div className="min-h-screen pb-16 md:pb-0 bg-black">
         <AppHeader />
         <Header />
-        <div className="pt-[100px] sm:pt-[110px] md:pt-[125px]">
+        {/* Content starts after fixed AppHeader + fixed marquee */}
+        <div className="pt-[84px] sm:pt-[104px] md:pt-[120px]">
           {children}
         </div>
         <BottomNavbar />
@@ -78,7 +79,8 @@ const Layout = ({ children }) => {
   return (
     <div className={`min-h-screen pb-16 md:pb-0 w-full max-w-full overflow-x-hidden ${isBidPage ? 'bg-black' : 'bg-gray-50'}`}>
       <AppHeader />
-      <div className="pt-[60px] sm:pt-[68px] md:pt-[80px]">
+      {/* Reduce mobile top-gap under fixed header */}
+      <div className={isBidPage ? 'pt-[60px] sm:pt-[76px] md:pt-[88px]' : 'pt-[52px] sm:pt-[68px] md:pt-[80px]'}>
         {children}
       </div>
       <BottomNavbar />
