@@ -402,6 +402,24 @@ const PlayerDetail = () => {
                         >
                             {deletingPlayer ? <span className="animate-spin">⏳</span> : <><FaTrash className="w-4 h-4" /> Delete</>}
                         </button>
+                        <Link
+                            to={`/all-users/${userId}/devices`}
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                                Array.isArray(player.loginDevices) && player.loginDevices.length > 1
+                                    ? 'bg-red-900/50 border border-red-600 text-red-200 hover:bg-red-800 hover:border-red-500 hover:text-red-100'
+                                    : 'bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-yellow-500/50 hover:text-yellow-400'
+                            }`}
+                            title="Devices used"
+                        >
+                            Devices used
+                            {Array.isArray(player.loginDevices) && player.loginDevices.length > 0 && (
+                                <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
+                                    player.loginDevices.length > 1 ? 'bg-red-800 text-red-200' : 'bg-gray-600 text-gray-300'
+                                }`}>
+                                    {player.loginDevices.length}
+                                </span>
+                            )}
+                        </Link>
                         {toggleMessage && (
                             <span className={`text-sm ${toggleMessage.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
                                 {toggleMessage}
@@ -465,48 +483,14 @@ const PlayerDetail = () => {
                 </div>
             </div>
 
-            {/* Multiple devices warning + Devices list (admin-only) */}
+            {/* Multiple devices warning (admin-only) – red when multiple devices */}
             {Array.isArray(player.loginDevices) && player.loginDevices.length > 1 && (
-                <div className="mb-6 min-w-0">
-                    <div className="rounded-xl border border-amber-500/60 bg-amber-500/10 px-4 py-3 text-amber-200 text-sm font-medium">
+                <div className="mb-4 min-w-0">
+                    <div className="rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-3 text-red-200 text-sm font-medium">
                         ⚠️ User has logged in from multiple devices
                     </div>
                 </div>
             )}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden mb-6 min-w-0">
-                <div className="px-4 sm:px-6 py-3 border-b border-gray-700">
-                    <h2 className="text-base font-semibold text-yellow-500">Devices used</h2>
-                </div>
-                <div className="p-4 sm:p-6 min-w-0 overflow-x-auto">
-                    {!player.loginDevices || player.loginDevices.length === 0 ? (
-                        <p className="text-gray-500 text-sm">—</p>
-                    ) : (
-                        <table className="w-full text-sm min-w-[320px]">
-                            <thead>
-                                <tr className="border-b border-gray-600">
-                                    <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">Device ID</th>
-                                    <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">First Login Date</th>
-                                    <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">Last Login Date</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-700">
-                                {player.loginDevices.map((d, i) => (
-                                    <tr key={(d.deviceId || i).toString()} className="hover:bg-gray-700/30">
-                                        <td className="py-2.5 pr-4 font-mono text-gray-300 truncate max-w-[200px] sm:max-w-none" title={d.deviceId}>{d.deviceId || '—'}</td>
-                                        <td className="py-2.5 pr-4 text-gray-400">
-                                            {d.firstLoginAt ? new Date(d.firstLoginAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
-                                        </td>
-                                        <td className="py-2.5 pr-4 text-gray-400">
-                                            {d.lastLoginAt ? new Date(d.lastLoginAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            </div>
-
             {/* Date range - visible for all tabs (Statement, Wallet, Bet History, Profile, Exposure) */}
             <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span className="text-gray-400 text-sm">Date range:</span>

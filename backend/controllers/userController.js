@@ -503,3 +503,40 @@ export const deletePlayer = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+/**
+ * Clear login devices list for a player (Admin only).
+ */
+export const clearLoginDevices = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Player not found',
+            });
+        }
+
+        await User.updateOne({ _id: id }, { $set: { loginDevices: [] } });
+
+        await logActivity({
+            action: 'clear_login_devices',
+            performedBy: req.admin?.username || 'Admin',
+            performedByType: req.admin?.role || 'admin',
+            targetType: 'user',
+            targetId: id,
+            details: `Login devices cleared for player "${user.username}"`,
+            ip: getClientIp(req),
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Devices list cleared successfully',
+            data: { id },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
