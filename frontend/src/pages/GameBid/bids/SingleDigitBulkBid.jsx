@@ -57,7 +57,28 @@ const SingleDigitBulkBid = ({ market, title }) => {
         }
     }, []);
 
-    const rows = bids;
+    // For review popup history: merge same digit entries by (number + type),
+    // so digit doesn't repeat and points get summed.
+    const rows = useMemo(() => {
+        const map = new Map();
+        for (const b of bids) {
+            const num = String(b.number ?? '').trim();
+            const type = String(b.type ?? '').trim();
+            const key = `${num}__${type}`;
+            const prev = map.get(key);
+            const pts = Number(b.points || 0) || 0;
+            if (prev) {
+                prev.points = String((Number(prev.points || 0) || 0) + pts);
+            } else {
+                map.set(key, { id: key, number: num, points: String(pts), type });
+            }
+        }
+        // Keep a stable order: by type then number
+        return Array.from(map.values()).sort((a, c) => {
+            if (a.type !== c.type) return a.type.localeCompare(c.type);
+            return a.number.localeCompare(c.number);
+        });
+    }, [bids]);
 
     const pointsByDigit = bids.reduce((acc, b) => {
         const k = String(b.number);

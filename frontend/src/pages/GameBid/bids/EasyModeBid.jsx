@@ -503,9 +503,24 @@ const EasyModeBid = ({
                                         </div>
                                     ))}
                                 </div>
-                                {/* Mobile-only spacer so sticky button doesn't overlap last row */}
+                                {/* Mobile: Submit button for special mode */}
                                 {showInlineSubmit && (
-                                    <div className="md:hidden h-24" />
+                                    <div className="md:hidden mt-4">
+                                        {(() => {
+                                            const enabled = bids.length > 0 || Object.values(specialInputs).some((v) => Number(v) > 0);
+                                            const disabled = bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0);
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    disabled={disabled}
+                                                    onClick={handleSubmitFromSpecial}
+                                                    className={submitBtnClass(enabled)}
+                                                >
+                                                    Submit Bet
+                                                </button>
+                                            );
+                                        })()}
+                                    </div>
                                 )}
                             </>
                         ) : (specialModeType === 'doublePana' || specialModeType === 'singlePana') && validPanasForSumMode.length > 0 ? (
