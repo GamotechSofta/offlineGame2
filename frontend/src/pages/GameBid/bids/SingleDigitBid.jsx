@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
+import { placeBet, updateUserBalance } from '../../../api/bets';
 
 const SingleDigitBid = ({ market, title }) => {
     // Single Digit: show Special Mode first (per requirement)
@@ -200,7 +201,17 @@ const SingleDigitBid = ({ market, title }) => {
         </div>
     );
 
-    const handleSubmitBet = () => {
+    const handleSubmitBet = async () => {
+        const marketId = market?._id || market?.id;
+        if (!marketId) throw new Error('Market not found');
+        const bets = bids.map((b) => ({
+            betType: 'single',
+            betNumber: String(b.number),
+            amount: Number(b.points) || 0,
+        }));
+        const result = await placeBet(marketId, bets);
+        if (!result.success) throw new Error(result.message);
+        if (result.data?.newBalance != null) updateUserBalance(result.data.newBalance);
         setIsReviewOpen(false);
         clearAll();
     };

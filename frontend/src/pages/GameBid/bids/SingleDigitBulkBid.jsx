@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
+import { placeBet, updateUserBalance } from '../../../api/bets';
 
 const SingleDigitBulkBid = ({ market, title }) => {
     const [session, setSession] = useState(() => (market?.status === 'running' ? 'CLOSE' : 'OPEN'));
@@ -92,8 +93,18 @@ const SingleDigitBulkBid = ({ market, title }) => {
         setInputPoints('');
     };
 
-    const handleSubmitBet = () => {
-        // Integrate API later. For now, close and clear.
+    const handleSubmitBet = async () => {
+        const marketId = market?._id || market?.id;
+        if (!marketId) throw new Error('Market not found');
+        const payload = rows.map((r) => ({
+            betType: 'single',
+            betNumber: String(r.number),
+            amount: Number(r.points) || 0,
+        }));
+        const result = await placeBet(marketId, payload);
+        if (!result.success) throw new Error(result.message);
+        if (result.data?.newBalance != null) updateUserBalance(result.data.newBalance);
+        setIsReviewOpen(false);
         clearAll();
     };
 

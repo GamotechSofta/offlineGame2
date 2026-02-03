@@ -1,5 +1,112 @@
 import Bet from '../models/bet/bet.js';
+import User from '../models/user/user.js';
+import Market from '../models/market/market.js';
+import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+
+const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'half-sangam', 'full-sangam'];
+
+/**
+ * Place bets (user-facing). Body: { userId, marketId, bets: [ { betType, betNumber, amount } ] }
+ * Deducts total amount from wallet, creates Bet records. Returns new balance.
+ */
+export const placeBet = async (req, res) => {
+    try {
+        const { userId, marketId, bets } = req.body;
+
+        if (!userId || !marketId || !Array.isArray(bets) || bets.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'userId, marketId and non-empty bets array are required',
+            });
+        }
+
+        const user = await User.findById(userId).select('isActive').lean();
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        if (!user.isActive) {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account has been suspended. Please contact admin.',
+                code: 'ACCOUNT_SUSPENDED',
+            });
+        }
+
+        const market = await Market.findById(marketId).lean();
+        if (!market) {
+            return res.status(404).json({ success: false, message: 'Market not found' });
+        }
+
+        const sanitized = [];
+        let totalAmount = 0;
+        for (const b of bets) {
+            const betType = (b.betType || '').toString().trim().toLowerCase();
+            const betNumber = (b.betNumber || '').toString().trim();
+            const amount = Number(b.amount);
+            if (!VALID_BET_TYPES.includes(betType) || !betNumber || !Number.isFinite(amount) || amount <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Each bet must have betType, betNumber and amount > 0',
+                });
+            }
+            totalAmount += amount;
+            sanitized.push({ betType, betNumber, amount });
+        }
+
+        let wallet = await Wallet.findOne({ userId });
+        if (!wallet) {
+            wallet = new Wallet({ userId, balance: 0 });
+            await wallet.save();
+        }
+
+        if (wallet.balance < totalAmount) {
+            return res.status(400).json({
+                success: false,
+                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}`,
+            });
+        }
+
+        wallet.balance -= totalAmount;
+        await wallet.save();
+
+        const betIds = [];
+        const createdBets = [];
+        for (const { betType, betNumber, amount } of sanitized) {
+            const bet = await Bet.create({
+                userId,
+                marketId,
+                betType,
+                betNumber,
+                amount,
+                status: 'pending',
+                payout: 0,
+            });
+            betIds.push(bet._id);
+            createdBets.push(bet);
+        }
+
+        await WalletTransaction.create({
+            userId,
+            type: 'debit',
+            amount: totalAmount,
+            description: `Bet placed – ${market.marketName} (${bets.length} bet(s))`,
+            referenceId: betIds[0]?.toString() || marketId,
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Bet placed successfully',
+            data: {
+                newBalance: wallet.balance,
+                betIds,
+                totalAmount,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message || 'Failed to place bet' });
+    }
+};
 
 export const getBetHistory = async (req, res) => {
     try {

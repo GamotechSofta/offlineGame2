@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
+import { placeBet, updateUserBalance } from '../../../api/bets';
 
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
 
@@ -128,7 +129,20 @@ const DoublePanaBulkBid = ({ market, title }) => {
     };
 
     const handleCancel = () => clearAll();
-    const handleSubmit = () => clearAll();
+    const handleSubmit = async () => {
+        const marketId = market?._id || market?.id;
+        if (!marketId) throw new Error('Market not found');
+        const payload = reviewRows.map((r) => ({
+            betType: 'panna',
+            betNumber: String(r.number),
+            amount: Number(r.points) || 0,
+        }));
+        const result = await placeBet(marketId, payload);
+        if (!result.success) throw new Error(result.message);
+        if (result.data?.newBalance != null) updateUserBalance(result.data.newBalance);
+        setIsReviewOpen(false);
+        clearAll();
+    };
 
     const openReview = () => {
         const rows = Object.entries(specialInputs)

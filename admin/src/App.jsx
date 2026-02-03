@@ -17,6 +17,7 @@ import AllUsers from './pages/AllUsers';
 import PlayerDetail from './pages/PlayerDetail';
 import PlayerDevices from './pages/PlayerDevices';
 import AddResult from './pages/AddResult';
+import MarketDetail from './pages/MarketDetail';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -57,6 +58,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <Markets />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/markets/:marketId"
+                    element={
+                        <PrivateRoute>
+                            <MarketDetail />
                         </PrivateRoute>
                     }
                 />

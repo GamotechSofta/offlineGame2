@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) => {
+    const navigate = useNavigate();
     const handleDelete = async (marketId) => {
         if (!window.confirm('Are you sure you want to delete this market?')) {
             return;
@@ -65,7 +67,13 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
 
                         {/* Action Buttons */}
                         <div className="space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
+                                <button
+                                    onClick={() => navigate(`/markets/${market._id}`)}
+                                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-black rounded text-sm font-semibold"
+                                >
+                                    View Detail
+                                </button>
                                 <button
                                     onClick={() => onEdit(market)}
                                     className="px-3 py-2 bg-yellow-600 hover:bg-yellow-700 rounded text-sm font-semibold"

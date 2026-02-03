@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
+import { placeBet, updateUserBalance } from '../../../api/bets';
 
 const sanitizeDigits = (v, maxLen) => (v ?? '').toString().replace(/\D/g, '').slice(0, maxLen);
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
@@ -60,6 +61,22 @@ const FullSangamBid = ({ market, title }) => {
         setClosePana('');
         setPoints('');
         setBids([]);
+    };
+
+    const handleSubmitBet = async () => {
+        const marketId = market?._id || market?.id;
+        if (!marketId) throw new Error('Market not found');
+        if (!bids.length) throw new Error('No bets to place');
+        const payload = bids.map((b) => ({
+            betType: 'full-sangam',
+            betNumber: String(b?.number ?? '').trim(),
+            amount: Number(b?.points) || 0,
+        })).filter((b) => b.betNumber && b.amount > 0);
+        if (!payload.length) throw new Error('No valid bets to place');
+        const result = await placeBet(marketId, payload);
+        if (!result.success) throw new Error(result.message || 'Failed to place bet');
+        if (result.data?.newBalance != null) updateUserBalance(result.data.newBalance);
+        clearAll();
     };
 
     const handleAdd = () => {
@@ -244,7 +261,7 @@ const FullSangamBid = ({ market, title }) => {
             <BidReviewModal
                 open={isReviewOpen}
                 onClose={clearAll}
-                onSubmit={clearAll}
+                onSubmit={handleSubmitBet}
                 marketTitle={marketTitle}
                 dateText={dateText}
                 labelKey="Sangam"

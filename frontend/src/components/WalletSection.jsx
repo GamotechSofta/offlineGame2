@@ -1,53 +1,123 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getBalance, updateUserBalance } from '../api/bets';
 
 const WalletSection = () => {
+  const [balance, setBalance] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [addMoneyOpen, setAddMoneyOpen] = useState(false);
+
+  const loadStoredBalance = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const b = user?.balance ?? user?.walletBalance ?? user?.wallet ?? 0;
+      setBalance(Number(b));
+    } catch (_) {
+      setBalance(0);
+    }
+  };
+
+  // Load from storage and fetch latest from server when user is logged in
+  useEffect(() => {
+    loadStoredBalance();
+    const onLogin = () => loadStoredBalance();
+
+    const fetchAndUpdateBalance = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        const userId = user?.id || user?._id;
+        if (!userId) return;
+        const res = await getBalance();
+        if (res.success && res.data?.balance != null) {
+          updateUserBalance(res.data.balance);
+          setBalance(res.data.balance);
+        }
+      } catch (_) {}
+    };
+
+    // On mount: fetch latest balance from server so admin updates are reflected
+    fetchAndUpdateBalance();
+
+    window.addEventListener('userLogin', onLogin);
+    return () => window.removeEventListener('userLogin', onLogin);
+  }, []);
+
+  const handleRefreshBalance = async () => {
+    setRefreshing(true);
+    try {
+      const res = await getBalance();
+      if (res.success && res.data?.balance != null) {
+        updateUserBalance(res.data.balance);
+        setBalance(res.data.balance);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const displayBalance = balance != null ? Number(balance) : 0;
+  const formattedBalance = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(displayBalance);
+
   return (
     <section className="w-full bg-black py-4 sm:py-6 px-4 sm:px-6">
-      {/* Header is now in AppHeader (Layout) - same for all pages */}
-
-      {/* Available Points Balance Card */}
-      {/* Available Points Balance Card */}
       {/* Available Points Balance Card */}
       <div className="relative w-full max-w-lg mx-auto mb-8">
-        {/* Main Card */}
         <div className="relative bg-[#202124] rounded-3xl px-5 pt-3 pb-6 sm:px-6 sm:pt-4 sm:pb-8 shadow-2xl border border-white/5 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {/* Wallet Icon - Cleaner CSS Illustration */}
               <img
                 src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769780438/Untitled_90_x_160_px_1080_x_1080_px_ychsx6.png"
                 alt="Wallet Icon"
                 className="w-16 h-16 object-contain shrink-0"
               />
-
               <div className="flex flex-col gap-0.5">
-                <h2 className="text-2xl sm:text-3xl leading-none font-bold text-white tracking-tight font-sans">₹ 2,853</h2>
+                <h2 className="text-2xl sm:text-3xl leading-none font-bold text-white tracking-tight font-sans">₹ {formattedBalance}</h2>
                 <p className="text-gray-400 text-sm font-light tracking-wide">Available Points Balance</p>
               </div>
             </div>
 
-            {/* Add Money Button */}
-            <button
-              type="button"
-              className="group relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-white overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124]"
-              aria-label="Add Money"
-            >
-              {/* Background gradient */}
-              <span className="absolute inset-0 bg-gradient-to-br from-[#25d366] via-[#20bd5a] to-[#1a9e47] rounded-full" />
-              {/* Shine overlay */}
-              <span className="absolute inset-0 rounded-full bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-80" />
-              {/* Shadow / depth */}
-              <span className="absolute inset-0 rounded-full shadow-[0_4px_20px_rgba(37,211,102,0.45),inset_0_1px_0_rgba(255,255,255,0.2)] group-hover:shadow-[0_6px_28px_rgba(37,211,102,0.55),inset_0_1px_0_rgba(255,255,255,0.25)] transition-shadow duration-300" />
-              {/* Icon: Rupee + Plus */}
-              <span className="relative flex items-center justify-center gap-0.5">
-                <span className="text-xl sm:text-2xl font-bold drop-shadow-sm">₹</span>
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 5v14M19 12H5" />
-                </svg>
-              </span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRefreshBalance}
+                disabled={refreshing}
+                className="w-10 h-10 rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center text-white hover:bg-gray-600 disabled:opacity-50"
+                aria-label="Refresh balance"
+                title="Refresh balance"
+              >
+                {refreshing ? (
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddMoneyOpen(true)}
+                className="group relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-white overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124]"
+                aria-label="Add Money"
+              >
+                <span className="absolute inset-0 bg-gradient-to-br from-[#25d366] via-[#20bd5a] to-[#1a9e47] rounded-full" />
+                <span className="absolute inset-0 rounded-full bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-80" />
+                <span className="absolute inset-0 rounded-full shadow-[0_4px_20px_rgba(37,211,102,0.45),inset_0_1px_0_rgba(255,255,255,0.2)] group-hover:shadow-[0_6px_28px_rgba(37,211,102,0.55),inset_0_1px_0_rgba(255,255,255,0.25)] transition-shadow duration-300" />
+                <span className="relative flex items-center justify-center gap-0.5">
+                  <span className="text-xl sm:text-2xl font-bold drop-shadow-sm">₹</span>
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M19 12H5" /></svg>
+                </span>
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Add Money modal */}
+        {addMoneyOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70" onClick={() => setAddMoneyOpen(false)}>
+            <div className="bg-[#202124] rounded-2xl border border-white/10 shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-white mb-2">Add funds</h3>
+              <p className="text-gray-400 text-sm mb-4">To add money to your wallet, contact your bookie or admin. They can credit your account directly.</p>
+              <button type="button" onClick={() => setAddMoneyOpen(false)} className="w-full py-2.5 rounded-lg bg-[#d4af37] text-[#4b3608] font-semibold">OK</button>
+            </div>
+          </div>
+        )}
 
         {/* Withdraw Section - Tab Style */}
         <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 z-20">

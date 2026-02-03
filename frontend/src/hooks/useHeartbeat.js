@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../config/api';
+import { getBalance, updateUserBalance } from '../api/bets';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also used to detect suspended accounts
 
@@ -42,8 +43,18 @@ export const useHeartbeat = () => {
     sendHeartbeat();
     intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
+    const refreshBalance = async () => {
+      try {
+        const res = await getBalance();
+        if (res.success && res.data?.balance != null) updateUserBalance(res.data.balance);
+      } catch (_) {}
+    };
+
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') sendHeartbeat();
+      if (document.visibilityState === 'visible') {
+        sendHeartbeat();
+        refreshBalance();
+      }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 

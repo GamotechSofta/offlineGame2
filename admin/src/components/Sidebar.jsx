@@ -41,7 +41,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
     ];
 
     const isActive = (path) => {
-        if (path === '/all-users') {
+        if (path === '/all-users' || path === '/markets') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
         }
         return location.pathname === path;

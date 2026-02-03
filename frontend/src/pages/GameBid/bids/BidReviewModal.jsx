@@ -26,9 +26,14 @@ const BidReviewModal = ({
   totalAmount = 0
 }) => {
   const [stage, setStage] = useState('review'); // 'review' | 'success'
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
-    if (open) setStage('review');
+    if (open) {
+      setStage('review');
+      setSubmitError('');
+    }
   }, [open]);
 
   // Keep showing success popup even if parent sets open=false after submit.
@@ -37,12 +42,23 @@ const BidReviewModal = ({
   const before = Number(walletBefore) || 0;
   const amount = Number(totalAmount) || 0;
   const after = before - amount;
+  const insufficientBalance = after < 0;
   const handleClose = () => {
     if (onClose) onClose();
   };
-  const handleSubmitClick = () => {
-    setStage('success');
-    if (onSubmit) onSubmit();
+  const handleSubmitClick = async () => {
+    if (insufficientBalance) return;
+    setSubmitError('');
+    setSubmitting(true);
+    try {
+      const fn = onSubmit?.();
+      if (fn && typeof fn.then === 'function') await fn;
+      setStage('success');
+    } catch (e) {
+      setSubmitError(e?.message || 'Failed to place bet');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -151,11 +167,25 @@ const BidReviewModal = ({
                     </div>
                     <div className="p-3 sm:p-4 text-center">
                       <div className="text-gray-400 text-[11px] sm:text-sm">Wallet Balance After Deduction</div>
-                      <div className="text-white font-bold text-base sm:text-lg leading-tight">{formatMoney(after)}</div>
+                      <div className={`font-bold text-base sm:text-lg leading-tight ${after < 0 ? 'text-red-400' : 'text-white'}`}>{formatMoney(after)}</div>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Insufficient balance warning */}
+              {insufficientBalance && (
+                <div className="mx-3 sm:mx-4 mt-2 p-3 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 text-sm shrink-0">
+                  Insufficient balance. Required: ₹{amount.toLocaleString('en-IN')}, Available: ₹{before.toLocaleString('en-IN')}. Add funds to place this bet.
+                </div>
+              )}
+
+              {/* Submit error */}
+              {submitError && (
+                <div className="mx-3 sm:mx-4 mt-2 p-3 rounded-xl bg-red-500/20 border border-red-500/50 text-red-300 text-sm shrink-0">
+                  {submitError}
+                </div>
+              )}
 
               {/* Note */}
               <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-3 sm:pb-4 text-center text-red-400 font-semibold text-[12px] sm:text-base shrink-0">
@@ -168,16 +198,25 @@ const BidReviewModal = ({
               <button
                 type="button"
                 onClick={handleClose}
-                className="bg-black border border-white/10 text-white font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:border-[#d4af37]/40"
+                disabled={submitting}
+                className="bg-black border border-white/10 text-white font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:border-[#d4af37]/40 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleSubmitClick}
-                className="bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:from-[#e5c04a] hover:to-[#d4af37]"
+                disabled={submitting || insufficientBalance}
+                className="bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:from-[#e5c04a] hover:to-[#d4af37] disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Submit Bet
+                {submitting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-[#4b3608]/30 border-t-[#4b3608] rounded-full animate-spin" />
+                    Placing...
+                  </>
+                ) : (
+                  'Submit Bet'
+                )}
               </button>
             </div>
           </div>

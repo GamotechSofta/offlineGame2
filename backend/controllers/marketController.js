@@ -1,5 +1,7 @@
 import Market from '../models/market/market.js';
+import Bet from '../models/bet/bet.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
+import { getBookieUserIds } from '../utils/bookieFilter.js';
 
 /**
  * Create a new market.
@@ -281,6 +283,118 @@ export const setWinNumber = async (req, res) => {
         const response = market.toObject();
         response.displayResult = market.getDisplayResult();
         res.status(200).json({ success: true, data: response });
+    } catch (error) {
+        if (error.name === 'CastError') {
+            return res.status(400).json({ success: false, message: 'Invalid market ID' });
+        }
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Get market statistics (amount and no. of bets per option) for admin market detail view.
+ * Returns: singleDigit, jodi, singlePatti, doublePatti, triplePatti with per-option amount/count and totals.
+ */
+export const getMarketStats = async (req, res) => {
+    try {
+        const { id: marketId } = req.params;
+        const market = await Market.findById(marketId);
+        if (!market) {
+            return res.status(404).json({ success: false, message: 'Market not found' });
+        }
+
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        const matchFilter = { marketId };
+        if (bookieUserIds !== null) {
+            matchFilter.userId = { $in: bookieUserIds };
+        }
+
+        const bets = await Bet.find(matchFilter).lean();
+
+        const singleDigit = { digits: {}, totalAmount: 0, totalBets: 0 };
+        const jodi = { items: {}, totalAmount: 0, totalBets: 0 };
+        const singlePatti = { items: {}, totalAmount: 0, totalBets: 0 };
+        const doublePatti = { items: {}, totalAmount: 0, totalBets: 0 };
+        const triplePatti = { items: {}, totalAmount: 0, totalBets: 0 };
+        const halfSangam = { items: {}, totalAmount: 0, totalBets: 0 };
+        const fullSangam = { items: {}, totalAmount: 0, totalBets: 0 };
+
+        for (const b of bets) {
+            const amount = Number(b.amount) || 0;
+            const num = (b.betNumber || '').toString().trim();
+            const type = (b.betType || '').toLowerCase();
+
+            if (type === 'single' && /^[0-9]$/.test(num)) {
+                if (!singleDigit.digits[num]) singleDigit.digits[num] = { amount: 0, count: 0 };
+                singleDigit.digits[num].amount += amount;
+                singleDigit.digits[num].count += 1;
+                singleDigit.totalAmount += amount;
+                singleDigit.totalBets += 1;
+            } else if (type === 'jodi' && /^[0-9]{2}$/.test(num)) {
+                if (!jodi.items[num]) jodi.items[num] = { amount: 0, count: 0 };
+                jodi.items[num].amount += amount;
+                jodi.items[num].count += 1;
+                jodi.totalAmount += amount;
+                jodi.totalBets += 1;
+            } else if (type === 'panna' && /^[0-9]{3}$/.test(num)) {
+                const a = num[0], b_ = num[1], c = num[2];
+                const allSame = a === b_ && b_ === c;
+                const twoSame = a === b_ || b_ === c || a === c;
+                if (allSame) {
+                    if (!triplePatti.items[num]) triplePatti.items[num] = { amount: 0, count: 0 };
+                    triplePatti.items[num].amount += amount;
+                    triplePatti.items[num].count += 1;
+                    triplePatti.totalAmount += amount;
+                    triplePatti.totalBets += 1;
+                } else if (twoSame) {
+                    if (!doublePatti.items[num]) doublePatti.items[num] = { amount: 0, count: 0 };
+                    doublePatti.items[num].amount += amount;
+                    doublePatti.items[num].count += 1;
+                    doublePatti.totalAmount += amount;
+                    doublePatti.totalBets += 1;
+                } else {
+                    if (!singlePatti.items[num]) singlePatti.items[num] = { amount: 0, count: 0 };
+                    singlePatti.items[num].amount += amount;
+                    singlePatti.items[num].count += 1;
+                    singlePatti.totalAmount += amount;
+                    singlePatti.totalBets += 1;
+                }
+            } else if (type === 'half-sangam' && num.length > 0) {
+                if (!halfSangam.items[num]) halfSangam.items[num] = { amount: 0, count: 0 };
+                halfSangam.items[num].amount += amount;
+                halfSangam.items[num].count += 1;
+                halfSangam.totalAmount += amount;
+                halfSangam.totalBets += 1;
+            } else if (type === 'full-sangam' && num.length > 0) {
+                if (!fullSangam.items[num]) fullSangam.items[num] = { amount: 0, count: 0 };
+                fullSangam.items[num].amount += amount;
+                fullSangam.items[num].count += 1;
+                fullSangam.totalAmount += amount;
+                fullSangam.totalBets += 1;
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                market: {
+                    id: market._id,
+                    marketName: market.marketName,
+                    displayResult: market.getDisplayResult(),
+                    openingNumber: market.openingNumber,
+                    closingNumber: market.closingNumber,
+                    startingTime: market.startingTime,
+                    closingTime: market.closingTime,
+                },
+                singleDigit,
+                jodi,
+                singlePatti,
+                doublePatti,
+                triplePatti,
+                halfSangam,
+                fullSangam,
+            },
+        });
     } catch (error) {
         if (error.name === 'CastError') {
             return res.status(400).json({ success: false, message: 'Invalid market ID' });

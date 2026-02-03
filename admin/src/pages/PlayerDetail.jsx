@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash } from 'react-icons/fa';
+import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash, FaWallet } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -97,6 +97,11 @@ const PlayerDetail = () => {
     const [togglingStatus, setTogglingStatus] = useState(false);
     const [toggleMessage, setToggleMessage] = useState('');
     const [deletingPlayer, setDeletingPlayer] = useState(false);
+    const [walletModalOpen, setWalletModalOpen] = useState(false);
+    const [walletAdjustAmount, setWalletAdjustAmount] = useState('');
+    const [walletSetBalance, setWalletSetBalance] = useState('');
+    const [walletActionLoading, setWalletActionLoading] = useState(false);
+    const [walletActionError, setWalletActionError] = useState('');
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -300,6 +305,70 @@ const PlayerDetail = () => {
         }
     };
 
+    const handleWalletAdjust = async (type) => {
+        const amount = Number(walletAdjustAmount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            setWalletActionError('Enter a valid positive amount');
+            return;
+        }
+        if (type === 'debit' && (player?.walletBalance ?? 0) < amount) {
+            setWalletActionError('Insufficient balance to deduct');
+            return;
+        }
+        setWalletActionError('');
+        setWalletActionLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/wallet/adjust`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ userId, amount, type }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setWalletAdjustAmount('');
+                fetchPlayer();
+                if (activeTab === 'wallet') fetchWalletTx();
+                setWalletModalOpen(false);
+            } else {
+                setWalletActionError(data.message || 'Failed to update wallet');
+            }
+        } catch (err) {
+            setWalletActionError('Network error. Please try again.');
+        } finally {
+            setWalletActionLoading(false);
+        }
+    };
+
+    const handleWalletSetBalance = async () => {
+        const balance = Number(walletSetBalance);
+        if (!Number.isFinite(balance) || balance < 0) {
+            setWalletActionError('Enter a valid non-negative balance');
+            return;
+        }
+        setWalletActionError('');
+        setWalletActionLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/wallet/set-balance`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ userId, balance }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setWalletSetBalance('');
+                fetchPlayer();
+                if (activeTab === 'wallet') fetchWalletTx();
+                setWalletModalOpen(false);
+            } else {
+                setWalletActionError(data.message || 'Failed to set balance');
+            }
+        } catch (err) {
+            setWalletActionError('Network error. Please try again.');
+        } finally {
+            setWalletActionLoading(false);
+        }
+    };
+
     const handleDeletePlayer = async () => {
         if (!userId || !player?.username) return;
         if (!window.confirm(`Delete player "${player.username}"? This will remove their account and wallet. This cannot be undone.`)) {
@@ -392,6 +461,14 @@ const PlayerDetail = () => {
                             ) : (
                                 <><FaUserCheck className="w-4 h-4" /> Unsuspend</>
                             )}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setWalletModalOpen(true); setWalletActionError(''); setWalletAdjustAmount(''); setWalletSetBalance(''); }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-green-700 hover:bg-green-600 text-white transition-colors"
+                            title="Edit wallet"
+                        >
+                            <FaWallet className="w-4 h-4" /> Edit Wallet
                         </button>
                         <button
                             type="button"
@@ -663,6 +740,58 @@ const PlayerDetail = () => {
                     </div>
                 )}
             </div>
+
+            {/* Edit Wallet Modal */}
+            {walletModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60">
+                    <div className="bg-gray-800 rounded-xl border border-gray-600 shadow-xl w-full max-w-md">
+                        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-yellow-500">Edit Wallet</h3>
+                            <button type="button" onClick={() => setWalletModalOpen(false)} className="text-gray-400 hover:text-white p-1">×</button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            <div className="rounded-lg bg-gray-700/50 px-3 py-2">
+                                <p className="text-gray-400 text-xs uppercase tracking-wider">Current Balance</p>
+                                <p className="text-green-400 font-mono font-bold text-xl">{formatCurrency(player?.walletBalance ?? 0)}</p>
+                            </div>
+                            {walletActionError && (
+                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-200 text-sm px-3 py-2">{walletActionError}</div>
+                            )}
+                            <div>
+                                <p className="text-gray-400 text-sm mb-2">Add (Credit) or Deduct (Debit)</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        placeholder="Amount"
+                                        value={walletAdjustAmount}
+                                        onChange={(e) => setWalletAdjustAmount(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                                        className="flex-1 px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500"
+                                    />
+                                    <button type="button" onClick={() => handleWalletAdjust('credit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold disabled:opacity-50">Add</button>
+                                    <button type="button" onClick={() => handleWalletAdjust('debit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold disabled:opacity-50">Deduct</button>
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-gray-400 text-sm mb-2">Set balance to (exact value)</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        placeholder="New balance"
+                                        value={walletSetBalance}
+                                        onChange={(e) => setWalletSetBalance(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                                        className="flex-1 px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500"
+                                    />
+                                    <button type="button" onClick={handleWalletSetBalance} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-black font-semibold disabled:opacity-50">Set</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             </div>
         </AdminLayout>
     );
