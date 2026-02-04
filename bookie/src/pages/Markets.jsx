@@ -36,17 +36,17 @@ const Markets = () => {
 
     return (
         <Layout title="Markets">
-            <div>
-                <h1 className="text-3xl font-bold mb-6">Markets (View Only)</h1>
+            <>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Markets (View Only)</h1>
                 {error && <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">{error}</div>}
                 {loading ? (
                     <p className="text-gray-400 py-12 text-center">Loading markets...</p>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         {markets.map((market) => {
                             const { status, color } = getMarketStatus(market);
                             return (
-                                <div key={market._id} className="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                                <div key={market._id} className="bg-gray-800 rounded-lg border border-gray-700/50 p-4 sm:p-6">
                                     <div className={`${color} text-white text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4`}>
                                         {status === 'open' && 'OPEN'}
                                         {status === 'running' && 'CLOSED IS RUNNING'}
@@ -64,7 +64,7 @@ const Markets = () => {
                         })}
                     </div>
                 )}
-            </div>
+            </>
         </Layout>
     );
 };

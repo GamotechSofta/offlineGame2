@@ -41,15 +41,15 @@ const Wallet = () => {
 
     return (
         <Layout title="Wallet">
-            <h1 className="text-3xl font-bold mb-6">Wallet (View Only)</h1>
-            <div className="flex gap-4 mb-6 border-b border-gray-700">
-                <button onClick={() => setActiveTab('wallets')} className={`pb-4 px-4 font-semibold ${activeTab === 'wallets' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-gray-400'}`}>Player Wallets</button>
-                <button onClick={() => setActiveTab('transactions')} className={`pb-4 px-4 font-semibold ${activeTab === 'transactions' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-gray-400'}`}>Transactions</button>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Wallet (View Only)</h1>
+            <div className="flex gap-4 mb-4 sm:mb-6 border-b border-gray-700/50">
+                <button onClick={() => setActiveTab('wallets')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'wallets' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-400 hover:text-gray-300'}`}>Player Wallets</button>
+                <button onClick={() => setActiveTab('transactions')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'transactions' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-400 hover:text-gray-300'}`}>Transactions</button>
             </div>
             {loading ? (
                 <p className="text-gray-400 py-12 text-center">Loading...</p>
             ) : activeTab === 'wallets' ? (
-                <div className="bg-gray-800 rounded-lg overflow-hidden">
+                <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700/50">
                     <table className="w-full">
                         <thead className="bg-gray-700">
                             <tr>
@@ -68,7 +68,7 @@ const Wallet = () => {
                     </table>
                 </div>
             ) : (
-                <div className="bg-gray-800 rounded-lg overflow-hidden">
+                <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700/50">
                     <table className="w-full">
                         <thead className="bg-gray-700">
                             <tr>

@@ -86,8 +86,8 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700/50">
                         <h3 className="text-lg font-semibold mb-4 text-gray-300">Bet Status</h3>
                         <div className="space-y-2">
                             <div className="flex justify-between"><span className="text-gray-400">Winning</span><span className="text-green-400 font-bold">{stats?.bets?.winning || 0}</span></div>
@@ -95,7 +95,7 @@ const Dashboard = () => {
                             <div className="flex justify-between"><span className="text-gray-400">Pending</span><span className="text-yellow-400 font-bold">{stats?.bets?.pending || 0}</span></div>
                         </div>
                     </div>
-                    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700/50">
                         <h3 className="text-lg font-semibold mb-4 text-gray-300">Payments</h3>
                         <div className="space-y-2">
                             <div className="flex justify-between"><span className="text-gray-400">Deposits</span><span className="text-green-400 font-bold">{formatCurrency(stats?.payments?.totalDeposits)}</span></div>
@@ -103,7 +103,7 @@ const Dashboard = () => {
                             <div className="flex justify-between"><span className="text-gray-400">Pending</span><span className="text-yellow-400 font-bold">{stats?.payments?.pending || 0}</span></div>
                         </div>
                     </div>
-                    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700/50">
                         <h3 className="text-lg font-semibold mb-4 text-gray-300">Help Desk</h3>
                         <div className="space-y-2">
                             <div className="flex justify-between"><span className="text-gray-400">Total</span><span className="font-bold">{stats?.helpDesk?.total || 0}</span></div>

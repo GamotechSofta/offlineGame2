@@ -26,8 +26,8 @@ const TopWinners = () => {
 
     return (
         <Layout title="Top Winners">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold">Top Winners</h1>
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-4 sm:mb-6">
+                <h1 className="text-2xl sm:text-3xl font-bold">Top Winners</h1>
                 <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
                     <option value="all">All Time</option>
                     <option value="today">Today</option>
@@ -38,12 +38,12 @@ const TopWinners = () => {
             {loading ? (
                 <p className="text-gray-400 py-12 text-center">Loading...</p>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {winners.length === 0 ? (
                         <div className="col-span-full text-center py-12 text-gray-400">No winners found</div>
                     ) : (
                         winners.map((winner, i) => (
-                            <div key={winner._id} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                            <div key={winner._id} className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700/50">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${i === 0 ? 'bg-yellow-500 text-black' : i === 1 ? 'bg-gray-400 text-black' : i === 2 ? 'bg-orange-600 text-white' : 'bg-gray-700 text-white'}`}>{i + 1}</div>
                                     <div>

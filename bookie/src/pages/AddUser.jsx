@@ -57,8 +57,7 @@ const AddUser = () => {
 
     return (
         <Layout title="Add Player">
-            <div className="p-8">
-                <h1 className="text-3xl font-bold mb-6">Add New Player</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Add New Player</h1>
 
                 {error && (
                     <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
@@ -72,7 +71,7 @@ const AddUser = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="bg-gray-800 rounded-lg p-6 max-w-2xl">
+                <form onSubmit={handleSubmit} className="bg-gray-800 rounded-lg p-4 sm:p-6 max-w-2xl border border-gray-700/50">
                     <div className="space-y-4">
                         <div>
                             <label className="block text-gray-300 text-sm font-medium mb-2">
@@ -163,13 +162,12 @@ const AddUser = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
+                            className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-semibold py-3 px-4 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-yellow-500/20"
                         >
                             {loading ? 'Creating...' : 'Create Player'}
                         </button>
                     </div>
                 </form>
-            </div>
         </Layout>
     );
 };

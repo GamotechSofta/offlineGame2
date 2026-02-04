@@ -32,8 +32,8 @@ const BetHistory = () => {
 
     return (
         <Layout title="Bet History">
-            <h1 className="text-3xl font-bold mb-6">Bet History</h1>
-            <div className="bg-gray-800 rounded-lg p-4 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Bet History</h1>
+            <div className="bg-gray-800 rounded-lg p-4 mb-4 sm:mb-6 flex flex-wrap gap-3 items-center border border-gray-700/50">
                 <input type="text" placeholder="Player ID" value={filters.userId} onChange={(e) => setFilters({ ...filters, userId: e.target.value })} className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white" />
                 <input type="text" placeholder="Market ID" value={filters.marketId} onChange={(e) => setFilters({ ...filters, marketId: e.target.value })} className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white" />
                 <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
@@ -49,7 +49,7 @@ const BetHistory = () => {
             {loading ? (
                 <p className="text-gray-400 py-12 text-center">Loading...</p>
             ) : (
-                <div className="bg-gray-800 rounded-lg overflow-hidden">
+                <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700/50">
                     <table className="w-full">
                         <thead className="bg-gray-700">
                             <tr>

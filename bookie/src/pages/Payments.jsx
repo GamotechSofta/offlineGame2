@@ -29,8 +29,8 @@ const Payments = () => {
 
     return (
         <Layout title="Payments">
-            <h1 className="text-3xl font-bold mb-6">Payments (View Only)</h1>
-            <div className="bg-gray-800 rounded-lg p-4 mb-6 flex gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Payments (View Only)</h1>
+            <div className="bg-gray-800 rounded-lg p-4 mb-4 sm:mb-6 flex flex-wrap gap-3 items-center border border-gray-700/50">
                 <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
                     <option value="">All Status</option>
                     <option value="pending">Pending</option>
@@ -47,7 +47,7 @@ const Payments = () => {
             {loading ? (
                 <p className="text-gray-400 py-12 text-center">Loading...</p>
             ) : (
-                <div className="bg-gray-800 rounded-lg overflow-hidden">
+                <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700/50">
                     <table className="w-full">
                         <thead className="bg-gray-700">
                             <tr>

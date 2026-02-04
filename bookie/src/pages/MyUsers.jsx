@@ -96,15 +96,12 @@ const MyUsers = () => {
 
     return (
         <Layout title="My Players">
-            <div className="p-4">
-                {/* Header */}
-                <div className="mb-4">
-                    <h1 className="text-2xl font-bold mb-1">My Players</h1>
-                    <p className="text-gray-400">Players who registered through your referral link or were created by you</p>
+                <div className="mb-4 sm:mb-6">
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-1">My Players</h1>
+                    <p className="text-gray-400 text-sm">Players who registered through your referral link or were created by you</p>
                 </div>
 
-                {/* Search Bar */}
-                <div className="mb-4">
+                <div className="mb-4 sm:mb-6">
                     <div className="relative max-w-md">
                         <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
@@ -112,26 +109,25 @@ const MyUsers = () => {
                             placeholder="Search by Sr No or player name..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
                         />
                     </div>
                 </div>
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-gray-400 text-sm">Total Players</p>
                                 <p className="text-2xl font-bold text-white mt-1">{users.length}</p>
                             </div>
-                            <div className="bg-emerald-500/20 p-3 rounded-lg">
-                                <FaUser className="text-emerald-500 text-2xl" />
+                            <div className="bg-yellow-500/20 p-3 rounded-lg">
+                                <FaUser className="text-yellow-500 text-2xl" />
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-gray-400 text-sm">Active Players</p>
@@ -145,7 +141,7 @@ const MyUsers = () => {
                         </div>
                     </div>
 
-                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700/50">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-gray-400 text-sm">Inactive Players</p>
@@ -168,10 +164,10 @@ const MyUsers = () => {
                 )}
 
                 {/* Players Table */}
-                <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700/50">
                     {loading ? (
                         <div className="p-8 text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto"></div>
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
                             <p className="mt-4 text-gray-400">Loading players...</p>
                         </div>
                     ) : filteredUsers.length === 0 ? (
@@ -181,7 +177,7 @@ const MyUsers = () => {
                                     <p>No players found matching "{searchTerm}"</p>
                                     <button
                                         onClick={() => setSearchTerm('')}
-                                        className="mt-4 text-emerald-500 hover:text-emerald-400"
+                                        className="mt-4 text-yellow-500 hover:text-yellow-400"
                                     >
                                         Clear search
                                     </button>
@@ -227,7 +223,7 @@ const MyUsers = () => {
                                     </thead>
                                     <tbody className="divide-y divide-gray-700">
                                         {filteredUsers.map((user) => (
-                                            <tr key={user._id} className="hover:bg-gray-750">
+                                            <tr key={user._id} className="hover:bg-gray-700/50">
                                                 <td className="px-3 py-2 text-gray-300 text-sm">
                                                     {users.findIndex((u) => u?._id === user?._id) + 1}
                                                 </td>
@@ -298,7 +294,7 @@ const MyUsers = () => {
                             </div>
                             
                             {/* Results count */}
-                            <div className="px-3 py-2 bg-gray-750 border-t border-gray-700">
+                            <div className="px-3 py-2 bg-gray-800/80 border-t border-gray-700/50">
                                 <p className="text-xs text-gray-400">
                                     Showing {filteredUsers.length} of {users.length} players
                                 </p>
@@ -308,8 +304,8 @@ const MyUsers = () => {
                 </div>
 
                 {/* Info Card */}
-                <div className="mt-6 bg-gray-800 rounded-lg p-6 border border-gray-700">
-                    <h3 className="text-lg font-semibold text-emerald-500 mb-3">About My Players</h3>
+                <div className="mt-6 bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700/50">
+                    <h3 className="text-lg font-semibold text-yellow-500 mb-3">About My Players</h3>
                     <div className="text-gray-300 space-y-2">
                         <p>• This list shows only the players who are linked to your bookie account.</p>
                         <p>• Players created by you or registered through your referral link will appear here.</p>
@@ -317,7 +313,6 @@ const MyUsers = () => {
                         <p>• Other bookies cannot see these players in their panel.</p>
                     </div>
                 </div>
-            </div>
         </Layout>
     );
 };
