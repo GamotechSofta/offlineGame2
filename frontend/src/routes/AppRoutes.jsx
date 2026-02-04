@@ -76,7 +76,7 @@ const Layout = ({ children }) => {
     return (
       <div className="min-h-screen pb-16 md:pb-0 bg-black">
         <AppHeader />
-        <div className="pt-[52px] sm:pt-[52px] md:pt-[60px]">
+        <div className="pt-[72px] sm:pt-[76px] md:pt-[88px]">
           {children}
         </div>
         <BottomNavbar />
@@ -96,6 +96,8 @@ const Layout = ({ children }) => {
     location.pathname === '/market-result-history' ||
     isSupportPage;
   const isBetsPage = location.pathname === '/bids';
+  const isHistoryPage =
+    location.pathname === '/bet-history' || location.pathname === '/market-result-history';
 
   return (
     <div className={`min-h-screen pb-16 md:pb-0 w-full max-w-full overflow-x-hidden ${isDarkPage ? 'bg-black' : 'bg-gray-50'}`}>
@@ -106,7 +108,7 @@ const Layout = ({ children }) => {
         className={
           isBidPage
             ? 'pt-[52px] sm:pt-[68px] md:pt-[70px]'
-            : (isBetsPage ? 'pt-[48px] sm:pt-[60px] md:pt-[78px]' : 'pt-[48px] sm:pt-[60px] md:pt-[70px]')
+            : ((isBetsPage || isHistoryPage) ? 'pt-[72px] sm:pt-[76px] md:pt-[88px]' : 'pt-[56px] sm:pt-[68px] md:pt-[80px]')
         }
       >
         {children}

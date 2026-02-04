@@ -136,7 +136,15 @@ const Bids = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const handleBack = () => {
-    // Desktop: go to previous real page, not just switch sections.
+    // Desktop: always go Home (as requested).
+    try {
+      if (window?.matchMedia?.('(min-width: 768px)')?.matches) {
+        navigate('/');
+        return;
+      }
+    } catch (_) {}
+
+    // Mobile: go to previous real page, not just switch sections.
     try {
       const prev = sessionStorage.getItem('prevPathname');
       if (prev && prev !== '/bids' && prev !== '/bet-history' && prev !== '/market-result-history') {

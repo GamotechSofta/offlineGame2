@@ -72,21 +72,21 @@ const WalletSection = () => {
   return (
     <section className="w-full bg-black py-3 sm:py-4 px-4 sm:px-6">
       {/* Available Points Balance Card */}
-      <div className="relative w-full max-w-lg mx-auto mb-10 sm:mb-12">
+      <div className="relative w-full max-w-lg mx-auto mb-8 sm:mb-12">
         {/* Main Card - Premium Design */}
-        <div className="relative bg-[#1e1e1e] rounded-2xl sm:rounded-3xl px-4 pt-4 pb-0 sm:px-6 sm:pt-5 sm:pb-0 md:px-7 md:pt-6 md:pb-0 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 z-10 overflow-visible">
+        <div className="relative bg-[#1e1e1e] rounded-2xl sm:rounded-3xl px-3 pt-3 pb-0 sm:px-6 sm:pt-5 sm:pb-0 md:px-7 md:pt-6 md:pb-0 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 z-10 overflow-visible">
           {/* Subtle background glow */}
           <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-yellow-500/8 via-yellow-500/4 to-transparent rounded-t-2xl sm:rounded-t-3xl"></div>
           
           {/* Content */}
           <div className="relative flex flex-col">
             {/* Top Row - Balance and Action Buttons */}
-            <div className="flex items-center justify-between gap-3 sm:gap-4 pb-4 sm:pb-5">
+            <div className="flex items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-5">
               {/* Left Side - Wallet Icon and Balance */}
-              <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+              <div className="flex items-center gap-2.5 sm:gap-4 flex-1 min-w-0">
                 {/* Wallet Icon - Larger Design */}
                 <div className="relative shrink-0">
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-[#2a2a2a] rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-white/10 shadow-lg flex items-center justify-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-[#2a2a2a] rounded-2xl p-2 sm:p-2.5 border border-white/10 shadow-lg flex items-center justify-center">
                     <img
                       src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769780438/Untitled_90_x_160_px_1080_x_1080_px_ychsx6.png"
                       alt="Wallet Icon"
@@ -100,9 +100,6 @@ const WalletSection = () => {
                   <h2 className={`${getBalanceFontSize()} leading-none font-black text-white tracking-tight break-words`}>
                     ₹ {formattedBalance}
                   </h2>
-                  <p className="text-gray-400 text-xs sm:text-sm font-semibold">
-                    Available Points Balance
-                  </p>
                 </div>
               </div>
 
@@ -113,7 +110,7 @@ const WalletSection = () => {
                   type="button"
                   onClick={handleRefreshBalance}
                   disabled={refreshing}
-                  className="w-11 h-11 sm:w-12 sm:h-12 md:w-[52px] md:h-[52px] rounded-xl bg-[#2a2a2a] border border-white/10 flex items-center justify-center text-white hover:bg-[#333] hover:border-white/20 active:scale-95 disabled:opacity-50 transition-all duration-200 shadow-md"
+                  className="w-10 h-10 sm:w-12 sm:h-12 md:w-[52px] md:h-[52px] rounded-xl bg-[#2a2a2a] border border-white/10 flex items-center justify-center text-white hover:bg-[#333] hover:border-white/20 active:scale-95 disabled:opacity-50 transition-all duration-200 shadow-md"
                   aria-label="Refresh balance"
                   title="Refresh balance"
                 >
@@ -130,7 +127,7 @@ const WalletSection = () => {
                 <button
                   type="button"
                   onClick={() => setAddMoneyOpen(true)}
-                  className="group relative w-[52px] h-[52px] sm:w-14 sm:h-14 md:w-[56px] md:h-[56px] rounded-xl bg-gradient-to-br from-[#25d366] to-[#1a9e47] flex items-center justify-center text-white overflow-hidden transition-all duration-200 hover:from-[#2ee576] hover:to-[#20bd5a] active:scale-95 shadow-lg hover:shadow-xl hover:shadow-green-500/40"
+                  className="group relative w-11 h-11 sm:w-14 sm:h-14 md:w-[56px] md:h-[56px] rounded-xl bg-gradient-to-br from-[#25d366] to-[#1a9e47] flex items-center justify-center text-white overflow-hidden transition-all duration-200 hover:from-[#2ee576] hover:to-[#20bd5a] active:scale-95 shadow-lg hover:shadow-xl hover:shadow-green-500/40"
                   aria-label="Add Money"
                   title="Add Money"
                 >
@@ -149,7 +146,7 @@ const WalletSection = () => {
             <div className="flex justify-center border-t border-white/10 relative">
               <button 
                 onClick={() => navigate('/bank')}
-                className="relative group cursor-pointer active:scale-95 transition-transform duration-200 -mb-[19px] sm:-mb-[21px] md:-mb-[23px]"
+                className="relative group cursor-pointer active:scale-95 transition-transform duration-200 -mb-[14px] sm:-mb-[21px] md:-mb-[23px]"
               >
                 {/* Angular Shape Container */}
                 <div
