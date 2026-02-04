@@ -21,6 +21,19 @@ const formatTxnTime = (iso) => {
   }
 };
 
+const renderBetNumber = (val) => {
+  const s = (val ?? '').toString().trim();
+  if (/^\d{2}$/.test(s)) {
+    return (
+      <span className="inline-flex items-center justify-center gap-2">
+        <span>{s[0]}</span>
+        <span>{s[1]}</span>
+      </span>
+    );
+  }
+  return s || '-';
+};
+
 const BetHistory = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('All');
@@ -39,6 +52,19 @@ const BetHistory = () => {
     // Placeholder filter: no result data stored yet, so show all.
     return bets;
   }, [filter, bets]);
+
+  const flat = useMemo(() => {
+    const out = [];
+    for (const x of visible || []) {
+      const rows = Array.isArray(x?.rows) ? x.rows : [];
+      if (!rows.length) {
+        out.push({ x, r: null, idx: 0 });
+        continue;
+      }
+      rows.forEach((r, idx) => out.push({ x, r, idx }));
+    }
+    return out;
+  }, [visible]);
 
   return (
     <div className="min-h-screen bg-black text-white px-3 sm:px-4 pt-3 pb-28">
@@ -75,22 +101,19 @@ const BetHistory = () => {
 
         {/* Cards */}
         <div className="space-y-4">
-          {visible.length === 0 ? (
+          {flat.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-[#202124] p-6 text-center text-gray-300">
               {userId ? 'No bets found.' : 'Please login to see your bet history.'}
             </div>
-          ) : visible.map((x) => {
-            const rows = Array.isArray(x?.rows) ? x.rows : [];
-            const first = rows[0] || {};
-            const extraCount = Math.max(0, rows.length - 1);
-            const betValue = first.number ? (extraCount ? `${first.number} +${extraCount}` : String(first.number)) : '-';
+          ) : flat.map(({ x, r, idx }) => {
+            const betValue = r?.number != null ? renderBetNumber(r.number) : '-';
             const gameType = (x?.labelKey || 'Bet').toString();
-            const points = Number(x?.totalAmount || 0) || 0;
-            const session = (x?.session || first.type || '').toString();
+            const points = Number(r?.points || 0) || 0;
+            const session = (r?.type || x?.session || '').toString();
             const market = (x?.marketTitle || '').toString().trim() || 'MARKET';
 
             return (
-            <div key={x.id} className="rounded-2xl overflow-hidden border border-white/10 bg-[#202124] shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
+            <div key={`${x.id}-${r?.id ?? idx}`} className="rounded-2xl overflow-hidden border border-white/10 bg-[#202124] shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
               <div className="bg-[#0b2b55] px-4 py-3 text-center">
                 <div className="text-white font-extrabold tracking-wide">
                   {market.toUpperCase()} {session ? `(${session})` : ''}
@@ -129,15 +152,15 @@ const BetHistory = () => {
 
       {/* Bottom pagination (UI only) */}
       <div className="fixed left-0 right-0 bottom-[88px] z-20 px-3 sm:px-4">
-        <div className="w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-[0_16px_30px_rgba(0,0,0,0.35)] overflow-hidden">
+        <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-[0_16px_30px_rgba(0,0,0,0.35)] overflow-hidden">
           <div className="grid grid-cols-3 items-center">
-            <button type="button" className="py-4 text-gray-700 font-semibold border-r border-gray-200">
+            <button type="button" className="py-3 text-gray-700 font-semibold border-r border-gray-200 text-sm">
               ‹ PREV
             </button>
-            <div className="flex items-center justify-center py-4">
-              <div className="w-11 h-11 rounded-full bg-black text-white flex items-center justify-center font-bold">1</div>
+            <div className="flex items-center justify-center py-2.5">
+              <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">1</div>
             </div>
-            <button type="button" className="py-4 text-gray-700 font-semibold border-l border-gray-200">
+            <button type="button" className="py-3 text-gray-700 font-semibold border-l border-gray-200 text-sm">
               NEXT ›
             </button>
           </div>

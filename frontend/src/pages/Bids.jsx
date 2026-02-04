@@ -21,6 +21,19 @@ const formatTxnTime = (iso) => {
   }
 };
 
+const renderBetNumber = (val) => {
+  const s = (val ?? '').toString().trim();
+  if (/^\d{2}$/.test(s)) {
+    return (
+      <span className="inline-flex items-center justify-center gap-2">
+        <span>{s[0]}</span>
+        <span>{s[1]}</span>
+      </span>
+    );
+  }
+  return s || '-';
+};
+
 const Bids = () => {
   const navigate = useNavigate();
 
@@ -83,6 +96,19 @@ const Bids = () => {
     const onlyMine = uid ? list.filter((x) => x?.userId === uid) : [];
     return { uid, items: onlyMine };
   }, []);
+
+  const desktopBetHistoryFlat = useMemo(() => {
+    const out = [];
+    for (const x of desktopBetHistory.items || []) {
+      const rows = Array.isArray(x?.rows) ? x.rows : [];
+      if (!rows.length) {
+        out.push({ x, r: null, idx: 0 });
+        continue;
+      }
+      rows.forEach((r, idx) => out.push({ x, r, idx }));
+    }
+    return out;
+  }, [desktopBetHistory.items]);
 
   return (
     <div className="min-h-screen bg-black text-white px-3 sm:px-4 pt-0 pb-24">
@@ -206,7 +232,7 @@ const Bids = () => {
               <div className="mt-6">
                 <div className="text-sm text-gray-400 mb-3">Your placed bets</div>
                 <div className="max-h-[calc(100vh-220px)] overflow-y-auto pr-2">
-                  {desktopBetHistory.uid && desktopBetHistory.items.length === 0 ? (
+                  {desktopBetHistory.uid && desktopBetHistoryFlat.length === 0 ? (
                     <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-gray-300 text-sm">
                       No bets found.
                     </div>
@@ -216,19 +242,16 @@ const Bids = () => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {desktopBetHistory.items.map((x) => {
-                        const rows = Array.isArray(x?.rows) ? x.rows : [];
-                        const first = rows[0] || {};
-                        const extraCount = Math.max(0, rows.length - 1);
-                        const betValue = first.number ? (extraCount ? `${first.number} +${extraCount}` : String(first.number)) : '-';
+                      {desktopBetHistoryFlat.map(({ x, r, idx }) => {
+                        const betValue = r?.number != null ? renderBetNumber(r.number) : '-';
                         const gameType = (x?.labelKey || 'Bet').toString();
-                        const points = Number(x?.totalAmount || 0) || 0;
-                        const session = (x?.session || first.type || '').toString();
+                        const points = Number(r?.points || 0) || 0;
+                        const session = (r?.type || x?.session || '').toString();
                         const market = (x?.marketTitle || '').toString().trim() || 'MARKET';
 
                         return (
                           <div
-                            key={x.id}
+                            key={`${x.id}-${r?.id ?? idx}`}
                             className="rounded-2xl overflow-hidden border border-white/10 bg-black/25"
                           >
                             <div className="bg-[#0b2b55] px-4 py-3 flex items-center justify-between">

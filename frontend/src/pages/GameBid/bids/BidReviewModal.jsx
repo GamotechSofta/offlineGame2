@@ -14,6 +14,19 @@ const formatDateTitle = (marketTitle, dateText) => {
   return m || d || 'Review Bet';
 };
 
+const renderBetNumber = (val) => {
+  const s = (val ?? '').toString().trim();
+  if (/^\d{2}$/.test(s)) {
+    return (
+      <span className="inline-flex items-center justify-center gap-2">
+        <span>{s[0]}</span>
+        <span>{s[1]}</span>
+      </span>
+    );
+  }
+  return s || '-';
+};
+
 const BidReviewModal = ({
   open,
   onClose,
@@ -171,7 +184,7 @@ const BidReviewModal = ({
                   {rows.map((r) => (
                     <div key={r.id} className="bg-black/40 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 border border-white/10">
                       <div className="grid grid-cols-3 text-center text-white font-semibold text-[12px] sm:text-base">
-                        <div className="truncate">{r.number}</div>
+                        <div className="truncate">{renderBetNumber(r.number)}</div>
                         <div className="truncate text-[#f2c14e]">{r.points}</div>
                         <div className="truncate font-medium text-gray-300 uppercase">{r.type}</div>
                       </div>
