@@ -11,6 +11,32 @@ const JodiBulkBid = ({ market, title }) => {
     const [session, setSession] = useState(() => (market?.status === 'running' ? 'CLOSE' : 'OPEN'));
     const [isReviewOpen, setIsReviewOpen] = useState(false);
     const [warning, setWarning] = useState('');
+    const [selectedDate, setSelectedDate] = useState(() => {
+        try {
+            const savedDate = localStorage.getItem('betSelectedDate');
+            if (savedDate) {
+                const today = new Date().toISOString().split('T')[0];
+                // Only restore if saved date is in the future (not today)
+                if (savedDate > today) {
+                    return savedDate;
+                }
+            }
+        } catch (e) {
+            // Ignore errors
+        }
+        const today = new Date();
+        return today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    });
+    
+    // Save to localStorage when date changes
+    const handleDateChange = (newDate) => {
+        try {
+            localStorage.setItem('betSelectedDate', newDate);
+        } catch (e) {
+            // Ignore errors
+        }
+        setSelectedDate(newDate);
+    };
 
     const showWarning = (msg) => {
         setWarning(msg);
@@ -136,7 +162,15 @@ const JodiBulkBid = ({ market, title }) => {
             betNumber: String(r.number),
             amount: Number(r.points) || 0,
         }));
-        const result = await placeBet(marketId, payload);
+        
+        // Check if date is in the future (scheduled bet)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDateObj = new Date(selectedDate);
+        selectedDateObj.setHours(0, 0, 0, 0);
+        const scheduledDate = selectedDateObj > today ? selectedDate : null;
+        
+        const result = await placeBet(marketId, payload, scheduledDate);
         if (!result.success) throw new Error(result.message);
         if (result.data?.newBalance != null) updateUserBalance(result.data.newBalance);
         setIsReviewOpen(false);
@@ -154,6 +188,8 @@ const JodiBulkBid = ({ market, title }) => {
             // Desktop only: make date ~1/3 width and keep controls same height
             dateSessionGridClassName="md:grid-cols-[1fr_2fr]"
             dateSessionControlClassName="md:min-h-[52px] md:text-base"
+            selectedDate={selectedDate}
+            setSelectedDate={handleDateChange}
             sessionRightSlot={
                 <button
                     type="button"

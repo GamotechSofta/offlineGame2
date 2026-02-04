@@ -29,6 +29,32 @@ const EasyModeBid = ({
     const [warning, setWarning] = useState('');
     const [matchingPanas, setMatchingPanas] = useState([]);
     const [selectedSum, setSelectedSum] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(() => {
+        try {
+            const savedDate = localStorage.getItem('betSelectedDate');
+            if (savedDate) {
+                const today = new Date().toISOString().split('T')[0];
+                // Only restore if saved date is in the future (not today)
+                if (savedDate > today) {
+                    return savedDate;
+                }
+            }
+        } catch (e) {
+            // Ignore errors
+        }
+        const today = new Date();
+        return today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    });
+    
+    // Save to localStorage when date changes
+    const handleDateChange = (newDate) => {
+        try {
+            localStorage.setItem('betSelectedDate', newDate);
+        } catch (e) {
+            // Ignore errors
+        }
+        setSelectedDate(newDate);
+    };
     const showWarning = (msg) => {
         setWarning(msg);
         window.clearTimeout(showWarning._t);
@@ -502,7 +528,15 @@ const EasyModeBid = ({
             amount: Number(r?.points) || 0,
         })).filter((b) => b.betNumber && b.amount > 0);
         if (!payload.length) throw new Error('No valid bets to place');
-        const result = await placeBet(marketId, payload);
+        
+        // Check if date is in the future (scheduled bet)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDateObj = new Date(selectedDate);
+        selectedDateObj.setHours(0, 0, 0, 0);
+        const scheduledDate = selectedDateObj > today ? selectedDate : null;
+        
+        const result = await placeBet(marketId, payload, scheduledDate);
         if (!result.success) throw new Error(result.message || 'Failed to place bet');
         if (result.data?.newBalance != null) updateUserBalance(result.data.newBalance);
         setIsReviewOpen(false);
@@ -525,6 +559,8 @@ const EasyModeBid = ({
             }}
             showDateSession={!showModeTabs}
             extraHeader={null}
+            selectedDate={selectedDate}
+            setSelectedDate={handleDateChange}
         >
             <div className="px-3 sm:px-4 py-4 sm:py-2 md:max-w-7xl md:mx-auto">
                 {showModeTabs && !desktopSplit && <div className="mb-4">{modeHeader}</div>}

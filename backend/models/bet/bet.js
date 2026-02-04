@@ -34,6 +34,14 @@ const betSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
+    scheduledDate: {
+        type: Date,
+        default: null,
+    },
+    isScheduled: {
+        type: Boolean,
+        default: false,
+    },
 }, {
     timestamps: true,
 });

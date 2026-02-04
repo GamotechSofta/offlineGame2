@@ -44,30 +44,86 @@ const BidLayout = ({
     showFooterStats = true,
     submitLabel = 'Submit Bets',
     contentPaddingClass,
+    selectedDate = null,
+    setSelectedDate = null,
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const contentRef = useRef(null);
+    const dateInputRef = React.useRef(null);
     const { allowed: bettingAllowed, message: bettingMessage } = useBettingWindow();
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     const wallet = Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage();
+    
+    // Get minimum date (today) for date picker - calculate once
+    const minDate = React.useMemo(() => {
+        return new Date().toISOString().split('T')[0];
+    }, []); // Only calculate once on mount
+    
+    // Internal state for date if not provided via props
+    // Try to restore from localStorage, otherwise default to today
+    const [internalDate, setInternalDate] = React.useState(() => {
+        try {
+            const savedDate = localStorage.getItem('betSelectedDate');
+            if (savedDate) {
+                const today = new Date().toISOString().split('T')[0];
+                // Only restore if saved date is in the future (not today)
+                if (savedDate > today) {
+                    return savedDate;
+                }
+            }
+        } catch (e) {
+            // Ignore errors
+        }
+        const today = new Date();
+        return today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    });
+    
+    const currentDate = selectedDate !== null ? selectedDate : internalDate;
+    const setCurrentDate = setSelectedDate !== null ? setSelectedDate : (newDate) => {
+        // Save to localStorage when date changes
+        try {
+            localStorage.setItem('betSelectedDate', newDate);
+        } catch (e) {
+            // Ignore errors
+        }
+        setInternalDate(newDate);
+    };
 
     const marketStatus = market?.status;
     const isRunning = marketStatus === 'running'; // "CLOSED IS RUNNING"
+    
+    // Check if selected date is today or in the future
+    // Compare dates as strings (YYYY-MM-DD format)
+    const isToday = currentDate === minDate;
+    // Schedule button should only show if date is in the future (not today)
+    const isScheduled = currentDate > minDate;
+    
+    // Determine session options based on date selection:
+    // - If today and market is running: only CLOSE
+    // - If today and market is open: both OPEN and CLOSE
+    // - If scheduled (future date): always both OPEN and CLOSE
     const sessionOptions =
         Array.isArray(sessionOptionsOverride) && sessionOptionsOverride.length
             ? sessionOptionsOverride
-            : (isRunning ? ['CLOSE'] : ['OPEN', 'CLOSE']);
+            : (isToday && isRunning ? ['CLOSE'] : ['OPEN', 'CLOSE']);
 
     useEffect(() => {
-        // If market is "CLOSED IS RUNNING", force session to CLOSE and lock it.
+        // If market is "CLOSED IS RUNNING" and it's today, force session to CLOSE and lock it.
         if (Array.isArray(sessionOptionsOverride) && sessionOptionsOverride.length) {
             const desired = sessionOptionsOverride[0];
             if (desired && session !== desired) setSession(desired);
             return;
         }
-        if (isRunning && session !== 'CLOSE') setSession('CLOSE');
-    }, [isRunning, session, setSession, sessionOptionsOverride]);
+        // Only force CLOSE if it's today and market is running
+        if (isToday && isRunning && session !== 'CLOSE') {
+            setSession('CLOSE');
+        }
+        // If scheduled (future date) and session was locked to CLOSE, allow OPEN option
+        if (isScheduled && sessionOptions.includes('OPEN') && session === 'CLOSE' && isRunning) {
+            // Don't force change, but allow user to choose OPEN for scheduled bets
+        }
+    }, [isToday, isScheduled, isRunning, session, setSession, sessionOptionsOverride, sessionOptions, currentDate]);
 
     // Scroll to top when route changes
     useEffect(() => {
@@ -117,26 +173,87 @@ const BidLayout = ({
 
             {showDateSession && (
                 <div className={`px-4 sm:px-6 pb-4 pt-2 grid grid-cols-2 gap-3 ${dateSessionGridClassName}`}>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="relative flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <input
+                                ref={dateInputRef}
+                                type="date"
+                                value={currentDate}
+                                min={minDate}
+                                max="2099-12-31"
+                                onChange={(e) => {
+                                    const selected = e.target.value;
+                                    // Ensure selected date is not in the past
+                                    if (selected >= minDate) {
+                                        setCurrentDate(selected);
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    // Prevent manual typing - only allow calendar selection
+                                    e.preventDefault();
+                                    return false;
+                                }}
+                                onPaste={(e) => {
+                                    // Prevent pasting dates
+                                    e.preventDefault();
+                                    return false;
+                                }}
+                                className={`w-full pl-10 py-3 sm:py-2.5 min-h-[44px] bg-[#202124] border border-white/10 text-white rounded-full text-sm font-bold text-center focus:outline-none focus:border-[#d4af37] cursor-pointer ${dateSessionControlClassName}`}
+                                style={{
+                                    colorScheme: 'dark',
+                                }}
+                                title="Select date for scheduling your bet"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                // Open the date picker when Schedule button is clicked
+                                if (dateInputRef.current) {
+                                    // Try modern showPicker API first
+                                    if (typeof dateInputRef.current.showPicker === 'function') {
+                                        dateInputRef.current.showPicker().catch(() => {
+                                            // Fallback if showPicker fails
+                                            dateInputRef.current.focus();
+                                            dateInputRef.current.click();
+                                        });
+                                    } else {
+                                        // Fallback for browsers that don't support showPicker
+                                        dateInputRef.current.focus();
+                                        dateInputRef.current.click();
+                                    }
+                                }
+                            }}
+                            className={`shrink-0 px-2.5 sm:px-3 py-2 sm:py-2.5 min-h-[44px] font-bold text-xs sm:text-sm rounded-full transition-all active:scale-[0.98] shadow-md whitespace-nowrap flex items-center gap-1.5 ${
+                                isScheduled
+                                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-400 hover:to-green-500 cursor-pointer'
+                                    : 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] hover:from-[#e5c04a] hover:to-[#d4af37] cursor-pointer'
+                            }`}
+                            title={isScheduled ? "Bet scheduled! Click to change date" : "Click to open calendar and schedule bet"}
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                        </div>
-                        <input
-                            type="text"
-                            value={todayDate}
-                            readOnly
-                            className={`w-full pl-10 py-3 sm:py-2.5 min-h-[44px] bg-[#202124] border border-white/10 text-white rounded-full text-sm font-bold text-center focus:outline-none focus:border-[#d4af37] ${dateSessionControlClassName}`}
-                        />
+                            <span>{isScheduled ? 'Scheduled' : 'Schedule'}</span>
+                            {isScheduled && (
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                            )}
+                        </button>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="relative flex-1 min-w-0">
                             <select
                                 value={session}
                                 onChange={(e) => setSession(e.target.value)}
-                                disabled={lockSessionSelect || isRunning}
-                                className={`w-full appearance-none bg-[#202124] border border-white/10 text-white font-bold text-sm py-3 sm:py-2.5 min-h-[44px] px-4 rounded-full text-center focus:outline-none focus:border-[#d4af37] ${(lockSessionSelect || isRunning) ? 'opacity-80 cursor-not-allowed' : ''} ${dateSessionControlClassName}`}
+                                disabled={lockSessionSelect || (isToday && isRunning)}
+                                className={`w-full appearance-none bg-[#202124] border border-white/10 text-white font-bold text-sm py-3 sm:py-2.5 min-h-[44px] px-4 rounded-full text-center focus:outline-none focus:border-[#d4af37] ${(lockSessionSelect || (isToday && isRunning)) ? 'opacity-80 cursor-not-allowed' : ''} ${dateSessionControlClassName}`}
                             >
                                 {sessionOptions.map((opt) => (
                                     <option key={opt} value={opt}>

@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useHeartbeat } from '../hooks/useHeartbeat';
 import AppHeader from '../components/AppHeader';
-import Header from '../components/Header';
 import BottomNavbar from '../components/BottomNavbar';
 import Home from '../pages/Home';
 import BidOptions from '../pages/BidOptions';
@@ -65,8 +64,7 @@ const Layout = ({ children }) => {
     return (
       <div className="min-h-screen pb-16 md:pb-0 bg-black">
         <AppHeader />
-        <Header />
-        <div className="pt-[100px] sm:pt-[110px] md:pt-[125px]">
+        <div className="pt-[44px] sm:pt-[52px] md:pt-[60px]">
           {children}
         </div>
         <BottomNavbar />
@@ -86,8 +84,8 @@ const Layout = ({ children }) => {
       <div
         className={
           isBidPage
-            ? 'pt-[60px] sm:pt-[76px] md:pt-[80px]'
-            : (isBetsPage ? 'pt-[56px] sm:pt-[68px] md:pt-[88px]' : 'pt-[56px] sm:pt-[68px] md:pt-[80px]')
+            ? 'pt-[52px] sm:pt-[68px] md:pt-[70px]'
+            : (isBetsPage ? 'pt-[48px] sm:pt-[60px] md:pt-[78px]' : 'pt-[48px] sm:pt-[60px] md:pt-[70px]')
         }
       >
         {children}

@@ -1,6 +1,7 @@
 import React from 'react';
 import WalletSection from '../components/WalletSection';
 import HeroSection from '../components/HeroSection';
+import LatestNews from '../components/LatestNews';
 import Section1 from '../components/Section1';
 
 const Home = () => {
@@ -14,6 +15,12 @@ const Home = () => {
       {/* Desktop View - HeroSection */}
       <div className="hidden md:block">
         <HeroSection />
+        <LatestNews />
+      </div>
+      
+      {/* Mobile View - LatestNews after WalletSection */}
+      <div className="md:hidden">
+        <LatestNews />
       </div>
       
       {/* Section1 - Shows on both mobile and desktop */}

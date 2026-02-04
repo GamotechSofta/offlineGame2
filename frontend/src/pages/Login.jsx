@@ -552,9 +552,9 @@ const Login = () => {
             </button>
             <button
                 type="button"
-                 onClick={() => {
-                   setIsLogin(false);
-                   setError('');
+              onClick={() => {
+                setIsLogin(false);
+                setError('');
                    setFormData({
                      username: '',
                      firstName: '',
@@ -583,8 +583,8 @@ const Login = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>{error}</span>
-              </div>
-            )}
+            </div>
+          )}
 
             {/* Form - Improved spacing and styling */}
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
@@ -708,19 +708,19 @@ const Login = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
                     </div>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
                       maxLength="10"
                       className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 pl-12 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
                       placeholder="10-digit phone number"
                       required
                     />
                   </div>
-                </div>
-              )}
+              </div>
+            )}
 
               {/* Password (only for signup) */}
               {!isLogin && (

@@ -13,7 +13,7 @@ const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'half-sangam', 'full-sangam'
  */
 export const placeBet = async (req, res) => {
     try {
-        const { userId, marketId, bets } = req.body;
+        const { userId, marketId, bets, scheduledDate } = req.body;
 
         if (!userId || !marketId || !Array.isArray(bets) || bets.length === 0) {
             return res.status(400).json({
@@ -80,6 +80,30 @@ export const placeBet = async (req, res) => {
         wallet.balance -= totalAmount;
         await wallet.save();
 
+        // Validate scheduledDate if provided
+        let scheduledDateObj = null;
+        let isScheduled = false;
+        if (scheduledDate) {
+            scheduledDateObj = new Date(scheduledDate);
+            if (isNaN(scheduledDateObj.getTime())) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid scheduledDate format',
+                });
+            }
+            // Ensure scheduled date is in the future
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            scheduledDateObj.setHours(0, 0, 0, 0);
+            if (scheduledDateObj < now) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Scheduled date must be today or in the future',
+                });
+            }
+            isScheduled = true;
+        }
+
         const betIds = [];
         const createdBets = [];
         for (const { betType, betNumber, amount } of sanitized) {
@@ -91,6 +115,8 @@ export const placeBet = async (req, res) => {
                 amount,
                 status: 'pending',
                 payout: 0,
+                scheduledDate: scheduledDateObj,
+                isScheduled: isScheduled,
             });
             betIds.push(bet._id);
             createdBets.push(bet);

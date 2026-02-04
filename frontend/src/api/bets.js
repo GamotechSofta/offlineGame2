@@ -16,27 +16,34 @@ export function updateUserBalance(newBalance) {
  * Place bets for the current user.
  * @param {string} marketId - Market _id
  * @param {Array<{ betType: string, betNumber: string, amount: number }>} bets
+ * @param {string|null} scheduledDate - Optional scheduled date (ISO string format)
  * @returns {Promise<{ success: boolean, data?: { newBalance: number }, message?: string }>}
  */
-export async function placeBet(marketId, bets) {
+export async function placeBet(marketId, bets, scheduledDate = null) {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const userId = user?.id || user?._id;
   if (!userId) {
     return { success: false, message: 'Please log in to place a bet' };
   }
 
+  const payload = {
+    userId,
+    marketId,
+    bets: bets.map((b) => ({
+      betType: b.betType,
+      betNumber: String(b.betNumber).trim(),
+      amount: Number(b.amount) || 0,
+    })),
+  };
+
+  if (scheduledDate) {
+    payload.scheduledDate = scheduledDate;
+  }
+
   const response = await fetch(`${API_BASE_URL}/bets/place`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userId,
-      marketId,
-      bets: bets.map((b) => ({
-        betType: b.betType,
-        betNumber: String(b.betNumber).trim(),
-        amount: Number(b.amount) || 0,
-      })),
-    }),
+    body: JSON.stringify(payload),
   });
 
   const data = await response.json();

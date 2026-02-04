@@ -14,6 +14,29 @@
   display: inline-block;
 }
 
+@keyframes scroll-news {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-20%);
+  }
+}
+
+.animate-scroll-news {
+  animation: scroll-news 10s linear infinite;
+  will-change: transform;
+}
+
+.animate-scroll-news:hover {
+  animation-play-state: paused;
+}
+
+/* Smooth scrolling enhancement */
+.animate-scroll-news > * {
+  transition: opacity 0.3s ease;
+}
+
 .scrollbar-hidden {
   scrollbar-width: none;
   -ms-overflow-style: none;
