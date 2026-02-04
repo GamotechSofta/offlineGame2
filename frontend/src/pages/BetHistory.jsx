@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config/api';
 
 const safeParse = (raw, fallback) => {
   try {
@@ -34,9 +35,101 @@ const renderBetNumber = (val) => {
   return s || '-';
 };
 
+const sumDigits = (str) => [...String(str)].reduce((acc, c) => acc + (Number(c) || 0), 0);
+const lastDigit = (str) => sumDigits(str) % 10;
+
+const normalizeMarketName = (s) => (s || '').toString().trim().toLowerCase();
+
+const inferBetKind = (betNumberRaw) => {
+  const s = (betNumberRaw ?? '').toString().trim();
+  if (!s) return 'unknown';
+  if (s.includes('-')) {
+    const [a, b] = s.split('-').map((x) => (x || '').trim());
+    if (/^\d{3}$/.test(a) && /^\d{3}$/.test(b)) return 'full-sangam';
+    if (/^\d{3}$/.test(a) && /^\d$/.test(b)) return 'half-sangam-open';
+    if (/^\d$/.test(a) && /^\d{3}$/.test(b)) return 'half-sangam-close';
+    return 'unknown';
+  }
+  if (/^\d$/.test(s)) return 'digit';
+  if (/^\d{2}$/.test(s)) return 'jodi';
+  if (/^\d{3}$/.test(s)) return 'panna';
+  return 'unknown';
+};
+
+const getPayoutMultiplier = (kind, betNumberRaw) => {
+  if (kind === 'digit') return 9;
+  if (kind === 'jodi') return 90;
+  if (kind === 'half-sangam-open' || kind === 'half-sangam-close') return 1000;
+  if (kind === 'full-sangam') return 10000;
+  if (kind === 'panna') {
+    const s = (betNumberRaw ?? '').toString().trim();
+    if (/^\d{3}$/.test(s)) {
+      const a = s[0], b = s[1], c = s[2];
+      const allSame = a === b && b === c;
+      const twoSame = a === b || b === c || a === c;
+      if (allSame) return 600; // triple patti
+      if (twoSame) return 300; // double patti
+      return 150; // single patti
+    }
+  }
+  return 0;
+};
+
+const evaluateBet = ({ market, betNumberRaw, amount, session }) => {
+  const opening = market?.openingNumber && /^\d{3}$/.test(String(market.openingNumber)) ? String(market.openingNumber) : null;
+  const closing = market?.closingNumber && /^\d{3}$/.test(String(market.closingNumber)) ? String(market.closingNumber) : null;
+  const openDigit = opening ? String(lastDigit(opening)) : null;
+  const closeDigit = closing ? String(lastDigit(closing)) : null;
+  const jodi = openDigit != null && closeDigit != null ? `${openDigit}${closeDigit}` : null;
+
+  const betNumber = (betNumberRaw ?? '').toString().trim();
+  const kind = inferBetKind(betNumber);
+  const sess = (session || '').toString().trim().toUpperCase();
+
+  // Determine if result is declared for this kind/session
+  const declared =
+    kind === 'digit'
+      ? (sess === 'OPEN' ? !!openDigit : sess === 'CLOSE' ? !!closeDigit : !!(openDigit && closeDigit))
+      : kind === 'panna'
+        ? (sess === 'OPEN' ? !!opening : sess === 'CLOSE' ? !!closing : !!(opening && closing))
+        : kind === 'jodi'
+          ? !!jodi
+          : kind === 'half-sangam-open' || kind === 'half-sangam-close' || kind === 'full-sangam'
+            ? !!(opening && closing)
+            : false;
+
+  if (!declared) return { state: 'pending', kind, payout: 0 };
+
+  let won = false;
+  if (kind === 'digit') {
+    if (sess === 'OPEN') won = betNumber === openDigit;
+    else if (sess === 'CLOSE') won = betNumber === closeDigit;
+    else won = betNumber === openDigit || betNumber === closeDigit;
+  } else if (kind === 'jodi') {
+    won = betNumber === jodi;
+  } else if (kind === 'panna') {
+    if (sess === 'OPEN') won = betNumber === opening;
+    else if (sess === 'CLOSE') won = betNumber === closing;
+    else won = betNumber === opening || betNumber === closing;
+  } else if (kind === 'full-sangam') {
+    won = betNumber === `${opening}-${closing}`;
+  } else if (kind === 'half-sangam-open') {
+    won = betNumber === `${opening}-${closeDigit}`;
+  } else if (kind === 'half-sangam-close') {
+    won = betNumber === `${openDigit}-${closing}`;
+  }
+
+  if (!won) return { state: 'lost', kind, payout: 0 };
+
+  const mul = getPayoutMultiplier(kind, betNumber);
+  const payout = mul > 0 ? (Number(amount) || 0) * mul : 0;
+  return { state: 'won', kind, payout };
+};
+
 const BetHistory = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('All');
+  const [markets, setMarkets] = useState([]);
 
   const { userId, bets } = useMemo(() => {
     const u = safeParse(localStorage.getItem('user') || 'null', null);
@@ -65,6 +158,36 @@ const BetHistory = () => {
     }
     return out;
   }, [visible]);
+
+  useEffect(() => {
+    let alive = true;
+    const fetchMarkets = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
+        const data = await res.json();
+        if (!alive) return;
+        if (data?.success && Array.isArray(data?.data)) {
+          setMarkets(data.data);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchMarkets();
+    const id = setInterval(fetchMarkets, 30000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  const marketByName = useMemo(() => {
+    const map = new Map();
+    for (const m of markets || []) {
+      map.set(normalizeMarketName(m?.marketName), m);
+    }
+    return map;
+  }, [markets]);
 
   return (
     <div className="min-h-screen bg-black text-white px-3 sm:px-4 pt-3 pb-28">
@@ -111,6 +234,13 @@ const BetHistory = () => {
             const points = Number(r?.points || 0) || 0;
             const session = (r?.type || x?.session || '').toString();
             const market = (x?.marketTitle || '').toString().trim() || 'MARKET';
+            const m = marketByName.get(normalizeMarketName(market));
+            const verdict = evaluateBet({
+              market: m,
+              betNumberRaw: r?.number,
+              amount: points,
+              session,
+            });
 
             return (
             <div key={`${x.id}-${r?.id ?? idx}`} className="rounded-2xl overflow-hidden border border-white/10 bg-[#202124] shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
@@ -141,9 +271,19 @@ const BetHistory = () => {
 
               <div className="h-px bg-white/10" />
 
-              <div className="px-4 py-3 text-center font-semibold text-[#43b36a]">
-                Bet Placed
-              </div>
+              {verdict.state === 'won' ? (
+                <div className="px-4 py-3 text-center font-semibold text-[#43b36a]">
+                  Congratulations, You Won {verdict.payout ? `₹${Number(verdict.payout || 0).toLocaleString('en-IN')}` : ''}
+                </div>
+              ) : verdict.state === 'lost' ? (
+                <div className="px-4 py-3 text-center font-semibold text-red-400">
+                  Better Luck Next time
+                </div>
+              ) : (
+                <div className="px-4 py-3 text-center font-semibold text-[#43b36a]">
+                  Bet Placed
+                </div>
+              )}
             </div>
             );
           })}
