@@ -88,47 +88,48 @@ const AppHeader = () => {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50 w-full bg-black px-3 sm:px-5 md:px-6 lg:px-8 py-1.5 sm:py-2 md:py-2.5">
-        <div className="flex items-center justify-between gap-1.5 sm:gap-2 md:gap-3">
+      <div className="fixed top-0 left-0 right-0 z-50 w-full bg-gradient-to-b from-black to-[#0a0a0a] border-b border-white/5 shadow-lg px-3 sm:px-5 md:px-6 lg:px-8 py-2.5 sm:py-2 md:py-2.5">
+        <div className="flex items-center justify-between gap-2 sm:gap-2 md:gap-3">
           {/* Hamburger Menu and Logo together on the left */}
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 md:gap-4">
             <button
               type="button"
               onClick={() => setIsMenuOpen(true)}
-              className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
+              className="w-10 h-10 sm:w-9 sm:h-9 md:w-10 md:h-10 shrink-0 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 flex items-center justify-center cursor-pointer active:scale-95 hover:bg-gray-700/50 transition-all duration-200 shadow-md"
               aria-label="Open menu"
             >
-            <div className="flex flex-col gap-1 sm:gap-1.5">
-              <div className="w-4 sm:w-5 md:w-5 h-0.5 bg-white"></div>
-              <div className="w-3 sm:w-4 md:w-4 h-0.5 bg-white"></div>
-              <div className="w-2.5 sm:w-3 md:w-3 h-0.5 bg-white"></div>
+            <div className="flex flex-col gap-1.5 sm:gap-1.5">
+              <div className="w-5 sm:w-5 md:w-5 h-[2.5px] bg-white rounded-full"></div>
+              <div className="w-4 sm:w-4 md:w-4 h-[2.5px] bg-white rounded-full"></div>
+              <div className="w-3.5 sm:w-3 md:w-3 h-[2.5px] bg-white rounded-full"></div>
             </div>
             </button>
 
             {/* Logo - aligned next to hamburger */}
             <Link
               to="/"
-              className="flex items-center cursor-pointer hover:opacity-90 transition-opacity"
+              className="flex items-center cursor-pointer active:scale-95 transition-transform duration-200"
             >
               <img
-                src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1770203502/332c5616-7c46-4b98-93c8-8f97dd68f692.png"
+                src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1770208855/copy_of_7db585f9-9318-4d5b-af85-3239bd0ae2be_1b90b5.png"
                 alt="Logo"
-                className="h-8 sm:h-9 md:h-10 lg:h-11 w-auto object-contain"
+                className="h-9 sm:h-9 md:h-10 lg:h-11 w-auto object-contain drop-shadow-md"
               />
             </Link>
           </div>
 
         {/* Right side buttons - Download App, Wallet, Profile */}
         <div className="flex items-center gap-2 sm:gap-2.5 md:gap-3">
-          {/* Download App - responsive padding, text, icon */}
+          {/* Download App - icon only on mobile, text on larger screens */}
           <button
             onClick={() => navigate('/download')}
-            className="shrink-0 rounded-lg sm:rounded-xl md:rounded-xl bg-[#f3b61b] px-2.5 sm:px-3 md:px-4 lg:px-5 py-1.5 sm:py-2 md:py-2.5 text-xs sm:text-sm md:text-base font-semibold text-black shadow-[0_4px_12px_rgba(243,182,27,0.35)] hover:bg-[#e5a914] transition-colors flex items-center gap-1 sm:gap-1.5 md:gap-2"
+            className="shrink-0 rounded-xl md:rounded-xl bg-gradient-to-r from-[#f3b61b] to-[#e5a914] px-3 sm:px-3 md:px-4 lg:px-5 py-2 sm:py-2 md:py-2.5 text-xs sm:text-sm md:text-base font-bold text-black shadow-[0_4px_12px_rgba(243,182,27,0.4)] active:scale-95 hover:from-[#e5a914] hover:to-[#d49a13] transition-all duration-200 flex items-center gap-1.5 sm:gap-1.5 md:gap-2 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 justify-center"
           >
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            <svg className="w-5 h-5 sm:w-4 sm:h-4 md:w-5 md:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            <span>Download App</span>
+            <span className="hidden sm:inline">Download</span>
+            <span className="hidden md:inline"> App</span>
           </button>
 
           {/* Wallet - desktop only, responsive size */}
@@ -144,20 +145,21 @@ const AppHeader = () => {
             <span className="text-sm md:text-base lg:text-lg font-bold text-white">2,853</span>
           </button>
 
-          {/* Profile Icon (replaces notification icon on mobile) */}
+          {/* Profile Icon - improved mobile touch target */}
           <button
             type="button"
             onClick={handleProfileClick}
-            className={`w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 shrink-0 rounded-full bg-gray-800 border flex items-center justify-center cursor-pointer transition-colors ${
-              user ? 'border-yellow-500/50 hover:bg-yellow-500/10' : 'border-gray-700 hover:bg-gray-700'
+            className={`w-10 h-10 sm:w-9 sm:h-9 md:w-10 md:h-10 shrink-0 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 border flex items-center justify-center cursor-pointer active:scale-95 transition-all duration-200 shadow-md ${
+              user ? 'border-yellow-500/60 hover:bg-yellow-500/20 hover:border-yellow-500/80' : 'border-gray-700/50 hover:bg-gray-700/50'
             }`}
             title={user ? `${user.username} - View Profile` : 'Sign In / Sign Up'}
             aria-label="Profile"
           >
             <svg
-              className={`w-4 h-4 sm:w-5 sm:h-5 md:w-5 md:h-5 ${user ? 'text-yellow-400' : 'text-white'}`}
+              className={`w-5 h-5 sm:w-5 sm:h-5 md:w-5 md:h-5 ${user ? 'text-yellow-400' : 'text-white'}`}
               fill={user ? 'currentColor' : 'none'}
               stroke={user ? 'none' : 'currentColor'}
+              strokeWidth={user ? 0 : 1.5}
               viewBox="0 0 20 20"
             >
               <path
@@ -174,35 +176,49 @@ const AppHeader = () => {
         <div className="fixed inset-0 z-[60]">
           <button
             type="button"
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setIsMenuOpen(false)}
             aria-label="Close menu overlay"
           />
-          <aside className="relative h-full w-[86%] max-w-[360px] sm:w-[70%] sm:max-w-[380px] md:w-[420px] md:max-w-none bg-black shadow-[6px_0_18px_rgba(0,0,0,0.5)]">
-            <div className="px-4 sm:px-6 pt-6 pb-4 border-b border-gray-800">
+          <aside className="relative h-full w-[86%] max-w-[360px] sm:w-[70%] sm:max-w-[380px] md:w-[420px] md:max-w-none bg-gradient-to-b from-[#0a0a0a] via-black to-[#0a0a0a] shadow-[6px_0_24px_rgba(0,0,0,0.8)] border-r border-white/5">
+            {/* User Profile Section */}
+            <div className="px-5 sm:px-6 pt-6 pb-5 border-b border-white/10 bg-gradient-to-b from-[#1a1a1a]/50 to-transparent">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#0f2c5a] flex items-center justify-center text-white text-xl sm:text-2xl font-semibold">
-                    {avatarInitial}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#1e1e1e] to-[#2a2a2a] border-2 border-yellow-500/30 flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-[0_4px_12px_rgba(212,175,55,0.3)]">
+                      {avatarInitial}
+                    </div>
+                    {user && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-black"></div>
+                    )}
                   </div>
-                  <div>
-                    <div className="text-base sm:text-lg font-semibold text-white">{displayName}</div>
-                    <div className="text-xs sm:text-sm text-gray-300">{displayPhone}</div>
-                    <div className="text-xs sm:text-sm text-gray-400">{sinceText}</div>
+                  
+                  {/* User Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-base sm:text-lg font-bold text-white truncate">{displayName}</div>
+                    <div className="text-xs sm:text-sm text-gray-400 mt-0.5 truncate">{displayPhone}</div>
+                    <div className="text-xs sm:text-sm text-gray-500 mt-0.5">{sinceText}</div>
                   </div>
                 </div>
+                
+                {/* Close Button */}
                 <button
                   type="button"
                   onClick={() => setIsMenuOpen(false)}
-                  className="text-red-500 text-2xl sm:text-3xl leading-none"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1a1a1a] border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#222] hover:border-white/20 active:scale-95 transition-all duration-200 shrink-0"
                   aria-label="Close menu"
                 >
-                  ×
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
             </div>
 
-            <div className="px-4 sm:px-6 py-4 space-y-3 overflow-y-auto h-[calc(100%-128px)] scrollbar-hidden">
+            {/* Menu Items */}
+            <div className="px-4 sm:px-5 py-4 space-y-2.5 overflow-y-auto h-[calc(100%-140px)] scrollbar-hidden">
               {menuItems.map((item) => (
                 <button
                   key={item.label}
@@ -215,9 +231,10 @@ const AppHeader = () => {
                       navigate(item.path);
                     }
                   }}
-                  className="w-full bg-gray-900 rounded-2xl px-3 py-3 sm:px-4 sm:py-3.5 flex items-center gap-4 border border-gray-800 shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+                  className="group w-full bg-gradient-to-r from-[#1a1a1a] to-[#1e1e1e] rounded-xl sm:rounded-2xl px-4 py-3.5 sm:py-4 flex items-center gap-4 border border-white/5 hover:border-yellow-500/30 hover:from-[#222] hover:to-[#252525] hover:shadow-[0_4px_16px_rgba(212,175,55,0.15)] active:scale-[0.98] transition-all duration-200"
                 >
-                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#0f2c5a] text-white flex items-center justify-center">
+                  {/* Icon Container */}
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#2a2a2a] to-[#1e1e1e] border border-white/10 flex items-center justify-center shrink-0 group-hover:border-yellow-500/30 group-hover:shadow-[0_4px_12px_rgba(212,175,55,0.2)] transition-all duration-200">
                     {item.label === 'Home' ? (
                       <img
                         src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769797366/home_m76m2c.png"
@@ -315,13 +332,24 @@ const AppHeader = () => {
                         className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
                       />
                     ) : (
-                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white"></div>
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white/40"></div>
                     )}
                   </div>
-                  <span className="text-sm sm:text-base font-semibold text-white">{item.label}</span>
+                  
+                  {/* Menu Text */}
+                  <span className="text-sm sm:text-base font-semibold text-white group-hover:text-yellow-400 transition-colors duration-200 flex-1 text-left">
+                    {item.label}
+                  </span>
+                  
+                  {/* Arrow Indicator */}
+                  <svg className="w-5 h-5 text-white/20 group-hover:text-yellow-500/60 group-hover:translate-x-1 transition-all duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
               ))}
-              <div className="text-center text-xs text-gray-500 pt-2">Version: 1.0.0</div>
+              
+              {/* Version Footer */}
+              <div className="text-center text-xs text-gray-600 pt-4 pb-2">Version: 1.0.0</div>
             </div>
           </aside>
         </div>

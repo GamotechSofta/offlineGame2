@@ -66,7 +66,7 @@ const Layout = ({ children }) => {
     return (
       <div className="min-h-screen pb-16 md:pb-0 bg-black">
         <AppHeader />
-        <div className="pt-[44px] sm:pt-[52px] md:pt-[60px]">
+        <div className="pt-[52px] sm:pt-[52px] md:pt-[60px]">
           {children}
         </div>
         <BottomNavbar />
