@@ -134,7 +134,11 @@ const evaluateBet = ({ market, betNumberRaw, amount, session, ratesMap }) => {
 
 const BetHistory = () => {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState('All');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedSessions, setSelectedSessions] = useState([]); // ['OPEN','CLOSE']
+  const [selectedStatuses, setSelectedStatuses] = useState([]); // ['Win','Loose','Pending']
+  const [selectedMarkets, setSelectedMarkets] = useState([]); // normalized market keys
+  const [page, setPage] = useState(1);
   const [markets, setMarkets] = useState([]);
   const [ratesMap, setRatesMap] = useState(null);
 
@@ -147,15 +151,9 @@ const BetHistory = () => {
     return { userId: uid, bets: onlyMine };
   }, []);
 
-  const visible = useMemo(() => {
-    if (filter === 'All') return bets;
-    // Placeholder filter: no result data stored yet, so show all.
-    return bets;
-  }, [filter, bets]);
-
   const flat = useMemo(() => {
     const out = [];
-    for (const x of visible || []) {
+    for (const x of bets || []) {
       const rows = Array.isArray(x?.rows) ? x.rows : [];
       if (!rows.length) {
         out.push({ x, r: null, idx: 0 });
@@ -164,7 +162,7 @@ const BetHistory = () => {
       rows.forEach((r, idx) => out.push({ x, r, idx }));
     }
     return out;
-  }, [visible]);
+  }, [bets]);
 
   useEffect(() => {
     let alive = true;
@@ -204,6 +202,86 @@ const BetHistory = () => {
     return map;
   }, [markets]);
 
+  const marketOptions = useMemo(() => {
+    const fromApi = (markets || [])
+      .map((m) => (m?.marketName || '').toString().trim())
+      .filter(Boolean);
+    const fromHistory = (bets || [])
+      .map((x) => (x?.marketTitle || '').toString().trim())
+      .filter(Boolean);
+    const uniq = Array.from(new Set([...fromApi, ...fromHistory]));
+    uniq.sort((a, b) => a.localeCompare(b));
+    return uniq.map((label) => ({ label, key: normalizeMarketName(label) }));
+  }, [markets, bets]);
+
+  const enriched = useMemo(() => {
+    return flat.map(({ x, r, idx }) => {
+      const points = Number(r?.points || 0) || 0;
+      const session = (r?.type || x?.session || '').toString().trim().toUpperCase();
+      const marketTitle = (x?.marketTitle || '').toString().trim() || 'MARKET';
+      const m = marketByName.get(normalizeMarketName(marketTitle));
+      const verdict = evaluateBet({
+        market: m,
+        betNumberRaw: r?.number,
+        amount: points,
+        session,
+        ratesMap,
+      });
+      return { x, r, idx, points, session, marketTitle, verdict };
+    });
+  }, [flat, marketByName, ratesMap]);
+
+  const filtered = useMemo(() => {
+    return (enriched || []).filter((row) => {
+      if (selectedSessions.length > 0 && !selectedSessions.includes(row.session)) return false;
+
+      if (selectedMarkets.length > 0) {
+        const k = normalizeMarketName(row.marketTitle);
+        if (!selectedMarkets.includes(k)) return false;
+      }
+
+      if (selectedStatuses.length > 0) {
+        const st =
+          row.verdict.state === 'won' ? 'Win' : row.verdict.state === 'lost' ? 'Loose' : 'Pending';
+        if (!selectedStatuses.includes(st)) return false;
+      }
+      return true;
+    });
+  }, [enriched, selectedMarkets, selectedSessions, selectedStatuses]);
+
+  // Reset to page 1 when filters/data change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedSessions, selectedStatuses, selectedMarkets, enriched.length]);
+
+  const PAGE_SIZE = 10;
+  const totalPages = useMemo(() => {
+    const n = Math.ceil((filtered?.length || 0) / PAGE_SIZE);
+    return n > 0 ? n : 1;
+  }, [filtered]);
+
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const paged = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return (filtered || []).slice(start, start + PAGE_SIZE);
+  }, [filtered, currentPage]);
+
+  // Draft state for modal
+  const [draftSessions, setDraftSessions] = useState([]);
+  const [draftStatuses, setDraftStatuses] = useState([]);
+  const [draftMarkets, setDraftMarkets] = useState([]);
+
+  useEffect(() => {
+    if (!isFilterOpen) return;
+    setDraftSessions(selectedSessions);
+    setDraftStatuses(selectedStatuses);
+    setDraftMarkets(selectedMarkets);
+  }, [isFilterOpen, selectedMarkets, selectedSessions, selectedStatuses]);
+
+  const toggleDraft = (arr, value, setArr) => {
+    setArr((prev) => (prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]));
+  };
+
   return (
     <div className="min-h-screen bg-black text-white px-3 sm:px-4 pt-3 pb-28">
       <div className="w-full max-w-3xl mx-auto">
@@ -225,7 +303,7 @@ const BetHistory = () => {
 
           <button
             type="button"
-            onClick={() => setFilter((p) => (p === 'All' ? 'Win' : p === 'Win' ? 'Lose' : 'All'))}
+            onClick={() => setIsFilterOpen(true)}
             className="shrink-0 flex items-center gap-2 text-white/80 hover:text-white transition-colors"
             aria-label="Filter"
             title="Filter"
@@ -239,30 +317,19 @@ const BetHistory = () => {
 
         {/* Cards */}
         <div className="space-y-4">
-          {flat.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-[#202124] p-6 text-center text-gray-300">
               {userId ? 'No bets found.' : 'Please login to see your bet history.'}
             </div>
-          ) : flat.map(({ x, r, idx }) => {
+          ) : paged.map(({ x, r, idx, points, session, marketTitle, verdict }) => {
             const betValue = r?.number != null ? renderBetNumber(r.number) : '-';
             const gameType = (x?.labelKey || 'Bet').toString();
-            const points = Number(r?.points || 0) || 0;
-            const session = (r?.type || x?.session || '').toString();
-            const market = (x?.marketTitle || '').toString().trim() || 'MARKET';
-            const m = marketByName.get(normalizeMarketName(market));
-            const verdict = evaluateBet({
-              market: m,
-              betNumberRaw: r?.number,
-              amount: points,
-              session,
-              ratesMap,
-            });
 
             return (
             <div key={`${x.id}-${r?.id ?? idx}`} className="rounded-2xl overflow-hidden border border-white/10 bg-[#202124] shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
               <div className="bg-[#0b2b55] px-4 py-3 text-center">
                 <div className="text-white font-extrabold tracking-wide">
-                  {market.toUpperCase()} {session ? `(${session})` : ''}
+                  {marketTitle.toUpperCase()} {session ? `(${session})` : ''}
                 </div>
               </div>
 
@@ -306,22 +373,143 @@ const BetHistory = () => {
         </div>
       </div>
 
-      {/* Bottom pagination (UI only) */}
-      <div className="fixed left-0 right-0 bottom-[88px] z-20 px-3 sm:px-4">
-        <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-[0_16px_30px_rgba(0,0,0,0.35)] overflow-hidden">
-          <div className="grid grid-cols-3 items-center">
-            <button type="button" className="py-3 text-gray-700 font-semibold border-r border-gray-200 text-sm">
-              ‹ PREV
-            </button>
-            <div className="flex items-center justify-center py-2.5">
-              <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">1</div>
+      {/* Filter modal (as per screenshot) */}
+      {isFilterOpen ? (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center px-3 sm:px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            aria-label="Close filter"
+            onClick={() => setIsFilterOpen(false)}
+          />
+
+          <div className="relative w-full max-w-md rounded-[28px] overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.65)] border border-white/10 bg-[#202124]">
+            <div className="bg-black text-white text-center py-4 text-2xl font-extrabold border-b border-white/10">
+              Filter Type
             </div>
-            <button type="button" className="py-3 text-gray-700 font-semibold border-l border-gray-200 text-sm">
-              NEXT ›
-            </button>
+
+            <div className="bg-[#202124] text-white">
+              <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">
+                <div className="text-lg font-bold text-[#d4af37] mb-3">By Game Type</div>
+                <div className="flex items-center justify-around gap-6 pb-4">
+                  <label className="flex items-center gap-3 text-base sm:text-lg">
+                    <input
+                      type="checkbox"
+                      className="w-6 h-6 accent-[#d4af37]"
+                      checked={draftSessions.includes('OPEN')}
+                      onChange={() => toggleDraft(draftSessions, 'OPEN', setDraftSessions)}
+                    />
+                    Open
+                  </label>
+                  <label className="flex items-center gap-3 text-base sm:text-lg">
+                    <input
+                      type="checkbox"
+                      className="w-6 h-6 accent-[#d4af37]"
+                      checked={draftSessions.includes('CLOSE')}
+                      onChange={() => toggleDraft(draftSessions, 'CLOSE', setDraftSessions)}
+                    />
+                    Close
+                  </label>
+                </div>
+
+                <div className="h-px bg-white/10 my-3" />
+
+                <div className="text-lg font-bold text-[#d4af37] mb-3">By Winning Status</div>
+                <div className="flex items-center justify-around gap-3 pb-4">
+                  {['Win', 'Loose', 'Pending'].map((s) => (
+                    <label key={s} className="flex items-center gap-3 text-base sm:text-lg">
+                      <input
+                        type="checkbox"
+                        className="w-6 h-6 accent-[#d4af37]"
+                        checked={draftStatuses.includes(s)}
+                        onChange={() => toggleDraft(draftStatuses, s, setDraftStatuses)}
+                      />
+                      {s}
+                    </label>
+                  ))}
+                </div>
+
+                <div className="h-px bg-white/10 my-3" />
+
+                <div className="text-lg font-bold text-[#d4af37] mb-3">By Games</div>
+                <div className="space-y-3 pb-2">
+                  {marketOptions.map((name) => (
+                    <label
+                      key={name.key}
+                      className="flex items-center gap-4 bg-black/25 rounded-xl border border-white/10 shadow-sm px-4 py-4 hover:border-[#d4af37]/40 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        className="w-6 h-6 accent-[#d4af37]"
+                        checked={draftMarkets.includes(name.key)}
+                        onChange={() => toggleDraft(draftMarkets, name.key, setDraftMarkets)}
+                      />
+                      <span className="text-sm sm:text-base font-semibold tracking-wide text-white">
+                        {name.label.toUpperCase()}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="px-5 pb-5 pt-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterOpen(false)}
+                    className="rounded-full bg-black border border-white/10 text-white font-bold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:border-[#d4af37]/40 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSessions(draftSessions);
+                      setSelectedStatuses(draftStatuses);
+                      setSelectedMarkets(draftMarkets);
+                      setIsFilterOpen(false);
+                    }}
+                    className="rounded-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-extrabold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:from-[#e5c04a] hover:to-[#d4af37] transition-colors"
+                  >
+                    Filter
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
+
+      {/* Bottom pagination (UI only) */}
+      {filtered.length > PAGE_SIZE ? (
+        <div className="fixed left-0 right-0 bottom-[88px] z-20 px-3 sm:px-4">
+          <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-[0_16px_30px_rgba(0,0,0,0.35)] overflow-hidden">
+            <div className="grid grid-cols-3 items-center">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="py-3 text-gray-700 font-semibold border-r border-gray-200 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ‹ PREV
+              </button>
+              <div className="flex items-center justify-center py-2.5">
+                <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">
+                  {currentPage}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="py-3 text-gray-700 font-semibold border-l border-gray-200 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                NEXT ›
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

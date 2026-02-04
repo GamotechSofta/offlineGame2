@@ -3,6 +3,7 @@ import {
     createMarket,
     getMarkets,
     getMarketById,
+    getMarketResultHistory,
     getMarketStats,
     updateMarket,
     setOpeningNumber,
@@ -22,6 +23,7 @@ const router = express.Router();
 // Public routes
 router.get('/get-markets', getMarkets);
 router.get('/get-market/:id', getMarketById);
+router.get('/result-history', getMarketResultHistory);
 
 // Admin: market detail stats (amount & no. of bets per option)
 router.get('/get-market-stats/:id', verifyAdmin, getMarketStats);

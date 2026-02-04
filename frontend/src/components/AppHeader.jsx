@@ -7,12 +7,12 @@ const AppHeader = () => {
   const [user, setUser] = useState(null);
 
   const menuItems = [
+    { label: 'My Bets', path: '/bids' },
     { label: 'Home', path: '/' },
     { label: 'Profile', path: '/profile' },
     { label: 'Top Winners', path: '/support' },
     { label: 'Starline Winners', path: '/support' },
     { label: 'Telegram Channel', path: '/support' },
-    { label: 'My Bets', path: '/bids' },
     { label: 'Bank', path: '/bank' },
     { label: 'Funds', path: '/funds' },
     { label: 'Notification', path: '/support' },

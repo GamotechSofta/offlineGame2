@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
 import { getRatesCurrent } from '../api/bets';
+import ResultDatePicker from '../components/ResultDatePicker';
 
 const safeParse = (raw, fallback) => {
   try {
@@ -132,6 +133,19 @@ const evaluateBet = ({ market, betNumberRaw, amount, session, ratesMap }) => {
 
 const Bids = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const handleBack = () => {
+    // Desktop: go to previous real page, not just switch sections.
+    try {
+      const prev = sessionStorage.getItem('prevPathname');
+      if (prev && prev !== '/bids' && prev !== '/bet-history' && prev !== '/market-result-history') {
+        navigate(prev);
+        return;
+      }
+    } catch (_) {}
+    navigate(-1);
+  };
 
   // Remove scrolling on this page only
   useEffect(() => {
@@ -167,13 +181,51 @@ const Bids = () => {
     
   ]), []);
 
-  const [activeTitle, setActiveTitle] = useState(items[0]?.title || '');
+  const TAB_TO_TITLE = useMemo(() => ({
+    'bet-history': 'Bet History',
+    'game-results': 'Game Results',
+    'starline-bet-history': 'Sara Starline Bet History',
+    'starline-result-history': 'Sara Starline Result History',
+  }), []);
+  const TITLE_TO_TAB = useMemo(() => ({
+    'Bet History': 'bet-history',
+    'Game Results': 'game-results',
+    'Sara Starline Bet History': 'starline-bet-history',
+    'Sara Starline Result History': 'starline-result-history',
+  }), []);
+
+  const tabParam = (searchParams.get('tab') || '').toString();
+  const initialTitle = TAB_TO_TITLE[tabParam] || (items[0]?.title || 'Bet History');
+  const [activeTitle, setActiveTitle] = useState(initialTitle);
   const activeItem = items.find((i) => i.title === activeTitle) || items[0];
   const isBetHistoryPanel = activeTitle === 'Bet History';
+  const isGameResultsPanel = activeTitle === 'Game Results';
+  const rightPanelTitle = activeTitle === 'Game Results' ? 'Market Result History' : activeTitle;
+
+  // Keep selected desktop panel on refresh (via ?tab=...)
+  useEffect(() => {
+    const t = TAB_TO_TITLE[tabParam];
+    if (t && t !== activeTitle) setActiveTitle(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabParam]);
+
+  // Write the tab param whenever selection changes
+  useEffect(() => {
+    const nextTab = TITLE_TO_TAB[activeTitle] || 'bet-history';
+    if (searchParams.get('tab') === nextTab) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', nextTab);
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTitle]);
 
   const handleMobileItemClick = (item) => {
     if (item?.title === 'Bet History') {
       navigate('/bet-history');
+      return;
+    }
+    if (item?.title === 'Game Results') {
+      navigate('/market-result-history');
       return;
     }
     // keep current behavior for other items
@@ -234,6 +286,59 @@ const Bids = () => {
     return map;
   }, [markets]);
 
+  const toDateKeyIST = (d) => {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(d); // YYYY-MM-DD
+    } catch {
+      return '';
+    }
+  };
+  const todayKey = useMemo(() => toDateKeyIST(new Date()), []);
+
+  const [resultsRows, setResultsRows] = useState([]);
+
+  const [resultsDate, setResultsDate] = useState(() => new Date());
+  useEffect(() => {
+    const k = toDateKeyIST(resultsDate);
+    if (k && k > todayKey) setResultsDate(new Date());
+  }, [resultsDate, todayKey]);
+
+  useEffect(() => {
+    let alive = true;
+    const fetchHistory = async () => {
+      try {
+        const dateKey = toDateKeyIST(resultsDate) || todayKey;
+        const res = await fetch(`${API_BASE_URL}/markets/result-history?date=${encodeURIComponent(dateKey)}`);
+        const data = await res.json();
+        if (!alive) return;
+        if (data?.success && Array.isArray(data?.data)) {
+          const mapped = data.data.map((x) => ({
+            id: x?._id || `${x?.marketId || ''}-${x?.dateKey || ''}`,
+            name: (x?.marketName || '').toString().trim(),
+            result: (x?.displayResult || '***-**-***').toString().trim(),
+          })).filter((x) => x.name);
+          mapped.sort((a, b) => a.name.localeCompare(b.name));
+          setResultsRows(mapped);
+        } else {
+          setResultsRows([]);
+        }
+      } catch {
+        setResultsRows([]);
+      }
+    };
+    fetchHistory();
+    const id = setInterval(fetchHistory, 30000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [resultsDate, todayKey]);
+
   const desktopBetHistoryFlat = useMemo(() => {
     const out = [];
     for (const x of desktopBetHistory.items || []) {
@@ -248,7 +353,7 @@ const Bids = () => {
   }, [desktopBetHistory.items]);
 
   return (
-    <div className="min-h-screen bg-black text-white px-3 sm:px-4 pt-0 pb-24">
+    <div className="min-h-screen bg-black text-white pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0 pb-24">
       <style>{`
         .hide-scrollbar {
           scrollbar-width: none; /* Firefox */
@@ -260,18 +365,35 @@ const Bids = () => {
           height: 0;
         }
       `}</style>
-      <div className="w-full max-w-lg md:max-w-6xl mx-auto md:mx-0">
-        <div className="flex items-center gap-3 mb-6">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/15 active:scale-95 transition"
-            aria-label="Back"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="text-xl sm:text-2xl font-bold">My Bets</h1>
+      <div className="w-full max-w-lg md:max-w-none mx-auto md:mx-0">
+        <div className="mb-6 md:grid md:grid-cols-[360px_1fr] md:gap-6 md:items-center">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBack}
+              className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/15 active:scale-95 transition"
+              aria-label="Back"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h1 className="text-xl sm:text-2xl font-bold">My Bets</h1>
+          </div>
+
+          <div className="hidden md:flex items-center justify-between gap-4 px-1">
+            <div className="text-2xl font-extrabold text-white">{rightPanelTitle}</div>
+            {isGameResultsPanel ? (
+              <div className="w-[320px]">
+                <ResultDatePicker
+                  value={resultsDate}
+                  onChange={setResultsDate}
+                  maxDate={new Date()}
+                  label="Select Date"
+                  buttonClassName="px-4 py-2 rounded-full bg-black/40 border border-white/10 text-white font-bold text-sm shadow-sm hover:border-[#d4af37]/40 transition-colors"
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {/* Mobile: same list layout */}
@@ -312,7 +434,7 @@ const Bids = () => {
 
         {/* Desktop: sidebar-style list */}
         <div className="hidden md:grid md:grid-cols-[360px_1fr] md:gap-6 md:items-start">
-          <aside className="md:sticky md:top-[96px] space-y-3">
+          <aside className="md:sticky md:top-[96px] space-y-3 md:space-y-5">
             {items.map((item) => {
               const active = item.title === activeTitle;
               return (
@@ -320,7 +442,7 @@ const Bids = () => {
                   key={item.title}
                   type="button"
                   onClick={() => handleDesktopItemClick(item)}
-                  className={`w-full text-left bg-[#202124] border rounded-2xl p-4 flex items-center justify-between shadow-[0_12px_24px_rgba(0,0,0,0.35)] transition-colors ${
+                  className={`w-full text-left bg-[#202124] border rounded-2xl p-4 md:p-5 flex items-center justify-between shadow-[0_12px_24px_rgba(0,0,0,0.35)] transition-colors ${
                     active ? 'border-[#d4af37]/40 bg-[#202124]' : 'border-white/10 hover:border-white/20'
                   }`}
                 >
@@ -357,16 +479,12 @@ const Bids = () => {
 
           <main
             className={
-              isBetHistoryPanel
+              (isBetHistoryPanel || isGameResultsPanel)
                 ? 'bg-transparent border-0 shadow-none p-0'
                 : 'rounded-2xl bg-[#202124] border border-white/10 shadow-[0_12px_24px_rgba(0,0,0,0.35)] p-6'
             }
           >
-            {isBetHistoryPanel ? (
-              <div className="mb-3 px-1">
-                <div className="text-2xl font-extrabold text-white">Bet History</div>
-              </div>
-            ) : (
+            {(isBetHistoryPanel || isGameResultsPanel) ? null : (
               <div className="flex items-center justify-center gap-4">
                 <div
                   className="w-14 h-14 rounded-full flex items-center justify-center text-black shadow-[0_10px_20px_rgba(0,0,0,0.35)]"
@@ -400,7 +518,7 @@ const Bids = () => {
                       Please login to see your bet history.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {desktopBetHistoryFlat.map(({ x, r, idx }) => {
                         const betValue = r?.number != null ? renderBetNumber(r.number) : '-';
                         const gameType = (x?.labelKey || 'Bet').toString();
@@ -467,6 +585,28 @@ const Bids = () => {
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : activeTitle === 'Game Results' ? (
+              <div className="mt-3">
+                <div className="max-h-[calc(100vh-260px)] overflow-y-auto hide-scrollbar">
+                  {resultsRows.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-[#202124] p-6 text-center text-gray-300">
+                      No markets found.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {resultsRows.map((r) => (
+                        <div
+                          key={r.id}
+                          className="rounded-2xl bg-[#202124] border border-white/10 px-5 py-4 shadow-[0_10px_22px_rgba(0,0,0,0.35)] flex items-center justify-between gap-4"
+                        >
+                          <div className="font-extrabold tracking-wide text-white truncate">{r.name.toUpperCase()}</div>
+                          <div className="font-extrabold tracking-wide text-[#d4af37] shrink-0">{r.result}</div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

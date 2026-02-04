@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useHeartbeat } from '../hooks/useHeartbeat';
 import AppHeader from '../components/AppHeader';
@@ -17,12 +17,22 @@ import SupportStatus from '../pages/Support/SupportStatus';
 import Bids from '../pages/Bids';
 import Profile from '../pages/Profile';
 import BetHistory from '../pages/BetHistory';
+import MarketResultHistory from '../pages/MarketResultHistory';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
   const { pathname } = useLocation();
+  const prevPathRef = useRef(null);
 
   useEffect(() => {
+    // Store previous pathname for "Back" buttons that shouldn't step through in-page state.
+    try {
+      if (prevPathRef.current) {
+        sessionStorage.setItem('prevPathname', prevPathRef.current);
+      }
+    } catch (_) {}
+    prevPathRef.current = pathname;
+
     // Use requestAnimationFrame to ensure DOM has updated, then scroll
     const scrollToTop = () => {
       // Scroll window and document elements
@@ -75,8 +85,16 @@ const Layout = ({ children }) => {
   }
 
   const isBidPage = location.pathname.includes('game-bid') || location.pathname === '/bidoptions';
+<<<<<<< Updated upstream
   const isSupportPage = location.pathname === '/support' || location.pathname === '/support/new' || location.pathname === '/support/status';
   const isDarkPage = isBidPage || location.pathname === '/bids' || location.pathname === '/bet-history' || isSupportPage;
+=======
+  const isDarkPage =
+    isBidPage ||
+    location.pathname === '/bids' ||
+    location.pathname === '/bet-history' ||
+    location.pathname === '/market-result-history';
+>>>>>>> Stashed changes
   const isBetsPage = location.pathname === '/bids';
 
   return (
@@ -118,6 +136,7 @@ const AppRoutes = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/bids" element={<Bids />} />
           <Route path="/bet-history" element={<BetHistory />} />
+          <Route path="/market-result-history" element={<MarketResultHistory />} />
           <Route path="/profile" element={<Profile />} />
         </Routes>
       </Layout>
