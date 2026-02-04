@@ -36,29 +36,29 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
     };
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
             {markets.map((market) => {
                 const status = getMarketStatus(market);
 
                 return (
                     <div
                         key={market._id}
-                        className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6 hover:border-yellow-500 transition-colors"
+                        className="bg-gray-800 rounded-xl border border-gray-700 p-4 sm:p-5 lg:p-6 hover:border-yellow-500/50 transition-colors min-w-0 overflow-hidden"
                     >
                         {/* Status Badge */}
-                        <div className={`${status.color} text-white text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4`}>
+                        <div className={`${status.color} text-white text-[10px] sm:text-xs font-semibold px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full inline-block mb-3 sm:mb-4`}>
                             {status.status === 'open' && 'OPEN'}
                             {status.status === 'running' && 'CLOSED IS RUNNING'}
                             {status.status === 'closed' && 'CLOSED'}
                         </div>
 
                         {/* Market Info */}
-                        <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{market.marketName}</h3>
-                        <div className="space-y-2 mb-4 text-sm text-gray-300">
-                            <p><span className="font-semibold">Opening:</span> {market.startingTime}</p>
-                            <p><span className="font-semibold">Closing:</span> {market.closingTime}</p>
+                        <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white mb-2 truncate" title={market.marketName}>{market.marketName}</h3>
+                        <div className="space-y-1.5 sm:space-y-2 mb-4 text-xs sm:text-sm text-gray-300 min-w-0">
+                            <p className="truncate"><span className="font-semibold">Opening:</span> {market.startingTime}</p>
+                            <p className="truncate"><span className="font-semibold">Closing:</span> {market.closingTime}</p>
                             {market.betClosureTime != null && market.betClosureTime !== '' && (
-                                <p><span className="font-semibold">Bet Closure:</span> {market.betClosureTime} Seconds</p>
+                                <p><span className="font-semibold">Bet Closure:</span> {market.betClosureTime} sec</p>
                             )}
                             {market.winNumber && (
                                 <p><span className="font-semibold">Win Number:</span> <span className="text-green-400 font-mono">{market.winNumber}</span></p>
@@ -66,27 +66,25 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="space-y-2">
-                            <div className="grid grid-cols-3 gap-2">
-                                <button
-                                    onClick={() => navigate(`/markets/${market._id}`)}
-                                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-black rounded text-sm font-semibold"
-                                >
-                                    View Detail
-                                </button>
-                                <button
-                                    onClick={() => onEdit(market)}
-                                    className="px-3 py-2 bg-yellow-600 hover:bg-yellow-700 rounded text-sm font-semibold"
-                                >
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(market._id)}
-                                    className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm font-semibold"
-                                >
-                                    Delete
-                                </button>
-                            </div>
+                        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                            <button
+                                onClick={() => navigate(`/markets/${market._id}`)}
+                                className="px-2 sm:px-3 py-2 bg-amber-600 hover:bg-amber-500 text-black rounded-lg text-xs sm:text-sm font-semibold min-h-[40px] sm:min-h-0"
+                            >
+                                View
+                            </button>
+                            <button
+                                onClick={() => onEdit(market)}
+                                className="px-2 sm:px-3 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-xs sm:text-sm font-semibold min-h-[40px] sm:min-h-0"
+                            >
+                                Edit
+                            </button>
+                            <button
+                                onClick={() => handleDelete(market._id)}
+                                className="px-2 sm:px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-xs sm:text-sm font-semibold min-h-[40px] sm:min-h-0"
+                            >
+                                Delete
+                            </button>
                         </div>
                     </div>
                 );

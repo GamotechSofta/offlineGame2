@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useBettingWindow } from '../BettingWindowContext';
 
 const formatMoney = (v) => {
   const n = Number(v);
@@ -25,6 +26,7 @@ const BidReviewModal = ({
   totalBids = 0,
   totalAmount = 0
 }) => {
+  const { allowed: bettingAllowed, message: bettingMessage } = useBettingWindow();
   const [stage, setStage] = useState('review'); // 'review' | 'success'
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -43,11 +45,12 @@ const BidReviewModal = ({
   const amount = Number(totalAmount) || 0;
   const after = before - amount;
   const insufficientBalance = after < 0;
+  const cannotSubmit = insufficientBalance || !bettingAllowed;
   const handleClose = () => {
     if (onClose) onClose();
   };
   const handleSubmitClick = async () => {
-    if (insufficientBalance) return;
+    if (cannotSubmit) return;
     setSubmitError('');
     setSubmitting(true);
     try {
@@ -173,6 +176,13 @@ const BidReviewModal = ({
                 </div>
               </div>
 
+              {/* Betting closed / outside window */}
+              {!bettingAllowed && bettingMessage && (
+                <div className="mx-3 sm:mx-4 mt-2 p-3 rounded-xl bg-red-500/20 border border-red-500/50 text-red-200 text-sm shrink-0">
+                  {bettingMessage}
+                </div>
+              )}
+
               {/* Insufficient balance warning */}
               {insufficientBalance && (
                 <div className="mx-3 sm:mx-4 mt-2 p-3 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 text-sm shrink-0">
@@ -206,7 +216,7 @@ const BidReviewModal = ({
               <button
                 type="button"
                 onClick={handleSubmitClick}
-                disabled={submitting || insufficientBalance}
+                disabled={submitting || cannotSubmit}
                 className="bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:from-[#e5c04a] hover:to-[#d4af37] disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {submitting ? (

@@ -37,7 +37,7 @@ const marketSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    /** Bet closure time in seconds – after this many seconds from market start, bets are no longer accepted. */
+    /** Bet closure time in seconds – betting stops this many seconds before closing time (e.g. 300 = no bets in last 5 min). */
     betClosureTime: {
         type: Number,
         default: null,

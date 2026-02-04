@@ -73,18 +73,19 @@ const Markets = () => {
 
     return (
         <AdminLayout onLogout={handleLogout} title="Markets">
+                <div className="min-w-0">
                 {error && (
-                    <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
+                    <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm sm:text-base">
                         {error}
                     </div>
                 )}
 
-                <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Markets Management</h1>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-6 truncate">Markets Management</h1>
                 
-                <div className="mb-4 sm:mb-6">
+                <div className="mb-3 sm:mb-6">
                     <button
                         onClick={handleCreate}
-                        className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-lg transition-colors text-sm sm:text-base"
+                        className="w-full sm:w-auto px-4 py-3 sm:py-2.5 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-xl transition-colors text-sm sm:text-base touch-manipulation"
                     >
                         + Add New Market
                     </button>
@@ -101,8 +102,8 @@ const Markets = () => {
                 )}
 
                 {loading ? (
-                    <div className="text-center py-12">
-                        <p className="text-gray-400">Loading markets...</p>
+                    <div className="text-center py-8 sm:py-12">
+                        <p className="text-gray-400 text-sm sm:text-base">Loading markets...</p>
                     </div>
                 ) : (
                     <MarketList
@@ -113,6 +114,7 @@ const Markets = () => {
                         getAuthHeaders={getAuthHeaders}
                     />
                 )}
+                </div>
         </AdminLayout>
     );
 };

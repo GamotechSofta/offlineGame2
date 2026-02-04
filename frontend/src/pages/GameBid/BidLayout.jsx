@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useBettingWindow } from './BettingWindowContext';
 
 const getWalletFromStorage = () => {
     try {
@@ -47,6 +48,7 @@ const BidLayout = ({
     const navigate = useNavigate();
     const location = useLocation();
     const contentRef = useRef(null);
+    const { allowed: bettingAllowed, message: bettingMessage } = useBettingWindow();
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     const wallet = Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage();
 
@@ -103,6 +105,13 @@ const BidLayout = ({
                     {wallet.toFixed(1)}
                 </div>
             </div>
+
+            {!bettingAllowed && bettingMessage && (
+                <div className="mx-3 sm:mx-6 mt-2 p-3 rounded-xl bg-red-900/40 border border-red-500/60 text-red-200 text-sm font-medium flex items-center gap-2">
+                    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    {bettingMessage}
+                </div>
+            )}
 
             {extraHeader}
 
@@ -183,9 +192,9 @@ const BidLayout = ({
                         <button
                             type="button"
                             onClick={onSubmit}
-                            disabled={!bidsCount}
+                            disabled={!bidsCount || !bettingAllowed}
                             className={`flex-1 w-full sm:w-auto sm:min-w-[140px] font-bold py-3 px-6 rounded-xl shadow-lg transition-all text-sm sm:text-base ${
-                                bidsCount
+                                bidsCount && bettingAllowed
                                     ? 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] hover:from-[#e5c04a] hover:to-[#d4af37] active:scale-[0.98]'
                                     : 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] opacity-50 cursor-not-allowed'
                             }`}

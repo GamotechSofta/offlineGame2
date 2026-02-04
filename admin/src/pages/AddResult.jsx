@@ -68,13 +68,19 @@ const AddResult = () => {
         setClosingNumber('');
     };
 
-    /** Digits must be non-descending (e.g. 123 OK, 112 OK, 321 NO, 132 NO) */
+    /**
+     * Opening/Closing: digits non-descending (d1 <= d2 <= d3).
+     * Exception: last digit "0" is always allowed (e.g. 120, 890).
+     * So valid if (d1 <= d2 && d2 <= d3) OR (d1 <= d2 && d3 === 0).
+     */
     const isDigitsValid = (str) => {
         if (!str || str.length !== 3) return false;
         const a = parseInt(str[0], 10);
         const b = parseInt(str[1], 10);
         const c = parseInt(str[2], 10);
-        return a <= b && b <= c;
+        if (a <= b && b <= c) return true;
+        if (c === 0 && a <= b) return true; // last digit 0 always allowed
+        return false;
     };
 
     const handleSave = async () => {
@@ -91,12 +97,12 @@ const AddResult = () => {
         }
 
         if (hasValidOpening && !isDigitsValid(openingVal)) {
-            alert('Opening number digits must be non-descending (e.g. 123 OK, 112 OK, 321 NO, 132 NO). Each digit must be less than or equal to the next.');
+            alert('Opening: digits must be non-descending (e.g. 123, 112, 120 OK; 321, 132 NO). The last digit can always be 0 (e.g. 120, 890).');
             return;
         }
 
         if (hasValidClosing && !isDigitsValid(closingVal)) {
-            alert('Closing number digits must be non-descending (e.g. 123 OK, 112 OK, 321 NO, 132 NO). Each digit must be less than or equal to the next.');
+            alert('Closing: digits must be non-descending (e.g. 123, 112, 120 OK; 321, 132 NO). The last digit can always be 0 (e.g. 120, 890).');
             return;
         }
 
@@ -151,7 +157,7 @@ const AddResult = () => {
                     </p>
                     <div className="mb-6 p-3 sm:p-4 bg-amber-900/30 border border-amber-700 rounded-lg text-amber-200 text-sm space-y-2">
                         <p><strong>Note:</strong> Opening number must be added before closing number. You cannot add closing number without opening number.</p>
-                        <p><strong>Validation:</strong> Opening and closing digits must be non-descending (e.g. 123 OK, 112 OK, 321 NO, 132 NO). Each digit must be less than or equal to the next.</p>
+                        <p><strong>Validation:</strong> Opening and closing digits must be non-descending (each digit &le; the next). Examples: 123, 112, 120 OK; 321, 132 NO. The last digit can always be 0 (e.g. 120, 890).</p>
                     </div>
 
                     {loading ? (

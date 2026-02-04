@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { BettingWindowProvider } from './BettingWindowContext';
 import SingleDigitBid from './bids/SingleDigitBid';
 import SingleDigitBulkBid from './bids/SingleDigitBulkBid';
 import JodiBid from './bids/JodiBid';
@@ -46,7 +47,11 @@ const GameBid = () => {
     const key = title.toLowerCase().trim();
     const BidComponent = BID_COMPONENTS[key] || SingleDigitBid;
 
-    return <BidComponent market={market} title={title} />;
+    return (
+        <BettingWindowProvider market={market}>
+            <BidComponent market={market} title={title} />
+        </BettingWindowProvider>
+    );
 };
 
 export default GameBid;

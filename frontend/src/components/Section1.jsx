@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
+import { isPastClosingTime } from '../utils/marketTiming';
 
 const Section1 = () => {
   const navigate = useNavigate();
   const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   // Convert 24-hour time to 12-hour format
   const formatTime = (time24) => {
@@ -17,11 +23,12 @@ const Section1 = () => {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Status based on result format only:
-  // ***-**-*** → Open (green)
-  // 156-2*-*** (opening set, closing not) → Closed is running (green)
-  // 987-45-456 (full result) → Market Closed (red)
+  // Status: result format OR automatic close when closing time is reached
+  // ***-**-*** → Open (green) | 156-2*-*** → Running (green) | 987-45-456 or past closing time → Closed (red)
   const getMarketStatus = (market) => {
+    if (isPastClosingTime(market)) {
+      return { status: 'closed', timer: null };
+    }
     const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
     const hasClosing = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
 
@@ -56,6 +63,7 @@ const Section1 = () => {
               winNumber: market.winNumber,
               startingTime: market.startingTime,
               closingTime: market.closingTime,
+              betClosureTime: market.betClosureTime ?? 0,
               openingNumber: market.openingNumber,
               closingNumber: market.closingNumber
             };

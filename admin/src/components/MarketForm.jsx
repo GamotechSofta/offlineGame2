@@ -1,12 +1,37 @@
 import React, { useState, useEffect } from 'react';
 
+// Parse "HH:MM" or "H:MM" (24h) to { hour12, minute, ampm }
+const from24Hour = (timeStr) => {
+    if (!timeStr || typeof timeStr !== 'string') return { hour12: '12', minute: '00', ampm: 'AM' };
+    const parts = timeStr.trim().split(':');
+    const h24 = parseInt(parts[0], 10) || 0;
+    const minute = parts[1] ? String(parseInt(parts[1], 10) || 0).padStart(2, '0') : '00';
+    const hour12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+    const ampm = h24 < 12 ? 'AM' : 'PM';
+    return { hour12: String(hour12), minute: minute.slice(-2), ampm };
+};
+
+// Build 24h "HH:MM" from 12h selection
+const to24Hour = (hour12, minute, ampm) => {
+    let h = parseInt(hour12, 10) || 12;
+    const m = String(parseInt(minute, 10) || 0).padStart(2, '0').slice(0, 2);
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${m}`;
+};
+
+const HOURS_12 = ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
 const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) => {
     const [formData, setFormData] = useState({
         marketName: '',
-        startingTime: '',
-        closingTime: '',
+        startingTime: '00:00',
+        closingTime: '12:00',
         betClosureTime: '',
     });
+    const [start12, setStart12] = useState({ hour12: '12', minute: '00', ampm: 'AM' });
+    const [close12, setClose12] = useState({ hour12: '12', minute: '00', ampm: 'PM' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -18,6 +43,8 @@ const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) 
                 closingTime: market.closingTime || '',
                 betClosureTime: market.betClosureTime ?? '',
             });
+            setStart12(from24Hour(market.startingTime));
+            setClose12(from24Hour(market.closingTime));
         }
     }, [market]);
 
@@ -26,6 +53,17 @@ const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) 
             ...formData,
             [e.target.name]: e.target.value,
         });
+    };
+
+    const handleStart12Change = (field, value) => {
+        const next = { ...start12, [field]: value };
+        setStart12(next);
+        setFormData((prev) => ({ ...prev, startingTime: to24Hour(next.hour12, next.minute, next.ampm) }));
+    };
+    const handleClose12Change = (field, value) => {
+        const next = { ...close12, [field]: value };
+        setClose12(next);
+        setFormData((prev) => ({ ...prev, closingTime: to24Hour(next.hour12, next.minute, next.ampm) }));
     };
 
     const handleSubmit = async (e) => {
@@ -65,9 +103,9 @@ const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) 
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto min-h-screen">
-            <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md border border-gray-700 my-auto max-h-[calc(100vh-1.5rem)] overflow-y-auto">
-                <div className="p-4 sm:p-6">
+        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 z-50 overflow-y-auto min-h-screen">
+            <div className="bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md border border-gray-700 sm:my-auto max-h-[90vh] sm:max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col">
+                <div className="p-4 sm:p-6 flex-1 min-h-0 overflow-y-auto">
                     <div className="flex justify-between items-center mb-4 sm:mb-6">
                         <h2 className="text-xl sm:text-2xl font-bold text-white">
                             {market ? 'Edit Market' : 'Create New Market'}
@@ -104,37 +142,81 @@ const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) 
 
                         <div>
                             <label className="block text-gray-300 text-sm font-medium mb-2">
-                                Starting Time (HH:MM format)
+                                Starting Time
                             </label>
-                            <input
-                                type="time"
-                                name="startingTime"
-                                value={formData.startingTime}
-                                onChange={handleChange}
-                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 text-base"
-                                required
-                            />
+                            <div className="grid grid-cols-[1fr_auto_1fr_auto_auto] gap-1 sm:gap-2 items-center">
+                                <select
+                                    value={start12.hour12}
+                                    onChange={(e) => handleStart12Change('hour12', e.target.value)}
+                                    className="w-full min-w-0 px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
+                                >
+                                    {HOURS_12.map((h) => (
+                                        <option key={h} value={h}>{h}</option>
+                                    ))}
+                                </select>
+                                <span className="text-gray-400 text-sm sm:text-base">:</span>
+                                <select
+                                    value={start12.minute}
+                                    onChange={(e) => handleStart12Change('minute', e.target.value)}
+                                    className="w-full min-w-0 px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
+                                >
+                                    {MINUTES.map((m) => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                                <span className="w-1" />
+                                <select
+                                    value={start12.ampm}
+                                    onChange={(e) => handleStart12Change('ampm', e.target.value)}
+                                    className="w-full min-w-[4rem] px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
+                                >
+                                    <option value="AM">AM</option>
+                                    <option value="PM">PM</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div>
                             <label className="block text-gray-300 text-sm font-medium mb-2">
-                                Closing Time (HH:MM format)
+                                Closing Time
                             </label>
-                            <input
-                                type="time"
-                                name="closingTime"
-                                value={formData.closingTime}
-                                onChange={handleChange}
-                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 text-base"
-                                required
-                            />
+                            <div className="grid grid-cols-[1fr_auto_1fr_auto_auto] gap-1 sm:gap-2 items-center">
+                                <select
+                                    value={close12.hour12}
+                                    onChange={(e) => handleClose12Change('hour12', e.target.value)}
+                                    className="w-full min-w-0 px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
+                                >
+                                    {HOURS_12.map((h) => (
+                                        <option key={h} value={h}>{h}</option>
+                                    ))}
+                                </select>
+                                <span className="text-gray-400 text-sm sm:text-base">:</span>
+                                <select
+                                    value={close12.minute}
+                                    onChange={(e) => handleClose12Change('minute', e.target.value)}
+                                    className="w-full min-w-0 px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
+                                >
+                                    {MINUTES.map((m) => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                                <span className="w-1" />
+                                <select
+                                    value={close12.ampm}
+                                    onChange={(e) => handleClose12Change('ampm', e.target.value)}
+                                    className="w-full min-w-[4rem] px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
+                                >
+                                    <option value="AM">AM</option>
+                                    <option value="PM">PM</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div>
                             <label className="block text-gray-300 text-sm font-medium mb-2">
                                 Bet Closure Time
                             </label>
-                            <div className="bet-closure-group">
+                            <div className="flex flex-wrap gap-0 rounded-lg overflow-hidden border border-gray-600">
                                 <input
                                     type="number"
                                     name="betClosureTime"
@@ -144,15 +226,15 @@ const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) 
                                     step="1"
                                     placeholder="e.g. 300"
                                     inputMode="numeric"
-                                    className="flex-1 min-w-0 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-700 text-white placeholder-gray-500 text-base"
+                                    className="flex-1 min-w-[80px] sm:min-w-[100px] px-3 sm:px-4 py-2.5 sm:py-2.5 bg-gray-700 text-white placeholder-gray-500 text-sm sm:text-base border-0 focus:ring-2 focus:ring-yellow-500 focus:ring-inset"
                                 />
-                                <span className="bet-closure-unit inline-flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-600 text-gray-300 text-sm font-medium whitespace-nowrap">
+                                <span className="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 sm:py-2.5 bg-gray-600 text-gray-300 text-xs sm:text-sm font-medium whitespace-nowrap">
                                     Seconds
                                 </span>
                             </div>
                         </div>
 
-                        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-4">
+                        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-4 pb-4 sm:pb-0">
                             <button
                                 type="button"
                                 onClick={onClose}

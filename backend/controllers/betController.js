@@ -3,6 +3,7 @@ import User from '../models/user/user.js';
 import Market from '../models/market/market.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { isBettingAllowed } from '../utils/marketTiming.js';
 
 const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'half-sangam', 'full-sangam'];
 
@@ -36,6 +37,15 @@ export const placeBet = async (req, res) => {
         const market = await Market.findById(marketId).lean();
         if (!market) {
             return res.status(404).json({ success: false, message: 'Market not found' });
+        }
+
+        const timing = isBettingAllowed(market);
+        if (!timing.allowed) {
+            return res.status(400).json({
+                success: false,
+                message: timing.message || 'Betting is not allowed for this market at this time.',
+                code: 'BETTING_CLOSED',
+            });
         }
 
         const sanitized = [];
