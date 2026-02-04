@@ -461,7 +461,6 @@ export const declareCloseResult = async (req, res) => {
 };
 
 /**
-<<<<<<< Updated upstream
  * Clear result: set openingNumber and closingNumber to null for a market.
  * Does not reverse bet settlement or wallet – use only to reset result display (e.g. declared by mistake before closing).
  */
@@ -488,74 +487,6 @@ export const clearResult = async (req, res) => {
         const response = updated.toObject();
         response.displayResult = updated.getDisplayResult();
         res.status(200).json({ success: true, message: 'Result cleared', data: response });
-=======
- * Public: Get market result history for a dateKey (YYYY-MM-DD IST).
- * Query: ?date=YYYY-MM-DD (optional, defaults to today IST)
- */
-export const getMarketResultHistory = async (req, res) => {
-    try {
-        const todayKey = new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-        }).format(new Date());
-
-        const dateKey = (req.query.date || todayKey).toString().trim();
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-            return res.status(400).json({ success: false, message: 'date must be YYYY-MM-DD' });
-        }
-
-        // Do not allow future date
-        if (dateKey > todayKey) {
-            return res.status(200).json({ success: true, data: [] });
-        }
-
-        // For today's date: show all markets with current displayResult (past/present), even if not declared yet.
-        // This matches the expected UI where current-date list is always visible.
-        if (dateKey === todayKey) {
-            const markets = await Market.find().sort({ startingTime: 1 }).lean();
-            const data = markets.map((m) => {
-                const doc = { ...m };
-                // Mongoose lean() doesn't include instance methods; compute displayResult using schema helper via Market model instance.
-                // We'll reconstruct displayResult similar to Market.getDisplayResult() logic:
-                const opening = doc.openingNumber && /^\d{3}$/.test(String(doc.openingNumber)) ? String(doc.openingNumber) : null;
-                const closing = doc.closingNumber && /^\d{3}$/.test(String(doc.closingNumber)) ? String(doc.closingNumber) : null;
-                const openingDisplay = opening ? opening : '***';
-                const closingDisplay = closing ? closing : '***';
-                const sumDigits = (s) => [...s].reduce((acc, c) => acc + parseInt(c, 10), 0);
-                let displayResult = '***-**-***';
-                if (opening) {
-                    const first = sumDigits(opening) % 10;
-                    if (!closing) {
-                        displayResult = `${openingDisplay}-${first}*-${closingDisplay}`;
-                    } else {
-                        const second = sumDigits(closing) % 10;
-                        displayResult = `${openingDisplay}-${first}${second}-${closingDisplay}`;
-                    }
-                }
-
-                return {
-                    marketId: doc._id,
-                    marketName: doc.marketName,
-                    dateKey,
-                    displayResult,
-                    openingNumber: doc.openingNumber || null,
-                    closingNumber: doc.closingNumber || null,
-                    startingTime: doc.startingTime,
-                    closingTime: doc.closingTime,
-                };
-            });
-            return res.status(200).json({ success: true, data });
-        }
-
-        const results = await MarketResult.find({ dateKey })
-            .select('marketId marketName dateKey displayResult openingNumber closingNumber createdAt updatedAt')
-            .sort({ marketName: 1 })
-            .lean();
-
-        res.status(200).json({ success: true, data: results });
->>>>>>> Stashed changes
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
