@@ -4,6 +4,12 @@ import AdminLayout from '../components/AdminLayout';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
+/** Safe number for preview: avoids NaN in UI */
+const safeNum = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+};
+
 /** Format "10:15" or "10:15:00" to "10:15" for display */
 const formatTime = (timeStr) => {
     if (!timeStr) return '';
@@ -105,10 +111,10 @@ const AddResult = () => {
             const data = await res.json();
             if (data.success && data.data != null) {
                 setPreview({
-                    totalBetAmount: Number(data.data.totalBetAmount) ?? 0,
-                    totalWinAmount: Number(data.data.totalWinAmount) ?? 0,
-                    noOfPlayers: Number(data.data.noOfPlayers) ?? 0,
-                    profit: Number(data.data.profit) ?? 0,
+                    totalBetAmount: safeNum(data.data.totalBetAmount),
+                    totalWinAmount: safeNum(data.data.totalWinAmount),
+                    noOfPlayers: safeNum(data.data.noOfPlayers),
+                    profit: safeNum(data.data.profit),
                 });
             } else {
                 setPreview({ totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 });
@@ -133,10 +139,10 @@ const AddResult = () => {
             const data = await res.json();
             if (data.success && data.data != null) {
                 setPreviewClose({
-                    totalBetAmount: Number(data.data.totalBetAmount) ?? 0,
-                    totalWinAmount: Number(data.data.totalWinAmount) ?? 0,
-                    noOfPlayers: Number(data.data.noOfPlayers) ?? 0,
-                    profit: Number(data.data.profit) ?? 0,
+                    totalBetAmount: safeNum(data.data.totalBetAmount),
+                    totalWinAmount: safeNum(data.data.totalWinAmount),
+                    noOfPlayers: safeNum(data.data.noOfPlayers),
+                    profit: safeNum(data.data.profit),
                 });
             } else {
                 setPreviewClose({ totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 });

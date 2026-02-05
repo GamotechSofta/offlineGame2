@@ -280,7 +280,9 @@ export async function settleClosing(marketId, closingNumber) {
 }
 
 /**
- * Preview: for a proposed opening number, return totalBetAmount (all pending), totalWinAmount (single + panna payout), noOfPlayers, profit.
+ * Preview declare open: for a proposed opening number, return totalBetAmount (single + panna only),
+ * totalWinAmount (payout to winners for single + panna), noOfPlayers, profit.
+ * Only single and panna are settled on open; totalBetAmount and profit refer to that subset.
  */
 export async function previewDeclareOpen(marketId, openingNumber) {
     const oid = toObjectId(marketId);
@@ -307,41 +309,49 @@ export async function previewDeclareOpen(marketId, openingNumber) {
             }
         ]
     }).lean();
-    let totalBetAmount = 0;
-    let totalWinAmount = 0;
-    const userIds = new Set();
-    for (const bet of pendingBets) {
-        totalBetAmount += Number(bet.amount) || 0;
-        userIds.add(bet.userId.toString());
-    }
-
-    if (!openingNumber || !/^\d{3}$/.test(openingNumber)) {
-        return { totalBetAmount, totalWinAmount: 0, noOfPlayers: userIds.size, profit: totalBetAmount };
-    }
 
     const rates = await getRatesMap();
-    const lastDigitOpen = openingNumber.slice(-1);
-    const open3 = openingNumber;
+    const lastDigitOpen = openingNumber && /^\d{3}$/.test(openingNumber) ? openingNumber.slice(-1) : null;
+    const open3 = openingNumber && /^\d{3}$/.test(openingNumber) ? openingNumber : null;
+
+    let totalBetAmount = 0; // only single + panna (bets settled on open)
+    let totalWinAmount = 0;
+    const userIds = new Set();
 
     for (const bet of pendingBets) {
         const type = (bet.betType || '').toLowerCase();
         const num = (bet.betNumber || '').toString().trim();
         const amount = Number(bet.amount) || 0;
 
-        if (type === 'single' && /^[0-9]$/.test(num) && num === lastDigitOpen) {
-            totalWinAmount += amount * getRateForKey(rates, 'single');
-        } else if (type === 'panna' && /^[0-9]{3}$/.test(num) && num === open3) {
-            const pannaType = getPannaType(open3);
-            const rateKey = pannaType || 'singlePatti';
-            totalWinAmount += amount * getRateForKey(rates, rateKey);
+        if (type === 'single' && /^[0-9]$/.test(num)) {
+            totalBetAmount += amount;
+            userIds.add(bet.userId.toString());
+            if (lastDigitOpen != null && num === lastDigitOpen) {
+                const rate = getRateForKey(rates, 'single');
+                totalWinAmount += amount * rate;
+            }
+        } else if (type === 'panna' && /^[0-9]{3}$/.test(num)) {
+            totalBetAmount += amount;
+            userIds.add(bet.userId.toString());
+            if (open3 != null && num === open3) {
+                const pannaType = getPannaType(open3);
+                const rateKey = pannaType || 'singlePatti';
+                const rate = getRateForKey(rates, rateKey);
+                totalWinAmount += amount * rate;
+            }
+        } else {
+            userIds.add(bet.userId.toString());
         }
     }
+
+    totalWinAmount = Math.round(totalWinAmount * 100) / 100;
+    const profit = Math.round((totalBetAmount - totalWinAmount) * 100) / 100;
 
     return {
         totalBetAmount,
         totalWinAmount,
         noOfPlayers: userIds.size,
-        profit: totalBetAmount - totalWinAmount,
+        profit,
     };
 }
 
@@ -389,6 +399,7 @@ export async function previewDeclareClose(marketId, closingNumber) {
                 userIds.add(bet.userId.toString());
             }
         }
+        totalBetAmount = Math.round(totalBetAmount * 100) / 100;
         return { totalBetAmount, totalWinAmount: 0, noOfPlayers: userIds.size, profit: totalBetAmount };
     }
 
@@ -419,19 +430,22 @@ export async function previewDeclareClose(marketId, closingNumber) {
             if (isFormatA && first === open3 && second === lastDigitClose) totalWinAmount += amount * getRateForKey(rates, 'halfSangam');
             else if (isFormatB && first === lastDigitOpen && second === close3) totalWinAmount += amount * getRateForKey(rates, 'halfSangam');
         } else if (type === 'full-sangam') {
-            const parts = num.split('-');
-            const betOpen3 = parts[0]?.trim() || '';
-            const betClose3 = parts[1]?.trim() || '';
+            const parts = (num || '').split('-').map((p) => (p || '').trim());
+            const betOpen3 = parts[0] || '';
+            const betClose3 = parts[1] || '';
             if (/^[0-9]{3}$/.test(betOpen3) && /^[0-9]{3}$/.test(betClose3) && betOpen3 === open3 && betClose3 === close3) {
                 totalWinAmount += amount * getRateForKey(rates, 'fullSangam');
             }
         }
     }
 
+    totalBetAmount = Math.round(totalBetAmount * 100) / 100;
+    totalWinAmount = Math.round(totalWinAmount * 100) / 100;
+    const profit = Math.round((totalBetAmount - totalWinAmount) * 100) / 100;
     return {
         totalBetAmount,
         totalWinAmount,
         noOfPlayers: userIds.size,
-        profit: totalBetAmount - totalWinAmount,
+        profit,
     };
 }
