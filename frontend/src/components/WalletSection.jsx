@@ -87,8 +87,9 @@ const WalletSection = () => {
 
                 {/* Balance Text */}
                 <div className="flex flex-col gap-1.5 sm:gap-2 min-w-0 flex-1">
-                  <h2 className="text-[clamp(22px,7vw,44px)] sm:text-4xl md:text-5xl leading-none font-black text-white tracking-tight whitespace-nowrap">
-                    ₹{formattedBalance}
+                  <h2 className="text-[clamp(22px,7vw,44px)] sm:text-4xl md:text-5xl leading-none font-black text-white tracking-tight whitespace-nowrap inline-flex items-baseline gap-2">
+                    <span className="pr-0.5">₹</span>
+                    <span>{formattedBalance}</span>
                   </h2>
                 </div>
               </div>
