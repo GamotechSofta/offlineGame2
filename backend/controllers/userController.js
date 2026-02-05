@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/user/user.js';
 import Admin from '../models/admin/admin.js';
 import bcrypt from 'bcryptjs';
@@ -208,7 +209,12 @@ export const userSignup = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         // Direct frontend signup: referredBy = null → super_admin's user. Via bookie link: referredBy = bookie ID → bookie's user.
-        const referredBy = req.body.referredBy || null;
+        const referredByRaw = req.body.referredBy || null;
+        // Convert referredBy string to ObjectId for proper MongoDB matching
+        let referredBy = null;
+        if (referredByRaw && mongoose.Types.ObjectId.isValid(referredByRaw)) {
+            referredBy = new mongoose.Types.ObjectId(referredByRaw);
+        }
         const source = referredBy ? 'bookie' : 'super_admin';
         const now = new Date();
         const userDoc = {
