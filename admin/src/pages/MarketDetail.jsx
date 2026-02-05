@@ -929,17 +929,6 @@ const MarketDetail = () => {
                         </p>
                     </SectionCard>
 
-                    <HalfSangamSection
-                        items={halfSangamDisplay.items}
-                        totalAmount={halfSangamDisplay.totalAmount}
-                        totalBets={halfSangamDisplay.totalBets}
-                    />
-                    <FullSangamSection
-                        items={fullSangamDisplay.items}
-                        totalAmount={fullSangamDisplay.totalAmount}
-                        totalBets={fullSangamDisplay.totalBets}
-                    />
-
                     <SectionCard title="Single Patti">
                         <div className="mb-4 p-3 sm:p-4 rounded-lg bg-gray-700/50 border border-gray-600 space-y-2">
                             <p className="text-sm font-semibold text-yellow-500">Same as user app</p>
@@ -1105,6 +1094,17 @@ const MarketDetail = () => {
                         getCount={(d) => triplePattiDisplay.items?.[d]?.count ?? 0}
                         totalAmount={triplePattiDisplay.totalAmount}
                         totalBets={triplePattiDisplay.totalBets}
+                    />
+
+                    <HalfSangamSection
+                        items={halfSangamDisplay.items}
+                        totalAmount={halfSangamDisplay.totalAmount}
+                        totalBets={halfSangamDisplay.totalBets}
+                    />
+                    <FullSangamSection
+                        items={fullSangamDisplay.items}
+                        totalAmount={fullSangamDisplay.totalAmount}
+                        totalBets={fullSangamDisplay.totalBets}
                     />
                 </div>
 
