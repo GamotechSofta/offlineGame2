@@ -84,3 +84,22 @@ export async function getBalance() {
   }
   return data;
 }
+
+/**
+ * Fetch wallet transaction history for logged-in user.
+ * @param {number} limit
+ */
+export async function getMyWalletTransactions(limit = 200) {
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const userId = user?.id || user?._id;
+  if (!userId) {
+    return { success: false, message: 'Please log in' };
+  }
+  const url = `${API_BASE_URL}/wallet/my-transactions?userId=${encodeURIComponent(userId)}&limit=${encodeURIComponent(limit)}&includeBet=1`;
+  const response = await fetch(url);
+  const data = await response.json();
+  if (!response.ok) {
+    return { success: false, message: data.message || 'Failed to fetch transactions' };
+  }
+  return data;
+}

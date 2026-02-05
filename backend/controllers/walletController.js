@@ -1,5 +1,6 @@
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import User from '../models/user/user.js';
+import Bet from '../models/bet/bet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
@@ -37,6 +38,71 @@ export const getTransactions = async (req, res) => {
             .limit(1000);
 
         res.status(200).json({ success: true, data: transactions });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * User-facing: get wallet transactions for a userId (no auth token in this project).
+ * Query/body: { userId, limit? }.
+ * Returns latest transactions (most recent first).
+ */
+export const getMyTransactions = async (req, res) => {
+    try {
+        const userId = req.body?.userId || req.query?.userId;
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'userId is required' });
+        }
+        const limitRaw = req.query?.limit ?? req.body?.limit;
+        let limit = Number(limitRaw);
+        if (!Number.isFinite(limit) || limit <= 0) limit = 200;
+        limit = Math.min(limit, 1000);
+
+        const includeBetRaw = req.query?.includeBet ?? req.body?.includeBet;
+        const includeBet = ['1', 'true', 'yes', 'y'].includes(String(includeBetRaw || '').toLowerCase());
+
+        const transactions = await WalletTransaction.find({ userId })
+            .select('type amount description referenceId createdAt')
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        if (!includeBet || !Array.isArray(transactions) || transactions.length === 0) {
+            return res.status(200).json({ success: true, data: transactions });
+        }
+
+        const isObjectIdLike = (v) => typeof v === 'string' && /^[a-f\d]{24}$/i.test(v.trim());
+        const refIds = Array.from(
+            new Set(transactions.map((t) => String(t?.referenceId || '').trim()).filter(isObjectIdLike))
+        );
+
+        if (refIds.length === 0) {
+            return res.status(200).json({ success: true, data: transactions });
+        }
+
+        const bets = await Bet.find({ _id: { $in: refIds }, userId })
+            .populate('marketId', 'marketName')
+            .select('betType betNumber marketId')
+            .lean();
+
+        const betMap = new Map((bets || []).map((b) => [String(b._id), b]));
+        const enriched = transactions.map((t) => {
+            const ref = String(t?.referenceId || '').trim();
+            const b = betMap.get(ref);
+            if (!b) return t;
+            return {
+                ...t,
+                bet: {
+                    betType: b?.betType,
+                    betNumber: b?.betNumber,
+                    marketId: b?.marketId?._id || b?.marketId,
+                    marketName: b?.marketId?.marketName || '',
+                },
+            };
+        });
+
+        return res.status(200).json({ success: true, data: enriched });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

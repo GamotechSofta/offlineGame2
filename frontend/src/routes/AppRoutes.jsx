@@ -92,6 +92,11 @@ const Layout = ({ children }) => {
   const isDarkPage =
     isBidPage ||
     location.pathname === '/bids' ||
+    location.pathname === '/bank' ||
+    location.pathname === '/funds' ||
+    location.pathname === '/passbook' ||
+    location.pathname === '/download' ||
+    location.pathname === '/profile' ||
     location.pathname === '/bet-history' ||
     location.pathname === '/market-result-history' ||
     isSupportPage;
@@ -108,7 +113,7 @@ const Layout = ({ children }) => {
         className={
           isBidPage
             ? 'pt-[52px] sm:pt-[68px] md:pt-[70px]'
-            : ((isBetsPage || isHistoryPage) ? 'pt-[72px] sm:pt-[76px] md:pt-[88px]' : 'pt-[56px] sm:pt-[68px] md:pt-[80px]')
+            : ((isBetsPage || isHistoryPage) ? 'pt-[72px] sm:pt-[76px] md:pt-[88px]' : 'pt-[56px] sm:pt-[68px] md:pt-[72px]')
         }
       >
         {children}

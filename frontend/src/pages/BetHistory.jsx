@@ -331,6 +331,8 @@ const BetHistory = () => {
     return (filtered || []).slice(start, start + PAGE_SIZE);
   }, [filtered, currentPage]);
 
+  const hasPagination = (filtered?.length || 0) > PAGE_SIZE;
+
   // Draft state for modal
   const [draftSessions, setDraftSessions] = useState([]);
   const [draftStatuses, setDraftStatuses] = useState([]);
@@ -348,7 +350,7 @@ const BetHistory = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white px-3 sm:px-4 pt-3 pb-28">
+    <div className={`min-h-screen bg-black text-white px-3 sm:px-4 pt-3 ${hasPagination ? 'pb-[100px]' : 'pb-28'}`}>
       <div className="w-full max-w-3xl mx-auto">
         {/* Header row */}
         <div className="flex items-center justify-between gap-3 mb-4">
@@ -369,7 +371,7 @@ const BetHistory = () => {
           <button
             type="button"
             onClick={() => setIsFilterOpen(true)}
-            className="shrink-0 flex items-center gap-2 text-white/80 hover:text-white transition-colors"
+            className="shrink-0 flex items-center gap-2 text-[#d4af37] hover:text-[#f3b61b] transition-colors"
             aria-label="Filter"
             title="Filter"
           >
@@ -392,8 +394,8 @@ const BetHistory = () => {
 
             return (
             <div key={`${x.id}-${r?.id ?? idx}`} className="rounded-2xl overflow-hidden border border-white/10 bg-[#202124] shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
-              <div className="bg-[#0b2b55] px-4 py-3 text-center">
-                <div className="text-white font-extrabold tracking-wide">
+              <div className="bg-black/30 px-4 py-3 text-center border-b border-white/10">
+                <div className="text-[#d4af37] font-extrabold tracking-wide">
                   {marketTitle.toUpperCase()} {session ? `(${session})` : ''}
                 </div>
               </div>
@@ -546,30 +548,38 @@ const BetHistory = () => {
       ) : null}
 
       {/* Bottom pagination (UI only) */}
-      {filtered.length > PAGE_SIZE ? (
-        <div className="fixed left-0 right-0 bottom-[88px] z-20 px-3 sm:px-4">
-          <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-[0_16px_30px_rgba(0,0,0,0.35)] overflow-hidden">
-            <div className="grid grid-cols-3 items-center">
+      {hasPagination ? (
+        <div
+          className="fixed left-0 right-0 z-20 px-3 sm:px-4 pointer-events-none"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
+        >
+          <div className="mx-auto w-full max-w-[520px] pointer-events-auto">
+            <div className="bg-[#202124] rounded-full border border-white/10 px-4 py-2 flex items-center justify-between shadow-[0_10px_22px_rgba(0,0,0,0.40)]">
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
-                className="py-3 text-gray-700 font-semibold border-r border-gray-200 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 text-white/90 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                ‹ PREV
+                <span className="text-lg leading-none">‹</span>
+                <span>PREV</span>
               </button>
-              <div className="flex items-center justify-center py-2.5">
-                <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm border border-white/10"
+                >
                   {currentPage}
-                </div>
+                </button>
               </div>
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
-                className="py-3 text-gray-700 font-semibold border-l border-gray-200 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 text-white/90 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                NEXT ›
+                <span>NEXT</span>
+                <span className="text-lg leading-none">›</span>
               </button>
             </div>
           </div>
