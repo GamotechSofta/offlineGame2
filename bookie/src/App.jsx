@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -35,13 +34,6 @@ const BookieHeartbeat = () => {
     useHeartbeat();
     return null;
 };
-=======
-import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
->>>>>>> Stashed changes
 
 const PrivateRoute = ({ children }) => {
     const { bookie, loading } = useAuth();
@@ -54,7 +46,6 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-<<<<<<< Updated upstream
     return bookie ? (
         <>
             <BookieHeartbeat />
@@ -63,15 +54,11 @@ const PrivateRoute = ({ children }) => {
     ) : (
         <Navigate to="/" replace />
     );
-=======
-    return bookie ? children : <Navigate to="/" replace />;
->>>>>>> Stashed changes
 };
 
 const AppRoutes = () => (
     <Routes>
         <Route path="/" element={<Login />} />
-<<<<<<< Updated upstream
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/my-users" element={<PrivateRoute><MyUsers /></PrivateRoute>} />
         <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
@@ -83,16 +70,6 @@ const AppRoutes = () => (
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
         <Route path="/help-desk" element={<PrivateRoute><HelpDesk /></PrivateRoute>} />
-=======
-        <Route
-            path="/dashboard"
-            element={
-                <PrivateRoute>
-                    <Dashboard />
-                </PrivateRoute>
-            }
-        />
->>>>>>> Stashed changes
         <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
 );
@@ -100,10 +77,7 @@ const AppRoutes = () => (
 const App = () => {
     return (
         <Router>
-<<<<<<< Updated upstream
             <ScrollToTop />
-=======
->>>>>>> Stashed changes
             <AuthProvider>
                 <AppRoutes />
             </AuthProvider>
