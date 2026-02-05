@@ -11,6 +11,8 @@ const WithdrawFund = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [submittedAmount, setSubmittedAmount] = useState(0);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -108,7 +110,8 @@ const WithdrawFund = () => {
 
             const data = await res.json();
             if (data.success) {
-                setSuccess('Withdrawal request submitted successfully! Please wait for admin approval.');
+                setSubmittedAmount(numAmount);
+                setShowSuccessModal(true);
                 setAmount('');
                 setUserNote('');
                 fetchWalletBalance();
@@ -268,6 +271,50 @@ const WithdrawFund = () => {
                     <li>• Maximum withdrawal: ₹{config?.maxWithdrawal || 25000}</li>
                 </ul>
             </div>
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#1a1a1a] rounded-2xl max-w-sm w-full p-6 border border-red-500/30 text-center">
+                        {/* Success Icon */}
+                        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+
+                        <h3 className="text-xl font-bold text-white mb-2">Withdrawal Request Submitted!</h3>
+                        
+                        <div className="bg-red-900/30 rounded-xl p-4 mb-4">
+                            <p className="text-gray-400 text-sm">Amount</p>
+                            <p className="text-2xl font-bold text-red-400">₹{submittedAmount.toLocaleString()}</p>
+                        </div>
+
+                        <p className="text-gray-400 text-sm mb-6">
+                            Your withdrawal request has been submitted successfully. 
+                            Amount will be transferred to your bank account after admin approval within 24 hours.
+                        </p>
+
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => setShowSuccessModal(false)}
+                                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors"
+                            >
+                                Done
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowSuccessModal(false);
+                                    window.location.href = '/funds?tab=withdraw-fund-history';
+                                }}
+                                className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl transition-colors"
+                            >
+                                View History
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

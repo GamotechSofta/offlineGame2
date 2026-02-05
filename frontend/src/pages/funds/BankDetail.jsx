@@ -6,6 +6,8 @@ const BankDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [successMessage, setSuccessMessage] = useState({ title: '', subtitle: '' });
     
     // Form state
     const [showForm, setShowForm] = useState(false);
@@ -103,7 +105,13 @@ const BankDetail = () => {
 
             const data = await res.json();
             if (data.success) {
-                setSuccess(editingId ? 'Bank detail updated!' : 'Bank detail added!');
+                setSuccessMessage({
+                    title: editingId ? 'Bank Detail Updated!' : 'Bank Detail Added!',
+                    subtitle: editingId 
+                        ? 'Your bank account details have been updated successfully.'
+                        : 'Your bank account has been added successfully. You can now use it for withdrawals.'
+                });
+                setShowSuccessModal(true);
                 resetForm();
                 fetchBankAccounts();
             } else {
@@ -372,6 +380,50 @@ const BankDetail = () => {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#1a1a1a] rounded-2xl max-w-sm w-full p-6 border border-blue-500/30 text-center">
+                        {/* Success Icon */}
+                        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+
+                        <h3 className="text-xl font-bold text-white mb-2">{successMessage.title}</h3>
+                        
+                        <div className="bg-blue-900/30 rounded-xl p-4 mb-4">
+                            <svg className="w-12 h-12 text-blue-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 10l8-4 8 4" />
+                            </svg>
+                        </div>
+
+                        <p className="text-gray-400 text-sm mb-6">
+                            {successMessage.subtitle}
+                        </p>
+
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => setShowSuccessModal(false)}
+                                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
+                            >
+                                Done
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowSuccessModal(false);
+                                    window.location.href = '/funds?tab=withdraw-fund';
+                                }}
+                                className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl transition-colors"
+                            >
+                                Go to Withdraw
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

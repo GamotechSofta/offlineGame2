@@ -22,6 +22,9 @@ const PaymentManagement = () => {
     // Image preview modal
     const [imageModal, setImageModal] = useState({ show: false, url: '' });
 
+    // Detail modal for viewing full payment details
+    const [detailModal, setDetailModal] = useState({ show: false, payment: null });
+
     useEffect(() => {
         fetchPayments();
         fetchPendingCounts();
@@ -340,26 +343,31 @@ const PaymentManagement = () => {
                                                 )}
                                             </td>
                                             <td className="px-4 py-4">
-                                                {payment.status === 'pending' ? (
-                                                    <div className="flex gap-1.5">
-                                                        <button
-                                                            onClick={() => openActionModal(payment, 'approve')}
-                                                            className="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 rounded text-xs font-medium transition-colors"
-                                                        >
-                                                            Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={() => openActionModal(payment, 'reject')}
-                                                            className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs font-medium transition-colors"
-                                                        >
-                                                            Reject
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-gray-500 whitespace-nowrap">
-                                                        {payment.processedBy?.username ? `By ${payment.processedBy.username}` : '-'}
-                                                    </span>
-                                                )}
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {/* View Details Button */}
+                                                    <button
+                                                        onClick={() => setDetailModal({ show: true, payment })}
+                                                        className="px-2.5 py-1.5 bg-blue-600/20 border border-blue-500/40 hover:bg-blue-600/30 rounded text-xs font-medium text-blue-400 transition-colors"
+                                                    >
+                                                        View
+                                                    </button>
+                                                    {payment.status === 'pending' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => openActionModal(payment, 'approve')}
+                                                                className="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 rounded text-xs font-medium transition-colors"
+                                                            >
+                                                                Approve
+                                                            </button>
+                                                            <button
+                                                                onClick={() => openActionModal(payment, 'reject')}
+                                                                className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs font-medium transition-colors"
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -494,6 +502,221 @@ const PaymentManagement = () => {
                             alt="Payment proof"
                             className="max-w-full max-h-[85vh] object-contain rounded-lg"
                         />
+                    </div>
+                </div>
+            )}
+
+            {/* Detail Modal */}
+            {detailModal.show && detailModal.payment && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-800 rounded-xl max-w-lg w-full p-6 border border-gray-700 max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold">
+                                {detailModal.payment.type === 'deposit' ? 'Deposit' : 'Withdrawal'} Details
+                            </h3>
+                            <button
+                                onClick={() => setDetailModal({ show: false, payment: null })}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Amount & Status */}
+                        <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-gray-400">Amount</span>
+                                <span className="text-2xl font-bold text-white">
+                                    ₹{detailModal.payment.amount?.toLocaleString()}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-gray-400">Status</span>
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(detailModal.payment.status)}`}>
+                                    {detailModal.payment.status.charAt(0).toUpperCase() + detailModal.payment.status.slice(1)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-gray-400">Type</span>
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                    detailModal.payment.type === 'deposit' 
+                                        ? 'bg-green-600/30 text-green-400' 
+                                        : 'bg-purple-600/30 text-purple-400'
+                                }`}>
+                                    {detailModal.payment.type === 'deposit' ? '↓ Deposit' : '↑ Withdrawal'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-400">Request ID</span>
+                                <span className="text-white font-mono text-sm">
+                                    #{detailModal.payment._id.slice(-8).toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Player Info */}
+                        <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                            <h4 className="text-sm font-semibold text-gray-300 mb-3">Player Information</h4>
+                            <div className="space-y-2">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Username</span>
+                                    <span className="text-white">{detailModal.payment.userId?.username || 'Unknown'}</span>
+                                </div>
+                                {detailModal.payment.userId?.email && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Email</span>
+                                        <span className="text-white">{detailModal.payment.userId.email}</span>
+                                    </div>
+                                )}
+                                {detailModal.payment.userId?.phone && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Phone</span>
+                                        <span className="text-white">{detailModal.payment.userId.phone}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Bank Details for Withdrawals */}
+                        {detailModal.payment.type === 'withdrawal' && detailModal.payment.bankDetailId && (
+                            <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                                <h4 className="text-sm font-semibold text-gray-300 mb-3">Bank Account Details</h4>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Account Holder</span>
+                                        <span className="text-white font-medium">{detailModal.payment.bankDetailId.accountHolderName}</span>
+                                    </div>
+                                    {detailModal.payment.bankDetailId.bankName && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Bank Name</span>
+                                            <span className="text-white">{detailModal.payment.bankDetailId.bankName}</span>
+                                        </div>
+                                    )}
+                                    {detailModal.payment.bankDetailId.accountNumber && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Account Number</span>
+                                            <span className="text-white font-mono">{detailModal.payment.bankDetailId.accountNumber}</span>
+                                        </div>
+                                    )}
+                                    {detailModal.payment.bankDetailId.ifscCode && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">IFSC Code</span>
+                                            <span className="text-white font-mono">{detailModal.payment.bankDetailId.ifscCode}</span>
+                                        </div>
+                                    )}
+                                    {detailModal.payment.bankDetailId.upiId && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">UPI ID</span>
+                                            <span className="text-white font-mono">{detailModal.payment.bankDetailId.upiId}</span>
+                                        </div>
+                                    )}
+                                    {detailModal.payment.bankDetailId.accountType && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Account Type</span>
+                                            <span className="text-white capitalize">{detailModal.payment.bankDetailId.accountType.replace('_', ' ')}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Deposit Details */}
+                        {detailModal.payment.type === 'deposit' && (
+                            <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                                <h4 className="text-sm font-semibold text-gray-300 mb-3">Payment Details</h4>
+                                <div className="space-y-2">
+                                    {detailModal.payment.upiTransactionId && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">UTR / Transaction ID</span>
+                                            <span className="text-white font-mono">{detailModal.payment.upiTransactionId}</span>
+                                        </div>
+                                    )}
+                                    {detailModal.payment.userNote && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">User Note</span>
+                                            <span className="text-white">{detailModal.payment.userNote}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                {detailModal.payment.screenshotUrl && (
+                                    <div className="mt-4">
+                                        <p className="text-gray-500 text-sm mb-2">Payment Screenshot:</p>
+                                        <img
+                                            src={`${API_BASE_URL.replace('/api/v1', '')}${detailModal.payment.screenshotUrl}`}
+                                            alt="Payment proof"
+                                            className="w-full max-h-60 object-contain rounded-lg border border-gray-700 cursor-pointer"
+                                            onClick={() => setImageModal({ 
+                                                show: true, 
+                                                url: `${API_BASE_URL.replace('/api/v1', '')}${detailModal.payment.screenshotUrl}` 
+                                            })}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Timestamps */}
+                        <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                            <h4 className="text-sm font-semibold text-gray-300 mb-3">Timeline</h4>
+                            <div className="space-y-2">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Requested</span>
+                                    <span className="text-white">{formatDate(detailModal.payment.createdAt)}</span>
+                                </div>
+                                {detailModal.payment.processedAt && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Processed</span>
+                                        <span className="text-white">{formatDate(detailModal.payment.processedAt)}</span>
+                                    </div>
+                                )}
+                                {detailModal.payment.processedBy?.username && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Processed By</span>
+                                        <span className="text-white">{detailModal.payment.processedBy.username}</span>
+                                    </div>
+                                )}
+                                {detailModal.payment.adminRemarks && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Admin Remarks</span>
+                                        <span className="text-white">{detailModal.payment.adminRemarks}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDetailModal({ show: false, payment: null })}
+                                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+                            >
+                                Close
+                            </button>
+                            {detailModal.payment.status === 'pending' && (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setDetailModal({ show: false, payment: null });
+                                            openActionModal(detailModal.payment, 'approve');
+                                        }}
+                                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium transition-colors"
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setDetailModal({ show: false, payment: null });
+                                            openActionModal(detailModal.payment, 'reject');
+                                        }}
+                                        className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+                                    >
+                                        Reject
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
