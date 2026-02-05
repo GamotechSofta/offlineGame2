@@ -17,6 +17,7 @@ const adminSchema = new mongoose.Schema({
         type: String,
         default: 'super_admin',
         enum: ['super_admin', 'bookie'],
+<<<<<<< Updated upstream
     },
     status: {
         type: String,
@@ -37,6 +38,8 @@ const adminSchema = new mongoose.Schema({
         themeId: { type: String, enum: ['default', 'gold', 'blue', 'green', 'red', 'purple'], default: 'default' },
         primaryColor: { type: String, trim: true },
         accentColor: { type: String, trim: true },
+=======
+>>>>>>> Stashed changes
     },
 }, {
     timestamps: true,
