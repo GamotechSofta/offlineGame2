@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AddFund, WithdrawFund, BankDetail, AddFundHistory, WithdrawFundHistory } from './funds/index';
 
 const Funds = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   // One-screen behavior (same as My Bets)
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -14,12 +17,15 @@ const Funds = () => {
 
   const items = useMemo(() => ([
     {
+      key: 'add-fund',
       title: 'Add Fund',
       subtitle: 'You can add fund to your wallet',
       color: '#34a853',
       icon: <span className="text-3xl font-extrabold text-black leading-none">₹</span>,
+      component: AddFund,
     },
     {
+      key: 'withdraw-fund',
       title: 'Withdraw Fund',
       subtitle: 'You can withdraw winnings',
       color: '#ef4444',
@@ -28,8 +34,10 @@ const Funds = () => {
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m-4-4l4 4 4-4M16 6a6 6 0 00-8 0" />
         </svg>
       ),
+      component: WithdrawFund,
     },
     {
+      key: 'bank-detail',
       title: 'Bank Detail',
       subtitle: 'Add your bank detail for withdrawals',
       color: '#3b82f6',
@@ -38,8 +46,10 @@ const Funds = () => {
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 10l8-4 8 4" />
         </svg>
       ),
+      component: BankDetail,
     },
     {
+      key: 'add-fund-history',
       title: 'Add Fund History',
       subtitle: 'You can check your add point history',
       color: '#1e3a8a',
@@ -49,8 +59,10 @@ const Funds = () => {
           <circle cx="12" cy="12" r="8" />
         </svg>
       ),
+      component: AddFundHistory,
     },
     {
+      key: 'withdraw-fund-history',
       title: 'Withdraw Fund History',
       subtitle: 'You can check your Withdraw point history',
       color: '#f59e0b',
@@ -60,11 +72,33 @@ const Funds = () => {
           <path strokeLinecap="round" strokeLinejoin="round" d="M20 12a8 8 0 11-2.343-5.657" />
         </svg>
       ),
+      component: WithdrawFundHistory,
     },
   ]), []);
 
-  const [activeTitle, setActiveTitle] = useState(items[0]?.title || 'Funds');
-  const activeItem = items.find((i) => i.title === activeTitle) || items[0];
+  // Get active tab from URL or default to first
+  const tabParam = searchParams.get('tab');
+  const [activeKey, setActiveKey] = useState(tabParam || items[0]?.key || 'add-fund');
+  const [mobileView, setMobileView] = useState(null); // null = list, string = key of active item
+
+  useEffect(() => {
+    // Sync URL with active key on desktop
+    if (tabParam !== activeKey) {
+      setSearchParams({ tab: activeKey }, { replace: true });
+    }
+  }, [activeKey]);
+
+  const activeItem = items.find((i) => i.key === activeKey) || items[0];
+  const ActiveComponent = activeItem?.component;
+
+  const handleItemClick = (key) => {
+    setActiveKey(key);
+    setMobileView(key); // On mobile, show the component
+  };
+
+  const handleMobileBack = () => {
+    setMobileView(null);
+  };
 
   return (
     <div className="min-h-screen bg-black text-white pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0 md:pt-4 pb-20">
@@ -73,7 +107,7 @@ const Funds = () => {
           <div className="flex items-center gap-3 pt-4 md:pt-0">
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={() => mobileView ? handleMobileBack() : navigate(-1)}
               className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/15 active:scale-95 transition"
               aria-label="Back"
             >
@@ -81,58 +115,72 @@ const Funds = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold">Funds</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">
+              {mobileView ? items.find(i => i.key === mobileView)?.title : 'Funds'}
+            </h1>
           </div>
 
           <div className="hidden md:flex items-center justify-between gap-4 px-1">
-            <div className="text-2xl font-extrabold text-white">{activeTitle}</div>
+            <div className="text-2xl font-extrabold text-white">{activeItem?.title}</div>
           </div>
         </div>
 
-        {/* Mobile: same list layout (My Bets style) */}
-        <div className="space-y-2.5 md:hidden">
-          {items.map((item) => (
-            <div
-              key={item.title}
-              onClick={() => setActiveTitle(item.title)}
-              className="bg-[#202124] border border-white/10 rounded-2xl p-3 flex items-center justify-between shadow-[0_12px_24px_rgba(0,0,0,0.35)]"
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') setActiveTitle(item.title);
-              }}
-            >
-              <div className="flex items-center gap-3">
+        {/* Mobile: List view or Component view */}
+        <div className="md:hidden">
+          {mobileView === null ? (
+            // List view
+            <div className="space-y-2.5">
+              {items.map((item) => (
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-black shadow-[0_10px_20px_rgba(0,0,0,0.35)]"
-                  style={{ backgroundColor: item.color }}
+                  key={item.key}
+                  onClick={() => handleItemClick(item.key)}
+                  className="bg-[#202124] border border-white/10 rounded-2xl p-3 flex items-center justify-between shadow-[0_12px_24px_rgba(0,0,0,0.35)]"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') handleItemClick(item.key);
+                  }}
                 >
-                  {item.icon}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center text-black shadow-[0_10px_20px_rgba(0,0,0,0.35)]"
+                      style={{ backgroundColor: item.color }}
+                    >
+                      {item.icon}
+                    </div>
+                    <div>
+                      <p className="text-sm sm:text-base font-semibold">{item.title}</p>
+                      <p className="text-[11px] sm:text-xs text-gray-400 leading-snug">{item.subtitle}</p>
+                    </div>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-black/30 border border-white/10 flex items-center justify-center text-white/70">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm sm:text-base font-semibold">{item.title}</p>
-                  <p className="text-[11px] sm:text-xs text-gray-400 leading-snug">{item.subtitle}</p>
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-black/30 border border-white/10 flex items-center justify-center text-white/70">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            // Component view
+            <div className="bg-[#202124] border border-white/10 rounded-2xl p-4 shadow-[0_12px_24px_rgba(0,0,0,0.35)] max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hidden">
+              {items.find(i => i.key === mobileView)?.component && (
+                React.createElement(items.find(i => i.key === mobileView).component)
+              )}
+            </div>
+          )}
         </div>
 
         {/* Desktop: sidebar-style list + right panel (My Bets style) */}
         <div className="hidden md:grid md:grid-cols-[360px_1fr] md:gap-6 md:items-start">
           <aside className="md:sticky md:top-[96px] space-y-2">
             {items.map((item) => {
-              const active = item.title === activeTitle;
+              const active = item.key === activeKey;
               return (
                 <button
-                  key={item.title}
+                  key={item.key}
                   type="button"
-                  onClick={() => setActiveTitle(item.title)}
+                  onClick={() => setActiveKey(item.key)}
                   className={`w-full text-left bg-[#202124] border rounded-2xl p-3 md:p-5 flex items-center justify-between shadow-[0_12px_24px_rgba(0,0,0,0.35)] transition-colors ${
                     active ? 'border-[#d4af37]/40 bg-[#202124]' : 'border-white/10 hover:border-white/20'
                   }`}
@@ -164,7 +212,7 @@ const Funds = () => {
           </aside>
 
           <main className="rounded-2xl bg-[#202124] border border-white/10 shadow-[0_12px_24px_rgba(0,0,0,0.35)] p-6">
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-4 mb-6">
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center text-black shadow-[0_10px_20px_rgba(0,0,0,0.35)]"
                 style={{ backgroundColor: activeItem?.color || '#f3b61b' }}
@@ -177,10 +225,8 @@ const Funds = () => {
               </div>
             </div>
 
-            <div className="mt-6 max-h-[calc(100vh-220px)] overflow-y-auto scrollbar-hidden">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-gray-300 text-sm">
-                Select an item from the left menu. We will add the actual funds pages/content here next.
-              </div>
+            <div className="max-h-[calc(100vh-280px)] overflow-y-auto scrollbar-hidden">
+              {ActiveComponent && <ActiveComponent />}
             </div>
           </main>
         </div>
