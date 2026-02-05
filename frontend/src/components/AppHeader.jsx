@@ -10,7 +10,7 @@ const AppHeader = () => {
 
   const menuItems = [
     { label: 'My Bets', path: '/bids' },
-    { label: 'Bank', path: '/bank' },
+    { label: 'Bank', path: '/funds?tab=bank-detail' },
     { label: 'Funds', path: '/funds' },
     { label: 'Home', path: '/' },
     { label: 'Profile', path: '/profile' },
@@ -166,7 +166,7 @@ const AppHeader = () => {
 
           {/* Wallet - desktop only, responsive size */}
           <button
-            onClick={() => navigate('/bank')}
+            onClick={() => navigate('/funds?tab=add-fund')}
             className="hidden md:flex shrink-0 items-center gap-1.5 md:gap-2 lg:gap-2.5 rounded-lg bg-[#202124] border border-white/5 px-2.5 md:px-3 lg:px-4 py-1.5 md:py-2 hover:bg-[#2a2b2e] transition-colors"
           >
             <img

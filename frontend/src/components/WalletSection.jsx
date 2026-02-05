@@ -6,7 +6,6 @@ const WalletSection = () => {
   const navigate = useNavigate();
   const [balance, setBalance] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [addMoneyOpen, setAddMoneyOpen] = useState(false);
 
   const loadStoredBalance = () => {
     try {
@@ -117,7 +116,7 @@ const WalletSection = () => {
                 {/* Add Funds Button */}
                 <button
                   type="button"
-                  onClick={() => setAddMoneyOpen(true)}
+                  onClick={() => navigate('/funds?tab=add-fund')}
                   className="group relative w-10 h-10 sm:w-14 sm:h-14 md:w-[56px] md:h-[56px] rounded-xl bg-gradient-to-br from-[#25d366] to-[#1a9e47] flex items-center justify-center text-white overflow-hidden transition-all duration-200 hover:from-[#2ee576] hover:to-[#20bd5a] active:scale-95 shadow-lg hover:shadow-xl hover:shadow-green-500/40"
                   aria-label="Add Money"
                   title="Add Money"
@@ -136,7 +135,7 @@ const WalletSection = () => {
             {/* Bottom Row - Withdraw Button */}
             <div className="flex justify-center border-t border-white/10 relative">
               <button 
-                onClick={() => navigate('/bank')}
+                onClick={() => navigate('/funds?tab=withdraw-fund')}
                 className="relative group cursor-pointer active:scale-95 transition-transform duration-200 -mb-0 sm:-mb-[6px] md:-mb-[8px]"
               >
                 {/* Angular Shape Container */}
@@ -168,35 +167,6 @@ const WalletSection = () => {
           </div>
         </div>
 
-        {/* Add Money modal */}
-        {addMoneyOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setAddMoneyOpen(false)}>
-            <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 shadow-2xl w-full max-w-sm p-6 sm:p-7" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-white">Add Funds</h3>
-                <button 
-                  type="button" 
-                  onClick={() => setAddMoneyOpen(false)}
-                  className="text-gray-400 hover:text-white transition-colors w-8 h-8 flex items-center justify-center"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <p className="text-gray-300 text-sm sm:text-base mb-6 leading-relaxed">
-                To add money to your wallet, contact your bookie or admin. They can credit your account directly.
-              </p>
-              <button 
-                type="button" 
-                onClick={() => setAddMoneyOpen(false)} 
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold text-sm sm:text-base shadow-lg hover:shadow-xl active:scale-95 transition-all duration-200"
-              >
-                Got it
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="mt-5 sm:hidden">
