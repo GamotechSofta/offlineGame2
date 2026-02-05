@@ -16,7 +16,8 @@ import {
     FaEdit,
     FaTimes,
     FaClipboardList,
-    FaCoins
+    FaCoins,
+    FaPercent
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
@@ -27,6 +28,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
         { path: '/all-users', label: 'All Players', icon: FaUserFriends },
         { path: '/bookie-management', label: 'Bookie Accounts', icon: FaUsers },
+        { path: '/commission-management', label: 'Commission Requests', icon: FaPercent },
         { path: '/markets', label: 'Markets', icon: FaChartBar },
         { path: '/add-result', label: 'Add Result', icon: FaEdit },
         { path: '/update-rate', label: 'Update Rate', icon: FaCoins },

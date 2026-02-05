@@ -38,6 +38,13 @@ const adminSchema = new mongoose.Schema({
         primaryColor: { type: String, trim: true },
         accentColor: { type: String, trim: true },
     },
+    /** Bookie-only: Commission percentage (0-100). Set by super admin upon approval. */
+    commissionPercentage: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+    },
 }, {
     timestamps: true,
 });

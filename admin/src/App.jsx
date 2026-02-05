@@ -13,6 +13,7 @@ import Wallet from './pages/Wallet';
 import HelpDesk from './pages/HelpDesk';
 import Logs from './pages/Logs';
 import BookieManagement from './pages/BookieManagement';
+import CommissionManagement from './pages/CommissionManagement';
 import AllUsers from './pages/AllUsers';
 import PlayerDetail from './pages/PlayerDetail';
 import PlayerDevices from './pages/PlayerDevices';
@@ -189,6 +190,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <BookieManagement />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/commission-management"
+                    element={
+                        <PrivateRoute>
+                            <CommissionManagement />
                         </PrivateRoute>
                     }
                 />
