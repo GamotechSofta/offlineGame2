@@ -27,6 +27,7 @@ const getMarketStatus = (market) => {
 const StartlineDashboard = () => {
   const navigate = useNavigate();
   const [notifyOn, setNotifyOn] = useState(false);
+  const [warning, setWarning] = useState('');
   const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -102,6 +103,23 @@ const StartlineDashboard = () => {
     { title: 'Single Pana', range: '1-160' },
     { title: 'Triple Pana', range: '1-900' },
   ];
+
+  // Static fallback cards (when backend has no starline markets yet)
+  const fallbackMarkets = useMemo(() => ([
+    { id: 'sl-0100', marketName: 'STARLINE 01:00 AM', startingTime: '01:00', closingTime: '01:00', openingNumber: null, closingNumber: null, status: 'open' },
+    { id: 'sl-1800', marketName: 'STARLINE 06:00 PM', startingTime: '18:00', closingTime: '18:00', openingNumber: null, closingNumber: null, status: 'closed' },
+    { id: 'sl-1900', marketName: 'STARLINE 07:00 PM', startingTime: '19:00', closingTime: '19:00', openingNumber: null, closingNumber: null, status: 'closed' },
+    { id: 'sl-2000', marketName: 'STARLINE 08:00 PM', startingTime: '20:00', closingTime: '20:00', openingNumber: null, closingNumber: null, status: 'running' },
+    { id: 'sl-2100', marketName: 'STARLINE 09:00 PM', startingTime: '21:00', closingTime: '21:00', openingNumber: null, closingNumber: null, status: 'running' },
+    { id: 'sl-2200', marketName: 'STARLINE 10:00 PM', startingTime: '22:00', closingTime: '22:00', openingNumber: null, closingNumber: null, status: 'open' },
+    { id: 'sl-2300', marketName: 'STARLINE 11:00 PM', startingTime: '23:00', closingTime: '23:00', openingNumber: null, closingNumber: null, status: 'open' },
+  ]), []);
+
+  const showWarning = (msg) => {
+    setWarning(msg);
+    window.clearTimeout(showWarning._t);
+    showWarning._t = window.setTimeout(() => setWarning(''), 2200);
+  };
 
   return (
     <div className="min-h-screen bg-black text-white pb-24">
@@ -191,35 +209,37 @@ const StartlineDashboard = () => {
 
         {/* List */}
         <div className="mt-4 space-y-3">
+          {warning ? (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-red-200 text-sm">
+              {warning}
+            </div>
+          ) : null}
           {loading ? (
             <div className="rounded-2xl border border-white/10 bg-[#202124] p-6 text-center text-gray-300">
               Loading...
             </div>
-          ) : markets.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-[#202124] p-6 text-center text-gray-300">
-              No markets found.
-            </div>
           ) : (
-            markets.map((m) => {
+            (markets.length ? markets : fallbackMarkets).map((m) => {
               const timeLabel = formatTime(m.startingTime) || '-';
               const closedText = m.status === 'closed' ? 'Close for today' : m.status === 'running' ? 'Running' : 'Open';
               const open3 = m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? String(m.openingNumber) : '***';
               const d = openDigit(m.openingNumber);
               const pill = `${open3} - ${d}`;
               const statusColor = m.status === 'closed' ? 'text-red-400' : m.status === 'running' ? 'text-[#43b36a]' : 'text-[#43b36a]';
+              const isFallback = String(m.id || '').startsWith('sl-');
               const canPlay = m.status !== 'closed';
 
               return (
                 <div
                   key={m.id}
-                  className="rounded-2xl bg-[#202124] border border-white/10 p-4 shadow-[0_10px_22px_rgba(0,0,0,0.35)] flex items-center justify-between gap-3"
+                  className="rounded-2xl bg-[#202124] border border-white/10 p-3 sm:p-4 shadow-[0_10px_22px_rgba(0,0,0,0.35)] grid grid-cols-[92px_1fr_auto] sm:grid-cols-[120px_1fr_auto] items-center gap-3"
                 >
-                  <div className="min-w-[92px]">
-                    <div className="text-lg font-extrabold text-white">{timeLabel}</div>
-                    <div className={`text-sm font-semibold ${statusColor}`}>{closedText}</div>
+                  <div className="min-w-0">
+                    <div className="text-base sm:text-lg font-extrabold text-white leading-tight">{timeLabel}</div>
+                    <div className={`text-xs sm:text-sm font-semibold ${statusColor} leading-tight`}>{closedText}</div>
                   </div>
 
-                  <div className="px-5 py-2 rounded-full bg-black text-white font-extrabold tracking-wide border border-white/10 whitespace-nowrap leading-none">
+                  <div className="justify-self-center px-5 sm:px-6 py-2 rounded-full bg-black text-white font-extrabold tracking-wide border border-white/10 whitespace-nowrap leading-none text-[15px] sm:text-base">
                     {pill}
                   </div>
 
@@ -227,6 +247,27 @@ const StartlineDashboard = () => {
                     type="button"
                     onClick={() => {
                       if (!canPlay) return;
+                      if (isFallback) {
+                        // UI-only mock starline market: still allow BidOptions open.
+                        navigate('/bidoptions', {
+                          state: {
+                            marketType: 'starline',
+                            market: {
+                              _id: m.id,
+                              marketName: m.marketName,
+                              gameName: m.marketName,
+                              startingTime: m.startingTime,
+                              closingTime: m.closingTime,
+                              betClosureTime: 0,
+                              openingNumber: null,
+                              closingNumber: null,
+                              status: m.status,
+                              isMock: true,
+                            },
+                          },
+                        });
+                        return;
+                      }
                       navigate('/bidoptions', {
                         state: {
                           marketType: 'starline',
@@ -244,13 +285,13 @@ const StartlineDashboard = () => {
                       });
                     }}
                     disabled={!canPlay}
-                    className={`rounded-full border px-3 sm:px-4 py-2 font-bold flex items-center gap-2 whitespace-nowrap min-w-0 transition-colors ${
+                    className={`justify-self-end rounded-full border px-3 sm:px-4 py-2 font-bold flex items-center gap-2 whitespace-nowrap min-w-0 transition-colors ${
                       canPlay
-                        ? 'bg-black/30 border-white/10 text-white hover:border-[#d4af37]/40'
-                        : 'bg-black/20 border-white/5 text-white/40 cursor-not-allowed'
+                        ? 'bg-black/20 border-white/20 text-white hover:border-[#d4af37]/40'
+                        : 'bg-black/15 border-white/10 text-white/40 cursor-not-allowed'
                     }`}
                   >
-                    <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 flex items-center justify-center">
+                    <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
                       <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M6 4l10 6-10 6V4z" />
                       </svg>

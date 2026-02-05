@@ -197,7 +197,7 @@ const BidOptions = () => {
       {/* Header */}
       <div className="w-full flex items-center px-4 pt-5 pb-4 bg-black border-b border-gray-800 relative">
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate(isStarline ? '/startline-dashboard' : '/')}
           className="absolute left-4 text-gray-400 hover:text-white"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
