@@ -93,6 +93,14 @@ const TriplePanaBid = ({ market, title }) => {
         setInputNumber('');
         setInputPoints('');
         setSpecialInputs(Object.fromEntries(tripleNumbers.map((n) => [n, ''])));
+        // Reset scheduled date to today after bet is placed
+        const today = new Date().toISOString().split('T')[0];
+        setSelectedDate(today);
+        try {
+            localStorage.removeItem('betSelectedDate');
+        } catch (e) {
+            // Ignore errors
+        }
     };
 
     const handleCancelBet = () => {

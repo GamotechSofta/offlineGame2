@@ -115,6 +115,14 @@ const SinglePanaBulkBid = ({ market, title }) => {
         setReviewRows([]);
         setSpecialInputs(Object.fromEntries(singlePanas.map((n) => [n, ''])));
         setGroupBulk(Object.fromEntries(Array.from({ length: 10 }, (_, d) => [String(d), ''])));
+        // Reset scheduled date to today after bet is placed
+        const today = new Date().toISOString().split('T')[0];
+        setSelectedDate(today);
+        try {
+            localStorage.removeItem('betSelectedDate');
+        } catch (e) {
+            // Ignore errors
+        }
     };
 
     const handleCancel = () => clearAll();

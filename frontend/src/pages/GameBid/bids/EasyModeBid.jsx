@@ -508,6 +508,14 @@ const EasyModeBid = ({
         } else if (specialModeType === 'doublePana' && validDoublePanas.length > 0) {
             setSpecialInputs(Object.fromEntries(validDoublePanas.map((n) => [n, ''])));
         }
+        // Reset scheduled date to today after bet is placed
+        const today = new Date().toISOString().split('T')[0];
+        setSelectedDate(today);
+        try {
+            localStorage.removeItem('betSelectedDate');
+        } catch (e) {
+            // Ignore errors
+        }
     };
 
     const handleCancelBet = () => {

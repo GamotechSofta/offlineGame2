@@ -117,6 +117,14 @@ const SingleDigitBulkBid = ({ market, title }) => {
         setIsReviewOpen(false);
         setBids([]);
         setInputPoints('');
+        // Reset scheduled date to today after bet is placed
+        const today = new Date().toISOString().split('T')[0];
+        setSelectedDate(today);
+        try {
+            localStorage.removeItem('betSelectedDate');
+        } catch (e) {
+            // Ignore errors
+        }
     };
 
     const handleSubmitBet = async () => {

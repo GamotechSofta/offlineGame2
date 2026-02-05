@@ -39,6 +39,30 @@ function getRateForKey(rates, key) {
 }
 
 /**
+ * Helper: Get today's date at midnight (start of day) for scheduled bet filtering.
+ */
+function getTodayMidnight() {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+}
+
+/**
+ * Helper: Check if a bet should be settled today.
+ * Returns true if bet is NOT scheduled OR if it's scheduled for today or earlier.
+ */
+function shouldSettleToday(bet) {
+    // Not scheduled - always settle
+    if (!bet.isScheduled || !bet.scheduledDate) {
+        return true;
+    }
+    // Scheduled - only settle if scheduledDate is today or in the past
+    const today = getTodayMidnight();
+    const schedDate = new Date(bet.scheduledDate);
+    schedDate.setHours(0, 0, 0, 0);
+    return schedDate.getTime() <= today.getTime();
+}
+
+/**
  * Settle opening: set market openingNumber, then mark single & panna bets as won/lost and credit winners.
  */
 export async function settleOpening(marketId, openingNumber) {
@@ -56,9 +80,24 @@ export async function settleOpening(marketId, openingNumber) {
 
     const oid = toObjectId(canonicalId);
     const marketIdStr = String(canonicalId).trim();
+    
+    // Get today's midnight for scheduled bet filtering
+    const todayMidnight = getTodayMidnight();
+    
     const pendingBets = await Bet.find({
         status: 'pending',
         $or: oid ? [{ marketId: oid }, { marketId: marketIdStr }] : [{ marketId: marketIdStr }],
+        // Only include bets that are NOT scheduled for a future date
+        $and: [
+            {
+                $or: [
+                    { isScheduled: { $ne: true } },
+                    { scheduledDate: { $exists: false } },
+                    { scheduledDate: null },
+                    { scheduledDate: { $lte: todayMidnight } }
+                ]
+            }
+        ]
     }).lean();
     for (const bet of pendingBets) {
         const type = (bet.betType || '').toLowerCase();
@@ -135,9 +174,24 @@ export async function settleClosing(marketId, closingNumber) {
     const canonicalId = market._id.toString();
     const oid = toObjectId(canonicalId);
     const marketIdStr = String(canonicalId).trim();
+    
+    // Get today's midnight for scheduled bet filtering
+    const todayMidnight = getTodayMidnight();
+    
     const pendingBets = await Bet.find({
         status: 'pending',
         $or: oid ? [{ marketId: oid }, { marketId: marketIdStr }] : [{ marketId: marketIdStr }],
+        // Only include bets that are NOT scheduled for a future date
+        $and: [
+            {
+                $or: [
+                    { isScheduled: { $ne: true } },
+                    { scheduledDate: { $exists: false } },
+                    { scheduledDate: null },
+                    { scheduledDate: { $lte: todayMidnight } }
+                ]
+            }
+        ]
     }).lean();
     for (const bet of pendingBets) {
         const type = (bet.betType || '').toLowerCase();
@@ -234,9 +288,24 @@ export async function previewDeclareOpen(marketId, openingNumber) {
         return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 };
     }
     const marketIdStr = String(marketId).trim();
+    
+    // Get today's midnight for scheduled bet filtering
+    const todayMidnight = getTodayMidnight();
+    
     const pendingBets = await Bet.find({
         status: 'pending',
         $or: [{ marketId: oid }, { marketId: marketIdStr }],
+        // Only include bets that are NOT scheduled for a future date
+        $and: [
+            {
+                $or: [
+                    { isScheduled: { $ne: true } },
+                    { scheduledDate: { $exists: false } },
+                    { scheduledDate: null },
+                    { scheduledDate: { $lte: todayMidnight } }
+                ]
+            }
+        ]
     }).lean();
     let totalBetAmount = 0;
     let totalWinAmount = 0;
@@ -289,9 +358,24 @@ export async function previewDeclareClose(marketId, closingNumber) {
     if (!/^\d{3}$/.test(open3)) return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 };
 
     const marketIdStr = String(marketId).trim();
+    
+    // Get today's midnight for scheduled bet filtering
+    const todayMidnight = getTodayMidnight();
+    
     const pendingBets = await Bet.find({
         status: 'pending',
         $or: [{ marketId: oid }, { marketId: marketIdStr }],
+        // Only include bets that are NOT scheduled for a future date
+        $and: [
+            {
+                $or: [
+                    { isScheduled: { $ne: true } },
+                    { scheduledDate: { $exists: false } },
+                    { scheduledDate: null },
+                    { scheduledDate: { $lte: todayMidnight } }
+                ]
+            }
+        ]
     }).lean();
     let totalBetAmount = 0;
     let totalWinAmount = 0;
