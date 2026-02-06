@@ -106,19 +106,30 @@ const AddResult = () => {
         const val = openPatti.replace(/\D/g, '').slice(0, 3);
         setCheckLoading(true);
         setPreview(null);
+        const headers = getAuthHeaders();
         try {
-            const url = `${API_BASE_URL}/markets/preview-declare-open/${encodeURIComponent(marketId)}?openingNumber=${encodeURIComponent(val)}`;
-            const res = await fetch(url, { headers: getAuthHeaders() });
-            const data = await res.json();
-            if (data.success && data.data != null) {
+            const [previewRes, statsRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/markets/preview-declare-open/${encodeURIComponent(marketId)}?openingNumber=${encodeURIComponent(val)}`, { headers }),
+                fetch(`${API_BASE_URL}/markets/get-market-stats/${encodeURIComponent(marketId)}`, { headers }),
+            ]);
+            const previewData = await previewRes.json();
+            const statsData = await statsRes.json();
+            if (previewData.success && previewData.data != null) {
+                let totalBetAmount = safeNum(previewData.data.totalBetAmount);
+                if (statsData.success && statsData.data) {
+                    const d = statsData.data;
+                    const openTotal =
+                        safeNum(d.singleDigit?.totalAmount) + safeNum(d.singlePatti?.totalAmount) + safeNum(d.doublePatti?.totalAmount) + safeNum(d.triplePatti?.totalAmount) + safeNum(d.halfSangam?.totalAmount);
+                    totalBetAmount = openTotal;
+                }
+                const totalWinAmount = safeNum(previewData.data.totalWinAmount);
                 setPreview({
-                    totalBetAmount: safeNum(data.data.totalBetAmount),
-                    totalWinAmount: safeNum(data.data.totalWinAmount),
-                    noOfPlayers: safeNum(data.data.noOfPlayers),
-                    profit: safeNum(data.data.profit),
+                    totalBetAmount,
+                    totalWinAmount,
+                    noOfPlayers: safeNum(previewData.data.noOfPlayers),
                 });
             } else {
-                setPreview({ totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 });
+                setPreview({ totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0 });
             }
         } catch (err) {
             setPreview(null);
@@ -134,19 +145,29 @@ const AddResult = () => {
         const val = closePatti.replace(/\D/g, '').slice(0, 3);
         setCheckCloseLoading(true);
         setPreviewClose(null);
+        const headers = getAuthHeaders();
         try {
-            const url = `${API_BASE_URL}/markets/preview-declare-close/${encodeURIComponent(marketId)}?closingNumber=${encodeURIComponent(val)}`;
-            const res = await fetch(url, { headers: getAuthHeaders() });
-            const data = await res.json();
-            if (data.success && data.data != null) {
+            const [previewRes, statsRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/markets/preview-declare-close/${encodeURIComponent(marketId)}?closingNumber=${encodeURIComponent(val)}`, { headers }),
+                fetch(`${API_BASE_URL}/markets/get-market-stats/${encodeURIComponent(marketId)}`, { headers }),
+            ]);
+            const previewData = await previewRes.json();
+            const statsData = await statsRes.json();
+            if (previewData.success && previewData.data != null) {
+                let totalBetAmount = safeNum(previewData.data.totalBetAmount);
+                if (statsData.success && statsData.data) {
+                    const d = statsData.data;
+                    const closedTotal = safeNum(d.jodi?.totalAmount) + safeNum(d.fullSangam?.totalAmount);
+                    totalBetAmount = closedTotal;
+                }
+                const totalWinAmount = safeNum(previewData.data.totalWinAmount);
                 setPreviewClose({
-                    totalBetAmount: safeNum(data.data.totalBetAmount),
-                    totalWinAmount: safeNum(data.data.totalWinAmount),
-                    noOfPlayers: safeNum(data.data.noOfPlayers),
-                    profit: safeNum(data.data.profit),
+                    totalBetAmount,
+                    totalWinAmount,
+                    noOfPlayers: safeNum(previewData.data.noOfPlayers),
                 });
             } else {
-                setPreviewClose({ totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 });
+                setPreviewClose({ totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0 });
             }
         } catch (err) {
             setPreviewClose(null);
@@ -383,22 +404,39 @@ const AddResult = () => {
                                     </button>
                                 </div>
                                 {(preview != null) && (
-                                    <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3 rounded-lg bg-gray-700/50 border border-gray-600 p-2.5 sm:p-3">
-                                        <div className="flex justify-between items-center gap-2">
-                                            <span className="text-gray-400 text-xs sm:text-sm shrink-0">Total Bet Amount</span>
-                                            <span className="font-mono text-white bg-gray-700 px-2 py-1 rounded text-xs sm:text-sm truncate">{formatNum(preview.totalBetAmount)}</span>
+                                    <div className="mb-2 sm:mb-3 rounded-xl bg-gray-700/50 border border-amber-500/30 overflow-hidden shadow-inner">
+                                        <div className="bg-amber-500/10 border-b border-amber-500/20 px-3 py-2">
+                                            <p className="text-amber-400 font-semibold text-sm">Open preview: <span className="font-mono text-white">{openPatti.replace(/\D/g, '').slice(0, 3) || '—'}</span></p>
+                                            <p className="text-gray-500 text-[10px] mt-0.5">If you declare this as Open number, below is the settlement summary. Total bet amount matches Market Detail (Open view).</p>
                                         </div>
-                                        <div className="flex justify-between items-center gap-2">
-                                            <span className="text-gray-400 text-xs sm:text-sm shrink-0">Total Win Amount</span>
-                                            <span className="font-mono text-white bg-gray-700 px-2 py-1 rounded text-xs sm:text-sm truncate">{formatNum(preview.totalWinAmount)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center gap-2">
-                                            <span className="text-gray-400 text-xs sm:text-sm shrink-0">No Of Players</span>
-                                            <span className="font-mono text-white bg-gray-700 px-2 py-1 rounded text-xs sm:text-sm">{formatNum(preview.noOfPlayers)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center gap-2">
-                                            <span className="text-gray-400 text-xs sm:text-sm shrink-0">Profit</span>
-                                            <span className="font-mono text-yellow-400 bg-gray-700 px-2 py-1 rounded text-xs sm:text-sm truncate">{formatNum(preview.profit)}</span>
+                                        <div className="p-3 sm:p-4 space-y-3">
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-gray-400 text-xs font-medium">Total Bet Amount (Open view)</span>
+                                                <p className="text-[10px] text-gray-500">Same as Market Detail: Single Digit + Single/Double/Triple Pana + Half Sangam.</p>
+                                                <span className="font-mono text-white bg-gray-800 px-2 py-1.5 rounded border border-gray-600 text-sm">₹{formatNum(preview.totalBetAmount)}</span>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-gray-400 text-xs font-medium">Total win amount (payout)</span>
+                                                <p className="text-[10px] text-gray-500">Amount to be paid to winning players if you declare this open number.</p>
+                                                <span className="font-mono text-amber-300 bg-gray-800 px-2 py-1.5 rounded border border-gray-600 text-sm">₹{formatNum(preview.totalWinAmount)}</span>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-gray-400 text-xs font-medium">No. of players</span>
+                                                <p className="text-[10px] text-gray-500">Unique players who have open-settled bets in this market.</p>
+                                                <span className="font-mono text-white bg-gray-800 px-2 py-1.5 rounded border border-gray-600 text-sm">{formatNum(preview.noOfPlayers)}</span>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5 pt-2 border-t border-gray-600">
+                                                <span className="text-gray-400 text-xs font-medium">House profit / loss</span>
+                                                <p className="text-[10px] text-gray-500">Bet amount minus payout. Positive = house profit; negative = house pays more than collected.</p>
+                                                {(() => {
+                                                    const profit = Math.round((Number(preview.totalBetAmount) - Number(preview.totalWinAmount)) * 100) / 100;
+                                                    return (
+                                                        <span className={`font-mono font-semibold px-2 py-1.5 rounded border text-sm ${profit >= 0 ? 'text-green-400 bg-green-900/20 border-green-600/50' : 'text-red-300 bg-red-900/20 border-red-600/50'}`}>
+                                                            {profit >= 0 ? '₹' : '−₹'}{formatNum(Math.abs(profit))} {profit >= 0 ? '(profit)' : '(loss)'}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -439,22 +477,39 @@ const AddResult = () => {
                                         </button>
                                     </div>
                                     {(previewClose != null) && (
-                                        <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3 rounded-lg bg-gray-700/50 border border-gray-600 p-2.5 sm:p-3">
-                                            <div className="flex justify-between items-center gap-2">
-                                                <span className="text-gray-400 text-xs sm:text-sm shrink-0">Total Bet Amount</span>
-                                                <span className="font-mono text-white bg-gray-700 px-2 py-1 rounded text-xs sm:text-sm truncate">{formatNum(previewClose.totalBetAmount)}</span>
+                                        <div className="mb-2 sm:mb-3 rounded-xl bg-gray-700/50 border border-amber-500/30 overflow-hidden shadow-inner">
+                                            <div className="bg-amber-500/10 border-b border-amber-500/20 px-3 py-2">
+                                                <p className="text-amber-400 font-semibold text-sm">Close preview: <span className="font-mono text-white">{closePatti.replace(/\D/g, '').slice(0, 3) || '—'}</span></p>
+                                                <p className="text-gray-500 text-[10px] mt-0.5">If you declare this as Close number, below is the settlement summary. Total bet amount matches Market Detail (Closed view).</p>
                                             </div>
-                                            <div className="flex justify-between items-center gap-2">
-                                                <span className="text-gray-400 text-xs sm:text-sm shrink-0">Total Win Amount</span>
-                                                <span className="font-mono text-white bg-gray-700 px-2 py-1 rounded text-xs sm:text-sm truncate">{formatNum(previewClose.totalWinAmount)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center gap-2">
-                                                <span className="text-gray-400 text-xs sm:text-sm shrink-0">No Of Players</span>
-                                                <span className="font-mono text-white bg-gray-700 px-2 py-1 rounded text-xs sm:text-sm">{formatNum(previewClose.noOfPlayers)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center gap-2">
-                                                <span className="text-gray-400 text-xs sm:text-sm shrink-0">Profit</span>
-                                                <span className="font-mono text-yellow-400 bg-gray-700 px-2 py-1 rounded text-xs sm:text-sm truncate">{formatNum(previewClose.profit)}</span>
+                                            <div className="p-3 sm:p-4 space-y-3">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-gray-400 text-xs font-medium">Total Bet Amount (Closed view)</span>
+                                                    <p className="text-[10px] text-gray-500">Same as Market Detail: Jodi + Full Sangam.</p>
+                                                    <span className="font-mono text-white bg-gray-800 px-2 py-1.5 rounded border border-gray-600 text-sm">₹{formatNum(previewClose.totalBetAmount)}</span>
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-gray-400 text-xs font-medium">Total win amount (payout)</span>
+                                                    <p className="text-[10px] text-gray-500">Amount to be paid to winning players if you declare this close number.</p>
+                                                    <span className="font-mono text-amber-300 bg-gray-800 px-2 py-1.5 rounded border border-gray-600 text-sm">₹{formatNum(previewClose.totalWinAmount)}</span>
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-gray-400 text-xs font-medium">No. of players</span>
+                                                    <p className="text-[10px] text-gray-500">Unique players who have close-settled bets in this market.</p>
+                                                    <span className="font-mono text-white bg-gray-800 px-2 py-1.5 rounded border border-gray-600 text-sm">{formatNum(previewClose.noOfPlayers)}</span>
+                                                </div>
+                                                <div className="flex flex-col gap-0.5 pt-2 border-t border-gray-600">
+                                                    <span className="text-gray-400 text-xs font-medium">House profit / loss</span>
+                                                    <p className="text-[10px] text-gray-500">Bet amount minus payout. Positive = house profit; negative = house pays more than collected.</p>
+                                                    {(() => {
+                                                        const profit = Math.round((Number(previewClose.totalBetAmount) - Number(previewClose.totalWinAmount)) * 100) / 100;
+                                                        return (
+                                                            <span className={`font-mono font-semibold px-2 py-1.5 rounded border text-sm ${profit >= 0 ? 'text-green-400 bg-green-900/20 border-green-600/50' : 'text-red-300 bg-red-900/20 border-red-600/50'}`}>
+                                                                {profit >= 0 ? '₹' : '−₹'}{formatNum(Math.abs(profit))} {profit >= 0 ? '(profit)' : '(loss)'}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </div>
                                             </div>
                                         </div>
                                     )}

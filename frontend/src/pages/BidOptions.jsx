@@ -136,22 +136,11 @@ const BidOptions = () => {
       icon: (
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1770033165/Untitled_design_c5hag8.svg"
-          alt="Triple Pana"
+          alt="Half Sangam (O)"
           className="w-30 h-30 object-contain"
         />
       ),
     },
-    {
-      id: 12,
-      title: 'Half Sangam (C)',
-      icon: (
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1770033270/Untitled_design_1_z8p4ic.svg"
-          alt="Triple Pana"
-          className="w-30 h-30 object-contain"
-        />
-      ),
-    }
   ];
 
   if (!market) {

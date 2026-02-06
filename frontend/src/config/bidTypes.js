@@ -77,12 +77,7 @@ export const BID_TYPES = {
   },
   HALF_SANGAM_A: {
     key: 'half-sangam',
-    label: 'Half Sangam (A)',
-    hasSpecialMode: false,
-  },
-  HALF_SANGAM_B: {
-    key: 'half-sangam',
-    label: 'Half Sangam (B)',
+    label: 'Half Sangam (O)',
     hasSpecialMode: false,
   },
 };
@@ -100,7 +95,6 @@ export const getBidTypeConfig = (title) => {
   if (t.includes('double pana')) return BID_TYPES.DOUBLE_PANA;
   if (t.includes('triple pana')) return BID_TYPES.TRIPLE_PANA;
   if (t.includes('full sangam')) return BID_TYPES.FULL_SANGAM;
-  if (t.includes('half sangam') && t.includes('(a)')) return BID_TYPES.HALF_SANGAM_A;
-  if (t.includes('half sangam') && t.includes('(b)')) return BID_TYPES.HALF_SANGAM_B;
+  if (t.includes('half sangam') && (t.includes('(a)') || t.includes('(o)'))) return BID_TYPES.HALF_SANGAM_A;
   return BID_TYPES.SINGLE_DIGIT;
 };
