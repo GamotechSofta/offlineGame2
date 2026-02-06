@@ -6,22 +6,17 @@ import Section1 from '../components/Section1';
 
 const Home = () => {
   return (
-    <div className="min-h-screen bg-black md:bg-gray-50">
+    <div className="min-h-screen bg-[#0a0a0a]">
       {/* Mobile View - WalletSection */}
       <div className="md:hidden">
         <WalletSection />
       </div>
       
-      {/* Desktop View - HeroSection */}
-      <div className="hidden md:block">
-        <HeroSection />
-        <LatestNews />
-      </div>
+      {/* Hero Section - Shows on both mobile and desktop */}
+      <HeroSection />
       
-      {/* Mobile View - LatestNews after WalletSection */}
-      <div className="md:hidden">
-        <LatestNews />
-      </div>
+      {/* Latest News */}
+      <LatestNews />
       
       {/* Section1 - Shows on both mobile and desktop */}
       <Section1 />

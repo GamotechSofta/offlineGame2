@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
 
@@ -13,7 +13,6 @@ const Login = () => {
     lastName: '',
     email: '',
     phone: '',
-    otp: '',
     password: '',
     confirmPassword: '',
   });
@@ -28,11 +27,6 @@ const Login = () => {
     // Only allow digits for phone number
     if (name === 'phone') {
       processedValue = value.replace(/\D/g, '').slice(0, 10);
-    }
-    
-    // Only allow digits for OTP
-    if (name === 'otp') {
-      processedValue = value.replace(/\D/g, '').slice(0, 6);
     }
     
     setFormData({
@@ -52,17 +46,17 @@ const Login = () => {
     }
 
     if (isLogin) {
-      // Login - Phone & Password
-      if (!formData.phone || !formData.password) {
-        setError('Phone number and password are required');
+      // Login validation
+      if (!formData.phone) {
+        setError('Phone number is required');
         return;
       }
-      if (!/^[6-9]\d{9}$/.test(formData.phone)) {
-        setError('Please enter a valid 10-digit phone number');
+      if (!formData.password) {
+        setError('Password is required');
         return;
       }
     } else {
-      // Signup
+      // Signup validation
       if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword) {
         setError('All fields are required');
         return;
@@ -75,17 +69,15 @@ const Login = () => {
         setError('Passwords do not match');
         return;
       }
-      if (!/^[6-9]\d{9}$/.test(formData.phone)) {
-        setError('Please enter a valid 10-digit phone number');
-        return;
-      }
     }
 
     setLoading(true);
 
     try {
-      const endpoint = isLogin ? '/users/login' : '/users/signup';
+      let endpoint;
+      let body;
       let deviceId = '';
+      
       if (isLogin) {
         try {
           deviceId = typeof localStorage !== 'undefined' ? (localStorage.getItem('deviceId') || '') : '';
@@ -100,18 +92,22 @@ const Login = () => {
         } catch (e) {
           deviceId = `web-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
         }
+
+        endpoint = '/users/login';
+        body = { phone: formData.phone, password: formData.password, deviceId: deviceId || undefined };
+      } else {
+        endpoint = '/users/signup';
+        body = { 
+          username: `${formData.firstName} ${formData.lastName}`.trim(),
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          referredBy: refParam || undefined 
+        };
       }
-      const body = isLogin
-        ? { phone: formData.phone, password: formData.password, deviceId: deviceId || undefined }
-        : { 
-            username: `${formData.firstName} ${formData.lastName}`.trim(),
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: formData.phone,
-            password: formData.password,
-            referredBy: refParam || undefined 
-          };
+
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: {
@@ -159,6 +155,19 @@ const Login = () => {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      username: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+    });
+    setError('');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-white relative overflow-hidden">
       {/* Desktop: Two Column Layout */}
@@ -188,59 +197,39 @@ const Login = () => {
 
             {/* Form Container */}
             <div className="w-full">
-              {/* Toggle Buttons - Improved styling */}
+              {/* Toggle Buttons */}
               <div className={`flex gap-2 ${isLogin ? 'mb-4' : 'mb-2'} bg-gray-800/50 backdrop-blur-sm rounded-xl p-1.5 border border-gray-700/50`}>
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(true);
-                setError('');
-                setFormData({
-                  username: '',
-                  firstName: '',
-                  lastName: '',
-                  email: '',
-                  phone: '',
-                  otp: '',
-                  password: '',
-                  confirmPassword: '',
-                });
-              }}
-              className={`flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
-                isLogin
-                  ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg shadow-yellow-500/30'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(false);
-                setError('');
-                setFormData({
-                  username: '',
-                  firstName: '',
-                  lastName: '',
-                  email: '',
-                  phone: '',
-                  otp: '',
-                  password: '',
-                  confirmPassword: '',
-                });
-              }}
-              className={`flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
-                !isLogin
-                  ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg shadow-yellow-500/30'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Sign Up
-            </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(true);
+                    resetForm();
+                  }}
+                  className={`flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
+                    isLogin
+                      ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg shadow-yellow-500/30'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(false);
+                    resetForm();
+                  }}
+                  className={`flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
+                    !isLogin
+                      ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg shadow-yellow-500/30'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  Sign Up
+                </button>
               </div>
 
-              {/* Error Message - Improved styling */}
+              {/* Error Message */}
               {error && (
                 <div className="mb-3 p-2.5 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-xs flex items-center gap-2 backdrop-blur-sm">
                   <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +239,7 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Form - Improved spacing and styling */}
+              {/* Form */}
               <form onSubmit={handleSubmit} className={isLogin ? "space-y-3" : "space-y-2"}>
                 {/* Login Fields */}
                 {isLogin && (
@@ -277,6 +266,7 @@ const Login = () => {
                         />
                       </div>
                     </div>
+
                     <div>
                       <label className="block text-gray-300 text-xs font-medium mb-1.5">
                         Password <span className="text-yellow-500">*</span>
@@ -434,8 +424,7 @@ const Login = () => {
                   </div>
                 )}
 
-
-                {/* Checkbox - Improved styling */}
+                {/* Checkbox */}
                 <div className={isLogin ? "mb-3" : "mb-2"}>
                   <label className="flex items-start gap-2 cursor-pointer group">
                     <div className="relative mt-0.5">
@@ -465,7 +454,7 @@ const Login = () => {
                   </label>
                 </div>
 
-                {/* Submit Button - Improved styling */}
+                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading || !isAbove18}
@@ -486,7 +475,7 @@ const Login = () => {
               </form>
             </div>
 
-              {/* Bottom Legal Text - Improved styling */}
+              {/* Bottom Legal Text */}
               <div className={`${isLogin ? 'mt-4' : 'mt-2'} text-center w-full`}>
                 <p className={`text-gray-400 ${isLogin ? 'text-xs' : 'text-[10px]'} leading-tight`}>
                   By continuing, you agree to our{' '}
@@ -522,71 +511,51 @@ const Login = () => {
             </p>
           </div>
 
-        {/* Middle Section - Login/Signup */}
+          {/* Middle Section - Login/Signup */}
           <div className="w-full">
-            {/* Toggle Buttons - Improved styling */}
+            {/* Toggle Buttons */}
             <div className="flex gap-2 mb-5 bg-gray-800/50 backdrop-blur-sm rounded-xl p-1.5 border border-gray-700/50">
-            <button
+              <button
                 type="button"
-              onClick={() => {
-                setIsLogin(true);
-                setError('');
-                setFormData({
-                  username: '',
-                  firstName: '',
-                  lastName: '',
-                  email: '',
-                  phone: '',
-                  otp: '',
-                  password: '',
-                  confirmPassword: '',
-                });
-              }}
+                onClick={() => {
+                  setIsLogin(true);
+                  resetForm();
+                }}
                 className={`flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
-                isLogin
+                  isLogin
                     ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg shadow-yellow-500/30'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Login
-            </button>
-            <button
+                }`}
+              >
+                Login
+              </button>
+              <button
                 type="button"
-              onClick={() => {
-                setIsLogin(false);
-                setError('');
-                   setFormData({
-                     username: '',
-                     firstName: '',
-                     lastName: '',
-                     email: '',
-                     phone: '',
-                     otp: '',
-                     password: '',
-                     confirmPassword: '',
-                   });
-                 }}
+                onClick={() => {
+                  setIsLogin(false);
+                  resetForm();
+                }}
                 className={`flex-1 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
-                !isLogin
+                  !isLogin
                     ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg shadow-yellow-500/30'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
+                }`}
+              >
+                Sign Up
+              </button>
+            </div>
 
-            {/* Error Message - Improved styling */}
-          {error && (
+            {/* Error Message */}
+            {error && (
               <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm flex items-center gap-2 backdrop-blur-sm">
                 <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>{error}</span>
-            </div>
-          )}
+              </div>
+            )}
 
-            {/* Form - Improved spacing and styling */}
+            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               {/* Login Fields */}
               {isLogin && (
@@ -613,6 +582,7 @@ const Login = () => {
                       />
                     </div>
                   </div>
+
                   <div>
                     <label className="block text-gray-300 text-sm font-medium mb-2.5">
                       Password <span className="text-yellow-500">*</span>
@@ -654,96 +624,96 @@ const Login = () => {
                       required
                     />
                   </div>
-            <div>
+                  <div>
                     <label className="block text-gray-300 text-sm font-medium mb-2.5">
                       Last Name <span className="text-yellow-500">*</span>
-              </label>
-              <input
-                type="text"
+                    </label>
+                    <input
+                      type="text"
                       name="lastName"
                       value={formData.lastName}
-                onChange={handleChange}
+                      onChange={handleChange}
                       className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
                       placeholder="Last Name"
-                required
-              />
-            </div>
+                      required
+                    />
+                  </div>
                 </div>
               )}
 
-            {/* Email (only for signup) */}
-            {!isLogin && (
-              <div>
+              {/* Email (only for signup) */}
+              {!isLogin && (
+                <div>
                   <label className="block text-gray-300 text-sm font-medium mb-2.5">
                     Email Address <span className="text-yellow-500">*</span>
-                </label>
+                  </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </div>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
                       className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 pl-12 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
                       placeholder="your.email@example.com"
-                  required
-                />
+                      required
+                    />
                   </div>
-              </div>
-            )}
+                </div>
+              )}
 
               {/* Phone (only for signup) */}
-            {!isLogin && (
-              <div>
+              {!isLogin && (
+                <div>
                   <label className="block text-gray-300 text-sm font-medium mb-2.5">
                     Phone Number <span className="text-yellow-500">*</span>
-                </label>
+                  </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
                     </div>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
                       maxLength="10"
                       className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 pl-12 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
                       placeholder="10-digit phone number"
                       required
                     />
                   </div>
-              </div>
-            )}
+                </div>
+              )}
 
               {/* Password (only for signup) */}
               {!isLogin && (
-            <div>
+                <div>
                   <label className="block text-gray-300 text-sm font-medium mb-2.5">
                     Password <span className="text-yellow-500">*</span>
-              </label>
+                  </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                     </div>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
                       className="w-full bg-gray-800/80 border border-gray-700/50 rounded-xl px-4 pl-12 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all backdrop-blur-sm"
                       placeholder="Create a strong password"
-                required
-              />
-            </div>
+                      required
+                    />
+                  </div>
                 </div>
               )}
 
@@ -753,7 +723,7 @@ const Login = () => {
                   <label className="block text-gray-300 text-sm font-medium mb-2.5">
                     Confirm Password <span className="text-yellow-500">*</span>
                   </label>
-                <div className="relative">
+                  <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                       <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -772,39 +742,39 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Checkbox - Improved styling */}
+              {/* Checkbox */}
               <div className="mb-5">
                 <label className="flex items-start gap-3 cursor-pointer group">
                   <div className="relative mt-0.5">
-                  <input
-                    type="checkbox"
-                    checked={isAbove18}
-                    onChange={(e) => setIsAbove18(e.target.checked)}
-                    className="sr-only"
-                  />
+                    <input
+                      type="checkbox"
+                      checked={isAbove18}
+                      onChange={(e) => setIsAbove18(e.target.checked)}
+                      className="sr-only"
+                    />
                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
                       isAbove18 
                         ? 'bg-gradient-to-br from-green-500 to-green-600 border-green-500 shadow-lg shadow-green-500/30' 
                         : 'border-gray-600 group-hover:border-gray-500 bg-gray-800/50'
-                  }`}>
-                    {isAbove18 && (
+                    }`}>
+                      {isAbove18 && (
                         <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
                   </div>
-                </div>
                   <span className="text-gray-300 text-sm leading-relaxed flex-1">
                     I confirm that I am above 18 years of age and agree to the{' '}
                     <span className="text-yellow-500 underline">Terms of Use</span> and{' '}
                     <span className="text-yellow-500 underline">Privacy Policy</span>
                   </span>
-              </label>
-            </div>
+                </label>
+              </div>
 
-              {/* Submit Button - Improved styling */}
-            <button
-              type="submit"
+              {/* Submit Button */}
+              <button
+                type="submit"
                 disabled={loading || !isAbove18}
                 className="w-full bg-gradient-to-r from-yellow-500 via-yellow-500 to-yellow-600 text-black font-bold py-3.5 sm:py-4 rounded-xl hover:from-yellow-400 hover:via-yellow-500 hover:to-yellow-600 transition-all duration-200 text-sm sm:text-base uppercase disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/30 hover:shadow-xl hover:shadow-yellow-500/40 active:scale-[0.98]"
               >
@@ -819,10 +789,10 @@ const Login = () => {
                 ) : (
                   isLogin ? 'Sign In' : 'Create Account'
                 )}
-            </button>
-          </form>
+              </button>
+            </form>
 
-            {/* Bottom Legal Text - Improved styling */}
+            {/* Bottom Legal Text */}
             <div className="mt-6 sm:mt-8 pb-4 text-center w-full">
               <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">
                 By continuing, you agree to our{' '}
