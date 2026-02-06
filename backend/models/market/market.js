@@ -24,6 +24,12 @@ function lastDigitOfSum(threeDigitStr) {
 }
 
 const marketSchema = new mongoose.Schema({
+    /** 'main' = daily/main market (home MARKETS list). 'startline' = startline dashboard only. */
+    marketType: {
+        type: String,
+        enum: ['main', 'startline'],
+        default: 'main',
+    },
     marketName: {
         type: String,
         required: true,
@@ -101,13 +107,19 @@ marketSchema.statics.computeResult = function (openingNumber, closingNumber) {
 
 /**
  * Get display string for current state:
- * - No opening: ***-**-***
- * - Opening only: 123-6*-***
- * - Opening + closing: 123-65-456
+ * - Startline: single result only → "123 - 6" (open patti - open digit) or "*** - *"
+ * - Main: ***-**-*** | 123-6*-*** | 123-65-456
  */
 marketSchema.methods.getDisplayResult = function () {
     const opening = this.openingNumber;
     const closing = this.closingNumber;
+    const isStartline = this.marketType === 'startline';
+
+    if (isStartline) {
+        const openingDisplay = opening && THREE_DIGITS.test(opening) ? opening : '***';
+        const digit = opening && THREE_DIGITS.test(opening) ? String(sumDigits(opening) % 10) : '*';
+        return `${openingDisplay} - ${digit}`;
+    }
 
     const openingDisplay = opening && THREE_DIGITS.test(opening) ? opening : '***';
     const closingDisplay = closing && THREE_DIGITS.test(closing) ? closing : '***';

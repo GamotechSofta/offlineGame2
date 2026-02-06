@@ -58,7 +58,7 @@ const upsertMarketResultSnapshot = async (marketDoc, dateKey) => {
  */
 export const createMarket = async (req, res) => {
     try {
-        const { marketName, startingTime, closingTime, betClosureTime } = req.body;
+        const { marketName, startingTime, closingTime, betClosureTime, marketType } = req.body;
         if (!marketName || !startingTime || !closingTime) {
             return res.status(400).json({
                 success: false,
@@ -66,7 +66,8 @@ export const createMarket = async (req, res) => {
             });
         }
         const betClosureSec = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
-        const market = new Market({ marketName, startingTime, closingTime, betClosureTime: betClosureSec });
+        const type = marketType === 'startline' ? 'startline' : 'main';
+        const market = new Market({ marketName, startingTime, closingTime, betClosureTime: betClosureSec, marketType: type });
         await market.save();
 
         if (req.admin) {
@@ -98,6 +99,64 @@ export const createMarket = async (req, res) => {
                 errors: error.errors,
             });
         }
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/** Default startline markets (fixed). Only created if none exist. */
+const DEFAULT_STARTLINE_MARKETS = [
+    { name: 'STARLINE 01:00 AM', time: '01:00' },
+    { name: 'STARLINE 06:00 PM', time: '18:00' },
+    { name: 'STARLINE 07:00 PM', time: '19:00' },
+    { name: 'STARLINE 08:00 PM', time: '20:00' },
+    { name: 'STARLINE 09:00 PM', time: '21:00' },
+    { name: 'STARLINE 10:00 PM', time: '22:00' },
+    { name: 'STARLINE 11:00 PM', time: '23:00' },
+];
+
+/**
+ * POST /markets/seed-startline – create default fixed startline markets if none exist (super admin only).
+ */
+export const seedStartlineMarkets = async (req, res) => {
+    try {
+        const existing = await Market.countDocuments({ marketType: 'startline' });
+        if (existing > 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'Startline markets already exist.',
+                data: { created: 0, existing },
+            });
+        }
+        for (const { name, time } of DEFAULT_STARTLINE_MARKETS) {
+            await Market.findOneAndUpdate(
+                { marketName: name },
+                { marketName: name, startingTime: time, closingTime: time, marketType: 'startline' },
+                { upsert: true, new: true }
+            );
+        }
+        if (req.admin) {
+            await logActivity({
+                action: 'seed_startline_markets',
+                performedBy: req.admin.username,
+                performedByType: req.admin.role || 'super_admin',
+                targetType: 'market',
+                targetId: '',
+                details: `Created ${DEFAULT_STARTLINE_MARKETS.length} default startline markets`,
+                ip: getClientIp(req),
+            });
+        }
+        const list = await Market.find({ marketType: 'startline' }).sort({ startingTime: 1 });
+        const data = list.map((m) => {
+            const doc = m.toObject();
+            doc.displayResult = m.getDisplayResult();
+            return doc;
+        });
+        res.status(201).json({
+            success: true,
+            message: `Created ${DEFAULT_STARTLINE_MARKETS.length} startline markets.`,
+            data: { created: DEFAULT_STARTLINE_MARKETS.length, markets: data },
+        });
+    } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -149,12 +208,22 @@ export const getMarketById = async (req, res) => {
 export const updateMarket = async (req, res) => {
     try {
         const { id } = req.params;
-        const { marketName, startingTime, closingTime, betClosureTime } = req.body;
+        const existing = await Market.findById(id);
+        if (!existing) {
+            return res.status(404).json({ success: false, message: 'Market not found' });
+        }
+        const { marketName, startingTime, closingTime, betClosureTime, marketType } = req.body;
         const updates = {};
-        if (marketName !== undefined) updates.marketName = marketName;
-        if (startingTime !== undefined) updates.startingTime = startingTime;
-        if (closingTime !== undefined) updates.closingTime = closingTime;
-        if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
+        if (existing.marketType === 'startline') {
+            if (closingTime !== undefined) updates.closingTime = closingTime;
+            if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
+        } else {
+            if (marketName !== undefined) updates.marketName = marketName;
+            if (startingTime !== undefined) updates.startingTime = startingTime;
+            if (closingTime !== undefined) updates.closingTime = closingTime;
+            if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
+            if (marketType !== undefined) updates.marketType = marketType === 'startline' ? 'startline' : 'main';
+        }
 
         const market = await Market.findByIdAndUpdate(
             id,

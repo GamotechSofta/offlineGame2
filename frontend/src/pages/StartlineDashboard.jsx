@@ -19,6 +19,8 @@ const getMarketStatus = (market) => {
   if (isPastClosingTime(market)) return 'closed';
   const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
   const hasClosing = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
+  const isStartline = market.marketType === 'startline';
+  if (isStartline && hasOpening) return 'closed';
   if (hasOpening && hasClosing) return 'closed';
   if (hasOpening && !hasClosing) return 'running';
   return 'open';
@@ -64,6 +66,7 @@ const StartlineDashboard = () => {
         if (!alive) return;
         if (data?.success && Array.isArray(data?.data)) {
           const onlyStarline = data.data.filter((m) => {
+            if (m.marketType === 'startline') return true;
             const name = (m?.marketName || '').toString().toLowerCase();
             return name.includes('starline') || name.includes('startline') || name.includes('star line') || name.includes('start line');
           });
@@ -77,6 +80,7 @@ const StartlineDashboard = () => {
                 closingTime: m.closingTime,
                 openingNumber: m.openingNumber || null,
                 closingNumber: m.closingNumber || null,
+                displayResult: m.displayResult || null,
                 status,
               };
             })
@@ -222,9 +226,9 @@ const StartlineDashboard = () => {
             (markets.length ? markets : fallbackMarkets).map((m) => {
               const timeLabel = formatTime(m.startingTime) || '-';
               const closedText = m.status === 'closed' ? 'Close for today' : m.status === 'running' ? 'Running' : 'Open';
-              const open3 = m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? String(m.openingNumber) : '***';
-              const d = openDigit(m.openingNumber);
-              const pill = `${open3} - ${d}`;
+              const pill = (m.displayResult && String(m.displayResult).includes(' - '))
+                ? String(m.displayResult)
+                : `${m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? String(m.openingNumber) : '***'} - ${openDigit(m.openingNumber)}`;
               const statusColor = m.status === 'closed' ? 'text-red-400' : m.status === 'running' ? 'text-[#43b36a]' : 'text-[#43b36a]';
               const isFallback = String(m.id || '').startsWith('sl-');
               const canPlay = m.status !== 'closed';

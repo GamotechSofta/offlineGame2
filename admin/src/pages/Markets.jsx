@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import MarketList from '../components/MarketList';
@@ -11,8 +11,11 @@ const Markets = () => {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [editingMarket, setEditingMarket] = useState(null);
+    const [formDefaultType, setFormDefaultType] = useState('main');
     const [error, setError] = useState('');
     const navigate = useNavigate();
+
+    const mainMarkets = useMemo(() => (markets || []).filter((m) => m.marketType !== 'startline'), [markets]);
 
     useEffect(() => {
         const admin = localStorage.getItem('admin');
@@ -29,7 +32,7 @@ const Markets = () => {
             const response = await fetch(`${API_BASE_URL}/markets/get-markets`);
             const data = await response.json();
             if (data.success) {
-                setMarkets(data.data);
+                setMarkets(data.data || []);
             } else {
                 setError('Failed to fetch markets');
             }
@@ -48,11 +51,13 @@ const Markets = () => {
 
     const handleCreate = () => {
         setEditingMarket(null);
+        setFormDefaultType('main');
         setShowForm(true);
     };
 
     const handleEdit = (market) => {
         setEditingMarket(market);
+        setFormDefaultType(market.marketType === 'startline' ? 'startline' : 'main');
         setShowForm(true);
     };
 
@@ -63,7 +68,7 @@ const Markets = () => {
     };
 
     const getAuthHeaders = () => {
-        const admin = JSON.parse(localStorage.getItem('admin'));
+        const admin = JSON.parse(localStorage.getItem('admin') || '{}');
         const password = sessionStorage.getItem('adminPassword') || '';
         return {
             'Content-Type': 'application/json',
@@ -73,7 +78,7 @@ const Markets = () => {
 
     return (
         <AdminLayout onLogout={handleLogout} title="Markets">
-                <div className="min-w-0">
+            <div className="min-w-0">
                 {error && (
                     <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm sm:text-base">
                         {error}
@@ -81,19 +86,11 @@ const Markets = () => {
                 )}
 
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-6 truncate">Markets Management</h1>
-                
-                <div className="mb-3 sm:mb-6">
-                    <button
-                        onClick={handleCreate}
-                        className="w-full sm:w-auto px-4 py-3 sm:py-2.5 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-xl transition-colors text-sm sm:text-base touch-manipulation"
-                    >
-                        + Add New Market
-                    </button>
-                </div>
 
                 {showForm && (
                     <MarketForm
                         market={editingMarket}
+                        defaultMarketType={formDefaultType}
                         onClose={handleFormClose}
                         onSuccess={handleFormClose}
                         apiBaseUrl={API_BASE_URL}
@@ -106,15 +103,29 @@ const Markets = () => {
                         <p className="text-gray-400 text-sm sm:text-base">Loading markets...</p>
                     </div>
                 ) : (
-                    <MarketList
-                        markets={markets}
-                        onEdit={handleEdit}
-                        onDelete={fetchMarkets}
-                        apiBaseUrl={API_BASE_URL}
-                        getAuthHeaders={getAuthHeaders}
-                    />
+                    <section>
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                                <span className="inline-block w-1 h-6 sm:h-7 bg-gray-500 rounded-full" />
+                                Main / Daily Markets
+                            </h2>
+                            <button
+                                onClick={handleCreate}
+                                className="w-full sm:w-auto px-4 py-3 sm:py-2.5 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-xl transition-colors text-sm sm:text-base touch-manipulation"
+                            >
+                                + Add Market
+                            </button>
+                        </div>
+                        <MarketList
+                            markets={mainMarkets}
+                            onEdit={handleEdit}
+                            onDelete={fetchMarkets}
+                            apiBaseUrl={API_BASE_URL}
+                            getAuthHeaders={getAuthHeaders}
+                        />
+                    </section>
                 )}
-                </div>
+            </div>
         </AdminLayout>
     );
 };

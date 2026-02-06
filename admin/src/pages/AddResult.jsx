@@ -50,7 +50,8 @@ const AddResult = () => {
             const response = await fetch(`${API_BASE_URL}/markets/get-markets`);
             const data = await response.json();
             if (data.success) {
-                setMarkets(data.data || []);
+                const all = data.data || [];
+                setMarkets(all.filter((m) => m.marketType !== 'startline'));
             } else {
                 setError('Failed to fetch markets');
             }
@@ -287,14 +288,22 @@ const AddResult = () => {
                                     </thead>
                                     <tbody>
                                         {markets.map((market) => {
+                                            const isStartline = market.marketType === 'startline';
                                             const hasOpen = market.openingNumber && /^\d{3}$/.test(market.openingNumber);
                                             const hasClose = market.closingNumber && /^\d{3}$/.test(market.closingNumber);
-                                            const isClosed = hasOpen && hasClose;
-                                            const timeline = `${formatTime(market.startingTime)} - ${formatTime(market.closingTime)}`;
-                                            const resultDisplay = market.displayResult || '***-**-***';
+                                            const isClosed = isStartline ? hasOpen : (hasOpen && hasClose);
+                                            const timeline = isStartline ? `Closes ${formatTime(market.closingTime)}` : `${formatTime(market.startingTime)} - ${formatTime(market.closingTime)}`;
+                                            const resultDisplay = market.displayResult || (isStartline ? '*** - *' : '***-**-***');
                                             return (
                                                 <tr key={market._id} className="border-b border-gray-700 hover:bg-gray-700/50">
-                                                    <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 font-medium text-white whitespace-nowrap">{market.marketName}</td>
+                                                    <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 font-medium text-white whitespace-nowrap">
+                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                            {market.marketName}
+                                                            {isStartline && (
+                                                                <span className="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-600/80 text-black">Startline</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                     <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 text-gray-300 border-l border-gray-700 whitespace-nowrap text-xs sm:text-sm">{timeline}</td>
                                                     <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 border-l border-gray-700 min-w-[5rem] sm:min-w-[6.5rem] md:min-w-[7.5rem]">
                                                         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 sm:gap-x-2">
@@ -308,7 +317,7 @@ const AddResult = () => {
                                                         {hasOpen ? <span className="font-mono text-yellow-400">{market.openingNumber}</span> : <span className="text-gray-500">—</span>}
                                                     </td>
                                                     <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 border-l border-gray-700">
-                                                        {hasClose ? <span className="font-mono text-yellow-400">{market.closingNumber}</span> : <span className="text-gray-500">—</span>}
+                                                        {isStartline ? <span className="text-gray-500">N/A</span> : (hasClose ? <span className="font-mono text-yellow-400">{market.closingNumber}</span> : <span className="text-gray-500">—</span>)}
                                                     </td>
                                                     <td className="py-2 sm:py-3 px-2 sm:px-3 md:px-4 border-l border-gray-700 min-w-[5rem] sm:min-w-[6.5rem] md:min-w-[7.5rem]">
                                                         <div className="flex flex-wrap items-center">
@@ -335,11 +344,22 @@ const AddResult = () => {
                         <div className="w-full xl:w-[380px] xl:max-w-[400px] xl:shrink-0 bg-gray-800 rounded-xl border border-gray-700 shadow-xl p-4 sm:p-5 md:p-6">
                             <h2 className="text-lg sm:text-xl font-bold text-yellow-500 mb-3 sm:mb-4 border-b border-gray-700 pb-2 truncate" title={selectedMarket.marketName}>
                                 {selectedMarket.marketName}
+                                {selectedMarket.marketType === 'startline' && (
+                                    <span className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded bg-amber-600/80 text-black align-middle">Startline</span>
+                                )}
                             </h2>
 
-                            {/* Open Result section */}
+                            {selectedMarket.marketType === 'startline' && (
+                                <p className="text-xs text-gray-400 mb-3 p-2 rounded bg-gray-700/50 border border-amber-500/20">
+                                    Startline has only one result (Open Digit/Patti). To update <strong>closing time</strong>, edit the market from Markets.
+                                </p>
+                            )}
+
+                            {/* Open Result section — for Startline this is the only result */}
                             <div className="mb-4 sm:mb-6">
-                                <h3 className="text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 sm:mb-3">Open Result</h3>
+                                <h3 className="text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 sm:mb-3">
+                                    {selectedMarket.marketType === 'startline' ? 'Startline Result (Open Patti)' : 'Open Result'}
+                                </h3>
                                 <div className="mb-2 sm:mb-3">
                                     <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Open Patti</label>
                                     <input
@@ -392,8 +412,8 @@ const AddResult = () => {
                                 </button>
                             </div>
 
-                            {/* Close Result section - only when opening is set */}
-                            {selectedMarket.openingNumber && /^\d{3}$/.test(selectedMarket.openingNumber) && (
+                            {/* Close Result section - only for main market when opening is set; Startline has no closing result */}
+                            {selectedMarket.marketType !== 'startline' && selectedMarket.openingNumber && /^\d{3}$/.test(selectedMarket.openingNumber) && (
                                 <div className="mb-4 sm:mb-6">
                                     <h3 className="text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 sm:mb-3">Close Result</h3>
                                     <div className="mb-2 sm:mb-3">

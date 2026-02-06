@@ -50,8 +50,9 @@ const Section1 = () => {
         const data = await response.json();
         
         if (data.success) {
-          // Transform API data to match UI format
-          const transformedMarkets = data.data.map((market) => {
+          // Exclude startline markets (they appear only on Startline Dashboard)
+          const mainOnly = (data.data || []).filter((m) => m.marketType !== 'startline');
+          const transformedMarkets = mainOnly.map((market) => {
             const st = getMarketStatus(market);
             return {
               id: market._id,

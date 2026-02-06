@@ -23,12 +23,13 @@ const to24Hour = (hour12, minute, ampm) => {
 const HOURS_12 = ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
-const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) => {
+const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, apiBaseUrl, getAuthHeaders }) => {
     const [formData, setFormData] = useState({
         marketName: '',
         startingTime: '00:00',
         closingTime: '12:00',
         betClosureTime: '',
+        marketType: defaultMarketType,
     });
     const [start12, setStart12] = useState({ hour12: '12', minute: '00', ampm: 'AM' });
     const [close12, setClose12] = useState({ hour12: '12', minute: '00', ampm: 'PM' });
@@ -37,16 +38,20 @@ const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) 
 
     useEffect(() => {
         if (market) {
-            setFormData({
+            setFormData((prev) => ({
+                ...prev,
                 marketName: market.marketName || '',
                 startingTime: market.startingTime || '',
                 closingTime: market.closingTime || '',
                 betClosureTime: market.betClosureTime ?? '',
-            });
+                marketType: market.marketType === 'startline' ? 'startline' : 'main',
+            }));
             setStart12(from24Hour(market.startingTime));
             setClose12(from24Hour(market.closingTime));
+        } else {
+            setFormData((prev) => ({ ...prev, marketType: defaultMarketType }));
         }
-    }, [market]);
+    }, [market, defaultMarketType]);
 
     const handleChange = (e) => {
         setFormData({
@@ -63,7 +68,12 @@ const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) 
     const handleClose12Change = (field, value) => {
         const next = { ...close12, [field]: value };
         setClose12(next);
-        setFormData((prev) => ({ ...prev, closingTime: to24Hour(next.hour12, next.minute, next.ampm) }));
+        const newClosing = to24Hour(next.hour12, next.minute, next.ampm);
+        setFormData((prev) => {
+            const updated = { ...prev, closingTime: newClosing };
+            if (prev.marketType === 'startline' && !market) updated.startingTime = newClosing;
+            return updated;
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -77,10 +87,17 @@ const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) 
                 ? `${apiBaseUrl}/markets/update-market/${market._id}`
                 : `${apiBaseUrl}/markets/create-market`;
 
-            const payload = {
-                ...formData,
-                betClosureTime: formData.betClosureTime ? Number(formData.betClosureTime) : null,
-            };
+            const isStartlineEdit = market && market.marketType === 'startline';
+            const payload = isStartlineEdit
+                ? {
+                    closingTime: formData.closingTime,
+                    betClosureTime: formData.betClosureTime ? Number(formData.betClosureTime) : null,
+                }
+                : {
+                    ...formData,
+                    betClosureTime: formData.betClosureTime ? Number(formData.betClosureTime) : null,
+                    marketType: formData.marketType === 'startline' ? 'startline' : 'main',
+                };
 
             const response = await fetch(url, {
                 method: market ? 'PATCH' : 'POST',
@@ -125,60 +142,115 @@ const MarketForm = ({ market, onClose, onSuccess, apiBaseUrl, getAuthHeaders }) 
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-gray-300 text-sm font-medium mb-2">
-                                Market Name
-                            </label>
-                            <input
-                                type="text"
-                                name="marketName"
-                                value={formData.marketName}
-                                onChange={handleChange}
-                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 text-base"
-                                placeholder="e.g., Rudraksh Morning"
-                                required
-                            />
-                        </div>
+                        {/* Startline edit: fixed market – only show name (read-only) and closing time */}
+                        {market && market.marketType === 'startline' ? (
+                            <>
+                                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-sm text-amber-200/90">
+                                    Fixed Startline market – only <strong>Closing Time</strong> and result (Declare Result page) can be changed.
+                                </div>
+                                <div>
+                                    <label className="block text-gray-400 text-sm font-medium mb-1">Market Name (fixed)</label>
+                                    <p className="px-3 py-2.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white font-medium">
+                                        {formData.marketName}
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div>
+                                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                                        Market Type
+                                    </label>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="marketType"
+                                                value="main"
+                                                checked={formData.marketType === 'main'}
+                                                onChange={() => setFormData((p) => ({ ...p, marketType: 'main' }))}
+                                                className="text-yellow-500 focus:ring-yellow-500"
+                                            />
+                                            <span className="text-white">Main / Daily Market</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="marketType"
+                                                value="startline"
+                                                checked={formData.marketType === 'startline'}
+                                                onChange={() => setFormData((p) => ({ ...p, marketType: 'startline' }))}
+                                                className="text-yellow-500 focus:ring-yellow-500"
+                                            />
+                                            <span className="text-white">Startline</span>
+                                        </label>
+                                    </div>
+                                </div>
 
-                        <div>
-                            <label className="block text-gray-300 text-sm font-medium mb-2">
-                                Starting Time
-                            </label>
-                            <div className="grid grid-cols-[1fr_auto_1fr_auto_auto] gap-1 sm:gap-2 items-center">
-                                <select
-                                    value={start12.hour12}
-                                    onChange={(e) => handleStart12Change('hour12', e.target.value)}
-                                    className="w-full min-w-0 px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
-                                >
-                                    {HOURS_12.map((h) => (
-                                        <option key={h} value={h}>{h}</option>
-                                    ))}
-                                </select>
-                                <span className="text-gray-400 text-sm sm:text-base">:</span>
-                                <select
-                                    value={start12.minute}
-                                    onChange={(e) => handleStart12Change('minute', e.target.value)}
-                                    className="w-full min-w-0 px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
-                                >
-                                    {MINUTES.map((m) => (
-                                        <option key={m} value={m}>{m}</option>
-                                    ))}
-                                </select>
-                                <span className="w-1" />
-                                <select
-                                    value={start12.ampm}
-                                    onChange={(e) => handleStart12Change('ampm', e.target.value)}
-                                    className="w-full min-w-[4rem] px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
-                                >
-                                    <option value="AM">AM</option>
-                                    <option value="PM">PM</option>
-                                </select>
+                                <div>
+                                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                                        Market Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="marketName"
+                                        value={formData.marketName}
+                                        onChange={handleChange}
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 text-base"
+                                        placeholder="e.g., Rudraksh Morning"
+                                        required
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {formData.marketType !== 'startline' && (
+                            <div>
+                                <label className="block text-gray-300 text-sm font-medium mb-2">
+                                    Starting Time
+                                </label>
+                                <div className="grid grid-cols-[1fr_auto_1fr_auto_auto] gap-1 sm:gap-2 items-center">
+                                    <select
+                                        value={start12.hour12}
+                                        onChange={(e) => handleStart12Change('hour12', e.target.value)}
+                                        className="w-full min-w-0 px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
+                                    >
+                                        {HOURS_12.map((h) => (
+                                            <option key={h} value={h}>{h}</option>
+                                        ))}
+                                    </select>
+                                    <span className="text-gray-400 text-sm sm:text-base">:</span>
+                                    <select
+                                        value={start12.minute}
+                                        onChange={(e) => handleStart12Change('minute', e.target.value)}
+                                        className="w-full min-w-0 px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
+                                    >
+                                        {MINUTES.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </select>
+                                    <span className="w-1" />
+                                    <select
+                                        value={start12.ampm}
+                                        onChange={(e) => handleStart12Change('ampm', e.target.value)}
+                                        className="w-full min-w-[4rem] px-2 sm:px-3 py-2.5 sm:py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-yellow-500 text-sm sm:text-base"
+                                    >
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {formData.marketType === 'startline' && (
+                            <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+                                Startline has no opening time. Only <strong>Closing Time</strong> (bet cutoff) can be updated below.
+                            </p>
+                        )}
 
                         <div>
                             <label className="block text-gray-300 text-sm font-medium mb-2">
-                                Closing Time
+                                Closing Time {formData.marketType === 'startline' && <span className="text-amber-400">(bet cutoff)</span>}
                             </label>
                             <div className="grid grid-cols-[1fr_auto_1fr_auto_auto] gap-1 sm:gap-2 items-center">
                                 <select

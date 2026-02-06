@@ -17,7 +17,8 @@ import {
     FaTimes,
     FaClipboardList,
     FaCoins,
-    FaPercent
+    FaPercent,
+    FaStar
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
@@ -30,6 +31,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/bookie-management', label: 'Bookie Accounts', icon: FaUsers },
         { path: '/commission-management', label: 'Commission Requests', icon: FaPercent },
         { path: '/markets', label: 'Markets', icon: FaChartBar },
+        { path: '/startline', label: 'Starline', icon: FaStar },
         { path: '/add-result', label: 'Add Result', icon: FaEdit },
         { path: '/update-rate', label: 'Update Rate', icon: FaCoins },
         { path: '/add-user', label: 'Add Player', icon: FaUserPlus },
@@ -43,7 +45,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
     ];
 
     const isActive = (path) => {
-        if (path === '/all-users' || path === '/markets') {
+        if (path === '/all-users' || path === '/markets' || path === '/startline') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
         }
         return location.pathname === path;

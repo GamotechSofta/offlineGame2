@@ -11,6 +11,7 @@ import {
     setClosingNumber,
     setWinNumber,
     deleteMarket,
+    seedStartlineMarkets,
     previewDeclareOpenResult,
     declareOpenResult,
     previewDeclareCloseResult,
@@ -39,6 +40,7 @@ router.post('/clear-result/:id', verifySuperAdmin, clearResult);
 
 // Super admin only - market management
 router.post('/create-market', verifySuperAdmin, createMarket);
+router.post('/seed-startline', verifySuperAdmin, seedStartlineMarkets);
 router.patch('/update-market/:id', verifySuperAdmin, updateMarket);
 router.patch('/set-opening-number/:id', verifySuperAdmin, setOpeningNumber);
 router.patch('/set-closing-number/:id', verifySuperAdmin, setClosingNumber);
