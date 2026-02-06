@@ -17,6 +17,7 @@ import {
     previewDeclareCloseResult,
     declareCloseResult,
     clearResult,
+    getWinningBetsPreview,
 } from '../../controllers/marketController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
@@ -34,6 +35,7 @@ router.get('/get-single-patti-summary/:id', verifyAdmin, getSinglePattiSummary);
 // Super admin: declare result (preview, declare open, declare close)
 router.get('/preview-declare-open/:id', verifySuperAdmin, previewDeclareOpenResult);
 router.get('/preview-declare-close/:id', verifySuperAdmin, previewDeclareCloseResult);
+router.get('/winning-bets-preview/:id', verifySuperAdmin, getWinningBetsPreview);
 router.post('/declare-open/:id', verifySuperAdmin, declareOpenResult);
 router.post('/declare-close/:id', verifySuperAdmin, declareCloseResult);
 router.post('/clear-result/:id', verifySuperAdmin, clearResult);

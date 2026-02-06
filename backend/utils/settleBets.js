@@ -281,23 +281,28 @@ export async function settleClosing(marketId, closingNumber) {
 
 /**
  * Preview declare open: for a proposed opening number, return totalBetAmount (single + panna only),
- * totalWinAmount (payout to winners for single + panna), noOfPlayers, profit.
- * Only single and panna are settled on open; totalBetAmount and profit refer to that subset.
+ * totalWinAmount (payout to winners for single + panna), noOfPlayers, profit,
+ * totalBetAmountOnPatti, totalPlayersBetOnPatti, totalPlayersInMarket.
+ * Only single and panna are settled on open.
+ * @param {string} marketId - Market ID
+ * @param {string|null} openingNumber - 3-digit open number e.g. "123"
+ * @param {{ bookieUserIds?: string[]|null }} [options] - If bookieUserIds is non-null and non-empty, filter bets by these user IDs (same scope as market stats).
  */
-export async function previewDeclareOpen(marketId, openingNumber) {
+export async function previewDeclareOpen(marketId, openingNumber, options = {}) {
     const oid = toObjectId(marketId);
     if (!oid) {
-        return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 };
+        return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0, totalBetAmountOnPatti: 0, totalPlayersBetOnPatti: 0, totalPlayersInMarket: 0 };
     }
     const marketIdStr = String(marketId).trim();
-    
+    const bookieUserIds = options.bookieUserIds;
+    const hasBookieFilter = Array.isArray(bookieUserIds) && bookieUserIds.length > 0;
+
     // Get today's midnight for scheduled bet filtering
     const todayMidnight = getTodayMidnight();
-    
-    const pendingBets = await Bet.find({
+
+    const matchFilter = {
         status: 'pending',
         $or: [{ marketId: oid }, { marketId: marketIdStr }],
-        // Only include bets that are NOT scheduled for a future date
         $and: [
             {
                 $or: [
@@ -308,7 +313,10 @@ export async function previewDeclareOpen(marketId, openingNumber) {
                 ]
             }
         ]
-    }).lean();
+    };
+    if (hasBookieFilter) matchFilter.userId = { $in: bookieUserIds };
+
+    const pendingBets = await Bet.find(matchFilter).lean();
 
     const rates = await getRatesMap();
     const lastDigitOpen = openingNumber && /^\d{3}$/.test(openingNumber) ? openingNumber.slice(-1) : null;
@@ -316,12 +324,16 @@ export async function previewDeclareOpen(marketId, openingNumber) {
 
     let totalBetAmount = 0; // only single + panna (bets settled on open)
     let totalWinAmount = 0;
+    let totalBetAmountOnPatti = 0;
     const userIds = new Set();
+    const playersBetOnPatti = new Set();
+    const allMarketUserIds = new Set();
 
     for (const bet of pendingBets) {
         const type = (bet.betType || '').toLowerCase();
         const num = (bet.betNumber || '').toString().trim();
         const amount = Number(bet.amount) || 0;
+        allMarketUserIds.add(bet.userId.toString());
 
         if (type === 'single' && /^[0-9]$/.test(num)) {
             totalBetAmount += amount;
@@ -329,6 +341,8 @@ export async function previewDeclareOpen(marketId, openingNumber) {
             if (lastDigitOpen != null && num === lastDigitOpen) {
                 const rate = getRateForKey(rates, 'single');
                 totalWinAmount += amount * rate;
+                totalBetAmountOnPatti += amount;
+                playersBetOnPatti.add(bet.userId.toString());
             }
         } else if (type === 'panna' && /^[0-9]{3}$/.test(num)) {
             totalBetAmount += amount;
@@ -338,6 +352,8 @@ export async function previewDeclareOpen(marketId, openingNumber) {
                 const rateKey = pannaType || 'singlePatti';
                 const rate = getRateForKey(rates, rateKey);
                 totalWinAmount += amount * rate;
+                totalBetAmountOnPatti += amount;
+                playersBetOnPatti.add(bet.userId.toString());
             }
         } else {
             userIds.add(bet.userId.toString());
@@ -345,6 +361,7 @@ export async function previewDeclareOpen(marketId, openingNumber) {
     }
 
     totalWinAmount = Math.round(totalWinAmount * 100) / 100;
+    totalBetAmountOnPatti = Math.round(totalBetAmountOnPatti * 100) / 100;
     const profit = Math.round((totalBetAmount - totalWinAmount) * 100) / 100;
 
     return {
@@ -352,30 +369,35 @@ export async function previewDeclareOpen(marketId, openingNumber) {
         totalWinAmount,
         noOfPlayers: userIds.size,
         profit,
+        totalBetAmountOnPatti,
+        totalPlayersBetOnPatti: playersBetOnPatti.size,
+        totalPlayersInMarket: allMarketUserIds.size,
     };
 }
 
 /**
  * Preview declare close: for pending jodi, half-sangam, full-sangam bets with given closing number.
- * Returns totalBetAmount (sum of those pending), totalWinAmount, noOfPlayers, profit.
+ * Returns totalBetAmount, totalWinAmount, noOfPlayers, profit, totalBetAmountOnPatti, totalPlayersBetOnPatti, totalPlayersInMarket.
+ * @param {{ bookieUserIds?: string[]|null }} [options] - If bookieUserIds is non-null and non-empty, filter bets by these user IDs.
  */
-export async function previewDeclareClose(marketId, closingNumber) {
+export async function previewDeclareClose(marketId, closingNumber, options = {}) {
     const oid = toObjectId(marketId);
-    if (!oid) return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 };
+    if (!oid) return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0, totalBetAmountOnPatti: 0, totalPlayersBetOnPatti: 0, totalPlayersInMarket: 0 };
     const market = await Market.findById(oid).lean();
-    if (!market) return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 };
+    if (!market) return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0, totalBetAmountOnPatti: 0, totalPlayersBetOnPatti: 0, totalPlayersInMarket: 0 };
     const open3 = (market.openingNumber || '').toString();
-    if (!/^\d{3}$/.test(open3)) return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0 };
+    if (!/^\d{3}$/.test(open3)) return { totalBetAmount: 0, totalWinAmount: 0, noOfPlayers: 0, profit: 0, totalBetAmountOnPatti: 0, totalPlayersBetOnPatti: 0, totalPlayersInMarket: 0 };
 
     const marketIdStr = String(marketId).trim();
-    
+    const bookieUserIds = options.bookieUserIds;
+    const hasBookieFilter = Array.isArray(bookieUserIds) && bookieUserIds.length > 0;
+
     // Get today's midnight for scheduled bet filtering
     const todayMidnight = getTodayMidnight();
-    
-    const pendingBets = await Bet.find({
+
+    const matchFilter = {
         status: 'pending',
         $or: [{ marketId: oid }, { marketId: marketIdStr }],
-        // Only include bets that are NOT scheduled for a future date
         $and: [
             {
                 $or: [
@@ -386,13 +408,20 @@ export async function previewDeclareClose(marketId, closingNumber) {
                 ]
             }
         ]
-    }).lean();
+    };
+    if (hasBookieFilter) matchFilter.userId = { $in: bookieUserIds };
+
+    const pendingBets = await Bet.find(matchFilter).lean();
     let totalBetAmount = 0;
     let totalWinAmount = 0;
+    let totalBetAmountOnPatti = 0;
     const userIds = new Set();
+    const playersBetOnPatti = new Set();
+    const allMarketUserIds = new Set();
 
     if (!closingNumber || !/^\d{3}$/.test(closingNumber)) {
         for (const bet of pendingBets) {
+            allMarketUserIds.add(bet.userId.toString());
             const type = (bet.betType || '').toLowerCase();
             if (type === 'jodi' || type === 'half-sangam' || type === 'full-sangam') {
                 totalBetAmount += Number(bet.amount) || 0;
@@ -400,7 +429,15 @@ export async function previewDeclareClose(marketId, closingNumber) {
             }
         }
         totalBetAmount = Math.round(totalBetAmount * 100) / 100;
-        return { totalBetAmount, totalWinAmount: 0, noOfPlayers: userIds.size, profit: totalBetAmount };
+        return {
+            totalBetAmount,
+            totalWinAmount: 0,
+            noOfPlayers: userIds.size,
+            profit: totalBetAmount,
+            totalBetAmountOnPatti: 0,
+            totalPlayersBetOnPatti: 0,
+            totalPlayersInMarket: allMarketUserIds.size,
+        };
     }
 
     const rates = await getRatesMap();
@@ -412,40 +449,167 @@ export async function previewDeclareClose(marketId, closingNumber) {
         const type = (bet.betType || '').toLowerCase();
         const num = (bet.betNumber || '').toString().trim();
         const amount = Number(bet.amount) || 0;
+        allMarketUserIds.add(bet.userId.toString());
         const isCloseType = type === 'jodi' || type === 'half-sangam' || type === 'full-sangam';
         if (!isCloseType) continue;
 
         totalBetAmount += amount;
         userIds.add(bet.userId.toString());
 
+        let isWinning = false;
         if (type === 'jodi' && /^[0-9]{2}$/.test(num)) {
             const expectedJodi = lastDigitOpen + lastDigitClose;
-            if (num === expectedJodi) totalWinAmount += amount * getRateForKey(rates, 'jodi');
+            if (num === expectedJodi) {
+                totalWinAmount += amount * getRateForKey(rates, 'jodi');
+                isWinning = true;
+            }
         } else if (type === 'half-sangam') {
             const parts = num.split('-').map((p) => (p || '').trim());
             const first = parts[0] || '';
             const second = parts[1] || '';
             const isFormatA = /^[0-9]{3}$/.test(first) && /^[0-9]$/.test(second);
             const isFormatB = /^[0-9]$/.test(first) && /^[0-9]{3}$/.test(second);
-            if (isFormatA && first === open3 && second === lastDigitClose) totalWinAmount += amount * getRateForKey(rates, 'halfSangam');
-            else if (isFormatB && first === lastDigitOpen && second === close3) totalWinAmount += amount * getRateForKey(rates, 'halfSangam');
+            if (isFormatA && first === open3 && second === lastDigitClose) {
+                totalWinAmount += amount * getRateForKey(rates, 'halfSangam');
+                isWinning = true;
+            } else if (isFormatB && first === lastDigitOpen && second === close3) {
+                totalWinAmount += amount * getRateForKey(rates, 'halfSangam');
+                isWinning = true;
+            }
         } else if (type === 'full-sangam') {
             const parts = (num || '').split('-').map((p) => (p || '').trim());
             const betOpen3 = parts[0] || '';
             const betClose3 = parts[1] || '';
             if (/^[0-9]{3}$/.test(betOpen3) && /^[0-9]{3}$/.test(betClose3) && betOpen3 === open3 && betClose3 === close3) {
                 totalWinAmount += amount * getRateForKey(rates, 'fullSangam');
+                isWinning = true;
             }
+        }
+        if (isWinning) {
+            totalBetAmountOnPatti += amount;
+            playersBetOnPatti.add(bet.userId.toString());
         }
     }
 
     totalBetAmount = Math.round(totalBetAmount * 100) / 100;
     totalWinAmount = Math.round(totalWinAmount * 100) / 100;
+    totalBetAmountOnPatti = Math.round(totalBetAmountOnPatti * 100) / 100;
     const profit = Math.round((totalBetAmount - totalWinAmount) * 100) / 100;
     return {
         totalBetAmount,
         totalWinAmount,
         noOfPlayers: userIds.size,
         profit,
+        totalBetAmountOnPatti,
+        totalPlayersBetOnPatti: playersBetOnPatti.size,
+        totalPlayersInMarket: allMarketUserIds.size,
     };
+}
+
+/**
+ * Get list of winning bets (with payout) for open declaration. Same filter as previewDeclareOpen.
+ */
+export async function getWinningBetsForOpen(marketId, openingNumber, options = {}) {
+    const oid = toObjectId(marketId);
+    if (!oid) return { winningBets: [], totalWinAmount: 0 };
+    const marketIdStr = String(marketId).trim();
+    const bookieUserIds = options.bookieUserIds;
+    const hasBookieFilter = Array.isArray(bookieUserIds) && bookieUserIds.length > 0;
+    const todayMidnight = getTodayMidnight();
+    const matchFilter = {
+        status: 'pending',
+        $or: [{ marketId: oid }, { marketId: marketIdStr }],
+        $and: [{ $or: [{ isScheduled: { $ne: true } }, { scheduledDate: { $exists: false } }, { scheduledDate: null }, { scheduledDate: { $lte: todayMidnight } }] }],
+    };
+    if (hasBookieFilter) matchFilter.userId = { $in: bookieUserIds };
+    const pendingBets = await Bet.find(matchFilter).lean();
+    const rates = await getRatesMap();
+    const lastDigitOpen = openingNumber && /^\d{3}$/.test(openingNumber) ? openingNumber.slice(-1) : null;
+    const open3 = openingNumber && /^\d{3}$/.test(openingNumber) ? openingNumber : null;
+    const winningBets = [];
+    let totalWinAmount = 0;
+    for (const bet of pendingBets) {
+        const type = (bet.betType || '').toLowerCase();
+        const num = (bet.betNumber || '').toString().trim();
+        const amount = Number(bet.amount) || 0;
+        let payout = 0;
+        if (type === 'single' && /^[0-9]$/.test(num) && lastDigitOpen != null && num === lastDigitOpen) {
+            payout = amount * getRateForKey(rates, 'single');
+        } else if (type === 'panna' && /^[0-9]{3}$/.test(num) && open3 != null && num === open3) {
+            const pannaType = getPannaType(open3);
+            const rateKey = pannaType || 'singlePatti';
+            payout = amount * getRateForKey(rates, rateKey);
+        }
+        if (payout > 0) {
+            payout = Math.round(payout * 100) / 100;
+            totalWinAmount += payout;
+            winningBets.push({ bet: { _id: bet._id, userId: bet.userId, betType: bet.betType, betNumber: bet.betNumber, amount: bet.amount }, payout });
+        }
+    }
+    totalWinAmount = Math.round(totalWinAmount * 100) / 100;
+    return { winningBets, totalWinAmount };
+}
+
+/**
+ * Get list of winning bets (with payout) for close declaration. Same filter as previewDeclareClose.
+ */
+export async function getWinningBetsForClose(marketId, closingNumber, options = {}) {
+    const oid = toObjectId(marketId);
+    if (!oid) return { winningBets: [], totalWinAmount: 0 };
+    const market = await Market.findById(oid).lean();
+    if (!market) return { winningBets: [], totalWinAmount: 0 };
+    const open3 = (market.openingNumber || '').toString();
+    if (!/^\d{3}$/.test(open3)) return { winningBets: [], totalWinAmount: 0 };
+    if (!closingNumber || !/^\d{3}$/.test(closingNumber)) return { winningBets: [], totalWinAmount: 0 };
+
+    const marketIdStr = String(marketId).trim();
+    const bookieUserIds = options.bookieUserIds;
+    const hasBookieFilter = Array.isArray(bookieUserIds) && bookieUserIds.length > 0;
+    const todayMidnight = getTodayMidnight();
+    const matchFilter = {
+        status: 'pending',
+        $or: [{ marketId: oid }, { marketId: marketIdStr }],
+        $and: [{ $or: [{ isScheduled: { $ne: true } }, { scheduledDate: { $exists: false } }, { scheduledDate: null }, { scheduledDate: { $lte: todayMidnight } }] }],
+    };
+    if (hasBookieFilter) matchFilter.userId = { $in: bookieUserIds };
+    const pendingBets = await Bet.find(matchFilter).lean();
+    const rates = await getRatesMap();
+    const lastDigitOpen = open3.slice(-1);
+    const lastDigitClose = closingNumber.slice(-1);
+    const close3 = closingNumber;
+    const winningBets = [];
+    let totalWinAmount = 0;
+    for (const bet of pendingBets) {
+        const type = (bet.betType || '').toLowerCase();
+        const num = (bet.betNumber || '').toString().trim();
+        const amount = Number(bet.amount) || 0;
+        if (type !== 'jodi' && type !== 'half-sangam' && type !== 'full-sangam') continue;
+        let payout = 0;
+        if (type === 'jodi' && /^[0-9]{2}$/.test(num)) {
+            const expectedJodi = lastDigitOpen + lastDigitClose;
+            if (num === expectedJodi) payout = amount * getRateForKey(rates, 'jodi');
+        } else if (type === 'half-sangam') {
+            const parts = num.split('-').map((p) => (p || '').trim());
+            const first = parts[0] || '';
+            const second = parts[1] || '';
+            const isFormatA = /^[0-9]{3}$/.test(first) && /^[0-9]$/.test(second);
+            const isFormatB = /^[0-9]$/.test(first) && /^[0-9]{3}$/.test(second);
+            if (isFormatA && first === open3 && second === lastDigitClose) payout = amount * getRateForKey(rates, 'halfSangam');
+            else if (isFormatB && first === lastDigitOpen && second === close3) payout = amount * getRateForKey(rates, 'halfSangam');
+        } else if (type === 'full-sangam') {
+            const parts = (num || '').split('-').map((p) => (p || '').trim());
+            const betOpen3 = parts[0] || '';
+            const betClose3 = parts[1] || '';
+            if (/^[0-9]{3}$/.test(betOpen3) && /^[0-9]{3}$/.test(betClose3) && betOpen3 === open3 && betClose3 === close3) {
+                payout = amount * getRateForKey(rates, 'fullSangam');
+            }
+        }
+        if (payout > 0) {
+            payout = Math.round(payout * 100) / 100;
+            totalWinAmount += payout;
+            winningBets.push({ bet: { _id: bet._id, userId: bet.userId, betType: bet.betType, betNumber: bet.betNumber, amount: bet.amount }, payout });
+        }
+    }
+    totalWinAmount = Math.round(totalWinAmount * 100) / 100;
+    return { winningBets, totalWinAmount };
 }

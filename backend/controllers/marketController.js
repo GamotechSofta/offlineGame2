@@ -1,10 +1,11 @@
 import Market from '../models/market/market.js';
 import Bet from '../models/bet/bet.js';
+import User from '../models/user/user.js';
 import MarketResult from '../models/marketResult/marketResult.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isSinglePatti, buildSinglePattiFirstDigitSummary } from '../utils/singlePattiUtils.js';
-import { previewDeclareOpen, previewDeclareClose, settleOpening, settleClosing } from '../utils/settleBets.js';
+import { previewDeclareOpen, previewDeclareClose, settleOpening, settleClosing, getWinningBetsForOpen, getWinningBetsForClose } from '../utils/settleBets.js';
 import { ensureResultsResetForNewDay } from '../utils/resultReset.js';
 
 const toDateKeyIST = (d = new Date()) => {
@@ -426,7 +427,8 @@ export const setWinNumber = async (req, res) => {
 };
 
 /**
- * Preview declare open: ?openingNumber=156 returns totalBetAmount, totalWinAmount, noOfPlayers, profit.
+ * Preview declare open: ?openingNumber=156 returns totalBetAmount, totalWinAmount, noOfPlayers, profit,
+ * totalBetAmountOnPatti, totalPlayersBetOnPatti, totalPlayersInMarket.
  */
 export const previewDeclareOpenResult = async (req, res) => {
     try {
@@ -437,8 +439,20 @@ export const previewDeclareOpenResult = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
         const marketId = market._id.toString();
-        const stats = await previewDeclareOpen(marketId, openingNumber || null);
-        res.status(200).json({ success: true, data: stats });
+        const oid = market._id;
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        const stats = await previewDeclareOpen(marketId, openingNumber || null, {
+            bookieUserIds: bookieUserIds ?? undefined,
+        });
+        const matchFilter = { marketId: oid };
+        if (bookieUserIds != null && Array.isArray(bookieUserIds) && bookieUserIds.length > 0) {
+            matchFilter.userId = { $in: bookieUserIds };
+        }
+        const totalPlayersInMarket = await Bet.distinct('userId', matchFilter).then((ids) => ids.length);
+        res.status(200).json({
+            success: true,
+            data: { ...stats, totalPlayersInMarket },
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -486,7 +500,9 @@ export const declareOpenResult = async (req, res) => {
 };
 
 /**
- * Preview declare close: ?closingNumber=456 returns totalBetAmount, totalWinAmount, noOfPlayers, profit (for jodi/half-sangam/full-sangam pending bets).
+ * Preview declare close: ?closingNumber=456 returns totalBetAmount, totalWinAmount, noOfPlayers, profit,
+ * totalBetAmountOnPatti, totalPlayersBetOnPatti, totalPlayersInMarket (for jodi/half-sangam/full-sangam).
+ * Close uses no bookie filter so preview matches actual settlement (settleClosing settles all pending close-type bets).
  */
 export const previewDeclareCloseResult = async (req, res) => {
     try {
@@ -497,8 +513,81 @@ export const previewDeclareCloseResult = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
         const marketId = market._id.toString();
-        const stats = await previewDeclareClose(marketId, closingNumber || null);
-        res.status(200).json({ success: true, data: stats });
+        const oid = market._id;
+        const stats = await previewDeclareClose(marketId, closingNumber || null, {});
+        const matchFilter = { marketId: oid };
+        const totalPlayersInMarket = await Bet.distinct('userId', matchFilter).then((ids) => ids.length);
+        res.status(200).json({
+            success: true,
+            data: { ...stats, totalPlayersInMarket },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * GET winning bets preview for declare confirmation screen.
+ * Query: ?openingNumber=123 (for open) or ?closingNumber=456 (for close).
+ * Returns { winningBets: [{ userId, username, betType, betNumber, amount, payout }, ...], totalWinAmount, declareType, number }.
+ */
+export const getWinningBetsPreview = async (req, res) => {
+    try {
+        const { id: marketIdParam } = req.params;
+        const openingNumber = (req.query.openingNumber || '').toString().trim();
+        const closingNumber = (req.query.closingNumber || '').toString().trim();
+        const market = await Market.findById(marketIdParam);
+        if (!market) {
+            return res.status(404).json({ success: false, message: 'Market not found' });
+        }
+        const marketId = market._id.toString();
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        const optionsOpen = { bookieUserIds: bookieUserIds ?? undefined };
+
+        let winningBets = [];
+        let totalWinAmount = 0;
+        let declareType = '';
+        let number = '';
+
+        if (openingNumber && /^\d{3}$/.test(openingNumber)) {
+            const result = await getWinningBetsForOpen(marketId, openingNumber, optionsOpen);
+            winningBets = result.winningBets;
+            totalWinAmount = result.totalWinAmount;
+            declareType = 'open';
+            number = openingNumber;
+        } else if (closingNumber && /^\d{3}$/.test(closingNumber)) {
+            const result = await getWinningBetsForClose(marketId, closingNumber, {});
+            winningBets = result.winningBets;
+            totalWinAmount = result.totalWinAmount;
+            declareType = 'close';
+            number = closingNumber;
+        } else {
+            return res.status(400).json({ success: false, message: 'Provide openingNumber or closingNumber (3 digits)' });
+        }
+
+        const userIds = [...new Set(winningBets.map((w) => w.bet.userId.toString()))];
+        const users = await User.find({ _id: { $in: userIds } }).select('username').lean();
+        const userMap = new Map(users.map((u) => [u._id.toString(), u.username]));
+
+        const list = winningBets.map((w) => ({
+            userId: w.bet.userId,
+            username: userMap.get(w.bet.userId.toString()) || '—',
+            betType: w.bet.betType,
+            betNumber: w.bet.betNumber,
+            amount: w.bet.amount,
+            payout: w.payout,
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: {
+                winningBets: list,
+                totalWinAmount,
+                declareType,
+                number,
+                marketName: market.marketName,
+            },
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
