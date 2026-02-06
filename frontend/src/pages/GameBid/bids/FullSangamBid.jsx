@@ -106,6 +106,7 @@ const FullSangamBid = ({ market, title }) => {
             betType: 'full-sangam',
             betNumber: String(b?.number ?? '').trim(),
             amount: Number(b?.points) || 0,
+            betOn: String(b?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',
         })).filter((b) => b.betNumber && b.amount > 0);
         if (!payload.length) throw new Error('No valid bets to place');
         

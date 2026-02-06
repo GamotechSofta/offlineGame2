@@ -760,80 +760,145 @@ export const getMarketStats = async (req, res) => {
 
         const bets = await Bet.find(matchFilter).lean();
 
-        const singleDigit = { digits: {}, totalAmount: 0, totalBets: 0 };
-        const jodi = { items: {}, totalAmount: 0, totalBets: 0 };
-        const singlePatti = { items: {}, totalAmount: 0, totalBets: 0 };
-        const doublePatti = { items: {}, totalAmount: 0, totalBets: 0 };
-        const triplePatti = { items: {}, totalAmount: 0, totalBets: 0 };
-        const halfSangam = { items: {}, totalAmount: 0, totalBets: 0 };
-        const fullSangam = { items: {}, totalAmount: 0, totalBets: 0 };
+        const makeEmpty = () => ({
+            singleDigit: { digits: {}, totalAmount: 0, totalBets: 0 },
+            jodi: { items: {}, totalAmount: 0, totalBets: 0 },
+            singlePatti: { items: {}, totalAmount: 0, totalBets: 0 },
+            doublePatti: { items: {}, totalAmount: 0, totalBets: 0 },
+            triplePatti: { items: {}, totalAmount: 0, totalBets: 0 },
+            halfSangam: { items: {}, totalAmount: 0, totalBets: 0 },
+            fullSangam: { items: {}, totalAmount: 0, totalBets: 0 },
+        });
 
-        for (const b of bets) {
-            const amount = Number(b.amount) || 0;
-            const num = (b.betNumber || '').toString().trim();
-            const type = (b.betType || '').toLowerCase();
+        const applyBet = (stats, bet) => {
+            const amount = Number(bet.amount) || 0;
+            const num = (bet.betNumber || '').toString().trim();
+            const type = (bet.betType || '').toLowerCase();
 
             if (type === 'single' && /^[0-9]$/.test(num)) {
-                if (!singleDigit.digits[num]) singleDigit.digits[num] = { amount: 0, count: 0 };
-                singleDigit.digits[num].amount += amount;
-                singleDigit.digits[num].count += 1;
-                singleDigit.totalAmount += amount;
-                singleDigit.totalBets += 1;
-            } else if (type === 'jodi' && /^[0-9]{2}$/.test(num)) {
-                if (!jodi.items[num]) jodi.items[num] = { amount: 0, count: 0 };
-                jodi.items[num].amount += amount;
-                jodi.items[num].count += 1;
-                jodi.totalAmount += amount;
-                jodi.totalBets += 1;
-            } else if (type === 'panna' && /^[0-9]{3}$/.test(num)) {
+                if (!stats.singleDigit.digits[num]) stats.singleDigit.digits[num] = { amount: 0, count: 0 };
+                stats.singleDigit.digits[num].amount += amount;
+                stats.singleDigit.digits[num].count += 1;
+                stats.singleDigit.totalAmount += amount;
+                stats.singleDigit.totalBets += 1;
+                return;
+            }
+
+            if (type === 'jodi' && /^[0-9]{2}$/.test(num)) {
+                if (!stats.jodi.items[num]) stats.jodi.items[num] = { amount: 0, count: 0 };
+                stats.jodi.items[num].amount += amount;
+                stats.jodi.items[num].count += 1;
+                stats.jodi.totalAmount += amount;
+                stats.jodi.totalBets += 1;
+                return;
+            }
+
+            if (type === 'panna' && /^[0-9]{3}$/.test(num)) {
                 const a = num[0], b_ = num[1], c = num[2];
                 const allSame = a === b_ && b_ === c;
                 const twoSame = a === b_ || b_ === c || a === c;
                 if (allSame) {
-                    if (!triplePatti.items[num]) triplePatti.items[num] = { amount: 0, count: 0 };
-                    triplePatti.items[num].amount += amount;
-                    triplePatti.items[num].count += 1;
-                    triplePatti.totalAmount += amount;
-                    triplePatti.totalBets += 1;
-                } else if (twoSame) {
-                    if (!doublePatti.items[num]) doublePatti.items[num] = { amount: 0, count: 0 };
-                    doublePatti.items[num].amount += amount;
-                    doublePatti.items[num].count += 1;
-                    doublePatti.totalAmount += amount;
-                    doublePatti.totalBets += 1;
-                } else if (isSinglePatti(num)) {
-                    if (!singlePatti.items[num]) singlePatti.items[num] = { amount: 0, count: 0 };
-                    singlePatti.items[num].amount += amount;
-                    singlePatti.items[num].count += 1;
-                    singlePatti.totalAmount += amount;
-                    singlePatti.totalBets += 1;
+                    if (!stats.triplePatti.items[num]) stats.triplePatti.items[num] = { amount: 0, count: 0 };
+                    stats.triplePatti.items[num].amount += amount;
+                    stats.triplePatti.items[num].count += 1;
+                    stats.triplePatti.totalAmount += amount;
+                    stats.triplePatti.totalBets += 1;
+                    return;
                 }
-                /* Invalid panna not counted */
-            } else if (type === 'half-sangam') {
+                if (twoSame) {
+                    if (!stats.doublePatti.items[num]) stats.doublePatti.items[num] = { amount: 0, count: 0 };
+                    stats.doublePatti.items[num].amount += amount;
+                    stats.doublePatti.items[num].count += 1;
+                    stats.doublePatti.totalAmount += amount;
+                    stats.doublePatti.totalBets += 1;
+                    return;
+                }
+                if (isSinglePatti(num)) {
+                    if (!stats.singlePatti.items[num]) stats.singlePatti.items[num] = { amount: 0, count: 0 };
+                    stats.singlePatti.items[num].amount += amount;
+                    stats.singlePatti.items[num].count += 1;
+                    stats.singlePatti.totalAmount += amount;
+                    stats.singlePatti.totalBets += 1;
+                }
+                return;
+            }
+
+            if (type === 'half-sangam') {
                 const parts = num.split('-').map((p) => (p || '').trim());
                 const a = parts[0] || '';
                 const b = parts[1] || '';
                 const isFormatA = /^[0-9]{3}$/.test(a) && /^[0-9]$/.test(b);
                 const isFormatB = /^[0-9]$/.test(a) && /^[0-9]{3}$/.test(b);
                 if (isFormatA || isFormatB) {
-                    if (!halfSangam.items[num]) halfSangam.items[num] = { amount: 0, count: 0 };
-                    halfSangam.items[num].amount += amount;
-                    halfSangam.items[num].count += 1;
-                    halfSangam.totalAmount += amount;
-                    halfSangam.totalBets += 1;
+                    if (!stats.halfSangam.items[num]) stats.halfSangam.items[num] = { amount: 0, count: 0 };
+                    stats.halfSangam.items[num].amount += amount;
+                    stats.halfSangam.items[num].count += 1;
+                    stats.halfSangam.totalAmount += amount;
+                    stats.halfSangam.totalBets += 1;
                 }
-            } else if (type === 'full-sangam') {
+                return;
+            }
+
+            if (type === 'full-sangam') {
                 const parts = num.split('-').map((p) => (p || '').trim());
                 const a = parts[0] || '';
                 const b = parts[1] || '';
                 if (/^[0-9]{3}$/.test(a) && /^[0-9]{3}$/.test(b)) {
-                    if (!fullSangam.items[num]) fullSangam.items[num] = { amount: 0, count: 0 };
-                    fullSangam.items[num].amount += amount;
-                    fullSangam.items[num].count += 1;
-                    fullSangam.totalAmount += amount;
-                    fullSangam.totalBets += 1;
+                    if (!stats.fullSangam.items[num]) stats.fullSangam.items[num] = { amount: 0, count: 0 };
+                    stats.fullSangam.items[num].amount += amount;
+                    stats.fullSangam.items[num].count += 1;
+                    stats.fullSangam.totalAmount += amount;
+                    stats.fullSangam.totalBets += 1;
                 }
             }
+        };
+
+        const allStats = makeEmpty();
+        const openStats = makeEmpty();
+        const closeStats = makeEmpty();
+
+        const parseHHMM = (t) => {
+            const s = String(t || '').trim();
+            const m = s.match(/^(\d{1,2}):(\d{2})/);
+            if (!m) return null;
+            const hh = Number(m[1]);
+            const mm = Number(m[2]);
+            if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+            return hh * 60 + mm;
+        };
+
+        const minutesIST = (dt) => {
+            try {
+                const hhmm = new Date(dt).toLocaleTimeString('en-GB', {
+                    timeZone: 'Asia/Kolkata',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                });
+                const [hh, mm] = String(hhmm).split(':');
+                const h = Number(hh);
+                const m = Number(mm);
+                if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+                return h * 60 + m;
+            } catch {
+                return null;
+            }
+        };
+
+        const startMin = parseHHMM(market.startingTime);
+
+        for (const b of bets) {
+            applyBet(allStats, b);
+            let session = (b?.betOn === 'close') ? 'close' : (b?.betOn === 'open' ? 'open' : null);
+            // Backfill for older bets: infer from bet time (IST) vs market starting time
+            if (!session && startMin != null && b?.createdAt) {
+                const betMin = minutesIST(b.createdAt);
+                if (betMin != null) {
+                    session = betMin < startMin ? 'open' : 'close';
+                }
+            }
+            if (!session) session = 'open';
+            applyBet(session === 'close' ? closeStats : openStats, b);
         }
 
         res.status(200).json({
@@ -848,13 +913,11 @@ export const getMarketStats = async (req, res) => {
                     startingTime: market.startingTime,
                     closingTime: market.closingTime,
                 },
-                singleDigit,
-                jodi,
-                singlePatti,
-                doublePatti,
-                triplePatti,
-                halfSangam,
-                fullSangam,
+                ...allStats,
+                bySession: {
+                    open: openStats,
+                    close: closeStats,
+                },
             },
         });
     } catch (error) {
@@ -885,7 +948,8 @@ export const getSinglePattiSummary = async (req, res) => {
             const end = new Date(date); end.setHours(23, 59, 59, 999);
             matchFilter.createdAt = { $gte: start, $lte: end };
         }
-        if (session) matchFilter.session = session;
+        // Back-compat: older callers used `session=`; bets store `betOn` ('open' | 'close')
+        if (session) matchFilter.betOn = session;
 
         const bets = await Bet.find(matchFilter).select('betType betNumber amount').lean();
         const summary = buildSinglePattiFirstDigitSummary(bets);

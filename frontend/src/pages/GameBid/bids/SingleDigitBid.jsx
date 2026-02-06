@@ -242,6 +242,7 @@ const SingleDigitBid = ({ market, title }) => {
             betType: 'single',
             betNumber: String(b.number),
             amount: Number(b.points) || 0,
+            betOn: String(b?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',
         }));
         
         // Check if date is in the future (scheduled bet)

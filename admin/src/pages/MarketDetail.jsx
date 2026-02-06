@@ -577,16 +577,18 @@ const MarketDetail = () => {
     const doublePattiByAnk = useMemo(() => buildDoublePattiByAnk(data?.doublePatti?.items), [data?.doublePatti?.items]);
     const doublePattiTotals = useMemo(() => getDoublePattiTotalsFromByAnk(doublePattiByAnk), [doublePattiByAnk]);
 
-    // View-dependent data: open view = open-type sections have data, closed-type blank; closed view = opposite
-    const singlePattiByAnkForView = useMemo(
-        () => buildSinglePattiByAnk(statusView === 'open' ? data?.singlePatti?.items : {}),
-        [data?.singlePatti?.items, statusView]
-    );
+    // Session-aware view stats (new API returns bySession.open/close; fallback to overall stats).
+    const statsOpen = data?.bySession?.open || data;
+    const statsClose = data?.bySession?.close || data;
+    const viewStats = statusView === 'open' ? statsOpen : statsClose;
+
+    const viewSinglePattiItems = viewStats?.singlePatti?.items || {};
+    const viewDoublePattiItems = viewStats?.doublePatti?.items || {};
+
+    // View-dependent data (Open/Closed): build same user-side grouping, but from view session items
+    const singlePattiByAnkForView = useMemo(() => buildSinglePattiByAnk(viewSinglePattiItems), [viewSinglePattiItems]);
     const singlePattiTotalsForView = useMemo(() => getSinglePattiTotalsFromByAnk(singlePattiByAnkForView), [singlePattiByAnkForView]);
-    const doublePattiByAnkForView = useMemo(
-        () => buildDoublePattiByAnk(statusView === 'open' ? data?.doublePatti?.items : {}),
-        [data?.doublePatti?.items, statusView]
-    );
+    const doublePattiByAnkForView = useMemo(() => buildDoublePattiByAnk(viewDoublePattiItems), [viewDoublePattiItems]);
     const doublePattiTotalsForView = useMemo(() => getDoublePattiTotalsFromByAnk(doublePattiByAnkForView), [doublePattiByAnkForView]);
 
     // Sanity check: Ank grouping matches user side
@@ -662,14 +664,14 @@ const MarketDetail = () => {
         (halfSangam?.totalBets ?? 0) +
         (fullSangam?.totalBets ?? 0);
 
-    // Section data by view: open view shows open-type data, closed view shows closed-type data; other is blank
-    const singleDigitDisplay = statusView === 'open' ? singleDigit : { digits: {}, totalAmount: 0, totalBets: 0 };
-    const jodiDisplay = jodi;
-    const triplePattiDisplay = statusView === 'open' ? triplePatti : { items: {}, totalAmount: 0, totalBets: 0 };
-    const halfSangamDisplay = halfSangam;
-    const fullSangamDisplay = fullSangam;
+    // Section data by view (Open/Closed): show session-specific bets in all sections
+    const singleDigitDisplay = viewStats?.singleDigit || { digits: {}, totalAmount: 0, totalBets: 0 };
+    const jodiDisplay = viewStats?.jodi || { items: {}, totalAmount: 0, totalBets: 0 };
+    const triplePattiDisplay = viewStats?.triplePatti || { items: {}, totalAmount: 0, totalBets: 0 };
+    const halfSangamDisplay = viewStats?.halfSangam || { items: {}, totalAmount: 0, totalBets: 0 };
+    const fullSangamDisplay = viewStats?.fullSangam || { items: {}, totalAmount: 0, totalBets: 0 };
 
-    // Open view: Single Digit, Single Patti, Double Patti, Triple Patti, Half Sangam. Do not include Jodi or Full Sangam.
+    // Open view: Single Digit, Single Patti, Double Patti, Triple Patti, Half Sangam
     const openTotalAmount =
         (singleDigitDisplay?.totalAmount ?? 0) +
         (singlePattiTotalsForView?.totalAmount ?? 0) +
@@ -682,9 +684,21 @@ const MarketDetail = () => {
         (doublePattiTotalsForView?.totalBets ?? 0) +
         (triplePattiDisplay?.totalBets ?? 0) +
         (halfSangamDisplay?.totalBets ?? 0);
-    // Closed view: Total = Jodi + Full Sangam only (Half Sangam is not in closed view)
-    const closedTotalAmount = (jodiDisplay?.totalAmount ?? 0) + (fullSangamDisplay?.totalAmount ?? 0);
-    const closedTotalBets = (jodiDisplay?.totalBets ?? 0) + (fullSangamDisplay?.totalBets ?? 0);
+    // Closed view: show close bets totals in all key games (as requested)
+    const closedTotalAmount =
+        (singleDigitDisplay?.totalAmount ?? 0) +
+        (jodiDisplay?.totalAmount ?? 0) +
+        (singlePattiTotalsForView?.totalAmount ?? 0) +
+        (doublePattiTotalsForView?.totalAmount ?? 0) +
+        (triplePattiDisplay?.totalAmount ?? 0) +
+        (fullSangamDisplay?.totalAmount ?? 0);
+    const closedTotalBets =
+        (singleDigitDisplay?.totalBets ?? 0) +
+        (jodiDisplay?.totalBets ?? 0) +
+        (singlePattiTotalsForView?.totalBets ?? 0) +
+        (doublePattiTotalsForView?.totalBets ?? 0) +
+        (triplePattiDisplay?.totalBets ?? 0) +
+        (fullSangamDisplay?.totalBets ?? 0);
     const displayAmount = statusView === 'open' ? openTotalAmount : closedTotalAmount;
     const displayBets = statusView === 'open' ? openTotalBets : closedTotalBets;
 

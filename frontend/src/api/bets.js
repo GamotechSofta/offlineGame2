@@ -26,6 +26,19 @@ export async function placeBet(marketId, bets, scheduledDate = null) {
     return { success: false, message: 'Please log in to place a bet' };
   }
 
+  const normalizeBetOn = (v) => {
+    const s = String(v ?? '').trim().toLowerCase();
+    if (!s) return undefined;
+    if (s === 'open') return 'open';
+    if (s === 'close' || s === 'closed') return 'close';
+    if (s === 'openbet') return 'open';
+    if (s === 'closebet') return 'close';
+    // UI strings
+    if (s === 'open') return 'open';
+    if (s === 'close') return 'close';
+    return undefined;
+  };
+
   const payload = {
     userId,
     marketId,
@@ -33,6 +46,8 @@ export async function placeBet(marketId, bets, scheduledDate = null) {
       betType: b.betType,
       betNumber: String(b.betNumber).trim(),
       amount: Number(b.amount) || 0,
+      // optional: session selection ('open' | 'close') for admin open/close views
+      betOn: normalizeBetOn(b.betOn) || normalizeBetOn(b.session) || normalizeBetOn(b.type),
     })),
   };
 

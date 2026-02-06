@@ -115,6 +115,7 @@ const TriplePanaBid = ({ market, title }) => {
             betType: 'panna',
             betNumber: String(b.number),
             amount: Number(b.points) || 0,
+            betOn: String(b?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',
         }));
         
         // Check if date is in the future (scheduled bet)

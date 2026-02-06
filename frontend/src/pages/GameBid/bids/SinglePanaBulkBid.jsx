@@ -133,6 +133,7 @@ const SinglePanaBulkBid = ({ market, title }) => {
             betType: 'panna',
             betNumber: String(r.number),
             amount: Number(r.points) || 0,
+            betOn: String(r?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',
         }));
         
         // Check if date is in the future (scheduled bet)

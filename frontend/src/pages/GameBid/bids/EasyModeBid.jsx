@@ -534,6 +534,7 @@ const EasyModeBid = ({
             betType,
             betNumber: String(r?.number ?? '').trim(),
             amount: Number(r?.points) || 0,
+            betOn: String(r?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',
         })).filter((b) => b.betNumber && b.amount > 0);
         if (!payload.length) throw new Error('No valid bets to place');
         

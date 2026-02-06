@@ -6,6 +6,22 @@ import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingAllowed } from '../utils/marketTiming.js';
 
 const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'half-sangam', 'full-sangam'];
+const THREE_DIGITS = /^\d{3}$/;
+
+const normalizeBetOn = (v) => {
+    const s = String(v ?? '').trim().toLowerCase();
+    if (!s) return null;
+    if (s === 'open') return 'open';
+    if (s === 'close' || s === 'closed') return 'close';
+    if (s === 'o') return 'open';
+    if (s === 'c') return 'close';
+    if (s === 'openbet') return 'open';
+    if (s === 'closebet') return 'close';
+    // Also accept UI strings
+    if (s === 'open ') return 'open';
+    if (s === 'close ') return 'close';
+    return null;
+};
 
 /**
  * Place bets (user-facing). Body: { userId, marketId, bets: [ { betType, betNumber, amount } ] }
@@ -39,6 +55,14 @@ export const placeBet = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
 
+        // Determine default session for bets (open vs close).
+        // For main markets: if opening is declared, bets are "close" session; else "open".
+        // For startline: single result market; treat as "open".
+        const defaultBetOn =
+            market?.marketType === 'startline'
+                ? 'open'
+                : (market?.openingNumber && THREE_DIGITS.test(String(market.openingNumber)) ? 'close' : 'open');
+
         const timing = isBettingAllowed(market);
         if (!timing.allowed) {
             return res.status(400).json({
@@ -54,6 +78,12 @@ export const placeBet = async (req, res) => {
             const betType = (b.betType || '').toString().trim().toLowerCase();
             const betNumber = (b.betNumber || '').toString().trim();
             const amount = Number(b.amount);
+            const betOnOverride =
+                normalizeBetOn(b.betOn) ||
+                normalizeBetOn(b.session) ||
+                // some UI code may send `type: 'OPEN' | 'CLOSE'`
+                normalizeBetOn(b.type);
+            const betOn = betOnOverride || defaultBetOn;
             if (!VALID_BET_TYPES.includes(betType) || !betNumber || !Number.isFinite(amount) || amount <= 0) {
                 return res.status(400).json({
                     success: false,
@@ -61,7 +91,7 @@ export const placeBet = async (req, res) => {
                 });
             }
             totalAmount += amount;
-            sanitized.push({ betType, betNumber, amount });
+            sanitized.push({ betType, betNumber, amount, betOn });
         }
 
         let wallet = await Wallet.findOne({ userId });
@@ -106,10 +136,11 @@ export const placeBet = async (req, res) => {
 
         const betIds = [];
         const createdBets = [];
-        for (const { betType, betNumber, amount } of sanitized) {
+        for (const { betType, betNumber, amount, betOn } of sanitized) {
             const bet = await Bet.create({
                 userId,
                 marketId,
+                betOn,
                 betType,
                 betNumber,
                 amount,

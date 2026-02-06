@@ -11,6 +11,16 @@ const betSchema = new mongoose.Schema({
         ref: 'Market',
         required: true,
     },
+    /**
+     * Which session the bet was placed on.
+     * - 'open': before opening result is declared
+     * - 'close': after opening result is declared (market running)
+     */
+    betOn: {
+        type: String,
+        enum: ['open', 'close'],
+        default: 'open',
+    },
     betType: {
         type: String,
         required: true,
