@@ -107,17 +107,22 @@ html {
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
   background: #000;
+  height: 100%;
 }
 
 body {
   overflow-x: hidden;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
   padding-bottom: env(safe-area-inset-bottom, 0);
   background: #000;
+  position: relative;
 }
 
 #root {
   background: #000;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
 }
 
 /* Mobile optimizations */

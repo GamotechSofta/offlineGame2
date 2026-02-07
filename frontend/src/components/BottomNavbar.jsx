@@ -95,8 +95,12 @@ const BottomNavbar = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden px-3 pt-1"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden pt-1"
+      style={{
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+        paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
+        paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
+      }}
     >
       <div className="bg-black rounded-3xl border border-gray-700 shadow-[0_4px_20px_rgba(0,0,0,0.4)] flex items-end justify-around px-1 py-2 min-h-[64px]">
         {navItems.map((item) => {

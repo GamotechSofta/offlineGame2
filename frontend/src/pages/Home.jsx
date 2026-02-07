@@ -6,7 +6,7 @@ import Section1 from '../components/Section1';
 
 const Home = () => {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen min-h-ios-screen bg-[#0a0a0a] w-full max-w-full overflow-x-hidden">
       {/* Mobile View - WalletSection */}
       <div className="md:hidden">
         <WalletSection />

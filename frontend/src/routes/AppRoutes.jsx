@@ -76,7 +76,7 @@ const Layout = ({ children }) => {
   // Same header (logoipsum, Download App, bell) for all pages - mobile-style
   if (isHomePage) {
     return (
-      <div className="min-h-screen pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0 bg-black">
+      <div className="min-h-screen min-h-ios-screen pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0 bg-black w-full">
         <AppHeader />
         <div className="pt-[calc(72px+env(safe-area-inset-top,0px))] sm:pt-[calc(76px+env(safe-area-inset-top,0px))] md:pt-[calc(88px+env(safe-area-inset-top,0px))]">
           {children}
@@ -109,7 +109,7 @@ const Layout = ({ children }) => {
     location.pathname === '/bet-history' || location.pathname === '/market-result-history';
 
   return (
-    <div className={`min-h-screen pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0 w-full max-w-full overflow-x-hidden ${isDarkPage ? 'bg-black' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen min-h-ios-screen pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0 w-full max-w-full overflow-x-hidden ${isDarkPage ? 'bg-black' : 'bg-gray-50'}`}>
       <AppHeader />
       {/* Reduce mobile top-gap under fixed header */}
       {/* Desktop: ensure no overlap under fixed header */}
