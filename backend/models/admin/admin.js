@@ -45,22 +45,37 @@ const adminSchema = new mongoose.Schema({
         min: 0,
         max: 100,
     },
+    /** Super admin only: Secret password required when declaring result (Confirm & Declare). Optional – if not set, no extra check. */
+    secretDeclarePassword: {
+        type: String,
+        default: null,
+        select: false,
+    },
 }, {
     timestamps: true,
 });
 
 // Hash password before saving
 adminSchema.pre('save', async function () {
-    if (!this.isModified('password')) {
-        return;
+    if (this.isModified('password')) {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
     }
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    if (this.isModified('secretDeclarePassword') && this.secretDeclarePassword) {
+        const salt = await bcrypt.genSalt(10);
+        this.secretDeclarePassword = await bcrypt.hash(this.secretDeclarePassword, salt);
+    }
 });
 
 // Method to compare password
 adminSchema.methods.comparePassword = async function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Method to compare secret declare password (super_admin only)
+adminSchema.methods.compareSecretDeclarePassword = async function (candidatePassword) {
+    if (!this.secretDeclarePassword) return false;
+    return bcrypt.compare(candidatePassword, this.secretDeclarePassword);
 };
 
 const Admin = mongoose.model('Admin', adminSchema);

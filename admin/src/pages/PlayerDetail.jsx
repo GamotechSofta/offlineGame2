@@ -267,28 +267,62 @@ const PlayerDetail = () => {
         if (activeTab === 'statement') fetchStatement();
     };
 
-    const handleTogglePlayerStatus = async () => {
+    const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [secretPassword, setSecretPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [pendingAction, setPendingAction] = useState(null);
+
+    useEffect(() => {
+        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
+            .then((res) => res.json())
+            .then((json) => {
+                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+            })
+            .catch(() => setHasSecretDeclarePassword(false));
+    }, []);
+
+    const performTogglePlayerStatus = async (secretDeclarePasswordValue) => {
         if (!userId) return;
         setTogglingStatus(true);
         setToggleMessage('');
         setError('');
+        setPasswordError('');
         try {
-            const res = await fetch(`${API_BASE_URL}/users/${userId}/toggle-status`, {
-                method: 'PATCH',
-                headers: getAuthHeaders(),
-            });
+            const opts = { method: 'PATCH', headers: getAuthHeaders() };
+            if (secretDeclarePasswordValue) opts.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
+            const res = await fetch(`${API_BASE_URL}/users/${userId}/toggle-status`, opts);
             const data = await res.json();
             if (data.success) {
+                setShowPasswordModal(false);
+                setPendingAction(null);
+                setSecretPassword('');
                 setToggleMessage(data.data.isActive ? 'Player unsuspended successfully' : 'Player suspended successfully');
                 fetchPlayer();
                 setTimeout(() => setToggleMessage(''), 3000);
             } else {
-                setToggleMessage(data.message || 'Failed to update status');
+                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    setPasswordError(data.message || 'Invalid secret password');
+                } else {
+                    setToggleMessage(data.message || 'Failed to update status');
+                }
             }
         } catch (err) {
             setToggleMessage('Network error. Please try again.');
         } finally {
             setTogglingStatus(false);
+        }
+    };
+
+    const handleTogglePlayerStatus = () => {
+        if (!userId) return;
+        if (hasSecretDeclarePassword) {
+            setPendingAction('suspend');
+            setShowPasswordModal(true);
+            setSecretPassword('');
+            setPasswordError('');
+        } else {
+            performTogglePlayerStatus('');
         }
     };
 
@@ -368,29 +402,57 @@ const PlayerDetail = () => {
         }
     };
 
-    const handleDeletePlayer = async () => {
+    const performDeletePlayer = async (secretDeclarePasswordValue) => {
         if (!userId || !player?.username) return;
-        if (!window.confirm(`Delete player "${player.username}"? This will remove their account and wallet. This cannot be undone.`)) {
-            return;
-        }
+        if (!window.confirm(`Delete player "${player.username}"? This will remove their account and wallet. This cannot be undone.`)) return;
         setDeletingPlayer(true);
         setError('');
+        setPasswordError('');
         try {
-            const res = await fetch(`${API_BASE_URL}/users/${userId}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders(),
-            });
+            const opts = { method: 'DELETE', headers: getAuthHeaders() };
+            if (secretDeclarePasswordValue) opts.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
+            const res = await fetch(`${API_BASE_URL}/users/${userId}`, opts);
             const data = await res.json();
             if (data.success) {
+                setShowPasswordModal(false);
+                setPendingAction(null);
+                setSecretPassword('');
                 navigate('/all-users');
             } else {
-                setError(data.message || 'Failed to delete player');
+                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    setPasswordError(data.message || 'Invalid secret password');
+                } else {
+                    setError(data.message || 'Failed to delete player');
+                }
             }
         } catch (err) {
             setError('Network error. Please try again.');
         } finally {
             setDeletingPlayer(false);
         }
+    };
+
+    const handleDeletePlayer = () => {
+        if (!userId || !player?.username) return;
+        if (hasSecretDeclarePassword) {
+            setPendingAction('delete');
+            setShowPasswordModal(true);
+            setSecretPassword('');
+            setPasswordError('');
+        } else {
+            performDeletePlayer('');
+        }
+    };
+
+    const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        const val = secretPassword.trim();
+        if (hasSecretDeclarePassword && !val) {
+            setPasswordError('Please enter the secret declare password');
+            return;
+        }
+        if (pendingAction === 'suspend') performTogglePlayerStatus(val);
+        else if (pendingAction === 'delete') performDeletePlayer(val);
     };
 
     const formatCurrency = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
@@ -783,6 +845,42 @@ const PlayerDetail = () => {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Secret password modal for suspend/delete */}
+            {showPasswordModal && (pendingAction === 'suspend' || pendingAction === 'delete') && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60">
+                    <div className="bg-gray-800 rounded-xl border border-gray-600 shadow-xl w-full max-w-md">
+                        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-yellow-500">
+                                {pendingAction === 'suspend' ? 'Confirm Suspend/Unsuspend' : 'Confirm Delete'}
+                            </h3>
+                            <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="text-gray-400 hover:text-white p-1">×</button>
+                        </div>
+                        <form onSubmit={handlePasswordSubmit} className="p-4 space-y-4">
+                            <p className="text-gray-300 text-sm">
+                                {pendingAction === 'suspend' ? 'Enter secret declare password to suspend/unsuspend this player.' : 'Enter secret declare password to delete this player.'}
+                            </p>
+                            <input
+                                type="password"
+                                placeholder="Secret declare password"
+                                value={secretPassword}
+                                onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
+                                className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500"
+                                autoFocus
+                            />
+                            {passwordError && (
+                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-200 text-sm px-3 py-2">{passwordError}</div>
+                            )}
+                            <div className="flex gap-2 justify-end">
+                                <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold">Cancel</button>
+                                <button type="submit" disabled={togglingStatus || deletingPlayer} className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-black font-semibold disabled:opacity-50">
+                                    {togglingStatus || deletingPlayer ? <span className="animate-spin">⏳</span> : 'Confirm'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

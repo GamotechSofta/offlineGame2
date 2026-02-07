@@ -12,7 +12,6 @@ import Wallet from './pages/Wallet';
 import HelpDesk from './pages/HelpDesk';
 import Logs from './pages/Logs';
 import BookieManagement from './pages/BookieManagement';
-import CommissionManagement from './pages/CommissionManagement';
 import AllUsers from './pages/AllUsers';
 import PlayerDetail from './pages/PlayerDetail';
 import PlayerDevices from './pages/PlayerDevices';
@@ -21,6 +20,7 @@ import DeclareConfirm from './pages/DeclareConfirm';
 import UpdateRate from './pages/UpdateRate';
 import MarketDetail from './pages/MarketDetail';
 import StartlineMarkets from './pages/StartlineMarkets';
+import Settings from './pages/Settings';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -203,10 +203,10 @@ const App = () => {
                     }
                 />
                 <Route
-                    path="/commission-management"
+                    path="/settings"
                     element={
                         <PrivateRoute>
-                            <CommissionManagement />
+                            <Settings />
                         </PrivateRoute>
                     }
                 />

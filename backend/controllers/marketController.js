@@ -1,12 +1,14 @@
 import Market from '../models/market/market.js';
 import Bet from '../models/bet/bet.js';
 import User from '../models/user/user.js';
+import Admin from '../models/admin/admin.js';
 import MarketResult from '../models/marketResult/marketResult.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isSinglePatti, buildSinglePattiFirstDigitSummary } from '../utils/singlePattiUtils.js';
 import { previewDeclareOpen, previewDeclareClose, settleOpening, settleClosing, getWinningBetsForOpen, getWinningBetsForClose } from '../utils/settleBets.js';
 import { ensureResultsResetForNewDay } from '../utils/resultReset.js';
+import bcrypt from 'bcryptjs';
 
 const toDateKeyIST = (d = new Date()) => {
     return new Intl.DateTimeFormat('en-CA', {
@@ -462,10 +464,22 @@ export const previewDeclareOpenResult = async (req, res) => {
 
 /**
  * Declare open result: set opening number and settle single + panna bets.
- * Body: { openingNumber: "156" }
+ * Body: { openingNumber: "156", secretDeclarePassword?: string } – secret required if admin has it set
  */
 export const declareOpenResult = async (req, res) => {
     try {
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password. Please enter the correct password to declare.',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
         const { id: marketId } = req.params;
         const { openingNumber } = req.body;
         const openVal = (openingNumber ?? '').toString().trim();
@@ -597,10 +611,22 @@ export const getWinningBetsPreview = async (req, res) => {
 
 /**
  * Declare close result: set closing number and settle jodi, half-sangam, full-sangam.
- * Body: { closingNumber: "456" }
+ * Body: { closingNumber: "456", secretDeclarePassword?: string } – secret required if admin has it set
  */
 export const declareCloseResult = async (req, res) => {
     try {
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password. Please enter the correct password to declare.',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
         const { id: marketId } = req.params;
         const { closingNumber } = req.body;
         const closeVal = (closingNumber ?? '').toString().trim();
@@ -989,9 +1015,22 @@ export const getSinglePattiSummary = async (req, res) => {
 
 /**
  * Delete a market.
+ * Body: { secretDeclarePassword?: string } – required if admin has it set
  */
 export const deleteMarket = async (req, res) => {
     try {
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password. Please enter the correct password to delete the market.',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
         const { id } = req.params;
         const market = await Market.findById(id);
         if (!market) {

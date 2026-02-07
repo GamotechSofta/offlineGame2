@@ -29,7 +29,20 @@ const StartlineMarkets = () => {
     const [checkLoading, setCheckLoading] = useState(false);
     const [declareLoading, setDeclareLoading] = useState(false);
     const [clearLoading, setClearLoading] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [secretPassword, setSecretPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
+            .then((res) => res.json())
+            .then((json) => {
+                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+            })
+            .catch(() => setHasSecretDeclarePassword(false));
+    }, []);
 
     const startlineMarkets = (markets || []).filter((m) => m.marketType === 'startline');
 
@@ -148,7 +161,7 @@ const StartlineMarkets = () => {
         }
     };
 
-    const handleDeclareOpen = async () => {
+    const performDeclareOpen = async (secretDeclarePasswordValue) => {
         if (!selectedResultMarket) return;
         const val = openPatti.replace(/\D/g, '').slice(0, 3);
         if (val.length !== 3) {
@@ -156,25 +169,60 @@ const StartlineMarkets = () => {
             return;
         }
         setDeclareLoading(true);
+        setPasswordError('');
         try {
+            const body = { openingNumber: val };
+            if (secretDeclarePasswordValue) body.secretDeclarePassword = secretDeclarePasswordValue;
             const res = await fetch(`${API_BASE_URL}/markets/declare-open/${selectedResultMarket._id}`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ openingNumber: val }),
+                body: JSON.stringify(body),
             });
             const data = await res.json();
             if (data.success) {
+                setShowPasswordModal(false);
+                setSecretPassword('');
                 setSelectedResultMarket((prev) => (prev ? { ...prev, openingNumber: val } : null));
                 setOpenPatti(val);
                 fetchMarkets();
             } else {
-                alert(data.message || 'Failed to declare result');
+                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    setPasswordError(data.message || 'Invalid secret password');
+                } else {
+                    alert(data.message || 'Failed to declare result');
+                }
             }
         } catch {
             alert('Network error');
         } finally {
             setDeclareLoading(false);
         }
+    };
+
+    const handleDeclareOpen = () => {
+        if (!selectedResultMarket) return;
+        const val = openPatti.replace(/\D/g, '').slice(0, 3);
+        if (val.length !== 3) {
+            alert('Please enter a 3-digit Open Patti.');
+            return;
+        }
+        if (hasSecretDeclarePassword) {
+            setShowPasswordModal(true);
+            setSecretPassword('');
+            setPasswordError('');
+        } else {
+            performDeclareOpen('');
+        }
+    };
+
+    const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        const val = secretPassword.trim();
+        if (hasSecretDeclarePassword && !val) {
+            setPasswordError('Please enter the secret declare password');
+            return;
+        }
+        performDeclareOpen(val);
     };
 
     const handleClearResult = async () => {
@@ -390,6 +438,46 @@ const StartlineMarkets = () => {
                                 >
                                     Close
                                 </button>
+                            </div>
+                        )}
+
+                        {/* Secret declare password modal */}
+                        {showPasswordModal && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                                <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-xl max-w-md w-full p-6">
+                                    <h3 className="text-lg font-bold text-yellow-500 mb-2">Enter Secret Declare Password</h3>
+                                    <p className="text-gray-400 text-sm mb-4">
+                                        Please enter the secret password to declare this result.
+                                    </p>
+                                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                                        <input
+                                            type="password"
+                                            value={secretPassword}
+                                            onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
+                                            placeholder="Secret password"
+                                            autoFocus
+                                            className="w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                                        />
+                                        {passwordError && <p className="text-red-400 text-sm">{passwordError}</p>}
+                                        <div className="flex gap-3">
+                                            <button
+                                                type="submit"
+                                                disabled={declareLoading}
+                                                className="flex-1 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg disabled:opacity-50"
+                                            >
+                                                {declareLoading ? 'Declaring...' : 'Declare Result'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setShowPasswordModal(false); setSecretPassword(''); setPasswordError(''); }}
+                                                disabled={declareLoading}
+                                                className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg border border-gray-600"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         )}
                     </div>

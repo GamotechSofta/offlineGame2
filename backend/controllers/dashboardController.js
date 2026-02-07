@@ -2,9 +2,12 @@ import Bet from '../models/bet/bet.js';
 import Payment from '../models/payment/payment.js';
 import User from '../models/user/user.js';
 import Market from '../models/market/market.js';
+import Admin from '../models/admin/admin.js';
+import CommissionRequest from '../models/commission/commission.js';
 import { Wallet } from '../models/wallet/wallet.js';
 import HelpDesk from '../models/helpDesk/helpDesk.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { isBettingClosed } from '../utils/marketTiming.js';
 
 /** Parse from/to query (YYYY-MM-DD). Default to today if missing. Returns { start, end } in UTC-like range for DB. */
 function getDateRange(fromStr, toStr) {
@@ -82,6 +85,49 @@ export const getDashboardStats = async (req, res) => {
         // All-time payment counts (for reference)
         const totalPayments = await Payment.countDocuments(paymentFilter);
         const pendingPayments = await Payment.countDocuments({ status: 'pending', ...paymentFilter });
+        const pendingDeposits = await Payment.countDocuments({ type: 'deposit', status: 'pending', ...paymentFilter });
+        const pendingWithdrawals = await Payment.countDocuments({ type: 'withdrawal', status: 'pending', ...paymentFilter });
+
+        // Markets by type (main vs starline)
+        const mainMarkets = await Market.countDocuments({ marketType: { $ne: 'startline' } });
+        const starlineMarkets = await Market.countDocuments({ marketType: 'startline' });
+        const allMarketsForOpen = await Market.find();
+        let openMainMarkets = 0;
+        let openStarlineMarkets = 0;
+        for (const m of allMarketsForOpen) {
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            const startTime = parseTimeToMinutes(m.startingTime);
+            const endTime = parseTimeToMinutes(m.closingTime);
+            if (startTime && endTime && currentTime >= startTime && currentTime <= endTime) {
+                if (m.marketType === 'startline') openStarlineMarkets++;
+                else openMainMarkets++;
+            }
+        }
+
+        // Markets pending result (betting closed but result not declared)
+        const now = new Date();
+        const marketsPendingResultList = [];
+        for (const m of allMarketsForOpen) {
+            if (!isBettingClosed(m, now)) continue;
+            const isStarline = m.marketType === 'startline';
+            const needsResult = isStarline
+                ? !(m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)))
+                : !(m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) && m.closingNumber && /^\d{3}$/.test(String(m.closingNumber)));
+            if (needsResult) {
+                marketsPendingResultList.push({ _id: m._id, marketName: m.marketName, marketType: m.marketType || 'main' });
+            }
+        }
+        const marketsPendingResult = marketsPendingResultList.length;
+
+        // Bookies & Commission (super_admin only – when bookieUserIds is null)
+        let bookies = { total: 0, active: 0 };
+        let commissionPending = 0;
+        if (bookieUserIds === null && req.admin?.role === 'super_admin') {
+            bookies.total = await Admin.countDocuments({ role: 'bookie' });
+            bookies.active = await Admin.countDocuments({ role: 'bookie', status: 'active' });
+            commissionPending = await CommissionRequest.countDocuments({ status: 'pending' });
+        }
 
         // Wallet & Help Desk (all-time)
         const totalWalletBalance = await Wallet.aggregate([
@@ -111,6 +157,10 @@ export const getDashboardStats = async (req, res) => {
                 markets: {
                     total: totalMarkets,
                     open: openMarkets,
+                    main: mainMarkets,
+                    starline: starlineMarkets,
+                    openMain: openMainMarkets,
+                    openStarline: openStarlineMarkets,
                 },
                 revenue: {
                     total: revenue,
@@ -133,6 +183,8 @@ export const getDashboardStats = async (req, res) => {
                 payments: {
                     total: totalPayments,
                     pending: pendingPayments,
+                    pendingDeposits,
+                    pendingWithdrawals,
                     totalDeposits: totalDeposits[0]?.total || 0,
                     totalWithdrawals: totalWithdrawals[0]?.total || 0,
                 },
@@ -144,6 +196,10 @@ export const getDashboardStats = async (req, res) => {
                     open: openTickets,
                     inProgress: inProgressTickets,
                 },
+                bookies,
+                commissionPending,
+                marketsPendingResult,
+                marketsPendingResultList,
             },
         });
     } catch (error) {

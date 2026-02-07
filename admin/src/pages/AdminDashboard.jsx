@@ -1,9 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import { useNavigate } from 'react-router-dom';
-import { SkeletonCard, LoadingOverlay } from '../components/Skeleton';
-import StatCard from '../components/StatCard';
-import { FaChartLine, FaUsers, FaMoneyBillWave, FaChartBar, FaSyncAlt } from 'react-icons/fa';
+import { useNavigate, Link } from 'react-router-dom';
+import { SkeletonCard } from '../components/Skeleton';
+import {
+    FaChartLine,
+    FaUsers,
+    FaMoneyBillWave,
+    FaChartBar,
+    FaSyncAlt,
+    FaWallet,
+    FaCreditCard,
+    FaUserFriends,
+    FaStar,
+    FaLifeRing,
+    FaClipboardList,
+    FaArrowRight,
+    FaExclamationTriangle,
+} from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -70,52 +83,35 @@ const formatRangeLabel = (from, to) => {
     return `${a.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${b.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
 };
 
-/** Calendar filter row - same theme as rest of admin (yellow accent) */
-const CalendarFilterRow = ({ datePreset, customMode, onPresetSelect, onCustomToggle, customOpen, customFrom, customTo, onCustomFromChange, onCustomToChange, onCustomApply }) => (
-    <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-            {PRESETS.map((p) => {
-                const isActive = !customMode && datePreset === p.id;
-                return (
-                    <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => onPresetSelect(p.id)}
-                        className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                            isActive
-                                ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/30'
-                                : 'bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-yellow-500/50'
-                        }`}
-                    >
-                        {p.label}
-                    </button>
-                );
-            })}
-            <button
-                type="button"
-                onClick={onCustomToggle}
-                className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                    customMode ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/30' : 'bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-yellow-500/50'
-                }`}
-            >
-                Custom
-            </button>
-        </div>
-        {customOpen && (
-            <div className="flex flex-wrap items-end gap-3 p-3 rounded-xl bg-gray-800/60 border border-gray-600">
-                <div>
-                    <label className="block text-xs text-gray-400 mb-1">From</label>
-                    <input type="date" value={customFrom} onChange={(e) => onCustomFromChange(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50" />
-                </div>
-                <div>
-                    <label className="block text-xs text-gray-400 mb-1">To</label>
-                    <input type="date" value={customTo} onChange={(e) => onCustomToChange(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50" />
-                </div>
-                <button type="button" onClick={onCustomApply} className="px-4 py-2 rounded-lg bg-yellow-500 text-black font-semibold text-sm hover:bg-yellow-400">
-                    Apply
-                </button>
+/** Section card wrapper */
+const SectionCard = ({ title, description, icon: Icon, children, linkTo, linkLabel }) => (
+    <div className="bg-gray-800/80 rounded-xl p-5 sm:p-6 border border-gray-700/80 hover:border-gray-600/80 transition-all">
+        <div className="flex items-start justify-between mb-4">
+            <div>
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    {Icon && <Icon className="w-5 h-5 text-amber-500" />}
+                    {title}
+                </h3>
+                {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
             </div>
-        )}
+            {linkTo && (
+                <Link to={linkTo} className="text-xs font-medium text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                    {linkLabel || 'View'} <FaArrowRight className="w-3 h-3" />
+                </Link>
+            )}
+        </div>
+        {children}
+    </div>
+);
+
+/** Stat row */
+const StatRow = ({ label, value, subValue, colorClass = 'text-white' }) => (
+    <div className="flex justify-between items-center py-2.5 border-b border-gray-700/50 last:border-0">
+        <span className="text-sm text-gray-400">{label}</span>
+        <div className="text-right">
+            <span className={`font-semibold font-mono ${colorClass}`}>{value}</span>
+            {subValue && <span className="text-xs text-gray-500 ml-2">{subValue}</span>}
+        </div>
     </div>
 );
 
@@ -130,17 +126,12 @@ const AdminDashboard = () => {
     const [customMode, setCustomMode] = useState(false);
     const [customOpen, setCustomOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [adminRole, setAdminRole] = useState('');
 
     const getFromTo = () => {
         if (customMode && customFrom && customTo) return { from: customFrom, to: customTo };
         const preset = PRESETS.find((p) => p.id === datePreset);
         return preset ? preset.getRange() : PRESETS[0].getRange();
-    };
-
-    const getDisplayLabel = () => {
-        if (customMode && customFrom && customTo) return formatRangeLabel(customFrom, customTo);
-        const preset = PRESETS.find((p) => p.id === datePreset);
-        return preset ? preset.label : 'Today';
     };
 
     useEffect(() => {
@@ -149,6 +140,10 @@ const AdminDashboard = () => {
             navigate('/');
             return;
         }
+        try {
+            const parsed = JSON.parse(admin);
+            setAdminRole(parsed.role || '');
+        } catch (_) {}
         fetchDashboardStats();
     }, [navigate]);
 
@@ -162,25 +157,17 @@ const AdminDashboard = () => {
             const admin = JSON.parse(localStorage.getItem('admin'));
             const password = sessionStorage.getItem('adminPassword') || '';
             const params = new URLSearchParams();
-            if (from && to) {
-                params.set('from', from);
-                params.set('to', to);
-            }
+            if (from && to) { params.set('from', from); params.set('to', to); }
             if (isRefresh) params.set('_', String(Date.now()));
             const query = params.toString();
             const url = `${API_BASE_URL}/dashboard/stats${query ? `?${query}` : ''}`;
             const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Basic ${btoa(`${admin.username}:${password}`)}`,
-                },
+                headers: { 'Authorization': `Basic ${btoa(`${admin.username}:${password}`)}` },
                 cache: isRefresh ? 'no-store' : 'default',
             });
             const data = await response.json();
-            if (data.success) {
-                setStats(data.data);
-            } else {
-                setError('Failed to fetch dashboard stats');
-            }
+            if (data.success) setStats(data.data);
+            else setError('Failed to fetch dashboard stats');
         } catch (err) {
             setError('Network error. Please check if the server is running.');
         } finally {
@@ -189,10 +176,7 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleRefresh = () => {
-        fetchDashboardStats(undefined, { refresh: true });
-    };
-
+    const handleRefresh = () => fetchDashboardStats(undefined, { refresh: true });
     const handlePresetSelect = (presetId) => {
         setDatePreset(presetId);
         setCustomMode(false);
@@ -201,12 +185,7 @@ const AdminDashboard = () => {
         const range = preset ? preset.getRange() : PRESETS[0].getRange();
         fetchDashboardStats(range);
     };
-
-    const handleCustomToggle = () => {
-        setCustomMode(true);
-        setCustomOpen((o) => !o);
-    };
-
+    const handleCustomToggle = () => { setCustomMode(true); setCustomOpen((o) => !o); };
     const handleCustomApply = () => {
         if (!customFrom || !customTo) return;
         if (new Date(customFrom) > new Date(customTo)) return;
@@ -221,41 +200,28 @@ const AdminDashboard = () => {
         navigate('/');
     };
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
+    const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
+
+    const pendingPayments = stats?.payments?.pending || 0;
+    const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
+    const pendingWithdrawals = stats?.payments?.pendingWithdrawals ?? 0;
+    const helpDeskOpen = stats?.helpDesk?.open || 0;
+    const marketsPendingResult = stats?.marketsPendingResult || 0;
+    const marketsPendingResultList = stats?.marketsPendingResultList || [];
+    const hasActionRequired = pendingPayments > 0 || helpDeskOpen > 0 || marketsPendingResult > 0;
 
     if (loading) {
         return (
             <AdminLayout onLogout={handleLogout} title="Dashboard">
-                <div className="flex flex-col gap-4 mb-6 sm:mb-8">
-                    <h1 className="text-2xl sm:text-3xl font-bold animate-fadeIn">Dashboard Overview</h1>
-                    <CalendarFilterRow
-                        datePreset={datePreset}
-                        customMode={customMode}
-                        onPresetSelect={handlePresetSelect}
-                        onCustomToggle={handleCustomToggle}
-                        customOpen={customOpen}
-                        customFrom={customFrom}
-                        customTo={customTo}
-                        onCustomFromChange={setCustomFrom}
-                        onCustomToChange={setCustomTo}
-                        onCustomApply={handleCustomApply}
-                    />
+                <div className="mb-6">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-white">Dashboard Overview</h1>
+                    <p className="text-gray-400 text-sm mt-2">Loading your admin overview...</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                    {[...Array(4)].map((_, i) => (
-                        <SkeletonCard key={i} />
-                    ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {[...Array(3)].map((_, i) => (
-                        <SkeletonCard key={i} />
-                    ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
                 </div>
             </AdminLayout>
         );
@@ -264,32 +230,12 @@ const AdminDashboard = () => {
     if (error) {
         return (
             <AdminLayout onLogout={handleLogout} title="Dashboard">
-                <div className="flex flex-col gap-4 mb-6 sm:mb-8">
-                    <h1 className="text-2xl sm:text-3xl font-bold animate-fadeIn">Dashboard Overview</h1>
-                    <CalendarFilterRow
-                        datePreset={datePreset}
-                        customMode={customMode}
-                        onPresetSelect={handlePresetSelect}
-                        onCustomToggle={handleCustomToggle}
-                        customOpen={customOpen}
-                        customFrom={customFrom}
-                        customTo={customTo}
-                        onCustomFromChange={setCustomFrom}
-                        onCustomToChange={setCustomTo}
-                        onCustomApply={handleCustomApply}
-                    />
-                </div>
-                <div className="flex flex-col items-center justify-center min-h-[50vh] animate-fadeIn">
+                <div className="flex flex-col items-center justify-center min-h-[50vh]">
                     <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-                        <svg className="w-8 h-8 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
+                        <FaExclamationTriangle className="w-8 h-8 text-red-400" />
                     </div>
                     <p className="text-red-400 text-lg font-medium mb-2">{error}</p>
-                    <button
-                        onClick={fetchDashboardStats}
-                        className="mt-4 px-6 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-semibold rounded-xl transition-all duration-200 glow-yellow hover:-translate-y-0.5"
-                    >
+                    <button onClick={fetchDashboardStats} className="mt-4 px-6 py-2 bg-amber-600 hover:bg-amber-500 text-black font-semibold rounded-xl">
                         Retry
                     </button>
                 </div>
@@ -297,213 +243,248 @@ const AdminDashboard = () => {
         );
     }
 
+    const displayLabel = customMode && customFrom && customTo ? formatRangeLabel(customFrom, customTo) : (PRESETS.find((p) => p.id === datePreset)?.label || 'Today');
+
     return (
         <AdminLayout onLogout={handleLogout} title="Dashboard">
-            <div className="flex flex-col gap-4 mb-6 sm:mb-8">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h1 className="text-2xl sm:text-3xl font-bold animate-fadeIn">Dashboard Overview</h1>
+            {/* Header */}
+            <div className="mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
+                            <span className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                                <FaChartLine className="w-5 h-5 text-amber-400" />
+                            </span>
+                            Dashboard Overview
+                        </h1>
+                        <p className="mt-2 text-gray-400 text-sm max-w-2xl">
+                            Complete snapshot of your gaming platform. All stats are for the selected date range unless marked as "All-time". Use the date presets below to filter.
+                        </p>
+                    </div>
                     <button
                         type="button"
                         onClick={handleRefresh}
                         disabled={refreshing}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-yellow-500/20 border border-gray-600 hover:border-yellow-500/60 text-gray-200 hover:text-yellow-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-gray-700 disabled:hover:border-gray-600 disabled:hover:text-gray-200 text-sm font-medium"
-                        title="Refresh dashboard data"
-                        aria-label="Refresh dashboard"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-700 hover:bg-amber-500/20 border border-gray-600 hover:border-amber-500/60 text-gray-200 hover:text-amber-400 transition-all disabled:opacity-60 text-sm font-medium"
                     >
-                        <FaSyncAlt className={`w-4 h-4 shrink-0 ${refreshing ? 'animate-spin' : ''}`} />
-                        <span>Refresh</span>
+                        <FaSyncAlt className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                        Refresh
                     </button>
                 </div>
-                <CalendarFilterRow
-                    datePreset={datePreset}
-                    customMode={customMode}
-                    onPresetSelect={handlePresetSelect}
-                    onCustomToggle={handleCustomToggle}
-                    customOpen={customOpen}
-                    customFrom={customFrom}
-                    customTo={customTo}
-                    onCustomFromChange={setCustomFrom}
-                    onCustomToChange={setCustomTo}
-                    onCustomApply={handleCustomApply}
-                />
-            </div>
 
-            {/* Revenue Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                <StatCard
-                    title="Total Revenue"
-                    value={formatCurrency(stats?.revenue?.total || 0)}
-                    icon={FaMoneyBillWave}
-                    color="green"
-                    delay={0}
-                    details={[
-                        { label: 'Today', value: formatCurrency(stats?.revenue?.today || 0) },
-                        { label: 'Week', value: formatCurrency(stats?.revenue?.thisWeek || 0) }
-                    ]}
-                />
-
-                <StatCard
-                    title="Net Profit"
-                    value={formatCurrency(stats?.revenue?.netProfit || 0)}
-                    icon={FaChartLine}
-                    color="blue"
-                    delay={0.1}
-                    details={[
-                        { label: 'Payouts', value: formatCurrency(stats?.revenue?.payouts || 0) }
-                    ]}
-                />
-
-                <StatCard
-                    title="Total Players"
-                    value={stats?.users?.total || 0}
-                    icon={FaUsers}
-                    color="purple"
-                    delay={0.2}
-                    details={[
-                        { label: 'Active', value: stats?.users?.active || 0 },
-                        { label: 'New', value: stats?.users?.newToday || 0 }
-                    ]}
-                />
-
-                <StatCard
-                    title="Total Bets"
-                    value={stats?.bets?.total || 0}
-                    icon={FaChartBar}
-                    color="yellow"
-                    delay={0.3}
-                    details={[
-                        { label: 'Win Rate', value: `${stats?.bets?.winRate || 0}%` },
-                        { label: 'Today', value: stats?.bets?.today || 0 }
-                    ]}
-                />
-            </div>
-
-            {/* Secondary Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                {/* Markets Card */}
-                <div className="glass rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 hover:-translate-y-0.5 animate-slideUp" style={{ animationDelay: '0.4s' }}>
-                    <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
-                        Markets
-                    </h3>
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
-                            <span className="text-gray-400 text-sm">Total Markets</span>
-                            <span className="text-white font-bold font-mono">{stats?.markets?.total || 0}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
-                            <span className="text-gray-400 text-sm">Open Now</span>
-                            <span className="text-green-400 font-bold font-mono">{stats?.markets?.open || 0}</span>
-                        </div>
+                {/* Date Filter */}
+                <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+                    <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Date Range</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {PRESETS.map((p) => {
+                            const isActive = !customMode && datePreset === p.id;
+                            return (
+                                <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => handlePresetSelect(p.id)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-amber-500 text-black' : 'bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600'}`}
+                                >
+                                    {p.label}
+                                </button>
+                            );
+                        })}
+                        <button
+                            type="button"
+                            onClick={handleCustomToggle}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${customMode ? 'bg-amber-500 text-black' : 'bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600'}`}
+                        >
+                            Custom
+                        </button>
+                        {customOpen && (
+                            <div className="flex flex-wrap items-end gap-3 w-full mt-3 p-3 rounded-lg bg-gray-800 border border-gray-600">
+                                <div>
+                                    <label className="block text-xs text-gray-400 mb-1">From</label>
+                                    <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-400 mb-1">To</label>
+                                    <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                </div>
+                                <button type="button" onClick={handleCustomApply} className="px-4 py-2 rounded-lg bg-amber-500 text-black font-semibold text-sm">
+                                    Apply
+                                </button>
+                            </div>
+                        )}
                     </div>
-                </div>
-
-                {/* Bet Status Card */}
-                <div className="glass rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 hover:-translate-y-0.5 animate-slideUp" style={{ animationDelay: '0.5s' }}>
-                    <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                        Bet Status
-                    </h3>
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
-                            <span className="text-gray-400 text-sm">Winning</span>
-                            <span className="text-green-400 font-bold font-mono">{stats?.bets?.winning || 0}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
-                            <span className="text-gray-400 text-sm">Losing</span>
-                            <span className="text-red-400 font-bold font-mono">{stats?.bets?.losing || 0}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
-                            <span className="text-gray-400 text-sm">Pending</span>
-                            <span className="text-yellow-400 font-bold font-mono">{stats?.bets?.pending || 0}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Payments Card */}
-                <div className="glass rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 hover:-translate-y-0.5 animate-slideUp" style={{ animationDelay: '0.6s' }}>
-                    <h3 className="text-lg font-semibold mb-4 text-white flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                        Payments
-                    </h3>
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
-                            <span className="text-gray-400 text-sm">Total Deposits</span>
-                            <span className="text-green-400 font-bold font-mono text-sm">{formatCurrency(stats?.payments?.totalDeposits || 0)}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
-                            <span className="text-gray-400 text-sm">Total Withdrawals</span>
-                            <span className="text-red-400 font-bold font-mono text-sm">{formatCurrency(stats?.payments?.totalWithdrawals || 0)}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-700/30 transition-colors">
-                            <span className="text-gray-400 text-sm">Pending</span>
-                            <span className="text-yellow-400 font-bold font-mono">{stats?.payments?.pending || 0}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Wallet Card */}
-                <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-300">Wallet</h3>
-                    <div className="space-y-3">
-                        <div className="flex justify-between">
-                            <span className="text-gray-400">Total Balance</span>
-                            <span className="text-yellow-400 font-bold text-xl">{formatCurrency(stats?.wallet?.totalBalance || 0)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Player Growth Card */}
-                <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-300">Player Growth</h3>
-                    <div className="space-y-3">
-                        <div className="flex justify-between">
-                            <span className="text-gray-400">This Week</span>
-                            <span className="text-green-400 font-bold">{stats?.users?.newThisWeek || 0}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-400">This Month</span>
-                            <span className="text-green-400 font-bold">{stats?.users?.newThisMonth || 0}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Help Desk Card */}
-                <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-300">Help Desk</h3>
-                    <div className="space-y-3">
-                        <div className="flex justify-between">
-                            <span className="text-gray-400">Total Tickets</span>
-                            <span className="text-white font-bold">{stats?.helpDesk?.total || 0}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-400">Open</span>
-                            <span className="text-yellow-400 font-bold">{stats?.helpDesk?.open || 0}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-400">In Progress</span>
-                            <span className="text-blue-400 font-bold">{stats?.helpDesk?.inProgress || 0}</span>
-                        </div>
-                    </div>
+                    <p className="text-xs text-gray-500 mt-2">Showing data for: <span className="text-amber-400 font-medium">{displayLabel}</span></p>
                 </div>
             </div>
 
-            {/* Revenue Timeline */}
-            <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-                <h3 className="text-lg font-semibold mb-4 text-gray-300">Revenue Timeline</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-gray-700 rounded-lg p-4">
-                        <p className="text-gray-400 text-sm mb-2">Today</p>
-                        <p className="text-2xl font-bold text-green-400">{formatCurrency(stats?.revenue?.today || 0)}</p>
+            {/* Action Required */}
+            {hasActionRequired && (
+                <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40">
+                    <h3 className="text-sm font-semibold text-amber-400 flex items-center gap-2 mb-3">
+                        <FaExclamationTriangle className="w-4 h-4" />
+                        Action Required
+                    </h3>
+                    <div className="flex flex-wrap gap-3">
+                        {pendingPayments > 0 && (
+                            <Link to="/payment-management" className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-black font-medium text-sm">
+                                {pendingPayments} Pending Payment{pendingPayments !== 1 ? 's' : ''} →
+                            </Link>
+                        )}
+                        {helpDeskOpen > 0 && (
+                            <Link to="/help-desk" className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-black font-medium text-sm">
+                                {helpDeskOpen} Open Ticket{helpDeskOpen !== 1 ? 's' : ''} →
+                            </Link>
+                        )}
+                        {marketsPendingResult > 0 && (
+                            <Link to="/add-result" className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-black font-medium text-sm">
+                                {marketsPendingResult} Market{marketsPendingResult !== 1 ? 's' : ''} Result Pending →
+                            </Link>
+                        )}
                     </div>
-                    <div className="bg-gray-700 rounded-lg p-4">
-                        <p className="text-gray-400 text-sm mb-2">This Week</p>
-                        <p className="text-2xl font-bold text-green-400">{formatCurrency(stats?.revenue?.thisWeek || 0)}</p>
+                    {marketsPendingResultList.length > 0 && (
+                        <p className="text-xs text-amber-200/90 mt-2">
+                            Result declaration pending: {marketsPendingResultList.map((m) => m.marketName).join(', ')}
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {/* Primary KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-green-500/10 to-transparent rounded-xl p-5 border border-green-500/30">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Revenue (period)</p>
+                    <p className="text-2xl font-bold text-green-400 font-mono">{formatCurrency(stats?.revenue?.total)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Bet amount collected in selected range</p>
+                </div>
+                <div className="bg-gradient-to-br from-blue-500/10 to-transparent rounded-xl p-5 border border-blue-500/30">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Net Profit (period)</p>
+                    <p className="text-2xl font-bold text-blue-400 font-mono">{formatCurrency(stats?.revenue?.netProfit)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Revenue − Payouts in selected range</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-500/10 to-transparent rounded-xl p-5 border border-purple-500/30">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Players (all-time)</p>
+                    <p className="text-2xl font-bold text-purple-400 font-mono">{stats?.users?.total ?? 0}</p>
+                    <p className="text-xs text-gray-500 mt-1">{stats?.users?.active ?? 0} active · {stats?.users?.newToday ?? 0} new in range</p>
+                </div>
+                <div className="bg-gradient-to-br from-amber-500/10 to-transparent rounded-xl p-5 border border-amber-500/30">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Bets (period)</p>
+                    <p className="text-2xl font-bold text-amber-400 font-mono">{stats?.bets?.total ?? 0}</p>
+                    <p className="text-xs text-gray-500 mt-1">Win rate: {stats?.bets?.winRate ?? 0}%</p>
+                </div>
+            </div>
+
+            {/* Detailed Sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
+                {/* Revenue Details */}
+                <SectionCard title="Revenue & Payouts" description="Selected period" icon={FaMoneyBillWave} linkTo="/reports" linkLabel="Reports">
+                    <StatRow label="Total Revenue" value={formatCurrency(stats?.revenue?.total)} colorClass="text-green-400" />
+                    <StatRow label="Total Payouts" value={formatCurrency(stats?.revenue?.payouts)} colorClass="text-red-400" />
+                    <StatRow label="Net Profit" value={formatCurrency(stats?.revenue?.netProfit)} colorClass="text-blue-400" />
+                </SectionCard>
+
+                {/* Players */}
+                <SectionCard title="Players" description="All-time counts" icon={FaUserFriends} linkTo="/all-users" linkLabel="All Players">
+                    <StatRow label="Total Players" value={stats?.users?.total ?? 0} />
+                    <StatRow label="Active Players" value={stats?.users?.active ?? 0} colorClass="text-green-400" />
+                    <StatRow label="New in Period" value={stats?.users?.newToday ?? 0} colorClass="text-amber-400" />
+                </SectionCard>
+
+                {/* Bets */}
+                <SectionCard title="Bets" description="Selected period" icon={FaChartBar} linkTo="/bet-history" linkLabel="Bet History">
+                    <StatRow label="Total Bets" value={stats?.bets?.total ?? 0} />
+                    <StatRow label="Winning Bets" value={stats?.bets?.winning ?? 0} colorClass="text-green-400" />
+                    <StatRow label="Losing Bets" value={stats?.bets?.losing ?? 0} colorClass="text-red-400" />
+                    <StatRow label="Pending Bets" value={stats?.bets?.pending ?? 0} colorClass="text-amber-400" />
+                    <StatRow label="Win Rate" value={`${stats?.bets?.winRate ?? 0}%`} />
+                </SectionCard>
+
+                {/* Markets */}
+                <SectionCard title="Markets" description="Main + Starline" icon={FaChartBar} linkTo="/markets" linkLabel="Markets">
+                    <StatRow label="Total Markets" value={stats?.markets?.total ?? 0} />
+                    <StatRow label="Open Now" value={stats?.markets?.open ?? 0} colorClass="text-green-400" />
+                    <StatRow label="Result Pending" value={marketsPendingResult} colorClass={marketsPendingResult > 0 ? 'text-amber-400' : 'text-gray-400'} />
+                    <StatRow label="Main Markets" value={stats?.markets?.main ?? stats?.markets?.total ?? 0} subValue={`${stats?.markets?.openMain ?? 0} open`} />
+                    <StatRow label="Starline Markets" value={stats?.markets?.starline ?? 0} subValue={`${stats?.markets?.openStarline ?? 0} open`} />
+                </SectionCard>
+
+                {/* Payments */}
+                <SectionCard title="Payments" description="Deposits & Withdrawals" icon={FaCreditCard} linkTo="/payment-management" linkLabel="Manage Payments">
+                    <StatRow label="Deposits (period)" value={formatCurrency(stats?.payments?.totalDeposits)} colorClass="text-green-400" />
+                    <StatRow label="Withdrawals (period)" value={formatCurrency(stats?.payments?.totalWithdrawals)} colorClass="text-red-400" />
+                    <StatRow label="Pending Deposits" value={pendingDeposits} colorClass="text-amber-400" />
+                    <StatRow label="Pending Withdrawals" value={pendingWithdrawals} colorClass="text-amber-400" />
+                    <StatRow label="Total Pending" value={pendingPayments} colorClass="text-amber-400" />
+                </SectionCard>
+
+                {/* Wallet */}
+                <SectionCard title="Wallet Balance" description="All players combined (all-time)" icon={FaWallet} linkTo="/wallet" linkLabel="Wallet">
+                    <StatRow label="Total Balance" value={formatCurrency(stats?.wallet?.totalBalance)} colorClass="text-green-400" />
+                </SectionCard>
+
+                {/* Bookies (Super Admin only) */}
+                {adminRole === 'super_admin' && (
+                    <SectionCard title="Bookie Accounts" description="All-time" icon={FaUsers} linkTo="/bookie-management" linkLabel="Manage Bookies">
+                        <StatRow label="Total Bookies" value={stats?.bookies?.total ?? 0} />
+                        <StatRow label="Active Bookies" value={stats?.bookies?.active ?? 0} colorClass="text-green-400" />
+                    </SectionCard>
+                )}
+
+                {/* Help Desk */}
+                <SectionCard title="Help Desk" description="Support tickets" icon={FaLifeRing} linkTo="/help-desk" linkLabel="Help Desk">
+                    <StatRow label="Total Tickets" value={stats?.helpDesk?.total ?? 0} />
+                    <StatRow label="Open" value={stats?.helpDesk?.open ?? 0} colorClass="text-amber-400" />
+                    <StatRow label="In Progress" value={stats?.helpDesk?.inProgress ?? 0} colorClass="text-blue-400" />
+                </SectionCard>
+            </div>
+
+            {/* Revenue Timeline (period summary) */}
+            <div className="bg-gray-800/60 rounded-xl p-5 border border-gray-700 mb-6">
+                <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                    <FaMoneyBillWave className="w-4 h-4 text-amber-500" />
+                    Revenue Summary for Selected Period
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">Total revenue in the selected date range.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                        <p className="text-gray-400 text-sm mb-1">Total Revenue</p>
+                        <p className="text-xl font-bold text-green-400 font-mono">{formatCurrency(stats?.revenue?.total)}</p>
                     </div>
-                    <div className="bg-gray-700 rounded-lg p-4">
-                        <p className="text-gray-400 text-sm mb-2">This Month</p>
-                        <p className="text-2xl font-bold text-green-400">{formatCurrency(stats?.revenue?.thisMonth || 0)}</p>
+                    <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                        <p className="text-gray-400 text-sm mb-1">Total Payouts</p>
+                        <p className="text-xl font-bold text-red-400 font-mono">{formatCurrency(stats?.revenue?.payouts)}</p>
                     </div>
+                    <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                        <p className="text-gray-400 text-sm mb-1">Net Profit</p>
+                        <p className="text-xl font-bold text-blue-400 font-mono">{formatCurrency(stats?.revenue?.netProfit)}</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick Links */}
+            <div className="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
+                <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                    <FaClipboardList className="w-4 h-4 text-amber-500" />
+                    Quick Links
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">Navigate to admin sections directly from here.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <Link to="/add-result" className="px-4 py-3 rounded-lg bg-gray-700 hover:bg-amber-500/20 border border-gray-600 hover:border-amber-500/60 text-gray-200 hover:text-amber-400 text-sm font-medium transition-all text-center">
+                        Add Result
+                    </Link>
+                    <Link to="/update-rate" className="px-4 py-3 rounded-lg bg-gray-700 hover:bg-amber-500/20 border border-gray-600 hover:border-amber-500/60 text-gray-200 hover:text-amber-400 text-sm font-medium transition-all text-center">
+                        Update Rate
+                    </Link>
+                    <Link to="/add-user" className="px-4 py-3 rounded-lg bg-gray-700 hover:bg-amber-500/20 border border-gray-600 hover:border-amber-500/60 text-gray-200 hover:text-amber-400 text-sm font-medium transition-all text-center">
+                        Add Player
+                    </Link>
+                    <Link to="/add-market" className="px-4 py-3 rounded-lg bg-gray-700 hover:bg-amber-500/20 border border-gray-600 hover:border-amber-500/60 text-gray-200 hover:text-amber-400 text-sm font-medium transition-all text-center">
+                        Add Market
+                    </Link>
+                    <Link to="/startline" className="px-4 py-3 rounded-lg bg-gray-700 hover:bg-amber-500/20 border border-gray-600 hover:border-amber-500/60 text-gray-200 hover:text-amber-400 text-sm font-medium transition-all text-center flex items-center justify-center gap-1">
+                        <FaStar className="w-3.5 h-3.5" /> Starline
+                    </Link>
+                    <Link to="/logs" className="px-4 py-3 rounded-lg bg-gray-700 hover:bg-amber-500/20 border border-gray-600 hover:border-amber-500/60 text-gray-200 hover:text-amber-400 text-sm font-medium transition-all text-center">
+                        Activity Logs
+                    </Link>
                 </div>
             </div>
         </AdminLayout>

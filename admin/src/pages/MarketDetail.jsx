@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { FaArrowLeft, FaClock, FaHashtag, FaChartBar } from 'react-icons/fa';
+import { FaArrowLeft, FaClock, FaHashtag, FaChartBar, FaEdit } from 'react-icons/fa';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -1071,13 +1071,22 @@ const MarketDetail = () => {
                     />
                 </div>
 
-                <div className="mt-8 pt-4 border-t border-gray-700">
+                <div className="mt-8 pt-4 border-t border-gray-700 flex flex-wrap items-center gap-3">
                     <Link
                         to="/markets"
                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-semibold border border-gray-600 transition-colors"
                     >
                         <FaArrowLeft /> Back to Markets
                     </Link>
+                    {market.marketType !== 'startline' && (
+                        <Link
+                            to="/add-result"
+                            state={{ preselectedMarket: market }}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-black font-semibold border border-amber-400 transition-colors"
+                        >
+                            <FaEdit /> Add Result for {market.marketName}
+                        </Link>
+                    )}
                 </div>
             </div>
         </AdminLayout>

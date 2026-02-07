@@ -73,3 +73,31 @@ function parseISTDateTime(isoStr) {
     return isNaN(d.getTime()) ? null : d.getTime();
 }
 
+/**
+ * Check if market's betting has closed (past closing time for today).
+ * Uses IST. Returns true when result declaration is expected.
+ */
+export function isBettingClosed(market, now = new Date()) {
+    const closeStr = (market?.closingTime || '').toString().trim();
+    if (!closeStr) return false;
+
+    const todayIST = getTodayIST();
+    let closeAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`);
+    if (!closeAt) return false;
+
+    const openAt = parseISTDateTime(`${todayIST}T00:00:00+05:30`);
+    if (closeAt <= openAt) {
+        const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
+        baseDate.setDate(baseDate.getDate() + 1);
+        const nextDayStr = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).format(baseDate);
+        closeAt = parseISTDateTime(`${nextDayStr}T${normalizeTimeStr(closeStr)}+05:30`);
+    }
+
+    return now.getTime() > closeAt;
+}
+

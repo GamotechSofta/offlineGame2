@@ -1,4 +1,6 @@
 import Rate, { getRatesMap } from '../models/rate/rate.js';
+import Admin from '../models/admin/admin.js';
+import bcrypt from 'bcryptjs';
 
 /**
  * GET /rates/current – public. Returns current payout rates for user-side display (e.g. "You Won ₹X").
@@ -37,11 +39,24 @@ export const getRates = async (req, res) => {
 const RATE_GAME_TYPES = ['single', 'jodi', 'singlePatti', 'doublePatti', 'triplePatti', 'halfSangam', 'fullSangam'];
 
 /**
- * PATCH /rates/:gameType – update one rate. Body: { rate: number }
+ * PATCH /rates/:gameType – update one rate. Body: { rate: number, secretDeclarePassword?: string }
  * These rates are used when settling winning players (declare result).
  */
 export const updateRate = async (req, res) => {
     try {
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
+
         const gameType = (req.params.gameType || '').trim();
         const rate = req.body?.rate;
         if (!RATE_GAME_TYPES.includes(gameType)) {

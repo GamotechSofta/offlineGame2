@@ -8,15 +8,21 @@ import {
     getBookieById,
     updateBookie,
     deleteBookie,
-    toggleBookieStatus
+    toggleBookieStatus,
+    getSecretDeclarePasswordStatus,
+    setSecretDeclarePassword,
 } from '../../controllers/adminController.js';
 import { getLogs } from '../../controllers/activityLogController.js';
-import { verifyAdmin } from '../../middleware/adminAuth.js';
+import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
 
 router.post('/login', adminLogin);
 router.post('/create', createAdmin); // For initial admin setup
+
+// Secret declare password (Super Admin only)
+router.get('/me/secret-declare-password-status', verifySuperAdmin, getSecretDeclarePasswordStatus);
+router.patch('/me/secret-declare-password', verifySuperAdmin, setSecretDeclarePassword);
 
 // Super Admin management routes (Super Admin only)
 router.get('/super-admins', verifyAdmin, getAllSuperAdmins); // Get all super admins

@@ -513,6 +513,7 @@ export const getSingleUser = async (req, res) => {
 /**
  * Toggle player account status (suspend/unsuspend)
  * Only super_admin can toggle. Sets isActive to false (suspended) or true (active).
+ * Body: { secretDeclarePassword?: string } – required if admin has it set
  */
 export const togglePlayerStatus = async (req, res) => {
     try {
@@ -522,7 +523,18 @@ export const togglePlayerStatus = async (req, res) => {
                 message: 'Only Super Admin can suspend or unsuspend player accounts',
             });
         }
-
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password. Please enter the correct password.',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
         const { id } = req.params;
 
         const user = await User.findById(id);
@@ -563,6 +575,7 @@ export const togglePlayerStatus = async (req, res) => {
 
 /**
  * Delete a player (Super Admin only). Removes user and their wallet.
+ * Body: { secretDeclarePassword?: string } – required if admin has it set
  */
 export const deletePlayer = async (req, res) => {
     try {
@@ -572,7 +585,18 @@ export const deletePlayer = async (req, res) => {
                 message: 'Only Super Admin can delete players',
             });
         }
-
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password. Please enter the correct password to delete player.',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
         const { id } = req.params;
 
         const user = await User.findById(id);

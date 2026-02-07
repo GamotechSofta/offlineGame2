@@ -22,6 +22,10 @@ const UpdateRate = () => {
     const [editingKey, setEditingKey] = useState(null);
     const [editValue, setEditValue] = useState('');
     const [saveLoading, setSaveLoading] = useState(false);
+    const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [secretPassword, setSecretPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -32,6 +36,15 @@ const UpdateRate = () => {
         }
         fetchRates();
     }, [navigate]);
+
+    useEffect(() => {
+        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
+            .then((res) => res.json())
+            .then((json) => {
+                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+            })
+            .catch(() => setHasSecretDeclarePassword(false));
+    }, []);
 
     const getAuthHeaders = () => {
         const admin = JSON.parse(localStorage.getItem('admin') || '{}');
@@ -73,7 +86,7 @@ const UpdateRate = () => {
         setEditValue('');
     };
 
-    const handleSaveRate = async () => {
+    const performSaveRate = async (secretDeclarePasswordValue) => {
         if (!editingKey) return;
         const num = parseInt(editValue, 10);
         if (!Number.isFinite(num) || num < 0) {
@@ -81,26 +94,60 @@ const UpdateRate = () => {
             return;
         }
         setSaveLoading(true);
+        setPasswordError('');
         try {
+            const body = { rate: num };
+            if (secretDeclarePasswordValue) body.secretDeclarePassword = secretDeclarePasswordValue;
             const res = await fetch(`${API_BASE_URL}/rates/${editingKey}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ rate: num }),
+                body: JSON.stringify(body),
             });
             const data = await res.json();
             if (data.success) {
+                setShowPasswordModal(false);
+                setSecretPassword('');
                 cancelEdit();
-                // Use returned list so UI shows exact rates used for player settlement
                 if (Array.isArray(data.data)) setRates(data.data);
                 else fetchRates();
             } else {
-                alert(data.message || 'Failed to update rate');
+                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    setPasswordError(data.message || 'Invalid secret password');
+                } else {
+                    alert(data.message || 'Failed to update rate');
+                }
             }
         } catch (err) {
             alert('Network error');
         } finally {
             setSaveLoading(false);
         }
+    };
+
+    const handleSaveRate = () => {
+        if (!editingKey) return;
+        const num = parseInt(editValue, 10);
+        if (!Number.isFinite(num) || num < 0) {
+            alert('Enter a valid non-negative number.');
+            return;
+        }
+        if (hasSecretDeclarePassword) {
+            setShowPasswordModal(true);
+            setSecretPassword('');
+            setPasswordError('');
+        } else {
+            performSaveRate('');
+        }
+    };
+
+    const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        const val = secretPassword.trim();
+        if (hasSecretDeclarePassword && !val) {
+            setPasswordError('Please enter the secret declare password');
+            return;
+        }
+        performSaveRate(val);
     };
 
     return (
@@ -172,6 +219,39 @@ const UpdateRate = () => {
                             ))}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {showPasswordModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60">
+                    <div className="bg-gray-800 rounded-xl border border-gray-600 shadow-xl w-full max-w-md">
+                        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-yellow-500">Confirm Update Rate</h3>
+                            <button type="button" onClick={() => { setShowPasswordModal(false); setSecretPassword(''); setPasswordError(''); }} className="text-gray-400 hover:text-white p-1">×</button>
+                        </div>
+                        <form onSubmit={handlePasswordSubmit} className="p-4 space-y-4">
+                            <p className="text-gray-300 text-sm">
+                                Enter secret declare password to update this rate.
+                            </p>
+                            <input
+                                type="password"
+                                placeholder="Secret declare password"
+                                value={secretPassword}
+                                onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
+                                className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500"
+                                autoFocus
+                            />
+                            {passwordError && (
+                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-200 text-sm px-3 py-2">{passwordError}</div>
+                            )}
+                            <div className="flex gap-2 justify-end">
+                                <button type="button" onClick={() => { setShowPasswordModal(false); setSecretPassword(''); setPasswordError(''); }} className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold">Cancel</button>
+                                <button type="submit" disabled={saveLoading} className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-black font-semibold disabled:opacity-50">
+                                    {saveLoading ? <span className="animate-spin">⏳</span> : 'Confirm'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </AdminLayout>

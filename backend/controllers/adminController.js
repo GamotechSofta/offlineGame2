@@ -1,4 +1,5 @@
 import Admin from '../models/admin/admin.js';
+import bcrypt from 'bcryptjs';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
 /**
@@ -444,6 +445,7 @@ export const updateBookie = async (req, res) => {
 /**
  * Delete bookie
  * Only super_admin can delete
+ * Body: { secretDeclarePassword?: string } – required if admin has it set
  */
 export const deleteBookie = async (req, res) => {
     try {
@@ -452,6 +454,19 @@ export const deleteBookie = async (req, res) => {
                 success: false,
                 message: 'Only Super Admin can delete bookies',
             });
+        }
+
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
         }
 
         const { id } = req.params;
@@ -488,7 +503,8 @@ export const deleteBookie = async (req, res) => {
 
 /**
  * Toggle bookie status (active/inactive)
- * Only super_admin can toggle
+ * Only super_admin can toggle.
+ * Body: { secretDeclarePassword?: string } – required if admin has it set
  */
 export const toggleBookieStatus = async (req, res) => {
     try {
@@ -498,7 +514,18 @@ export const toggleBookieStatus = async (req, res) => {
                 message: 'Only Super Admin can toggle bookie status',
             });
         }
-
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password. Please enter the correct password.',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
         const { id } = req.params;
 
         const bookie = await Admin.findOne({ _id: id, role: 'bookie' });
@@ -533,5 +560,63 @@ export const toggleBookieStatus = async (req, res) => {
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * GET /admin/me/secret-declare-password-status
+ * Super admin only. Returns whether secret declare password is set.
+ */
+export const getSecretDeclarePasswordStatus = async (req, res) => {
+    try {
+        const admin = await Admin.findById(req.admin._id).select('secretDeclarePassword').lean();
+        if (!admin) {
+            return res.status(404).json({ success: false, message: 'Admin not found' });
+        }
+        res.status(200).json({
+            success: true,
+            hasSecretDeclarePassword: !!(admin.secretDeclarePassword && admin.secretDeclarePassword.length > 0),
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * PATCH /admin/me/secret-declare-password
+ * Super admin only. Set or update secret declare password.
+ * Body: { secretDeclarePassword: string } – min 4 chars
+ */
+export const setSecretDeclarePassword = async (req, res) => {
+    try {
+        const { secretDeclarePassword } = req.body;
+        const val = (secretDeclarePassword ?? '').toString().trim();
+        if (val.length < 4) {
+            return res.status(400).json({
+                success: false,
+                message: 'Secret declare password must be at least 4 characters',
+            });
+        }
+        const admin = await Admin.findById(req.admin._id);
+        if (!admin) {
+            return res.status(404).json({ success: false, message: 'Admin not found' });
+        }
+        admin.secretDeclarePassword = val;
+        await admin.save({ validateBeforeSave: false });
+        await logActivity({
+            action: 'set_secret_declare_password',
+            performedBy: req.admin.username,
+            performedByType: 'super_admin',
+            targetType: 'admin',
+            targetId: admin._id.toString(),
+            details: 'Secret declare password updated',
+            ip: getClientIp(req),
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Secret declare password set successfully',
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };

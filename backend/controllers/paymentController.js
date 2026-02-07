@@ -1,6 +1,8 @@
 import Payment from '../models/payment/payment.js';
 import BankDetail from '../models/bankDetail/bankDetail.js';
 import { Wallet } from '../models/wallet/wallet.js';
+import Admin from '../models/admin/admin.js';
+import bcrypt from 'bcryptjs';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
@@ -279,9 +281,23 @@ export const getPendingCount = async (req, res) => {
 
 /**
  * Admin: Approve payment
+ * Body: { adminRemarks?: string, secretDeclarePassword?: string } – secret required if admin has it set
  */
 export const approvePayment = async (req, res) => {
     try {
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
+
         const { id } = req.params;
         const { adminRemarks } = req.body;
 

@@ -30,6 +30,12 @@ const BookieManagement = () => {
     });
 
     const [formLoading, setFormLoading] = useState(false);
+    const [togglingId, setTogglingId] = useState(null);
+    const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [secretPassword, setSecretPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [pendingBookie, setPendingBookie] = useState(null);
 
     const PHONE_REGEX = /^[6-9]\d{9}$/;
 
@@ -65,6 +71,15 @@ const BookieManagement = () => {
 
     useEffect(() => {
         fetchBookies();
+    }, []);
+
+    useEffect(() => {
+        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
+            .then((res) => res.json())
+            .then((json) => {
+                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+            })
+            .catch(() => setHasSecretDeclarePassword(false));
     }, []);
 
     // Handle form input change
@@ -187,24 +202,34 @@ const BookieManagement = () => {
 
     // Delete bookie
     const handleDelete = async () => {
+        if (!selectedBookie?._id) return;
+        if (hasSecretDeclarePassword && !secretPassword.trim()) {
+            setPasswordError('Please enter the secret declare password');
+            return;
+        }
         setError('');
+        setPasswordError('');
         setFormLoading(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/bookies/${selectedBookie._id}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders(),
-            });
+            const opts = { method: 'DELETE', headers: getAuthHeaders() };
+            if (hasSecretDeclarePassword) opts.body = JSON.stringify({ secretDeclarePassword: secretPassword.trim() });
+            const response = await fetch(`${API_BASE_URL}/admin/bookies/${selectedBookie._id}`, opts);
             const data = await response.json();
-            
+
             if (data.success) {
                 setSuccess('Bookie deleted successfully!');
                 setShowDeleteModal(false);
                 setSelectedBookie(null);
+                setSecretPassword('');
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 3000);
             } else {
-                setError(data.message || 'Failed to delete bookie');
+                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    setPasswordError(data.message || 'Invalid secret password');
+                } else {
+                    setError(data.message || 'Failed to delete bookie');
+                }
             }
         } catch (err) {
             setError('Network error. Please try again.');
@@ -213,25 +238,57 @@ const BookieManagement = () => {
         }
     };
 
-    // Toggle bookie status
-    const handleToggleStatus = async (bookie) => {
+    const performToggleStatus = async (bookie, secretDeclarePasswordValue) => {
+        if (!bookie?._id) return;
+        setTogglingId(bookie._id);
+        setError('');
+        setPasswordError('');
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/bookies/${bookie._id}/toggle-status`, {
-                method: 'PATCH',
-                headers: getAuthHeaders(),
-            });
+            const opts = { method: 'PATCH', headers: getAuthHeaders() };
+            if (secretDeclarePasswordValue) opts.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
+            const response = await fetch(`${API_BASE_URL}/admin/bookies/${bookie._id}/toggle-status`, opts);
             const data = await response.json();
-            
             if (data.success) {
+                setShowPasswordModal(false);
+                setPendingBookie(null);
+                setSecretPassword('');
                 setSuccess(`Bookie ${data.data.status === 'active' ? 'unsuspended' : 'suspended'} successfully!`);
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 3000);
             } else {
-                setError(data.message || 'Failed to toggle status');
+                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    setPasswordError(data.message || 'Invalid secret password');
+                } else {
+                    setError(data.message || 'Failed to toggle status');
+                }
             }
         } catch (err) {
             setError('Network error. Please try again.');
+        } finally {
+            setTogglingId(null);
         }
+    };
+
+    const handleToggleStatus = (bookie) => {
+        if (!bookie?._id) return;
+        if (hasSecretDeclarePassword) {
+            setPendingBookie(bookie);
+            setShowPasswordModal(true);
+            setSecretPassword('');
+            setPasswordError('');
+        } else {
+            performToggleStatus(bookie, '');
+        }
+    };
+
+    const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        const val = secretPassword.trim();
+        if (hasSecretDeclarePassword && !val) {
+            setPasswordError('Please enter the secret declare password');
+            return;
+        }
+        if (pendingBookie) performToggleStatus(pendingBookie, val);
     };
 
     // Open edit modal - split username "First Last" into firstName, lastName
@@ -254,6 +311,8 @@ const BookieManagement = () => {
     // Open delete modal
     const openDeleteModal = (bookie) => {
         setSelectedBookie(bookie);
+        setSecretPassword('');
+        setPasswordError('');
         setShowDeleteModal(true);
     };
 
@@ -386,14 +445,21 @@ const BookieManagement = () => {
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => handleToggleStatus(bookie)}
-                                                        className={`p-2 rounded-lg transition-colors ${
+                                                        disabled={togglingId === bookie._id}
+                                                        className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                                             bookie.status === 'active'
                                                                 ? 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
                                                                 : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                                                         }`}
                                                         title={bookie.status === 'active' ? 'Suspend' : 'Unsuspend'}
                                                     >
-                                                        {bookie.status === 'active' ? <FaToggleOn size={18} /> : <FaToggleOff size={18} />}
+                                                        {togglingId === bookie._id ? (
+                                                            <span className="animate-spin inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full" />
+                                                        ) : bookie.status === 'active' ? (
+                                                            <FaToggleOn size={18} />
+                                                        ) : (
+                                                            <FaToggleOff size={18} />
+                                                        )}
                                                     </button>
                                                     <button
                                                         onClick={() => openEditModal(bookie)}
@@ -665,9 +731,24 @@ const BookieManagement = () => {
                         <p className="text-gray-300 mb-4">
                             Are you sure you want to delete the bookie account <strong className="text-white">"{selectedBookie?.username}"</strong>?
                         </p>
-                        <p className="text-red-400 text-sm mb-6">
+                        <p className="text-red-400 text-sm mb-4">
                             This action cannot be undone. The bookie will lose access to their account permanently.
                         </p>
+                        {hasSecretDeclarePassword && (
+                            <div className="mb-4">
+                                <label className="block text-gray-400 text-sm mb-2">Secret declare password *</label>
+                                <input
+                                    type="password"
+                                    placeholder="Secret declare password"
+                                    value={secretPassword}
+                                    onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
+                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                />
+                                {passwordError && (
+                                    <p className="text-red-400 text-sm mt-2">{passwordError}</p>
+                                )}
+                            </div>
+                        )}
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowDeleteModal(false)}
@@ -677,12 +758,46 @@ const BookieManagement = () => {
                             </button>
                             <button
                                 onClick={handleDelete}
-                                disabled={formLoading}
+                                disabled={formLoading || (hasSecretDeclarePassword && !secretPassword.trim())}
                                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
                             >
                                 {formLoading ? 'Deleting...' : 'Delete'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Secret password modal for suspend/unsuspend bookie */}
+            {showPasswordModal && pendingBookie && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60">
+                    <div className="bg-gray-800 rounded-xl border border-gray-600 shadow-xl w-full max-w-md">
+                        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-yellow-500">Confirm Suspend/Unsuspend Bookie</h3>
+                            <button type="button" onClick={() => { setShowPasswordModal(false); setPendingBookie(null); setSecretPassword(''); setPasswordError(''); }} className="text-gray-400 hover:text-white p-1">×</button>
+                        </div>
+                        <form onSubmit={handlePasswordSubmit} className="p-4 space-y-4">
+                            <p className="text-gray-300 text-sm">
+                                Enter secret declare password to suspend/unsuspend this bookie.
+                            </p>
+                            <input
+                                type="password"
+                                placeholder="Secret declare password"
+                                value={secretPassword}
+                                onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
+                                className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500"
+                                autoFocus
+                            />
+                            {passwordError && (
+                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-200 text-sm px-3 py-2">{passwordError}</div>
+                            )}
+                            <div className="flex gap-2 justify-end">
+                                <button type="button" onClick={() => { setShowPasswordModal(false); setPendingBookie(null); setSecretPassword(''); setPasswordError(''); }} className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold">Cancel</button>
+                                <button type="submit" disabled={togglingId !== null} className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-black font-semibold disabled:opacity-50">
+                                    {togglingId ? <span className="animate-spin">⏳</span> : 'Confirm'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
