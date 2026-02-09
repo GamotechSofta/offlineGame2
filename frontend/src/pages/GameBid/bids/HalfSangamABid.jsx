@@ -189,6 +189,7 @@ const HalfSangamABid = ({ market, title }) => {
             setSession={setSession}
             sessionOptionsOverride={['OPEN']}
             lockSessionSelect
+            hideSessionSelectCaret
             hideFooter
             walletBalance={walletBefore}
             contentPaddingClass="pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-6"

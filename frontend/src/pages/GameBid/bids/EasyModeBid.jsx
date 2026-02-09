@@ -447,7 +447,7 @@ const EasyModeBid = ({
                         onChange={(e) => setSession(e.target.value)}
                         disabled={isRunning || lockSessionToOpen}
                         className={`w-full appearance-none bg-[#202124] border border-white/10 text-white font-bold text-sm py-3 sm:py-2.5 min-h-[44px] px-4 ${
-                            specialModeType === 'jodi' && activeTab === 'special' ? 'pr-12' : ''
+                            specialModeType === 'jodi' && activeTab === 'special' && !lockSessionToOpen ? 'pr-12' : ''
                         } rounded-full text-center focus:outline-none focus:border-[#d4af37] ${(isRunning || lockSessionToOpen) ? 'opacity-80 cursor-not-allowed' : ''}`}
                     >
                         {lockSessionToOpen ? (
@@ -461,19 +461,21 @@ const EasyModeBid = ({
                             </>
                         )}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">
-                        <div
-                            className={`${
-                                specialModeType === 'jodi' && activeTab === 'special'
-                                    ? 'w-9 h-9 rounded-full bg-black/25 flex items-center justify-center'
-                                    : ''
-                            }`}
-                        >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
+                    {!lockSessionToOpen && (
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">
+                            <div
+                                className={`${
+                                    specialModeType === 'jodi' && activeTab === 'special'
+                                        ? 'w-9 h-9 rounded-full bg-black/25 flex items-center justify-center'
+                                        : ''
+                                }`}
+                            >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -593,6 +595,7 @@ const EasyModeBid = ({
             setSession={setSession}
             sessionOptionsOverride={lockSessionToOpen ? ['OPEN'] : null}
             lockSessionSelect={lockSessionToOpen}
+            hideSessionSelectCaret={lockSessionToOpen}
             hideFooter={!showFooterSubmit}
             walletBalance={walletBefore}
             onSubmit={() => {
@@ -623,7 +626,6 @@ const EasyModeBid = ({
                                             <div className="w-10 h-9 bg-[#202124] border border-white/10 text-[#f2c14e] flex items-center justify-center rounded-l-md font-bold text-xs shrink-0">
                                                 <span className="inline-flex items-center gap-1">
                                                     <span>{num[0]}</span>
-                                                    <span className="text-white/30">|</span>
                                                     <span>{num[1]}</span>
                                                 </span>
                                             </div>
