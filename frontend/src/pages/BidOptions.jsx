@@ -27,7 +27,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769756244/Untitled_90_x_160_px_1080_x_1080_px_1_yinraf.svg"
           alt="Single Digit"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -38,7 +38,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769756244/Untitled_90_x_160_px_1080_x_1080_px_1_yinraf.svg"
           alt="Single Digit"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -49,7 +49,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714108/Untitled_1080_x_1080_px_1080_x_1080_px_7_rpzykt.svg"
           alt="Jodi"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -60,7 +60,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714108/Untitled_1080_x_1080_px_1080_x_1080_px_7_rpzykt.svg"
           alt="Jodi Bulk"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -71,7 +71,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
           alt="Single Pana"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -82,7 +82,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
           alt="Single Pana Bulk"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -93,7 +93,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769713943/Untitled_1080_x_1080_px_1080_x_1080_px_6_uccv7o.svg"
           alt="Double Pana"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -104,7 +104,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769713943/Untitled_1080_x_1080_px_1080_x_1080_px_6_uccv7o.svg"
           alt="Double Pana Bulk"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -115,7 +115,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714392/Untitled_1080_x_1080_px_1080_x_1080_px_9_ugcdef.svg"
           alt="Triple Pana"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -126,7 +126,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1770033671/Untitled_design_2_kr1imj.svg"
           alt="Triple Pana"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -137,7 +137,7 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1770033165/Untitled_design_c5hag8.svg"
           alt="Half Sangam (O)"
-          className="w-30 h-30 object-contain"
+          className="w-full h-full object-contain"
         />
       ),
     },
@@ -208,7 +208,7 @@ const BidOptions = () => {
       </div>
 
       {/* Grid Content */}
-      <div className="w-full max-w-md lg:max-w-none px-3 sm:px-4 pt-3 sm:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
+      <div className="w-full max-w-md lg:max-w-none px-3 sm:px-4 pt-3 sm:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
         {visibleOptions.map((option) => (
           <div
             key={option.id}
@@ -219,15 +219,15 @@ const BidOptions = () => {
                 gameMode: option.title.toLowerCase().includes('bulk') ? 'bulk' : 'easy'
               }
             })}
-            className="relative rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#1b1d22] via-[#15171b] to-[#0f1013] border border-white/10 p-2.5 sm:p-3 flex flex-col items-center justify-center gap-1.5 sm:gap-2 hover:from-[#23262d] hover:via-[#1a1d22] hover:to-[#121418] active:scale-[0.98] transition-all cursor-pointer shadow-[0_10px_25px_rgba(0,0,0,0.35)] group touch-manipulation min-h-[88px] sm:min-h-[100px]"
+            className="relative rounded-2xl bg-gradient-to-br from-[#1b1d22] via-[#15171b] to-[#0f1013] border border-white/10 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2 sm:gap-2.5 hover:from-[#23262d] hover:via-[#1a1d22] hover:to-[#121418] active:scale-[0.98] transition-all cursor-pointer shadow-[0_12px_30px_rgba(0,0,0,0.38)] group touch-manipulation min-h-[104px] sm:min-h-[120px] md:min-h-[132px]"
           >
             {/* Icon Container with subtle glow effect */}
-            <div className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 transform scale-90 group-hover:scale-100 transition-transform duration-300">
+            <div className="flex items-center justify-center w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] md:w-[96px] md:h-[96px] group-hover:scale-[1.03] transition-transform duration-300">
               {option.icon}
             </div>
 
             {/* Title */}
-            <span className="text-white text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-[0.12em] sm:tracking-[0.18em] uppercase text-center line-clamp-2 leading-tight">
+            <span className="text-white text-[10px] sm:text-[11px] md:text-sm font-semibold tracking-[0.14em] sm:tracking-[0.18em] uppercase text-center line-clamp-2 leading-tight">
               {option.title}
             </span>
           </div>
