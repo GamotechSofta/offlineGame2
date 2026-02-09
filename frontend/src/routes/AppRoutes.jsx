@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useHeartbeat } from '../hooks/useHeartbeat';
 import AppHeader from '../components/AppHeader';
 import BottomNavbar from '../components/BottomNavbar';
@@ -151,6 +151,7 @@ const AppRoutes = () => {
           <Route path="/market-result-history" element={<MarketResultHistory />} />
           <Route path="/startline-dashboard" element={<StartlineDashboard />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/top-winners" element={<Navigate to="/support" replace />} />
         </Routes>
       </Layout>
     </Router>

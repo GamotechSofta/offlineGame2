@@ -257,9 +257,6 @@ const AdminDashboard = () => {
                             </span>
                             Dashboard Overview
                         </h1>
-                        <p className="mt-2 text-gray-400 text-sm max-w-2xl">
-                            Complete snapshot of your gaming platform. All stats are for the selected date range unless marked as "All-time". Use the date presets below to filter.
-                        </p>
                     </div>
                     <button
                         type="button"
