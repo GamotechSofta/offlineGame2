@@ -94,7 +94,7 @@ const AppHeader = () => {
     navigate('/login');
   };
 
-  const displayName = user?.username || 'Guest';
+  const displayName = user?.username || 'Sign In';
   const displayPhone =
     user?.phone ||
     user?.mobile ||

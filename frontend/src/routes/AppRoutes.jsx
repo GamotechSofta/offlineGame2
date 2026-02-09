@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useHeartbeat } from '../hooks/useHeartbeat';
 import AppHeader from '../components/AppHeader';
 import BottomNavbar from '../components/BottomNavbar';
@@ -65,10 +65,28 @@ const ScrollToTop = () => {
 
   return null;
 };
+const PUBLIC_PATHS = ['/login'];
+
 const Layout = ({ children }) => {
   const location = useLocation();
+  const [hasUser, setHasUser] = useState(() => !!localStorage.getItem('user'));
   const isLoginPage = location.pathname === '/login';
   const isHomePage = location.pathname === '/';
+
+  useEffect(() => {
+    const check = () => setHasUser(!!localStorage.getItem('user'));
+    window.addEventListener('userLogin', check);
+    window.addEventListener('userLogout', check);
+    return () => {
+      window.removeEventListener('userLogin', check);
+      window.removeEventListener('userLogout', check);
+    };
+  }, []);
+
+  const isPublicPath = PUBLIC_PATHS.includes(location.pathname);
+  if (!hasUser && !isPublicPath) {
+    return <Navigate to="/login" replace />;
+  }
 
   if (isLoginPage) {
     return <>{children}</>;
