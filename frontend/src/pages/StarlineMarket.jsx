@@ -3,6 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
 import { isPastClosingTime } from '../utils/marketTiming';
 
+const STARLINE_MARKET_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770641576/Untitled_1080_x_1080_px_1_gyjbpl.svg';
+
 const formatTime12 = (time24) => {
   if (!time24) return '';
   const [hhRaw, mmRaw] = String(time24).split(':');
@@ -241,27 +244,13 @@ const StarlineMarket = () => {
                 >
                   {/* Top image area (photo-style) */}
                   <div className="relative h-[96px] bg-gradient-to-br from-[#0b0b0b] via-[#15171b] to-[#050505]">
-                    <div className="absolute inset-0 opacity-70 bg-[radial-gradient(240px_120px_at_30%_30%,rgba(212,175,55,0.28),transparent_60%)]" />
-                    <div className="absolute inset-0 opacity-55 bg-[radial-gradient(240px_140px_at_80%_20%,rgba(242,193,78,0.18),transparent_60%)]" />
-                    {/* pseudo lightning corners */}
-                    <div className="absolute left-2 top-2 h-8 w-8 rounded-xl border border-[#d4af37]/35 bg-white/5" />
-                    <div className="absolute right-2 top-2 h-8 w-8 rounded-xl border border-[#d4af37]/35 bg-white/5" />
-
-                    <div className="relative h-full flex items-center justify-between px-3">
-                      {/* Left: character placeholder */}
-                      <div className="h-[78px] w-[62px] rounded-2xl bg-gradient-to-br from-[#202124] to-black border border-white/10 overflow-hidden flex items-center justify-center">
-                        <div className="absolute inset-0 bg-[radial-gradient(60px_80px_at_50%_30%,rgba(212,175,55,0.22),transparent_65%)]" />
-                      </div>
-
-                      {/* Right: wheel placeholder */}
-                      <div className="h-[78px] w-[78px] rounded-full border border-white/15 bg-black/30 flex items-center justify-center">
-                        <div className="h-[66px] w-[66px] rounded-full bg-[conic-gradient(from_0deg,#f2c14e,#d4af37,#f2c14e,#d4af37,#f2c14e)] p-[2px]">
-                          <div className="h-full w-full rounded-full bg-[#202124] flex items-center justify-center">
-                            <div className="h-4 w-4 rounded-full bg-[#d4af37] shadow-[0_0_14px_rgba(212,175,55,0.55)]" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <img
+                      src={STARLINE_MARKET_IMAGE_URL}
+                      alt="Starline Market"
+                      className="absolute inset-0 w-full h-full object-contain p-0"
+                      loading="lazy"
+                      draggable="false"
+                    />
                   </div>
 
                   {/* Bottom info area */}
