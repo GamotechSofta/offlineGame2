@@ -87,17 +87,79 @@ const Section1 = () => {
 
 
   return (
-    <section className="w-full bg-black pt-3 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-10 px-2 min-[375px]:px-3 sm:px-4 md:px-8 md:pb-8 max-w-full overflow-x-hidden">
-      {/* MARKETS Header - responsive width */}
-      <div className="flex items-end justify-center mb-4 min-[375px]:mb-6 sm:mb-8 w-full max-w-7xl mx-auto gap-0">
+    <section className="w-full bg-black  min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
+      {/* ═══ Desktop: Starline + MARKETS + King Bazaar — single row ═══ */}
+      <div className="hidden md:flex items-center gap-4 mt-4 mb-5 w-full max-w-7xl mx-auto px-4">
+        {/* ── STARLINE Button ── */}
+        <button
+          onClick={() => navigate('/startline-dashboard')}
+          className="group relative overflow-hidden rounded-xl bg-[#111113] border border-[#f2c14e]/25 hover:border-[#f2c14e]/60 transition-all duration-300 active:scale-[0.97] cursor-pointer shrink-0"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-[#f2c14e]/[0.06] to-transparent group-hover:from-[#f2c14e]/[0.12] transition-all duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent -translate-x-[200%] group-hover:translate-x-[200%] transition-transform duration-700 pointer-events-none" />
+          <div className="relative flex items-center gap-3 px-4 py-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f2c14e] to-[#b8860b] flex items-center justify-center shrink-0 shadow-[0_2px_14px_rgba(212,175,55,0.4)] group-hover:shadow-[0_2px_20px_rgba(212,175,55,0.6)] group-hover:scale-105 transition-all duration-300">
+              <svg className="w-6 h-6 text-black" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+              </svg>
+            </div>
+            <div className="text-left">
+              <h3 className="text-[#f2c14e] text-base font-black tracking-wider leading-none">STARLINE</h3>
+              <p className="text-gray-500 text-[11px] mt-1 group-hover:text-gray-400 transition-colors">Play Now →</p>
+            </div>
+            <svg className="w-4 h-4 ml-1 text-[#f2c14e]/30 group-hover:text-[#f2c14e] group-hover:translate-x-0.5 transition-all" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div className="h-[2px] bg-gradient-to-r from-transparent via-[#f2c14e]/30 to-transparent group-hover:via-[#f2c14e]/60 transition-all" />
+        </button>
+
+        {/* ── Left gold line ── */}
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-[#d4af37]/10 via-[#d4af37]/50 to-[#d4af37]/70 min-w-[20px]" />
+
+        {/* ── MARKETS center ── */}
+        <div className="flex items-center gap-2 shrink-0">
+          <svg className="w-2.5 h-2.5 text-[#d4af37]/50" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0l1.8 4.2L12 6l-4.2 1.8L6 12l-1.8-4.2L0 6l4.2-1.8z"/></svg>
+          <h2 className="text-white text-lg font-bold tracking-[0.15em] uppercase">Markets</h2>
+          <svg className="w-2.5 h-2.5 text-[#d4af37]/50" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0l1.8 4.2L12 6l-4.2 1.8L6 12l-1.8-4.2L0 6l4.2-1.8z"/></svg>
+        </div>
+
+        {/* ── Right gold line ── */}
+        <div className="flex-1 h-[1px] bg-gradient-to-l from-[#d4af37]/10 via-[#d4af37]/50 to-[#d4af37]/70 min-w-[20px]" />
+
+        {/* ── KING BAZAAR Button ── */}
+        <button
+          onClick={() => navigate('/bidoptions', { state: { marketType: 'king' } })}
+          className="group relative overflow-hidden rounded-xl bg-[#111113] border border-[#f2c14e]/25 hover:border-[#f2c14e]/60 transition-all duration-300 active:scale-[0.97] cursor-pointer shrink-0"
+        >
+          <div className="absolute inset-0 bg-gradient-to-l from-[#f2c14e]/[0.06] to-transparent group-hover:from-[#f2c14e]/[0.12] transition-all duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent -translate-x-[200%] group-hover:translate-x-[200%] transition-transform duration-700 pointer-events-none" />
+          <div className="relative flex items-center gap-3 px-4 py-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f2c14e] to-[#b8860b] flex items-center justify-center shrink-0 shadow-[0_2px_14px_rgba(212,175,55,0.4)] group-hover:shadow-[0_2px_20px_rgba(212,175,55,0.6)] group-hover:scale-105 transition-all duration-300">
+              <span className="text-xl leading-none">🎲</span>
+            </div>
+            <div className="text-left">
+              <h3 className="text-[#f2c14e] text-base font-black tracking-wider leading-none">KING BAZAAR</h3>
+              <p className="text-gray-500 text-[11px] mt-1 group-hover:text-gray-400 transition-colors">Play Now →</p>
+            </div>
+            <svg className="w-4 h-4 ml-1 text-[#f2c14e]/30 group-hover:text-[#f2c14e] group-hover:translate-x-0.5 transition-all" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div className="h-[2px] bg-gradient-to-r from-transparent via-[#f2c14e]/30 to-transparent group-hover:via-[#f2c14e]/60 transition-all" />
+        </button>
+      </div>
+
+      {/* ═══ Mobile: MARKETS Header only ═══ */}
+      <div className="flex md:hidden items-end justify-center mb-4 min-[375px]:mb-6 sm:mb-8 w-full max-w-7xl mx-auto gap-1 min-[375px]:gap-2 sm:gap-4">
         <div className="flex-1 h-[2px] bg-[#d4af37] shrink min-w-0" />
-        <div className="relative shrink-0 w-[110px] min-[375px]:w-[140px] sm:w-[180px] md:w-[240px] h-[24px] min-[375px]:h-[28px] sm:h-[34px] md:h-[40px]">
+        <div className="relative shrink-0 w-[110px] min-[375px]:w-[140px] sm:w-[180px] h-[24px] min-[375px]:h-[28px] sm:h-[34px]">
           <svg className="w-full h-full" viewBox="0 0 240 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
             {/* Add small bottom "wings" so lines join like screenshot */}
             <path d="M0 39 H26 L40 2 H200 L214 39 H240" stroke="#d4af37" strokeWidth="2" />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center pt-2 sm:pt-3">
-            <h2 className="text-white text-sm min-[375px]:text-base sm:text-xl md:text-2xl font-bold tracking-wider">MARKETS</h2>
+            <h2 className="text-white text-sm min-[375px]:text-base sm:text-xl font-bold tracking-wider">MARKETS</h2>
           </div>
         </div>
         <div className="flex-1 h-[2px] bg-[#d4af37] shrink min-w-0" />

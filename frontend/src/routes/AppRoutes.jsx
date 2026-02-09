@@ -79,7 +79,7 @@ const Layout = ({ children }) => {
     return (
       <div className="min-h-screen min-h-ios-screen pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0 bg-black w-full">
         <AppHeader />
-        <div className="pt-[calc(72px+env(safe-area-inset-top,0px))] sm:pt-[calc(76px+env(safe-area-inset-top,0px))] md:pt-[calc(88px+env(safe-area-inset-top,0px))]">
+        <div className="pt-[calc(56px+env(safe-area-inset-top,0px))] sm:pt-[calc(52px+env(safe-area-inset-top,0px))] md:pt-[calc(56px+env(safe-area-inset-top,0px))]">
           {children}
         </div>
         <BottomNavbar />

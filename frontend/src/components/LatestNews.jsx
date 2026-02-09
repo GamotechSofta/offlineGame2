@@ -22,7 +22,7 @@ const LatestNews = () => {
       <div className="absolute left-0 top-0 bottom-0 w-12 min-[375px]:w-16 sm:w-20 bg-gradient-to-r from-[#0a0e14] to-transparent z-10 pointer-events-none"></div>
       <div className="absolute right-0 top-0 bottom-0 w-12 min-[375px]:w-16 sm:w-20 bg-gradient-to-l from-[#0a0e14] to-transparent z-10 pointer-events-none"></div>
       
-      <div className="flex items-center h-9 min-[375px]:h-10 md:h-12">
+      <div className="flex items-center h-7 min-[375px]:h-8 md:h-9">
         {/* Label - Enhanced design */}
         <div className="shrink-0 bg-gradient-to-r from-[#1a2332] to-[#1f2a3a] border-r border-yellow-500/30 px-2 min-[375px]:px-3 sm:px-5 md:px-7 h-full flex items-center shadow-md">
           <div className="flex items-center gap-1.5 min-[375px]:gap-2">
