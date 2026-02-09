@@ -17,6 +17,7 @@ import PlayerDetail from './pages/PlayerDetail';
 import PlayerDevices from './pages/PlayerDevices';
 import AddResult from './pages/AddResult';
 import DeclareConfirm from './pages/DeclareConfirm';
+import DeclareSuccess from './pages/DeclareSuccess';
 import UpdateRate from './pages/UpdateRate';
 import MarketDetail from './pages/MarketDetail';
 import StartlineMarkets from './pages/StartlineMarkets';
@@ -94,6 +95,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <DeclareConfirm />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/declare-success"
+                    element={
+                        <PrivateRoute>
+                            <DeclareSuccess />
                         </PrivateRoute>
                     }
                 />

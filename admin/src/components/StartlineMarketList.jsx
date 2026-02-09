@@ -13,7 +13,7 @@ const formatTime = (time24) => {
 const sumDigits = (s) => [...String(s)].reduce((acc, c) => acc + (Number(c) || 0), 0);
 const openDigit = (open3) => (open3 && /^\d{3}$/.test(String(open3)) ? String(sumDigits(open3) % 10) : '*');
 
-const StartlineMarketList = ({ markets, onEdit, apiBaseUrl, getAuthHeaders }) => {
+const StartlineMarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) => {
     const navigate = useNavigate();
 
     const getMarketStatus = (market) => {
@@ -69,6 +69,14 @@ const StartlineMarketList = ({ markets, onEdit, apiBaseUrl, getAuthHeaders }) =>
                             >
                                 Edit (closing time only)
                             </button>
+                            {onDelete && (
+                                <button
+                                    onClick={() => onDelete(market)}
+                                    className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold"
+                                >
+                                    Delete
+                                </button>
+                            )}
                         </div>
                     </div>
                 );

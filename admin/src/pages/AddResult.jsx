@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import { FaExclamationTriangle } from 'react-icons/fa';
@@ -399,7 +399,7 @@ const AddResult = () => {
 
                             {selectedMarket.marketType === 'startline' && (
                                 <p className="text-xs text-gray-400 mb-3 p-2 rounded bg-gray-700/50 border border-amber-500/20">
-                                    Startline has only one result (Open Digit/Patti). To update <strong>closing time</strong>, edit the market from Markets.
+                                    Startline has only one result (Open Digit/Patti). To update <strong>closing time</strong>, use the Starline tab.
                                 </p>
                             )}
 
@@ -553,12 +553,13 @@ const AddResult = () => {
                                 </button>
                             ) : null}
                             {isDirectEditMode ? (
-                                <Link
-                                    to={`/markets/${selectedMarket._id}`}
-                                    className="mt-3 sm:mt-4 w-full inline-block text-center px-4 py-2.5 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg border border-gray-600 transition-colors text-sm sm:text-base"
+                                <button
+                                    type="button"
+                                    onClick={closePanel}
+                                    className="mt-3 sm:mt-4 w-full px-4 py-2.5 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg border border-gray-600 transition-colors text-sm sm:text-base"
                                 >
-                                    Back to Market Overview
-                                </Link>
+                                    Close
+                                </button>
                             ) : (
                                 <button
                                     type="button"

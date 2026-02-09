@@ -88,10 +88,11 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
                 : `${apiBaseUrl}/markets/create-market`;
 
             const isStartlineEdit = market && market.marketType === 'startline';
+            const startlineClosingTime = (formData.closingTime && String(formData.closingTime).trim()) || (market && market.closingTime) || '12:00';
             const payload = isStartlineEdit
                 ? {
-                    closingTime: formData.closingTime,
-                    betClosureTime: formData.betClosureTime ? Number(formData.betClosureTime) : null,
+                    closingTime: startlineClosingTime,
+                    betClosureTime: formData.betClosureTime !== '' && formData.betClosureTime != null ? Number(formData.betClosureTime) : null,
                 }
                 : {
                     ...formData,

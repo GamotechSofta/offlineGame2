@@ -79,7 +79,14 @@ const DeclareConfirm = () => {
             if (json.success) {
                 setShowPasswordModal(false);
                 setSecretPassword('');
-                navigate('/add-result', { replace: true });
+                navigate('/declare-success', {
+                    replace: true,
+                    state: {
+                        marketName: market.marketName || data?.marketName,
+                        declareType,
+                        number,
+                    },
+                });
             } else {
                 if (json.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
                     setPasswordError(json.message || 'Invalid secret password');

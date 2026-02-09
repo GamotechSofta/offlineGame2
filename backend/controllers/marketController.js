@@ -220,7 +220,10 @@ export const updateMarket = async (req, res) => {
         const { marketName, startingTime, closingTime, betClosureTime, marketType } = req.body;
         const updates = {};
         if (existing.marketType === 'startline') {
-            if (closingTime !== undefined) updates.closingTime = closingTime;
+            if (closingTime !== undefined && closingTime != null && String(closingTime).trim() !== '') {
+                updates.closingTime = String(closingTime).trim().slice(0, 5);
+                updates.startingTime = updates.closingTime; // keep slot time in sync for startline
+            }
             if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
         } else {
             if (marketName !== undefined) updates.marketName = marketName;

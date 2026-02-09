@@ -1072,12 +1072,21 @@ const MarketDetail = () => {
                 </div>
 
                 <div className="mt-8 pt-4 border-t border-gray-700 flex flex-wrap items-center gap-3">
-                    <Link
-                        to="/markets"
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-semibold border border-gray-600 transition-colors"
-                    >
-                        <FaArrowLeft /> Back to Markets
-                    </Link>
+                    {market.marketType === 'startline' ? (
+                        <Link
+                            to="/startline"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-black font-semibold border border-amber-500 transition-colors"
+                        >
+                            <FaArrowLeft /> Back to Starline
+                        </Link>
+                    ) : (
+                        <Link
+                            to="/markets"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-semibold border border-gray-600 transition-colors"
+                        >
+                            <FaArrowLeft /> Back to Markets
+                        </Link>
+                    )}
                     {market.marketType !== 'startline' && (
                         <Link
                             to="/add-result"

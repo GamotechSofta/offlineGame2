@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import MarketForm from '../components/MarketForm';
@@ -15,6 +15,25 @@ const formatTime = (timeStr) => {
     const m = parts[1] ? String(parseInt(parts[1], 10)).padStart(2, '0') : '00';
     return `${Number.isFinite(h) ? h : ''}:${m}`;
 };
+
+// Add Starline Market: 12h time -> 24h "HH:MM"
+const to24Hour = (hour12, minute, ampm) => {
+    let h = parseInt(hour12, 10) || 12;
+    const m = String(parseInt(minute, 10) || 0).padStart(2, '0').slice(0, 2);
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${m}`;
+};
+// 24h "HH:MM" -> display "10:00 PM" for market name
+const toDisplayTime = (hour12, minute, ampm) => {
+    const h = parseInt(hour12, 10) || 12;
+    const m = String(parseInt(minute, 10) || 0).padStart(2, '0').slice(0, 2);
+    const ampmStr = ampm === 'PM' ? 'PM' : 'AM';
+    const h12 = h === 12 ? 12 : h % 12;
+    return `${h12}:${m} ${ampmStr}`;
+};
+const HOURS_12 = ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 const StartlineMarkets = () => {
     const [markets, setMarkets] = useState([]);
@@ -33,6 +52,16 @@ const StartlineMarkets = () => {
     const [secretPassword, setSecretPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
+    const [showAddStarlineForm, setShowAddStarlineForm] = useState(false);
+    const [addFormTime, setAddFormTime] = useState({ hour12: '10', minute: '00', ampm: 'PM' });
+    const [addFormBetClosure, setAddFormBetClosure] = useState('');
+    const [addFormLoading, setAddFormLoading] = useState(false);
+    const [addFormError, setAddFormError] = useState('');
+    const [deleteMarket, setDeleteMarket] = useState(null);
+    const [showDeletePasswordModal, setShowDeletePasswordModal] = useState(false);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [deletePasswordError, setDeletePasswordError] = useState('');
+    const [deleteLoading, setDeleteLoading] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -44,7 +73,14 @@ const StartlineMarkets = () => {
             .catch(() => setHasSecretDeclarePassword(false));
     }, []);
 
-    const startlineMarkets = (markets || []).filter((m) => m.marketType === 'startline');
+    const startlineMarkets = useMemo(() => {
+        const list = (markets || []).filter((m) => m.marketType === 'startline');
+        return list.sort((a, b) => {
+            const tA = (a.startingTime || a.closingTime || '').toString().trim().slice(0, 5);
+            const tB = (b.startingTime || b.closingTime || '').toString().trim().slice(0, 5);
+            return String(tA).localeCompare(String(tB), undefined, { numeric: true });
+        });
+    }, [markets]);
 
     const fetchMarkets = async () => {
         try {
@@ -92,6 +128,44 @@ const StartlineMarkets = () => {
         fetchMarkets();
     };
 
+    const handleAddStarlineSubmit = async (e) => {
+        e.preventDefault();
+        setAddFormError('');
+        setAddFormLoading(true);
+        try {
+            const time24 = to24Hour(addFormTime.hour12, addFormTime.minute, addFormTime.ampm);
+            const marketName = `STARLINE ${toDisplayTime(addFormTime.hour12, addFormTime.minute, addFormTime.ampm)}`;
+            const payload = {
+                marketName,
+                startingTime: time24,
+                closingTime: time24,
+                marketType: 'startline',
+            };
+            if (addFormBetClosure !== '' && addFormBetClosure != null) {
+                const sec = Number(addFormBetClosure);
+                if (Number.isFinite(sec) && sec >= 0) payload.betClosureTime = sec;
+            }
+            const res = await fetch(`${API_BASE_URL}/markets/create-market`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowAddStarlineForm(false);
+                setAddFormTime({ hour12: '10', minute: '00', ampm: 'PM' });
+                setAddFormBetClosure('');
+                fetchMarkets();
+            } else {
+                setAddFormError(data.message || 'Failed to create market');
+            }
+        } catch (err) {
+            setAddFormError('Network error.');
+        } finally {
+            setAddFormLoading(false);
+        }
+    };
+
     const getAuthHeaders = () => {
         const admin = JSON.parse(localStorage.getItem('admin') || '{}');
         const password = sessionStorage.getItem('adminPassword') || '';
@@ -99,6 +173,62 @@ const StartlineMarkets = () => {
             'Content-Type': 'application/json',
             'Authorization': `Basic ${btoa(`${admin.username}:${password}`)}`,
         };
+    };
+
+    const performDeleteMarket = async (secretDeclarePasswordValue, marketToDelete = null) => {
+        const target = marketToDelete || deleteMarket;
+        if (!target) return;
+        const marketId = target._id ?? target.id;
+        if (!marketId) return;
+        setDeleteLoading(true);
+        setDeletePasswordError('');
+        try {
+            const body = secretDeclarePasswordValue ? { secretDeclarePassword: secretDeclarePasswordValue } : {};
+            const res = await fetch(`${API_BASE_URL}/markets/delete-market/${encodeURIComponent(marketId)}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(body),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setDeleteMarket(null);
+                setShowDeletePasswordModal(false);
+                setDeletePassword('');
+                setSelectedResultMarket((prev) => (prev && (String(prev._id) === String(marketId) || String(prev.id) === String(marketId))) ? null : prev);
+                fetchMarkets();
+            } else {
+                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD' || res.status === 403) {
+                    setDeletePasswordError(data.message || 'Invalid secret password');
+                } else {
+                    alert(data.message || 'Failed to delete market');
+                }
+            }
+        } catch {
+            alert('Network error');
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    const handleDelete = (market) => {
+        if (!window.confirm(`Delete Starline market "${market.marketName}"? This cannot be undone.`)) return;
+        setDeleteMarket(market);
+        setDeletePassword('');
+        setDeletePasswordError('');
+        if (hasSecretDeclarePassword) {
+            setShowDeletePasswordModal(true);
+        } else {
+            performDeleteMarket('', market);
+        }
+    };
+
+    const handleDeletePasswordSubmit = (e) => {
+        e.preventDefault();
+        if (hasSecretDeclarePassword && !deletePassword.trim()) {
+            setDeletePasswordError('Please enter the secret declare password');
+            return;
+        }
+        performDeleteMarket(deletePassword.trim(), deleteMarket);
     };
 
     const handleSeedStartline = async () => {
@@ -270,7 +400,7 @@ const StartlineMarkets = () => {
                     Starline – All Management
                 </h1>
                 <p className="text-gray-400 text-sm mb-6">
-                    Manage Starline markets, closing time, and declare result here. Names are fixed.
+                    Single tab: add Starline markets (timing only), edit closing time, and declare result. Only non-deleted Starline markets are listed.
                 </p>
 
                 {showForm && editingMarket && (
@@ -291,28 +421,47 @@ const StartlineMarkets = () => {
                 ) : (
                     <div className="flex flex-col xl:flex-row xl:gap-6">
                         <div className="flex-1 min-w-0 space-y-8">
-                            {/* Section 1: Starline Markets list */}
+                            {/* Section 1: Starline Markets list (non-deleted only) + Add Starline Market */}
                             <section>
-                                <h2 className="text-lg font-bold text-amber-400 mb-3 flex items-center gap-2">
-                                    <span className="inline-block w-1 h-6 bg-amber-500 rounded-full" />
-                                    Markets & Closing Time
-                                </h2>
+                                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                                    <h2 className="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                        <span className="inline-block w-1 h-6 bg-amber-500 rounded-full" />
+                                        Markets & Closing Time
+                                    </h2>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowAddStarlineForm(true); setAddFormError(''); }}
+                                        className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-black font-semibold rounded-xl transition-colors text-sm"
+                                    >
+                                        + Add Starline Market
+                                    </button>
+                                </div>
                                 {startlineMarkets.length === 0 ? (
                                     <div className="rounded-xl border-2 border-dashed border-amber-500/30 bg-gray-800/50 p-6 text-center">
-                                        <p className="text-gray-400 text-sm mb-4">No startline markets. Create the default fixed startline markets once.</p>
-                                        <button
-                                            type="button"
-                                            onClick={handleSeedStartline}
-                                            disabled={seedLoading}
-                                            className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-black font-semibold rounded-xl transition-colors text-sm"
-                                        >
-                                            {seedLoading ? 'Creating...' : 'Create default Starline markets'}
-                                        </button>
+                                        <p className="text-gray-400 text-sm mb-4">No startline markets. Seed defaults or add one with timing only.</p>
+                                        <div className="flex flex-wrap justify-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={handleSeedStartline}
+                                                disabled={seedLoading}
+                                                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-black font-semibold rounded-xl transition-colors text-sm"
+                                            >
+                                                {seedLoading ? 'Creating...' : 'Create default Starline markets'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setShowAddStarlineForm(true); setAddFormError(''); }}
+                                                className="px-4 py-2.5 bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded-xl transition-colors text-sm"
+                                            >
+                                                + Add Starline Market
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : (
                                     <StartlineMarketList
                                         markets={startlineMarkets}
                                         onEdit={handleEdit}
+                                        onDelete={handleDelete}
                                         apiBaseUrl={API_BASE_URL}
                                         getAuthHeaders={getAuthHeaders}
                                     />
@@ -438,6 +587,124 @@ const StartlineMarkets = () => {
                                 >
                                     Close
                                 </button>
+                            </div>
+                        )}
+
+                        {/* Add Starline Market modal (timing only) */}
+                        {showAddStarlineForm && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                                <div className="bg-gray-800 rounded-xl border-2 border-amber-500/40 shadow-xl max-w-md w-full p-6">
+                                    <h3 className="text-lg font-bold text-amber-400 mb-2">Add Starline Market</h3>
+                                    <p className="text-gray-400 text-sm mb-4">Add a single Starline market with closing time only. Name is auto-generated (e.g. STARLINE 10:00 PM).</p>
+                                    <form onSubmit={handleAddStarlineSubmit} className="space-y-4">
+                                        {addFormError && (
+                                            <div className="p-2.5 rounded-lg bg-red-900/50 border border-red-700 text-red-200 text-sm">{addFormError}</div>
+                                        )}
+                                        <div>
+                                            <label className="block text-gray-300 text-sm font-medium mb-2">Closing Time</label>
+                                            <div className="grid grid-cols-[1fr_auto_1fr_auto_auto] gap-1 sm:gap-2 items-center">
+                                                <select
+                                                    value={addFormTime.hour12}
+                                                    onChange={(e) => setAddFormTime((p) => ({ ...p, hour12: e.target.value }))}
+                                                    className="w-full min-w-0 px-2 sm:px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-amber-500 text-sm"
+                                                >
+                                                    {HOURS_12.map((h) => (
+                                                        <option key={h} value={h}>{h}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400 text-sm">:</span>
+                                                <select
+                                                    value={addFormTime.minute}
+                                                    onChange={(e) => setAddFormTime((p) => ({ ...p, minute: e.target.value }))}
+                                                    className="w-full min-w-0 px-2 sm:px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-amber-500 text-sm"
+                                                >
+                                                    {MINUTES.map((m) => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="w-1" />
+                                                <select
+                                                    value={addFormTime.ampm}
+                                                    onChange={(e) => setAddFormTime((p) => ({ ...p, ampm: e.target.value }))}
+                                                    className="w-full min-w-[4rem] px-2 sm:px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-amber-500 text-sm"
+                                                >
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-gray-300 text-sm font-medium mb-2">Bet Closure (seconds, optional)</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                value={addFormBetClosure}
+                                                onChange={(e) => setAddFormBetClosure(e.target.value)}
+                                                placeholder="e.g. 300"
+                                                className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 text-sm"
+                                            />
+                                        </div>
+                                        <div className="flex gap-3 pt-2">
+                                            <button
+                                                type="submit"
+                                                disabled={addFormLoading}
+                                                className="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg text-sm disabled:opacity-50"
+                                            >
+                                                {addFormLoading ? 'Creating...' : 'Create'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setShowAddStarlineForm(false); setAddFormError(''); }}
+                                                disabled={addFormLoading}
+                                                className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg text-sm"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Delete market – secret password modal */}
+                        {showDeletePasswordModal && deleteMarket && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                                <div className="bg-gray-800 rounded-xl border border-red-500/40 shadow-xl max-w-md w-full p-6">
+                                    <h3 className="text-lg font-bold text-red-400 mb-2">Delete Starline Market</h3>
+                                    <p className="text-gray-400 text-sm mb-2 truncate" title={deleteMarket.marketName}>{deleteMarket.marketName}</p>
+                                    <p className="text-gray-400 text-sm mb-4">
+                                        Enter the secret declare password to confirm deletion.
+                                    </p>
+                                    <form onSubmit={handleDeletePasswordSubmit} className="space-y-4">
+                                        <input
+                                            type="password"
+                                            value={deletePassword}
+                                            onChange={(e) => { setDeletePassword(e.target.value); setDeletePasswordError(''); }}
+                                            placeholder="Secret password"
+                                            autoFocus
+                                            className="w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                        />
+                                        {deletePasswordError && <p className="text-red-400 text-sm">{deletePasswordError}</p>}
+                                        <div className="flex gap-3">
+                                            <button
+                                                type="submit"
+                                                disabled={deleteLoading}
+                                                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg disabled:opacity-50"
+                                            >
+                                                {deleteLoading ? 'Deleting...' : 'Delete'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setShowDeletePasswordModal(false); setDeleteMarket(null); setDeletePassword(''); setDeletePasswordError(''); }}
+                                                disabled={deleteLoading}
+                                                className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg border border-gray-600"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         )}
 
