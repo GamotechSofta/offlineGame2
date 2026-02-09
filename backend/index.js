@@ -12,7 +12,7 @@ import reportRoutes from './routes/report/reportRoutes.js';
 import helpDeskRoutes from './routes/helpDesk/helpDeskRoutes.js';
 import dashboardRoutes from './routes/dashboard/dashboardRoutes.js';
 import rateRoutes from './routes/rate/rateRoutes.js';
-import commissionRoutes from './routes/commission/commissionRoutes.js';
+
 import bankDetailRoutes from './routes/bankDetail/bankDetailRoutes.js';
 import { getClientIp } from './utils/activityLogger.js';
 import cors from 'cors';
@@ -60,7 +60,7 @@ app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/help-desk', helpDeskRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/rates', rateRoutes);
-app.use('/api/v1/commission', commissionRoutes);
+
 app.use('/api/v1/bank-details', bankDetailRoutes);
 
 app.listen(PORT, () => {

@@ -14,7 +14,7 @@ import {
     FaSignOutAlt,
     FaUsers,
     FaTimes,
-    FaPercent,
+
 } from 'react-icons/fa';
 
 const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
@@ -32,7 +32,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/reports', label: 'Report', icon: FaChartLine },
         { path: '/payments', label: 'Payments', icon: FaCreditCard },
         { path: '/wallet', label: 'Wallet', icon: FaWallet },
-        { path: '/commission', label: 'Commission', icon: FaPercent },
+
         { path: '/help-desk', label: 'Help Desk', icon: FaLifeRing },
     ];
 

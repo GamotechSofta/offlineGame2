@@ -3,7 +3,7 @@ import Payment from '../models/payment/payment.js';
 import User from '../models/user/user.js';
 import Market from '../models/market/market.js';
 import Admin from '../models/admin/admin.js';
-import CommissionRequest from '../models/commission/commission.js';
+
 import { Wallet } from '../models/wallet/wallet.js';
 import HelpDesk from '../models/helpDesk/helpDesk.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
@@ -122,11 +122,9 @@ export const getDashboardStats = async (req, res) => {
 
         // Bookies & Commission (super_admin only – when bookieUserIds is null)
         let bookies = { total: 0, active: 0 };
-        let commissionPending = 0;
         if (bookieUserIds === null && req.admin?.role === 'super_admin') {
             bookies.total = await Admin.countDocuments({ role: 'bookie' });
             bookies.active = await Admin.countDocuments({ role: 'bookie', status: 'active' });
-            commissionPending = await CommissionRequest.countDocuments({ status: 'pending' });
         }
 
         // Wallet & Help Desk (all-time)
@@ -197,7 +195,6 @@ export const getDashboardStats = async (req, res) => {
                     inProgress: inProgressTickets,
                 },
                 bookies,
-                commissionPending,
                 marketsPendingResult,
                 marketsPendingResultList,
             },

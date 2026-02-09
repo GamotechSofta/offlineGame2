@@ -1,318 +1,236 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import { useNavigate, Link } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
-import { FaUser, FaEnvelope, FaPhone, FaCheckCircle, FaTimesCircle, FaSearch } from 'react-icons/fa';
+import { FaUserPlus, FaSearch } from 'react-icons/fa';
+
+const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
+
+const computeIsOnline = (item) => {
+    const lastActive = item?.lastActiveAt ? new Date(item.lastActiveAt).getTime() : 0;
+    return lastActive > 0 && Date.now() - lastActive < ONLINE_THRESHOLD_MS;
+};
 
 const MyUsers = () => {
+    const navigate = useNavigate();
     const [users, setUsers] = useState([]);
-    const [filteredUsers, setFilteredUsers] = useState([]);
-    const [walletByUserId, setWalletByUserId] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [, setTick] = useState(0);
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    useEffect(() => {
-        // Filter players by Sr No or player name (username)
-        const term = searchTerm.trim();
-        if (term === '') {
-            setFilteredUsers(users);
-            return;
-        }
-
-        const lower = term.toLowerCase();
-        const numeric = Number(term);
-        const isNumeric = Number.isFinite(numeric) && term !== '';
-
-        const idToSrNo = new Map(users.map((u, idx) => [u?._id, idx + 1]));
-
-        const filtered = users.filter((u) => {
-            const name = (u?.username || '').toLowerCase();
-            const nameMatch = name.includes(lower);
-            if (nameMatch) return true;
-
-            if (!isNumeric) return false;
-            const srNo = idToSrNo.get(u?._id) || 0;
-            return String(srNo) === term;
-        });
-
-        setFilteredUsers(filtered);
-    }, [searchTerm, users]);
-
-    const fetchUsers = async () => {
+    const fetchData = async (showLoader = true) => {
+        if (showLoader) setLoading(true);
+        if (showLoader) setError('');
         try {
-            setLoading(true);
-            const headers = getBookieAuthHeaders();
-            console.log('Fetching users with headers:', headers);
-            
             const response = await fetch(`${API_BASE_URL}/users`, {
-                headers: headers,
+                headers: getBookieAuthHeaders(),
             });
-            
-            console.log('Response status:', response.status);
             const data = await response.json();
-            console.log('Response data:', data);
-            
             if (data.success) {
-                setUsers(data.data);
-                setFilteredUsers(data.data);
-                console.log('Users loaded:', data.data.length);
-                // Fetch wallet balances (optional enrichment for table)
-                fetchWalletBalances();
+                setUsers(data.data || []);
             } else {
-                setError(data.message || 'Failed to fetch users');
-                console.error('API Error:', data.message);
+                if (showLoader) setError(data.message || 'Failed to fetch users');
             }
         } catch (err) {
-            setError('Network error. Please check if the server is running.');
-            console.error('Network error:', err);
+            if (showLoader) setError('Network error. Please check if the server is running.');
         } finally {
-            setLoading(false);
+            if (showLoader) setLoading(false);
         }
     };
 
-    const fetchWalletBalances = async () => {
-        try {
-            const headers = getBookieAuthHeaders();
-            const res = await fetch(`${API_BASE_URL}/wallet/all`, { headers });
-            const data = await res.json();
-            if (!data?.success || !Array.isArray(data?.data)) return;
+    useEffect(() => {
+        fetchData(true);
+        // Auto-refresh every 15 seconds
+        const refreshInterval = setInterval(() => fetchData(false), 15000);
+        // Tick to re-evaluate online status
+        const tickInterval = setInterval(() => setTick((t) => t + 1), 5000);
+        return () => {
+            clearInterval(refreshInterval);
+            clearInterval(tickInterval);
+        };
+    }, []);
 
-            const map = {};
-            for (const w of data.data) {
-                const id = w?.userId?._id || w?.userId;
-                if (!id) continue;
-                map[id] = w?.balance;
-            }
-            setWalletByUserId(map);
-        } catch (e) {
-            // Non-blocking; table will show '-' if unavailable
-            setWalletByUserId({});
-        }
-    };
+    const q = searchQuery.trim().toLowerCase();
+    const filteredUsers = q
+        ? users.filter((item) => {
+            const username = (item.username || '').toLowerCase();
+            const email = (item.email || '').toLowerCase();
+            const phone = (item.phone || '').toString();
+            return username.includes(q) || email.includes(q) || phone.includes(q);
+        })
+        : users;
+
+    const activeCount = users.filter((u) => u.isActive !== false).length;
+    const suspendedCount = users.filter((u) => u.isActive === false).length;
+    const onlineCount = users.filter((u) => computeIsOnline(u)).length;
 
     return (
         <Layout title="My Players">
-                <div className="mb-4 sm:mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-bold mb-1">My Players</h1>
-                    <p className="text-gray-400 text-sm">Players who registered through your referral link or were created by you</p>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+                <h1 className="text-2xl sm:text-3xl font-bold">My Players</h1>
+                <button
+                    type="button"
+                    onClick={() => navigate('/add-user')}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-yellow-500 hover:bg-yellow-500/90 text-black font-semibold transition-colors text-sm sm:text-base shrink-0"
+                >
+                    <FaUserPlus className="w-5 h-5" />
+                    Add Player
+                </button>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div className="bg-gray-800/80 rounded-xl p-4 border border-gray-700/50">
+                    <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Total Players</p>
+                    <p className="text-2xl font-bold text-white font-mono">{users.length}</p>
                 </div>
-
-                <div className="mb-4 sm:mb-6">
-                    <div className="relative max-w-md">
-                        <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by Sr No or player name..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                        />
-                    </div>
+                <div className="bg-gray-800/80 rounded-xl p-4 border border-gray-700/50">
+                    <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Active</p>
+                    <p className="text-2xl font-bold text-green-400 font-mono">{activeCount}</p>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
-                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700/50">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-400 text-sm">Total Players</p>
-                                <p className="text-2xl font-bold text-white mt-1">{users.length}</p>
-                            </div>
-                            <div className="bg-yellow-500/20 p-3 rounded-lg">
-                                <FaUser className="text-yellow-500 text-2xl" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700/50">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-400 text-sm">Active Players</p>
-                                <p className="text-2xl font-bold text-white mt-1">
-                                    {users.filter(u => u.isActive).length}
-                                </p>
-                            </div>
-                            <div className="bg-green-500/20 p-3 rounded-lg">
-                                <FaCheckCircle className="text-green-500 text-2xl" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700/50">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-400 text-sm">Inactive Players</p>
-                                <p className="text-2xl font-bold text-white mt-1">
-                                    {users.filter(u => !u.isActive).length}
-                                </p>
-                            </div>
-                            <div className="bg-red-500/20 p-3 rounded-lg">
-                                <FaTimesCircle className="text-red-500 text-2xl" />
-                            </div>
-                        </div>
-                    </div>
+                <div className="bg-gray-800/80 rounded-xl p-4 border border-gray-700/50">
+                    <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Suspended</p>
+                    <p className="text-2xl font-bold text-red-400 font-mono">{suspendedCount}</p>
                 </div>
+                <div className="bg-gray-800/80 rounded-xl p-4 border border-gray-700/50">
+                    <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Online Now</p>
+                    <p className="text-2xl font-bold text-amber-400 font-mono">{onlineCount}</p>
+                </div>
+            </div>
 
-                {/* Error Message */}
-                {error && (
-                    <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
-                        {error}
-                    </div>
-                )}
-
-                {/* Players Table */}
-                <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700/50">
-                    {loading ? (
-                        <div className="p-8 text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
-                            <p className="mt-4 text-gray-400">Loading players...</p>
-                        </div>
-                    ) : filteredUsers.length === 0 ? (
-                        <div className="p-8 text-center text-gray-400">
-                            {searchTerm ? (
-                                <>
-                                    <p>No players found matching "{searchTerm}"</p>
-                                    <button
-                                        onClick={() => setSearchTerm('')}
-                                        className="mt-4 text-yellow-500 hover:text-yellow-400"
-                                    >
-                                        Clear search
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <p>No players found.</p>
-                                    <p className="mt-2">Players who register through your referral link will appear here.</p>
-                                </>
-                            )}
-                        </div>
-                    ) : (
-                        <>
-                            <div className="overflow-x-auto">
-                                <table className="w-full table-fixed">
-                                    <thead className="bg-gray-700">
-                                        <tr>
-                                            <th className="px-3 py-2 text-left text-[11px] font-medium text-gray-300 uppercase tracking-wider w-12">
-                                                Sr No
-                                            </th>
-                                            <th className="px-3 py-2 text-left text-[11px] font-medium text-gray-300 uppercase tracking-wider w-36">
-                                                Players
-                                            </th>
-                                            <th className="px-3 py-2 text-left text-[11px] font-medium text-gray-300 uppercase tracking-wider w-52">
-                                                Email
-                                            </th>
-                                            <th className="px-3 py-2 text-left text-[11px] font-medium text-gray-300 uppercase tracking-wider w-36">
-                                                Phone
-                                            </th>
-                                            <th className="px-3 py-2 text-left text-[11px] font-medium text-gray-300 uppercase tracking-wider w-24">
-                                                Role
-                                            </th>
-                                            <th className="px-3 py-2 text-left text-[11px] font-medium text-gray-300 uppercase tracking-wider w-28">
-                                                Status
-                                            </th>
-                                            <th className="px-3 py-2 text-left text-[11px] font-medium text-gray-300 uppercase tracking-wider w-32">
-                                                Joined
-                                            </th>
-                                            <th className="px-3 py-2 text-left text-[11px] font-medium text-gray-300 uppercase tracking-wider w-28">
-                                                Wallet Balance
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-700">
-                                        {filteredUsers.map((user) => (
-                                            <tr key={user._id} className="hover:bg-gray-700/50">
-                                                <td className="px-3 py-2 text-gray-300 text-sm">
-                                                    {users.findIndex((u) => u?._id === user?._id) + 1}
-                                                </td>
-                                                <td className="px-3 py-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <FaUser className="text-gray-500" />
-                                                        <span className="font-medium text-white truncate">{user.username}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-3 py-2">
-                                                    <div className="flex items-center gap-2 text-gray-300">
-                                                        <FaEnvelope className="text-gray-500" size={14} />
-                                                        <span className="truncate">{user.email}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-3 py-2 text-gray-300">
-                                                    {user.phone ? (
-                                                        <div className="flex items-center gap-2">
-                                                            <FaPhone className="text-gray-500" size={14} />
-                                                            <span className="truncate">{user.phone}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-gray-500">-</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-3 py-2">
-                                                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-900/50 text-blue-400 border border-blue-700">
-                                                        {user.role}
-                                                    </span>
-                                                </td>
-                                                <td className="px-3 py-2">
-                                                    {user.isActive ? (
-                                                        <span className="flex items-center gap-2 text-green-400">
-                                                            <FaCheckCircle />
-                                                            <span className="text-sm font-medium">Active</span>
-                                                        </span>
-                                                    ) : (
-                                                        <span className="flex items-center gap-2 text-red-400">
-                                                            <FaTimesCircle />
-                                                            <span className="text-sm font-medium">Inactive</span>
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="px-3 py-2 text-gray-300">
-                                                    <div className="text-sm">
-                                                        {new Date(user.createdAt).toLocaleDateString('en-IN', {
-                                                            day: '2-digit',
-                                                            month: 'short',
-                                                            year: 'numeric',
-                                                        })}
-                                                    </div>
-                                                    <div className="text-[11px] text-gray-400">
-                                                        {new Date(user.createdAt).toLocaleTimeString('en-IN', {
-                                                            hour: '2-digit',
-                                                            minute: '2-digit',
-                                                        })}
-                                                    </div>
-                                                </td>
-                                                <td className="px-3 py-2 text-yellow-400 font-semibold">
-                                                    {walletByUserId?.[user._id] !== undefined && walletByUserId?.[user._id] !== null
-                                                        ? `₹${walletByUserId[user._id]}`
-                                                        : '-'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            {/* Results count */}
-                            <div className="px-3 py-2 bg-gray-800/80 border-t border-gray-700/50">
-                                <p className="text-xs text-gray-400">
-                                    Showing {filteredUsers.length} of {users.length} players
-                                </p>
-                            </div>
-                        </>
+            {/* Search */}
+            <div className="mb-4 sm:mb-6">
+                <div className="relative max-w-md">
+                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <input
+                        type="text"
+                        placeholder="Search by name, email or phone..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className={`w-full pl-10 py-2.5 bg-gray-700/80 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
+                    />
+                    {searchQuery && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm"
+                        >
+                            ✕
+                        </button>
                     )}
                 </div>
+            </div>
 
-                {/* Info Card */}
-                <div className="mt-6 bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700/50">
-                    <h3 className="text-lg font-semibold text-yellow-500 mb-3">About My Players</h3>
-                    <div className="text-gray-300 space-y-2">
-                        <p>• This list shows only the players who are linked to your bookie account.</p>
-                        <p>• Players created by you or registered through your referral link will appear here.</p>
-                        <p>• You can see their activity in Bet History, Reports, and Wallet sections.</p>
-                        <p>• Other bookies cannot see these players in their panel.</p>
-                    </div>
+            {/* Error */}
+            {error && (
+                <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
+                    {error}
                 </div>
+            )}
+
+            {/* Table */}
+            <div className="bg-gray-800 rounded-lg overflow-x-auto overflow-y-hidden border border-gray-700 min-w-0 max-w-full">
+                {loading ? (
+                    <div className="p-8 text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto" />
+                        <p className="mt-4 text-gray-400">Loading players...</p>
+                    </div>
+                ) : users.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                        <p>No players found.</p>
+                        <p className="mt-2 text-sm">Players who register through your referral link or are created by you will appear here.</p>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/add-user')}
+                            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-500/90 text-black font-semibold text-sm"
+                        >
+                            <FaUserPlus className="w-4 h-4" /> Add Player
+                        </button>
+                    </div>
+                ) : filteredUsers.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                        No results match your search. Try a different term.
+                    </div>
+                ) : (
+                    <div>
+                        {/* Desktop Table */}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-[800px]">
+                                <thead className="bg-gray-700">
+                                    <tr>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase w-8">#</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Name</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Email</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Phone</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Wallet</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Account</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-700">
+                                    {filteredUsers.map((item, index) => {
+                                        const isOnline = computeIsOnline(item);
+                                        return (
+                                            <tr key={item._id} className="hover:bg-gray-700/50">
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300">{index + 1}</td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3 font-medium">
+                                                    <Link to={`/my-users/${item._id}`} className="text-yellow-400 hover:text-yellow-300 hover:underline truncate block max-w-[140px]">{item.username}</Link>
+                                                </td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300 truncate max-w-[160px]">{item.email || '—'}</td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300">{item.phone || '—'}</td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3">
+                                                    <span className="font-mono font-medium text-green-400 text-xs sm:text-sm">
+                                                        ₹{Number(item.walletBalance ?? 0).toLocaleString('en-IN')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+                                                        isOnline
+                                                            ? 'bg-green-900/50 text-green-400 border border-green-700'
+                                                            : 'bg-gray-700 text-gray-400 border border-gray-600'
+                                                    }`}>
+                                                        <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                                        {isOnline ? 'Online' : 'Offline'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3">
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                        item.isActive !== false
+                                                            ? 'bg-green-900/50 text-green-400 border border-green-700'
+                                                            : 'bg-red-900/50 text-red-400 border border-red-700'
+                                                    }`}>
+                                                        {item.isActive !== false ? 'Active' : 'Suspended'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300 text-xs">
+                                                    {item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-IN', {
+                                                        day: '2-digit',
+                                                        month: 'short',
+                                                        year: 'numeric',
+                                                    }) : '—'}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Results Count */}
+            {!loading && users.length > 0 && (
+                <p className="mt-4 text-gray-400 text-sm">
+                    Showing {filteredUsers.length} player{filteredUsers.length !== 1 ? 's' : ''}
+                    {searchQuery && filteredUsers.length !== users.length && (
+                        <span> (filtered from {users.length})</span>
+                    )}
+                </p>
+            )}
         </Layout>
     );
 };

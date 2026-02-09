@@ -13,8 +13,9 @@ import TopWinners from './pages/TopWinners';
 import Reports from './pages/Reports';
 import Payments from './pages/Payments';
 import Wallet from './pages/Wallet';
-import Commission from './pages/Commission';
+
 import HelpDesk from './pages/HelpDesk';
+import PlayerDetail from './pages/PlayerDetail';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -62,6 +63,7 @@ const AppRoutes = () => (
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/my-users" element={<PrivateRoute><MyUsers /></PrivateRoute>} />
+        <Route path="/my-users/:userId" element={<PrivateRoute><PlayerDetail /></PrivateRoute>} />
         <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
         <Route path="/referral-link" element={<PrivateRoute><ReferralLink /></PrivateRoute>} />
@@ -70,7 +72,7 @@ const AppRoutes = () => (
         <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
-        <Route path="/commission" element={<PrivateRoute><Commission /></PrivateRoute>} />
+
         <Route path="/help-desk" element={<PrivateRoute><HelpDesk /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
