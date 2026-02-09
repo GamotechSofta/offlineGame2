@@ -215,8 +215,184 @@ const Profile = () => {
     { icon: <IconShield />, label: 'Role', value: form.role || 'User', color: 'text-amber-400', capitalize: true },
   ];
 
+  /* ── Reusable blocks (rendered in both mobile & desktop layouts) ── */
+
+  const heroCard = (
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] border border-white/10 shadow-2xl">
+      <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-yellow-500/5 blur-2xl" />
+      <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-blue-500/5 blur-2xl" />
+      <div className="relative p-5 md:p-6">
+        <div className="flex items-center gap-4 mb-5">
+          <div className="relative">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-[#f2c14e] to-[#f5a623] flex items-center justify-center text-black text-2xl md:text-3xl font-bold shadow-lg shadow-yellow-500/20">
+              {avatarInitial}
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 md:w-5 md:h-5 rounded-full bg-emerald-500 border-2 border-[#16213e]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-white font-bold text-lg md:text-xl truncate leading-tight">
+              {form.username || 'User'}
+            </h3>
+            <p className="text-gray-400 text-sm truncate mt-0.5">
+              {form.email || form.phone || 'No contact info'}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <div className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
+                <span className="text-emerald-400 text-[10px] font-semibold uppercase tracking-wider">Active</span>
+              </div>
+              {form.role && (
+                <div className="px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30">
+                  <span className="text-blue-400 text-[10px] font-semibold uppercase tracking-wider capitalize">{form.role}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl bg-black/30 backdrop-blur border border-white/10 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Wallet Balance</p>
+              <p className="text-[#f2c14e] text-2xl md:text-3xl font-extrabold tracking-tight">
+                ₹{walletValue !== null ? walletValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-[#f2c14e]/10 border border-[#f2c14e]/20 flex items-center justify-center text-[#f2c14e]">
+              <IconWallet />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const quickActionsBlock = (cols = 'grid-cols-4') => (
+    <div className={`grid ${cols} gap-2.5`}>
+      {quickActions.map((action) => (
+        <button
+          key={action.label}
+          type="button"
+          onClick={() => navigate(action.path)}
+          className="flex flex-col items-center gap-2 py-3 px-1 rounded-2xl bg-[#141416] border border-white/5 hover:border-white/15 active:scale-95 transition-all md:py-4 md:hover:bg-white/[0.03]"
+        >
+          <div className={`w-10 h-10 md:w-11 md:h-11 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-lg`}>
+            {action.icon}
+          </div>
+          <span className="text-gray-300 text-[11px] md:text-xs font-medium leading-tight text-center">{action.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderCopyBtn = (label) => (
+    <button
+      type="button"
+      onClick={() => handleCopy(
+        label === 'User ID' ? userId : infoFields.find(f => f.label === label)?.value,
+        label
+      )}
+      className="p-1.5 rounded-lg hover:bg-white/5 text-gray-500 hover:text-gray-300 transition-colors"
+      title={`Copy ${label}`}
+    >
+      {copiedField === label ? (
+        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
+      ) : (
+        <IconCopy />
+      )}
+    </button>
+  );
+
+  const accountInfoBlock = (
+    <div className="rounded-3xl bg-[#141416] border border-white/5 overflow-hidden">
+      <div className="px-5 pt-5 pb-3">
+        <h3 className="text-white font-semibold text-sm uppercase tracking-wider">Account Information</h3>
+      </div>
+      <div className="px-4 pb-2">
+        {/* User ID */}
+        <div className="group flex items-center gap-3.5 px-3 py-3.5 rounded-2xl hover:bg-white/[0.03] transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-gray-500/10 flex items-center justify-center text-gray-400 shrink-0">
+            <IconId />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">User ID</p>
+            <p className="text-gray-300 text-sm font-mono truncate mt-0.5">{userId}</p>
+          </div>
+          {renderCopyBtn('User ID')}
+        </div>
+
+        {/* Info fields */}
+        {infoFields.map((field) => (
+          <div key={field.label} className="group flex items-center gap-3.5 px-3 py-3.5 rounded-2xl hover:bg-white/[0.03] transition-colors">
+            <div className={`w-10 h-10 rounded-xl bg-current/10 flex items-center justify-center shrink-0 ${field.color}`} style={{ backgroundColor: 'color-mix(in srgb, currentColor 10%, transparent)' }}>
+              {field.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">{field.label}</p>
+              <p className={`text-white text-sm font-medium truncate mt-0.5 ${field.capitalize ? 'capitalize' : ''}`}>
+                {field.value}
+              </p>
+            </div>
+            {field.copyable && field.value !== 'Not set' && renderCopyBtn(field.label)}
+          </div>
+        ))}
+
+        {/* Member Since */}
+        {memberSince && (
+          <div className="flex items-center gap-3.5 px-3 py-3.5 rounded-2xl">
+            <div className="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 shrink-0">
+              <IconCalendar />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">Member Since</p>
+              <p className="text-white text-sm font-medium mt-0.5">{memberSince}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const settingsBlock = (
+    <div className="rounded-3xl bg-[#141416] border border-white/5 overflow-hidden">
+      <div className="px-5 pt-5 pb-2">
+        <h3 className="text-white font-semibold text-sm uppercase tracking-wider">Settings</h3>
+      </div>
+      <div className="px-3 pb-3">
+        {menuItems.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={() => item.path ? navigate(item.path) : item.action?.()}
+            className="w-full flex items-center gap-3.5 px-3 py-3.5 rounded-2xl hover:bg-white/[0.03] active:bg-white/[0.06] active:scale-[0.98] transition-all"
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${item.color}`} style={{ backgroundColor: 'color-mix(in srgb, currentColor 10%, transparent)' }}>
+              {item.icon}
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-white text-sm font-semibold">{item.label}</p>
+              <p className="text-gray-500 text-xs mt-0.5">{item.desc}</p>
+            </div>
+            <IconChevron />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const logoutBtn = (
+    <button
+      type="button"
+      onClick={handleLogout}
+      className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl bg-red-500/8 border border-red-500/15 text-red-400 font-semibold hover:bg-red-500/12 active:scale-[0.98] transition-all"
+    >
+      <IconLogout />
+      <span>Sign Out</span>
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-[#0a0a0b] text-white pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen bg-[#0a0a0b] text-white pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-8">
       {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-[fadeSlideDown_0.3s_ease] px-4 w-full max-w-sm">
@@ -228,7 +404,7 @@ const Profile = () => {
 
       {/* ── Header Bar ── */}
       <div className="sticky top-0 z-40 bg-[#0a0a0b]/80 backdrop-blur-xl border-b border-white/5">
-        <div className="flex items-center gap-3 px-4 py-3 max-w-lg mx-auto">
+        <div className="flex items-center gap-3 px-4 py-3 max-w-lg md:max-w-6xl mx-auto">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -237,200 +413,127 @@ const Profile = () => {
           >
             <IconBack />
           </button>
-          <h2 className="text-base font-semibold tracking-wide flex-1">My Profile</h2>
+          <h2 className="text-base md:text-lg font-semibold tracking-wide flex-1">My Profile</h2>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
-
-        {/* ── Hero Profile Card ── */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] border border-white/10 shadow-2xl">
-          {/* Decorative circles */}
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-yellow-500/5 blur-2xl" />
-          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-blue-500/5 blur-2xl" />
-          
-          <div className="relative p-5">
-            {/* Avatar + Info Row */}
-            <div className="flex items-center gap-4 mb-5">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#f2c14e] to-[#f5a623] flex items-center justify-center text-black text-2xl font-bold shadow-lg shadow-yellow-500/20">
-                  {avatarInitial}
-                </div>
-                {/* Online indicator */}
-                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#16213e]" />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <h3 className="text-white font-bold text-lg truncate leading-tight">
-                  {form.username || 'User'}
-                </h3>
-                <p className="text-gray-400 text-sm truncate mt-0.5">
-                  {form.email || form.phone || 'No contact info'}
-                </p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <div className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
-                    <span className="text-emerald-400 text-[10px] font-semibold uppercase tracking-wider">Active</span>
-                  </div>
-                  {form.role && (
-                    <div className="px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30">
-                      <span className="text-blue-400 text-[10px] font-semibold uppercase tracking-wider capitalize">{form.role}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Wallet Balance */}
-            <div className="rounded-2xl bg-black/30 backdrop-blur border border-white/10 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Wallet Balance</p>
-                  <p className="text-[#f2c14e] text-2xl font-extrabold tracking-tight">
-                    ₹{walletValue !== null ? walletValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-2xl bg-[#f2c14e]/10 border border-[#f2c14e]/20 flex items-center justify-center text-[#f2c14e]">
-                  <IconWallet />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Quick Actions ── */}
-        <div className="grid grid-cols-4 gap-2.5">
-          {quickActions.map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              onClick={() => navigate(action.path)}
-              className="flex flex-col items-center gap-2 py-3 px-1 rounded-2xl bg-[#141416] border border-white/5 hover:border-white/15 active:scale-95 transition-all"
-            >
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-lg`}>
-                {action.icon}
-              </div>
-              <span className="text-gray-300 text-[11px] font-medium leading-tight text-center">{action.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* ── Account Information ── */}
-        <div className="rounded-3xl bg-[#141416] border border-white/5 overflow-hidden">
-          <div className="px-5 pt-5 pb-3">
-            <h3 className="text-white font-semibold text-sm uppercase tracking-wider">Account Information</h3>
-          </div>
-
-          <div className="px-4 pb-2">
-            {/* User ID - special treatment */}
-            <div className="group flex items-center gap-3.5 px-3 py-3.5 rounded-2xl hover:bg-white/[0.03] transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-gray-500/10 flex items-center justify-center text-gray-400 shrink-0">
-                <IconId />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">User ID</p>
-                <p className="text-gray-300 text-sm font-mono truncate mt-0.5">{userId}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleCopy(userId, 'User ID')}
-                className="p-1.5 rounded-lg hover:bg-white/5 text-gray-500 hover:text-gray-300 transition-colors"
-                title="Copy ID"
-              >
-                {copiedField === 'User ID' ? (
-                  <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
-                ) : (
-                  <IconCopy />
-                )}
-              </button>
-            </div>
-
-            {/* Info fields */}
-            {infoFields.map((field) => (
-              <div key={field.label} className="group flex items-center gap-3.5 px-3 py-3.5 rounded-2xl hover:bg-white/[0.03] transition-colors">
-                <div className={`w-10 h-10 rounded-xl bg-current/10 flex items-center justify-center shrink-0 ${field.color}`} style={{ backgroundColor: 'color-mix(in srgb, currentColor 10%, transparent)' }}>
-                  {field.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">{field.label}</p>
-                  <p className={`text-white text-sm font-medium truncate mt-0.5 ${field.capitalize ? 'capitalize' : ''}`}>
-                    {field.value}
-                  </p>
-                </div>
-                {field.copyable && field.value !== 'Not set' && (
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(field.value, field.label)}
-                    className="p-1.5 rounded-lg hover:bg-white/5 text-gray-500 hover:text-gray-300 transition-colors"
-                    title={`Copy ${field.label}`}
-                  >
-                    {copiedField === field.label ? (
-                      <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    ) : (
-                      <IconCopy />
-                    )}
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {/* Member Since */}
-            {memberSince && (
-              <div className="flex items-center gap-3.5 px-3 py-3.5 rounded-2xl">
-                <div className="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 shrink-0">
-                  <IconCalendar />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">Member Since</p>
-                  <p className="text-white text-sm font-medium mt-0.5">{memberSince}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Menu Items ── */}
-        <div className="rounded-3xl bg-[#141416] border border-white/5 overflow-hidden">
-          <div className="px-5 pt-5 pb-2">
-            <h3 className="text-white font-semibold text-sm uppercase tracking-wider">Settings</h3>
-          </div>
-
-          <div className="px-3 pb-3">
-            {menuItems.map((item, idx) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => item.path ? navigate(item.path) : item.action?.()}
-                className="w-full flex items-center gap-3.5 px-3 py-3.5 rounded-2xl hover:bg-white/[0.03] active:bg-white/[0.06] active:scale-[0.98] transition-all"
-              >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${item.color}`} style={{ backgroundColor: 'color-mix(in srgb, currentColor 10%, transparent)' }}>
-                  {item.icon}
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="text-white text-sm font-semibold">{item.label}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">{item.desc}</p>
-                </div>
-                <IconChevron />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Logout Button ── */}
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl bg-red-500/8 border border-red-500/15 text-red-400 font-semibold hover:bg-red-500/12 active:scale-[0.98] transition-all"
-        >
-          <IconLogout />
-          <span>Sign Out</span>
-        </button>
-
-        {/* Bottom spacer */}
+      {/* ═══════════ MOBILE LAYOUT (unchanged) ═══════════ */}
+      <div className="md:hidden max-w-lg mx-auto px-4 pt-4 space-y-4">
+        {heroCard}
+        {quickActionsBlock('grid-cols-4')}
+        {accountInfoBlock}
+        {settingsBlock}
+        {logoutBtn}
         <div className="h-2" />
+      </div>
+
+      {/* ═══════════ DESKTOP LAYOUT ═══════════ */}
+      <div className="hidden md:block max-w-6xl mx-auto px-6 lg:px-8 pt-6">
+        <div className="grid grid-cols-[340px_1fr] lg:grid-cols-[380px_1fr] gap-6 items-start">
+
+          {/* ── Left Sidebar ── */}
+          <div className="sticky top-[72px] space-y-4">
+            {heroCard}
+            {quickActionsBlock('grid-cols-4')}
+            {settingsBlock}
+            {logoutBtn}
+          </div>
+
+          {/* ── Right Content ── */}
+          <div className="space-y-5">
+            {/* Account Info — expanded for desktop */}
+            <div className="rounded-3xl bg-[#141416] border border-white/5 overflow-hidden">
+              <div className="px-6 pt-6 pb-4 border-b border-white/5">
+                <h3 className="text-white font-semibold text-base uppercase tracking-wider">Account Information</h3>
+                <p className="text-gray-500 text-sm mt-1">Your personal details and account data</p>
+              </div>
+
+              {/* 2-col grid for info fields on desktop */}
+              <div className="p-5 grid grid-cols-2 gap-4">
+                {/* User ID - full width */}
+                <div className="col-span-2 group flex items-center gap-4 px-4 py-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
+                  <div className="w-11 h-11 rounded-xl bg-gray-500/10 flex items-center justify-center text-gray-400 shrink-0">
+                    <IconId />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">User ID</p>
+                    <p className="text-gray-300 text-sm font-mono truncate mt-0.5">{userId}</p>
+                  </div>
+                  {renderCopyBtn('User ID')}
+                </div>
+
+                {/* Info fields as cards */}
+                {infoFields.map((field) => (
+                  <div key={field.label} className="group flex items-center gap-4 px-4 py-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${field.color}`} style={{ backgroundColor: 'color-mix(in srgb, currentColor 10%, transparent)' }}>
+                      {field.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">{field.label}</p>
+                      <p className={`text-white text-sm font-medium truncate mt-0.5 ${field.capitalize ? 'capitalize' : ''}`}>
+                        {field.value}
+                      </p>
+                    </div>
+                    {field.copyable && field.value !== 'Not set' && renderCopyBtn(field.label)}
+                  </div>
+                ))}
+
+                {/* Wallet balance card */}
+                <div className="group flex items-center gap-4 px-4 py-4 rounded-2xl bg-gradient-to-r from-yellow-500/5 to-yellow-600/5 border border-yellow-500/15 hover:border-yellow-500/25 transition-colors">
+                  <div className="w-11 h-11 rounded-xl bg-[#f2c14e]/10 flex items-center justify-center text-[#f2c14e] shrink-0">
+                    <IconWallet />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">Account Balance</p>
+                    <p className="text-[#f2c14e] text-base font-bold mt-0.5">
+                      ₹{walletValue !== null ? walletValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Member Since card */}
+                {memberSince && (
+                  <div className="group flex items-center gap-4 px-4 py-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
+                    <div className="w-11 h-11 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 shrink-0">
+                      <IconCalendar />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-500 text-[10px] font-medium uppercase tracking-wider">Member Since</p>
+                      <p className="text-white text-sm font-medium mt-0.5">{memberSince}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Stats Bar */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="rounded-2xl bg-[#141416] border border-white/5 p-5 text-center hover:border-white/10 transition-colors">
+                <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider mb-2">Account Status</p>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-emerald-400 text-xs font-bold">Active</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/passbook')}
+                className="rounded-2xl bg-[#141416] border border-white/5 p-5 text-center hover:border-white/10 transition-colors active:scale-[0.98]"
+              >
+                <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider mb-2">Passbook</p>
+                <p className="text-white text-sm font-bold">View Transactions</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/bet-history')}
+                className="rounded-2xl bg-[#141416] border border-white/5 p-5 text-center hover:border-white/10 transition-colors active:scale-[0.98]"
+              >
+                <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider mb-2">Bet History</p>
+                <p className="text-white text-sm font-bold">View All Bets</p>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── Animations CSS ── */}

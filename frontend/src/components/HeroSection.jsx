@@ -8,6 +8,10 @@ const HeroSection = () => {
 
   const banners = [
     {
+      image: "https://res.cloudinary.com/dzd47mpdo/image/upload/v1770623700/Black_Gold_Modern_Casino_Night_Party_Facebook_Cover_1545_x_900_px_ufrc1r.png",
+      alt: "Black Gold Casino Night Banner"
+    },
+    {
       image: "https://res.cloudinary.com/dzd47mpdo/image/upload/v1769946386/goa_games_first_banner_1_whcjgm.jpg",
       alt: "Spin to Win Banner"
     },

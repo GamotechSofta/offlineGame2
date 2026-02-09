@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBalance, updateUserBalance } from '../api/bets';
 
@@ -6,6 +6,27 @@ const WalletSection = () => {
   const navigate = useNavigate();
   const [balance, setBalance] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [bannerIdx, setBannerIdx] = useState(0);
+  const bannerTimerRef = useRef(null);
+
+  const mobileBanners = [
+    {
+      src: "https://res.cloudinary.com/dzd47mpdo/image/upload/v1770623700/Black_Gold_Modern_Casino_Night_Party_Facebook_Cover_1545_x_900_px_ufrc1r.png",
+      alt: "Black Gold Casino Night Banner"
+    },
+    {
+      src: "https://res.cloudinary.com/dzd47mpdo/image/upload/v1769775839/Black_and_White_Minimalist_Casino_Night_Facebook_Cover_olvhqm.png",
+      alt: "Casino banner"
+    },
+  ];
+
+  useEffect(() => {
+    if (mobileBanners.length <= 1) return;
+    bannerTimerRef.current = setInterval(() => {
+      setBannerIdx((i) => (i + 1) % mobileBanners.length);
+    }, 4000);
+    return () => clearInterval(bannerTimerRef.current);
+  }, []);
 
   const loadStoredBalance = () => {
     try {
@@ -170,11 +191,45 @@ const WalletSection = () => {
       </div>
 
       <div className="mt-5 sm:hidden">
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769775839/Black_and_White_Minimalist_Casino_Night_Facebook_Cover_olvhqm.png"
-          alt="Casino banner"
-          className="w-full rounded-2xl shadow-[0_10px_25px_rgba(0,0,0,0.35)]"
-        />
+        <div className="relative rounded-2xl overflow-hidden shadow-[0_10px_25px_rgba(0,0,0,0.35)]">
+          <div
+            className="flex will-change-transform"
+            style={{
+              transform: `translateX(-${bannerIdx * 100}%)`,
+              transition: 'transform 600ms cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
+          >
+            {mobileBanners.map((b, i) => (
+              <div key={i} className="w-full shrink-0 grow-0 basis-full">
+                <img
+                  src={b.src}
+                  alt={b.alt}
+                  className="w-full h-[180px] object-cover"
+                  loading="eager"
+                  draggable="false"
+                />
+              </div>
+            ))}
+          </div>
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent pointer-events-none" />
+          {/* Dots */}
+          <div className="absolute bottom-2.5 left-0 right-0 flex items-center justify-center gap-1.5 z-10">
+            {mobileBanners.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setBannerIdx(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === bannerIdx
+                    ? 'w-5 bg-amber-500'
+                    : 'w-1.5 bg-white/40'
+                }`}
+                aria-label={`Banner ${i + 1}`}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Market Category Buttons */}
