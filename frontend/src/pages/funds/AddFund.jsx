@@ -139,7 +139,7 @@ const AddFund = () => {
     };
 
     return (
-        <div className={`space-y-6 ${step === 2 ? 'pb-28' : ''}`}>
+        <div className={`space-y-4 sm:space-y-6 ${step === 2 ? 'pb-28' : ''}`}>
             {/* Messages */}
             {error && (
                 <div className="p-4 bg-red-900/50 border border-red-600 rounded-xl text-red-300 text-sm">
@@ -153,11 +153,11 @@ const AddFund = () => {
             )}
 
             {step === 1 ? (
-                <div className="space-y-5">
+                <div className="space-y-4 sm:space-y-5">
                     <div className="rounded-2xl bg-black/0 p-0">
                         {/* Top card (as screenshot) */}
                         <div className="bg-[#202124] rounded-2xl shadow-[0_18px_40px_rgba(0,0,0,0.45)] border border-white/10 overflow-hidden">
-                            <div className="px-4 pt-3 pb-2 flex items-center justify-center gap-2 text-sm text-gray-300">
+                            <div className="px-3 sm:px-4 pt-2.5 sm:pt-3 pb-2 flex items-center justify-center gap-2 text-[13px] sm:text-sm text-gray-300">
                                 <svg className="w-4 h-4 text-[#d4af37]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h20" />
@@ -166,9 +166,9 @@ const AddFund = () => {
                                 <span className="font-semibold tracking-wide">GoldenBets.com</span>
                             </div>
 
-                            <div className="bg-gradient-to-r from-[#d4af37] via-[#cca84d] to-[#b8941f] px-4 py-3 flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-black/25 border border-black/20 flex items-center justify-center shrink-0">
-                                    <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-sm font-extrabold text-black">
+                            <div className="bg-gradient-to-r from-[#d4af37] via-[#cca84d] to-[#b8941f] px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-3">
+                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/25 border border-black/20 flex items-center justify-center shrink-0">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/40 flex items-center justify-center text-[13px] sm:text-sm font-extrabold text-black">
                                         ₹
                                     </div>
                                 </div>
@@ -186,8 +186,8 @@ const AddFund = () => {
                                 </div>
                             </div>
 
-                            <div className="px-4 py-3 flex items-center justify-between">
-                                <div className="text-sm text-white/90">
+                            <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
+                                <div className="text-[13px] sm:text-sm text-white/90">
                                     {(() => {
                                         try {
                                             const u = JSON.parse(localStorage.getItem('user') || 'null');
@@ -205,11 +205,11 @@ const AddFund = () => {
                         </div>
 
                         {/* Support button */}
-                        <div className="mt-4 flex justify-center">
+                        <div className="mt-3 sm:mt-4 flex justify-center">
                             <button
                                 type="button"
                                 onClick={() => navigate('/support')}
-                                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-[#202124] border border-white/10 text-sm font-semibold text-white shadow-sm hover:border-[#d4af37]/35 hover:bg-[#222] transition-colors"
+                                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#202124] border border-white/10 text-[13px] sm:text-sm font-semibold text-white shadow-sm hover:border-[#d4af37]/35 hover:bg-[#222] transition-colors"
                             >
                                 <svg className="w-4 h-4 text-[#d4af37]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M18 10c0 3.866-3.134 7-7 7a7.003 7.003 0 01-4-1.25L3 17l1.25-4A7.003 7.003 0 017 6c0-1.105.895-2 2-2h2a7 7 0 017 7z" />
@@ -220,8 +220,8 @@ const AddFund = () => {
                         </div>
 
                         {/* Amount input */}
-                        <div className="mt-4 flex items-center justify-center gap-2">
-                            <div className="w-11 h-11 rounded-full bg-[#202124] border border-white/10 flex items-center justify-center shadow-sm shrink-0">
+                        <div className="mt-3 sm:mt-4 flex items-center justify-center gap-2">
+                            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#202124] border border-white/10 flex items-center justify-center shadow-sm shrink-0">
                                 <svg className="w-5 h-5 text-[#d4af37]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 10l8-4 8 4" />
                                 </svg>
@@ -231,20 +231,20 @@ const AddFund = () => {
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
                                 placeholder="Enter Amount"
-                                className="flex-1 min-w-0 max-w-[520px] bg-[#202124] border border-white/10 rounded-full px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/20"
+                                className="flex-1 min-w-0 max-w-[520px] bg-[#202124] border border-white/10 rounded-full px-4 py-2.5 sm:py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/20"
                                 min={minDeposit}
                                 max={maxDeposit}
                             />
                         </div>
 
                         {/* Quick buttons */}
-                        <div className="mt-3 grid grid-cols-2 gap-2 max-w-[520px] mx-auto">
+                        <div className="mt-2.5 sm:mt-3 grid grid-cols-2 gap-2 max-w-[520px] mx-auto">
                             {quickAmountsStep1.map((amt) => (
                                 <button
                                     key={amt}
                                     type="button"
                                     onClick={() => setAmount(String(amt))}
-                                    className={`h-9 rounded-md border text-sm font-semibold shadow-sm transition-colors ${
+                                    className={`h-8 sm:h-9 rounded-md border text-[13px] sm:text-sm font-semibold shadow-sm transition-colors ${
                                         amount === String(amt)
                                             ? 'bg-[#d4af37] text-black border-[#d4af37]/60'
                                             : 'bg-[#202124] text-white border-white/10 hover:border-[#d4af37]/30'
@@ -256,12 +256,12 @@ const AddFund = () => {
                         </div>
 
                         {/* Add Cash */}
-                        <div className="mt-3 max-w-[520px] mx-auto">
+                        <div className="mt-2.5 sm:mt-3 max-w-[520px] mx-auto">
                             <button
                                 type="button"
                                 onClick={handleAddCash}
                                 disabled={addCashLoading}
-                                className={`w-full h-10 rounded-md bg-gradient-to-r from-[#d4af37] via-[#cca84d] to-[#b8941f] text-black font-extrabold shadow-[0_10px_22px_rgba(212,175,55,0.35)] ${
+                                className={`w-full h-9 sm:h-10 rounded-md bg-gradient-to-r from-[#d4af37] via-[#cca84d] to-[#b8941f] text-black font-extrabold shadow-[0_10px_22px_rgba(212,175,55,0.35)] ${
                                     addCashLoading ? 'opacity-70 cursor-not-allowed' : ''
                                 }`}
                             >
@@ -270,7 +270,7 @@ const AddFund = () => {
                         </div>
 
                         {/* Note */}
-                        <div className="mt-3 max-w-[520px] mx-auto bg-[#202124] rounded-md border border-white/10 px-3 py-2 text-[11px] text-gray-300">
+                        <div className="mt-2.5 sm:mt-3 max-w-[520px] mx-auto bg-[#202124] rounded-md border border-white/10 px-3 py-2 text-[10px] sm:text-[11px] text-gray-300">
                             Deposit time use only phone pay App Always 🙏🙏
                         </div>
                     </div>

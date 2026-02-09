@@ -13,6 +13,40 @@ const SupportNew = () => {
 
   const userId = user?._id || user?.id;
 
+  // Mobile only: prevent page scrolling (as requested)
+  useEffect(() => {
+    let cleanup = () => {};
+    try {
+      const mql = window.matchMedia('(max-width: 767px)');
+      const apply = () => {
+        cleanup();
+        if (!mql.matches) return;
+        const prevBody = document.body.style.overflow;
+        const prevHtml = document.documentElement.style.overflow;
+        const prevOverscrollBody = document.body.style.overscrollBehavior;
+        const prevOverscrollHtml = document.documentElement.style.overscrollBehavior;
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overscrollBehavior = 'none';
+        document.documentElement.style.overscrollBehavior = 'none';
+        cleanup = () => {
+          document.body.style.overflow = prevBody;
+          document.documentElement.style.overflow = prevHtml;
+          document.body.style.overscrollBehavior = prevOverscrollBody;
+          document.documentElement.style.overscrollBehavior = prevOverscrollHtml;
+        };
+      };
+      apply();
+      mql.addEventListener?.('change', apply);
+      return () => {
+        mql.removeEventListener?.('change', apply);
+        cleanup();
+      };
+    } catch (_) {
+      return () => cleanup();
+    }
+  }, []);
+
   useEffect(() => {
     const raw = localStorage.getItem('user');
     if (raw) {

@@ -6,13 +6,38 @@ const Funds = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // One-screen behavior (same as My Bets)
+  // Mobile only: prevent page scrolling (as requested)
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    let cleanup = () => {};
+    try {
+      const mql = window.matchMedia('(max-width: 767px)');
+      const apply = () => {
+        cleanup();
+        if (!mql.matches) return;
+        const prevBody = document.body.style.overflow;
+        const prevHtml = document.documentElement.style.overflow;
+        const prevOverscrollBody = document.body.style.overscrollBehavior;
+        const prevOverscrollHtml = document.documentElement.style.overscrollBehavior;
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overscrollBehavior = 'none';
+        document.documentElement.style.overscrollBehavior = 'none';
+        cleanup = () => {
+          document.body.style.overflow = prevBody;
+          document.documentElement.style.overflow = prevHtml;
+          document.body.style.overscrollBehavior = prevOverscrollBody;
+          document.documentElement.style.overscrollBehavior = prevOverscrollHtml;
+        };
+      };
+      apply();
+      mql.addEventListener?.('change', apply);
+      return () => {
+        mql.removeEventListener?.('change', apply);
+        cleanup();
+      };
+    } catch (_) {
+      return () => cleanup();
+    }
   }, []);
 
   const items = useMemo(() => ([
@@ -100,6 +125,8 @@ const Funds = () => {
     setMobileView(null);
   };
 
+  const isAddFundMobileView = mobileView === 'add-fund';
+
   return (
     <div className="min-h-screen bg-black text-white pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0 md:pt-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
       <div className="w-full max-w-lg md:max-w-none mx-auto md:mx-0">
@@ -163,7 +190,13 @@ const Funds = () => {
             </div>
           ) : (
             // Component view
-            <div className="bg-[#202124] border border-white/10 rounded-2xl p-4 shadow-[0_12px_24px_rgba(0,0,0,0.35)] max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hidden">
+            <div
+              className={`bg-[#202124] border border-white/10 rounded-2xl shadow-[0_12px_24px_rgba(0,0,0,0.35)] ${
+                isAddFundMobileView
+                  ? 'p-3 max-h-[calc(100vh-220px)] overflow-y-auto scrollbar-hidden'
+                  : 'p-4 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hidden'
+              }`}
+            >
               {items.find(i => i.key === mobileView)?.component && (
                 React.createElement(items.find(i => i.key === mobileView).component)
               )}
