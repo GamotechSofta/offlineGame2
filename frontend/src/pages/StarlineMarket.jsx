@@ -6,6 +6,12 @@ import { isPastClosingTime } from '../utils/marketTiming';
 const STARLINE_MARKET_IMAGE_URL =
   'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770641576/Untitled_1080_x_1080_px_1_gyjbpl.svg';
 
+const STARLINE_MARKET_FIRST_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770706504/Untitled_design_1_q5qs6j.png';
+
+const STARLINE_MARKET_SECOND_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770706962/Untitled_design_2_1_yevaza.png';
+
 const formatTime12 = (time24) => {
   if (!time24) return '';
   const [hhRaw, mmRaw] = String(time24).split(':');
@@ -179,8 +185,8 @@ const StarlineMarket = () => {
 
   return (
     <div className="min-h-screen bg-black text-white pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
-      <div className="w-full max-w-xl mx-auto px-4 sm:px-6 md:px-8 pt-3">
-        <div className="flex items-center gap-3">
+      <div className="w-full max-w-xl md:max-w-6xl lg:max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pt-3">
+        <div className="flex items-center gap-3 md:gap-4 md:rounded-3xl md:border md:border-white/10 md:bg-[#111113] md:px-6 md:py-5 md:shadow-[0_18px_48px_rgba(0,0,0,0.55)]">
           <button
             type="button"
             onClick={() => navigate('/startline-dashboard')}
@@ -191,25 +197,43 @@ const StarlineMarket = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-sm text-white/60 leading-none">Starline Market</div>
-            <div className="text-lg sm:text-xl font-extrabold tracking-wide truncate">{title}</div>
+            <div className="text-lg sm:text-xl md:text-2xl font-extrabold tracking-wide truncate">{title}</div>
+          </div>
+
+          {/* Desktop legend */}
+          <div className="hidden md:flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-2 text-xs text-white/70">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400/90 shadow-[0_0_14px_rgba(52,211,153,0.35)]" />
+              Open
+            </div>
+            <div className="flex items-center gap-2 text-xs text-white/70">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-rose-400/90 shadow-[0_0_14px_rgba(251,113,133,0.28)]" />
+              Closed
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
+        <div className="mt-4 md:mt-6 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 md:gap-5">
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-[170px] rounded-2xl bg-[#202124] border border-white/10 animate-pulse" />
+              <div key={i} className="h-[195px] md:h-[235px] rounded-2xl md:rounded-3xl bg-[#202124] border border-white/10 animate-pulse" />
             ))
           ) : (
-            items.map((m) => {
+            items.map((m, idx) => {
               const timeLabel = formatTime12(m.startingTime) || '-';
               const slotClosed = isSlotClosedTodayIST(m.startingTime, tick);
               const statusText = slotClosed ? 'Close For Today' : 'Open';
               const pill = `${m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? String(m.openingNumber) : '***'} - ${openDigit(m.openingNumber)}`;
               const canOpen = !slotClosed;
               const countdown = formatCountdown(msUntilNextIST(m.startingTime, tick));
+              const imageUrl =
+                idx === 0
+                  ? STARLINE_MARKET_FIRST_IMAGE_URL
+                  : idx === 1
+                    ? STARLINE_MARKET_SECOND_IMAGE_URL
+                    : STARLINE_MARKET_IMAGE_URL;
 
               return (
                 <button
@@ -236,34 +260,34 @@ const StarlineMarket = () => {
                       },
                     });
                   }}
-                  className={`relative overflow-hidden rounded-3xl border shadow-[0_16px_34px_rgba(0,0,0,0.55)] transition ${
+                  className={`relative overflow-hidden rounded-3xl border shadow-[0_16px_34px_rgba(0,0,0,0.55)] transition md:hover:-translate-y-1 md:hover:shadow-[0_22px_60px_rgba(0,0,0,0.65)] ${
                     canOpen
                       ? 'border-white/10 hover:border-[#d4af37]/40 active:scale-[0.99] cursor-pointer'
                       : 'border-white/10 opacity-95 cursor-not-allowed'
                   }`}
                 >
                   {/* Top image area (photo-style) */}
-                  <div className="relative h-[96px] bg-gradient-to-br from-[#0b0b0b] via-[#15171b] to-[#050505]">
+                  <div className="relative h-[120px] md:h-[150px] bg-gradient-to-br from-[#0b0b0b] via-[#15171b] to-[#050505]">
                     <img
-                      src={STARLINE_MARKET_IMAGE_URL}
+                      src={imageUrl}
                       alt="Starline Market"
-                      className="absolute inset-0 w-full h-full object-contain p-0"
+                      className={`absolute inset-0 w-full h-full object-contain p-0 ${canOpen ? '' : 'opacity-70 md:grayscale'}`}
                       loading="lazy"
                       draggable="false"
                     />
                   </div>
 
                   {/* Bottom info area */}
-                  <div className="bg-[#202124] border-t border-white/10 px-3 py-2.5">
+                  <div className="bg-[#202124] border-t border-white/10 px-3 py-2.5 md:px-4 md:py-3.5">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[11px] font-extrabold text-[#d4af37] truncate">
+                      <div className="text-[12px] md:text-sm font-extrabold text-[#d4af37] truncate">
                         {countdown}
                       </div>
-                      <div className="text-[12px] font-extrabold text-white/90 whitespace-nowrap">{timeLabel}</div>
+                      <div className="text-[13px] md:text-sm font-extrabold text-white/90 whitespace-nowrap">{timeLabel}</div>
                     </div>
 
                     <div className="mt-1 flex items-center justify-between gap-2">
-                      <div className="text-[14px] font-extrabold text-[#d4af37] tracking-wide">
+                      <div className="text-[16px] md:text-[18px] font-extrabold text-[#d4af37] tracking-wide">
                         {pill}
                       </div>
                       <svg className="w-4 h-4 text-white/55 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -272,7 +296,15 @@ const StarlineMarket = () => {
                       </svg>
                     </div>
 
-                    <div className="mt-1 text-center text-[12px] font-semibold text-white/80">
+                    <div
+                      className={`mt-1 text-center text-[12px] font-semibold ${
+                        statusText === 'Close For Today'
+                          ? 'text-red-400'
+                          : statusText === 'Open'
+                            ? 'text-emerald-400'
+                            : 'text-white/80'
+                      }`}
+                    >
                       {statusText}
                     </div>
                   </div>
