@@ -536,11 +536,13 @@ const MarketDetail = () => {
             }
             setData(statsJson.data);
             const d = statsJson.data;
+            const isStartline = d?.market?.marketType === 'startline';
             const hasOpenDeclared = d?.market?.openingNumber && /^\d{3}$/.test(String(d.market.openingNumber));
             if (initialStatusSetForMarketId.current !== marketId) {
                 initialStatusSetForMarketId.current = marketId;
             }
-            setStatusView(hasOpenDeclared ? 'closed' : 'open');
+            // Starline: show only open bets (no closed view in market management)
+            setStatusView(isStartline ? 'open' : (hasOpenDeclared ? 'closed' : 'open'));
             if (summaryRes.ok) {
                 const summaryJson = await summaryRes.json();
                 if (summaryJson.success && summaryJson.data) {
@@ -585,7 +587,8 @@ const MarketDetail = () => {
     // Session-aware view stats (new API returns bySession.open/close; fallback to overall stats).
     const statsOpen = data?.bySession?.open || data;
     const statsClose = data?.bySession?.close || data;
-    const viewStats = statusView === 'open' ? statsOpen : statsClose;
+    const isStartlineMarket = data?.market?.marketType === 'startline';
+    const viewStats = (isStartlineMarket ? 'open' : statusView) === 'open' ? statsOpen : statsClose;
 
     const viewSinglePattiItems = viewStats?.singlePatti?.items || {};
     const viewDoublePattiItems = viewStats?.doublePatti?.items || {};
@@ -649,6 +652,7 @@ const MarketDetail = () => {
     const hasOpen = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
     const hasClose = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
     const isClosed = hasOpen && hasClose;
+    const isStartline = isStartlineMarket;
     const timeline = `${formatTime(market.startingTime)} – ${formatTime(market.closingTime)}`;
     const resultDisplay = market.displayResult || '***-**-***';
 
@@ -706,10 +710,13 @@ const MarketDetail = () => {
         (doublePattiTotalsForView?.totalBets ?? 0) +
         (triplePattiDisplay?.totalBets ?? 0) +
         (fullSangamDisplay?.totalBets ?? 0);
-    const displayAmount = statusView === 'open' ? openTotalAmount : closedTotalAmount;
-    const displayBets = statusView === 'open' ? openTotalBets : closedTotalBets;
+    // Starline: only open bets; ignore statusView for display
+    const effectiveView = isStartline ? 'open' : statusView;
+    const displayAmount = effectiveView === 'open' ? openTotalAmount : closedTotalAmount;
+    const displayBets = effectiveView === 'open' ? openTotalBets : closedTotalBets;
 
     const handleStatusViewChange = (e) => {
+        if (isStartline) return;
         const v = e.target.value;
         if (v === 'open') setStatusView('open');
         else if (v === 'closed') setStatusView('closed');
@@ -753,7 +760,8 @@ const MarketDetail = () => {
                                     Open: {hasOpen ? market.openingNumber : '—'} · Close: {hasClose ? market.closingNumber : '—'}
                                 </p>
                                 <p className="text-[10px] text-amber-400/90 mt-0.5">
-                                    Viewing totals: <strong>{statusView === 'open' ? 'Open' : 'Closed'}</strong> bets
+                                    Viewing totals: <strong>{effectiveView === 'open' ? 'Open' : 'Closed'}</strong> bets
+                                    {isStartline && <span className="text-gray-500"> (Starline: open only)</span>}
                                 </p>
                             </div>
                         </div>
@@ -765,9 +773,10 @@ const MarketDetail = () => {
                                 <p className="text-xs text-gray-400 uppercase tracking-wider">Total Bet Amount</p>
                                 <p className="font-mono text-lg font-semibold text-white">₹{formatNum(displayAmount)}</p>
                                 <p className="text-xs text-gray-500">{formatNum(displayBets)} bets</p>
-                                <p className="text-[10px] text-gray-500">({statusView === 'open' ? 'Open bets only' : 'Closed bets only'})</p>
+                                <p className="text-[10px] text-gray-500">({effectiveView === 'open' ? 'Open bets only' : 'Closed bets only'})</p>
                             </div>
                         </div>
+                        {!isStartline && (
                         <div className="flex items-center gap-3">
                             <div className="shrink-0 w-full sm:w-auto">
                                 <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">View</p>
@@ -782,6 +791,7 @@ const MarketDetail = () => {
                                 </select>
                             </div>
                         </div>
+                        )}
                     </div>
                 </div>
 

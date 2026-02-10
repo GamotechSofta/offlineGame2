@@ -98,7 +98,6 @@ const PlayerDetail = () => {
     const [deletingPlayer, setDeletingPlayer] = useState(false);
     const [walletModalOpen, setWalletModalOpen] = useState(false);
     const [walletAdjustAmount, setWalletAdjustAmount] = useState('');
-    const [walletSetBalance, setWalletSetBalance] = useState('');
     const [walletActionLoading, setWalletActionLoading] = useState(false);
     const [walletActionError, setWalletActionError] = useState('');
     const dropdownRef = useRef(null);
@@ -364,36 +363,6 @@ const PlayerDetail = () => {
                 setWalletModalOpen(false);
             } else {
                 setWalletActionError(data.message || 'Failed to update wallet');
-            }
-        } catch (err) {
-            setWalletActionError('Network error. Please try again.');
-        } finally {
-            setWalletActionLoading(false);
-        }
-    };
-
-    const handleWalletSetBalance = async () => {
-        const balance = Number(walletSetBalance);
-        if (!Number.isFinite(balance) || balance < 0) {
-            setWalletActionError('Enter a valid non-negative balance');
-            return;
-        }
-        setWalletActionError('');
-        setWalletActionLoading(true);
-        try {
-            const res = await fetch(`${API_BASE_URL}/wallet/set-balance`, {
-                method: 'PUT',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ userId, balance }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setWalletSetBalance('');
-                fetchPlayer();
-                if (activeTab === 'wallet') fetchWalletTx();
-                setWalletModalOpen(false);
-            } else {
-                setWalletActionError(data.message || 'Failed to set balance');
             }
         } catch (err) {
             setWalletActionError('Network error. Please try again.');
@@ -827,21 +796,6 @@ const PlayerDetail = () => {
                                     />
                                     <button type="button" onClick={() => handleWalletAdjust('credit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold disabled:opacity-50">Add</button>
                                     <button type="button" onClick={() => handleWalletAdjust('debit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold disabled:opacity-50">Deduct</button>
-                                </div>
-                            </div>
-                            <div>
-                                <p className="text-gray-400 text-sm mb-2">Set balance to (exact value)</p>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        placeholder="New balance"
-                                        value={walletSetBalance}
-                                        onChange={(e) => setWalletSetBalance(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                                        className="flex-1 px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500"
-                                    />
-                                    <button type="button" onClick={handleWalletSetBalance} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-black font-semibold disabled:opacity-50">Set</button>
                                 </div>
                             </div>
                         </div>

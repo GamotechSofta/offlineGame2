@@ -960,6 +960,7 @@ export const getMarketStats = async (req, res) => {
                 market: {
                     id: market._id,
                     marketName: market.marketName,
+                    marketType: market.marketType,
                     displayResult: market.getDisplayResult(),
                     openingNumber: market.openingNumber,
                     closingNumber: market.closingNumber,
