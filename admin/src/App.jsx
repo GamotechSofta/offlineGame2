@@ -7,6 +7,8 @@ import AddUser from './pages/AddUser';
 import AddMarket from './pages/AddMarket';
 import BetHistory from './pages/BetHistory';
 import Reports from './pages/Reports';
+import Revenue from './pages/Revenue';
+import BookieDetail from './pages/BookieDetail';
 import PaymentManagement from './pages/PaymentManagement';
 import Wallet from './pages/Wallet';
 import HelpDesk from './pages/HelpDesk';
@@ -143,6 +145,22 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <Reports />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/revenue"
+                    element={
+                        <PrivateRoute>
+                            <Revenue />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/revenue/:bookieId"
+                    element={
+                        <PrivateRoute>
+                            <BookieDetail />
                         </PrivateRoute>
                     }
                 />

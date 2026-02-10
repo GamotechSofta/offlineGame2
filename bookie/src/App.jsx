@@ -11,6 +11,7 @@ import ReferralLink from './pages/ReferralLink';
 import BetHistory from './pages/BetHistory';
 import TopWinners from './pages/TopWinners';
 import Reports from './pages/Reports';
+import Revenue from './pages/Revenue';
 import Payments from './pages/Payments';
 import Wallet from './pages/Wallet';
 
@@ -70,6 +71,7 @@ const AppRoutes = () => (
         <Route path="/bet-history" element={<PrivateRoute><BetHistory /></PrivateRoute>} />
         <Route path="/top-winners" element={<PrivateRoute><TopWinners /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
+        <Route path="/revenue" element={<PrivateRoute><Revenue /></PrivateRoute>} />
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
 

@@ -14,7 +14,7 @@ import {
     FaSignOutAlt,
     FaUsers,
     FaTimes,
-
+    FaMoneyBillWave,
 } from 'react-icons/fa';
 
 const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
@@ -30,6 +30,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/bet-history', label: 'Bet History', icon: FaHistory },
         { path: '/top-winners', label: 'Top Winners', icon: FaTrophy },
         { path: '/reports', label: 'Report', icon: FaChartLine },
+        { path: '/revenue', label: 'Revenue', icon: FaMoneyBillWave },
         { path: '/payments', label: 'Payments', icon: FaCreditCard },
         { path: '/wallet', label: 'Wallet', icon: FaWallet },
 
