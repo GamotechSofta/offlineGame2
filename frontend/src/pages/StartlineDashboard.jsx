@@ -4,6 +4,9 @@ import { API_BASE_URL } from '../config/api';
 import { isPastClosingTime } from '../utils/marketTiming';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
+const STARLINE_DASHBOARD_MARKET_IMAGE_URL =
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722975/Untitled_design_16_1_palesh_qef2qd.png';
+
 const getMarketStatus = (market) => {
   if (isPastClosingTime(market)) return 'closed';
   const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
@@ -163,22 +166,14 @@ const StartlineDashboard = () => {
                   className="group w-full rounded-2xl md:rounded-3xl border border-white/10 bg-[#202124] px-2.5 py-3 md:px-5 md:py-6 shadow-[0_10px_22px_rgba(0,0,0,0.35)] hover:border-[#d4af37]/40 hover:bg-[#222] active:scale-[0.98] md:hover:-translate-y-1 md:hover:shadow-[0_22px_60px_rgba(0,0,0,0.6)] transition-all"
                   aria-label={m.label}
                 >
-                  <div className="mx-auto w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-gradient-to-br from-[#f2c14e] to-[#d4af37] border border-black/20 flex items-center justify-center text-[#4b3608] shadow-[0_8px_18px_rgba(242,193,78,0.22)] group-hover:shadow-[0_10px_28px_rgba(242,193,78,0.28)] transition-shadow">
-                    {idx === 0 ? (
-                      <svg className="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    ) : idx === 1 ? (
-                      <svg className="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 1016 0 8 8 0 00-16 0z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.6 5.27 5.8.84-4.2 4.09 1 5.8L12 16.9 6.8 19l1-5.8-4.2-4.09 5.8-.84L12 3z" />
-                      </svg>
-                    )}
+                  <div className="relative mx-auto w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-gradient-to-br from-[#f2c14e] to-[#d4af37] border border-black/20 overflow-hidden shadow-[0_8px_18px_rgba(242,193,78,0.22)] group-hover:shadow-[0_10px_28px_rgba(242,193,78,0.28)] transition-shadow">
+                    <img
+                      src={STARLINE_DASHBOARD_MARKET_IMAGE_URL}
+                      alt={m.label || 'Starline Market'}
+                      className="absolute inset-0 w-full h-full object-contain p-0"
+                      loading="lazy"
+                      draggable="false"
+                    />
                   </div>
                   <div className="mt-2 text-[10px] min-[375px]:text-[11px] md:text-xs font-semibold text-[#d4af37]/90">
                     Click to Play Game

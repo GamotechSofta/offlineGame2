@@ -7,41 +7,41 @@ const STARLINE_MARKET_IMAGE_URL =
   'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770641576/Untitled_1080_x_1080_px_1_gyjbpl.svg';
 
 const STARLINE_MARKET_FIRST_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708947/Untitled_design_11_1_1_fqrqpr.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722977/Untitled_design_11_1_1_fqrqpr_xnt8al.png';
 
 const STARLINE_MARKET_SECOND_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708832/Untitled_design_10_2_1_x8ji72.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722976/Untitled_design_10_2_1_x8ji72_ugka1w.png';
 
 const STARLINE_MARKET_THIRD_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770707277/Untitled_design_3_1_qqgezq.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722977/Untitled_design_3_1_qqgezq_lgd9wq.png';
 
 const STARLINE_MARKET_FOURTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770707757/Untitled_design_4_1_wm47pu.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722977/Untitled_design_4_1_wm47pu_qethnu.png';
 
 const STARLINE_MARKET_FIFTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708463/Untitled_design_7_1_b7mxik.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722976/Untitled_design_7_1_b7mxik_dzpbre.png';
 
 const STARLINE_MARKET_SIXTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708044/Untitled_design_5_2_op4u73.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722976/Untitled_design_5_2_op4u73_o0eaqv.png';
 
 const STARLINE_MARKET_SEVENTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708574/Untitled_design_8_1_zdpype.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722975/Untitled_design_8_1_zdpype_cn1gwg.png';
 
 // Reuse existing (already hosted) assets so every slot can have a unique image.
 const STARLINE_MARKET_EIGHTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708678/Untitled_design_9_1_oc8usl.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722975/Untitled_design_9_1_oc8usl_hzconw.png';
 const STARLINE_MARKET_NINTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770714783/Untitled_design_14_1_hmsbwv.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722976/Untitled_design_14_1_hmsbwv_twcatd.png';
 const STARLINE_MARKET_TENTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708947/Untitled_design_11_1_1_fqrqpr.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722977/Untitled_design_11_1_1_fqrqpr_xnt8al.png';
 const STARLINE_MARKET_ELEVENTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708463/Untitled_design_7_1_b7mxik.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722976/Untitled_design_7_1_b7mxik_dzpbre.png';
 const STARLINE_MARKET_TWELFTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708678/Untitled_design_9_1_oc8usl.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722975/Untitled_design_9_1_oc8usl_hzconw.png';
 const STARLINE_MARKET_THIRTEENTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708832/Untitled_design_10_2_1_x8ji72.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722976/Untitled_design_10_2_1_x8ji72_ugka1w.png';
 const STARLINE_MARKET_FOURTEENTH_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770714882/Untitled_design_15_1_wdsvi9.png';
+  'https://res.cloudinary.com/dnyp5jknp/image/upload/v1770722977/Untitled_design_4_1_wm47pu_qethnu.png';
 
 // Order matches `scheduleTimes`: 11:00, 12:00, ..., 23:00, 00:00
 const STARLINE_MARKET_IMAGE_OVERRIDES = [
@@ -60,24 +60,6 @@ const STARLINE_MARKET_IMAGE_OVERRIDES = [
   STARLINE_MARKET_THIRTEENTH_IMAGE_URL,
   STARLINE_MARKET_FOURTEENTH_IMAGE_URL,
 ];
-
-/** Ensure market _id from API is a string (handles { $oid: "..." } or string). */
-const toMarketIdString = (v) => {
-  if (v == null) return '';
-  if (typeof v === 'string') return v.trim();
-  if (typeof v === 'object' && v?.$oid) return String(v.$oid).trim();
-  return String(v).trim();
-};
-
-/** Normalize "10:0" / "9:00" to "10:00" / "09:00" so backend slots match scheduleTimes. */
-const normalizeTimeKey = (t) => {
-  const s = String(t ?? '').trim().slice(0, 5);
-  const [hh, mm] = s.split(':');
-  if (hh === undefined || hh === '') return '';
-  const h = String(Number(hh) || 0).padStart(2, '0');
-  const m = (mm !== undefined && mm !== '') ? String(Number(mm) || 0).padStart(2, '0') : '00';
-  return `${h}:${m}`;
-};
 
 const formatTime12 = (time24) => {
   if (!time24) return '';
@@ -151,76 +133,104 @@ const StarlineMarket = () => {
   const marketLabel = (location.state?.marketLabel || location.state?.label || 'Starline').toString();
 
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState([]);
   const [tick, setTick] = useState(() => Date.now());
-
-  const fetchSlots = React.useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
-      const data = await res.json();
-      const list = Array.isArray(data?.data) ? data.data : [];
-
-      const filtered = list.filter((m) => {
-        const name = (m?.marketName || m?.gameName || '').toString().toLowerCase();
-        const isStar = m?.marketType === 'startline' || name.includes('starline') || name.includes('startline');
-        if (!isStar) return false;
-        const group = (m?.starlineGroup || '').toString().toLowerCase();
-        if (!marketKey) return true;
-        if (group) return group === marketKey;
-        return name.includes(marketKey);
-      });
-
-      const mapped = filtered
-        .map((m) => {
-          const st = normalizeTimeKey(m.startingTime) || (m.startingTime || '').toString().trim().slice(0, 5);
-          const status = isPastClosingTime(m) ? 'closed' : (m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? 'closed' : 'open');
-          return {
-            id: toMarketIdString(m._id) || m._id,
-            marketName: m.marketName || m.gameName || marketLabel,
-            startingTime: st || null,
-            closingTime: m.closingTime || m.startingTime || null,
-            openingNumber: m.openingNumber || null,
-            closingNumber: m.closingNumber || null,
-            status,
-          };
-        })
-        .sort((a, b) => String(a.startingTime || '').localeCompare(String(b.startingTime || '')));
-
-      setItems(mapped);
-    } catch {
-      setItems([]);
-    }
-  }, [marketKey, marketLabel]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      setLoading(true);
-      await fetchSlots();
-      if (!cancelled) setLoading(false);
-    };
-    run();
-    return () => { cancelled = true; };
-  }, [fetchSlots]);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchSlots();
-    setRefreshing(false);
-  };
-
-  // Refetch when user returns to tab so new admin-added slots appear
-  useEffect(() => {
-    const onVis = () => { if (document.visibilityState === 'visible') fetchSlots(); };
-    document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
-  }, [fetchSlots]);
 
   useEffect(() => {
     const t = window.setInterval(() => setTick(Date.now()), 1000);
     return () => window.clearInterval(t);
   }, []);
+
+  // 11:00 AM to 12:00 AM (midnight) hourly
+  const scheduleTimes = useMemo(() => {
+    const out = [];
+    for (let h = 11; h <= 23; h += 1) out.push(`${String(h).padStart(2, '0')}:00`);
+    out.push('00:00'); // 12:00 AM
+    return out;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
+        const data = await res.json();
+        const list = Array.isArray(data?.data) ? data.data : [];
+
+        const filtered = list.filter((m) => {
+          const name = (m?.marketName || m?.gameName || '').toString().toLowerCase();
+          const isStar = m?.marketType === 'startline' || name.includes('starline') || name.includes('startline');
+          if (!isStar) return false;
+          const group = (m?.starlineGroup || '').toString().toLowerCase();
+          if (!marketKey) return true;
+          if (group) return group === marketKey;
+          return name.includes(marketKey);
+        });
+
+        const mapped = filtered
+          .map((m) => {
+            const st = (m.startingTime || '').toString().slice(0, 5);
+            const status = isPastClosingTime(m) ? 'closed' : (m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? 'closed' : 'open');
+            return {
+              id: m._id,
+              marketName: m.marketName || m.gameName || marketLabel,
+              startingTime: st || null,
+              closingTime: m.closingTime || m.startingTime || null,
+              openingNumber: m.openingNumber || null,
+              closingNumber: m.closingNumber || null,
+              status,
+            };
+          })
+          .sort((a, b) => String(a.startingTime || '').localeCompare(String(b.startingTime || '')));
+
+        if (!cancelled) {
+          const byTime = new Map();
+          for (const it of mapped) {
+            if (it?.startingTime) byTime.set(String(it.startingTime).slice(0, 5), it);
+          }
+          // Always show the full schedule (fill with backend data when available)
+          setItems(
+            scheduleTimes.map((t) => {
+              const existing = byTime.get(t);
+              if (existing) return existing;
+              return {
+                id: `fb-${marketKey || 'star'}-${t}`,
+                marketName: marketLabel,
+                startingTime: t,
+                closingTime: t,
+                openingNumber: null,
+                closingNumber: null,
+                status: 'closed',
+                isMock: true,
+              };
+            })
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setItems(
+            scheduleTimes.map((t) => ({
+              id: `fb-${marketKey || 'star'}-${t}`,
+              marketName: marketLabel,
+              startingTime: t,
+              closingTime: t,
+              openingNumber: null,
+              closingNumber: null,
+              status: 'closed',
+              isMock: true,
+            }))
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [scheduleTimes, marketKey, marketLabel]);
 
   const title = marketLabel || 'Starline';
 
@@ -244,19 +254,6 @@ const StarlineMarket = () => {
             <div className="hidden sm:block mt-1 text-xs text-white/50">Select a time slot to place bets. Green = open, red = closed for today.</div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={loading || refreshing}
-            className="shrink-0 p-2.5 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15 disabled:opacity-50 transition"
-            title="Refresh slots"
-            aria-label="Refresh slots"
-          >
-            <svg className={`w-5 h-5 text-white ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-
           {/* Desktop legend */}
           <div className="hidden md:flex items-center gap-4 shrink-0">
             <div className="flex items-center gap-2 text-xs text-white/70">
@@ -269,13 +266,6 @@ const StarlineMarket = () => {
             </div>
           </div>
         </div>
-
-        {!loading && items.length === 0 && (
-          <div className="mt-4 md:mt-6 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-sm">
-            <p className="font-medium">No time slots have been created for {title} yet.</p>
-            <p className="mt-1 text-amber-200/90">Time slots need to be added in <strong>Admin → Markets → Starline Market</strong> (select this market and add slots). New slots will appear here when added.</p>
-          </div>
-        )}
 
         <div className="mt-4 md:mt-6 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 md:gap-5">
           {loading ? (
@@ -290,7 +280,7 @@ const StarlineMarket = () => {
               const pill = `${m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? String(m.openingNumber) : '***'} - ${openDigit(m.openingNumber)}`;
               const canOpen = !slotClosed;
               const countdown = formatCountdown(msUntilNextIST(m.startingTime, tick));
-              const imageUrl = STARLINE_MARKET_IMAGE_OVERRIDES[idx % STARLINE_MARKET_IMAGE_OVERRIDES.length] || STARLINE_MARKET_IMAGE_URL;
+              const imageUrl = STARLINE_MARKET_IMAGE_OVERRIDES[idx] || STARLINE_MARKET_IMAGE_URL;
               const isFourteenthImage = imageUrl === STARLINE_MARKET_FOURTEENTH_IMAGE_URL;
 
               return (
@@ -311,7 +301,9 @@ const StarlineMarket = () => {
                           closingTime: m.closingTime,
                           openingNumber: m.openingNumber,
                           closingNumber: m.closingNumber,
+                          // Keep non-closed to avoid BidOptions redirect; actual betting is restricted downstream.
                           status: m.status === 'running' ? 'running' : 'open',
+                          isMock: !!m.isMock,
                         },
                       },
                     });
@@ -358,7 +350,9 @@ const StarlineMarket = () => {
                       className={`mt-1 text-center text-[12px] font-semibold ${
                         statusText === 'Close For Today'
                           ? 'text-red-400'
-                          : 'text-emerald-400'
+                          : statusText === 'Open'
+                            ? 'text-emerald-400'
+                            : 'text-white/80'
                       }`}
                     >
                       {statusText}
