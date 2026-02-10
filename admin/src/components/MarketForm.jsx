@@ -11,6 +11,17 @@ const from24Hour = (timeStr) => {
     return { hour12: String(hour12), minute: minute.slice(-2), ampm };
 };
 
+// For startline: parse "10:00 PM" / "10:00 AM" from market name (e.g. "Kalyan Starline 10:00 PM") so edit form shows correct AM/PM
+const parseTimeFromStartlineName = (marketName) => {
+    if (!marketName || typeof marketName !== 'string') return null;
+    const match = marketName.trim().match(/\b(\d{1,2}):(\d{2})\s*(AM|PM)\s*$/i);
+    if (!match) return null;
+    const hour12 = String(parseInt(match[1], 10) || 12);
+    const minute = String(parseInt(match[2], 10) || 0).padStart(2, '0').slice(0, 2);
+    const ampm = (match[3] || 'AM').toUpperCase();
+    return { hour12, minute, ampm };
+};
+
 // Build 24h "HH:MM" from 12h selection
 const to24Hour = (hour12, minute, ampm) => {
     let h = parseInt(hour12, 10) || 12;
@@ -38,16 +49,24 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
 
     useEffect(() => {
         if (market) {
+            const isStartline = market.marketType === 'startline';
+            // For startline edit: prefer time+AM/PM from market name (e.g. "Kalyan Starline 10:00 PM") so PM shows as PM, not AM
+            const closeFromName = isStartline ? parseTimeFromStartlineName(market.marketName) : null;
+            const close12Initial = closeFromName || from24Hour(market.closingTime);
+            const closing24 = closeFromName
+                ? to24Hour(closeFromName.hour12, closeFromName.minute, closeFromName.ampm)
+                : (market.closingTime || '');
+
             setFormData((prev) => ({
                 ...prev,
                 marketName: market.marketName || '',
                 startingTime: market.startingTime || '',
-                closingTime: market.closingTime || '',
+                closingTime: closing24 || market.closingTime || '',
                 betClosureTime: market.betClosureTime ?? '',
-                marketType: market.marketType === 'startline' ? 'startline' : 'main',
+                marketType: isStartline ? 'startline' : 'main',
             }));
             setStart12(from24Hour(market.startingTime));
-            setClose12(from24Hour(market.closingTime));
+            setClose12(close12Initial);
         } else {
             setFormData((prev) => ({ ...prev, marketType: defaultMarketType }));
         }

@@ -1,6 +1,8 @@
 import StarlineGroup from '../models/starlineGroup/starlineGroup.js';
 import Market from '../models/market/market.js';
+import Admin from '../models/admin/admin.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
+import bcrypt from 'bcryptjs';
 
 const DEFAULT_GROUPS = [
     { key: 'kalyan', label: 'Kalyan Starline', order: 0 },
@@ -88,9 +90,23 @@ export const createStarlineGroup = async (req, res) => {
 
 /**
  * DELETE /markets/starline-groups/:key – remove starline market and all its slots (super admin).
+ * Body: { secretDeclarePassword?: string } – required if admin has it set
  */
 export const deleteStarlineGroup = async (req, res) => {
     try {
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body?.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password. Enter the correct password to delete this Starline market.',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
+
         const key = (req.params.key || '').toString().trim().toLowerCase();
         if (!key) {
             return res.status(400).json({ success: false, message: 'key is required' });

@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
-import { FaExclamationTriangle } from 'react-icons/fa';
+import { FaExclamationTriangle, FaChartBar, FaStar, FaCrown } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
+
+const ADD_RESULT_TABS = [
+    { id: 'regular', label: 'Regular Market', icon: FaChartBar },
+    { id: 'starline', label: 'Starline Market', icon: FaStar },
+    { id: 'king', label: 'King Bazaar Market', icon: FaCrown },
+];
 
 /** Safe number for preview: avoids NaN in UI */
 const safeNum = (value) => {
@@ -39,6 +45,8 @@ const AddResult = () => {
     const [marketsPendingResult, setMarketsPendingResult] = useState(0);
     const [marketsPendingResultList, setMarketsPendingResultList] = useState([]);
     const [isDirectEditMode, setIsDirectEditMode] = useState(() => !!(preselectedFromNav?._id));
+    const [activeTab, setActiveTab] = useState('regular');
+    const [starlineMarkets, setStarlineMarkets] = useState([]);
     const navigate = useNavigate();
 
     const getAuthHeaders = () => {
@@ -77,6 +85,7 @@ const AddResult = () => {
             if (data.success) {
                 const all = data.data || [];
                 setMarkets(all.filter((m) => m.marketType !== 'startline'));
+                setStarlineMarkets(all.filter((m) => m.marketType === 'startline'));
             } else {
                 setError('Failed to fetch markets');
             }
@@ -96,6 +105,11 @@ const AddResult = () => {
         fetchMarkets();
         fetchMarketsPendingResult();
     }, [navigate]);
+
+    useEffect(() => {
+        const type = (location.state?.marketType || '').toString().toLowerCase();
+        if (type === 'starline' || type === 'king') setActiveTab(type);
+    }, [location.state?.marketType]);
 
     useEffect(() => {
         if (!preselectedFromNav?._id) return;
@@ -141,6 +155,10 @@ const AddResult = () => {
         const marketId = getMarketId();
         if (!marketId) return;
         const val = openPatti.replace(/\D/g, '').slice(0, 3);
+        if (val.length !== 3) {
+            setPreview(null);
+            return;
+        }
         setCheckLoading(true);
         setPreview(null);
         const headers = getAuthHeaders();
@@ -185,6 +203,10 @@ const AddResult = () => {
         const marketId = getMarketId();
         if (!marketId) return;
         const val = closePatti.replace(/\D/g, '').slice(0, 3);
+        if (val.length !== 3) {
+            setPreviewClose(null);
+            return;
+        }
         setCheckCloseLoading(true);
         setPreviewClose(null);
         const headers = getAuthHeaders();
@@ -289,7 +311,7 @@ const AddResult = () => {
                     </div>
                 )}
 
-                {marketsPendingResult > 0 && !isDirectEditMode && (
+                {activeTab === 'regular' && marketsPendingResult > 0 && !isDirectEditMode && (
                     <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-amber-500/10 border border-amber-500/40 rounded-lg overflow-hidden">
                         <h3 className="text-xs sm:text-sm font-semibold text-amber-400 flex items-center gap-2 mb-2 flex-wrap">
                             <FaExclamationTriangle className="w-4 h-4 shrink-0" />
@@ -308,6 +330,134 @@ const AddResult = () => {
                     {isDirectEditMode ? 'Edit Result' : 'Declare Result'}
                 </h1>
 
+                {/* Top tabs: Regular | Starline | King Bazaar */}
+                <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+                    {ADD_RESULT_TABS.map((tab) => {
+                        const isActive = activeTab === tab.id;
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`inline-flex items-center gap-2 px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base transition-all ${
+                                    isActive
+                                        ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white border border-gray-600'
+                                }`}
+                            >
+                                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {activeTab === 'starline' && (
+                    <div className="flex flex-col xl:flex-row gap-4 sm:gap-6">
+                        <div className="flex-1 min-w-0 w-full">
+                            {loading ? (
+                                <div className="text-center py-8 sm:py-12 text-gray-400 text-xs sm:text-sm rounded-xl border border-gray-700 bg-gray-800/50">Loading Starline slots...</div>
+                            ) : starlineMarkets.length === 0 ? (
+                                <div className="rounded-2xl border border-amber-500/40 bg-gray-800/50 p-6 sm:p-8 text-center">
+                                    <p className="text-gray-400 text-sm mb-4">No Starline slots yet. Add markets and slots from Markets → Starline Market.</p>
+                                    <Link to="/markets" state={{ marketType: 'starline' }} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm">
+                                        <FaStar className="w-4 h-4" /> Go to Starline Market
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto rounded-lg sm:rounded-xl border border-gray-700 bg-gray-800/80 shadow-lg">
+                                    <table className="w-full border-collapse text-[11px] sm:text-xs md:text-sm min-w-[320px]">
+                                        <thead>
+                                            <tr className="border-b border-gray-700">
+                                                <th className="text-left py-2 sm:py-3 px-3 font-semibold text-yellow-500 bg-gray-800">Slot</th>
+                                                <th className="text-left py-2 sm:py-3 px-3 font-semibold text-yellow-500 bg-gray-800 border-l border-gray-700">Closes</th>
+                                                <th className="text-left py-2 sm:py-3 px-3 font-semibold text-yellow-500 bg-gray-800 border-l border-gray-700">Result</th>
+                                                <th className="text-left py-2 sm:py-3 px-3 font-semibold text-yellow-500 bg-gray-800 border-l border-gray-700">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {starlineMarkets.map((m) => {
+                                                const hasOpen = m.openingNumber && /^\d{3}$/.test(String(m.openingNumber));
+                                                const resultDisplay = m.displayResult || (hasOpen ? '—' : '*** - *');
+                                                const isPending = marketsPendingResultList.some((p) => String(p._id) === String(m._id) || p.marketName === m.marketName);
+                                                return (
+                                                    <tr key={m._id} className={`border-b border-gray-700 hover:bg-gray-700/50 ${isPending ? 'bg-amber-500/5' : ''}`}>
+                                                        <td className="py-2 sm:py-3 px-3 font-medium text-white truncate max-w-[180px]">
+                                                            {isPending && <FaExclamationTriangle className="inline w-3.5 h-3.5 text-amber-400 mr-1.5 align-middle" />}
+                                                            {m.marketName}
+                                                        </td>
+                                                        <td className="py-2 sm:py-3 px-3 text-gray-300 border-l border-gray-700 whitespace-nowrap">{formatTime(m.closingTime)}</td>
+                                                        <td className="py-2 sm:py-3 px-3 border-l border-gray-700 font-mono text-amber-400">{resultDisplay}</td>
+                                                        <td className="py-2 sm:py-3 px-3 border-l border-gray-700">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openPanelForEdit(m)}
+                                                                className="px-2 sm:px-3 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg text-xs sm:text-sm"
+                                                            >
+                                                                {hasOpen ? 'Edit result' : 'Add result'}
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                        {selectedMarket?.marketType === 'startline' && (
+                            <div className="w-full xl:w-[380px] xl:max-w-[400px] xl:shrink-0 bg-gray-800 rounded-xl border border-gray-700 shadow-xl p-4 sm:p-5 md:p-6">
+                                <h2 className="text-lg sm:text-xl font-bold text-yellow-500 mb-2 border-b border-gray-700 pb-2 truncate" title={selectedMarket.marketName}>{selectedMarket.marketName}</h2>
+                                <p className="text-[11px] text-gray-500 mb-3">Enter 3 digits → Check (preview) → Declare Open</p>
+                                <div className="mb-3">
+                                    <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Open Patti (3 digits)</label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={openPatti}
+                                        onChange={(e) => setOpenPatti(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                                        placeholder="e.g. 156"
+                                        className="w-full px-3 py-2.5 sm:py-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-lg font-mono min-h-[44px]"
+                                        maxLength={3}
+                                    />
+                                </div>
+                                <button type="button" onClick={handleCheckOpen} disabled={checkLoading || openPatti.replace(/\D/g, '').length !== 3} className="w-full mb-2 px-3 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg text-sm disabled:opacity-50" title={openPatti.replace(/\D/g, '').length !== 3 ? 'Enter 3 digits to check' : 'Preview impact before declaring'}>
+                                    {checkLoading ? 'Checking...' : 'Check'}
+                                </button>
+                                {preview != null && (
+                                    <div className="space-y-1.5 mb-3 rounded-lg bg-gray-700/50 border border-gray-600 p-2.5 text-xs">
+                                        <div className="flex justify-between"><span className="text-gray-400">Total Bet</span><span className="font-mono text-white">{formatNum(preview.totalBetAmount)}</span></div>
+                                        <div className="flex justify-between"><span className="text-gray-400">Total Win</span><span className="font-mono text-white">{formatNum(preview.totalWinAmount)}</span></div>
+                                        <div className="flex justify-between"><span className="text-gray-400">Players</span><span className="font-mono text-white">{formatNum(preview.noOfPlayers)}</span></div>
+                                        <div className="flex justify-between"><span className="text-gray-400">Profit</span><span className="font-mono text-amber-400">{formatNum(preview.profit)}</span></div>
+                                    </div>
+                                )}
+                                <button type="button" onClick={handleDeclareOpen} disabled={declareLoading || openPatti.replace(/\D/g, '').length !== 3} className="w-full mb-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg text-sm disabled:opacity-50" title={openPatti.replace(/\D/g, '').length !== 3 ? 'Enter 3-digit Open Patti to declare' : 'Go to confirm & declare'}>
+                                    {declareLoading ? 'Declaring...' : 'Declare Open'}
+                                </button>
+                                {(selectedMarket.openingNumber && /^\d{3}$/.test(String(selectedMarket.openingNumber))) && (
+                                    <button type="button" onClick={handleClearResult} disabled={clearLoading} className="w-full mb-2 px-4 py-2.5 bg-red-900/80 hover:bg-red-800 text-red-100 font-semibold rounded-lg text-sm disabled:opacity-50">
+                                        {clearLoading ? 'Clearing...' : 'Clear result'}
+                                    </button>
+                                )}
+                                <button type="button" onClick={closePanel} className="w-full px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg text-sm">Close</button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'king' && (
+                    <div className="rounded-2xl border border-gray-700 bg-gray-800/50 p-6 sm:p-8 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
+                            <FaCrown className="w-8 h-8 text-amber-400" />
+                        </div>
+                        <h2 className="text-lg font-bold text-white mb-2">King Bazaar Result</h2>
+                        <p className="text-gray-500 text-sm max-w-md mx-auto">Declare King Bazaar results here. Configure as needed.</p>
+                    </div>
+                )}
+
+                {activeTab === 'regular' && (
                 <div className="flex flex-col xl:flex-row gap-4 sm:gap-6">
                     {/* Left: Market list - hidden in direct edit mode */}
                     {!isDirectEditMode && (
@@ -405,11 +555,12 @@ const AddResult = () => {
 
                             {/* Open Result section */}
                             <div className="mb-4 sm:mb-6">
-                                <h3 className="text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 sm:mb-3">
+                                <h3 className="text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">
                                     {selectedMarket.marketType === 'startline' ? 'Startline Result (Open Patti)' : 'Open Result'}
                                 </h3>
+                                <p className="text-[11px] text-gray-500 mb-2 sm:mb-3">Enter 3 digits → Check (preview) → Declare Open</p>
                                 <div className="mb-2 sm:mb-3">
-                                    <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Open Patti</label>
+                                    <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Open Patti (3 digits)</label>
                                     <input
                                         type="text"
                                         inputMode="numeric"
@@ -424,8 +575,9 @@ const AddResult = () => {
                                     <button
                                         type="button"
                                         onClick={handleCheckOpen}
-                                        disabled={checkLoading}
+                                        disabled={checkLoading || openPatti.replace(/\D/g, '').length !== 3}
                                         className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg border border-gray-600 disabled:opacity-50 transition-colors text-sm sm:text-base"
+                                        title={openPatti.replace(/\D/g, '').length !== 3 ? 'Enter 3-digit Open Patti to check' : 'Preview impact before declaring'}
                                     >
                                         {checkLoading ? 'Checking...' : 'Check'}
                                     </button>
@@ -475,9 +627,10 @@ const AddResult = () => {
                             {/* Close Result section */}
                             {selectedMarket.marketType !== 'startline' && selectedMarket.openingNumber && /^\d{3}$/.test(selectedMarket.openingNumber) && (
                                 <div className="mb-4 sm:mb-6">
-                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 sm:mb-3">Close Result</h3>
+                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Close Result</h3>
+                                    <p className="text-[11px] text-gray-500 mb-2 sm:mb-3">Enter 3 digits → Check (preview) → Declare Close</p>
                                     <div className="mb-2 sm:mb-3">
-                                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Close Patti</label>
+                                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Close Patti (3 digits)</label>
                                         <input
                                             type="text"
                                             inputMode="numeric"
@@ -492,8 +645,9 @@ const AddResult = () => {
                                         <button
                                             type="button"
                                             onClick={handleCheckClose}
-                                            disabled={checkCloseLoading}
+                                            disabled={checkCloseLoading || closePatti.replace(/\D/g, '').length !== 3}
                                             className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg border border-gray-600 disabled:opacity-50 transition-colors text-sm sm:text-base"
+                                            title={closePatti.replace(/\D/g, '').length !== 3 ? 'Enter 3-digit Close Patti to check' : 'Preview impact before declaring'}
                                         >
                                             {checkCloseLoading ? 'Checking...' : 'Check'}
                                         </button>
@@ -572,6 +726,7 @@ const AddResult = () => {
                         </div>
                     )}
                 </div>
+                )}
             </div>
         </AdminLayout>
     );

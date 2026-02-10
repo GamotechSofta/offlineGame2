@@ -1,5 +1,23 @@
 import { API_BASE_URL } from '../config/api';
 
+/** MongoDB ObjectId is 24 hex characters */
+const VALID_OBJECTID = /^[a-fA-F0-9]{24}$/;
+function toObjectIdString(v) {
+  if (v == null) return null;
+  if (typeof v === 'string') return v.trim() || null;
+  if (typeof v === 'object' && v?.$oid) return String(v.$oid).trim() || null;
+  try {
+    const s = String(v).trim();
+    return s || null;
+  } catch {
+    return null;
+  }
+}
+function isValidObjectId(id) {
+  const s = toObjectIdString(id);
+  return s != null && VALID_OBJECTID.test(s);
+}
+
 /**
  * Update stored user balance in localStorage and notify app (e.g. header wallet).
  */
@@ -21,9 +39,18 @@ export function updateUserBalance(newBalance) {
  */
 export async function placeBet(marketId, bets, scheduledDate = null) {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const userId = user?.id || user?._id;
-  if (!userId) {
+  const rawUserId = user?.id || user?._id;
+  if (!rawUserId) {
     return { success: false, message: 'Please log in to place a bet' };
+  }
+  const userId = toObjectIdString(rawUserId);
+  if (!isValidObjectId(userId)) {
+    return { success: false, message: 'Session invalid. Please log in again.' };
+  }
+
+  const normalizedMarketId = toObjectIdString(marketId ?? user?.marketId);
+  if (!normalizedMarketId || !isValidObjectId(normalizedMarketId)) {
+    return { success: false, message: 'This market is not available for betting. Please go back and select a market from the list.' };
   }
 
   const normalizeBetOn = (v) => {
@@ -41,7 +68,7 @@ export async function placeBet(marketId, bets, scheduledDate = null) {
 
   const payload = {
     userId,
-    marketId,
+    marketId: normalizedMarketId,
     bets: bets.map((b) => ({
       betType: b.betType,
       betNumber: String(b.betNumber).trim(),

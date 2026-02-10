@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Bet from '../models/bet/bet.js';
 import User from '../models/user/user.js';
 import Market from '../models/market/market.js';
@@ -36,6 +37,13 @@ export const placeBet = async (req, res) => {
                 success: false,
                 message: 'userId, marketId and non-empty bets array are required',
             });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ success: false, message: 'Invalid userId' });
+        }
+        if (!mongoose.Types.ObjectId.isValid(marketId)) {
+            return res.status(400).json({ success: false, message: 'Invalid marketId' });
         }
 
         const user = await User.findById(userId).select('isActive').lean();
@@ -116,6 +124,8 @@ export const placeBet = async (req, res) => {
         if (scheduledDate) {
             scheduledDateObj = new Date(scheduledDate);
             if (isNaN(scheduledDateObj.getTime())) {
+                wallet.balance += totalAmount;
+                await wallet.save();
                 return res.status(400).json({
                     success: false,
                     message: 'Invalid scheduledDate format',
@@ -126,6 +136,8 @@ export const placeBet = async (req, res) => {
             now.setHours(0, 0, 0, 0);
             scheduledDateObj.setHours(0, 0, 0, 0);
             if (scheduledDateObj < now) {
+                wallet.balance += totalAmount;
+                await wallet.save();
                 return res.status(400).json({
                     success: false,
                     message: 'Scheduled date must be today or in the future',
@@ -136,21 +148,27 @@ export const placeBet = async (req, res) => {
 
         const betIds = [];
         const createdBets = [];
-        for (const { betType, betNumber, amount, betOn } of sanitized) {
-            const bet = await Bet.create({
-                userId,
-                marketId,
-                betOn,
-                betType,
-                betNumber,
-                amount,
-                status: 'pending',
-                payout: 0,
-                scheduledDate: scheduledDateObj,
-                isScheduled: isScheduled,
-            });
-            betIds.push(bet._id);
-            createdBets.push(bet);
+        try {
+            for (const { betType, betNumber, amount, betOn } of sanitized) {
+                const bet = await Bet.create({
+                    userId,
+                    marketId,
+                    betOn,
+                    betType,
+                    betNumber,
+                    amount,
+                    status: 'pending',
+                    payout: 0,
+                    scheduledDate: scheduledDateObj,
+                    isScheduled: isScheduled,
+                });
+                betIds.push(bet._id);
+                createdBets.push(bet);
+            }
+        } catch (createErr) {
+            wallet.balance += totalAmount;
+            await wallet.save();
+            throw createErr;
         }
 
         const labelForType = (t) => {
@@ -163,17 +181,22 @@ export const placeBet = async (req, res) => {
             return 'Bet';
         };
 
-        // Create debit transaction per bet (bet-wise transaction history)
-        if (createdBets.length > 0) {
-            await WalletTransaction.insertMany(
-                createdBets.map((b) => ({
-                    userId,
-                    type: 'debit',
-                    amount: Number(b.amount) || 0,
-                    description: `Bet placed – ${market.marketName} (${labelForType(b.betType)} ${String(b.betNumber || '').trim()})`,
-                    referenceId: b._id.toString(),
-                }))
-            );
+        try {
+            if (createdBets.length > 0) {
+                await WalletTransaction.insertMany(
+                    createdBets.map((b) => ({
+                        userId,
+                        type: 'debit',
+                        amount: Number(b.amount) || 0,
+                        description: `Bet placed – ${market.marketName} (${labelForType(b.betType)} ${String(b.betNumber || '').trim()})`,
+                        referenceId: b._id.toString(),
+                    }))
+                );
+            }
+        } catch (txErr) {
+            wallet.balance += totalAmount;
+            await wallet.save();
+            throw txErr;
         }
 
         res.status(201).json({
@@ -186,6 +209,13 @@ export const placeBet = async (req, res) => {
             },
         });
     } catch (error) {
+        if (error.name === 'CastError') {
+            return res.status(400).json({ success: false, message: 'Invalid id format for user or market' });
+        }
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ success: false, message: error.message || 'Validation failed' });
+        }
+        console.error('[placeBet]', error.message || error);
         res.status(500).json({ success: false, message: error.message || 'Failed to place bet' });
     }
 };

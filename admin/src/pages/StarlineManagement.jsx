@@ -65,6 +65,9 @@ const StarlineManagement = ({ embedded = false }) => {
     const [addMarketError, setAddMarketError] = useState('');
     const [deleteGroupKey, setDeleteGroupKey] = useState(null);
     const [showDeleteGroupModal, setShowDeleteGroupModal] = useState(false);
+    const [deleteGroupPassword, setDeleteGroupPassword] = useState('');
+    const [deleteGroupPasswordError, setDeleteGroupPasswordError] = useState('');
+    const [deleteGroupLoading, setDeleteGroupLoading] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -182,17 +185,24 @@ const StarlineManagement = ({ embedded = false }) => {
         }
     };
 
-    const handleDeleteGroup = async () => {
+    const handleDeleteGroup = async (pwd = '') => {
         if (!deleteGroupKey) return;
+        if (hasSecretDeclarePassword && !pwd.trim()) {
+            setDeleteGroupPasswordError('Enter secret declare password');
+            return;
+        }
+        setDeleteGroupPasswordError('');
+        setDeleteGroupLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/markets/starline-groups/${encodeURIComponent(deleteGroupKey)}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders(),
-            });
+            const opts = { method: 'DELETE', headers: getAuthHeaders() };
+            if (pwd.trim()) opts.body = JSON.stringify({ secretDeclarePassword: pwd.trim() });
+            const res = await fetch(`${API_BASE_URL}/markets/starline-groups/${encodeURIComponent(deleteGroupKey)}`, opts);
             const data = await res.json();
             if (data.success) {
                 setShowDeleteGroupModal(false);
                 setDeleteGroupKey(null);
+                setDeleteGroupPassword('');
+                setDeleteGroupPasswordError('');
                 await fetchStarlineGroups();
                 await fetchMarkets();
                 if (activeTab === deleteGroupKey && starlineGroups.length > 1) {
@@ -202,10 +212,13 @@ const StarlineManagement = ({ embedded = false }) => {
                     setActiveTab('');
                 }
             } else {
-                alert(data.message || 'Failed to delete market');
+                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') setDeleteGroupPasswordError(data.message || 'Invalid password');
+                else alert(data.message || 'Failed to delete market');
             }
         } catch (err) {
             alert('Network error');
+        } finally {
+            setDeleteGroupLoading(false);
         }
     };
 
@@ -629,126 +642,7 @@ const StarlineManagement = ({ embedded = false }) => {
                                     </div>
                                 )}
                             </section>
-
-                            {/* 2. View & declare result */}
-                            <section className="rounded-2xl border border-gray-700 bg-gray-800/50 p-5 sm:p-6">
-                                <h2 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-                                    <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 font-mono text-sm">2</span>
-                                    View & declare result
-                                </h2>
-                                <p className="text-gray-500 text-xs mb-4">See result per slot. Click &quot;Add result&quot; or &quot;Edit result&quot; to declare Open Patti (3 digits).</p>
-                                {(() => {
-                                    const pendingCount = slotsForTab.filter((m) => !(m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)))).length;
-                                    return pendingCount > 0 ? (
-                                        <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/40 flex items-center gap-2">
-                                            <svg className="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                            <span className="text-sm font-medium text-amber-200">
-                                                {pendingCount} slot{pendingCount !== 1 ? 's' : ''} pending result — declare Open Patti (3 digits) for each below.
-                                            </span>
-                                        </div>
-                                    ) : null;
-                                })()}
-                                {slotsForTab.length === 0 ? (
-                                    <p className="text-gray-500 text-sm">Add time slots in section 1 first.</p>
-                                ) : (
-                                    <div className="overflow-x-auto rounded-xl border border-gray-700">
-                                        <table className="w-full border-collapse text-sm min-w-[340px]">
-                                            <thead>
-                                                <tr className="border-b border-gray-700 bg-gray-800">
-                                                    <th className="text-left py-3 px-3 font-semibold text-gray-300">Slot</th>
-                                                    <th className="text-left py-3 px-3 font-semibold text-gray-300 border-l border-gray-700">Closes</th>
-                                                    <th className="text-left py-3 px-3 font-semibold text-gray-300 border-l border-gray-700">Result</th>
-                                                    <th className="text-left py-3 px-3 font-semibold text-gray-300 border-l border-gray-700 w-32">Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {slotsForTab.map((m) => {
-                                                    const hasOpen = m.openingNumber && /^\d{3}$/.test(String(m.openingNumber));
-                                                    const resultDisplay = m.displayResult || '—';
-                                                    return (
-                                                        <tr key={m._id} className="border-b border-gray-700 hover:bg-gray-700/30">
-                                                            <td className="py-3 px-3 font-medium text-white truncate max-w-[160px]" title={m.marketName}>{m.marketName}</td>
-                                                            <td className="py-3 px-3 text-gray-400 border-l border-gray-700 text-xs">{formatTime(m.closingTime)}</td>
-                                                            <td className="py-3 px-3 border-l border-gray-700">
-                                                                {hasOpen ? (
-                                                                    <span className="font-mono text-amber-400 font-semibold">{resultDisplay}</span>
-                                                                ) : (
-                                                                    <span className="text-gray-500">No result</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="py-3 px-3 border-l border-gray-700">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => openResultPanel(m)}
-                                                                    className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs"
-                                                                >
-                                                                    {hasOpen ? 'Edit result' : 'Add result'}
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </section>
                         </div>
-
-                        {/* Side panel: declare open patti */}
-                        {selectedResultMarket && (
-                            <div className="w-full xl:w-[320px] xl:shrink-0 rounded-2xl border border-amber-500/40 bg-gray-800 p-5 mt-6 xl:mt-0">
-                                <h3 className="text-base font-bold text-white truncate mb-1" title={selectedResultMarket.marketName}>{selectedResultMarket.marketName}</h3>
-                                <p className="text-xs text-gray-500 mb-4">Declare Open Patti (3 digits) for this slot.</p>
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-400 mb-1">1. Enter Open Patti (3 digits)</label>
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            value={openPatti}
-                                            onChange={(e) => setOpenPatti(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                                            placeholder="e.g. 156"
-                                            className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white font-mono text-sm"
-                                            maxLength={3}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-400 mb-1">2. Check impact (optional)</label>
-                                        <button type="button" onClick={handleCheckOpen} disabled={checkLoading} className="w-full py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-medium text-sm disabled:opacity-50">
-                                            {checkLoading ? 'Checking...' : 'Check'}
-                                        </button>
-                                    </div>
-                                    {preview != null && (
-                                        <div className="space-y-1.5 rounded-xl bg-gray-700/60 border border-gray-600 p-3 text-xs">
-                                            <div className="flex justify-between"><span className="text-gray-400">Total Bet</span><span className="font-mono text-white">{formatNum(preview.totalBetAmount)}</span></div>
-                                            <div className="flex justify-between"><span className="text-gray-400">Total Win</span><span className="font-mono text-white">{formatNum(preview.totalWinAmount)}</span></div>
-                                            <div className="flex justify-between"><span className="text-gray-400">Players</span><span className="font-mono text-white">{formatNum(preview.noOfPlayers)}</span></div>
-                                            <div className="flex justify-between"><span className="text-gray-400">Profit</span><span className="font-mono text-amber-400">{formatNum(preview.profit)}</span></div>
-                                        </div>
-                                    )}
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-400 mb-1">3. Declare result</label>
-                                        <button
-                                            type="button"
-                                            onClick={handleDeclareOpen}
-                                            disabled={declareLoading || openPatti.replace(/\D/g, '').length !== 3}
-                                            className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm disabled:opacity-50"
-                                        >
-                                            {declareLoading ? 'Declaring...' : 'Declare result'}
-                                        </button>
-                                    </div>
-                                    {(selectedResultMarket.openingNumber && /^\d{3}$/.test(String(selectedResultMarket.openingNumber))) && (
-                                        <button type="button" onClick={handleClearResult} disabled={clearLoading} className="w-full py-2.5 rounded-xl bg-red-900/70 hover:bg-red-800 text-red-200 font-medium text-sm disabled:opacity-50">
-                                            {clearLoading ? 'Clearing...' : 'Clear result'}
-                                        </button>
-                                    )}
-                                    <button type="button" onClick={closeResultPanel} className="w-full py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm">
-                                        Close panel
-                                    </button>
-                                </div>
-                            </div>
-                        )}
 
                         {/* Add slot modal */}
                         {showAddSlot && (
@@ -867,11 +761,19 @@ const StarlineManagement = ({ embedded = false }) => {
                         <div className="bg-gray-800 rounded-2xl border border-red-500/40 shadow-xl max-w-md w-full p-6">
                             <h3 className="text-base font-bold text-white mb-1">Delete Starline market</h3>
                             <p className="text-gray-400 text-sm mb-1">Market: <strong className="text-white">{starlineGroups.find((g) => g.key === deleteGroupKey)?.label || deleteGroupKey}</strong></p>
-                            <p className="text-gray-500 text-sm mb-4">This will remove the market and all its time slots. This cannot be undone.</p>
-                            <div className="flex gap-3">
-                                <button type="button" onClick={handleDeleteGroup} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-sm">Delete market & slots</button>
-                                <button type="button" onClick={() => { setShowDeleteGroupModal(false); setDeleteGroupKey(null); }} className="px-4 py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm">Cancel</button>
-                            </div>
+                            <p className="text-gray-500 text-sm mb-4">This will remove the market and all its time slots. This cannot be undone. {hasSecretDeclarePassword ? 'Enter secret declare password to confirm.' : ''}</p>
+                            <form onSubmit={(e) => { e.preventDefault(); handleDeleteGroup(deleteGroupPassword); }} className="space-y-4">
+                                {hasSecretDeclarePassword && (
+                                    <>
+                                        <input type="password" value={deleteGroupPassword} onChange={(e) => { setDeleteGroupPassword(e.target.value); setDeleteGroupPasswordError(''); }} placeholder="Secret declare password" className="w-full px-4 py-3 rounded-xl bg-gray-700 border border-gray-600 text-white text-sm" />
+                                        {deleteGroupPasswordError && <p className="text-red-400 text-sm">{deleteGroupPasswordError}</p>}
+                                    </>
+                                )}
+                                <div className="flex gap-3">
+                                    <button type="submit" disabled={deleteGroupLoading} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-sm disabled:opacity-50">Delete market & slots</button>
+                                    <button type="button" onClick={() => { setShowDeleteGroupModal(false); setDeleteGroupKey(null); setDeleteGroupPassword(''); setDeleteGroupPasswordError(''); }} disabled={deleteGroupLoading} className="px-4 py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm">Cancel</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 )}
