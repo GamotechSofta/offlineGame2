@@ -12,8 +12,6 @@ const AppHeader = () => {
     { label: 'My Bets', path: '/bids' },
     { label: 'Bank', path: '/funds?tab=bank-detail' },
     { label: 'Funds', path: '/funds' },
-    { label: 'Home', path: '/' },
-    { label: 'Profile', path: '/profile' },
     { label: 'Top Winners', path: '/top-winners' },
     { label: 'Starline Winners', path: '/support' },
     { label: 'Telegram Channel', path: '/support' },
@@ -21,10 +19,7 @@ const AppHeader = () => {
     { label: 'Game Chart', path: '/support' },
     { label: 'Game Rate', path: '/support' },
     { label: 'Time Table', path: '/support' },
-    { label: 'Notice board / Rules', path: '/support' },
     { label: 'Help Desk', path: '/support' },
-    { label: 'Settings', path: '/profile' },
-    { label: 'How to play', path: '/support' },
     { label: 'Share App', path: '/support' },
     { label: 'Logout', path: '/login' }
   ];
@@ -218,7 +213,15 @@ const AppHeader = () => {
             {/* User Profile Section */}
             <div className="px-5 sm:px-6 pt-6 pb-5 border-b border-white/10 bg-gradient-to-b from-[#1a1a1a]/50 to-transparent">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleProfileClick();
+                  }}
+                  className="flex items-center gap-4 flex-1 min-w-0 text-left group"
+                  aria-label="Open profile"
+                >
                   {/* Avatar */}
                   <div className="relative shrink-0">
                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#1e1e1e] to-[#2a2a2a] border-2 border-yellow-500/30 flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-[0_4px_12px_rgba(212,175,55,0.3)]">
@@ -235,7 +238,7 @@ const AppHeader = () => {
                     <div className="text-xs sm:text-sm text-gray-400 mt-0.5 truncate">{displayPhone}</div>
                     <div className="text-xs sm:text-sm text-gray-500 mt-0.5">{sinceText}</div>
                   </div>
-                </div>
+                </button>
                 
                 {/* Close Button */}
                 <button
@@ -269,13 +272,7 @@ const AppHeader = () => {
                 >
                   {/* Icon Container */}
                   <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#2a2a2a] to-[#1e1e1e] border border-white/10 flex items-center justify-center shrink-0 group-hover:border-yellow-500/30 group-hover:shadow-[0_4px_12px_rgba(212,175,55,0.2)] transition-all duration-200">
-                    {item.label === 'Home' ? (
-                      <img
-                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769797366/home_m76m2c.png"
-                        alt="Home"
-                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
-                      />
-                    ) : item.label === 'Top Winners' || item.label === 'Starline Winners' ? (
+                    {item.label === 'Top Winners' || item.label === 'Starline Winners' ? (
                       <img
                         src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769797561/podium_swqjij.png"
                         alt={item.label}
@@ -329,34 +326,16 @@ const AppHeader = () => {
                         alt="Time Table"
                         className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
                       />
-                    ) : item.label === 'Notice board / Rules' ? (
-                      <img
-                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798736/checklist_xnr6yh.png"
-                        alt="Notice board / Rules"
-                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
-                      />
                     ) : item.label === 'Help Desk' ? (
                       <img
                         src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777618/customer-support_du0zcj.png"
                         alt="Help Desk"
                         className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
                       />
-                    ) : item.label === 'Settings' ? (
-                      <img
-                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769799001/settings_kszedz.png"
-                        alt="Settings"
-                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
-                      />
                     ) : item.label === 'Share App' ? (
                       <img
                         src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798998/share_a6shgt.png"
                         alt="Share App"
-                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
-                      />
-                    ) : item.label === 'How to play' ? (
-                      <img
-                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798998/play-button-arrowhead_uxpf7o.png"
-                        alt="How to play"
                         className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
                       />
                     ) : item.label === 'Logout' ? (
