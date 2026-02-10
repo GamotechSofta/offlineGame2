@@ -1102,15 +1102,13 @@ const MarketDetail = () => {
                             <FaArrowLeft /> Back to Markets
                         </Link>
                     )}
-                    {market.marketType !== 'startline' && (
-                        <Link
-                            to="/add-result"
-                            state={{ preselectedMarket: market }}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-black font-semibold border border-amber-400 transition-colors"
-                        >
-                            <FaEdit /> Add Result for {market.marketName}
-                        </Link>
-                    )}
+                    <Link
+                        to="/add-result"
+                        state={{ preselectedMarket: market }}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-black font-semibold border border-amber-400 transition-colors"
+                    >
+                        <FaEdit /> Add Result for {market.marketName}
+                    </Link>
                 </div>
             </div>
         </AdminLayout>

@@ -132,6 +132,12 @@ const StarlineManagement = ({ embedded = false }) => {
         }
     }, [starlineGroups, location.state?.starlineMarketKey]);
 
+    // When entering a group's detail view, refetch markets so slots are current for that group
+    useEffect(() => {
+        const key = (activeTab || '').toString().trim().toLowerCase();
+        if (key) fetchMarkets();
+    }, [activeTab]);
+
     useEffect(() => {
         fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
             .then((res) => res.json())
@@ -143,16 +149,16 @@ const StarlineManagement = ({ embedded = false }) => {
 
     const activeGroup = useMemo(() => starlineGroups.find((g) => g.key === activeTab) || starlineGroups[0] || null, [starlineGroups, activeTab]);
 
+    const normalizedActiveTab = (activeTab || '').toString().trim().toLowerCase();
     const slotsForTab = useMemo(() => {
-        if (!activeTab) return [];
+        if (!normalizedActiveTab) return [];
         const list = (markets || []).filter((m) => {
             if (m.marketType !== 'startline') return false;
-            const group = (m.starlineGroup || '').toString().toLowerCase();
-            if (group) return group === activeTab;
-            return activeTab === 'kalyan';
+            const group = (m.starlineGroup || '').toString().trim().toLowerCase();
+            return group === normalizedActiveTab;
         });
         return list.sort((a, b) => String(a.closingTime || a.startingTime || '').localeCompare(String(b.closingTime || b.startingTime || ''), undefined, { numeric: true }));
-    }, [markets, activeTab]);
+    }, [markets, normalizedActiveTab]);
 
     const handleAddMarketSubmit = async (e) => {
         e.preventDefault();
@@ -174,7 +180,9 @@ const StarlineManagement = ({ embedded = false }) => {
                 setShowAddMarket(false);
                 setNewMarketLabel('');
                 await fetchStarlineGroups();
-                if (data.data?.key) setActiveTab(data.data.key);
+                await fetchMarkets();
+                const newKey = (data.data?.key || '').toString().trim().toLowerCase();
+                if (newKey) setActiveTab(newKey);
             } else {
                 setAddMarketError(data.message || 'Failed to add market');
             }
@@ -267,7 +275,7 @@ const StarlineManagement = ({ embedded = false }) => {
                 setShowAddSlot(false);
                 setAddTime({ hour12: '10', minute: '00', ampm: 'PM' });
                 setAddBetClosure('');
-                fetchMarkets();
+                await fetchMarkets();
             } else {
                 setAddError(data.message || 'Failed to create slot');
             }

@@ -141,14 +141,7 @@ const StarlineMarket = () => {
     return () => window.clearInterval(t);
   }, []);
 
-  // 11:00 AM to 12:00 AM (midnight) hourly
-  const scheduleTimes = useMemo(() => {
-    const out = [];
-    for (let h = 11; h <= 23; h += 1) out.push(`${String(h).padStart(2, '0')}:00`);
-    out.push('00:00'); // 12:00 AM
-    return out;
-  }, []);
-
+  // Only show slots that exist in the API for this market – no predefined/placeholder slots
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -157,20 +150,20 @@ const StarlineMarket = () => {
         const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
         const data = await res.json();
         const list = Array.isArray(data?.data) ? data.data : [];
+        const keyNorm = (marketKey || '').toString().trim().toLowerCase();
 
         const filtered = list.filter((m) => {
           const name = (m?.marketName || m?.gameName || '').toString().toLowerCase();
           const isStar = m?.marketType === 'startline' || name.includes('starline') || name.includes('startline');
           if (!isStar) return false;
-          const group = (m?.starlineGroup || '').toString().toLowerCase();
-          if (!marketKey) return true;
-          if (group) return group === marketKey;
-          return name.includes(marketKey);
+          const group = (m?.starlineGroup || '').toString().trim().toLowerCase();
+          if (!keyNorm) return true;
+          return group === keyNorm;
         });
 
         const mapped = filtered
           .map((m) => {
-            const st = (m.startingTime || '').toString().slice(0, 5);
+            const st = (m.startingTime || '').toString().trim().slice(0, 5);
             const status = isPastClosingTime(m) ? 'closed' : (m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? 'closed' : 'open');
             return {
               id: m._id,
@@ -184,53 +177,16 @@ const StarlineMarket = () => {
           })
           .sort((a, b) => String(a.startingTime || '').localeCompare(String(b.startingTime || '')));
 
-        if (!cancelled) {
-          const byTime = new Map();
-          for (const it of mapped) {
-            if (it?.startingTime) byTime.set(String(it.startingTime).slice(0, 5), it);
-          }
-          // Always show the full schedule (fill with backend data when available)
-          setItems(
-            scheduleTimes.map((t) => {
-              const existing = byTime.get(t);
-              if (existing) return existing;
-              return {
-                id: `fb-${marketKey || 'star'}-${t}`,
-                marketName: marketLabel,
-                startingTime: t,
-                closingTime: t,
-                openingNumber: null,
-                closingNumber: null,
-                status: 'closed',
-                isMock: true,
-              };
-            })
-          );
-        }
+        if (!cancelled) setItems(mapped);
       } catch {
-        if (!cancelled) {
-          setItems(
-            scheduleTimes.map((t) => ({
-              id: `fb-${marketKey || 'star'}-${t}`,
-              marketName: marketLabel,
-              startingTime: t,
-              closingTime: t,
-              openingNumber: null,
-              closingNumber: null,
-              status: 'closed',
-              isMock: true,
-            }))
-          );
-        }
+        if (!cancelled) setItems([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     run();
-    return () => {
-      cancelled = true;
-    };
-  }, [scheduleTimes, marketKey, marketLabel]);
+    return () => { cancelled = true; };
+  }, [marketKey, marketLabel]);
 
   const title = marketLabel || 'Starline';
 
@@ -267,6 +223,13 @@ const StarlineMarket = () => {
           </div>
         </div>
 
+        {!loading && items.length === 0 && (
+          <div className="mt-4 md:mt-6 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-sm">
+            <p className="font-medium">No time slots for {title} yet.</p>
+            <p className="mt-1 text-amber-200/90">Slots are added in <strong>Admin → Markets → Starline Market</strong>. Once added, they will appear here.</p>
+          </div>
+        )}
+
         <div className="mt-4 md:mt-6 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 md:gap-5">
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
@@ -280,7 +243,7 @@ const StarlineMarket = () => {
               const pill = `${m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? String(m.openingNumber) : '***'} - ${openDigit(m.openingNumber)}`;
               const canOpen = !slotClosed;
               const countdown = formatCountdown(msUntilNextIST(m.startingTime, tick));
-              const imageUrl = STARLINE_MARKET_IMAGE_OVERRIDES[idx] || STARLINE_MARKET_IMAGE_URL;
+              const imageUrl = STARLINE_MARKET_IMAGE_OVERRIDES[idx % STARLINE_MARKET_IMAGE_OVERRIDES.length] || STARLINE_MARKET_IMAGE_URL;
               const isFourteenthImage = imageUrl === STARLINE_MARKET_FOURTEENTH_IMAGE_URL;
 
               return (
@@ -301,9 +264,7 @@ const StarlineMarket = () => {
                           closingTime: m.closingTime,
                           openingNumber: m.openingNumber,
                           closingNumber: m.closingNumber,
-                          // Keep non-closed to avoid BidOptions redirect; actual betting is restricted downstream.
                           status: m.status === 'running' ? 'running' : 'open',
-                          isMock: !!m.isMock,
                         },
                       },
                     });
