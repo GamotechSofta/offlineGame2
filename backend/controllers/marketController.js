@@ -57,11 +57,12 @@ const upsertMarketResultSnapshot = async (marketDoc, dateKey) => {
 
 /**
  * Create a new market.
- * Body: { marketName, startingTime, closingTime, betClosureTime? }
+ * Body: { marketName, startingTime, closingTime, betClosureTime?, marketType?, starlineGroup? }
+ * starlineGroup: for marketType 'startline', e.g. 'kalyan', 'milan', 'radha'.
  */
 export const createMarket = async (req, res) => {
     try {
-        const { marketName, startingTime, closingTime, betClosureTime, marketType } = req.body;
+        const { marketName, startingTime, closingTime, betClosureTime, marketType, starlineGroup } = req.body;
         if (!marketName || !startingTime || !closingTime) {
             return res.status(400).json({
                 success: false,
@@ -70,7 +71,11 @@ export const createMarket = async (req, res) => {
         }
         const betClosureSec = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
         const type = marketType === 'startline' ? 'startline' : 'main';
-        const market = new Market({ marketName, startingTime, closingTime, betClosureTime: betClosureSec, marketType: type });
+        const payload = { marketName, startingTime, closingTime, betClosureTime: betClosureSec, marketType: type };
+        if (type === 'startline' && starlineGroup != null && String(starlineGroup).trim() !== '') {
+            payload.starlineGroup = String(starlineGroup).trim().toLowerCase();
+        }
+        const market = new Market(payload);
         await market.save();
 
         if (req.admin) {

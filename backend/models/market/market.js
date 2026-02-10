@@ -30,6 +30,11 @@ const marketSchema = new mongoose.Schema({
         enum: ['main', 'startline'],
         default: 'main',
     },
+    /** For startline: which starline market this slot belongs to (e.g. 'kalyan', 'milan', 'radha'). Enables per-market tabs. */
+    starlineGroup: {
+        type: String,
+        default: null,
+    },
     marketName: {
         type: String,
         required: true,

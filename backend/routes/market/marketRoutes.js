@@ -19,6 +19,7 @@ import {
     clearResult,
     getWinningBetsPreview,
 } from '../../controllers/marketController.js';
+import { getStarlineGroups, createStarlineGroup, deleteStarlineGroup } from '../../controllers/starlineGroupController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -26,6 +27,7 @@ const router = express.Router();
 // Public routes
 router.get('/get-markets', getMarkets);
 router.get('/get-market/:id', getMarketById);
+router.get('/starline-groups', getStarlineGroups);
 router.get('/result-history', getMarketResultHistory);
 
 // Admin: market detail stats (amount & no. of bets per option)
@@ -48,5 +50,7 @@ router.patch('/set-opening-number/:id', verifySuperAdmin, setOpeningNumber);
 router.patch('/set-closing-number/:id', verifySuperAdmin, setClosingNumber);
 router.patch('/set-win-number/:id', verifySuperAdmin, setWinNumber);
 router.delete('/delete-market/:id', verifySuperAdmin, deleteMarket);
+router.post('/starline-groups', verifySuperAdmin, createStarlineGroup);
+router.delete('/starline-groups/:key', verifySuperAdmin, deleteStarlineGroup);
 
 export default router;

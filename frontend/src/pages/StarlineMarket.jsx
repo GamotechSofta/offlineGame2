@@ -113,7 +113,9 @@ const StarlineMarket = () => {
           const name = (m?.marketName || m?.gameName || '').toString().toLowerCase();
           const isStar = m?.marketType === 'startline' || name.includes('starline') || name.includes('startline');
           if (!isStar) return false;
+          const group = (m?.starlineGroup || '').toString().toLowerCase();
           if (!marketKey) return true;
+          if (group) return group === marketKey;
           return name.includes(marketKey);
         });
 
@@ -200,6 +202,7 @@ const StarlineMarket = () => {
           <div className="min-w-0 flex-1">
             <div className="text-sm text-white/60 leading-none">Starline Market</div>
             <div className="text-lg sm:text-xl md:text-2xl font-extrabold tracking-wide truncate">{title}</div>
+            <div className="hidden sm:block mt-1 text-xs text-white/50">Select a time slot to place bets. Green = open, red = closed for today.</div>
           </div>
 
           {/* Desktop legend */}

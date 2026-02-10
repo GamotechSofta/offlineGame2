@@ -205,8 +205,12 @@ const AdminDashboard = () => {
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
     const pendingWithdrawals = stats?.payments?.pendingWithdrawals ?? 0;
     const helpDeskOpen = stats?.helpDesk?.open || 0;
-    const marketsPendingResult = stats?.marketsPendingResult || 0;
     const marketsPendingResultList = stats?.marketsPendingResultList || [];
+    const starlinePendingList = marketsPendingResultList.filter((m) => (m.marketType || '').toString().toLowerCase() === 'startline');
+    const mainPendingList = marketsPendingResultList.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline');
+    const starlinePendingCount = starlinePendingList.length;
+    const mainPendingCount = mainPendingList.length;
+    const marketsPendingResult = marketsPendingResultList.length;
     const hasActionRequired = pendingPayments > 0 || helpDeskOpen > 0 || marketsPendingResult > 0;
 
     if (loading) {
@@ -330,15 +334,26 @@ const AdminDashboard = () => {
                                 {helpDeskOpen} Open Ticket{helpDeskOpen !== 1 ? 's' : ''} →
                             </Link>
                         )}
-                        {marketsPendingResult > 0 && (
+                        {starlinePendingCount > 0 && (
+                            <Link to="/starline" className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-black font-medium text-sm">
+                                {starlinePendingCount} Starline slot{starlinePendingCount !== 1 ? 's' : ''} result pending →
+                            </Link>
+                        )}
+                        {mainPendingCount > 0 && (
                             <Link to="/add-result" className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-black font-medium text-sm">
-                                {marketsPendingResult} Market{marketsPendingResult !== 1 ? 's' : ''} Result Pending →
+                                {mainPendingCount} Market{mainPendingCount !== 1 ? 's' : ''} result pending →
                             </Link>
                         )}
                     </div>
-                    {marketsPendingResultList.length > 0 && (
+                    {(starlinePendingList.length > 0 || mainPendingList.length > 0) && (
                         <p className="text-xs text-amber-200/90 mt-2">
-                            Result declaration pending: {marketsPendingResultList.map((m) => m.marketName).join(', ')}
+                            {starlinePendingList.length > 0 && (
+                                <span>Starline: {starlinePendingList.map((m) => m.marketName).join(', ')}</span>
+                            )}
+                            {starlinePendingList.length > 0 && mainPendingList.length > 0 && ' · '}
+                            {mainPendingList.length > 0 && (
+                                <span>Markets: {mainPendingList.map((m) => m.marketName).join(', ')}</span>
+                            )}
                         </p>
                     )}
                 </div>
