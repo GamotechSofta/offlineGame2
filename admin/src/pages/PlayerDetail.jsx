@@ -433,6 +433,15 @@ const PlayerDetail = () => {
         return trimmed;
     };
 
+    // Device ID: use lastLoginDeviceId, or latest device from loginDevices when available
+    const displayDeviceId = (() => {
+        if (player?.lastLoginDeviceId) return player.lastLoginDeviceId;
+        const devices = Array.isArray(player?.loginDevices) ? player.loginDevices : [];
+        if (devices.length === 0) return null;
+        const sorted = [...devices].sort((a, b) => new Date(b.lastLoginAt || 0) - new Date(a.lastLoginAt || 0));
+        return sorted[0]?.deviceId || null;
+    })();
+
     if (loading) {
         return (
             <AdminLayout onLogout={handleLogout} title="Player">
@@ -562,9 +571,9 @@ const PlayerDetail = () => {
                         </div>
                         <div className="min-w-0 col-span-2 sm:col-span-1">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Device ID</p>
-                            <p className="text-gray-300 font-mono text-xs truncate break-all" title={player.lastLoginDeviceId || ''}>{player.lastLoginDeviceId || '—'}</p>
+                            <p className="text-gray-300 font-mono text-xs truncate break-all" title={displayDeviceId || ''}>{displayDeviceId || '—'}</p>
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 col-span-2 sm:col-span-1">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">IP Address</p>
                             <p className="text-gray-300 font-mono text-xs truncate" title={player.lastLoginIp || ''}>{formatIpDisplay(player.lastLoginIp)}</p>
                         </div>

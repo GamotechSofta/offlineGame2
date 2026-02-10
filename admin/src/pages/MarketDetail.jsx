@@ -808,6 +808,7 @@ const MarketDetail = () => {
                         totalBets={singleDigitDisplay.totalBets}
                     />
 
+                    {!isStartline && (
                     <SectionCard title="Jodi">
                         <div className="mb-4 p-3 sm:p-4 rounded-lg bg-gray-700/50 border border-gray-600">
                             <p className="text-sm font-semibold text-yellow-500 mb-1">What is Jodi?</p>
@@ -899,6 +900,7 @@ const MarketDetail = () => {
                             <span className="text-gray-400">Row = 1st digit, Column = 2nd digit.</span> Total: ₹{formatNum(jodiDisplay.totalAmount)} · {formatNum(jodiDisplay.totalBets)} bets
                         </p>
                     </SectionCard>
+                    )}
 
                     <SectionCard title="Single Patti">
                         <div className="mb-4 p-3 sm:p-4 rounded-lg bg-gray-700/50 border border-gray-600 space-y-2">
@@ -1074,11 +1076,13 @@ const MarketDetail = () => {
                             totalBets={halfSangamDisplay.totalBets}
                         />
                     )}
+                    {!isStartline && (
                     <FullSangamSection
                         items={fullSangamDisplay.items}
                         totalAmount={fullSangamDisplay.totalAmount}
                         totalBets={fullSangamDisplay.totalBets}
                     />
+                    )}
                 </div>
 
                 <div className="mt-8 pt-4 border-t border-gray-700 flex flex-wrap items-center gap-3">
