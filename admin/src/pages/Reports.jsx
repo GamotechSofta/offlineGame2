@@ -94,6 +94,7 @@ const formatRangeLabel = (from, to) => {
 };
 
 const RELATED_LINKS = [
+    { to: '/revenue', label: 'Revenue', icon: FaMoneyBillWave, description: 'Bookie-wise revenue & commission breakdown' },
     { to: '/bet-history', label: 'Bet History', icon: FaHistory, description: 'View all bets and filter by date' },
     { to: '/payment-management', label: 'Payment Management', icon: FaWallet, description: 'Add funds, withdrawals, transactions' },
     { to: '/top-winners', label: 'Top Winners', icon: FaTrophy, description: 'Leaderboard and winning players' },

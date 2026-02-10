@@ -12,8 +12,8 @@ export const getReport = async (req, res) => {
 
         if (startDate || endDate) {
             dateFilter.createdAt = {};
-            if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
-            if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+            if (startDate) dateFilter.createdAt.$gte = new Date(startDate + 'T00:00:00.000Z');
+            if (endDate) dateFilter.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
         }
         if (bookieUserIds !== null) {
             dateFilter.userId = { $in: bookieUserIds };
@@ -81,8 +81,8 @@ export const getRevenueReport = async (req, res) => {
 
         if (startDate || endDate) {
             dateFilter.createdAt = {};
-            if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
-            if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+            if (startDate) dateFilter.createdAt.$gte = new Date(startDate + 'T00:00:00.000Z');
+            if (endDate) dateFilter.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
         }
 
         const admin = req.admin;
@@ -310,8 +310,8 @@ export const getBookieRevenueDetail = async (req, res) => {
         const dateFilter = {};
         if (startDate || endDate) {
             dateFilter.createdAt = {};
-            if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
-            if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+            if (startDate) dateFilter.createdAt.$gte = new Date(startDate + 'T00:00:00.000Z');
+            if (endDate) dateFilter.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
         }
 
         // Get bookie's users

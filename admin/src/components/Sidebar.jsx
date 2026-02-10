@@ -16,7 +16,6 @@ import {
     FaClipboardList,
     FaCoins,
     FaCog,
-    FaMoneyBillWave,
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
@@ -32,7 +31,6 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/update-rate', label: 'Update Rate', icon: FaCoins },
         { path: '/bet-history', label: 'Bet History', icon: FaHistory },
         { path: '/reports', label: 'Report', icon: FaChartLine },
-        { path: '/revenue', label: 'Revenue', icon: FaMoneyBillWave },
         { path: '/payment-management', label: 'Payments', icon: FaCreditCard },
         { path: '/wallet', label: 'Wallet', icon: FaWallet },
         { path: '/help-desk', label: 'Help Desk', icon: FaLifeRing },
@@ -43,6 +41,9 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
     const isActive = (path) => {
         if (path === '/all-users' || path === '/markets') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
+        }
+        if (path === '/reports') {
+            return location.pathname === '/reports' || location.pathname.startsWith('/revenue');
         }
         return location.pathname === path;
     };
