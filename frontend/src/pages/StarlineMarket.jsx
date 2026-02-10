@@ -7,10 +7,59 @@ const STARLINE_MARKET_IMAGE_URL =
   'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770641576/Untitled_1080_x_1080_px_1_gyjbpl.svg';
 
 const STARLINE_MARKET_FIRST_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770706504/Untitled_design_1_q5qs6j.png';
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708947/Untitled_design_11_1_1_fqrqpr.png';
 
 const STARLINE_MARKET_SECOND_IMAGE_URL =
-  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770706962/Untitled_design_2_1_yevaza.png';
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708832/Untitled_design_10_2_1_x8ji72.png';
+
+const STARLINE_MARKET_THIRD_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770707277/Untitled_design_3_1_qqgezq.png';
+
+const STARLINE_MARKET_FOURTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770707757/Untitled_design_4_1_wm47pu.png';
+
+const STARLINE_MARKET_FIFTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708463/Untitled_design_7_1_b7mxik.png';
+
+const STARLINE_MARKET_SIXTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708044/Untitled_design_5_2_op4u73.png';
+
+const STARLINE_MARKET_SEVENTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708574/Untitled_design_8_1_zdpype.png';
+
+// Reuse existing (already hosted) assets so every slot can have a unique image.
+const STARLINE_MARKET_EIGHTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708678/Untitled_design_9_1_oc8usl.png';
+const STARLINE_MARKET_NINTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770714783/Untitled_design_14_1_hmsbwv.png';
+const STARLINE_MARKET_TENTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708947/Untitled_design_11_1_1_fqrqpr.png';
+const STARLINE_MARKET_ELEVENTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708463/Untitled_design_7_1_b7mxik.png';
+const STARLINE_MARKET_TWELFTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708678/Untitled_design_9_1_oc8usl.png';
+const STARLINE_MARKET_THIRTEENTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770708832/Untitled_design_10_2_1_x8ji72.png';
+const STARLINE_MARKET_FOURTEENTH_IMAGE_URL =
+  'https://res.cloudinary.com/dzd47mpdo/image/upload/v1770714882/Untitled_design_15_1_wdsvi9.png';
+
+// Order matches `scheduleTimes`: 11:00, 12:00, ..., 23:00, 00:00
+const STARLINE_MARKET_IMAGE_OVERRIDES = [
+  STARLINE_MARKET_FIRST_IMAGE_URL,
+  STARLINE_MARKET_SECOND_IMAGE_URL,
+  STARLINE_MARKET_THIRD_IMAGE_URL,
+  STARLINE_MARKET_FOURTH_IMAGE_URL,
+  STARLINE_MARKET_FIFTH_IMAGE_URL,
+  STARLINE_MARKET_SIXTH_IMAGE_URL,
+  STARLINE_MARKET_SEVENTH_IMAGE_URL,
+  STARLINE_MARKET_EIGHTH_IMAGE_URL,
+  STARLINE_MARKET_NINTH_IMAGE_URL,
+  STARLINE_MARKET_TENTH_IMAGE_URL,
+  STARLINE_MARKET_ELEVENTH_IMAGE_URL,
+  STARLINE_MARKET_TWELFTH_IMAGE_URL,
+  STARLINE_MARKET_THIRTEENTH_IMAGE_URL,
+  STARLINE_MARKET_FOURTEENTH_IMAGE_URL,
+];
 
 const formatTime12 = (time24) => {
   if (!time24) return '';
@@ -221,7 +270,7 @@ const StarlineMarket = () => {
         <div className="mt-4 md:mt-6 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 md:gap-5">
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-[195px] md:h-[235px] rounded-2xl md:rounded-3xl bg-[#202124] border border-white/10 animate-pulse" />
+              <div key={i} className="h-[225px] md:h-[285px] rounded-2xl md:rounded-3xl bg-[#202124] border border-white/10 animate-pulse" />
             ))
           ) : (
             items.map((m, idx) => {
@@ -231,12 +280,8 @@ const StarlineMarket = () => {
               const pill = `${m.openingNumber && /^\d{3}$/.test(String(m.openingNumber)) ? String(m.openingNumber) : '***'} - ${openDigit(m.openingNumber)}`;
               const canOpen = !slotClosed;
               const countdown = formatCountdown(msUntilNextIST(m.startingTime, tick));
-              const imageUrl =
-                idx === 0
-                  ? STARLINE_MARKET_FIRST_IMAGE_URL
-                  : idx === 1
-                    ? STARLINE_MARKET_SECOND_IMAGE_URL
-                    : STARLINE_MARKET_IMAGE_URL;
+              const imageUrl = STARLINE_MARKET_IMAGE_OVERRIDES[idx] || STARLINE_MARKET_IMAGE_URL;
+              const isFourteenthImage = imageUrl === STARLINE_MARKET_FOURTEENTH_IMAGE_URL;
 
               return (
                 <button
@@ -270,11 +315,13 @@ const StarlineMarket = () => {
                   }`}
                 >
                   {/* Top image area (photo-style) */}
-                  <div className="relative h-[120px] md:h-[150px] bg-gradient-to-br from-[#0b0b0b] via-[#15171b] to-[#050505]">
+                  <div className="relative h-[150px] md:h-[190px] overflow-hidden bg-gradient-to-br from-[#0b0b0b] via-[#15171b] to-[#050505]">
                     <img
                       src={imageUrl}
                       alt="Starline Market"
-                      className={`absolute inset-0 w-full h-full object-contain p-0 ${canOpen ? '' : 'opacity-70 md:grayscale'}`}
+                      className={`absolute inset-0 w-full h-full object-contain p-0 ${isFourteenthImage ? 'scale-125' : ''} ${
+                        canOpen ? '' : 'opacity-70 md:grayscale'
+                      }`}
                       loading="lazy"
                       draggable="false"
                     />
