@@ -3,18 +3,9 @@
  * Market opens at midnight and closes at closing time; results are cleared at the start of each new day (IST)
  * so the same markets can be used for the next day with fresh results.
  * Before clearing, yesterday's result for each market is saved to MarketResult so view history is preserved.
- *
- * IMPORTANT: lastResultResetDate is persisted in the database (AppState collection) so that
- * server restarts during the same day do NOT accidentally clear already-declared results.
  */
 
 import MarketResult from '../models/marketResult/marketResult.js';
-import AppState from '../models/appState/appState.js';
-
-const RESET_DATE_KEY = 'lastResultResetDate';
-
-/** In-memory cache so we don't hit DB on every getMarkets call */
-let cachedResetDate = null;
 
 /** Current date in IST as YYYY-MM-DD */
 export function getTodayIST() {
@@ -87,51 +78,21 @@ async function saveYesterdaySnapshotsToHistory(Market) {
     }
 }
 
-/** Read the persisted lastResultResetDate from DB (only once per server lifecycle) */
-async function getLastResetDateFromDB() {
-    if (cachedResetDate !== null) return cachedResetDate;
-    try {
-        const doc = await AppState.findOne({ key: RESET_DATE_KEY }).lean();
-        cachedResetDate = doc?.value || null;
-    } catch (err) {
-        console.error('[resultReset] Failed to read lastResultResetDate from DB:', err.message);
-        cachedResetDate = null;
-    }
-    return cachedResetDate;
-}
-
-/** Persist lastResultResetDate to DB and update in-memory cache */
-async function setLastResetDateInDB(dateStr) {
-    cachedResetDate = dateStr;
-    try {
-        await AppState.findOneAndUpdate(
-            { key: RESET_DATE_KEY },
-            { $set: { value: dateStr } },
-            { upsert: true }
-        );
-    } catch (err) {
-        console.error('[resultReset] Failed to persist lastResultResetDate to DB:', err.message);
-    }
-}
+let lastResultResetDate = null;
 
 /**
  * If we've crossed into a new calendar day (IST), save yesterday's results to history, then clear
  * openingNumber and closingNumber for all markets. View history (result-history by date) is preserved.
  * Called when fetching markets so admin and frontend always see reset results after midnight IST.
- *
- * The reset date is persisted in the database so server restarts on the same day
- * will NOT clear already-declared results.
- *
  * @param {Model} Market - Mongoose Market model
  */
 export async function ensureResultsResetForNewDay(Market) {
     const today = getTodayIST();
-    const lastResetDate = await getLastResetDateFromDB();
-
     // Same day already reset – skip
-    if (lastResetDate !== null && today <= lastResetDate) return;
+    if (lastResultResetDate !== null && today <= lastResultResetDate) return;
 
-    // Midnight passed: save yesterday's results and clear all markets for the new day
+    // Midnight passed or server restart: save yesterday's results and clear all markets
+    // (Server restart after midnight: lastResultResetDate was null, so reset runs and clears declared results)
     // Preserve yesterday's results into MarketResult before clearing live data
     try {
         await saveYesterdaySnapshotsToHistory(Market);
@@ -143,6 +104,5 @@ export async function ensureResultsResetForNewDay(Market) {
         {},
         { $set: { openingNumber: null, closingNumber: null } }
     );
-
-    await setLastResetDateInDB(today);
+    lastResultResetDate = today;
 }
