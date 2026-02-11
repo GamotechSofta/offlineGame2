@@ -100,8 +100,10 @@ const evaluateBet = ({ market, betNumberRaw, amount, session, ratesMap }) => {
         ? (sess === 'OPEN' ? !!opening : sess === 'CLOSE' ? !!closing : !!(opening && closing))
         : kind === 'jodi'
           ? !!jodi
-          : kind === 'half-sangam-open' || kind === 'half-sangam-close' || kind === 'full-sangam'
-            ? !!(opening && closing)
+          : kind === 'half-sangam-open'
+            ? !!(opening && openDigit)
+            : kind === 'half-sangam-close' || kind === 'full-sangam'
+              ? !!(opening && closing)
             : false;
 
   if (!declared) return { state: 'pending', kind, payout: 0 };
@@ -120,7 +122,9 @@ const evaluateBet = ({ market, betNumberRaw, amount, session, ratesMap }) => {
   } else if (kind === 'full-sangam') {
     won = betNumber === `${opening}-${closing}`;
   } else if (kind === 'half-sangam-open') {
-    won = betNumber === `${opening}-${closeDigit}`;
+    // Half Sangam (O) in this app is Open Pana + Open Ank (derived from Open Pana),
+    // so it can be decided as soon as OPEN result is declared.
+    won = betNumber === `${opening}-${openDigit}`;
   } else if (kind === 'half-sangam-close') {
     won = betNumber === `${openDigit}-${closing}`;
   }

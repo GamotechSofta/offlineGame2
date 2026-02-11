@@ -101,8 +101,10 @@ const evaluateBet = ({ market, betNumberRaw, amount, session, ratesMap }) => {
         ? (sess === 'OPEN' ? !!opening : sess === 'CLOSE' ? !!closing : !!(opening && closing))
         : kind === 'jodi'
           ? !!jodi
-          : kind === 'half-sangam-open' || kind === 'half-sangam-close' || kind === 'full-sangam'
-            ? !!(opening && closing)
+          : kind === 'half-sangam-open'
+            ? !!(opening && openDigit)
+            : kind === 'half-sangam-close' || kind === 'full-sangam'
+              ? !!(opening && closing)
             : false;
 
   if (!declared) return { state: 'pending', kind, payout: 0 };
@@ -121,7 +123,9 @@ const evaluateBet = ({ market, betNumberRaw, amount, session, ratesMap }) => {
   } else if (kind === 'full-sangam') {
     won = betNumber === `${opening}-${closing}`;
   } else if (kind === 'half-sangam-open') {
-    won = betNumber === `${opening}-${closeDigit}`;
+    // Half Sangam (O) in this app is Open Pana + Open Ank (derived from Open Pana),
+    // so it can be decided as soon as OPEN result is declared.
+    won = betNumber === `${opening}-${openDigit}`;
   } else if (kind === 'half-sangam-close') {
     won = betNumber === `${openDigit}-${closing}`;
   }
@@ -144,13 +148,18 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
   const [ratesMap, setRatesMap] = useState(null);
   const [localVersion, setLocalVersion] = useState(0);
 
-  const scope = (marketScope || '').toString().trim().toLowerCase();
-  const inScope = (marketTitle) => {
-    if (!scope) return true;
+  // Scope behavior:
+  // - default (null/empty): MAIN markets only (exclude starline/startline)
+  // - "starline"/"startline": only starline/startline markets
+  const scopeRaw = (marketScope || '').toString().trim().toLowerCase();
+  const scope = scopeRaw || 'main';
+  const isStarlineMarketName = (marketTitle) => {
     const k = normalizeMarketName(marketTitle);
-    if (scope === 'starline' || scope === 'startline') {
-      return k.includes('starline') || k.includes('startline') || k.includes('star line') || k.includes('start line');
-    }
+    return k.includes('starline') || k.includes('startline') || k.includes('star line') || k.includes('start line');
+  };
+  const inScope = (marketTitle) => {
+    if (scope === 'starline' || scope === 'startline') return isStarlineMarketName(marketTitle);
+    if (scope === 'main') return !isStarlineMarketName(marketTitle);
     return true;
   };
 
@@ -160,7 +169,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
     const all = safeParse(localStorage.getItem('betHistory') || '[]', []);
     const list = Array.isArray(all) ? all : [];
     const onlyMine = uid ? list.filter((x) => x?.userId === uid) : list;
-    const scoped = scope ? onlyMine.filter((x) => inScope(x?.marketTitle)) : onlyMine;
+    const scoped = onlyMine.filter((x) => inScope(x?.marketTitle));
     return { userId: uid, bets: scoped };
   }, [localVersion, scope]);
 
