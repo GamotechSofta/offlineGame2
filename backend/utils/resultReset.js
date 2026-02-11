@@ -88,12 +88,18 @@ let lastResultResetDate = null;
  */
 export async function ensureResultsResetForNewDay(Market) {
     const today = getTodayIST();
-    // Same day already reset – skip
-    if (lastResultResetDate !== null && today <= lastResultResetDate) return;
 
-    // Midnight passed or server restart: save yesterday's results and clear all markets
-    // (Server restart after midnight: lastResultResetDate was null, so reset runs and clears declared results)
-    // Preserve yesterday's results into MarketResult before clearing live data
+    // After server restart lastResultResetDate is null – do NOT clear same-day results.
+    // Only set lastResultResetDate = today so we don't clear on every request until we actually cross midnight.
+    if (lastResultResetDate === null) {
+        lastResultResetDate = today;
+        return;
+    }
+
+    // Same day, already ran – skip
+    if (today <= lastResultResetDate) return;
+
+    // New day (IST): save yesterday's results to history, then clear all markets
     try {
         await saveYesterdaySnapshotsToHistory(Market);
     } catch (err) {
