@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
-import { FaUserPlus, FaSearch } from 'react-icons/fa';
+import { FaUserPlus, FaSearch, FaGamepad } from 'react-icons/fa';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -168,6 +168,7 @@ const MyUsers = () => {
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Account</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Created</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700">
@@ -211,6 +212,16 @@ const MyUsers = () => {
                                                         month: 'short',
                                                         year: 'numeric',
                                                     }) : '—'}
+                                                </td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); navigate(`/games?playerId=${item._id}`); }}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-yellow-600/80 hover:bg-yellow-500 text-black text-xs font-semibold transition-colors"
+                                                        title="Place bet for this player"
+                                                    >
+                                                        <FaGamepad className="w-3 h-3" /> Bet
+                                                    </button>
                                                 </td>
                                             </tr>
                                         );

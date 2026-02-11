@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
-import { FaArrowLeft, FaCalendarAlt, FaWallet } from 'react-icons/fa';
+import { FaArrowLeft, FaCalendarAlt, FaWallet, FaGamepad } from 'react-icons/fa';
 
 const TABS = [
     { id: 'statement', label: 'Account Statement' },
@@ -369,6 +369,14 @@ const PlayerDetail = () => {
                 <div className="px-4 sm:px-6 py-4 border-b border-gray-700 flex flex-wrap items-center justify-between gap-3">
                     <h2 className="text-lg font-semibold text-yellow-500">Player Information</h2>
                     <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/games?playerId=${userId}`)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-yellow-600 hover:bg-yellow-500 text-black transition-colors"
+                            title="Place bet for this player"
+                        >
+                            <FaGamepad className="w-4 h-4" /> Place Bet
+                        </button>
                         <button
                             type="button"
                             onClick={() => { setWalletModalOpen(true); setWalletActionError(''); setWalletAdjustAmount(''); setWalletSetBalance(''); }}
