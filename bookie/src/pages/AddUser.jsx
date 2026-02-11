@@ -60,7 +60,7 @@ const AddUser = () => {
             <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Add New Player</h1>
 
                 {error && (
-                    <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
                         {error}
                     </div>
                 )}
@@ -71,10 +71,10 @@ const AddUser = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="bg-gray-800 rounded-lg p-4 sm:p-6 max-w-2xl border border-gray-700/50">
+                <form onSubmit={handleSubmit} className="bg-white rounded-lg p-4 sm:p-6 max-w-2xl border border-gray-200">
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-gray-300 text-sm font-medium mb-2">
+                            <label className="block text-gray-600 text-sm font-medium mb-2">
                                 Username *
                             </label>
                             <input
@@ -82,13 +82,13 @@ const AddUser = () => {
                                 name="username"
                                 value={formData.username}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                                 required
                             />
                         </div>
 
                         <div>
-                            <label className="block text-gray-300 text-sm font-medium mb-2">
+                            <label className="block text-gray-600 text-sm font-medium mb-2">
                                 Email *
                             </label>
                             <input
@@ -96,13 +96,13 @@ const AddUser = () => {
                                 name="email"
                                 value={formData.email}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                                 required
                             />
                         </div>
 
                         <div>
-                            <label className="block text-gray-300 text-sm font-medium mb-2">
+                            <label className="block text-gray-600 text-sm font-medium mb-2">
                                 Password *
                             </label>
                             <input
@@ -110,14 +110,14 @@ const AddUser = () => {
                                 name="password"
                                 value={formData.password}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                                 required
                                 minLength="6"
                             />
                         </div>
 
                         <div>
-                            <label className="block text-gray-300 text-sm font-medium mb-2">
+                            <label className="block text-gray-600 text-sm font-medium mb-2">
                                 Phone
                             </label>
                             <input
@@ -125,19 +125,19 @@ const AddUser = () => {
                                 name="phone"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                             />
                         </div>
 
                         <div>
-                            <label className="block text-gray-300 text-sm font-medium mb-2">
+                            <label className="block text-gray-600 text-sm font-medium mb-2">
                                 Role *
                             </label>
                             <select
                                 name="role"
                                 value={formData.role}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                                 required
                             >
                                 <option value="user">Player</option>
@@ -145,7 +145,7 @@ const AddUser = () => {
                         </div>
 
                         <div>
-                            <label className="block text-gray-300 text-sm font-medium mb-2">
+                            <label className="block text-gray-600 text-sm font-medium mb-2">
                                 Initial Balance
                             </label>
                             <input
@@ -155,14 +155,14 @@ const AddUser = () => {
                                 onChange={handleChange}
                                 min="0"
                                 step="0.01"
-                                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                             />
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-semibold py-3 px-4 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-yellow-500/20"
+                            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-gray-800 font-semibold py-3 px-4 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-orange-500/20"
                         >
                             {loading ? 'Creating...' : 'Create Player'}
                         </button>

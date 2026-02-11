@@ -97,7 +97,7 @@ const Revenue = () => {
             <div className="space-y-4 sm:space-y-5">
                 {/* Header */}
                 <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <FaMoneyBillWave className="w-6 h-6 text-emerald-500 shrink-0" />
                         My Revenue
                     </h1>
@@ -105,10 +105,10 @@ const Revenue = () => {
                 </div>
 
                 {/* Date filters */}
-                <div className="bg-gray-800/80 rounded-xl border border-gray-700/80 p-3 sm:p-4">
+                <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
                     <div className="flex flex-wrap items-center gap-2 mb-2.5">
-                        <FaCalendarAlt className="w-4 h-4 text-yellow-500 shrink-0" />
-                        <span className="text-sm font-medium text-gray-300">Period</span>
+                        <FaCalendarAlt className="w-4 h-4 text-orange-500 shrink-0" />
+                        <span className="text-sm font-medium text-gray-600">Period</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
                         {PRESETS.map((p) => (
@@ -117,7 +117,7 @@ const Revenue = () => {
                                 type="button"
                                 onClick={() => applyPreset(p.id)}
                                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                                    activePreset === p.id ? 'bg-yellow-500 text-black' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    activePreset === p.id ? 'bg-orange-500 text-gray-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                             >
                                 {p.label}
@@ -127,15 +127,15 @@ const Revenue = () => {
                     <div className="flex flex-wrap items-center gap-2">
                         <input type="date" value={dateRange.startDate}
                             onChange={(e) => { setDateRange((r) => ({ ...r, startDate: e.target.value })); setActivePreset(''); }}
-                            className="px-2 sm:px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs sm:text-sm w-[130px] sm:w-auto"
+                            className="px-2 sm:px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-xs sm:text-sm w-[130px] sm:w-auto"
                         />
                         <span className="text-gray-500 text-sm">to</span>
                         <input type="date" value={dateRange.endDate}
                             onChange={(e) => { setDateRange((r) => ({ ...r, endDate: e.target.value })); setActivePreset(''); }}
-                            className="px-2 sm:px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs sm:text-sm w-[130px] sm:w-auto"
+                            className="px-2 sm:px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-xs sm:text-sm w-[130px] sm:w-auto"
                         />
                         <button type="button" onClick={fetchRevenue} disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold rounded-lg transition-colors disabled:opacity-50 text-xs sm:text-sm"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 text-xs sm:text-sm"
                         >
                             <FaSyncAlt className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                             Refresh
@@ -144,71 +144,71 @@ const Revenue = () => {
                 </div>
 
                 {loading ? (
-                    <div className="bg-gray-800/60 rounded-xl h-64 animate-pulse border border-gray-700/50" />
+                    <div className="bg-white rounded-xl h-64 animate-pulse border border-gray-200" />
                 ) : data ? (
                     <>
                         {/* Revenue Table */}
-                        <div className="bg-gray-800/80 rounded-xl border border-gray-700/80 overflow-hidden">
+                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                             <table className="w-full">
                                 <tbody className="divide-y divide-gray-700/50">
                                     {/* Your Revenue - highlighted row */}
-                                    <tr className="bg-emerald-500/10">
+                                    <tr className="bg-orange-500/10">
                                         <td className="px-4 py-3.5 sm:py-4">
                                             <span className="text-xs sm:text-sm font-semibold text-emerald-300 uppercase tracking-wider">Your Revenue</span>
                                         </td>
                                         <td className="px-4 py-3.5 sm:py-4 text-right">
-                                            <span className="text-xl sm:text-2xl font-bold text-emerald-400">{formatCurrency(data.bookieRevenue)}</span>
+                                            <span className="text-xl sm:text-2xl font-bold text-orange-500">{formatCurrency(data.bookieRevenue)}</span>
                                         </td>
                                     </tr>
 
                                     {/* Total Bet Amount */}
-                                    <tr className="hover:bg-gray-700/20 transition-colors">
+                                    <tr className="hover:bg-gray-100/20 transition-colors">
                                         <td className="px-4 py-3 sm:py-3.5">
-                                            <span className="text-xs sm:text-sm text-gray-300">Total Bet Amount</span>
+                                            <span className="text-xs sm:text-sm text-gray-600">Total Bet Amount</span>
                                         </td>
                                         <td className="px-4 py-3 sm:py-3.5 text-right">
-                                            <span className="text-sm sm:text-base font-semibold text-white">{formatCurrency(data.totalBetAmount)}</span>
+                                            <span className="text-sm sm:text-base font-semibold text-gray-800">{formatCurrency(data.totalBetAmount)}</span>
                                         </td>
                                     </tr>
 
                                     {/* Commission Rate */}
-                                    <tr className="hover:bg-gray-700/20 transition-colors">
+                                    <tr className="hover:bg-gray-100/20 transition-colors">
                                         <td className="px-4 py-3 sm:py-3.5">
-                                            <span className="text-xs sm:text-sm text-gray-300">Commission Rate</span>
+                                            <span className="text-xs sm:text-sm text-gray-600">Commission Rate</span>
                                         </td>
                                         <td className="px-4 py-3 sm:py-3.5 text-right">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-semibold bg-yellow-500/15 text-yellow-400">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-semibold bg-orange-500/15 text-orange-500">
                                                 {data.commissionPercentage}%
                                             </span>
                                         </td>
                                     </tr>
 
                                     {/* Payouts */}
-                                    <tr className="hover:bg-gray-700/20 transition-colors">
+                                    <tr className="hover:bg-gray-100/20 transition-colors">
                                         <td className="px-4 py-3 sm:py-3.5">
                                             <div>
-                                                <span className="text-xs sm:text-sm text-gray-300">Winner Payouts</span>
+                                                <span className="text-xs sm:text-sm text-gray-600">Winner Payouts</span>
                                                 <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Paid to winning users by admin</p>
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 sm:py-3.5 text-right">
-                                            <span className="text-sm sm:text-base font-semibold text-red-400">{formatCurrency(data.totalPayouts)}</span>
+                                            <span className="text-sm sm:text-base font-semibold text-red-500">{formatCurrency(data.totalPayouts)}</span>
                                         </td>
                                     </tr>
 
                                     {/* Total Bets Count */}
-                                    <tr className="hover:bg-gray-700/20 transition-colors">
+                                    <tr className="hover:bg-gray-100/20 transition-colors">
                                         <td className="px-4 py-3 sm:py-3.5">
-                                            <span className="text-xs sm:text-sm text-gray-300">Total Bets</span>
+                                            <span className="text-xs sm:text-sm text-gray-600">Total Bets</span>
                                         </td>
                                         <td className="px-4 py-3 sm:py-3.5 text-right">
                                             <div className="flex items-center justify-end gap-2 flex-wrap">
-                                                <span className="text-sm sm:text-base font-semibold text-white">{formatNumber(data.totalBets)} bets</span>
+                                                <span className="text-sm sm:text-base font-semibold text-gray-800">{formatNumber(data.totalBets)} bets</span>
                                                 {data.totalBets > 0 && (
                                                     <span className="text-[10px] sm:text-xs text-gray-400">
-                                                        (<span className="text-emerald-400">{formatNumber(data.winningBets || 0)} W</span>
+                                                        (<span className="text-orange-500">{formatNumber(data.winningBets || 0)} W</span>
                                                         {' / '}
-                                                        <span className="text-red-400">{formatNumber(data.losingBets || 0)} L</span>)
+                                                        <span className="text-red-500">{formatNumber(data.losingBets || 0)} L</span>)
                                                     </span>
                                                 )}
                                             </div>
@@ -228,21 +228,21 @@ const Revenue = () => {
                                         </td>
                                         <td className="px-4 py-3 sm:py-3.5 text-right">
                                             <div className="inline-flex items-center gap-2">
-                                                <span className="text-sm sm:text-base font-semibold text-white">{formatNumber(data.totalUsers)} players</span>
+                                                <span className="text-sm sm:text-base font-semibold text-gray-800">{formatNumber(data.totalUsers)} players</span>
                                                 <FaChevronRight className="w-3 h-3 text-gray-600 group-hover:text-cyan-400 transition-colors" />
                                             </div>
                                         </td>
                                     </tr>
 
                                     {/* Calculation row */}
-                                    <tr className="bg-gray-700/20">
+                                    <tr className="bg-gray-100/20">
                                         <td colSpan="2" className="px-4 py-3">
                                             <div className="text-xs sm:text-sm text-gray-400 text-center">
                                                 {formatCurrency(data.totalBetAmount)}
                                                 <span className="text-gray-600 mx-1.5">&times;</span>
-                                                <span className="text-yellow-400 font-medium">{data.commissionPercentage}%</span>
+                                                <span className="text-orange-500 font-medium">{data.commissionPercentage}%</span>
                                                 <span className="text-gray-600 mx-1.5">=</span>
-                                                <span className="text-emerald-400 font-bold">{formatCurrency(data.bookieRevenue)}</span>
+                                                <span className="text-orange-500 font-bold">{formatCurrency(data.bookieRevenue)}</span>
                                             </div>
                                         </td>
                                     </tr>
@@ -251,7 +251,7 @@ const Revenue = () => {
                         </div>
                     </>
                 ) : (
-                    <div className="bg-gray-800/60 rounded-xl border border-gray-700/80 p-8 sm:p-12 text-center">
+                    <div className="bg-white rounded-xl border border-gray-200 p-8 sm:p-12 text-center">
                         <FaMoneyBillWave className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mx-auto mb-4" />
                         <p className="text-gray-400 text-sm sm:text-lg">No revenue data available</p>
                         <p className="text-gray-500 text-xs sm:text-sm mt-2">Try a different date range or refresh</p>

@@ -136,7 +136,7 @@ export const createBookie = async (req, res) => {
             });
         }
 
-        const { username, firstName, lastName, email, password, phone } = req.body;
+        const { username, firstName, lastName, email, password, phone, commissionPercentage } = req.body;
 
         const derivedUsername = (firstName != null && lastName != null)
             ? `${String(firstName).trim()} ${String(lastName).trim()}`.trim()
@@ -202,6 +202,7 @@ export const createBookie = async (req, res) => {
             email: (email && String(email).trim()) ? email.trim().toLowerCase() : '',
             phone: trimmedPhone,
             status: 'active',
+            commissionPercentage: (commissionPercentage != null && Number.isFinite(Number(commissionPercentage))) ? Math.min(100, Math.max(0, Number(commissionPercentage))) : 0,
         });
         await bookie.save();
 
@@ -225,6 +226,7 @@ export const createBookie = async (req, res) => {
                 email: bookie.email,
                 phone: bookie.phone,
                 status: bookie.status,
+                commissionPercentage: bookie.commissionPercentage,
             },
         });
     } catch (error) {
@@ -339,7 +341,7 @@ export const updateBookie = async (req, res) => {
         }
 
         const { id } = req.params;
-        const { username, firstName, lastName, email, phone, status, password, uiTheme } = req.body;
+        const { username, firstName, lastName, email, phone, status, password, uiTheme, commissionPercentage } = req.body;
 
         const bookie = await Admin.findOne({ _id: id, role: 'bookie' });
         if (!bookie) {
@@ -395,6 +397,13 @@ export const updateBookie = async (req, res) => {
             if (uiTheme.primaryColor !== undefined) bookie.uiTheme.primaryColor = uiTheme.primaryColor ? String(uiTheme.primaryColor).trim() : undefined;
             if (uiTheme.accentColor !== undefined) bookie.uiTheme.accentColor = uiTheme.accentColor ? String(uiTheme.accentColor).trim() : undefined;
         }
+        // Update commission percentage if provided
+        if (commissionPercentage != null) {
+            const cp = Number(commissionPercentage);
+            if (Number.isFinite(cp) && cp >= 0 && cp <= 100) {
+                bookie.commissionPercentage = cp;
+            }
+        }
         // Update password if provided
         if (password) {
             if (password.length < 6) {
@@ -429,6 +438,7 @@ export const updateBookie = async (req, res) => {
                 status: bookie.status,
                 role: bookie.role,
                 uiTheme: bookie.uiTheme,
+                commissionPercentage: bookie.commissionPercentage,
             },
         });
     } catch (error) {

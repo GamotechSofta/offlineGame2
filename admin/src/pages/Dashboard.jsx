@@ -79,7 +79,7 @@ const Dashboard = () => {
     return (
         <AdminLayout onLogout={handleLogout} title="Markets">
                 {error && (
-                    <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
                         {error}
                     </div>
                 )}
@@ -89,7 +89,7 @@ const Dashboard = () => {
                 <div className="mb-6">
                     <button
                         onClick={handleCreate}
-                        className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-lg transition-colors"
+                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold rounded-lg transition-colors"
                     >
                         + Add New Market
                     </button>

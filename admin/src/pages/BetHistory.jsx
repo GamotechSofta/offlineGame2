@@ -59,25 +59,25 @@ const BetHistory = () => {
                     <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Bet History</h1>
 
                     {/* Filters */}
-                    <div className="bg-gray-800 rounded-lg p-4 mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                    <div className="bg-white rounded-lg p-4 mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                         <input
                             type="text"
                             placeholder="Player ID"
                             value={filters.userId}
                             onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
-                            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                            className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800"
                         />
                         <input
                             type="text"
                             placeholder="Market ID"
                             value={filters.marketId}
                             onChange={(e) => setFilters({ ...filters, marketId: e.target.value })}
-                            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                            className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800"
                         />
                         <select
                             value={filters.status}
                             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                            className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800"
                         >
                             <option value="">All Status</option>
                             <option value="pending">Pending</option>
@@ -89,13 +89,13 @@ const BetHistory = () => {
                             type="date"
                             value={filters.startDate}
                             onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                            className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800"
                         />
                         <input
                             type="date"
                             value={filters.endDate}
                             onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                            className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800"
                         />
                     </div>
 
@@ -106,17 +106,17 @@ const BetHistory = () => {
                         </div>
                     ) : (
                         <div className="overflow-x-auto -mx-4 sm:mx-0">
-                            <div className="bg-gray-800 rounded-lg overflow-hidden min-w-[640px]">
+                            <div className="bg-white rounded-lg overflow-hidden min-w-[640px]">
                             <table className="w-full text-sm sm:text-base">
-                                <thead className="bg-gray-700">
+                                <thead className="bg-gray-100">
                                     <tr>
-                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">ID</th>
-                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Player</th>
-                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Market</th>
-                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Bet Type</th>
-                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Amount</th>
-                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
-                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Date</th>
+                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">ID</th>
+                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Player</th>
+                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Market</th>
+                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Bet Type</th>
+                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Amount</th>
+                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
+                                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Date</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700">
@@ -128,7 +128,7 @@ const BetHistory = () => {
                                         </tr>
                                     ) : (
                                         bets.map((bet) => (
-                                            <tr key={bet._id} className="hover:bg-gray-700">
+                                            <tr key={bet._id} className="hover:bg-gray-100">
                                                 <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm">{bet._id.slice(-8)}</td>
                                                 <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm">{bet.userId?.username || bet.userId}</td>
                                                 <td className="px-3 sm:px-6 py-3 sm:py-4 text-sm">{bet.marketId?.marketName || bet.marketId}</td>
@@ -138,8 +138,8 @@ const BetHistory = () => {
                                                     <span className={`px-2 py-1 rounded text-xs ${
                                                         bet.status === 'won' ? 'bg-green-600' :
                                                         bet.status === 'lost' ? 'bg-red-600' :
-                                                        bet.status === 'pending' ? 'bg-yellow-600' :
-                                                        'bg-gray-600'
+                                                        bet.status === 'pending' ? 'bg-orange-600' :
+                                                        'bg-gray-200'
                                                     }`}>
                                                         {bet.status}
                                                     </span>

@@ -6,9 +6,9 @@ import CartPanel, { CartToggleButton, getStoredWidth, STORAGE_KEY } from './Cart
 import GamesSidebar, { GamesSidebarToggle, getStoredSidebarWidth, SIDEBAR_STORAGE_KEY } from '../../components/GamesSidebar';
 import { API_BASE_URL } from '../../utils/api';
 import SingleDigitBid from './bids/SingleDigitBid';
-import SingleDigitBulkBid from './bids/SingleDigitBulkBid';
+
 import JodiBid from './bids/JodiBid';
-import JodiBulkBid from './bids/JodiBulkBid';
+
 import SinglePanaBid from './bids/SinglePanaBid';
 import SinglePanaBulkBid from './bids/SinglePanaBulkBid';
 import DoublePanaBid from './bids/DoublePanaBid';
@@ -17,11 +17,21 @@ import TriplePanaBid from './bids/TriplePanaBid';
 import FullSangamBid from './bids/FullSangamBid';
 import HalfSangamABid from './bids/HalfSangamABid';
 
+const GAME_TYPE_ORDER = [
+    'single-digit',
+    'jodi',
+    'single-pana',
+    'single-pana-bulk',
+    'double-pana',
+    'double-pana-bulk',
+    'triple-pana',
+    'full-sangam',
+    'half-sangam',
+];
+
 const BID_COMPONENTS = {
     'single-digit': { component: SingleDigitBid, title: 'Single Digit', betType: 'single' },
-    'single-digit-bulk': { component: SingleDigitBulkBid, title: 'Single Digit Bulk', betType: 'single' },
     'jodi': { component: JodiBid, title: 'Jodi', betType: 'jodi' },
-    'jodi-bulk': { component: JodiBulkBid, title: 'Jodi Bulk', betType: 'jodi' },
     'single-pana': { component: SinglePanaBid, title: 'Single Pana', betType: 'panna' },
     'single-pana-bulk': { component: SinglePanaBulkBid, title: 'Single Pana Bulk', betType: 'panna' },
     'double-pana': { component: DoublePanaBid, title: 'Double Pana', betType: 'panna' },
@@ -33,9 +43,36 @@ const BID_COMPONENTS = {
 
 /* Inner component that can access BetCartContext */
 const GameBidInner = ({ marketId, gameType, playerId, betType, title, BidComponent }) => {
+    const navigate = useNavigate();
     const [gamesSidebarOpen, setGamesSidebarOpen] = useState(false);
     const [cartOpen, setCartOpen] = useState(false);
     const [marketName, setMarketName] = useState('');
+
+    // Ctrl + ArrowRight → next game, Ctrl + ArrowLeft → previous game
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (!e.ctrlKey) return;
+            if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+
+            e.preventDefault();
+            const currentIdx = GAME_TYPE_ORDER.indexOf(gameType);
+            if (currentIdx === -1) return;
+
+            let nextIdx;
+            if (e.key === 'ArrowRight') {
+                nextIdx = (currentIdx + 1) % GAME_TYPE_ORDER.length;
+            } else {
+                nextIdx = (currentIdx - 1 + GAME_TYPE_ORDER.length) % GAME_TYPE_ORDER.length;
+            }
+
+            const nextGame = GAME_TYPE_ORDER[nextIdx];
+            const query = playerId ? `?playerId=${playerId}` : '';
+            navigate(`/games/${marketId}/${nextGame}${query}`);
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [gameType, marketId, playerId, navigate]);
 
     // Sidebar width (left)
     const [sidebarWidth, setSidebarWidth] = useState(getStoredSidebarWidth);
@@ -68,7 +105,7 @@ const GameBidInner = ({ marketId, gameType, playerId, betType, title, BidCompone
     }, [marketId]);
 
     return (
-        <div className="min-h-screen bg-black">
+        <div className="min-h-screen bg-white">
             {/* Dynamic CSS custom properties for sidebar & cart widths on desktop */}
             <style>{`
                 @media (min-width: 1024px) {
@@ -138,14 +175,14 @@ const BookieGameBid = () => {
 
     if (!entry) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center text-white">
+            <div className="min-h-screen bg-white flex items-center justify-center text-gray-800">
                 <div className="text-center">
-                    <p className="text-lg font-bold text-red-400 mb-2">Unknown Game Type</p>
+                    <p className="text-lg font-bold text-red-500 mb-2">Unknown Game Type</p>
                     <p className="text-gray-400 text-sm mb-4">The game type "{gameType}" is not recognized.</p>
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
-                        className="text-yellow-500 hover:underline text-sm"
+                        className="text-orange-500 hover:underline text-sm"
                     >
                         Go Back
                     </button>

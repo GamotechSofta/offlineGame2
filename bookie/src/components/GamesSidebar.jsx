@@ -20,15 +20,13 @@ export const getStoredSidebarWidth = () => {
 
 const GAME_TYPES_LIST = [
     { id: 'single-digit', title: 'Single Digit', icon: '1', color: 'bg-blue-500' },
-    { id: 'single-digit-bulk', title: 'Single Digit Bulk', icon: '1+', color: 'bg-blue-600' },
     { id: 'jodi', title: 'Jodi', icon: '12', color: 'bg-purple-500' },
-    { id: 'jodi-bulk', title: 'Jodi Bulk', icon: '12+', color: 'bg-purple-600' },
     { id: 'single-pana', title: 'Single Pana', icon: '123', color: 'bg-emerald-500' },
     { id: 'single-pana-bulk', title: 'Single Pana Bulk', icon: '123+', color: 'bg-emerald-600' },
     { id: 'double-pana', title: 'Double Pana', icon: '112', color: 'bg-orange-500' },
     { id: 'double-pana-bulk', title: 'Double Pana Bulk', icon: '112+', color: 'bg-orange-600' },
     { id: 'triple-pana', title: 'Triple Pana', icon: '111', color: 'bg-pink-500' },
-    { id: 'full-sangam', title: 'Full Sangam', icon: 'F/S', color: 'bg-yellow-600' },
+    { id: 'full-sangam', title: 'Full Sangam', icon: 'F/S', color: 'bg-amber-600' },
     { id: 'half-sangam', title: 'Half Sangam (O)', icon: 'H/S', color: 'bg-cyan-500' },
 ];
 
@@ -85,7 +83,7 @@ const GamesSidebar = ({
 
         const handleMove = (clientX) => {
             if (!dragRef.current) return;
-            const diff = clientX - dragRef.current.startX; // dragging right = wider
+            const diff = clientX - dragRef.current.startX;
             let newWidth = dragRef.current.startWidth + diff;
             newWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, newWidth));
             onWidthChange?.(newWidth);
@@ -123,8 +121,8 @@ const GamesSidebar = ({
             <aside
                 style={{ width: `${width}px` }}
                 className={`
-                    fixed left-0 top-0 h-screen bg-[#111215] border-r border-white/10 z-40
-                    overflow-hidden flex flex-col
+                    fixed left-0 top-0 h-screen bg-white border-r border-gray-200 z-40
+                    overflow-hidden flex flex-col shadow-sm
                     transform transition-transform duration-200 ease-in-out
                     lg:translate-x-0
                     ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -140,17 +138,17 @@ const GamesSidebar = ({
                     `}
                 >
                     <div className={`w-[3px] h-12 rounded-full transition-colors ${
-                        isDragging ? 'bg-yellow-500' : 'bg-white/10 group-hover:bg-yellow-500/60'
+                        isDragging ? 'bg-orange-500' : 'bg-gray-200 group-hover:bg-orange-400'
                     }`} />
                 </div>
 
                 {/* Header */}
-                <div className="p-3 border-b border-white/10 shrink-0">
+                <div className="p-3 border-b border-gray-200 shrink-0">
                     <div className="flex items-center justify-between mb-2">
                         <button
                             type="button"
                             onClick={handleBackToMarkets}
-                            className="flex items-center gap-1.5 text-gray-400 hover:text-yellow-500 text-xs transition-colors"
+                            className="flex items-center gap-1.5 text-gray-500 hover:text-orange-500 text-xs transition-colors"
                         >
                             <FaArrowLeft className="w-3 h-3" />
                             <span>Markets</span>
@@ -158,20 +156,20 @@ const GamesSidebar = ({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="lg:hidden p-1.5 rounded-lg hover:bg-white/10 text-gray-400"
+                            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"
                             aria-label="Close"
                         >
                             <FaTimes className="w-4 h-4" />
                         </button>
                     </div>
                     {marketName && (
-                        <h3 className="text-sm font-bold text-white truncate">{marketName}</h3>
+                        <h3 className="text-sm font-bold text-gray-800 truncate">{marketName}</h3>
                     )}
                 </div>
 
                 {/* Game Types List */}
                 <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-                    <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold px-3 pt-1 pb-2">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold px-3 pt-1 pb-2">
                         Game Types
                     </p>
                     {GAME_TYPES_LIST.map((game) => (
@@ -181,8 +179,8 @@ const GamesSidebar = ({
                             onClick={() => handleGameClick(game.id)}
                             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
                                 activeGameType === game.id
-                                    ? 'bg-gradient-to-r from-yellow-500/20 to-yellow-500/10 text-yellow-400 font-semibold border border-yellow-500/30'
-                                    : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
+                                    ? 'bg-orange-50 text-orange-600 font-semibold border border-orange-200'
+                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800 border border-transparent'
                             }`}
                         >
                             <span
@@ -199,7 +197,7 @@ const GamesSidebar = ({
             {/* Mobile backdrop */}
             {isOpen && (
                 <div
-                    className="lg:hidden fixed inset-0 bg-black/60 z-30"
+                    className="lg:hidden fixed inset-0 bg-black/30 z-30"
                     onClick={onClose}
                     aria-hidden
                 />
@@ -216,7 +214,7 @@ export const GamesSidebarToggle = ({ onClick }) => (
     <button
         type="button"
         onClick={onClick}
-        className="lg:hidden fixed bottom-6 left-3 z-30 w-11 h-11 bg-[#d4af37] hover:bg-[#e5c04a] text-[#4b3608] rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95"
+        className="lg:hidden fixed bottom-6 left-3 z-30 w-11 h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg shadow-orange-500/30 flex items-center justify-center transition-all active:scale-95"
         aria-label="Open game types"
     >
         <FaListUl className="w-4 h-4" />

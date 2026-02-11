@@ -86,8 +86,8 @@ const PlayerDevices = () => {
         return (
             <AdminLayout onLogout={handleLogout} title="Devices used">
                 <div className="animate-pulse space-y-4">
-                    <div className="h-8 w-48 bg-gray-700 rounded" />
-                    <div className="h-64 bg-gray-700 rounded-xl" />
+                    <div className="h-8 w-48 bg-gray-100 rounded" />
+                    <div className="h-64 bg-gray-100 rounded-xl" />
                 </div>
             </AdminLayout>
         );
@@ -97,8 +97,8 @@ const PlayerDevices = () => {
         return (
             <AdminLayout onLogout={handleLogout} title="Devices used">
                 <div className="flex flex-col items-center justify-center min-h-[40vh]">
-                    <p className="text-red-400 mb-4">{error || 'Player not found'}</p>
-                    <Link to="/all-users" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500 text-black font-semibold">
+                    <p className="text-red-500 mb-4">{error || 'Player not found'}</p>
+                    <Link to="/all-users" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-gray-800 font-semibold">
                         <FaArrowLeft /> Back to All Players
                     </Link>
                 </div>
@@ -112,23 +112,23 @@ const PlayerDevices = () => {
         <AdminLayout onLogout={handleLogout} title="Devices used">
             <div className="min-w-0 max-w-full">
                 <div className="mb-4">
-                    <Link to="/all-users" className="text-gray-400 hover:text-yellow-500 text-sm inline-flex items-center gap-1 mb-1">
+                    <Link to="/all-users" className="text-gray-400 hover:text-orange-500 text-sm inline-flex items-center gap-1 mb-1">
                         <FaArrowLeft className="w-4 h-4" /> All Players
                     </Link>
-                    <Link to={`/all-users/${userId}`} className="text-gray-400 hover:text-yellow-500 text-sm inline-flex items-center gap-1 mb-2 block">
+                    <Link to={`/all-users/${userId}`} className="text-gray-400 hover:text-orange-500 text-sm inline-flex items-center gap-1 mb-2 block">
                         Player » {player.username}
                     </Link>
                     <h1 className="text-2xl sm:text-3xl font-bold">Devices used <span className="text-gray-400 font-normal">» {player.username}</span></h1>
                 </div>
 
                 {loginDevices.length > 1 && (
-                    <div className="mb-4 rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-3 text-red-200 text-sm font-medium">
+                    <div className="mb-4 rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-3 text-red-600 text-sm font-medium">
                         ⚠️ User has logged in from multiple devices
                     </div>
                 )}
 
                 {(message || error) && (
-                    <div className={`mb-4 px-4 py-3 rounded-xl text-sm ${message ? 'bg-green-900/30 border border-green-700/60 text-green-200' : 'bg-red-900/30 border border-red-700/60 text-red-200'}`}>
+                    <div className={`mb-4 px-4 py-3 rounded-xl text-sm ${message ? 'bg-green-900/30 border border-green-700/60 text-green-200' : 'bg-red-900/30 border border-red-200/60 text-red-600'}`}>
                         {message || error}
                     </div>
                 )}
@@ -138,21 +138,21 @@ const PlayerDevices = () => {
                         type="button"
                         onClick={handleClearDevices}
                         disabled={clearing || loginDevices.length === 0}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gray-700 border border-gray-600 text-gray-200 hover:bg-red-600 hover:border-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 border border-gray-200 text-gray-200 hover:bg-red-600 hover:border-red-500 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Clear devices list"
                     >
                         {clearing ? <span className="animate-spin">⏳</span> : 'Clear'}
                     </button>
                 </div>
 
-                <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden min-w-0">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-w-0">
                     <div className="p-4 sm:p-6 min-w-0 overflow-x-auto">
                         {loginDevices.length === 0 ? (
                             <p className="text-gray-500 text-sm">—</p>
                         ) : (
                             <table className="w-full text-sm min-w-[320px]">
                                 <thead>
-                                    <tr className="border-b border-gray-600">
+                                    <tr className="border-b border-gray-200">
                                         <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">Device ID</th>
                                         <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">First Login Date</th>
                                         <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">Last Login Date</th>
@@ -160,8 +160,8 @@ const PlayerDevices = () => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-700">
                                     {loginDevices.map((d, i) => (
-                                        <tr key={(d.deviceId || i).toString()} className="hover:bg-gray-700/30">
-                                            <td className="py-2.5 pr-4 font-mono text-gray-300 truncate max-w-[200px] sm:max-w-none" title={d.deviceId}>{d.deviceId || '—'}</td>
+                                        <tr key={(d.deviceId || i).toString()} className="hover:bg-gray-100/30">
+                                            <td className="py-2.5 pr-4 font-mono text-gray-600 truncate max-w-[200px] sm:max-w-none" title={d.deviceId}>{d.deviceId || '—'}</td>
                                             <td className="py-2.5 pr-4 text-gray-400">
                                                 {d.firstLoginAt ? new Date(d.firstLoginAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
                                             </td>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../utils/api';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import GamesSidebar, { GamesSidebarToggle } from '../components/GamesSidebar';
 
 const GAME_OPTIONS = [
     {
@@ -16,34 +15,12 @@ const GAME_OPTIONS = [
         ),
     },
     {
-        id: 'single-digit-bulk',
-        title: 'Single Digit Bulk',
-        icon: (
-            <img
-                src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769756244/Untitled_90_x_160_px_1080_x_1080_px_1_yinraf.svg"
-                alt="Single Digit Bulk"
-                className="w-full h-full object-contain"
-            />
-        ),
-    },
-    {
         id: 'jodi',
         title: 'Jodi',
         icon: (
             <img
                 src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714108/Untitled_1080_x_1080_px_1080_x_1080_px_7_rpzykt.svg"
                 alt="Jodi"
-                className="w-full h-full object-contain"
-            />
-        ),
-    },
-    {
-        id: 'jodi-bulk',
-        title: 'Jodi Bulk',
-        icon: (
-            <img
-                src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714108/Untitled_1080_x_1080_px_1080_x_1080_px_7_rpzykt.svg"
-                alt="Jodi Bulk"
                 className="w-full h-full object-contain"
             />
         ),
@@ -132,8 +109,6 @@ const GameTypes = () => {
     const { marketId } = useParams();
     const [searchParams] = useSearchParams();
     const playerId = searchParams.get('playerId') || '';
-    const [gamesSidebarOpen, setGamesSidebarOpen] = useState(false);
-
     const [market, setMarket] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -178,31 +153,18 @@ const GameTypes = () => {
         : GAME_OPTIONS;
 
     return (
-        <div className="min-h-screen bg-black">
-            {/* Games Sidebar */}
-            <GamesSidebar
-                marketId={marketId}
-                playerId={playerId}
-                activeGameType={null}
-                marketName={market?.marketName}
-                isOpen={gamesSidebarOpen}
-                onClose={() => setGamesSidebarOpen(false)}
-            />
-
-            {/* Mobile toggle */}
-            <GamesSidebarToggle onClick={() => setGamesSidebarOpen(true)} />
-
-            {/* Main content - offset for sidebar on desktop */}
-            <div className="lg:ml-56">
-                <div className="min-h-screen bg-black flex flex-col items-center">
+        <div className="min-h-screen bg-white">
+            {/* Main content */}
+            <div>
+                <div className="min-h-screen bg-white flex flex-col items-center">
                     {/* Header */}
-                    <div className="w-full flex items-center px-3 sm:px-4 pt-4 sm:pt-5 pb-3 sm:pb-4 bg-black border-b border-gray-800 relative">
+                    <div className="w-full flex items-center px-3 sm:px-4 pt-4 sm:pt-5 pb-3 sm:pb-4 bg-white border-b border-gray-200 relative">
                         <button
                             onClick={() => {
                                 const query = playerId ? `?playerId=${playerId}` : '';
                                 navigate(`/games${query}`);
                             }}
-                            className="absolute left-3 sm:left-4 flex items-center justify-center min-w-[44px] min-h-[44px] -ml-1 text-gray-400 hover:text-white active:scale-95 touch-manipulation"
+                            className="absolute left-3 sm:left-4 flex items-center justify-center min-w-[44px] min-h-[44px] -ml-1 text-gray-400 hover:text-gray-800 active:scale-95 touch-manipulation"
                             aria-label="Back"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -211,26 +173,26 @@ const GameTypes = () => {
                         </button>
                         <div className="w-full text-center pr-12 pl-12 min-w-0">
                             {loading ? (
-                                <h1 className="text-white font-bold text-base sm:text-lg tracking-wider uppercase">Loading...</h1>
+                                <h1 className="text-gray-800 font-bold text-base sm:text-lg tracking-wider uppercase">Loading...</h1>
                             ) : market ? (
                                 <>
-                                    <h1 className="text-white font-bold text-base sm:text-lg tracking-wider uppercase inline-block border-b-2 border-yellow-500 pb-1 px-2 py-1 truncate max-w-full">
+                                    <h1 className="text-gray-800 font-bold text-base sm:text-lg tracking-wider uppercase inline-block border-b-2 border-orange-500 pb-1 px-2 py-1 truncate max-w-full">
                                         {market.marketName || 'SELECT GAME'}
                                     </h1>
                                     <div className="mt-1 flex items-center justify-center gap-3 text-xs text-gray-400">
                                         <span>{market.startingTime} - {market.closingTime}</span>
-                                        <span className="text-yellow-400 font-mono font-bold">{market.displayResult || '***-**-***'}</span>
+                                        <span className="text-orange-500 font-mono font-bold">{market.displayResult || '***-**-***'}</span>
                                     </div>
                                 </>
                             ) : (
-                                <h1 className="text-white font-bold text-base sm:text-lg tracking-wider uppercase">Market Not Found</h1>
+                                <h1 className="text-gray-800 font-bold text-base sm:text-lg tracking-wider uppercase">Market Not Found</h1>
                             )}
                         </div>
                     </div>
 
                     {loading ? (
                         <div className="flex items-center justify-center py-16">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                         </div>
                     ) : !market ? (
                         <div className="text-center py-12">
@@ -238,7 +200,7 @@ const GameTypes = () => {
                             <button
                                 type="button"
                                 onClick={() => navigate('/games')}
-                                className="mt-3 text-yellow-500 hover:underline text-sm"
+                                className="mt-3 text-orange-500 hover:underline text-sm"
                             >
                                 Go back to markets
                             </button>
@@ -250,15 +212,15 @@ const GameTypes = () => {
                                 <div
                                     key={option.id}
                                     onClick={() => handleGameClick(option)}
-                                    className="relative rounded-2xl bg-gradient-to-br from-[#1b1d22] via-[#15171b] to-[#0f1013] border border-white/10 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2 sm:gap-2.5 hover:from-[#23262d] hover:via-[#1a1d22] hover:to-[#121418] active:scale-[0.98] transition-all cursor-pointer shadow-[0_12px_30px_rgba(0,0,0,0.38)] group touch-manipulation min-h-[104px] sm:min-h-[120px] md:min-h-[132px]"
+                                    className="relative rounded-2xl bg-white border-2 border-gray-100 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2 sm:gap-2.5 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-500/15 active:scale-[0.97] transition-all cursor-pointer group touch-manipulation min-h-[104px] sm:min-h-[120px] md:min-h-[132px] shadow-sm"
                                 >
                                     {/* Icon Container */}
-                                    <div className="flex items-center justify-center w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] md:w-[96px] md:h-[96px] group-hover:scale-[1.03] transition-transform duration-300">
+                                    <div className="flex items-center justify-center w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] md:w-[96px] md:h-[96px] group-hover:scale-[1.05] transition-transform duration-300">
                                         {option.icon}
                                     </div>
 
                                     {/* Title */}
-                                    <span className="text-white text-[10px] sm:text-[11px] md:text-sm font-semibold tracking-[0.14em] sm:tracking-[0.18em] uppercase text-center line-clamp-2 leading-tight">
+                                    <span className="text-gray-700 group-hover:text-orange-600 text-[10px] sm:text-[11px] md:text-sm font-bold tracking-[0.12em] sm:tracking-[0.15em] uppercase text-center line-clamp-2 leading-tight transition-colors">
                                         {option.title}
                                     </span>
                                 </div>

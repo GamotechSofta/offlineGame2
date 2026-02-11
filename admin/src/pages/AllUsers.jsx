@@ -235,7 +235,7 @@ const AllUsers = () => {
                 <button
                     type="button"
                     onClick={() => navigate('/add-user')}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-yellow-500 hover:bg-yellow-500/90 text-black font-semibold transition-colors text-sm sm:text-base shrink-0"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-500/90 text-gray-800 font-semibold transition-colors text-sm sm:text-base shrink-0"
                 >
                     <FaUserPlus className="w-5 h-5" />
                     Add Player
@@ -248,7 +248,7 @@ const AllUsers = () => {
                     <div className={`px-3 py-2 rounded-lg flex items-center gap-2 shadow-lg backdrop-blur-sm border text-sm max-w-md ${
                         success
                             ? 'bg-green-900/95 border-green-700 text-green-200'
-                            : 'bg-red-900/95 border-red-700 text-red-200'
+                            : 'bg-red-900/95 border-red-200 text-red-600'
                     }`}>
                         <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs ${
                             success ? 'bg-green-600/50 text-green-300' : 'bg-red-600/50 text-red-300'
@@ -268,8 +268,8 @@ const AllUsers = () => {
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-4 py-2 rounded-lg font-semibold transition-colors text-sm sm:text-base ${
                             activeTab === tab.id
-                                ? 'bg-yellow-500 text-black'
-                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                ? 'bg-orange-500 text-gray-800'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                     >
                         {tab.label}
@@ -286,13 +286,13 @@ const AllUsers = () => {
                         placeholder="Search by name, email or phone..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className={`w-full pl-10 py-2.5 bg-gray-700/80 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
+                        className={`w-full pl-10 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
                     />
                     {searchQuery && (
                         <button
                             type="button"
                             onClick={() => setSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-800 text-sm"
                         >
                             ✕
                         </button>
@@ -301,10 +301,10 @@ const AllUsers = () => {
             </div>
 
             {/* Table - overflow-x-auto so Action column is visible when table is wide */}
-            <div className="bg-gray-800 rounded-lg overflow-x-auto overflow-y-hidden border border-gray-700 min-w-0 max-w-full">
+            <div className="bg-white rounded-lg overflow-x-auto overflow-y-hidden border border-gray-200 min-w-0 max-w-full">
                 {loading ? (
                     <div className="p-8 text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto" />
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
                         <p className="mt-4 text-gray-400">Loading...</p>
                     </div>
                 ) : list.length === 0 ? (
@@ -318,26 +318,26 @@ const AllUsers = () => {
                 ) : activeTab === 'all_bookies' ? (
                     <div>
                         {/* Header */}
-                        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-700/40 border-b border-gray-600/80">
-                            <p className="text-sm sm:text-base text-gray-300 leading-relaxed">
-                                <span className="font-semibold text-yellow-500">All Bookies</span>
+                        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-100/40 border-b border-gray-200/80">
+                            <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
+                                <span className="font-semibold text-orange-500">All Bookies</span>
                                 <span className="hidden sm:inline"> — Bookie accounts who can add players via their link.</span>
-                                <span className="block sm:inline mt-1 sm:mt-0 sm:ml-1">Click <span className="font-medium text-white">View Players</span> to see players under each bookie.</span>
+                                <span className="block sm:inline mt-1 sm:mt-0 sm:ml-1">Click <span className="font-medium text-gray-800">View Players</span> to see players under each bookie.</span>
                             </p>
                         </div>
 
                         {/* Desktop table */}
                         <div className="hidden md:block">
                             <table className="w-full text-sm">
-                                <thead className="bg-gray-700/80">
+                                <thead className="bg-gray-100/80">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-10">#</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Username</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Email</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden lg:table-cell">Phone</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden lg:table-cell">Created</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider w-10">#</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Username</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Email</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider hidden lg:table-cell">Phone</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider hidden lg:table-cell">Created</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700/60">
@@ -346,16 +346,16 @@ const AllUsers = () => {
                                         const isExpanded = expandedBookieId === bookie._id;
                                         return (
                                             <React.Fragment key={bookie._id}>
-                                                <tr className="hover:bg-gray-700/30 transition-colors">
+                                                <tr className="hover:bg-gray-100/30 transition-colors">
                                                     <td className="px-4 py-3 text-gray-400">{index + 1}</td>
-                                                    <td className="px-4 py-3 font-medium text-white">{bookie.username}</td>
-                                                    <td className="px-4 py-3 text-gray-300 truncate max-w-[140px] lg:max-w-[180px]">{bookie.email || '—'}</td>
-                                                    <td className="px-4 py-3 text-gray-300 hidden lg:table-cell">{bookie.phone || '—'}</td>
+                                                    <td className="px-4 py-3 font-medium text-gray-800">{bookie.username}</td>
+                                                    <td className="px-4 py-3 text-gray-600 truncate max-w-[140px] lg:max-w-[180px]">{bookie.email || '—'}</td>
+                                                    <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">{bookie.phone || '—'}</td>
                                                     <td className="px-4 py-3">
                                                         <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${
                                                             bookie.status === 'active'
-                                                                ? 'bg-green-900/40 text-green-400 border border-green-700/50'
-                                                                : 'bg-red-900/40 text-red-400 border border-red-700/50'
+                                                                ? 'bg-green-900/40 text-green-600 border border-green-700/50'
+                                                                : 'bg-red-900/40 text-red-500 border border-red-200/50'
                                                         }`}>
                                                             {bookie.status === 'active' ? 'Active' : 'Suspended'}
                                                         </span>
@@ -371,8 +371,8 @@ const AllUsers = () => {
                                                                 disabled={togglingId === bookie._id}
                                                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 ${
                                                                     bookie.status === 'active'
-                                                                        ? 'bg-red-600/80 hover:bg-red-600 text-white'
-                                                                        : 'bg-green-600/80 hover:bg-green-600 text-white'
+                                                                        ? 'bg-red-600/80 hover:bg-red-600 text-gray-800'
+                                                                        : 'bg-green-600/80 hover:bg-green-600 text-gray-800'
                                                                 }`}
                                                             >
                                                                 {togglingId === bookie._id ? '⏳' : bookie.status === 'active' ? <><FaUserSlash className="w-3.5 h-3.5" /> Suspend</> : <><FaUserCheck className="w-3.5 h-3.5" /> Unsuspend</>}
@@ -380,7 +380,7 @@ const AllUsers = () => {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setExpandedBookieId(isExpanded ? null : bookie._id)}
-                                                                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/90 hover:bg-yellow-500 text-black transition-colors"
+                                                                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500/90 hover:bg-orange-500 text-gray-800 transition-colors"
                                                             >
                                                                 {isExpanded ? 'Hide Players' : 'View Players'}
                                                             </button>
@@ -389,17 +389,17 @@ const AllUsers = () => {
                                                 </tr>
                                                 {isExpanded && (
                                                     <tr>
-                                                        <td colSpan="7" className="px-0 py-0 bg-gray-900/30">
-                                                            <div className="px-6 py-4 sm:py-5 border-l-4 border-yellow-500 ml-4 sm:ml-6">
-                                                                <p className="text-yellow-500 font-semibold mb-3 text-sm">
-                                                                    Players under <span className="text-white">{bookie.username}</span>
+                                                        <td colSpan="7" className="px-0 py-0 bg-gray-50/30">
+                                                            <div className="px-6 py-4 sm:py-5 border-l-4 border-orange-500 ml-4 sm:ml-6">
+                                                                <p className="text-orange-500 font-semibold mb-3 text-sm">
+                                                                    Players under <span className="text-gray-800">{bookie.username}</span>
                                                                 </p>
                                                                 {bookieUsers.length === 0 ? (
                                                                     <p className="text-gray-500 text-sm py-2">No players yet.</p>
                                                                 ) : (
-                                                                    <div className="rounded-lg border border-gray-600/80 overflow-hidden bg-gray-800/50">
+                                                                    <div className="rounded-lg border border-gray-200/80 overflow-hidden bg-white">
                                                                         <table className="w-full text-sm">
-                                                                            <thead className="bg-gray-700/80">
+                                                                            <thead className="bg-gray-100/80">
                                                                                 <tr>
                                                                                     <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase w-10">#</th>
                                                                                     <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Name</th>
@@ -414,27 +414,27 @@ const AllUsers = () => {
                                                                             </thead>
                                                                             <tbody className="divide-y divide-gray-700/60">
                                                                                 {bookieUsers.map((u, i) => (
-                                                                                    <tr key={u._id} className="hover:bg-gray-700/20 transition-colors">
+                                                                                    <tr key={u._id} className="hover:bg-gray-100/20 transition-colors">
                                                                                         <td className="px-4 py-2.5 text-gray-400">{i + 1}</td>
                                                                                         <td className="px-4 py-2.5 font-medium">
-                                                                                            <Link to={`/all-users/${u._id}`} className="text-yellow-400 hover:text-yellow-300 hover:underline">{u.username}</Link>
+                                                                                            <Link to={`/all-users/${u._id}`} className="text-orange-500 hover:text-orange-600 hover:underline">{u.username}</Link>
                                                                                         </td>
-                                                                                        <td className="px-4 py-2.5 text-gray-300 truncate max-w-[120px] lg:max-w-[160px]">{u.email || '—'}</td>
-                                                                                        <td className="px-4 py-2.5 text-gray-300 hidden lg:table-cell">{u.phone || '—'}</td>
+                                                                                        <td className="px-4 py-2.5 text-gray-600 truncate max-w-[120px] lg:max-w-[160px]">{u.email || '—'}</td>
+                                                                                        <td className="px-4 py-2.5 text-gray-600 hidden lg:table-cell">{u.phone || '—'}</td>
                                                                                         <td className="px-4 py-2.5">
                                                                                             {(() => {
                                                                                                 const isOnline = computeIsOnline(u);
                                                                                                 return (
-                                                                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs ${isOnline ? 'text-green-400' : 'text-gray-500'}`}>
+                                                                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs ${isOnline ? 'text-green-600' : 'text-gray-500'}`}>
                                                                                                         <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
                                                                                                         {isOnline ? 'Online' : 'Offline'}
                                                                                                     </span>
                                                                                                 );
                                                                                             })()}
                                                                                         </td>
-                                                                                        <td className="px-4 py-2.5 text-green-400 font-mono text-xs">₹{Number(u.walletBalance ?? 0).toLocaleString('en-IN')}</td>
+                                                                                        <td className="px-4 py-2.5 text-green-600 font-mono text-xs">₹{Number(u.walletBalance ?? 0).toLocaleString('en-IN')}</td>
                                                                                         <td className="px-4 py-2.5 hidden sm:table-cell">
-                                                                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${u.isActive !== false ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}>
+                                                                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${u.isActive !== false ? 'bg-green-900/40 text-green-600' : 'bg-red-900/40 text-red-500'}`}>
                                                                                                 {u.isActive !== false ? 'Active' : 'Suspended'}
                                                                                             </span>
                                                                                         </td>
@@ -447,7 +447,7 @@ const AllUsers = () => {
                                                                                                 onClick={() => handleTogglePlayerStatus(u._id)}
                                                                                                 disabled={togglingId === u._id}
                                                                                                 className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
-                                                                                                    u.isActive !== false ? 'bg-red-600/80 hover:bg-red-600 text-white' : 'bg-green-600/80 hover:bg-green-600 text-white'
+                                                                                                    u.isActive !== false ? 'bg-red-600/80 hover:bg-red-600 text-gray-800' : 'bg-green-600/80 hover:bg-green-600 text-gray-800'
                                                                                                 }`}
                                                                                             >
                                                                                                 {togglingId === u._id ? '⏳' : u.isActive !== false ? <><FaUserSlash className="w-3 h-3" /> Suspend</> : <><FaUserCheck className="w-3 h-3" /> Unsuspend</>}
@@ -476,15 +476,15 @@ const AllUsers = () => {
                                 const bookieUsers = getUsersForBookie(bookie._id);
                                 const isExpanded = expandedBookieId === bookie._id;
                                 return (
-                                    <div key={bookie._id} className="p-4 hover:bg-gray-700/20 transition-colors">
+                                    <div key={bookie._id} className="p-4 hover:bg-gray-100/20 transition-colors">
                                         <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <span className="text-gray-400 text-sm shrink-0">{index + 1}.</span>
-                                                <span className="font-semibold text-white truncate">{bookie.username}</span>
+                                                <span className="font-semibold text-gray-800 truncate">{bookie.username}</span>
                                                 <span className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-medium ${
                                                     bookie.status === 'active'
-                                                        ? 'bg-green-900/40 text-green-400 border border-green-700/50'
-                                                        : 'bg-red-900/40 text-red-400 border border-red-700/50'
+                                                        ? 'bg-green-900/40 text-green-600 border border-green-700/50'
+                                                        : 'bg-red-900/40 text-red-500 border border-red-200/50'
                                                 }`}>
                                                     {bookie.status === 'active' ? 'Active' : 'Suspended'}
                                                 </span>
@@ -496,8 +496,8 @@ const AllUsers = () => {
                                                     disabled={togglingId === bookie._id}
                                                     className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50 ${
                                                         bookie.status === 'active'
-                                                            ? 'bg-red-600 hover:bg-red-500 text-white'
-                                                            : 'bg-green-600 hover:bg-green-500 text-white'
+                                                            ? 'bg-red-600 hover:bg-red-500 text-gray-800'
+                                                            : 'bg-green-600 hover:bg-green-500 text-gray-800'
                                                     }`}
                                                 >
                                                     {togglingId === bookie._id ? '⏳' : bookie.status === 'active' ? <><FaUserSlash className="w-3.5 h-3.5" /> Suspend</> : <><FaUserCheck className="w-3.5 h-3.5" /> Unsuspend</>}
@@ -505,7 +505,7 @@ const AllUsers = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => setExpandedBookieId(isExpanded ? null : bookie._id)}
-                                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/90 hover:bg-yellow-500 text-black"
+                                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500/90 hover:bg-orange-500 text-gray-800"
                                                 >
                                                     {isExpanded ? 'Hide' : 'View'} Players
                                                 </button>
@@ -517,34 +517,34 @@ const AllUsers = () => {
                                             <p>{bookie.createdAt ? new Date(bookie.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}</p>
                                         </div>
                                         {isExpanded && (
-                                            <div className="mt-4 pl-3 border-l-2 border-yellow-500/70 space-y-3">
-                                                <p className="text-yellow-500/90 font-medium text-sm">Players ({bookieUsers.length})</p>
+                                            <div className="mt-4 pl-3 border-l-2 border-orange-500/70 space-y-3">
+                                                <p className="text-orange-500/90 font-medium text-sm">Players ({bookieUsers.length})</p>
                                                 {bookieUsers.length === 0 ? (
                                                     <p className="text-gray-500 text-xs">No players yet.</p>
                                                 ) : (
                                                     bookieUsers.map((u, i) => (
-                                                        <div key={u._id} className="p-3 rounded-lg bg-gray-800/80 border border-gray-600/50">
+                                                        <div key={u._id} className="p-3 rounded-lg bg-white border border-gray-200">
                                                             <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                                                                <Link to={`/all-users/${u._id}`} className="font-medium text-yellow-400 hover:text-yellow-300 hover:underline text-sm">{u.username}</Link>
+                                                                <Link to={`/all-users/${u._id}`} className="font-medium text-orange-500 hover:text-orange-600 hover:underline text-sm">{u.username}</Link>
                                                                 <div className="flex items-center gap-1.5">
-                                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${computeIsOnline(u) ? 'text-green-400' : 'text-gray-500'}`}>
+                                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${computeIsOnline(u) ? 'text-green-600' : 'text-gray-500'}`}>
                                                                         <span className={`w-1.5 h-1.5 rounded-full ${computeIsOnline(u) ? 'bg-green-500' : 'bg-gray-500'}`} />
                                                                         {computeIsOnline(u) ? 'Online' : 'Offline'}
                                                                     </span>
-                                                                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${u.isActive !== false ? 'text-green-400 bg-green-900/30' : 'text-red-400 bg-red-900/30'}`}>
+                                                                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${u.isActive !== false ? 'text-green-600 bg-green-900/30' : 'text-red-500 bg-red-900/30'}`}>
                                                                         {u.isActive !== false ? 'Active' : 'Suspended'}
                                                                     </span>
                                                                 </div>
                                                             </div>
                                                             <p className="text-gray-400 text-xs truncate mb-2">{u.email || '—'}</p>
                                                             <div className="flex items-center justify-between text-xs">
-                                                                <span className="text-green-400 font-mono">₹{Number(u.walletBalance ?? 0).toLocaleString('en-IN')}</span>
+                                                                <span className="text-green-600 font-mono">₹{Number(u.walletBalance ?? 0).toLocaleString('en-IN')}</span>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleTogglePlayerStatus(u._id)}
                                                                     disabled={togglingId === u._id}
                                                                     className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold disabled:opacity-50 ${
-                                                                        u.isActive !== false ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+                                                                        u.isActive !== false ? 'bg-red-600 text-gray-800' : 'bg-green-600 text-gray-800'
                                                                     }`}
                                                                 >
                                                                     {togglingId === u._id ? '⏳' : u.isActive !== false ? <><FaUserSlash className="w-3 h-3" /> Suspend</> : <><FaUserCheck className="w-3 h-3" /> Unsuspend</>}
@@ -563,48 +563,48 @@ const AllUsers = () => {
                 ) : (
                     <div>
                         {(activeTab === 'bookie_users' || activeTab === 'super_admin_users') && (
-                            <div className="px-4 py-3 bg-gray-700/50 border-b border-gray-600 text-sm text-gray-300">
+                            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 text-sm text-gray-600">
                                 {activeTab === 'bookie_users' ? (
-                                    <><strong className="text-yellow-500">All Bookies Players</strong> – Players who signed up via a bookie&apos;s link.</>
+                                    <><strong className="text-orange-500">All Bookies Players</strong> – Players who signed up via a bookie&apos;s link.</>
                                 ) : (
-                                    <><strong className="text-yellow-500">Super Admin Players</strong> – Players who signed up directly or were created by super admin.</>
+                                    <><strong className="text-orange-500">Super Admin Players</strong> – Players who signed up directly or were created by super admin.</>
                                 )}
                             </div>
                         )}
                         <div className="overflow-x-auto">
                         <table className="w-full text-sm min-w-[800px]">
-                            <thead className="bg-gray-700">
+                            <thead className="bg-gray-100">
                                 <tr>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase w-8">#</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Name</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Email</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Phone</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Role</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Wallet</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Account</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase">Created</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase w-28 whitespace-nowrap">Action</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase w-8">#</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Name</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Email</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Phone</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Role</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Wallet</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Account</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Created</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase w-28 whitespace-nowrap">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-700">
                                 {filteredList.map((item, index) => (
-                                    <tr key={item._id} className="hover:bg-gray-700/50">
-                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300">{index + 1}</td>
+                                    <tr key={item._id} className="hover:bg-gray-50">
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{index + 1}</td>
                                         <td className="px-2 sm:px-3 py-2 sm:py-3 font-medium">
                                             {isUserList ? (
-                                                <Link to={`/all-users/${item._id}`} className="text-yellow-400 hover:text-yellow-300 hover:underline truncate block max-w-[120px]">{item.username}</Link>
+                                                <Link to={`/all-users/${item._id}`} className="text-orange-500 hover:text-orange-600 hover:underline truncate block max-w-[120px]">{item.username}</Link>
                                             ) : (
-                                                <span className="text-white truncate block max-w-[120px]">{item.username}</span>
+                                                <span className="text-gray-800 truncate block max-w-[120px]">{item.username}</span>
                                             )}
                                         </td>
-                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300 truncate max-w-[140px]">{item.email || '—'}</td>
-                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300">{item.phone || '—'}</td>
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600 truncate max-w-[140px]">{item.email || '—'}</td>
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{item.phone || '—'}</td>
                                         <td className="px-2 sm:px-3 py-2 sm:py-3">
                                             {(activeTab === 'super_admins') ? (
-                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-600 text-gray-200">Super Admin</span>
+                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-200">Super Admin</span>
                                             ) : (
-                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-600 text-gray-200 capitalize">
+                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-200 capitalize">
                                                     {item.role === 'user' ? 'Player' : (item.role || 'Player')}
                                                 </span>
                                             )}
@@ -613,7 +613,7 @@ const AllUsers = () => {
                                             {(activeTab === 'super_admins') ? (
                                                 <span className="text-gray-400">—</span>
                                             ) : (
-                                                <span className="font-mono font-medium text-green-400 text-xs sm:text-sm">
+                                                <span className="font-mono font-medium text-green-600 text-xs sm:text-sm">
                                                     ₹{Number(item.walletBalance ?? 0).toLocaleString('en-IN')}
                                                 </span>
                                             )}
@@ -621,7 +621,7 @@ const AllUsers = () => {
                                         <td className="px-2 sm:px-3 py-2 sm:py-3">
                                             {(activeTab === 'super_admins') ? (
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                    item.status === 'active' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
+                                                    item.status === 'active' ? 'bg-green-900/50 text-green-600' : 'bg-red-50 text-red-500'
                                                 }`}>
                                                     {item.status || '—'}
                                                 </span>
@@ -631,8 +631,8 @@ const AllUsers = () => {
                                                     return (
                                                         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
                                                             isOnline
-                                                                ? 'bg-green-900/50 text-green-400 border border-green-700'
-                                                                : 'bg-gray-700 text-gray-400 border border-gray-600'
+                                                                ? 'bg-green-900/50 text-green-600 border border-green-700'
+                                                                : 'bg-gray-100 text-gray-400 border border-gray-200'
                                                         }`}>
                                                             <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
                                                             {isOnline ? 'Online' : 'Offline'}
@@ -647,14 +647,14 @@ const AllUsers = () => {
                                             ) : (
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${
                                                     item.isActive !== false
-                                                        ? 'bg-green-900/50 text-green-400 border border-green-700'
-                                                        : 'bg-red-900/50 text-red-400 border border-red-700'
+                                                        ? 'bg-green-900/50 text-green-600 border border-green-700'
+                                                        : 'bg-red-50 text-red-500 border border-red-200'
                                                 }`}>
                                                     {item.isActive !== false ? 'Active' : 'Suspended'}
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-300 text-xs">
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600 text-xs">
                                             {item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-IN', {
                                                 day: '2-digit',
                                                 month: 'short',
@@ -671,8 +671,8 @@ const AllUsers = () => {
                                                     disabled={togglingId === item._id}
                                                     className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                                         item.isActive !== false
-                                                            ? 'bg-red-600 hover:bg-red-500 text-white'
-                                                            : 'bg-green-600 hover:bg-green-500 text-white'
+                                                            ? 'bg-red-600 hover:bg-red-500 text-gray-800'
+                                                            : 'bg-green-600 hover:bg-green-500 text-gray-800'
                                                     }`}
                                                     title={item.isActive !== false ? 'Suspend' : 'Unsuspend'}
                                                 >
@@ -711,16 +711,16 @@ const AllUsers = () => {
             )}
 
             {showPasswordModal && pendingAction && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60">
-                    <div className="bg-gray-800 rounded-xl border border-gray-600 shadow-xl w-full max-w-md">
-                        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-yellow-500">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
+                        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-orange-500">
                                 Confirm {pendingAction.type === 'player' ? 'Suspend/Unsuspend Player' : 'Suspend/Unsuspend Bookie'}
                             </h3>
-                            <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="text-gray-400 hover:text-white p-1">×</button>
+                            <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="text-gray-400 hover:text-gray-800 p-1">×</button>
                         </div>
                         <form onSubmit={handlePasswordSubmit} className="p-4 space-y-4">
-                            <p className="text-gray-300 text-sm">
+                            <p className="text-gray-600 text-sm">
                                 Enter secret declare password to proceed.
                             </p>
                             <input
@@ -728,15 +728,15 @@ const AllUsers = () => {
                                 placeholder="Secret declare password"
                                 value={secretPassword}
                                 onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
-                                className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500"
+                                className="w-full px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400"
                                 autoFocus
                             />
                             {passwordError && (
-                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-200 text-sm px-3 py-2">{passwordError}</div>
+                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-600 text-sm px-3 py-2">{passwordError}</div>
                             )}
                             <div className="flex gap-2 justify-end">
-                                <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold">Cancel</button>
-                                <button type="submit" disabled={togglingId !== null} className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-black font-semibold disabled:opacity-50">
+                                <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-500 text-gray-800 font-semibold">Cancel</button>
+                                <button type="submit" disabled={togglingId !== null} className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-gray-800 font-semibold disabled:opacity-50">
                                     {togglingId ? <span className="animate-spin">⏳</span> : 'Confirm'}
                                 </button>
                             </div>

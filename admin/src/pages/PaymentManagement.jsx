@@ -164,18 +164,18 @@ const PaymentManagement = () => {
 
     const getStatusBadge = (status) => {
         const styles = {
-            pending: 'bg-yellow-600/30 text-yellow-400 border-yellow-600/50',
-            approved: 'bg-green-600/30 text-green-400 border-green-600/50',
-            rejected: 'bg-red-600/30 text-red-400 border-red-600/50',
-            completed: 'bg-blue-600/30 text-blue-400 border-blue-600/50',
+            pending: 'bg-orange-50 text-orange-600 border-orange-200',
+            approved: 'bg-green-600/30 text-green-600 border-green-600/50',
+            rejected: 'bg-red-600/30 text-red-500 border-red-600/50',
+            completed: 'bg-blue-600/30 text-blue-600 border-blue-600/50',
         };
-        return styles[status] || 'bg-gray-600/30 text-gray-400 border-gray-600/50';
+        return styles[status] || 'bg-gray-200/30 text-gray-400 border-gray-200';
     };
 
     const getTypeBadge = (type) => {
         return type === 'deposit' 
-            ? 'bg-green-600/20 text-green-400 border-green-600/40'
-            : 'bg-purple-600/20 text-purple-400 border-purple-600/40';
+            ? 'bg-green-600/20 text-green-600 border-green-600/40'
+            : 'bg-purple-600/20 text-purple-600 border-purple-600/40';
     };
 
     const hasActiveFilters = filters.status || filters.type;
@@ -185,8 +185,8 @@ const PaymentManagement = () => {
         <AdminLayout onLogout={handleLogout} title="Payments">
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-                    <FaWallet className="text-amber-500" />
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-3">
+                    <FaWallet className="text-orange-500" />
                     Payment Management
                 </h1>
                 <p className="mt-2 text-gray-400 text-sm sm:text-base max-w-2xl">
@@ -199,8 +199,8 @@ const PaymentManagement = () => {
                 <div
                     className={`rounded-xl p-5 border-2 transition-all cursor-pointer ${
                         filters.status === 'pending' && filters.type === 'deposit'
-                            ? 'border-amber-500 bg-amber-500/10'
-                            : 'border-gray-700 bg-gray-800/80 hover:border-gray-600'
+                            ? 'border-amber-500 bg-orange-500/10'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
                     }`}
                     onClick={() => setFilters({ status: 'pending', type: 'deposit' })}
                     title="Click to view pending deposits"
@@ -208,17 +208,17 @@ const PaymentManagement = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Pending Deposits</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-amber-400 mt-1">{pendingCounts.deposits}</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-orange-500 mt-1">{pendingCounts.deposits}</p>
                             <p className="text-xs text-gray-500 mt-1">Click to filter</p>
                         </div>
-                        <FaArrowDown className="w-10 h-10 text-amber-500/50" />
+                        <FaArrowDown className="w-10 h-10 text-orange-500/50" />
                     </div>
                 </div>
                 <div
                     className={`rounded-xl p-5 border-2 transition-all cursor-pointer ${
                         filters.status === 'pending' && filters.type === 'withdrawal'
-                            ? 'border-amber-500 bg-amber-500/10'
-                            : 'border-gray-700 bg-gray-800/80 hover:border-gray-600'
+                            ? 'border-amber-500 bg-orange-500/10'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
                     }`}
                     onClick={() => setFilters({ status: 'pending', type: 'withdrawal' })}
                     title="Click to view pending withdrawals"
@@ -226,7 +226,7 @@ const PaymentManagement = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Pending Withdrawals</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-amber-400 mt-1">{pendingCounts.withdrawals}</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-orange-500 mt-1">{pendingCounts.withdrawals}</p>
                             <p className="text-xs text-gray-500 mt-1">Click to filter</p>
                         </div>
                         <FaArrowUp className="w-10 h-10 text-purple-500/50" />
@@ -236,7 +236,7 @@ const PaymentManagement = () => {
                     className={`rounded-xl p-5 border-2 transition-all cursor-pointer ${
                         !hasActiveFilters || (filters.status === '' && filters.type === '')
                             ? 'border-blue-500 bg-blue-500/10'
-                            : 'border-gray-700 bg-gray-800/80 hover:border-gray-600'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
                     }`}
                     onClick={() => setFilters({ status: '', type: '' })}
                     title="Click to view all payments"
@@ -244,7 +244,7 @@ const PaymentManagement = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Pending</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-blue-400 mt-1">{pendingCounts.total}</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1">{pendingCounts.total}</p>
                             <p className="text-xs text-gray-500 mt-1">{pendingRequireAction ? 'Requires action' : 'All clear'}</p>
                         </div>
                         <FaClock className="w-10 h-10 text-blue-500/50" />
@@ -253,12 +253,12 @@ const PaymentManagement = () => {
             </div>
 
             {/* Filters */}
-            <div className="bg-gray-800/80 rounded-xl p-4 sm:p-5 mb-6 border border-gray-700">
+            <div className="bg-white rounded-xl p-4 sm:p-5 mb-6 border border-gray-200">
                 <div className="flex items-center gap-2 mb-3">
                     <FaFilter className="text-gray-500 w-4 h-4" />
                     <span className="text-sm font-medium text-gray-400">Filter Payments</span>
                     {hasActiveFilters && (
-                        <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
+                        <span className="ml-2 px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-500 text-xs">
                             Filters active
                         </span>
                     )}
@@ -269,7 +269,7 @@ const PaymentManagement = () => {
                         <select
                             value={filters.status}
                             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-amber-500/50"
+                            className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:ring-2 focus:ring-amber-500/50"
                         >
                             <option value="">All Status</option>
                             <option value="pending">Pending</option>
@@ -283,7 +283,7 @@ const PaymentManagement = () => {
                         <select
                             value={filters.type}
                             onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-amber-500/50"
+                            className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:ring-2 focus:ring-amber-500/50"
                         >
                             <option value="">All Types</option>
                             <option value="deposit">Deposit</option>
@@ -293,7 +293,7 @@ const PaymentManagement = () => {
                     <div className="flex items-end">
                         <button
                             onClick={() => setFilters({ status: '', type: '' })}
-                            className="px-4 py-2.5 bg-gray-600 hover:bg-gray-500 rounded-lg text-white text-sm font-medium transition-colors"
+                            className="px-4 py-2.5 bg-gray-200 hover:bg-gray-500 rounded-lg text-gray-800 text-sm font-medium transition-colors"
                         >
                             Clear Filters
                         </button>
@@ -305,13 +305,13 @@ const PaymentManagement = () => {
             {!loading && (
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <p className="text-sm text-gray-400">
-                        Showing <span className="font-semibold text-white">{payments.length}</span> payment{payments.length !== 1 ? 's' : ''}
+                        Showing <span className="font-semibold text-gray-800">{payments.length}</span> payment{payments.length !== 1 ? 's' : ''}
                         {hasActiveFilters && (
-                            <span className="ml-2 text-amber-400">(filtered)</span>
+                            <span className="ml-2 text-orange-500">(filtered)</span>
                         )}
                     </p>
                     {pendingRequireAction && payments.some((p) => p.status === 'pending') && (
-                        <p className="text-xs text-amber-400 flex items-center gap-2">
+                        <p className="text-xs text-orange-500 flex items-center gap-2">
                             <FaClock className="w-3.5 h-3.5" />
                             Some payments need your approval
                         </p>
@@ -321,16 +321,16 @@ const PaymentManagement = () => {
 
             {/* Payments Table */}
             {loading ? (
-                <div className="text-center py-16 bg-gray-800/50 rounded-xl border border-gray-700">
+                <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
                     <div className="animate-spin rounded-full h-12 w-12 border-2 border-amber-500 border-t-transparent mx-auto mb-4"></div>
                     <p className="text-gray-400">Loading payments...</p>
                     <p className="text-gray-500 text-sm mt-1">Please wait</p>
                 </div>
             ) : (
-                <div className="overflow-x-auto -mx-4 sm:mx-0 rounded-xl border border-gray-700 overflow-hidden">
-                    <div className="bg-gray-800/80 min-w-[1080px]">
+                <div className="overflow-x-auto -mx-4 sm:mx-0 rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="bg-white min-w-[1080px]">
                         <table className="w-full text-sm table-fixed">
-                            <thead className="bg-gray-900/80">
+                            <thead className="bg-gray-50/80">
                                 <tr>
                                     <th className="w-[90px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Ref ID</th>
                                     <th className="w-[180px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Player</th>
@@ -362,7 +362,7 @@ const PaymentManagement = () => {
                                                 {hasActiveFilters && (
                                                     <button
                                                         onClick={() => setFilters({ status: '', type: '' })}
-                                                        className="mt-4 px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-white text-sm font-medium"
+                                                        className="mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-gray-800 text-sm font-medium"
                                                     >
                                                         Clear Filters
                                                     </button>
@@ -372,13 +372,13 @@ const PaymentManagement = () => {
                                     </tr>
                                 ) : (
                                     payments.map((payment) => (
-                                        <tr key={payment._id} className="hover:bg-gray-700/50">
+                                        <tr key={payment._id} className="hover:bg-gray-50">
                                             <td className="px-4 py-4 text-xs text-gray-400 whitespace-nowrap">
                                                 #{payment._id.slice(-6).toUpperCase()}
                                             </td>
                                             <td className="px-4 py-4">
                                                 <div className="truncate">
-                                                    <p className="font-medium text-white truncate">
+                                                    <p className="font-medium text-gray-800 truncate">
                                                         {payment.userId?.username || 'Unknown'}
                                                     </p>
                                                     <p className="text-xs text-gray-500 truncate">
@@ -392,7 +392,7 @@ const PaymentManagement = () => {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-4 whitespace-nowrap">
-                                                <span className={`font-semibold ${payment.type === 'deposit' ? 'text-green-400' : 'text-purple-400'}`}>
+                                                <span className={`font-semibold ${payment.type === 'deposit' ? 'text-green-600' : 'text-purple-600'}`}>
                                                     {payment.type === 'deposit' ? '+' : '-'} ₹{payment.amount?.toLocaleString()}
                                                 </span>
                                             </td>
@@ -401,7 +401,7 @@ const PaymentManagement = () => {
                                                     <div className="space-y-1.5">
                                                         {payment.upiTransactionId && (
                                                             <p className="text-xs text-gray-400 truncate">
-                                                                UTR: <span className="text-white font-mono">{payment.upiTransactionId}</span>
+                                                                UTR: <span className="text-gray-800 font-mono">{payment.upiTransactionId}</span>
                                                             </p>
                                                         )}
                                                         {payment.screenshotUrl && (
@@ -410,7 +410,7 @@ const PaymentManagement = () => {
                                                                     show: true, 
                                                                     url: payment.screenshotUrl.startsWith('http') ? payment.screenshotUrl : `${API_BASE_URL.replace('/api/v1', '')}${payment.screenshotUrl}` 
                                                                 })}
-                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-600/20 border border-blue-500/40 rounded text-xs text-blue-400 hover:bg-blue-600/30 transition-colors"
+                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-600/20 border border-blue-500/40 rounded text-xs text-blue-600 hover:bg-blue-600/30 transition-colors"
                                                                 title="View screenshot"
                                                             >
                                                                 <FaImage className="w-3.5 h-3.5" /> Screenshot
@@ -424,7 +424,7 @@ const PaymentManagement = () => {
                                                     <div className="space-y-0.5">
                                                         {payment.bankDetailId ? (
                                                             <>
-                                                                <p className="text-xs text-white font-medium truncate">
+                                                                <p className="text-xs text-gray-800 font-medium truncate">
                                                                     {payment.bankDetailId.accountHolderName}
                                                                 </p>
                                                                 {payment.bankDetailId.bankName && (
@@ -469,7 +469,7 @@ const PaymentManagement = () => {
                                                 <div className="flex flex-wrap gap-2">
                                                     <button
                                                         onClick={() => setDetailModal({ show: true, payment })}
-                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600/20 border border-blue-500/40 hover:bg-blue-600/30 rounded-lg text-xs font-medium text-blue-400 transition-colors"
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600/20 border border-blue-500/40 hover:bg-blue-600/30 rounded-lg text-xs font-medium text-blue-600 transition-colors"
                                                         title="View full payment details"
                                                     >
                                                         <FaEye className="w-3.5 h-3.5 shrink-0" /> View Details
@@ -478,14 +478,14 @@ const PaymentManagement = () => {
                                                         <>
                                                             <button
                                                                 onClick={() => openActionModal(payment, 'approve')}
-                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-medium text-white transition-colors"
+                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-medium text-gray-800 transition-colors"
                                                                 title="Approve – add money to player wallet"
                                                             >
                                                                 <FaCheck className="w-3.5 h-3.5 shrink-0" /> Approve
                                                             </button>
                                                             <button
                                                                 onClick={() => openActionModal(payment, 'reject')}
-                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-medium text-white transition-colors"
+                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-medium text-gray-800 transition-colors"
                                                                 title="Reject – decline this request"
                                                             >
                                                                 <FaTimes className="w-3.5 h-3.5 shrink-0" /> Reject
@@ -507,20 +507,20 @@ const PaymentManagement = () => {
 
             {/* Action Modal */}
             {actionModal.show && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-700 shadow-2xl">
+                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl max-w-md w-full p-6 border border-gray-200 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
                             {actionModal.action === 'approve' ? (
                                 <div className="w-10 h-10 rounded-full bg-green-600/20 flex items-center justify-center">
-                                    <FaCheck className="w-5 h-5 text-green-400" />
+                                    <FaCheck className="w-5 h-5 text-green-600" />
                                 </div>
                             ) : (
                                 <div className="w-10 h-10 rounded-full bg-red-600/20 flex items-center justify-center">
-                                    <FaTimes className="w-5 h-5 text-red-400" />
+                                    <FaTimes className="w-5 h-5 text-red-500" />
                                 </div>
                             )}
                             <div>
-                                <h3 className="text-xl font-bold text-white">
+                                <h3 className="text-xl font-bold text-gray-800">
                                     {actionModal.action === 'approve' ? 'Approve' : 'Reject'} {actionModal.payment?.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
                                 </h3>
                                 <p className="text-sm text-gray-400 mt-0.5">
@@ -529,16 +529,16 @@ const PaymentManagement = () => {
                             </div>
                         </div>
                         
-                        <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-gray-400">Amount</span>
-                                <span className="text-xl font-bold text-white">
+                                <span className="text-xl font-bold text-gray-800">
                                     ₹{actionModal.payment?.amount?.toLocaleString()}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-gray-400">Player</span>
-                                <span className="text-white">
+                                <span className="text-gray-800">
                                     {actionModal.payment?.userId?.username || 'Unknown'}
                                 </span>
                             </div>
@@ -546,8 +546,8 @@ const PaymentManagement = () => {
                                 <span className="text-gray-400">Type</span>
                                 <span className={`px-2 py-1 rounded text-xs ${
                                     actionModal.payment?.type === 'deposit' 
-                                        ? 'bg-green-600/30 text-green-400' 
-                                        : 'bg-purple-600/30 text-purple-400'
+                                        ? 'bg-green-600/30 text-green-600' 
+                                        : 'bg-purple-600/30 text-purple-600'
                                 }`}>
                                     {actionModal.payment?.type}
                                 </span>
@@ -561,7 +561,7 @@ const PaymentManagement = () => {
                                 <img
                                     src={actionModal.payment.screenshotUrl.startsWith('http') ? actionModal.payment.screenshotUrl : `${API_BASE_URL.replace('/api/v1', '')}${actionModal.payment.screenshotUrl}`}
                                     alt="Payment proof"
-                                    className="w-full max-h-48 object-contain rounded-lg border border-gray-700 cursor-pointer"
+                                    className="w-full max-h-48 object-contain rounded-lg border border-gray-200 cursor-pointer"
                                     onClick={() => setImageModal({ 
                                         show: true, 
                                         url: actionModal.payment.screenshotUrl.startsWith('http') ? actionModal.payment.screenshotUrl : `${API_BASE_URL.replace('/api/v1', '')}${actionModal.payment.screenshotUrl}` 
@@ -572,9 +572,9 @@ const PaymentManagement = () => {
 
                         {/* Show bank details for withdrawals */}
                         {actionModal.payment?.type === 'withdrawal' && actionModal.payment?.bankDetailId && (
-                            <div className="mb-4 bg-gray-900 rounded-lg p-3">
+                            <div className="mb-4 bg-gray-50 rounded-lg p-3">
                                 <p className="text-gray-400 text-sm mb-2">Withdraw to:</p>
-                                <p className="text-white font-medium">{actionModal.payment.bankDetailId.accountHolderName}</p>
+                                <p className="text-gray-800 font-medium">{actionModal.payment.bankDetailId.accountHolderName}</p>
                                 {actionModal.payment.bankDetailId.bankName && (
                                     <p className="text-gray-400 text-sm">
                                         {actionModal.payment.bankDetailId.bankName} - {actionModal.payment.bankDetailId.accountNumber}
@@ -591,13 +591,13 @@ const PaymentManagement = () => {
 
                         <div className="mb-4">
                             <label className="block text-gray-400 text-sm mb-2">
-                                Admin Remarks {actionModal.action === 'reject' && <span className="text-red-400">*</span>}
+                                Admin Remarks {actionModal.action === 'reject' && <span className="text-red-500">*</span>}
                             </label>
                             <textarea
                                 value={adminRemarks}
                                 onChange={(e) => setAdminRemarks(e.target.value)}
                                 placeholder={actionModal.action === 'approve' ? 'Optional remarks...' : 'Reason for rejection...'}
-                                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white resize-none focus:outline-none focus:border-blue-500"
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 resize-none focus:outline-none focus:border-blue-500"
                                 rows={3}
                             />
                         </div>
@@ -610,10 +610,10 @@ const PaymentManagement = () => {
                                     placeholder="Secret declare password"
                                     value={secretPassword}
                                     onChange={(e) => { setSecretPassword(e.target.value); setActionPasswordError(''); }}
-                                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:border-blue-500"
                                 />
                                 {actionPasswordError && (
-                                    <p className="text-red-400 text-sm mt-2">{actionPasswordError}</p>
+                                    <p className="text-red-500 text-sm mt-2">{actionPasswordError}</p>
                                 )}
                             </div>
                         )}
@@ -621,7 +621,7 @@ const PaymentManagement = () => {
                         <div className="flex gap-3">
                             <button
                                 onClick={closeActionModal}
-                                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+                                className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-800 transition-colors"
                             >
                                 Cancel
                             </button>
@@ -632,7 +632,7 @@ const PaymentManagement = () => {
                                     (actionModal.action === 'reject' && !adminRemarks.trim()) ||
                                     (actionModal.action === 'approve' && hasSecretDeclarePassword && !secretPassword.trim())
                                 }
-                                className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition-colors disabled:opacity-50 ${
+                                className={`flex-1 px-4 py-2 rounded-lg text-gray-800 font-medium transition-colors disabled:opacity-50 ${
                                     actionModal.action === 'approve'
                                         ? 'bg-green-600 hover:bg-green-700'
                                         : 'bg-red-600 hover:bg-red-700'
@@ -654,7 +654,7 @@ const PaymentManagement = () => {
                     <div className="relative max-w-4xl max-h-[90vh]">
                         <button
                             onClick={() => setImageModal({ show: false, url: '' })}
-                            className="absolute -top-10 right-0 text-white hover:text-gray-300"
+                            className="absolute -top-10 right-0 text-gray-800 hover:text-gray-600"
                         >
                             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -671,19 +671,19 @@ const PaymentManagement = () => {
 
             {/* Detail Modal */}
             {detailModal.show && detailModal.payment && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gray-800 rounded-xl max-w-lg w-full p-6 border border-gray-700 max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl max-w-lg w-full p-6 border border-gray-200 max-h-[90vh] overflow-y-auto shadow-2xl">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${detailModal.payment.type === 'deposit' ? 'bg-green-600/20' : 'bg-purple-600/20'}`}>
                                     {detailModal.payment.type === 'deposit' ? (
-                                        <FaArrowDown className="w-5 h-5 text-green-400" />
+                                        <FaArrowDown className="w-5 h-5 text-green-600" />
                                     ) : (
-                                        <FaArrowUp className="w-5 h-5 text-purple-400" />
+                                        <FaArrowUp className="w-5 h-5 text-purple-600" />
                                     )}
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-bold text-white">
+                                    <h3 className="text-xl font-bold text-gray-800">
                                         {detailModal.payment.type === 'deposit' ? 'Deposit' : 'Withdrawal'} Details
                                     </h3>
                                     <p className="text-sm text-gray-400">
@@ -693,7 +693,7 @@ const PaymentManagement = () => {
                             </div>
                             <button
                                 onClick={() => setDetailModal({ show: false, payment: null })}
-                                className="text-gray-400 hover:text-white"
+                                className="text-gray-400 hover:text-gray-800"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -702,10 +702,10 @@ const PaymentManagement = () => {
                         </div>
 
                         {/* Amount & Status */}
-                        <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
                             <div className="flex justify-between items-center mb-3">
                                 <span className="text-gray-400">Amount</span>
-                                <span className="text-2xl font-bold text-white">
+                                <span className="text-2xl font-bold text-gray-800">
                                     ₹{detailModal.payment.amount?.toLocaleString()}
                                 </span>
                             </div>
@@ -719,38 +719,38 @@ const PaymentManagement = () => {
                                 <span className="text-gray-400">Type</span>
                                 <span className={`px-2 py-1 rounded text-xs ${
                                     detailModal.payment.type === 'deposit' 
-                                        ? 'bg-green-600/30 text-green-400' 
-                                        : 'bg-purple-600/30 text-purple-400'
+                                        ? 'bg-green-600/30 text-green-600' 
+                                        : 'bg-purple-600/30 text-purple-600'
                                 }`}>
                                     {detailModal.payment.type === 'deposit' ? '↓ Deposit' : '↑ Withdrawal'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-400">Request ID</span>
-                                <span className="text-white font-mono text-sm">
+                                <span className="text-gray-800 font-mono text-sm">
                                     #{detailModal.payment._id.slice(-8).toUpperCase()}
                                 </span>
                             </div>
                         </div>
 
                         {/* Player Info */}
-                        <div className="bg-gray-900 rounded-lg p-4 mb-4">
-                            <h4 className="text-sm font-semibold text-gray-300 mb-3">Player Information</h4>
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h4 className="text-sm font-semibold text-gray-600 mb-3">Player Information</h4>
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span className="text-gray-500">Username</span>
-                                    <span className="text-white">{detailModal.payment.userId?.username || 'Unknown'}</span>
+                                    <span className="text-gray-800">{detailModal.payment.userId?.username || 'Unknown'}</span>
                                 </div>
                                 {detailModal.payment.userId?.email && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Email</span>
-                                        <span className="text-white">{detailModal.payment.userId.email}</span>
+                                        <span className="text-gray-800">{detailModal.payment.userId.email}</span>
                                     </div>
                                 )}
                                 {detailModal.payment.userId?.phone && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Phone</span>
-                                        <span className="text-white">{detailModal.payment.userId.phone}</span>
+                                        <span className="text-gray-800">{detailModal.payment.userId.phone}</span>
                                     </div>
                                 )}
                             </div>
@@ -758,41 +758,41 @@ const PaymentManagement = () => {
 
                         {/* Bank Details for Withdrawals */}
                         {detailModal.payment.type === 'withdrawal' && detailModal.payment.bankDetailId && (
-                            <div className="bg-gray-900 rounded-lg p-4 mb-4">
-                                <h4 className="text-sm font-semibold text-gray-300 mb-3">Bank Account Details</h4>
+                            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                                <h4 className="text-sm font-semibold text-gray-600 mb-3">Bank Account Details</h4>
                                 <div className="space-y-2">
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Account Holder</span>
-                                        <span className="text-white font-medium">{detailModal.payment.bankDetailId.accountHolderName}</span>
+                                        <span className="text-gray-800 font-medium">{detailModal.payment.bankDetailId.accountHolderName}</span>
                                     </div>
                                     {detailModal.payment.bankDetailId.bankName && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">Bank Name</span>
-                                            <span className="text-white">{detailModal.payment.bankDetailId.bankName}</span>
+                                            <span className="text-gray-800">{detailModal.payment.bankDetailId.bankName}</span>
                                         </div>
                                     )}
                                     {detailModal.payment.bankDetailId.accountNumber && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">Account Number</span>
-                                            <span className="text-white font-mono">{detailModal.payment.bankDetailId.accountNumber}</span>
+                                            <span className="text-gray-800 font-mono">{detailModal.payment.bankDetailId.accountNumber}</span>
                                         </div>
                                     )}
                                     {detailModal.payment.bankDetailId.ifscCode && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">IFSC Code</span>
-                                            <span className="text-white font-mono">{detailModal.payment.bankDetailId.ifscCode}</span>
+                                            <span className="text-gray-800 font-mono">{detailModal.payment.bankDetailId.ifscCode}</span>
                                         </div>
                                     )}
                                     {detailModal.payment.bankDetailId.upiId && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">UPI ID</span>
-                                            <span className="text-white font-mono">{detailModal.payment.bankDetailId.upiId}</span>
+                                            <span className="text-gray-800 font-mono">{detailModal.payment.bankDetailId.upiId}</span>
                                         </div>
                                     )}
                                     {detailModal.payment.bankDetailId.accountType && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">Account Type</span>
-                                            <span className="text-white capitalize">{detailModal.payment.bankDetailId.accountType.replace('_', ' ')}</span>
+                                            <span className="text-gray-800 capitalize">{detailModal.payment.bankDetailId.accountType.replace('_', ' ')}</span>
                                         </div>
                                     )}
                                 </div>
@@ -801,19 +801,19 @@ const PaymentManagement = () => {
 
                         {/* Deposit Details */}
                         {detailModal.payment.type === 'deposit' && (
-                            <div className="bg-gray-900 rounded-lg p-4 mb-4">
-                                <h4 className="text-sm font-semibold text-gray-300 mb-3">Payment Details</h4>
+                            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                                <h4 className="text-sm font-semibold text-gray-600 mb-3">Payment Details</h4>
                                 <div className="space-y-2">
                                     {detailModal.payment.upiTransactionId && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">UTR / Transaction ID</span>
-                                            <span className="text-white font-mono">{detailModal.payment.upiTransactionId}</span>
+                                            <span className="text-gray-800 font-mono">{detailModal.payment.upiTransactionId}</span>
                                         </div>
                                     )}
                                     {detailModal.payment.userNote && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">User Note</span>
-                                            <span className="text-white">{detailModal.payment.userNote}</span>
+                                            <span className="text-gray-800">{detailModal.payment.userNote}</span>
                                         </div>
                                     )}
                                 </div>
@@ -823,7 +823,7 @@ const PaymentManagement = () => {
                                         <img
                                             src={detailModal.payment.screenshotUrl.startsWith('http') ? detailModal.payment.screenshotUrl : `${API_BASE_URL.replace('/api/v1', '')}${detailModal.payment.screenshotUrl}`}
                                             alt="Payment proof"
-                                            className="w-full max-h-60 object-contain rounded-lg border border-gray-700 cursor-pointer"
+                                            className="w-full max-h-60 object-contain rounded-lg border border-gray-200 cursor-pointer"
                                             onClick={() => setImageModal({ 
                                                 show: true, 
                                                 url: detailModal.payment.screenshotUrl.startsWith('http') ? detailModal.payment.screenshotUrl : `${API_BASE_URL.replace('/api/v1', '')}${detailModal.payment.screenshotUrl}` 
@@ -835,29 +835,29 @@ const PaymentManagement = () => {
                         )}
 
                         {/* Timestamps */}
-                        <div className="bg-gray-900 rounded-lg p-4 mb-4">
-                            <h4 className="text-sm font-semibold text-gray-300 mb-3">Timeline</h4>
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h4 className="text-sm font-semibold text-gray-600 mb-3">Timeline</h4>
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span className="text-gray-500">Requested</span>
-                                    <span className="text-white">{formatDate(detailModal.payment.createdAt)}</span>
+                                    <span className="text-gray-800">{formatDate(detailModal.payment.createdAt)}</span>
                                 </div>
                                 {detailModal.payment.processedAt && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Processed</span>
-                                        <span className="text-white">{formatDate(detailModal.payment.processedAt)}</span>
+                                        <span className="text-gray-800">{formatDate(detailModal.payment.processedAt)}</span>
                                     </div>
                                 )}
                                 {detailModal.payment.processedBy?.username && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Processed By</span>
-                                        <span className="text-white">{detailModal.payment.processedBy.username}</span>
+                                        <span className="text-gray-800">{detailModal.payment.processedBy.username}</span>
                                     </div>
                                 )}
                                 {detailModal.payment.adminRemarks && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Admin Remarks</span>
-                                        <span className="text-white">{detailModal.payment.adminRemarks}</span>
+                                        <span className="text-gray-800">{detailModal.payment.adminRemarks}</span>
                                     </div>
                                 )}
                             </div>
@@ -867,7 +867,7 @@ const PaymentManagement = () => {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setDetailModal({ show: false, payment: null })}
-                                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+                                className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-800 transition-colors"
                             >
                                 Close
                             </button>
@@ -878,7 +878,7 @@ const PaymentManagement = () => {
                                             setDetailModal({ show: false, payment: null });
                                             openActionModal(detailModal.payment, 'approve');
                                         }}
-                                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium transition-colors"
+                                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-gray-800 font-medium transition-colors"
                                     >
                                         Approve
                                     </button>
@@ -887,7 +887,7 @@ const PaymentManagement = () => {
                                             setDetailModal({ show: false, payment: null });
                                             openActionModal(detailModal.payment, 'reject');
                                         }}
-                                        className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+                                        className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-gray-800 font-medium transition-colors"
                                     >
                                         Reject
                                     </button>

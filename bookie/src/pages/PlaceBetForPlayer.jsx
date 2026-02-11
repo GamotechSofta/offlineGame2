@@ -189,14 +189,14 @@ const PlaceBetForPlayer = () => {
                 <button
                     type="button"
                     onClick={() => navigate(backUrl)}
-                    className="text-gray-400 hover:text-yellow-500 text-sm inline-flex items-center gap-1 mb-4"
+                    className="text-gray-400 hover:text-orange-500 text-sm inline-flex items-center gap-1 mb-4"
                 >
                     <FaArrowLeft className="w-3 h-3" /> Back to Game Types
                 </button>
 
                 {loadingMarket ? (
                     <div className="flex items-center justify-center py-16">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                     </div>
                 ) : !market ? (
                     <div className="text-center py-12">
@@ -205,11 +205,11 @@ const PlaceBetForPlayer = () => {
                 ) : (
                     <>
                         {/* Header with Market + Game Type */}
-                        <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 sm:p-5 mb-5">
+                        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-5">
                             <div className="flex items-center gap-3 flex-wrap">
-                                <FaDice className="text-yellow-500 w-6 h-6" />
+                                <FaDice className="text-orange-500 w-6 h-6" />
                                 <div>
-                                    <h1 className="text-xl sm:text-2xl font-bold text-white">{gameMeta.label}</h1>
+                                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{gameMeta.label}</h1>
                                     <p className="text-gray-400 text-sm">{market.marketName} • {market.displayResult || '***-**-***'}</p>
                                 </div>
                             </div>
@@ -219,7 +219,7 @@ const PlaceBetForPlayer = () => {
                         {success && (
                             <div className="mb-4 p-4 bg-green-900/50 border border-green-700 rounded-xl text-green-200 flex items-center justify-between">
                                 <span>{success}</span>
-                                <button type="button" onClick={() => setSuccess('')} className="text-green-400 hover:text-white ml-2">
+                                <button type="button" onClick={() => setSuccess('')} className="text-green-600 hover:text-gray-800 ml-2">
                                     <FaTimes className="w-4 h-4" />
                                 </button>
                             </div>
@@ -227,9 +227,9 @@ const PlaceBetForPlayer = () => {
 
                         {/* Error */}
                         {error && (
-                            <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-xl text-red-200 flex items-center justify-between">
+                            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 flex items-center justify-between">
                                 <span>{error}</span>
-                                <button type="button" onClick={() => setError('')} className="text-red-400 hover:text-white ml-2">
+                                <button type="button" onClick={() => setError('')} className="text-red-500 hover:text-gray-800 ml-2">
                                     <FaTimes className="w-4 h-4" />
                                 </button>
                             </div>
@@ -237,16 +237,16 @@ const PlaceBetForPlayer = () => {
 
                         <form onSubmit={handleSubmit} className="space-y-5">
                             {/* Player Selection */}
-                            <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 sm:p-5">
+                            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
                                 <div className="flex items-center justify-between mb-3">
-                                    <h2 className="text-base font-semibold text-yellow-500 flex items-center gap-2">
+                                    <h2 className="text-base font-semibold text-orange-500 flex items-center gap-2">
                                         <FaUser className="w-4 h-4" /> Select Player
                                     </h2>
                                     {selectedPlayer && !showPlayerList && (
                                         <button
                                             type="button"
                                             onClick={() => setShowPlayerList(true)}
-                                            className="text-xs text-yellow-500 hover:underline"
+                                            className="text-xs text-orange-500 hover:underline"
                                         >
                                             Change
                                         </button>
@@ -255,16 +255,16 @@ const PlaceBetForPlayer = () => {
 
                                 {/* Selected Player Badge */}
                                 {selectedPlayer && !showPlayerList && (
-                                    <div className="flex items-center gap-3 p-3 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
-                                        <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                                            <FaUser className="w-4 h-4 text-yellow-500" />
+                                    <div className="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                        <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
+                                            <FaUser className="w-4 h-4 text-orange-500" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-white font-semibold truncate">{selectedPlayer.username}</p>
+                                            <p className="text-gray-800 font-semibold truncate">{selectedPlayer.username}</p>
                                             <p className="text-xs text-gray-400">{selectedPlayer.phone || selectedPlayer.email || ''}</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-green-400 font-mono font-bold text-sm">₹{Number(selectedPlayer.walletBalance ?? 0).toLocaleString('en-IN')}</p>
+                                            <p className="text-green-600 font-mono font-bold text-sm">₹{Number(selectedPlayer.walletBalance ?? 0).toLocaleString('en-IN')}</p>
                                             <p className="text-xs text-gray-500">Balance</p>
                                         </div>
                                     </div>
@@ -278,7 +278,7 @@ const PlaceBetForPlayer = () => {
                                         ) : players.length === 0 ? (
                                             <p className="text-gray-400 text-sm">
                                                 No players found.{' '}
-                                                <button type="button" onClick={() => navigate('/add-user')} className="text-yellow-500 hover:underline">
+                                                <button type="button" onClick={() => navigate('/add-user')} className="text-orange-500 hover:underline">
                                                     Add a player first
                                                 </button>
                                             </p>
@@ -291,7 +291,7 @@ const PlaceBetForPlayer = () => {
                                                         placeholder="Search by name, email or phone..."
                                                         value={playerSearch}
                                                         onChange={(e) => setPlayerSearch(e.target.value)}
-                                                        className="w-full pl-9 pr-4 py-2.5 bg-gray-700/80 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 text-sm"
+                                                        className="w-full pl-9 pr-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-sm"
                                                     />
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
@@ -306,17 +306,17 @@ const PlaceBetForPlayer = () => {
                                                             }}
                                                             className={`text-left px-3 py-2.5 rounded-lg border transition-all text-sm ${
                                                                 selectedPlayerId === p._id
-                                                                    ? 'bg-yellow-500/20 border-yellow-500 text-yellow-300'
-                                                                    : 'bg-gray-700/50 border-gray-600 text-gray-300 hover:border-gray-500 hover:bg-gray-700'
+                                                                    ? 'bg-orange-500/20 border-orange-500 text-orange-600'
+                                                                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-100'
                                                             }`}
                                                         >
                                                             <div className="flex items-center justify-between">
                                                                 <span className="font-medium truncate">{p.username}</span>
-                                                                {selectedPlayerId === p._id && <FaCheck className="w-3 h-3 text-yellow-500 shrink-0 ml-1" />}
+                                                                {selectedPlayerId === p._id && <FaCheck className="w-3 h-3 text-orange-500 shrink-0 ml-1" />}
                                                             </div>
                                                             <div className="flex items-center gap-2 mt-0.5">
                                                                 <span className="text-xs text-gray-500">{p.phone || p.email || ''}</span>
-                                                                <span className="text-xs font-mono text-green-400 ml-auto">₹{Number(p.walletBalance ?? 0).toLocaleString('en-IN')}</span>
+                                                                <span className="text-xs font-mono text-green-600 ml-auto">₹{Number(p.walletBalance ?? 0).toLocaleString('en-IN')}</span>
                                                             </div>
                                                         </button>
                                                     ))}
@@ -331,8 +331,8 @@ const PlaceBetForPlayer = () => {
                             </div>
 
                             {/* Session */}
-                            <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 sm:p-5">
-                                <label className="block text-sm font-semibold text-yellow-500 mb-3">Session</label>
+                            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+                                <label className="block text-sm font-semibold text-orange-500 mb-3">Session</label>
                                 <div className="flex gap-2">
                                     {['open', 'close'].map((s) => (
                                         <button
@@ -341,8 +341,8 @@ const PlaceBetForPlayer = () => {
                                             onClick={() => setSession(s)}
                                             className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                                                 session === s
-                                                    ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20'
-                                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                    ? 'bg-orange-500 text-gray-800 shadow-lg shadow-orange-500/20'
+                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                             }`}
                                         >
                                             {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -352,9 +352,9 @@ const PlaceBetForPlayer = () => {
                             </div>
 
                             {/* Bet Entries */}
-                            <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 sm:p-5">
+                            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
                                 <div className="flex items-center justify-between mb-3">
-                                    <h2 className="text-base font-semibold text-yellow-500">
+                                    <h2 className="text-base font-semibold text-orange-500">
                                         Enter {gameMeta.label} Bets
                                     </h2>
                                     <span className="text-xs text-gray-500">{gameMeta.help}</span>
@@ -369,10 +369,10 @@ const PlaceBetForPlayer = () => {
                                                     value={bet.betNumber}
                                                     onChange={(e) => updateBet(idx, 'betNumber', e.target.value.replace(/[^0-9\-]/g, ''))}
                                                     placeholder={gameMeta.placeholder}
-                                                    className={`w-full px-3 py-2.5 bg-gray-700 border rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 font-mono ${
+                                                    className={`w-full px-3 py-2.5 bg-gray-100 border rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 font-mono ${
                                                         bet.betNumber && !validateBetNumber(bet.betNumber)
                                                             ? 'border-red-500'
-                                                            : 'border-gray-600'
+                                                            : 'border-gray-200'
                                                     }`}
                                                 />
                                             </div>
@@ -383,14 +383,14 @@ const PlaceBetForPlayer = () => {
                                                     value={bet.amount}
                                                     onChange={(e) => updateBet(idx, 'amount', e.target.value)}
                                                     placeholder="Amount ₹"
-                                                    className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                                                    className="w-full px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
                                                 />
                                             </div>
                                             {bets.length > 1 && (
                                                 <button
                                                     type="button"
                                                     onClick={() => removeBetRow(idx)}
-                                                    className="p-2 rounded-lg bg-red-900/50 text-red-400 hover:bg-red-800/50 transition-colors shrink-0"
+                                                    className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-800/50 transition-colors shrink-0"
                                                     title="Remove"
                                                 >
                                                     <FaTrash className="w-3.5 h-3.5" />
@@ -403,26 +403,26 @@ const PlaceBetForPlayer = () => {
                                 <button
                                     type="button"
                                     onClick={addBetRow}
-                                    className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors text-sm font-medium"
+                                    className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors text-sm font-medium"
                                 >
                                     <FaPlus className="w-3 h-3" /> Add More
                                 </button>
                             </div>
 
                             {/* Summary & Submit */}
-                            <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 sm:p-5">
+                            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
                                 <div className="grid grid-cols-3 gap-3 text-sm mb-4">
-                                    <div className="bg-gray-700/50 rounded-lg p-3 text-center">
+                                    <div className="bg-gray-50 rounded-lg p-3 text-center">
                                         <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Bets</p>
-                                        <p className="text-white font-mono font-bold text-lg">{validBets.length}</p>
+                                        <p className="text-gray-800 font-mono font-bold text-lg">{validBets.length}</p>
                                     </div>
-                                    <div className="bg-gray-700/50 rounded-lg p-3 text-center">
+                                    <div className="bg-gray-50 rounded-lg p-3 text-center">
                                         <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Total</p>
-                                        <p className="text-yellow-400 font-mono font-bold text-lg">₹{totalAmount.toLocaleString('en-IN')}</p>
+                                        <p className="text-orange-500 font-mono font-bold text-lg">₹{totalAmount.toLocaleString('en-IN')}</p>
                                     </div>
-                                    <div className="bg-gray-700/50 rounded-lg p-3 text-center">
+                                    <div className="bg-gray-50 rounded-lg p-3 text-center">
                                         <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Balance</p>
-                                        <p className="text-green-400 font-mono font-bold text-lg">₹{Number(selectedPlayer?.walletBalance ?? 0).toLocaleString('en-IN')}</p>
+                                        <p className="text-green-600 font-mono font-bold text-lg">₹{Number(selectedPlayer?.walletBalance ?? 0).toLocaleString('en-IN')}</p>
                                     </div>
                                 </div>
 
@@ -435,7 +435,7 @@ const PlaceBetForPlayer = () => {
                                 <button
                                     type="submit"
                                     disabled={placing || !selectedPlayerId || validBets.length === 0}
-                                    className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-bold py-3.5 px-4 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-yellow-500/20 text-base"
+                                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-gray-800 font-bold py-3.5 px-4 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-orange-500/20 text-base"
                                 >
                                     {placing ? (
                                         <span className="flex items-center justify-center gap-2">

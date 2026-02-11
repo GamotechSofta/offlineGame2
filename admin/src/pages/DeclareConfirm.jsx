@@ -144,7 +144,7 @@ const DeclareConfirm = () => {
                 <button
                     type="button"
                     onClick={handleBack}
-                    className="inline-flex items-center gap-2 text-gray-400 hover:text-yellow-500 text-xs sm:text-sm mb-4 transition-colors min-h-[44px] touch-manipulation"
+                    className="inline-flex items-center gap-2 text-gray-400 hover:text-orange-500 text-xs sm:text-sm mb-4 transition-colors min-h-[44px] touch-manipulation"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -152,36 +152,36 @@ const DeclareConfirm = () => {
                     Back to Add Result
                 </button>
 
-                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-2 break-words">{title}</h1>
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 mb-2 break-words">{title}</h1>
                 <p className="text-gray-400 text-xs sm:text-sm mb-4 sm:mb-6 truncate">{marketName}</p>
 
                 {error && (
-                    <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">{error}</div>
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>
                 )}
 
                 {loading ? (
                     <div className="flex items-center justify-center py-16">
-                        <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-600 border-t-yellow-500" />
+                        <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200 border-t-yellow-500" />
                     </div>
                 ) : data ? (
                     <>
-                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 sm:p-4 mb-4 sm:mb-6 overflow-hidden">
-                            <p className="text-amber-400 font-semibold text-sm sm:text-base break-words">Total payout to winning players: ₹{formatNum(data.totalWinAmount)}</p>
+                        <div className="rounded-xl border border-orange-200 bg-orange-500/10 p-3 sm:p-4 mb-4 sm:mb-6 overflow-hidden">
+                            <p className="text-orange-500 font-semibold text-sm sm:text-base break-words">Total payout to winning players: ₹{formatNum(data.totalWinAmount)}</p>
                             <p className="text-gray-400 text-xs sm:text-sm mt-1">{data.winningBets?.length ?? 0} winning bet(s)</p>
                         </div>
 
-                        <div className="rounded-xl border border-gray-700 bg-gray-800/80 shadow-lg overflow-hidden mb-4 sm:mb-6">
-                            <h2 className="text-base sm:text-lg font-bold text-yellow-500 bg-gray-800 px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-700">Winning players</h2>
+                        <div className="rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden mb-4 sm:mb-6">
+                            <h2 className="text-base sm:text-lg font-bold text-orange-500 bg-white px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200">Winning players</h2>
                             <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
                                 <table className="w-full text-xs sm:text-sm border-collapse min-w-[340px] sm:min-w-[480px]">
                                     <thead>
-                                        <tr className="bg-gray-700/70 border-b border-gray-600">
-                                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-yellow-500 text-[11px] sm:text-sm">#</th>
-                                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-gray-300 text-[11px] sm:text-sm">Username</th>
-                                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-gray-300 text-[11px] sm:text-sm">Bet type</th>
-                                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-gray-300 text-[11px] sm:text-sm">Bet number</th>
-                                            <th className="text-right py-2 sm:py-3 px-2 sm:px-3 font-semibold text-gray-300 text-[11px] sm:text-sm">Amount (₹)</th>
-                                            <th className="text-right py-2 sm:py-3 px-2 sm:px-3 font-semibold text-amber-400 text-[11px] sm:text-sm">Payout (₹)</th>
+                                        <tr className="bg-gray-100/70 border-b border-gray-200">
+                                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-orange-500 text-[11px] sm:text-sm">#</th>
+                                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-gray-600 text-[11px] sm:text-sm">Username</th>
+                                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-gray-600 text-[11px] sm:text-sm">Bet type</th>
+                                            <th className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-gray-600 text-[11px] sm:text-sm">Bet number</th>
+                                            <th className="text-right py-2 sm:py-3 px-2 sm:px-3 font-semibold text-gray-600 text-[11px] sm:text-sm">Amount (₹)</th>
+                                            <th className="text-right py-2 sm:py-3 px-2 sm:px-3 font-semibold text-orange-500 text-[11px] sm:text-sm">Payout (₹)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -191,13 +191,13 @@ const DeclareConfirm = () => {
                                             </tr>
                                         ) : (
                                             (data.winningBets || []).map((row, idx) => (
-                                                <tr key={idx} className="border-b border-gray-700 hover:bg-gray-700/30">
+                                                <tr key={idx} className="border-b border-gray-200 hover:bg-gray-100/30">
                                                     <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-400 text-[11px] sm:text-sm">{idx + 1}</td>
-                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-white text-[11px] sm:text-sm truncate max-w-[90px] sm:max-w-[120px] md:max-w-none">{row.username}</td>
-                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-300 capitalize text-[11px] sm:text-sm">{row.betType}</td>
+                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-800 text-[11px] sm:text-sm truncate max-w-[90px] sm:max-w-[120px] md:max-w-none">{row.username}</td>
+                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-600 capitalize text-[11px] sm:text-sm">{row.betType}</td>
                                                     <td className="py-2 sm:py-2.5 px-2 sm:px-3 font-mono text-amber-300 text-[11px] sm:text-sm">{row.betNumber}</td>
-                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-mono text-white text-[11px] sm:text-sm">{formatNum(row.amount)}</td>
-                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-mono font-semibold text-green-400 text-[11px] sm:text-sm">{formatNum(row.payout)}</td>
+                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-mono text-gray-800 text-[11px] sm:text-sm">{formatNum(row.amount)}</td>
+                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-mono font-semibold text-green-600 text-[11px] sm:text-sm">{formatNum(row.payout)}</td>
                                                 </tr>
                                             ))
                                         )}
@@ -211,14 +211,14 @@ const DeclareConfirm = () => {
                                 type="button"
                                 onClick={handleConfirmDeclare}
                                 disabled={declaring}
-                                className="w-full sm:w-auto px-4 sm:px-6 py-3 min-h-[44px] bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-black font-semibold rounded-lg shadow-lg disabled:opacity-50 transition-all touch-manipulation"
+                                className="w-full sm:w-auto px-4 sm:px-6 py-3 min-h-[44px] bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-gray-800 font-semibold rounded-lg shadow-lg disabled:opacity-50 transition-all touch-manipulation"
                             >
                                 {declaring ? 'Declaring...' : 'Confirm & Declare'}
                             </button>
                             <button
                                 type="button"
                                 onClick={handleBack}
-                                className="w-full sm:w-auto px-4 sm:px-6 py-3 min-h-[44px] bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg border border-gray-600 transition-colors touch-manipulation"
+                                className="w-full sm:w-auto px-4 sm:px-6 py-3 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg border border-gray-200 transition-colors touch-manipulation"
                             >
                                 Cancel
                             </button>
@@ -226,9 +226,9 @@ const DeclareConfirm = () => {
 
                         {/* Secret declare password modal */}
                         {showPasswordModal && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-4 overflow-y-auto">
-                                <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-xl max-w-md w-full p-4 sm:p-6 my-auto">
-                                    <h3 className="text-base sm:text-lg font-bold text-yellow-500 mb-2">Enter Secret Declare Password</h3>
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 sm:p-4 overflow-y-auto">
+                                <div className="bg-white rounded-xl border border-gray-200 shadow-xl max-w-md w-full p-4 sm:p-6 my-auto">
+                                    <h3 className="text-base sm:text-lg font-bold text-orange-500 mb-2">Enter Secret Declare Password</h3>
                                     <p className="text-gray-400 text-xs sm:text-sm mb-4">
                                         Please enter the secret password to confirm and declare this result.
                                     </p>
@@ -239,14 +239,14 @@ const DeclareConfirm = () => {
                                             onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
                                             placeholder="Secret password"
                                             autoFocus
-                                            className="w-full px-4 py-3 min-h-[44px] rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500 focus:border-transparent touch-manipulation"
+                                            className="w-full px-4 py-3 min-h-[44px] rounded-lg bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent touch-manipulation"
                                         />
-                                        {passwordError && <p className="text-red-400 text-xs sm:text-sm">{passwordError}</p>}
+                                        {passwordError && <p className="text-red-500 text-xs sm:text-sm">{passwordError}</p>}
                                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                                             <button
                                                 type="submit"
                                                 disabled={declaring}
-                                                className="flex-1 px-4 py-3 min-h-[44px] bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg disabled:opacity-50 touch-manipulation"
+                                                className="flex-1 px-4 py-3 min-h-[44px] bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold rounded-lg disabled:opacity-50 touch-manipulation"
                                             >
                                                 {declaring ? 'Declaring...' : 'Confirm & Declare'}
                                             </button>
@@ -254,7 +254,7 @@ const DeclareConfirm = () => {
                                                 type="button"
                                                 onClick={() => { setShowPasswordModal(false); setSecretPassword(''); setPasswordError(''); }}
                                                 disabled={declaring}
-                                                className="px-4 py-3 min-h-[44px] bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg border border-gray-600 touch-manipulation"
+                                                className="px-4 py-3 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg border border-gray-200 touch-manipulation"
                                             >
                                                 Cancel
                                             </button>

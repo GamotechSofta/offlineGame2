@@ -139,7 +139,7 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
             <aside
                 style={{ width: `${width}px` }}
                 className={`
-                    fixed top-0 right-0 h-screen bg-[#111215] border-l border-white/10 z-40
+                    fixed top-0 right-0 h-screen bg-white border-l border-gray-200 z-40
                     overflow-hidden flex flex-col
                     transform transition-transform duration-200 ease-in-out
                     xl:translate-x-0
@@ -157,15 +157,15 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                 >
                     {/* Visual indicator line */}
                     <div className={`w-[3px] h-12 rounded-full transition-colors ${
-                        isDragging ? 'bg-yellow-500' : 'bg-white/10 group-hover:bg-yellow-500/60'
+                        isDragging ? 'bg-orange-500' : 'bg-gray-200 group-hover:bg-orange-400'
                     }`} />
                 </div>
 
                 {/* Cart Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0 bg-[#111215]">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0 bg-white">
                     <div className="flex items-center gap-2">
-                        <FaShoppingCart className="w-4 h-4 text-yellow-500" />
-                        <h3 className="text-white font-bold text-sm">
+                        <FaShoppingCart className="w-4 h-4 text-orange-500" />
+                        <h3 className="text-gray-800 font-bold text-sm">
                             Bet Cart ({cartCount})
                         </h3>
                     </div>
@@ -174,7 +174,7 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                             <button
                                 type="button"
                                 onClick={clearCart}
-                                className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-colors"
+                                className="text-xs text-red-500 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
                             >
                                 Clear All
                             </button>
@@ -183,7 +183,7 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="xl:hidden p-1.5 rounded-lg hover:bg-white/10 text-gray-400"
+                            className="xl:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"
                             aria-label="Close cart"
                         >
                             <FaTimes className="w-4 h-4" />
@@ -193,20 +193,20 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
 
                 {/* Summary Stats */}
                 {cartCount > 0 && (
-                    <div className="px-4 py-2.5 border-b border-white/10 bg-[#1a1b1e] shrink-0">
+                    <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50 shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="text-xs text-gray-400">
-                                Total Bets: <span className="text-white font-bold">{cartCount}</span>
+                                Total Bets: <span className="text-gray-800 font-bold">{cartCount}</span>
                             </div>
                             <div className="text-xs text-gray-400">
-                                Total: <span className="text-[#f2c14e] font-bold">₹{cartTotal.toLocaleString('en-IN')}</span>
+                                Total: <span className="text-orange-500 font-bold">₹{cartTotal.toLocaleString('en-IN')}</span>
                             </div>
                         </div>
                     </div>
                 )}
 
                 {/* Cart Items — scrollable */}
-                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                <div className="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-3">
                     {cartCount === 0 ? (
                         <div className="text-center py-12 text-gray-500">
                             <FaShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-20" />
@@ -215,30 +215,30 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                         </div>
                     ) : (
                         Object.entries(groupedItems).map(([label, items]) => (
-                            <div key={label} className="bg-[#202124] rounded-xl border border-white/10 overflow-hidden">
-                                <div className="px-3 py-2 bg-white/5 border-b border-white/10 flex items-center justify-between">
+                            <div key={label} className="bg-gray-100 rounded-xl border border-gray-200 overflow-hidden">
+                                <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                                     <div>
-                                        <span className="text-yellow-500 font-semibold text-[10px] uppercase tracking-wide">
+                                        <span className="text-orange-500 font-semibold text-[10px] uppercase tracking-wide">
                                             {label}
                                         </span>
                                         <span className="text-gray-500 text-[10px] ml-1.5">
                                             ({items.length})
                                         </span>
                                     </div>
-                                    <span className="text-[#f2c14e] text-[10px] font-bold">
+                                    <span className="text-orange-500 text-[10px] font-bold">
                                         ₹{items.reduce((s, i) => s + i.points, 0).toLocaleString('en-IN')}
                                     </span>
                                 </div>
-                                <div className="divide-y divide-white/5">
+                                <div className="divide-y divide-gray-100">
                                     {items.map((item) => (
                                         <div key={item.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
-                                            <span className="text-white font-bold min-w-[40px]">{item.number}</span>
-                                            <span className="text-[#f2c14e] font-bold">₹{item.points}</span>
+                                            <span className="text-gray-800 font-bold min-w-[40px]">{item.number}</span>
+                                            <span className="text-orange-500 font-bold">₹{item.points}</span>
                                             <span className="text-gray-500 uppercase text-[10px]">{item.session}</span>
                                             <button
                                                 type="button"
                                                 onClick={() => removeFromCart(item.id)}
-                                                className="ml-auto p-1 text-red-400/60 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                                                className="ml-auto p-1 text-red-500/60 hover:text-red-300 hover:bg-red-50 rounded transition-colors"
                                             >
                                                 <FaTrash className="w-2.5 h-2.5" />
                                             </button>
@@ -252,12 +252,12 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
 
                 {/* Cart Footer — Place Bet button */}
                 {cartCount > 0 && (
-                    <div className="px-3 py-3 border-t border-white/10 bg-[#111215] shrink-0 space-y-2">
+                    <div className="px-3 py-3 border-t border-gray-200 bg-white shrink-0 space-y-2">
                         <div className="flex items-center justify-between text-xs px-1">
                             <span className="text-gray-400">
-                                Wallet: <span className="text-white font-bold">₹{Number(walletBalance || 0).toLocaleString('en-IN')}</span>
+                                Wallet: <span className="text-gray-800 font-bold">₹{Number(walletBalance || 0).toLocaleString('en-IN')}</span>
                             </span>
-                            <span className={`font-bold ${(walletBalance - cartTotal) < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                            <span className={`font-bold ${(walletBalance - cartTotal) < 0 ? 'text-red-500' : 'text-green-600'}`}>
                                 After: ₹{(walletBalance - cartTotal).toLocaleString('en-IN')}
                             </span>
                         </div>
@@ -267,14 +267,14 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                             disabled={!selectedPlayer}
                             className={`w-full font-bold py-3 rounded-xl shadow-lg transition-all text-sm ${
                                 selectedPlayer
-                                    ? 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] hover:from-[#e5c04a] hover:to-[#d4af37] active:scale-[0.98]'
-                                    : 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] opacity-50 cursor-not-allowed'
+                                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98]'
+                                    : 'bg-gradient-to-r from-orange-500 to-orange-600 text-white opacity-50 cursor-not-allowed'
                             }`}
                         >
                             Place All Bets
                         </button>
                         {!selectedPlayer && (
-                            <p className="text-[10px] text-amber-400/70 text-center">Select a player first</p>
+                            <p className="text-[10px] text-orange-500 text-center">Select a player first</p>
                         )}
                     </div>
                 )}
@@ -283,7 +283,7 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
             {/* Mobile backdrop */}
             {isOpen && (
                 <div
-                    className="xl:hidden fixed inset-0 bg-black/60 z-30"
+                    className="xl:hidden fixed inset-0 bg-black/30 z-30"
                     onClick={onClose}
                     aria-hidden
                 />
@@ -316,7 +316,7 @@ export const CartToggleButton = ({ onClick, cartCount = 0 }) => (
     <button
         type="button"
         onClick={onClick}
-        className="xl:hidden fixed bottom-6 right-4 z-30 w-14 h-14 bg-gradient-to-r from-[#d4af37] to-[#cca84d] hover:from-[#e5c04a] hover:to-[#d4af37] text-[#4b3608] rounded-full shadow-[0_4px_20px_rgba(212,175,55,0.4)] flex items-center justify-center transition-all active:scale-95"
+        className="xl:hidden fixed bottom-6 right-4 z-30 w-14 h-14 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-full shadow-lg shadow-orange-500/30 flex items-center justify-center transition-all active:scale-95"
         aria-label="Open cart"
     >
         <FaShoppingCart className="w-5 h-5" />

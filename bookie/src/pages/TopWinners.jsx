@@ -28,7 +28,7 @@ const TopWinners = () => {
         <Layout title="Top Winners">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-4 sm:mb-6">
                 <h1 className="text-2xl sm:text-3xl font-bold">Top Winners</h1>
-                <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800">
                     <option value="all">All Time</option>
                     <option value="today">Today</option>
                     <option value="week">This Week</option>
@@ -43,17 +43,17 @@ const TopWinners = () => {
                         <div className="col-span-full text-center py-12 text-gray-400">No winners found</div>
                     ) : (
                         winners.map((winner, i) => (
-                            <div key={winner._id} className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700/50">
+                            <div key={winner._id} className="bg-white rounded-lg p-4 sm:p-6 border border-gray-200">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${i === 0 ? 'bg-yellow-500 text-black' : i === 1 ? 'bg-gray-400 text-black' : i === 2 ? 'bg-orange-600 text-white' : 'bg-gray-700 text-white'}`}>{i + 1}</div>
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${i === 0 ? 'bg-orange-500 text-gray-800' : i === 1 ? 'bg-gray-400 text-gray-800' : i === 2 ? 'bg-orange-600 text-gray-800' : 'bg-gray-100 text-gray-800'}`}>{i + 1}</div>
                                     <div>
                                         <h3 className="font-semibold">{winner.userId?.username || 'Unknown'}</h3>
                                         <p className="text-sm text-gray-400">{winner.userId?.email || ''}</p>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <div className="flex justify-between"><span className="text-gray-400">Total Wins:</span><span className="font-semibold text-green-400">{winner.totalWins}</span></div>
-                                    <div className="flex justify-between"><span className="text-gray-400">Total Winnings:</span><span className="font-semibold text-yellow-400">₹{winner.totalWinnings}</span></div>
+                                    <div className="flex justify-between"><span className="text-gray-400">Total Wins:</span><span className="font-semibold text-green-600">{winner.totalWins}</span></div>
+                                    <div className="flex justify-between"><span className="text-gray-400">Total Winnings:</span><span className="font-semibold text-orange-500">₹{winner.totalWinnings}</span></div>
                                     <div className="flex justify-between"><span className="text-gray-400">Win Rate:</span><span className="font-semibold">{winner.winRate}%</span></div>
                                 </div>
                             </div>

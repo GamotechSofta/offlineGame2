@@ -93,11 +93,11 @@ const Wallet = () => {
                     <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Wallet Management</h1>
 
                     {/* Tabs */}
-                    <div className="flex gap-2 sm:gap-4 mb-4 sm:mb-6 border-b border-gray-700 overflow-x-auto">
+                    <div className="flex gap-2 sm:gap-4 mb-4 sm:mb-6 border-b border-gray-200 overflow-x-auto">
                         <button
                             onClick={() => setActiveTab('wallets')}
                             className={`pb-4 px-4 font-semibold ${
-                                activeTab === 'wallets' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-400'
+                                activeTab === 'wallets' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-400'
                             }`}
                         >
                             Player Wallets
@@ -105,7 +105,7 @@ const Wallet = () => {
                         <button
                             onClick={() => setActiveTab('transactions')}
                             className={`pb-4 px-4 font-semibold ${
-                                activeTab === 'transactions' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-400'
+                                activeTab === 'transactions' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-400'
                             }`}
                         >
                             Transactions
@@ -118,13 +118,13 @@ const Wallet = () => {
                         </div>
                     ) : activeTab === 'wallets' ? (
                         <div className="overflow-x-auto -mx-4 sm:mx-0">
-                            <div className="bg-gray-800 rounded-lg overflow-hidden min-w-[400px]">
+                            <div className="bg-white rounded-lg overflow-hidden min-w-[400px]">
                                 <table className="w-full text-sm sm:text-base">
-                                <thead className="bg-gray-700">
+                                <thead className="bg-gray-100">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Player</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Balance</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Actions</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Player</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Balance</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700">
@@ -136,9 +136,9 @@ const Wallet = () => {
                                         </tr>
                                     ) : (
                                         wallets.map((wallet) => (
-                                            <tr key={wallet._id} className="hover:bg-gray-700">
+                                            <tr key={wallet._id} className="hover:bg-gray-100">
                                                 <td className="px-6 py-4 text-sm">{wallet.userId?.username || wallet.userId}</td>
-                                                <td className="px-6 py-4 text-sm font-semibold text-yellow-400">₹{wallet.balance}</td>
+                                                <td className="px-6 py-4 text-sm font-semibold text-orange-500">₹{wallet.balance}</td>
                                                 <td className="px-6 py-4 text-sm">
                                                     <div className="flex gap-2">
                                                         <button
@@ -170,14 +170,14 @@ const Wallet = () => {
                         </div>
                     ) : (
                         <div className="overflow-x-auto -mx-4 sm:mx-0">
-                            <div className="bg-gray-800 rounded-lg overflow-hidden min-w-[400px]">
+                            <div className="bg-white rounded-lg overflow-hidden min-w-[400px]">
                                 <table className="w-full text-sm sm:text-base">
-                                <thead className="bg-gray-700">
+                                <thead className="bg-gray-100">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Player</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Type</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Amount</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Date</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Player</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Type</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Amount</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Date</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700">
@@ -189,7 +189,7 @@ const Wallet = () => {
                                         </tr>
                                     ) : (
                                         transactions.map((transaction) => (
-                                            <tr key={transaction._id} className="hover:bg-gray-700">
+                                            <tr key={transaction._id} className="hover:bg-gray-100">
                                                 <td className="px-6 py-4 text-sm">{transaction.userId?.username || transaction.userId}</td>
                                                 <td className="px-6 py-4 text-sm">
                                                     <span className={`px-2 py-1 rounded text-xs ${

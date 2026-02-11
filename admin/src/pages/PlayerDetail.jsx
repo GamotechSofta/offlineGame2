@@ -446,9 +446,9 @@ const PlayerDetail = () => {
         return (
             <AdminLayout onLogout={handleLogout} title="Player">
                 <div className="animate-pulse space-y-4">
-                    <div className="h-8 w-48 bg-gray-700 rounded" />
-                    <div className="h-24 bg-gray-700 rounded-xl" />
-                    <div className="h-10 w-full bg-gray-700 rounded" />
+                    <div className="h-8 w-48 bg-gray-100 rounded" />
+                    <div className="h-24 bg-gray-100 rounded-xl" />
+                    <div className="h-10 w-full bg-gray-100 rounded" />
                 </div>
             </AdminLayout>
         );
@@ -458,8 +458,8 @@ const PlayerDetail = () => {
         return (
             <AdminLayout onLogout={handleLogout} title="Player">
                 <div className="flex flex-col items-center justify-center min-h-[40vh]">
-                    <p className="text-red-400 mb-4">{error || 'Player not found'}</p>
-                    <Link to="/all-users" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500 text-black font-semibold">
+                    <p className="text-red-500 mb-4">{error || 'Player not found'}</p>
+                    <Link to="/all-users" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-gray-800 font-semibold">
                         <FaArrowLeft /> Back to All Players
                     </Link>
                 </div>
@@ -472,16 +472,16 @@ const PlayerDetail = () => {
             <div className="min-w-0 max-w-full">
             {/* Breadcrumb */}
             <div className="mb-4">
-                <Link to="/all-users" className="text-gray-400 hover:text-yellow-500 text-sm inline-flex items-center gap-1 mb-2">
+                <Link to="/all-users" className="text-gray-400 hover:text-orange-500 text-sm inline-flex items-center gap-1 mb-2">
                     <FaArrowLeft className="w-4 h-4" /> All Players
                 </Link>
                 <h1 className="text-2xl sm:text-3xl font-bold">Player <span className="text-gray-400 font-normal">» {player.username}</span></h1>
             </div>
 
             {/* Player info card - responsive, no overflow */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden mb-6 min-w-0">
-                <div className="px-4 sm:px-6 py-4 border-b border-gray-700 flex flex-wrap items-center justify-between gap-3">
-                    <h2 className="text-lg font-semibold text-yellow-500">Player Information</h2>
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6 min-w-0">
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-lg font-semibold text-orange-500">Player Information</h2>
                     <div className="flex flex-wrap items-center gap-3">
                         <button
                             type="button"
@@ -489,8 +489,8 @@ const PlayerDetail = () => {
                             disabled={togglingStatus || deletingPlayer}
                             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                 player.isActive !== false
-                                    ? 'bg-red-600 hover:bg-red-500 text-white'
-                                    : 'bg-green-600 hover:bg-green-500 text-white'
+                                    ? 'bg-red-600 hover:bg-red-500 text-gray-800'
+                                    : 'bg-green-600 hover:bg-green-500 text-gray-800'
                             }`}
                         >
                             {togglingStatus ? (
@@ -504,7 +504,7 @@ const PlayerDetail = () => {
                         <button
                             type="button"
                             onClick={() => { setWalletModalOpen(true); setWalletActionError(''); setWalletAdjustAmount(''); setWalletSetBalance(''); }}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-green-700 hover:bg-green-600 text-white transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-green-700 hover:bg-green-600 text-gray-800 transition-colors"
                             title="Edit wallet"
                         >
                             <FaWallet className="w-4 h-4" /> Edit Wallet
@@ -513,7 +513,7 @@ const PlayerDetail = () => {
                             type="button"
                             onClick={handleDeletePlayer}
                             disabled={deletingPlayer}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gray-600 hover:bg-red-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 hover:bg-red-600 text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Delete player"
                         >
                             {deletingPlayer ? <span className="animate-spin">⏳</span> : <><FaTrash className="w-4 h-4" /> Delete</>}
@@ -522,22 +522,22 @@ const PlayerDetail = () => {
                             to={`/all-users/${userId}/devices`}
                             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                                 Array.isArray(player.loginDevices) && player.loginDevices.length > 1
-                                    ? 'bg-red-900/50 border border-red-600 text-red-200 hover:bg-red-800 hover:border-red-500 hover:text-red-100'
-                                    : 'bg-gray-700 border border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-yellow-500/50 hover:text-yellow-400'
+                                    ? 'bg-red-50 border border-red-600 text-red-600 hover:bg-red-800 hover:border-red-500 hover:text-red-100'
+                                    : 'bg-gray-100 border border-gray-200 text-gray-200 hover:bg-gray-200 hover:border-orange-300 hover:text-orange-500'
                             }`}
                             title="Devices used"
                         >
                             Devices used
                             {Array.isArray(player.loginDevices) && player.loginDevices.length > 0 && (
                                 <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
-                                    player.loginDevices.length > 1 ? 'bg-red-800 text-red-200' : 'bg-gray-600 text-gray-300'
+                                    player.loginDevices.length > 1 ? 'bg-red-800 text-red-600' : 'bg-gray-200 text-gray-600'
                                 }`}>
                                     {player.loginDevices.length}
                                 </span>
                             )}
                         </Link>
                         {toggleMessage && (
-                            <span className={`text-sm ${toggleMessage.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
+                            <span className={`text-sm ${toggleMessage.includes('success') ? 'text-green-600' : 'text-red-500'}`}>
                                 {toggleMessage}
                             </span>
                         )}
@@ -547,53 +547,53 @@ const PlayerDetail = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 text-sm">
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">UserID</p>
-                            <p className="text-white font-mono truncate" title={player.username}>{player.username}</p>
+                            <p className="text-gray-800 font-mono truncate" title={player.username}>{player.username}</p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">First Name</p>
-                            <p className="text-white truncate">{player.username || '—'}</p>
+                            <p className="text-gray-800 truncate">{player.username || '—'}</p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Last Name</p>
-                            <p className="text-white">—</p>
+                            <p className="text-gray-800">—</p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Email</p>
-                            <p className="text-white truncate" title={player.email}>{player.email || '—'}</p>
+                            <p className="text-gray-800 truncate" title={player.email}>{player.email || '—'}</p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Name</p>
-                            <p className="text-white truncate">{player.username}</p>
+                            <p className="text-gray-800 truncate">{player.username}</p>
                         </div>
                         <div className="min-w-0 col-span-2 sm:col-span-1">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Id</p>
-                            <p className="text-gray-300 font-mono text-xs truncate break-all" title={player._id}>{player._id}</p>
+                            <p className="text-gray-600 font-mono text-xs truncate break-all" title={player._id}>{player._id}</p>
                         </div>
                         <div className="min-w-0 col-span-2 sm:col-span-1">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Device ID</p>
-                            <p className="text-gray-300 font-mono text-xs truncate break-all" title={displayDeviceId || ''}>{displayDeviceId || '—'}</p>
+                            <p className="text-gray-600 font-mono text-xs truncate break-all" title={displayDeviceId || ''}>{displayDeviceId || '—'}</p>
                         </div>
                         <div className="min-w-0 col-span-2 sm:col-span-1">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">IP Address</p>
-                            <p className="text-gray-300 font-mono text-xs truncate" title={player.lastLoginIp || ''}>{formatIpDisplay(player.lastLoginIp)}</p>
+                            <p className="text-gray-600 font-mono text-xs truncate" title={player.lastLoginIp || ''}>{formatIpDisplay(player.lastLoginIp)}</p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Status</p>
-                            <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${player.isActive !== false ? 'bg-green-900/50 text-green-400 border border-green-700' : 'bg-red-900/50 text-red-400 border border-red-700'}`}>
+                            <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${player.isActive !== false ? 'bg-green-900/50 text-green-600 border border-green-700' : 'bg-red-50 text-red-500 border border-red-200'}`}>
                                 {player.isActive !== false ? 'ALLOW' : 'SUSPENDED'}
                             </span>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Balance</p>
-                            <p className="text-green-400 font-mono font-semibold">{player.walletBalance ?? 0}</p>
+                            <p className="text-green-600 font-mono font-semibold">{player.walletBalance ?? 0}</p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Exchange Balance</p>
-                            <p className="text-gray-300">0</p>
+                            <p className="text-gray-600">0</p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Bonus Balance</p>
-                            <p className="text-gray-300">0</p>
+                            <p className="text-gray-600">0</p>
                         </div>
                     </div>
                 </div>
@@ -602,7 +602,7 @@ const PlayerDetail = () => {
             {/* Multiple devices warning (admin-only) – red when multiple devices */}
             {Array.isArray(player.loginDevices) && player.loginDevices.length > 1 && (
                 <div className="mb-4 min-w-0">
-                    <div className="rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-3 text-red-200 text-sm font-medium">
+                    <div className="rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-3 text-red-600 text-sm font-medium">
                         ⚠️ User has logged in from multiple devices
                     </div>
                 </div>
@@ -614,38 +614,38 @@ const PlayerDetail = () => {
                         <button
                             type="button"
                             onClick={() => setCalendarOpen((o) => !o)}
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-gray-200"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-200"
                         >
-                            <FaCalendarAlt className="w-4 h-4 text-yellow-500" />
+                            <FaCalendarAlt className="w-4 h-4 text-orange-500" />
                             {statementFrom && statementTo ? formatDateRange(statementFrom, statementTo) : 'Select Date'}
                         </button>
                         {calendarOpen && (
-                            <div className="absolute left-0 top-full mt-2 py-3 rounded-xl bg-gray-800 border border-gray-600 shadow-xl z-50 flex flex-col sm:flex-row gap-4 max-w-[100vw]">
+                            <div className="absolute left-0 top-full mt-2 py-3 rounded-xl bg-white border border-gray-200 shadow-xl z-50 flex flex-col sm:flex-row gap-4 max-w-[100vw]">
                                 <div className="min-w-0 sm:min-w-[200px] py-1">
                                     {STATEMENT_PRESETS.map((p) => (
                                         <button
                                             key={p.id}
                                             type="button"
                                             onClick={() => handlePresetSelect(p.id)}
-                                            className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2"
+                                            className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-100 flex items-center gap-2"
                                         >
-                                            {statementPreset === p.id ? <span className="text-yellow-500">●</span> : <span className="w-2" />}
+                                            {statementPreset === p.id ? <span className="text-orange-500">●</span> : <span className="w-2" />}
                                             {p.label}
                                         </button>
                                     ))}
                                 </div>
-                                <div className="border-t sm:border-t-0 sm:border-l border-gray-600 pt-3 sm:pt-0 sm:pl-4 pr-4 min-w-0 sm:min-w-[200px]">
+                                <div className="border-t sm:border-t-0 sm:border-l border-gray-200 pt-3 sm:pt-0 sm:pl-4 pr-4 min-w-0 sm:min-w-[200px]">
                                     <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Custom Date Range</div>
                                     <div className="space-y-2">
                                         <div>
                                             <label className="block text-xs text-gray-400 mb-1">From</label>
-                                            <input type="date" value={statementFrom} onChange={(e) => setStatementFrom(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                            <input type="date" value={statementFrom} onChange={(e) => setStatementFrom(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800" />
                                         </div>
                                         <div>
                                             <label className="block text-xs text-gray-400 mb-1">To</label>
-                                            <input type="date" value={statementTo} onChange={(e) => setStatementTo(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-sm text-white" />
+                                            <input type="date" value={statementTo} onChange={(e) => setStatementTo(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800" />
                                         </div>
-                                        <button type="button" onClick={handleDateApply} className="w-full py-2 rounded-lg bg-yellow-500 text-black font-semibold text-sm">
+                                        <button type="button" onClick={handleDateApply} className="w-full py-2 rounded-lg bg-orange-500 text-gray-800 font-semibold text-sm">
                                             Apply
                                         </button>
                                     </div>
@@ -656,12 +656,12 @@ const PlayerDetail = () => {
                 </div>
 
             {/* Tabs */}
-            <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-700 pb-2">
+            <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-2">
                 {TABS.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${activeTab === tab.id ? 'bg-yellow-500 text-black' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                        className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${activeTab === tab.id ? 'bg-orange-500 text-gray-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                     >
                         {tab.label}
                     </button>
@@ -669,7 +669,7 @@ const PlayerDetail = () => {
             </div>
 
             {/* Tab content - no horizontal scroll, responsive */}
-            <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden min-h-[200px] min-w-0 max-w-full">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-h-[200px] min-w-0 max-w-full">
                 {activeTab === 'statement' && (
                     <>
                         {loadingTab ? (
@@ -681,19 +681,19 @@ const PlayerDetail = () => {
                                 {/* Statement: cards with ALL detail - no side scroll */}
                                 <div className="divide-y divide-gray-700">
                                     {statementData.map((row, i) => (
-                                        <div key={i} className="p-4 sm:p-5 hover:bg-gray-700/20">
-                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-600/50">
-                                                <span className="text-yellow-400 font-mono font-medium">{row.name}</span>
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${row.status === 'WIN' || row.status === 'CREDIT' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>{row.status}</span>
+                                        <div key={i} className="p-4 sm:p-5 hover:bg-gray-100/20">
+                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-200">
+                                                <span className="text-orange-500 font-mono font-medium">{row.name}</span>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${row.status === 'WIN' || row.status === 'CREDIT' ? 'bg-green-900/50 text-green-600' : 'bg-red-50 text-red-500'}`}>{row.status}</span>
                                             </div>
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
                                                 <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Type</p><p className="text-gray-200 truncate">{row.type}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Name</p><p className="text-yellow-400 font-mono truncate">{row.name}</p></div>
+                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Name</p><p className="text-orange-500 font-mono truncate">{row.name}</p></div>
                                                 <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Status</p><p className="text-gray-200">{row.status}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Last Balance</p><p className="text-gray-300 font-mono">{row.lastBalance}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Credited</p><p className="text-green-400 font-mono">{row.credited || '—'}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Debited</p><p className="text-red-400 font-mono">{row.debited || '—'}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Running Balance</p><p className="text-white font-mono font-medium">{row.runningBalance}</p></div>
+                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Last Balance</p><p className="text-gray-600 font-mono">{row.lastBalance}</p></div>
+                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Credited</p><p className="text-green-600 font-mono">{row.credited || '—'}</p></div>
+                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Debited</p><p className="text-red-500 font-mono">{row.debited || '—'}</p></div>
+                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Running Balance</p><p className="text-gray-800 font-mono font-medium">{row.runningBalance}</p></div>
                                                 <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Last Bonus Balance</p><p className="text-gray-400 font-mono">{row.lastBonusBalance ?? 0}</p></div>
                                                 <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Running Bonus Balance</p><p className="text-gray-400 font-mono">{row.runningBonusBalance ?? 0}</p></div>
                                                 <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Last Exchange Balance</p><p className="text-gray-400 font-mono">{row.lastExchangeBalance ?? 0}</p></div>
@@ -717,9 +717,9 @@ const PlayerDetail = () => {
                         ) : (
                             <div className="divide-y divide-gray-700 min-w-0">
                                 {walletTx.map((t) => (
-                                    <div key={t._id} className="p-4 hover:bg-gray-700/20 flex flex-wrap items-center justify-between gap-3">
+                                    <div key={t._id} className="p-4 hover:bg-gray-100/20 flex flex-wrap items-center justify-between gap-3">
                                         <div className="min-w-0 flex-1">
-                                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium mr-2 ${t.type === 'credit' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>{t.type}</span>
+                                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium mr-2 ${t.type === 'credit' ? 'bg-green-900/50 text-green-600' : 'bg-red-50 text-red-500'}`}>{t.type}</span>
                                             <span className="text-gray-200 text-sm break-words">{t.description || '—'}</span>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
@@ -742,15 +742,15 @@ const PlayerDetail = () => {
                         ) : (
                             <div className="divide-y divide-gray-700 min-w-0">
                                 {bets.map((b) => (
-                                    <div key={b._id} className="p-4 hover:bg-gray-700/20">
+                                    <div key={b._id} className="p-4 hover:bg-gray-100/20">
                                         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                                            <span className="text-yellow-400 font-mono font-medium">{b.betNumber}</span>
-                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${b.status === 'won' ? 'bg-green-900/50 text-green-400' : b.status === 'lost' ? 'bg-red-900/50 text-red-400' : 'bg-gray-600 text-gray-300'}`}>{b.status}</span>
+                                            <span className="text-orange-500 font-mono font-medium">{b.betNumber}</span>
+                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${b.status === 'won' ? 'bg-green-900/50 text-green-600' : b.status === 'lost' ? 'bg-red-50 text-red-500' : 'bg-gray-200 text-gray-600'}`}>{b.status}</span>
                                         </div>
                                         <p className="text-gray-400 text-xs mb-2">{b.marketId?.marketName || '—'} · {b.betType || '—'}</p>
                                         <div className="flex flex-wrap gap-4 text-sm">
-                                            <span><span className="text-gray-500">Amount</span> <span className="text-white font-mono">{formatCurrency(b.amount)}</span></span>
-                                            <span><span className="text-gray-500">Payout</span> <span className="text-green-400 font-mono">{formatCurrency(b.payout)}</span></span>
+                                            <span><span className="text-gray-500">Amount</span> <span className="text-gray-800 font-mono">{formatCurrency(b.amount)}</span></span>
+                                            <span><span className="text-gray-500">Payout</span> <span className="text-green-600 font-mono">{formatCurrency(b.payout)}</span></span>
                                             <span className="text-gray-400 text-xs">{new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</span>
                                         </div>
                                     </div>
@@ -763,12 +763,12 @@ const PlayerDetail = () => {
                 {activeTab === 'profile' && (
                     <div className="p-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
-                            <div><p className="text-gray-500 text-sm">Name</p><p className="text-white">{player.username}</p></div>
-                            <div><p className="text-gray-500 text-sm">Email</p><p className="text-white">{player.email}</p></div>
-                            <div><p className="text-gray-500 text-sm">Phone</p><p className="text-white">{player.phone || '—'}</p></div>
-                            <div><p className="text-gray-500 text-sm">Role</p><p className="text-white capitalize">{player.role || 'Player'}</p></div>
-                            <div><p className="text-gray-500 text-sm">Source</p><p className="text-white">{player.source === 'bookie' ? 'Bookie' : 'Super Admin'}</p></div>
-                            <div><p className="text-gray-500 text-sm">Created</p><p className="text-white">{player.createdAt ? new Date(player.createdAt).toLocaleString('en-IN') : '—'}</p></div>
+                            <div><p className="text-gray-500 text-sm">Name</p><p className="text-gray-800">{player.username}</p></div>
+                            <div><p className="text-gray-500 text-sm">Email</p><p className="text-gray-800">{player.email}</p></div>
+                            <div><p className="text-gray-500 text-sm">Phone</p><p className="text-gray-800">{player.phone || '—'}</p></div>
+                            <div><p className="text-gray-500 text-sm">Role</p><p className="text-gray-800 capitalize">{player.role || 'Player'}</p></div>
+                            <div><p className="text-gray-500 text-sm">Source</p><p className="text-gray-800">{player.source === 'bookie' ? 'Bookie' : 'Super Admin'}</p></div>
+                            <div><p className="text-gray-500 text-sm">Created</p><p className="text-gray-800">{player.createdAt ? new Date(player.createdAt).toLocaleString('en-IN') : '—'}</p></div>
                         </div>
                     </div>
                 )}
@@ -777,19 +777,19 @@ const PlayerDetail = () => {
 
             {/* Edit Wallet Modal */}
             {walletModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60">
-                    <div className="bg-gray-800 rounded-xl border border-gray-600 shadow-xl w-full max-w-md">
-                        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-yellow-500">Edit Wallet</h3>
-                            <button type="button" onClick={() => setWalletModalOpen(false)} className="text-gray-400 hover:text-white p-1">×</button>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
+                        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-orange-500">Edit Wallet</h3>
+                            <button type="button" onClick={() => setWalletModalOpen(false)} className="text-gray-400 hover:text-gray-800 p-1">×</button>
                         </div>
                         <div className="p-4 space-y-4">
-                            <div className="rounded-lg bg-gray-700/50 px-3 py-2">
+                            <div className="rounded-lg bg-gray-50 px-3 py-2">
                                 <p className="text-gray-400 text-xs uppercase tracking-wider">Current Balance</p>
-                                <p className="text-green-400 font-mono font-bold text-xl">{formatCurrency(player?.walletBalance ?? 0)}</p>
+                                <p className="text-green-600 font-mono font-bold text-xl">{formatCurrency(player?.walletBalance ?? 0)}</p>
                             </div>
                             {walletActionError && (
-                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-200 text-sm px-3 py-2">{walletActionError}</div>
+                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-600 text-sm px-3 py-2">{walletActionError}</div>
                             )}
                             <div>
                                 <p className="text-gray-400 text-sm mb-2">Add (Credit) or Deduct (Debit)</p>
@@ -801,10 +801,10 @@ const PlayerDetail = () => {
                                         placeholder="Amount"
                                         value={walletAdjustAmount}
                                         onChange={(e) => setWalletAdjustAmount(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                                        className="flex-1 px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500"
+                                        className="flex-1 px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400"
                                     />
-                                    <button type="button" onClick={() => handleWalletAdjust('credit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold disabled:opacity-50">Add</button>
-                                    <button type="button" onClick={() => handleWalletAdjust('debit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold disabled:opacity-50">Deduct</button>
+                                    <button type="button" onClick={() => handleWalletAdjust('credit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-gray-800 font-semibold disabled:opacity-50">Add</button>
+                                    <button type="button" onClick={() => handleWalletAdjust('debit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-gray-800 font-semibold disabled:opacity-50">Deduct</button>
                                 </div>
                             </div>
                         </div>
@@ -814,16 +814,16 @@ const PlayerDetail = () => {
 
             {/* Secret password modal for suspend/delete */}
             {showPasswordModal && (pendingAction === 'suspend' || pendingAction === 'delete') && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60">
-                    <div className="bg-gray-800 rounded-xl border border-gray-600 shadow-xl w-full max-w-md">
-                        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-yellow-500">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
+                        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-orange-500">
                                 {pendingAction === 'suspend' ? 'Confirm Suspend/Unsuspend' : 'Confirm Delete'}
                             </h3>
-                            <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="text-gray-400 hover:text-white p-1">×</button>
+                            <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="text-gray-400 hover:text-gray-800 p-1">×</button>
                         </div>
                         <form onSubmit={handlePasswordSubmit} className="p-4 space-y-4">
-                            <p className="text-gray-300 text-sm">
+                            <p className="text-gray-600 text-sm">
                                 {pendingAction === 'suspend' ? 'Enter secret declare password to suspend/unsuspend this player.' : 'Enter secret declare password to delete this player.'}
                             </p>
                             <input
@@ -831,15 +831,15 @@ const PlayerDetail = () => {
                                 placeholder="Secret declare password"
                                 value={secretPassword}
                                 onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
-                                className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500"
+                                className="w-full px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400"
                                 autoFocus
                             />
                             {passwordError && (
-                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-200 text-sm px-3 py-2">{passwordError}</div>
+                                <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-600 text-sm px-3 py-2">{passwordError}</div>
                             )}
                             <div className="flex gap-2 justify-end">
-                                <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold">Cancel</button>
-                                <button type="submit" disabled={togglingStatus || deletingPlayer} className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-black font-semibold disabled:opacity-50">
+                                <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-500 text-gray-800 font-semibold">Cancel</button>
+                                <button type="submit" disabled={togglingStatus || deletingPlayer} className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-gray-800 font-semibold disabled:opacity-50">
                                     {togglingStatus || deletingPlayer ? <span className="animate-spin">⏳</span> : 'Confirm'}
                                 </button>
                             </div>

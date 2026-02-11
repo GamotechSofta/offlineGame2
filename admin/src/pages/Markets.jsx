@@ -98,7 +98,7 @@ const Markets = () => {
         <AdminLayout onLogout={handleLogout} title="Markets">
             <div className="min-w-0">
                 {error && (
-                    <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm sm:text-base">
+                    <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm sm:text-base">
                         {error}
                     </div>
                 )}
@@ -117,8 +117,8 @@ const Markets = () => {
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`inline-flex items-center gap-2 px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base transition-all ${
                                     isActive
-                                        ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
-                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white border border-gray-600'
+                                        ? 'bg-orange-500 text-gray-800 shadow-lg shadow-orange-500/20'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800 border border-gray-200'
                                 }`}
                             >
                                 <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -144,11 +144,11 @@ const Markets = () => {
                 )}
 
                 {activeTab === 'king' && (
-                    <section className="rounded-2xl border border-gray-700 bg-gray-800/50 p-8 text-center">
-                        <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
-                            <FaCrown className="w-8 h-8 text-amber-400" />
+                    <section className="rounded-2xl border border-gray-200 bg-white p-8 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-orange-500/20 flex items-center justify-center mx-auto mb-4">
+                            <FaCrown className="w-8 h-8 text-orange-500" />
                         </div>
-                        <h2 className="text-lg font-bold text-white mb-2">King Bazaar Market</h2>
+                        <h2 className="text-lg font-bold text-gray-800 mb-2">King Bazaar Market</h2>
                         <p className="text-gray-500 text-sm max-w-md mx-auto">King Bazaar market management. Configure and manage King Bazaar markets here.</p>
                     </section>
                 )}
@@ -161,13 +161,13 @@ const Markets = () => {
                     ) : (
                         <section>
                             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                                <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                                <h2 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
                                     <span className="inline-block w-1 h-6 sm:h-7 bg-gray-500 rounded-full" />
                                     Main / Daily Markets
                                 </h2>
                                 <button
                                     onClick={handleCreate}
-                                    className="w-full sm:w-auto px-4 py-3 sm:py-2.5 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-xl transition-colors text-sm sm:text-base touch-manipulation"
+                                    className="w-full sm:w-auto px-4 py-3 sm:py-2.5 bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold rounded-xl transition-colors text-sm sm:text-base touch-manipulation"
                                 >
                                     + Add Market
                                 </button>

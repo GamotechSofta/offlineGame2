@@ -41,7 +41,7 @@ const Markets = () => {
         <Layout title="Markets">
             <>
                 <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Markets (View Only)</h1>
-                {error && <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">{error}</div>}
+                {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">{error}</div>}
                 {loading ? (
                     <p className="text-gray-400 py-12 text-center">Loading markets...</p>
                 ) : (
@@ -49,18 +49,18 @@ const Markets = () => {
                         {markets.map((market) => {
                             const { status, color } = getMarketStatus(market);
                             return (
-                                <div key={market._id} className="bg-gray-800 rounded-lg border border-gray-700/50 p-4 sm:p-6">
-                                    <div className={`${color} text-white text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4`}>
+                                <div key={market._id} className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                                    <div className={`${color} text-gray-800 text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4`}>
                                         {status === 'open' && 'OPEN'}
                                         {status === 'running' && 'CLOSED IS RUNNING'}
                                         {status === 'closed' && 'CLOSED'}
                                     </div>
-                                    <h3 className="text-xl font-bold text-white mb-2">{market.marketName}</h3>
-                                    <div className="space-y-2 text-sm text-gray-300">
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">{market.marketName}</h3>
+                                    <div className="space-y-2 text-sm text-gray-600">
                                         <p><span className="font-semibold">Opening:</span> {market.startingTime}</p>
                                         <p><span className="font-semibold">Closing:</span> {market.closingTime}</p>
-                                        <p><span className="font-semibold">Result:</span> <span className="text-yellow-400 font-mono">{market.displayResult || '***-**-***'}</span></p>
-                                        {market.winNumber && <p><span className="font-semibold">Win Number:</span> <span className="text-green-400 font-mono">{market.winNumber}</span></p>}
+                                        <p><span className="font-semibold">Result:</span> <span className="text-orange-500 font-mono">{market.displayResult || '***-**-***'}</span></p>
+                                        {market.winNumber && <p><span className="font-semibold">Win Number:</span> <span className="text-green-600 font-mono">{market.winNumber}</span></p>}
                                     </div>
                                 </div>
                             );

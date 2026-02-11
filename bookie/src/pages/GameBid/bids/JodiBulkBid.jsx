@@ -120,12 +120,12 @@ const JodiBulkBid = ({ title, gameType, betType }) => {
         >
             <div className="px-2 sm:px-4 md:px-4 py-1 md:py-1 w-full">
                 {warning && (
-                    <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-black/95 border border-green-500/50 text-green-400 rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md backdrop-blur-sm">
+                    <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-green-200 text-green-600 rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md backdrop-blur-sm">
                         {warning}
                     </div>
                 )}
 
-                <div className="bg-[#202124] border border-white/10 rounded-2xl p-2 sm:p-3 md:p-3 overflow-hidden w-full">
+                <div className="bg-gray-100 border border-gray-200 rounded-2xl p-2 sm:p-3 md:p-3 overflow-hidden w-full">
                     <div className="overflow-x-auto md:overflow-x-hidden scrollbar-hidden">
                         <div
                             className="grid w-full gap-[2px] sm:gap-1 md:gap-1"
@@ -138,7 +138,7 @@ const JodiBulkBid = ({ title, gameType, betType }) => {
                             <div className="h-6 md:h-7" />
                             <div className="h-6 md:h-7" />
                             {DIGITS.map((c) => (
-                                <div key={`h-${c}`} className="h-6 md:h-7 w-full flex items-center justify-center text-[#f2c14e] font-bold text-[10px] md:text-sm">
+                                <div key={`h-${c}`} className="h-6 md:h-7 w-full flex items-center justify-center text-orange-500 font-bold text-[10px] md:text-sm">
                                     {c}
                                 </div>
                             ))}
@@ -159,7 +159,7 @@ const JodiBulkBid = ({ title, gameType, betType }) => {
                                     onChange={(e) => setColBulk((p) => ({ ...p, [c]: sanitizePoints(e.target.value) }))}
                                     onBlur={() => { if (colBulk[c]) applyCol(c, colBulk[c]); }}
                                     onKeyDown={(e) => { if (e.key === 'Enter' && colBulk[c]) applyCol(c, colBulk[c]); }}
-                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-black/40 border border-white/10 text-white rounded text-[9px] md:text-xs text-center placeholder:text-white/15 focus:outline-none focus:border-[#d4af37]"
+                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-gray-100 border border-gray-200 text-gray-800 rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 focus:outline-none focus:border-orange-500"
                                 />
                             ))}
 
@@ -167,7 +167,7 @@ const JodiBulkBid = ({ title, gameType, betType }) => {
                             {DIGITS.map((r) => (
                                 <React.Fragment key={`row-${r}`}>
                                     <div className="flex items-center gap-1 min-w-0">
-                                        <div className="w-4 md:w-6 h-6 md:h-7 flex items-center justify-center text-[#f2c14e] font-bold text-[10px] md:text-sm">
+                                        <div className="w-4 md:w-6 h-6 md:h-7 flex items-center justify-center text-orange-500 font-bold text-[10px] md:text-sm">
                                             {r}
                                         </div>
                                         <input
@@ -178,7 +178,7 @@ const JodiBulkBid = ({ title, gameType, betType }) => {
                                             onChange={(e) => setRowBulk((p) => ({ ...p, [r]: sanitizePoints(e.target.value) }))}
                                             onBlur={() => { if (rowBulk[r]) applyRow(r, rowBulk[r]); }}
                                             onKeyDown={(e) => { if (e.key === 'Enter' && rowBulk[r]) applyRow(r, rowBulk[r]); }}
-                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-black/40 border border-white/10 text-white rounded text-[9px] md:text-xs text-center placeholder:text-white/15 focus:outline-none focus:border-[#d4af37]"
+                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 focus:outline-none focus:border-orange-500"
                                         />
                                     </div>
                                     <div className="h-6 md:h-7" />
@@ -187,7 +187,7 @@ const JodiBulkBid = ({ title, gameType, betType }) => {
                                         const key = `${r}${c}`;
                                         return (
                                             <div key={key} className="flex flex-col items-center justify-center">
-                                                <div className="text-[8px] md:text-[10px] leading-none text-white/30 mb-0.5 select-none">
+                                                <div className="text-[8px] md:text-[10px] leading-none text-gray-400 mb-0.5 select-none">
                                                     {key}
                                                 </div>
                                                 <input
@@ -200,7 +200,7 @@ const JodiBulkBid = ({ title, gameType, betType }) => {
                                                             [key]: sanitizePoints(e.target.value),
                                                         }))
                                                     }
-                                                    className="no-spinner h-6 md:h-7 w-full bg-black/40 border border-white/10 text-white rounded text-[9px] md:text-xs text-center focus:outline-none focus:border-[#d4af37]"
+                                                    className="no-spinner h-6 md:h-7 w-full bg-gray-100 border border-gray-200 text-gray-800 rounded text-[9px] md:text-xs text-center focus:outline-none focus:border-orange-500"
                                                 />
                                             </div>
                                         );
@@ -219,8 +219,8 @@ const JodiBulkBid = ({ title, gameType, betType }) => {
                         disabled={!canSubmit}
                         className={`w-full font-bold text-base py-4 min-h-[56px] rounded-xl shadow-lg transition-all ${
                             canSubmit
-                                ? 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] hover:from-[#e5c04a] hover:to-[#d4af37] active:scale-[0.98]'
-                                : 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] opacity-50 cursor-not-allowed'
+                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98]'
+                                : 'bg-gradient-to-r from-orange-500 to-orange-600 text-white opacity-50 cursor-not-allowed'
                         }`}
                     >
                         Add to Cart

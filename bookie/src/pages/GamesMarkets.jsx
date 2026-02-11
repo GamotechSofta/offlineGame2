@@ -37,9 +37,9 @@ const GamesMarkets = () => {
     const getMarketStatus = (market) => {
         const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
         const hasClosing = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
-        if (hasOpening && hasClosing) return { status: 'closed', label: 'CLOSED', color: 'bg-red-500', textColor: 'text-red-400', borderColor: 'border-red-500/30' };
-        if (hasOpening && !hasClosing) return { status: 'running', label: 'RUNNING', color: 'bg-yellow-500', textColor: 'text-yellow-400', borderColor: 'border-yellow-500/30' };
-        return { status: 'open', label: 'OPEN', color: 'bg-green-500', textColor: 'text-green-400', borderColor: 'border-green-500/30' };
+        if (hasOpening && hasClosing) return { status: 'closed', label: 'CLOSED', color: 'bg-red-500', textColor: 'text-red-500', borderColor: 'border-red-500/30' };
+        if (hasOpening && !hasClosing) return { status: 'running', label: 'RUNNING', color: 'bg-orange-500', textColor: 'text-orange-500', borderColor: 'border-orange-500/30' };
+        return { status: 'open', label: 'OPEN', color: 'bg-green-500', textColor: 'text-green-600', borderColor: 'border-green-200' };
     };
 
     // Only show markets that are open or running (not fully closed)
@@ -66,19 +66,19 @@ const GamesMarkets = () => {
                 {/* Header */}
                 <div className="mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
-                        <FaDice className="text-yellow-500" />
+                        <FaDice className="text-orange-500" />
                         Games
                     </h1>
                     <p className="text-gray-400 text-sm mt-1">Select a market to place bets for your players</p>
                 </div>
 
                 {error && (
-                    <div className="mb-4 p-4 bg-red-900/50 border border-red-700 rounded-xl text-red-200">{error}</div>
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600">{error}</div>
                 )}
 
                 {loading ? (
                     <div className="flex items-center justify-center py-16">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                     </div>
                 ) : (
                     <>
@@ -91,7 +91,7 @@ const GamesMarkets = () => {
                             </div>
                         ) : (
                             <>
-                                <h2 className="text-lg font-semibold text-green-400 mb-3 flex items-center gap-2">
+                                <h2 className="text-lg font-semibold text-green-600 mb-3 flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
                                     Open Markets ({availableMarkets.length})
                                 </h2>
@@ -103,29 +103,29 @@ const GamesMarkets = () => {
                                                 key={market._id}
                                                 type="button"
                                                 onClick={() => handleMarketClick(market._id)}
-                                                className={`group text-left bg-gray-800 hover:bg-gray-750 rounded-xl border ${borderColor} hover:border-yellow-500/50 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/10`}
+                                                className={`group text-left bg-white hover:bg-gray-50 rounded-xl border ${borderColor} hover:border-orange-300 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-orange-500/10`}
                                             >
                                                 <div className="flex items-start justify-between mb-3">
-                                                    <span className={`${color} text-white text-xs font-bold px-2.5 py-1 rounded-full`}>
+                                                    <span className={`${color} text-gray-800 text-xs font-bold px-2.5 py-1 rounded-full`}>
                                                         {label}
                                                     </span>
-                                                    <FaChevronRight className="w-4 h-4 text-gray-600 group-hover:text-yellow-500 transition-colors" />
+                                                    <FaChevronRight className="w-4 h-4 text-gray-600 group-hover:text-orange-500 transition-colors" />
                                                 </div>
-                                                <h3 className="text-lg font-bold text-white mb-2 group-hover:text-yellow-400 transition-colors">
+                                                <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-orange-500 transition-colors">
                                                     {market.marketName}
                                                 </h3>
                                                 <div className="space-y-1.5 text-sm">
                                                     <div className="flex items-center justify-between text-gray-400">
                                                         <span>Timing</span>
-                                                        <span className="text-gray-300 font-medium">{market.startingTime} - {market.closingTime}</span>
+                                                        <span className="text-gray-600 font-medium">{market.startingTime} - {market.closingTime}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-gray-400">
                                                         <span>Result</span>
-                                                        <span className="text-yellow-400 font-mono font-bold">{market.displayResult || '***-**-***'}</span>
+                                                        <span className="text-orange-500 font-mono font-bold">{market.displayResult || '***-**-***'}</span>
                                                     </div>
                                                 </div>
-                                                <div className="mt-3 pt-3 border-t border-gray-700/50">
-                                                    <span className="text-xs text-yellow-500 font-semibold group-hover:text-yellow-400">
+                                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                                    <span className="text-xs text-orange-500 font-semibold group-hover:text-orange-500">
                                                         Click to play games →
                                                     </span>
                                                 </div>
@@ -139,7 +139,7 @@ const GamesMarkets = () => {
                         {/* Closed Markets */}
                         {closedMarkets.length > 0 && (
                             <>
-                                <h2 className="text-lg font-semibold text-red-400 mb-3 flex items-center gap-2">
+                                <h2 className="text-lg font-semibold text-red-500 mb-3 flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-red-400"></span>
                                     Closed Markets ({closedMarkets.length})
                                 </h2>
@@ -147,10 +147,10 @@ const GamesMarkets = () => {
                                     {closedMarkets.map((market) => (
                                         <div
                                             key={market._id}
-                                            className="text-left bg-gray-800/50 rounded-xl border border-red-500/20 p-5 cursor-not-allowed"
+                                            className="text-left bg-white rounded-xl border border-red-500/20 p-5 cursor-not-allowed"
                                         >
                                             <div className="flex items-start justify-between mb-3">
-                                                <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                                <span className="bg-red-500 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-full">
                                                     CLOSED
                                                 </span>
                                             </div>
@@ -162,7 +162,7 @@ const GamesMarkets = () => {
                                                 </div>
                                                 <div className="flex items-center justify-between text-gray-500">
                                                     <span>Result</span>
-                                                    <span className="text-yellow-400/60 font-mono font-bold">{market.displayResult || '***-**-***'}</span>
+                                                    <span className="text-orange-500/60 font-mono font-bold">{market.displayResult || '***-**-***'}</span>
                                                 </div>
                                             </div>
                                         </div>

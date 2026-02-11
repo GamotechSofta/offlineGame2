@@ -48,7 +48,7 @@ const TopWinners = () => {
                         <select
                             value={timeRange}
                             onChange={(e) => setTimeRange(e.target.value)}
-                            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                            className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800"
                         >
                             <option value="all">All Time</option>
                             <option value="today">Today</option>
@@ -71,15 +71,15 @@ const TopWinners = () => {
                                 winners.map((winner, index) => (
                                     <div
                                         key={winner._id}
-                                        className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700"
+                                        className="bg-white rounded-lg p-4 sm:p-6 border border-gray-200"
                                     >
                                         <div className="flex items-center justify-between mb-4">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${
-                                                    index === 0 ? 'bg-yellow-500 text-black' :
-                                                    index === 1 ? 'bg-gray-400 text-black' :
-                                                    index === 2 ? 'bg-orange-600 text-white' :
-                                                    'bg-gray-700 text-white'
+                                                    index === 0 ? 'bg-orange-500 text-gray-800' :
+                                                    index === 1 ? 'bg-gray-400 text-gray-800' :
+                                                    index === 2 ? 'bg-orange-600 text-gray-800' :
+                                                    'bg-gray-100 text-gray-800'
                                                 }`}>
                                                     {index + 1}
                                                 </div>
@@ -92,11 +92,11 @@ const TopWinners = () => {
                                         <div className="space-y-2">
                                             <div className="flex justify-between">
                                                 <span className="text-gray-400">Total Wins:</span>
-                                                <span className="font-semibold text-green-400">{winner.totalWins}</span>
+                                                <span className="font-semibold text-green-600">{winner.totalWins}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-gray-400">Total Winnings:</span>
-                                                <span className="font-semibold text-yellow-400">₹{winner.totalWinnings}</span>
+                                                <span className="font-semibold text-orange-500">₹{winner.totalWinnings}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-gray-400">Win Rate:</span>

@@ -15,18 +15,18 @@ const Layout = ({ children, title }) => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 text-white">
+        <div className="min-h-screen bg-gray-50 text-gray-800">
             {/* Mobile header */}
-            <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-gray-800/95 backdrop-blur-sm border-b border-gray-700/50 flex items-center justify-between px-4 z-40 shadow-lg">
+            <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white/95 backdrop-blur-sm border-b border-gray-200 flex items-center justify-between px-4 z-40 shadow-sm">
                 <button
                     type="button"
                     onClick={() => setSidebarOpen(true)}
-                    className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors"
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                     aria-label="Open menu"
                 >
-                    <FaBars className="w-6 h-6 text-yellow-500" />
+                    <FaBars className="w-6 h-6 text-orange-500" />
                 </button>
-                <h1 className="text-lg font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent truncate mx-2">
+                <h1 className="text-lg font-bold text-orange-600 truncate mx-2">
                     {title || 'Bookie Panel'}
                 </h1>
                 <div className="w-10" />
@@ -43,7 +43,7 @@ const Layout = ({ children, title }) => {
             {/* Backdrop for mobile */}
             {sidebarOpen && (
                 <div
-                    className="lg:hidden fixed inset-0 bg-black/60 z-30"
+                    className="lg:hidden fixed inset-0 bg-black/30 z-30"
                     onClick={() => setSidebarOpen(false)}
                     aria-hidden
                 />

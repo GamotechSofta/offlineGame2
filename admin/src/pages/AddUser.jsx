@@ -138,8 +138,8 @@ const AddUser = () => {
         navigate('/');
     };
 
-    const inputClass = "w-full px-4 py-2.5 bg-gray-700/80 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all";
-    const labelClass = "block text-gray-300 text-sm font-medium mb-1.5";
+    const inputClass = "w-full px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all";
+    const labelClass = "block text-gray-600 text-sm font-medium mb-1.5";
 
     return (
         <AdminLayout onLogout={handleLogout} title="Add Player">
@@ -151,7 +151,7 @@ const AddUser = () => {
                     <button
                         type="button"
                         onClick={() => navigate('/all-users')}
-                        className="p-2 rounded-lg bg-gray-700/80 hover:bg-gray-600 border border-gray-600 text-gray-300 hover:text-white transition-colors"
+                        className="p-2 rounded-lg bg-gray-100/80 hover:bg-gray-200 border border-gray-200 text-gray-600 hover:text-gray-800 transition-colors"
                         title="Back to All Players"
                     >
                         <FaArrowLeft className="w-5 h-5" />
@@ -163,7 +163,7 @@ const AddUser = () => {
                 </div>
 
                 {error && (
-                    <div className="mb-6 p-4 bg-red-900/30 border border-red-700/60 rounded-xl text-red-200 text-sm">
+                    <div className="mb-6 p-4 bg-red-900/30 border border-red-200/60 rounded-xl text-red-600 text-sm">
                         {error}
                     </div>
                 )}
@@ -176,12 +176,12 @@ const AddUser = () => {
                 )}
 
                 {/* Form Card */}
-                <form onSubmit={handleSubmit} className="bg-gray-800/60 rounded-2xl border border-gray-700/80 overflow-hidden shadow-xl">
+                <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xl">
                     <div className="p-5 sm:p-8">
                         {/* Basic Info Section - matches frontend signup (firstName, lastName, email, phone) */}
                         <div className="mb-8">
-                            <h2 className="text-base font-semibold text-yellow-500 mb-4 flex items-center gap-2">
-                                <span className="w-1 h-5 bg-yellow-500 rounded-full" />
+                            <h2 className="text-base font-semibold text-orange-500 mb-4 flex items-center gap-2">
+                                <span className="w-1 h-5 bg-orange-500 rounded-full" />
                                 Basic Information
                             </h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -244,8 +244,8 @@ const AddUser = () => {
 
                         {/* Security Section */}
                         <div className="mb-8">
-                            <h2 className="text-base font-semibold text-yellow-500 mb-4 flex items-center gap-2">
-                                <span className="w-1 h-5 bg-yellow-500 rounded-full" />
+                            <h2 className="text-base font-semibold text-orange-500 mb-4 flex items-center gap-2">
+                                <span className="w-1 h-5 bg-orange-500 rounded-full" />
                                 Account Security
                             </h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -282,8 +282,8 @@ const AddUser = () => {
 
                         {/* Account Details Section */}
                         <div className="mb-8">
-                            <h2 className="text-base font-semibold text-yellow-500 mb-4 flex items-center gap-2">
-                                <span className="w-1 h-5 bg-yellow-500 rounded-full" />
+                            <h2 className="text-base font-semibold text-orange-500 mb-4 flex items-center gap-2">
+                                <span className="w-1 h-5 bg-orange-500 rounded-full" />
                                 Account Details
                             </h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -324,14 +324,14 @@ const AddUser = () => {
                             <button
                                 type="button"
                                 onClick={() => navigate('/all-users')}
-                                className="px-6 py-3 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors font-medium"
+                                className="px-6 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors font-medium"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-yellow-500 hover:bg-yellow-500/90 text-black font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-orange-500 hover:bg-orange-500/90 text-gray-800 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? (
                                     <>
@@ -352,9 +352,9 @@ const AddUser = () => {
 
                 {/* Right: Created players list */}
                 <div className="lg:w-80 xl:w-96 shrink-0">
-                    <div className="bg-gray-800/60 rounded-2xl border border-gray-700/80 overflow-hidden sticky top-4">
-                        <div className="px-4 py-3 border-b border-gray-700 bg-gray-700/30">
-                            <h2 className="text-sm font-semibold text-yellow-500 flex items-center gap-2">
+                    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden sticky top-4">
+                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-100/30">
+                            <h2 className="text-sm font-semibold text-orange-500 flex items-center gap-2">
                                 <FaUser className="w-4 h-4" />
                                 Created Players
                             </h2>
@@ -369,9 +369,9 @@ const AddUser = () => {
                                         <li key={(p.id || p.createdAt?.getTime?.()) ?? Math.random()}>
                                             <Link
                                                 to={p.id ? `/all-users/${p.id}` : '/all-users'}
-                                                className="block p-3 rounded-xl bg-gray-700/50 border border-gray-600/50 hover:border-yellow-500/50 hover:bg-gray-700 transition-colors"
+                                                className="block p-3 rounded-xl bg-gray-50 border border-gray-200 hover:border-orange-300 hover:bg-gray-100 transition-colors"
                                             >
-                                                <p className="font-medium text-white truncate">{p.username}</p>
+                                                <p className="font-medium text-gray-800 truncate">{p.username}</p>
                                                 <p className="text-gray-400 text-xs truncate mt-0.5">{p.email || '—'}</p>
                                                 {p.phone && <p className="text-gray-400 text-xs truncate mt-0.5">{p.phone}</p>}
                                                 <p className="text-gray-500 text-xs mt-1">
