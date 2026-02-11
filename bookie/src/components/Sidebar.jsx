@@ -15,6 +15,7 @@ import {
     FaUsers,
     FaTimes,
     FaMoneyBillWave,
+    FaPercent,
 } from 'react-icons/fa';
 
 const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
@@ -29,6 +30,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/referral-link', label: 'My Referral Link', icon: FaLink },
         { path: '/bet-history', label: 'Bet History', icon: FaHistory },
         { path: '/top-winners', label: 'Top Winners', icon: FaTrophy },
+        { path: '/view-rates', label: 'Payout Rates', icon: FaPercent },
         { path: '/reports', label: 'Report', icon: FaChartLine },
         { path: '/revenue', label: 'Revenue', icon: FaMoneyBillWave },
         { path: '/payments', label: 'Payments', icon: FaCreditCard },
