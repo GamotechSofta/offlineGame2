@@ -13,8 +13,11 @@ import AppState from '../models/appState/appState.js';
 
 const RESET_DATE_KEY = 'lastResultResetDate';
 
-/** In-memory cache so we don't hit DB on every getMarkets call */
-let cachedResetDate = null;
+/**
+ * In-memory cache: undefined = not loaded yet, null = loaded but no DB doc, string = loaded date.
+ * Using undefined vs null lets us distinguish "haven't read DB yet" from "DB had no record".
+ */
+let cachedResetDate = undefined;
 
 /** Current date in IST as YYYY-MM-DD */
 export function getTodayIST() {
@@ -89,7 +92,7 @@ async function saveYesterdaySnapshotsToHistory(Market) {
 
 /** Read the persisted lastResultResetDate from DB (only once per server lifecycle) */
 async function getLastResetDateFromDB() {
-    if (cachedResetDate !== null) return cachedResetDate;
+    if (cachedResetDate !== undefined) return cachedResetDate;
     try {
         const doc = await AppState.findOne({ key: RESET_DATE_KEY }).lean();
         cachedResetDate = doc?.value || null;
@@ -131,8 +134,19 @@ export async function ensureResultsResetForNewDay(Market) {
     // Same day already reset – skip
     if (lastResetDate !== null && today <= lastResetDate) return;
 
-    // Midnight passed: save yesterday's results and clear all markets for the new day
-    // Preserve yesterday's results into MarketResult before clearing live data
+    // FIRST BOOT / NO DB RECORD: Don't clear results – just record today's date.
+    // This prevents server restarts from wiping declared results.
+    // The proper midnight reset will happen when the date actually changes tomorrow.
+    if (lastResetDate === null) {
+        console.log('[resultReset] First boot – recording today as reset date WITHOUT clearing results.');
+        await setLastResetDateInDB(today);
+        return;
+    }
+
+    // DATE HAS CHANGED (lastResetDate < today): perform actual midnight reset.
+    // Save yesterday's results to history, then clear all markets for the new day.
+    console.log(`[resultReset] New day detected (${lastResetDate} -> ${today}). Resetting market results...`);
+
     try {
         await saveYesterdaySnapshotsToHistory(Market);
     } catch (err) {
@@ -145,4 +159,5 @@ export async function ensureResultsResetForNewDay(Market) {
     );
 
     await setLastResetDateInDB(today);
+    console.log('[resultReset] Market results cleared for new day.');
 }
