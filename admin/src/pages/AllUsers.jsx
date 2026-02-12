@@ -602,9 +602,9 @@ const AllUsers = () => {
                                         <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{item.phone || '—'}</td>
                                         <td className="px-2 sm:px-3 py-2 sm:py-3">
                                             {(activeTab === 'super_admins') ? (
-                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-200">Super Admin</span>
+                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700">Super Admin</span>
                                             ) : (
-                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-200 capitalize">
+                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700 capitalize">
                                                     {item.role === 'user' ? 'Player' : (item.role || 'Player')}
                                                 </span>
                                             )}

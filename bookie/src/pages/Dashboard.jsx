@@ -103,7 +103,7 @@ const SectionCard = ({ title, description, icon: Icon, children, linkTo, linkLab
 /** Stat row */
 const StatRow = ({ label, value, subValue, colorClass = 'text-gray-800' }) => (
     <div className="flex justify-between items-center py-2.5 border-b border-gray-200 last:border-0">
-        <span className="text-sm text-gray-400">{label}</span>
+        <span className="text-sm text-gray-500">{label}</span>
         <div className="text-right">
             <span className={`font-semibold font-mono ${colorClass}`}>{value}</span>
             {subValue && <span className="text-xs text-gray-500 ml-2">{subValue}</span>}
@@ -219,7 +219,7 @@ const Dashboard = () => {
                         <FaExclamationTriangle className="w-8 h-8 text-red-500" />
                     </div>
                     <p className="text-red-500 text-lg font-medium mb-2">{error}</p>
-                    <button onClick={() => fetchDashboardStats()} className="mt-4 px-6 py-2 bg-orange-600 hover:bg-orange-500 text-gray-800 font-semibold rounded-xl">
+                    <button onClick={() => fetchDashboardStats()} className="mt-4 px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-xl">
                         Retry
                     </button>
                 </div>
@@ -247,7 +247,7 @@ const Dashboard = () => {
                         type="button"
                         onClick={handleRefresh}
                         disabled={refreshing}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-200 hover:text-orange-500 transition-all disabled:opacity-60 text-sm font-medium"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 transition-all disabled:opacity-60 text-sm font-medium"
                     >
                         <FaSyncAlt className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                         Refresh
@@ -265,7 +265,7 @@ const Dashboard = () => {
                                     key={p.id}
                                     type="button"
                                     onClick={() => handlePresetSelect(p.id)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-orange-500 text-gray-800' : 'bg-gray-100 border border-gray-200 text-gray-200 hover:bg-gray-200'}`}
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-orange-500 text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     {p.label}
                                 </button>
@@ -274,7 +274,7 @@ const Dashboard = () => {
                         <button
                             type="button"
                             onClick={handleCustomToggle}
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${customMode ? 'bg-orange-500 text-gray-800' : 'bg-gray-100 border border-gray-200 text-gray-200 hover:bg-gray-200'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${customMode ? 'bg-orange-500 text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
                         >
                             Custom
                         </button>
@@ -288,7 +288,7 @@ const Dashboard = () => {
                                     <label className="block text-xs text-gray-400 mb-1">To</label>
                                     <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800" />
                                 </div>
-                                <button type="button" onClick={handleCustomApply} className="px-4 py-2 rounded-lg bg-orange-500 text-gray-800 font-semibold text-sm">
+                                <button type="button" onClick={handleCustomApply} className="px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold text-sm">
                                     Apply
                                 </button>
                             </div>
@@ -307,12 +307,12 @@ const Dashboard = () => {
                     </h3>
                     <div className="flex flex-wrap gap-3">
                         {pendingPayments > 0 && (
-                            <Link to="/payments" className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-gray-800 font-medium text-sm">
+                            <Link to="/payments" className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-medium text-sm">
                                 {pendingPayments} Pending Payment{pendingPayments !== 1 ? 's' : ''} →
                             </Link>
                         )}
                         {helpDeskOpen > 0 && (
-                            <Link to="/help-desk" className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-gray-800 font-medium text-sm">
+                            <Link to="/help-desk" className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-medium text-sm">
                                 {helpDeskOpen} Open Ticket{helpDeskOpen !== 1 ? 's' : ''} →
                             </Link>
                         )}
@@ -323,22 +323,22 @@ const Dashboard = () => {
             {/* Primary KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Revenue (period)</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Revenue (period)</p>
                     <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(stats?.revenue?.total)}</p>
                     <p className="text-xs text-gray-500 mt-1">Bet amount collected in selected range</p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Net Profit (period)</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Net Profit (period)</p>
                     <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.revenue?.netProfit)}</p>
                     <p className="text-xs text-gray-500 mt-1">Revenue − Payouts in selected range</p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Players (all-time)</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Players (all-time)</p>
                     <p className="text-2xl font-bold text-purple-600 font-mono">{stats?.users?.total ?? 0}</p>
                     <p className="text-xs text-gray-500 mt-1">{stats?.users?.active ?? 0} active · {stats?.users?.newToday ?? 0} new in range</p>
                 </div>
                 <div className="bg-gradient-to-br from-orange-50 to-transparent rounded-xl p-5 border border-orange-200">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Bets (period)</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Bets (period)</p>
                     <p className="text-2xl font-bold text-orange-500 font-mono">{stats?.bets?.total ?? 0}</p>
                     <p className="text-xs text-gray-500 mt-1">Win rate: {stats?.bets?.winRate ?? 0}%</p>
                 </div>
@@ -400,15 +400,15 @@ const Dashboard = () => {
                 <p className="text-xs text-gray-500 mb-4">Total revenue in the selected date range.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p className="text-gray-400 text-sm mb-1">Total Revenue</p>
+                        <p className="text-gray-500 text-sm mb-1">Total Revenue</p>
                         <p className="text-xl font-bold text-green-600 font-mono">{formatCurrency(stats?.revenue?.total)}</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p className="text-gray-400 text-sm mb-1">Total Payouts</p>
+                        <p className="text-gray-500 text-sm mb-1">Total Payouts</p>
                         <p className="text-xl font-bold text-red-500 font-mono">{formatCurrency(stats?.revenue?.payouts)}</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p className="text-gray-400 text-sm mb-1">Net Profit</p>
+                        <p className="text-gray-500 text-sm mb-1">Net Profit</p>
                         <p className="text-xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.revenue?.netProfit)}</p>
                     </div>
                 </div>
@@ -422,19 +422,19 @@ const Dashboard = () => {
                 </h3>
                 <p className="text-xs text-gray-500 mb-4">Navigate to sections directly from here.</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    <Link to="/my-users" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-200 hover:text-orange-500 text-sm font-medium transition-all text-center">
+                    <Link to="/my-users" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 text-sm font-medium transition-all text-center">
                         My Players
                     </Link>
-                    <Link to="/add-user" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-200 hover:text-orange-500 text-sm font-medium transition-all text-center">
+                    <Link to="/add-user" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 text-sm font-medium transition-all text-center">
                         Add Player
                     </Link>
-                    <Link to="/referral-link" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-200 hover:text-orange-500 text-sm font-medium transition-all text-center">
+                    <Link to="/referral-link" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 text-sm font-medium transition-all text-center">
                         Referral Link
                     </Link>
-                    <Link to="/bet-history" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-200 hover:text-orange-500 text-sm font-medium transition-all text-center">
+                    <Link to="/bet-history" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 text-sm font-medium transition-all text-center">
                         Bet History
                     </Link>
-                    <Link to="/reports" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-200 hover:text-orange-500 text-sm font-medium transition-all text-center">
+                    <Link to="/reports" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 text-sm font-medium transition-all text-center">
                         Reports
                     </Link>
                 </div>

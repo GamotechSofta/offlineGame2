@@ -208,7 +208,7 @@ const Logs = () => {
                                             </td>
                                             <td className="px-4 sm:px-6 py-3 font-medium text-gray-800 break-words max-w-[120px]">{log.performedBy || '—'}</td>
                                             <td className="px-4 sm:px-6 py-3">
-                                                <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-200 capitalize">
+                                                <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700 capitalize">
                                                     {TYPE_LABELS[log.performedByType] || log.performedByType || '—'}
                                                 </span>
                                             </td>
@@ -228,7 +228,7 @@ const Logs = () => {
                                         <span className="px-2 py-1 rounded text-xs font-medium bg-orange-50 text-orange-600 border border-orange-200 break-words">
                                             {getActionLabel(log.action)}
                                         </span>
-                                        <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-200 capitalize">
+                                        <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700 capitalize">
                                             {TYPE_LABELS[log.performedByType] || log.performedByType || '—'}
                                         </span>
                                     </div>

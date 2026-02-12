@@ -138,7 +138,7 @@ const PlayerDevices = () => {
                         type="button"
                         onClick={handleClearDevices}
                         disabled={clearing || loginDevices.length === 0}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 border border-gray-200 text-gray-200 hover:bg-red-600 hover:border-red-500 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 border border-gray-200 text-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Clear devices list"
                     >
                         {clearing ? <span className="animate-spin">⏳</span> : 'Clear'}

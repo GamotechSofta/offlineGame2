@@ -523,7 +523,7 @@ const PlayerDetail = () => {
                             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                                 Array.isArray(player.loginDevices) && player.loginDevices.length > 1
                                     ? 'bg-red-50 border border-red-600 text-red-600 hover:bg-red-800 hover:border-red-500 hover:text-red-100'
-                                    : 'bg-gray-100 border border-gray-200 text-gray-200 hover:bg-gray-200 hover:border-orange-300 hover:text-orange-500'
+                                    : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200 hover:border-orange-300 hover:text-orange-500'
                             }`}
                             title="Devices used"
                         >
@@ -614,7 +614,7 @@ const PlayerDetail = () => {
                         <button
                             type="button"
                             onClick={() => setCalendarOpen((o) => !o)}
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-200"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-600"
                         >
                             <FaCalendarAlt className="w-4 h-4 text-orange-500" />
                             {statementFrom && statementTo ? formatDateRange(statementFrom, statementTo) : 'Select Date'}
@@ -627,7 +627,7 @@ const PlayerDetail = () => {
                                             key={p.id}
                                             type="button"
                                             onClick={() => handlePresetSelect(p.id)}
-                                            className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-100 flex items-center gap-2"
+                                            className="w-full text-left px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-100 flex items-center gap-2"
                                         >
                                             {statementPreset === p.id ? <span className="text-orange-500">●</span> : <span className="w-2" />}
                                             {p.label}
@@ -687,9 +687,9 @@ const PlayerDetail = () => {
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${row.status === 'WIN' || row.status === 'CREDIT' ? 'bg-green-900/50 text-green-600' : 'bg-red-50 text-red-500'}`}>{row.status}</span>
                                             </div>
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Type</p><p className="text-gray-200 truncate">{row.type}</p></div>
+                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Type</p><p className="text-gray-600 truncate">{row.type}</p></div>
                                                 <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Name</p><p className="text-orange-500 font-mono truncate">{row.name}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Status</p><p className="text-gray-200">{row.status}</p></div>
+                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Status</p><p className="text-gray-600">{row.status}</p></div>
                                                 <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Last Balance</p><p className="text-gray-600 font-mono">{row.lastBalance}</p></div>
                                                 <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Credited</p><p className="text-green-600 font-mono">{row.credited || '—'}</p></div>
                                                 <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Debited</p><p className="text-red-500 font-mono">{row.debited || '—'}</p></div>
@@ -720,7 +720,7 @@ const PlayerDetail = () => {
                                     <div key={t._id} className="p-4 hover:bg-gray-100/20 flex flex-wrap items-center justify-between gap-3">
                                         <div className="min-w-0 flex-1">
                                             <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium mr-2 ${t.type === 'credit' ? 'bg-green-900/50 text-green-600' : 'bg-red-50 text-red-500'}`}>{t.type}</span>
-                                            <span className="text-gray-200 text-sm break-words">{t.description || '—'}</span>
+                                            <span className="text-gray-600 text-sm break-words">{t.description || '—'}</span>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
                                             <span className="font-mono font-medium text-sm">{t.type === 'credit' ? '+' : '-'}{formatCurrency(t.amount)}</span>

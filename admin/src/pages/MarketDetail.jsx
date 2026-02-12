@@ -70,7 +70,7 @@ const StatTable = ({ title, rowLabel1, rowLabel2, columns, getAmount, getCount, 
                                 {getCount(c)}
                             </td>
                         ))}
-                        <td className="py-2 px-3 text-center font-semibold text-gray-200">{formatNum(totalBets)}</td>
+                        <td className="py-2 px-3 text-center font-semibold text-gray-700">{formatNum(totalBets)}</td>
                     </tr>
                 </tbody>
             </table>
@@ -348,7 +348,7 @@ const HalfSangamSection = ({ items = {}, totalAmount = 0, totalBets = 0 }) => {
                             <tbody>
                                 {entries.map(([key, v]) => (
                                     <tr key={key} className="border-b border-gray-200 hover:bg-gray-100/30">
-                                        <td className="py-2 px-3 text-gray-200 font-mono text-xs sm:text-sm" title={key}>
+                                        <td className="py-2 px-3 text-gray-700 font-mono text-xs sm:text-sm" title={key}>
                                             {getHalfSangamLabel(key)}
                                         </td>
                                         <td className="py-2 px-3 text-right font-mono text-orange-500 font-semibold">₹{formatNum(v.amount)}</td>
@@ -490,7 +490,7 @@ const FullSangamSection = ({ items = {}, totalAmount = 0, totalBets = 0 }) => {
                             <tbody>
                                 {entries.map(([key, v]) => (
                                     <tr key={key} className="border-b border-gray-200 hover:bg-gray-100/30">
-                                        <td className="py-2 px-3 text-gray-200 font-mono text-xs sm:text-sm" title={key}>
+                                        <td className="py-2 px-3 text-gray-700 font-mono text-xs sm:text-sm" title={key}>
                                             {getFullSangamLabel(key)}
                                         </td>
                                         <td className="py-2 px-3 text-right font-mono text-orange-500 font-semibold">₹{formatNum(v.amount)}</td>
