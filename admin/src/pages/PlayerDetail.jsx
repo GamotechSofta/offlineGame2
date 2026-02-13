@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash, FaWallet } from 'react-icons/fa';
+import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash, FaWallet, FaPrint } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -171,54 +171,59 @@ const PlayerDetail = () => {
             const end = new Date(statementTo);
             end.setHours(23, 59, 59, 999);
 
-            const betRows = betList
-                .filter((b) => {
-                    const d = new Date(b.createdAt);
-                    return d >= start && d <= end;
-                })
-                .map((b) => ({
-                    date: new Date(b.createdAt),
-                    type: b.marketId?.marketName || 'Bet',
-                    name: b.betNumber || b._id?.slice(-6),
-                    status: b.status === 'won' ? 'WIN' : b.status === 'lost' ? 'LOST' : 'BET',
-                    credited: b.status === 'won' ? (b.payout || 0) : 0,
-                    debited: b.status !== 'won' ? (b.amount || 0) : 0,
-                    kind: 'bet',
-                }));
-
-            const txRows = txList
-                .filter((t) => {
-                    const d = new Date(t.createdAt);
-                    return d >= start && d <= end;
-                })
-                .map((t) => ({
-                    date: new Date(t.createdAt),
-                    type: 'Wallet',
-                    name: t.description || t._id?.slice(-6),
-                    status: t.type === 'credit' ? 'CREDIT' : 'DEBIT',
-                    credited: t.type === 'credit' ? (t.amount || 0) : 0,
-                    debited: t.type === 'debit' ? (t.amount || 0) : 0,
-                    kind: 'wallet',
-                }));
-
-            const merged = [...betRows, ...txRows].sort((a, b) => a.date - b.date);
-            let running = 0;
-            let runningBonus = 0;
-            let runningExchange = 0;
-            const withBalance = merged.map((r) => {
-                const lastBalance = running;
-                running = running + (r.credited || 0) - (r.debited || 0);
-                return {
-                    ...r,
-                    lastBalance,
-                    runningBalance: running,
-                    lastBonusBalance: runningBonus,
-                    runningBonusBalance: runningBonus,
-                    lastExchangeBalance: runningExchange,
-                    runningExchangeBalance: runningExchange,
-                };
+            // Aggregate bet amounts (don't show individual bets)
+            const filteredBets = betList.filter((b) => {
+                const d = new Date(b.createdAt);
+                return d >= start && d <= end;
             });
-            setStatementData(withBalance);
+            
+            const totalBetAmount = filteredBets.reduce((sum, b) => sum + (b.amount || 0), 0);
+            const totalWinAmount = filteredBets.filter(b => b.status === 'won').reduce((sum, b) => sum + (b.payout || 0), 0);
+            const totalLossAmount = filteredBets.filter(b => b.status === 'lost').reduce((sum, b) => sum + (b.amount || 0), 0);
+            const totalPendingBets = filteredBets.filter(b => b.status === 'pending').reduce((sum, b) => sum + (b.amount || 0), 0);
+
+            // Aggregate wallet transactions
+            const filteredTx = txList.filter((t) => {
+                const d = new Date(t.createdAt);
+                return d >= start && d <= end;
+            });
+
+            const totalDeposits = filteredTx.filter(t => t.type === 'credit' && (t.description?.toLowerCase().includes('deposit') || t.description?.toLowerCase().includes('add fund'))).reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalWithdrawals = filteredTx.filter(t => t.type === 'debit' && (t.description?.toLowerCase().includes('withdraw') || t.description?.toLowerCase().includes('withdrawal'))).reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalOtherCredits = filteredTx.filter(t => t.type === 'credit' && !t.description?.toLowerCase().includes('deposit') && !t.description?.toLowerCase().includes('add fund')).reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalOtherDebits = filteredTx.filter(t => t.type === 'debit' && !t.description?.toLowerCase().includes('withdraw') && !t.description?.toLowerCase().includes('withdrawal')).reduce((sum, t) => sum + (t.amount || 0), 0);
+
+            // Calculate net amounts
+            const totalCredits = totalWinAmount + totalDeposits + totalOtherCredits;
+            const totalDebits = totalBetAmount + totalWithdrawals + totalOtherDebits;
+            const netAmount = totalCredits - totalDebits;
+
+            // Create summary statement
+            const summary = {
+                period: { from: statementFrom, to: statementTo },
+                player: player ? { name: player.username, phone: player.phone, id: player._id } : null,
+                bets: {
+                    totalAmount: totalBetAmount,
+                    totalWin: totalWinAmount,
+                    totalLoss: totalLossAmount,
+                    totalPending: totalPendingBets,
+                    count: filteredBets.length,
+                },
+                wallet: {
+                    deposits: totalDeposits,
+                    withdrawals: totalWithdrawals,
+                    otherCredits: totalOtherCredits,
+                    otherDebits: totalOtherDebits,
+                },
+                totals: {
+                    totalCredits,
+                    totalDebits,
+                    netAmount,
+                },
+                currentBalance: player?.walletBalance || 0,
+            };
+
+            setStatementData([summary]);
         } catch (err) {
             setStatementData([]);
         } finally {
@@ -677,33 +682,138 @@ const PlayerDetail = () => {
                         ) : statementData.length === 0 ? (
                             <div className="p-8 text-center text-gray-500">No transactions in this period.</div>
                         ) : (
-                            <>
-                                {/* Statement: cards with ALL detail - no side scroll */}
-                                <div className="divide-y divide-gray-700">
-                                    {statementData.map((row, i) => (
-                                        <div key={i} className="p-4 sm:p-5 hover:bg-gray-100/20">
-                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-200">
-                                                <span className="text-orange-500 font-mono font-medium">{row.name}</span>
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${row.status === 'WIN' || row.status === 'CREDIT' ? 'bg-green-900/50 text-green-600' : 'bg-red-50 text-red-500'}`}>{row.status}</span>
+                            <div id="statement-slip" className="bg-white p-6 max-w-2xl mx-auto print:p-8 print:max-w-none">
+                                {/* Print button */}
+                                <div className="mb-4 print:hidden flex justify-end">
+                                    <button
+                                        onClick={() => window.print()}
+                                        className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                                    >
+                                        <FaPrint className="w-4 h-4" />
+                                        Print Statement
+                                    </button>
+                                </div>
+
+                                {/* Statement Slip */}
+                                {statementData.map((summary, i) => (
+                                    <div key={i} className="border-2 border-gray-300 rounded-lg p-6 print:border-gray-800 print:rounded-none">
+                                        {/* Header */}
+                                        <div className="text-center mb-6 pb-4 border-b-2 border-gray-300 print:border-gray-800">
+                                            <h2 className="text-2xl font-bold text-gray-800 mb-2">ACCOUNT STATEMENT</h2>
+                                            <p className="text-sm text-gray-600">
+                                                {summary.period.from && summary.period.to && formatDateRange(summary.period.from, summary.period.to)}
+                                            </p>
+                                        </div>
+
+                                        {/* Player Info */}
+                                        {summary.player && (
+                                            <div className="mb-6 pb-4 border-b border-gray-200">
+                                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                                    <div>
+                                                        <p className="text-gray-500 mb-1">Player Name</p>
+                                                        <p className="font-semibold text-gray-800">{summary.player.name}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-gray-500 mb-1">Phone</p>
+                                                        <p className="font-semibold text-gray-800">{summary.player.phone || '—'}</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Type</p><p className="text-gray-600 truncate">{row.type}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Name</p><p className="text-orange-500 font-mono truncate">{row.name}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Status</p><p className="text-gray-600">{row.status}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Last Balance</p><p className="text-gray-600 font-mono">{row.lastBalance}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Credited</p><p className="text-green-600 font-mono">{row.credited || '—'}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Debited</p><p className="text-red-500 font-mono">{row.debited || '—'}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Running Balance</p><p className="text-gray-800 font-mono font-medium">{row.runningBalance}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Last Bonus Balance</p><p className="text-gray-400 font-mono">{row.lastBonusBalance ?? 0}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Running Bonus Balance</p><p className="text-gray-400 font-mono">{row.runningBonusBalance ?? 0}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Last Exchange Balance</p><p className="text-gray-400 font-mono">{row.lastExchangeBalance ?? 0}</p></div>
-                                                <div className="min-w-0"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Running Exchange Balance</p><p className="text-gray-400 font-mono">{row.runningExchangeBalance ?? 0}</p></div>
-                                                <div className="min-w-0 col-span-2 sm:col-span-1"><p className="text-gray-500 uppercase tracking-wider mb-0.5">Updated</p><p className="text-gray-400">{row.date.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p></div>
+                                        )}
+
+                                        {/* Bet Summary */}
+                                        <div className="mb-6 pb-4 border-b border-gray-200">
+                                            <h3 className="text-lg font-bold text-gray-800 mb-3">BET SUMMARY</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Total Bets Placed</span>
+                                                    <span className="font-mono font-semibold text-gray-800">{summary.bets.count} bets</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Total Bet Amount</span>
+                                                    <span className="font-mono font-semibold text-red-600">₹{Number(summary.bets.totalAmount || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Total Win Amount</span>
+                                                    <span className="font-mono font-semibold text-green-600">₹{Number(summary.bets.totalWin || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Total Loss Amount</span>
+                                                    <span className="font-mono font-semibold text-red-600">₹{Number(summary.bets.totalLoss || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                {summary.bets.totalPending > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Pending Bets</span>
+                                                        <span className="font-mono font-semibold text-orange-600">₹{Number(summary.bets.totalPending || 0).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            </>
+
+                                        {/* Wallet Summary */}
+                                        <div className="mb-6 pb-4 border-b border-gray-200">
+                                            <h3 className="text-lg font-bold text-gray-800 mb-3">WALLET TRANSACTIONS</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Total Deposits</span>
+                                                    <span className="font-mono font-semibold text-green-600">₹{Number(summary.wallet.deposits || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Total Withdrawals</span>
+                                                    <span className="font-mono font-semibold text-red-600">₹{Number(summary.wallet.withdrawals || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                {summary.wallet.otherCredits > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Other Credits</span>
+                                                        <span className="font-mono font-semibold text-green-600">₹{Number(summary.wallet.otherCredits || 0).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                )}
+                                                {summary.wallet.otherDebits > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Other Debits</span>
+                                                        <span className="font-mono font-semibold text-red-600">₹{Number(summary.wallet.otherDebits || 0).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Totals */}
+                                        <div className="mb-6 pb-4 border-b-2 border-gray-300 print:border-gray-800">
+                                            <h3 className="text-lg font-bold text-gray-800 mb-3">TOTALS</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Total Credits</span>
+                                                    <span className="font-mono font-semibold text-green-600">₹{Number(summary.totals.totalCredits || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Total Debits</span>
+                                                    <span className="font-mono font-semibold text-red-600">₹{Number(summary.totals.totalDebits || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                <div className="flex justify-between pt-2 border-t border-gray-200">
+                                                    <span className="text-gray-800 font-bold">Net Amount</span>
+                                                    <span className={`font-mono font-bold text-lg ${summary.totals.netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                        ₹{Number(summary.totals.netAmount || 0).toLocaleString('en-IN')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Current Status */}
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                                <span className="text-gray-700 font-semibold">Current Wallet Balance</span>
+                                                <span className="font-mono font-bold text-xl text-gray-800">₹{Number(summary.currentBalance || 0).toLocaleString('en-IN')}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Footer */}
+                                        <div className="mt-6 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
+                                            <p>Generated on {new Date().toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' })}</p>
+                                            <p className="mt-1">This is a computer-generated statement</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </>
                 )}

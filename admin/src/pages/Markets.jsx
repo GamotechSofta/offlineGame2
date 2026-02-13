@@ -3,16 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import MarketList from '../components/MarketList';
 import MarketForm from '../components/MarketForm';
-import StarlineManagement from './StarlineManagement';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
-import { FaChartBar, FaStar, FaCrown } from 'react-icons/fa';
+import { FaChartBar } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
 const TABS = [
     { id: 'regular', label: 'Regular Market', icon: FaChartBar },
-    { id: 'starline', label: 'Starline Market', icon: FaStar },
-    { id: 'king', label: 'King Bazaar Market', icon: FaCrown },
 ];
 
 const Markets = () => {
@@ -28,10 +25,6 @@ const Markets = () => {
 
     const mainMarkets = markets || [];
 
-    useEffect(() => {
-        const type = (location.state?.marketType || '').toString().toLowerCase();
-        if (type === 'starline') setActiveTab('starline');
-    }, [location.state?.marketType]);
 
     const fetchMarkets = async () => {
         try {
@@ -75,7 +68,7 @@ const Markets = () => {
 
     const handleEdit = (market) => {
         setEditingMarket(market);
-        setFormDefaultType(market.marketType === 'startline' ? 'startline' : 'main');
+        setFormDefaultType('main');
         setShowForm(true);
     };
 
@@ -137,20 +130,6 @@ const Markets = () => {
                         apiBaseUrl={API_BASE_URL}
                         getAuthHeaders={getAuthHeaders}
                     />
-                )}
-
-                {activeTab === 'starline' && (
-                    <StarlineManagement embedded />
-                )}
-
-                {activeTab === 'king' && (
-                    <section className="rounded-2xl border border-gray-200 bg-white p-8 text-center">
-                        <div className="w-14 h-14 rounded-2xl bg-orange-500/20 flex items-center justify-center mx-auto mb-4">
-                            <FaCrown className="w-8 h-8 text-orange-500" />
-                        </div>
-                        <h2 className="text-lg font-bold text-gray-800 mb-2">King Bazaar Market</h2>
-                        <p className="text-gray-500 text-sm max-w-md mx-auto">King Bazaar market management. Configure and manage King Bazaar markets here.</p>
-                    </section>
                 )}
 
                 {activeTab === 'regular' && (

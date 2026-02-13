@@ -15,7 +15,6 @@ import {
     FaUsers,
     FaTimes,
     FaMoneyBillWave,
-    FaGamepad,
 } from 'react-icons/fa';
 
 const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
@@ -25,7 +24,6 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const menuItems = [
         { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
         { path: '/my-users', label: 'My Players', icon: FaUsers },
-        { path: '/games', label: 'Games', icon: FaGamepad },
         { path: '/markets', label: 'Markets', icon: FaChartBar },
         { path: '/add-user', label: 'Add Player', icon: FaUserPlus },
         { path: '/referral-link', label: 'My Referral Link', icon: FaLink },
@@ -41,9 +39,6 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const isActive = (path) => {
         if (path === '/my-users' || path === '/markets') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
-        }
-        if (path === '/games') {
-            return location.pathname === '/games' || location.pathname.startsWith('/games/');
         }
         if (path === '/reports') {
             return location.pathname === '/reports' || location.pathname.startsWith('/revenue');

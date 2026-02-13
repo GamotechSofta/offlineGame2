@@ -513,6 +513,8 @@ const MarketDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [singlePattiSummary, setSinglePattiSummary] = useState(null);
+    const [allBets, setAllBets] = useState(null);
+    const [loadingBets, setLoadingBets] = useState(false);
     /** 'open' | 'closed' – view only open bets or only closed bets */
     const [statusView, setStatusView] = useState('open');
     const initialStatusSetForMarketId = React.useRef(null);
@@ -536,13 +538,11 @@ const MarketDetail = () => {
             }
             setData(statsJson.data);
             const d = statsJson.data;
-            const isStartline = d?.market?.marketType === 'startline';
             const hasOpenDeclared = d?.market?.openingNumber && /^\d{3}$/.test(String(d.market.openingNumber));
             if (initialStatusSetForMarketId.current !== marketId) {
                 initialStatusSetForMarketId.current = marketId;
             }
-            // Starline: show only open bets (no closed view in market management)
-            setStatusView(isStartline ? 'open' : (hasOpenDeclared ? 'closed' : 'open'));
+            setStatusView(hasOpenDeclared ? 'closed' : 'open');
             if (summaryRes.ok) {
                 const summaryJson = await summaryRes.json();
                 if (summaryJson.success && summaryJson.data) {
@@ -559,6 +559,30 @@ const MarketDetail = () => {
             setLoading(false);
         }
     };
+
+    const fetchAllBets = async () => {
+        if (!marketId) return;
+        const headers = getAuthHeaders();
+        setLoadingBets(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/markets/get-market-bets/${marketId}`, { headers });
+            const json = await res.json();
+            if (json.success) {
+                setAllBets(json.data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch bets:', err);
+        } finally {
+            setLoadingBets(false);
+        }
+    };
+
+    useEffect(() => {
+        if (data?.market) {
+            fetchAllBets();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [marketId, data]);
 
     useEffect(() => {
         const admin = localStorage.getItem('admin');
@@ -577,18 +601,31 @@ const MarketDetail = () => {
         navigate('/');
     };
 
-    // Single Patti: grouped by Ank (0–9), same as user side
-    const singlePattiByAnk = useMemo(() => buildSinglePattiByAnk(data?.singlePatti?.items), [data?.singlePatti?.items]);
+    // Sanity check: Ank grouping matches user side
+    useEffect(() => {
+        if (import.meta.env?.DEV) {
+            const a127 = getAnk('127');
+            const a128 = getAnk('128');
+            if (a127 === 0 && a128 === 1) {
+                console.debug('[Single Patti] Ank grouping OK (127→0, 128→1).');
+            } else {
+                console.warn('[Single Patti] Ank check failed:', { a127, a128 });
+            }
+        }
+    }, []);
+
+    // Single Patti: grouped by Ank (0–9), same as user side - hooks must be called before conditional returns
+    const singlePattiByAnk = useMemo(() => buildSinglePattiByAnk(data?.singlePatti?.items || {}), [data?.singlePatti?.items]);
     const singlePattiTotals = useMemo(() => getSinglePattiTotalsFromByAnk(singlePattiByAnk), [singlePattiByAnk]);
     // Double Patti: grouped by Ank (0–9), same as user side
-    const doublePattiByAnk = useMemo(() => buildDoublePattiByAnk(data?.doublePatti?.items), [data?.doublePatti?.items]);
+    const doublePattiByAnk = useMemo(() => buildDoublePattiByAnk(data?.doublePatti?.items || {}), [data?.doublePatti?.items]);
     const doublePattiTotals = useMemo(() => getDoublePattiTotalsFromByAnk(doublePattiByAnk), [doublePattiByAnk]);
 
     // Session-aware view stats (new API returns bySession.open/close; fallback to overall stats).
     const statsOpen = data?.bySession?.open || data;
     const statsClose = data?.bySession?.close || data;
-    const isStartlineMarket = data?.market?.marketType === 'startline';
-    const viewStats = (isStartlineMarket ? 'open' : statusView) === 'open' ? statsOpen : statsClose;
+    const viewStats = statusView === 'open' ? statsOpen : statsClose;
+    const effectiveView = statusView; // Alias for clarity in JSX
 
     const viewSinglePattiItems = viewStats?.singlePatti?.items || {};
     const viewDoublePattiItems = viewStats?.doublePatti?.items || {};
@@ -650,12 +687,27 @@ const MarketDetail = () => {
         resultOnPatti = { open: null, close: null },
     } = data;
 
-    const hasOpen = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
-    const hasClose = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
+    if (!market) {
+        return (
+            <AdminLayout onLogout={handleLogout} title="Market Detail">
+                <div className="rounded-xl border border-red-200/60 bg-red-900/20 p-4 text-red-600">
+                    Market data not available
+                </div>
+                <Link
+                    to="/markets"
+                    className="inline-flex items-center gap-2 mt-4 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold transition-colors"
+                >
+                    <FaArrowLeft /> Back to Markets
+                </Link>
+            </AdminLayout>
+        );
+    }
+
+    const hasOpen = market?.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
+    const hasClose = market?.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
     const isClosed = hasOpen && hasClose;
-    const isStartline = isStartlineMarket;
-    const timeline = `${formatTime(market.startingTime)} – ${formatTime(market.closingTime)}`;
-    const resultDisplay = market.displayResult || '***-**-***';
+    const timeline = `${formatTime(market?.startingTime)} – ${formatTime(market?.closingTime)}`;
+    const resultDisplay = market?.displayResult || '***-**-***';
 
     const grandTotalAmount =
         (singleDigit?.totalAmount ?? 0) +
@@ -712,13 +764,10 @@ const MarketDetail = () => {
         (doublePattiTotalsForView?.totalBets ?? 0) +
         (triplePattiDisplay?.totalBets ?? 0) +
         (fullSangamDisplay?.totalBets ?? 0);
-    // Starline: only open bets; ignore statusView for display
-    const effectiveView = isStartline ? 'open' : statusView;
-    const displayAmount = effectiveView === 'open' ? openTotalAmount : closedTotalAmount;
-    const displayBets = effectiveView === 'open' ? openTotalBets : closedTotalBets;
+    const displayAmount = statusView === 'open' ? openTotalAmount : closedTotalAmount;
+    const displayBets = statusView === 'open' ? openTotalBets : closedTotalBets;
 
     const handleStatusViewChange = (e) => {
-        if (isStartline) return;
         const v = e.target.value;
         if (v === 'open') setStatusView('open');
         else if (v === 'closed') setStatusView('closed');
@@ -737,7 +786,7 @@ const MarketDetail = () => {
                 {/* Overview card – updates when Open/Closed view changes (key forces refresh) */}
                 <div key={`overview-${statusView}`} className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden mb-6 sm:mb-8">
                     <div className="bg-white border-b border-gray-200 px-4 py-3">
-                        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">{market.marketName}</h1>
+                        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">{market?.marketName || 'Market'}</h1>
                         <p className="text-gray-400 text-sm mt-0.5">Market overview & result</p>
                         {marketId && (
                             <p className="text-[11px] text-gray-500 mt-1 font-mono" title="Same ID as in Add Result → Check">ID: {marketId}</p>
@@ -766,7 +815,6 @@ const MarketDetail = () => {
                                 </p>
                                 <p className="text-[10px] text-orange-500/90 mt-0.5">
                                     Viewing totals: <strong>{effectiveView === 'open' ? 'Open' : 'Closed'}</strong> bets
-                                    {isStartline && <span className="text-gray-500"> (Starline: open only)</span>}
                                 </p>
                                 {(resultOnPatti?.open || resultOnPatti?.close) && (
                                     <div className="mt-3 pt-3 border-t border-gray-200 space-y-2 text-[11px]">
@@ -820,7 +868,7 @@ const MarketDetail = () => {
                                 <p className="text-[10px] text-gray-500">({effectiveView === 'open' ? 'Open bets only' : 'Closed bets only'})</p>
                             </div>
                         </div>
-                        {!isStartline && (
+                        {(
                         <div className="flex items-center gap-3">
                             <div className="shrink-0 w-full sm:w-auto">
                                 <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">View</p>
@@ -852,7 +900,6 @@ const MarketDetail = () => {
                         totalBets={singleDigitDisplay.totalBets}
                     />
 
-                    {!isStartline && (
                     <SectionCard title="Jodi">
                         <div className="mb-4 p-3 sm:p-4 rounded-lg bg-gray-50 border border-gray-200">
                             <p className="text-sm font-semibold text-orange-500 mb-1">What is Jodi?</p>
@@ -1120,19 +1167,156 @@ const MarketDetail = () => {
                         totalBets={halfSangamDisplay.totalBets}
                     />
                     )}
-                    {!isStartline && (
                     <FullSangamSection
                         items={fullSangamDisplay.items}
                         totalAmount={fullSangamDisplay.totalAmount}
                         totalBets={fullSangamDisplay.totalBets}
                     />
-                    )}
                 </div>
+
+                {/* Detailed Bet Analysis Section */}
+                <SectionCard title="Detailed Bet Analysis" className="mt-8">
+                    {loadingBets ? (
+                        <div className="text-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-orange-500 mx-auto" />
+                            <p className="text-gray-500 mt-2">Loading bets...</p>
+                        </div>
+                    ) : allBets ? (
+                        <div className="space-y-6">
+                            {/* Opening Bets Section */}
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold text-orange-600 flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                        Opening Bets ({allBets.totalOpen})
+                                    </h3>
+                                    <span className="text-sm text-gray-600">
+                                        Total: ₹{formatNum(allBets.open.reduce((sum, b) => sum + (b.amount || 0), 0))}
+                                    </span>
+                                </div>
+                                {allBets.open.length === 0 ? (
+                                    <p className="text-gray-500 text-center py-4">No opening bets found</p>
+                                ) : (
+                                    <div className="overflow-x-auto rounded-lg border border-gray-200">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Time</th>
+                                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Player</th>
+                                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Phone</th>
+                                                    <th className="px-3 py-2 text-center font-semibold text-gray-700">Game Type</th>
+                                                    <th className="px-3 py-2 text-center font-semibold text-gray-700">Number</th>
+                                                    <th className="px-3 py-2 text-right font-semibold text-gray-700">Amount</th>
+                                                    <th className="px-3 py-2 text-center font-semibold text-gray-700">Status</th>
+                                                    <th className="px-3 py-2 text-center font-semibold text-gray-700">Placed By</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {allBets.open.map((bet) => (
+                                                    <tr key={bet._id} className="hover:bg-gray-50">
+                                                        <td className="px-3 py-2 text-gray-600 font-mono text-xs">
+                                                            {new Date(bet.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-gray-800 font-medium">{bet.userId?.username || 'N/A'}</td>
+                                                        <td className="px-3 py-2 text-gray-600 text-xs">{bet.userId?.phone || '—'}</td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700">
+                                                                {bet.betType?.toUpperCase() || 'N/A'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-center font-mono font-bold text-orange-600">{bet.betNumber || '—'}</td>
+                                                        <td className="px-3 py-2 text-right font-semibold text-gray-800">₹{formatNum(bet.amount)}</td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                                bet.status === 'won' ? 'bg-green-100 text-green-700' :
+                                                                bet.status === 'lost' ? 'bg-red-100 text-red-700' :
+                                                                'bg-yellow-100 text-yellow-700'
+                                                            }`}>
+                                                                {bet.status?.toUpperCase() || 'PENDING'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-center text-xs text-gray-600">
+                                                            {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Bookie') : 'Player'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Closing Bets Section */}
+                            <div className="pt-6 border-t border-gray-200">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold text-orange-600 flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                        Closing Bets ({allBets.totalClose})
+                                    </h3>
+                                    <span className="text-sm text-gray-600">
+                                        Total: ₹{formatNum(allBets.close.reduce((sum, b) => sum + (b.amount || 0), 0))}
+                                    </span>
+                                </div>
+                                {allBets.close.length === 0 ? (
+                                    <p className="text-gray-500 text-center py-4">No closing bets found</p>
+                                ) : (
+                                    <div className="overflow-x-auto rounded-lg border border-gray-200">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Time</th>
+                                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Player</th>
+                                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Phone</th>
+                                                    <th className="px-3 py-2 text-center font-semibold text-gray-700">Game Type</th>
+                                                    <th className="px-3 py-2 text-center font-semibold text-gray-700">Number</th>
+                                                    <th className="px-3 py-2 text-right font-semibold text-gray-700">Amount</th>
+                                                    <th className="px-3 py-2 text-center font-semibold text-gray-700">Status</th>
+                                                    <th className="px-3 py-2 text-center font-semibold text-gray-700">Placed By</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {allBets.close.map((bet) => (
+                                                    <tr key={bet._id} className="hover:bg-gray-50">
+                                                        <td className="px-3 py-2 text-gray-600 font-mono text-xs">
+                                                            {new Date(bet.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-gray-800 font-medium">{bet.userId?.username || 'N/A'}</td>
+                                                        <td className="px-3 py-2 text-gray-600 text-xs">{bet.userId?.phone || '—'}</td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700">
+                                                                {bet.betType?.toUpperCase() || 'N/A'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-center font-mono font-bold text-orange-600">{bet.betNumber || '—'}</td>
+                                                        <td className="px-3 py-2 text-right font-semibold text-gray-800">₹{formatNum(bet.amount)}</td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                                bet.status === 'won' ? 'bg-green-100 text-green-700' :
+                                                                bet.status === 'lost' ? 'bg-red-100 text-red-700' :
+                                                                'bg-yellow-100 text-yellow-700'
+                                                            }`}>
+                                                                {bet.status?.toUpperCase() || 'PENDING'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-center text-xs text-gray-600">
+                                                            {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Bookie') : 'Player'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-gray-500 text-center py-4">No bet data available</p>
+                    )}
+                </SectionCard>
 
                 <div className="mt-8 pt-4 border-t border-gray-200 flex flex-wrap items-center gap-3">
                     <Link
                         to="/markets"
-                        state={market.marketType === 'startline' ? { marketType: 'starline', starlineMarketKey: (market.starlineGroup || '').toString().trim().toLowerCase() } : undefined}
                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold border border-gray-200 transition-colors"
                     >
                         <FaArrowLeft /> Back to Markets
@@ -1142,7 +1326,7 @@ const MarketDetail = () => {
                         state={{ preselectedMarket: market }}
                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold border border-amber-400 transition-colors"
                     >
-                        <FaEdit /> Add Result for {market.marketName}
+                        <FaEdit /> Add Result for {market?.marketName || 'Market'}
                     </Link>
                 </div>
             </div>

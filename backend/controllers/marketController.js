@@ -75,12 +75,11 @@ const upsertMarketResultSnapshot = async (marketDoc, dateKey) => {
 
 /**
  * Create a new market.
- * Body: { marketName, startingTime, closingTime, betClosureTime?, marketType?, starlineGroup? }
- * starlineGroup: for marketType 'startline', e.g. 'kalyan', 'milan', 'radha'.
+ * Body: { marketName, startingTime, closingTime, betClosureTime?, marketType? }
  */
 export const createMarket = async (req, res) => {
     try {
-        const { marketName, startingTime, closingTime, betClosureTime, marketType, starlineGroup } = req.body;
+        const { marketName, startingTime, closingTime, betClosureTime, marketType } = req.body;
         if (!marketName || !startingTime || !closingTime) {
             return res.status(400).json({
                 success: false,
@@ -88,11 +87,7 @@ export const createMarket = async (req, res) => {
             });
         }
         const betClosureSec = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
-        const type = marketType === 'startline' ? 'startline' : 'main';
-        const payload = { marketName, startingTime, closingTime, betClosureTime: betClosureSec, marketType: type };
-        if (type === 'startline' && starlineGroup != null && String(starlineGroup).trim() !== '') {
-            payload.starlineGroup = String(starlineGroup).trim().toLowerCase();
-        }
+        const payload = { marketName, startingTime, closingTime, betClosureTime: betClosureSec, marketType: 'main' };
         const market = new Market(payload);
         await market.save();
 
@@ -129,64 +124,6 @@ export const createMarket = async (req, res) => {
     }
 };
 
-/** Default startline markets (fixed). Only created if none exist. */
-const DEFAULT_STARTLINE_MARKETS = [
-    { name: 'STARLINE 01:00 AM', time: '01:00' },
-    { name: 'STARLINE 06:00 PM', time: '18:00' },
-    { name: 'STARLINE 07:00 PM', time: '19:00' },
-    { name: 'STARLINE 08:00 PM', time: '20:00' },
-    { name: 'STARLINE 09:00 PM', time: '21:00' },
-    { name: 'STARLINE 10:00 PM', time: '22:00' },
-    { name: 'STARLINE 11:00 PM', time: '23:00' },
-];
-
-/**
- * POST /markets/seed-startline – create default fixed startline markets if none exist (super admin only).
- */
-export const seedStartlineMarkets = async (req, res) => {
-    try {
-        const existing = await Market.countDocuments({ marketType: 'startline' });
-        if (existing > 0) {
-            return res.status(200).json({
-                success: true,
-                message: 'Startline markets already exist.',
-                data: { created: 0, existing },
-            });
-        }
-        for (const { name, time } of DEFAULT_STARTLINE_MARKETS) {
-            await Market.findOneAndUpdate(
-                { marketName: name },
-                { marketName: name, startingTime: time, closingTime: time, marketType: 'startline' },
-                { upsert: true, new: true }
-            );
-        }
-        if (req.admin) {
-            await logActivity({
-                action: 'seed_startline_markets',
-                performedBy: req.admin.username,
-                performedByType: req.admin.role || 'super_admin',
-                targetType: 'market',
-                targetId: '',
-                details: `Created ${DEFAULT_STARTLINE_MARKETS.length} default startline markets`,
-                ip: getClientIp(req),
-            });
-        }
-        const list = await Market.find({ marketType: 'startline' }).sort({ startingTime: 1 });
-        const data = list.map((m) => {
-            const doc = m.toObject();
-            doc.displayResult = m.getDisplayResult();
-            return doc;
-        });
-        res.status(201).json({
-            success: true,
-            message: `Created ${DEFAULT_STARTLINE_MARKETS.length} startline markets.`,
-            data: { created: DEFAULT_STARTLINE_MARKETS.length, markets: data },
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
 /**
  * Get all markets.
  * Results (opening/closing numbers) are reset at midnight IST so each new day starts with no declared result.
@@ -200,12 +137,8 @@ export const getMarkets = async (req, res) => {
             doc.displayResult = m.getDisplayResult();
             return doc;
         });
-        const marketTypeFilter = (req.query.marketType || '').toString().toLowerCase();
-        if (marketTypeFilter === 'main') {
-            data = data.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline');
-        } else if (marketTypeFilter === 'startline') {
-            data = data.filter((m) => (m.marketType || '').toString().toLowerCase() === 'startline');
-        }
+        // Filter only main markets (starline removed)
+        data = data.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline');
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -248,20 +181,11 @@ export const updateMarket = async (req, res) => {
         }
         const { marketName, startingTime, closingTime, betClosureTime, marketType } = req.body;
         const updates = {};
-        if (existing.marketType === 'startline') {
-            if (marketName !== undefined) updates.marketName = marketName;
-            if (closingTime !== undefined && closingTime != null && String(closingTime).trim() !== '') {
-                updates.closingTime = String(closingTime).trim().slice(0, 5);
-                updates.startingTime = updates.closingTime; // keep slot time in sync for startline
-            }
-            if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
-        } else {
-            if (marketName !== undefined) updates.marketName = marketName;
-            if (startingTime !== undefined) updates.startingTime = startingTime;
-            if (closingTime !== undefined) updates.closingTime = closingTime;
-            if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
-            if (marketType !== undefined) updates.marketType = marketType === 'startline' ? 'startline' : 'main';
-        }
+        if (marketName !== undefined) updates.marketName = marketName;
+        if (startingTime !== undefined) updates.startingTime = startingTime;
+        if (closingTime !== undefined) updates.closingTime = closingTime;
+        if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
+        if (marketType !== undefined) updates.marketType = 'main';
 
         const market = await Market.findByIdAndUpdate(
             id,
@@ -323,6 +247,21 @@ export const setOpeningNumber = async (req, res) => {
                 message: 'openingNumber must be exactly 3 digits or empty to clear',
             });
         }
+        
+        // Check if market is already closed (has closing number)
+        const existingMarket = await Market.findById(id);
+        if (!existingMarket) {
+            return res.status(404).json({ success: false, message: 'Market not found' });
+        }
+        
+        // If trying to set opening number and market is already closed, prevent it
+        if (value !== null && existingMarket.closingNumber && /^\d{3}$/.test(String(existingMarket.closingNumber))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot open a market that is already closed. The closing number has already been declared.',
+            });
+        }
+        
         const market = await Market.findByIdAndUpdate(
             id,
             { openingNumber: value },
@@ -518,6 +457,15 @@ export const declareOpenResult = async (req, res) => {
         if (!market) {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
+        
+        // Check if market is already closed (has closing number)
+        if (market.closingNumber && /^\d{3}$/.test(String(market.closingNumber))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot declare open result for a market that is already closed. The closing number has already been declared.',
+            });
+        }
+        
         await settleOpening(market._id.toString(), openVal);
         if (req.admin) {
             await logActivity({
@@ -1193,6 +1141,59 @@ export const deleteMarket = async (req, res) => {
         }
 
         res.status(200).json({ success: true, message: 'Market deleted', data: { id } });
+    } catch (error) {
+        if (error.name === 'CastError') {
+            return res.status(400).json({ success: false, message: 'Invalid market ID' });
+        }
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Get all bets for a market with user details - separated by opening/closing
+ * GET /api/v1/markets/get-market-bets/:id
+ * Returns all bets with user information, separated by betOn (open/close)
+ */
+export const getMarketBets = async (req, res) => {
+    try {
+        const { id: marketId } = req.params;
+        const market = await Market.findById(marketId);
+        if (!market) {
+            return res.status(404).json({ success: false, message: 'Market not found' });
+        }
+
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        const matchFilter = { marketId };
+        if (bookieUserIds !== null) {
+            matchFilter.userId = { $in: bookieUserIds };
+        }
+
+        // Filter bets by today IST
+        const todayKey = toDateKeyIST(new Date());
+        const startOfTodayIST = new Date(`${todayKey}T00:00:00+05:30`);
+        const endOfTodayIST = new Date(`${todayKey}T23:59:59.999+05:30`);
+        matchFilter.createdAt = { $gte: startOfTodayIST, $lte: endOfTodayIST };
+
+        const bets = await Bet.find(matchFilter)
+            .populate('userId', 'username phone email')
+            .populate('placedByBookieId', 'username')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Separate bets by betOn (open/close)
+        const openBets = bets.filter(b => b.betOn === 'open' || !b.betOn);
+        const closeBets = bets.filter(b => b.betOn === 'close');
+
+        res.status(200).json({
+            success: true,
+            data: {
+                open: openBets,
+                close: closeBets,
+                total: bets.length,
+                totalOpen: openBets.length,
+                totalClose: closeBets.length,
+            },
+        });
     } catch (error) {
         if (error.name === 'CastError') {
             return res.status(400).json({ success: false, message: 'Invalid market ID' });

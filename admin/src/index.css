@@ -212,3 +212,46 @@ input[type="number"] {
   outline: 2px solid #f97316;
   outline-offset: 2px;
 }
+
+/* Print styles for statement */
+@media print {
+  @page {
+    margin: 1cm;
+  }
+  
+  body * {
+    visibility: hidden;
+  }
+  
+  #statement-slip,
+  #statement-slip * {
+    visibility: visible;
+  }
+  
+  #statement-slip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  .print\\:p-8 {
+    padding: 2rem !important;
+  }
+  
+  .print\\:max-w-none {
+    max-width: none !important;
+  }
+  
+  .print\\:border-gray-800 {
+    border-color: #1f2937 !important;
+  }
+  
+  .print\\:rounded-none {
+    border-radius: 0 !important;
+  }
+}

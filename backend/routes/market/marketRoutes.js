@@ -6,12 +6,12 @@ import {
     getMarketResultHistory,
     getMarketStats,
     getSinglePattiSummary,
+    getMarketBets,
     updateMarket,
     setOpeningNumber,
     setClosingNumber,
     setWinNumber,
     deleteMarket,
-    seedStartlineMarkets,
     previewDeclareOpenResult,
     declareOpenResult,
     previewDeclareCloseResult,
@@ -19,7 +19,6 @@ import {
     clearResult,
     getWinningBetsPreview,
 } from '../../controllers/marketController.js';
-import { getStarlineGroups, createStarlineGroup, deleteStarlineGroup } from '../../controllers/starlineGroupController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -27,12 +26,12 @@ const router = express.Router();
 // Public routes
 router.get('/get-markets', getMarkets);
 router.get('/get-market/:id', getMarketById);
-router.get('/starline-groups', getStarlineGroups);
 router.get('/result-history', getMarketResultHistory);
 
 // Admin: market detail stats (amount & no. of bets per option)
 router.get('/get-market-stats/:id', verifyAdmin, getMarketStats);
 router.get('/get-single-patti-summary/:id', verifyAdmin, getSinglePattiSummary);
+router.get('/get-market-bets/:id', verifyAdmin, getMarketBets);
 
 // Super admin: declare result (preview, declare open, declare close)
 router.get('/preview-declare-open/:id', verifySuperAdmin, previewDeclareOpenResult);
@@ -44,13 +43,10 @@ router.post('/clear-result/:id', verifySuperAdmin, clearResult);
 
 // Super admin only - market management
 router.post('/create-market', verifySuperAdmin, createMarket);
-router.post('/seed-startline', verifySuperAdmin, seedStartlineMarkets);
 router.patch('/update-market/:id', verifySuperAdmin, updateMarket);
 router.patch('/set-opening-number/:id', verifySuperAdmin, setOpeningNumber);
 router.patch('/set-closing-number/:id', verifySuperAdmin, setClosingNumber);
 router.patch('/set-win-number/:id', verifySuperAdmin, setWinNumber);
 router.delete('/delete-market/:id', verifySuperAdmin, deleteMarket);
-router.post('/starline-groups', verifySuperAdmin, createStarlineGroup);
-router.delete('/starline-groups/:key', verifySuperAdmin, deleteStarlineGroup);
 
 export default router;

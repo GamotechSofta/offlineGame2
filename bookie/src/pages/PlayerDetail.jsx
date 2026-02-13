@@ -67,6 +67,10 @@ const PlayerDetail = () => {
     // Bet filter
     const [betFilter, setBetFilter] = useState('all'); // all, pending, won, lost
 
+    // Market filter for fund history
+    const [marketFilter, setMarketFilter] = useState('all'); // all or marketId
+    const [markets, setMarkets] = useState([]);
+
     // Fund modal
     const [fundModalOpen, setFundModalOpen] = useState(false);
     const [fundModalType, setFundModalType] = useState('add'); // add, withdraw, set
@@ -75,12 +79,6 @@ const PlayerDetail = () => {
     const [fundError, setFundError] = useState('');
     const [fundSuccess, setFundSuccess] = useState('');
 
-    // Debt modal
-    const [debtModalOpen, setDebtModalOpen] = useState(false);
-    const [debtAmount, setDebtAmount] = useState('');
-    const [debtLoading, setDebtLoading] = useState(false);
-    const [debtError, setDebtError] = useState('');
-    const [debtSuccess, setDebtSuccess] = useState('');
 
     // Init date to today
     useEffect(() => {
@@ -102,6 +100,11 @@ const PlayerDetail = () => {
 
     // Fetch player
     useEffect(() => { fetchPlayer(); }, [userId]);
+
+    // Fetch markets when component mounts
+    useEffect(() => {
+        fetchMarkets();
+    }, []);
 
     // Fetch tab data when tab/date changes
     useEffect(() => {
@@ -142,10 +145,22 @@ const PlayerDetail = () => {
         }
     };
 
+    const fetchMarkets = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/markets/get-markets?marketType=main`, { headers: getBookieAuthHeaders() });
+            const data = await res.json();
+            if (data.success) {
+                setMarkets(data.data || []);
+            }
+        } catch (err) {
+            setMarkets([]);
+        }
+    };
+
     const fetchWalletTx = async () => {
         setLoadingTab(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}`, { headers: getBookieAuthHeaders() });
+            const res = await fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}&includeBet=1`, { headers: getBookieAuthHeaders() });
             const data = await res.json();
             setWalletTx(data.success ? (data.data || []).reverse() : []);
         } catch (err) {
@@ -166,34 +181,63 @@ const PlayerDetail = () => {
             const txData = await txRes.json();
             const betList = betsData.success ? betsData.data || [] : [];
             const txList = txData.success ? txData.data || [] : [];
+            
             const start = new Date(dateFrom); start.setHours(0, 0, 0, 0);
             const end = new Date(dateTo); end.setHours(23, 59, 59, 999);
 
-            const betRows = betList.filter((b) => { const d = new Date(b.createdAt); return d >= start && d <= end; }).map((b) => ({
-                date: new Date(b.createdAt),
-                type: b.marketId?.marketName || 'Bet',
-                name: `${b.betType || ''} - ${b.betNumber || b._id?.slice(-6)}`,
-                status: b.status === 'won' ? 'WIN' : b.status === 'lost' ? 'LOST' : 'BET',
-                credited: b.status === 'won' ? (b.payout || 0) : 0,
-                debited: b.status !== 'won' ? (b.amount || 0) : 0,
-            }));
-
-            const txRows = txList.filter((t) => { const d = new Date(t.createdAt); return d >= start && d <= end; }).map((t) => ({
-                date: new Date(t.createdAt),
-                type: 'Wallet',
-                name: t.description || t._id?.slice(-6),
-                status: t.type === 'credit' ? 'CREDIT' : 'DEBIT',
-                credited: t.type === 'credit' ? (t.amount || 0) : 0,
-                debited: t.type === 'debit' ? (t.amount || 0) : 0,
-            }));
-
-            const merged = [...betRows, ...txRows].sort((a, b) => a.date - b.date);
-            let running = 0;
-            const withBalance = merged.map((r) => {
-                running = running + (r.credited || 0) - (r.debited || 0);
-                return { ...r, runningBalance: running };
+            // Aggregate bet amounts (don't show individual bets)
+            const filteredBets = betList.filter((b) => {
+                const d = new Date(b.createdAt);
+                return d >= start && d <= end;
             });
-            setStatementData(withBalance);
+            
+            const totalBetAmount = filteredBets.reduce((sum, b) => sum + (b.amount || 0), 0);
+            const totalWinAmount = filteredBets.filter(b => b.status === 'won').reduce((sum, b) => sum + (b.payout || 0), 0);
+            const totalLossAmount = filteredBets.filter(b => b.status === 'lost').reduce((sum, b) => sum + (b.amount || 0), 0);
+            const totalPendingBets = filteredBets.filter(b => b.status === 'pending').reduce((sum, b) => sum + (b.amount || 0), 0);
+
+            // Aggregate wallet transactions
+            const filteredTx = txList.filter((t) => {
+                const d = new Date(t.createdAt);
+                return d >= start && d <= end;
+            });
+
+            const totalDeposits = filteredTx.filter(t => t.type === 'credit' && (t.description?.toLowerCase().includes('deposit') || t.description?.toLowerCase().includes('add fund'))).reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalWithdrawals = filteredTx.filter(t => t.type === 'debit' && (t.description?.toLowerCase().includes('withdraw') || t.description?.toLowerCase().includes('withdrawal'))).reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalOtherCredits = filteredTx.filter(t => t.type === 'credit' && !t.description?.toLowerCase().includes('deposit') && !t.description?.toLowerCase().includes('add fund')).reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalOtherDebits = filteredTx.filter(t => t.type === 'debit' && !t.description?.toLowerCase().includes('withdraw') && !t.description?.toLowerCase().includes('withdrawal')).reduce((sum, t) => sum + (t.amount || 0), 0);
+
+            // Calculate net amounts
+            const totalCredits = totalWinAmount + totalDeposits + totalOtherCredits;
+            const totalDebits = totalBetAmount + totalWithdrawals + totalOtherDebits;
+            const netAmount = totalCredits - totalDebits;
+
+            // Create summary statement
+            const summary = {
+                period: { from: dateFrom, to: dateTo },
+                player: player ? { name: player.username, phone: player.phone, id: player._id } : null,
+                bets: {
+                    totalAmount: totalBetAmount,
+                    totalWin: totalWinAmount,
+                    totalLoss: totalLossAmount,
+                    totalPending: totalPendingBets,
+                    count: filteredBets.length,
+                },
+                wallet: {
+                    deposits: totalDeposits,
+                    withdrawals: totalWithdrawals,
+                    otherCredits: totalOtherCredits,
+                    otherDebits: totalOtherDebits,
+                },
+                totals: {
+                    totalCredits,
+                    totalDebits,
+                    netAmount,
+                },
+                currentBalance: player?.walletBalance || 0,
+            };
+
+            setStatementData([summary]);
         } catch (err) {
             setStatementData([]);
         } finally {
@@ -280,36 +324,6 @@ const PlayerDetail = () => {
         }
     };
 
-    const handleDebtSubmit = async () => {
-        const num = Number(debtAmount);
-        if (!Number.isFinite(num) || num < 0) {
-            setDebtError('Enter a valid non-negative amount');
-            return;
-        }
-
-        setDebtError('');
-        setDebtSuccess('');
-        setDebtLoading(true);
-
-        try {
-            const res = await fetch(`${API_BASE_URL}/wallet/set-debt`, {
-                method: 'PUT',
-                headers: getBookieAuthHeaders(),
-                body: JSON.stringify({ userId, debt: num }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setDebtSuccess(`Debt set to ${formatCurrency(num)}`);
-                fetchPlayer();
-            } else {
-                setDebtError(data.message || 'Failed');
-            }
-        } catch (err) {
-            setDebtError('Network error. Please try again.');
-        } finally {
-            setDebtLoading(false);
-        }
-    };
 
     // Bet stats
     const betStats = {
@@ -448,12 +462,6 @@ const PlayerDetail = () => {
                                         <p className="text-gray-400 text-xs uppercase tracking-wider">Joined</p>
                                         <p className="text-gray-600 text-xs">{player.createdAt ? new Date(player.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</p>
                                     </div>
-                                    <div>
-                                        <p className="text-gray-400 text-xs uppercase tracking-wider">Debt</p>
-                                        <p className={`text-sm font-bold ${(player.debt ?? 0) > 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                                            {formatCurrency(player.debt ?? 0)}
-                                        </p>
-                                    </div>
                                 </div>
                             </div>
 
@@ -478,9 +486,6 @@ const PlayerDetail = () => {
                         </button>
                         <button onClick={() => navigate(`/games?playerId=${userId}`)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold transition-colors">
                             <FaGamepad className="w-3.5 h-3.5" /> Place Bet
-                        </button>
-                        <button onClick={() => { setDebtAmount(String(player.debt ?? 0)); setDebtError(''); setDebtSuccess(''); setDebtModalOpen(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-semibold transition-colors">
-                            <FaFileInvoiceDollar className="w-3.5 h-3.5" /> Debt
                         </button>
                         <button onClick={() => { fetchPlayer(); if (activeTab === 'bets') fetchBets(); if (activeTab === 'wallet') fetchWalletTx(); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs sm:text-sm font-semibold transition-colors ml-auto">
                             <FaSyncAlt className="w-3 h-3" /> Refresh
@@ -695,38 +700,81 @@ const PlayerDetail = () => {
                     {/* ---- FUND HISTORY ---- */}
                     {activeTab === 'wallet' && (
                         <>
+                            {/* Market Filter */}
+                            <div className="mb-4 flex items-center gap-3">
+                                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                    <FaFilter className="w-4 h-4" />
+                                    Filter by Market:
+                                </label>
+                                <select
+                                    value={marketFilter}
+                                    onChange={(e) => setMarketFilter(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                >
+                                    <option value="all">All Markets</option>
+                                    {markets.map((m) => (
+                                        <option key={m._id || m.id} value={m._id || m.id}>
+                                            {m.marketName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
                             {loadingTab ? (
                                 <div className="p-8 text-center text-gray-400">Loading...</div>
-                            ) : walletTx.length === 0 ? (
-                                <div className="p-8 text-center text-gray-400">No fund transactions.</div>
-                            ) : (
-                                <div className="divide-y divide-gray-100">
-                                    {walletTx.map((t) => (
-                                        <div key={t._id} className="px-4 py-3 hover:bg-gray-50 flex flex-wrap items-center justify-between gap-3">
-                                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${t.type === 'credit' ? 'bg-green-100' : 'bg-red-100'}`}>
-                                                    {t.type === 'credit'
-                                                        ? <FaPlusCircle className="w-4 h-4 text-green-600" />
-                                                        : <FaMinusCircle className="w-4 h-4 text-red-500" />
-                                                    }
+                            ) : (() => {
+                                // Filter transactions by market
+                                const filteredTx = marketFilter === 'all' 
+                                    ? walletTx 
+                                    : walletTx.filter((t) => {
+                                        // Only filter bet-related transactions
+                                        if (t.bet && t.bet.marketId) {
+                                            const txMarketId = String(t.bet.marketId);
+                                            const filterMarketId = String(marketFilter);
+                                            return txMarketId === filterMarketId;
+                                        }
+                                        // Non-bet transactions are shown when "All Markets" is selected
+                                        return false;
+                                    });
+
+                                return filteredTx.length === 0 ? (
+                                    <div className="p-8 text-center text-gray-400">No fund transactions{marketFilter !== 'all' ? ' for selected market' : ''}.</div>
+                                ) : (
+                                    <div className="divide-y divide-gray-100">
+                                        {filteredTx.map((t) => (
+                                            <div key={t._id} className="px-4 py-3 hover:bg-gray-50 flex flex-wrap items-center justify-between gap-3">
+                                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${t.type === 'credit' ? 'bg-green-100' : 'bg-red-100'}`}>
+                                                        {t.type === 'credit'
+                                                            ? <FaPlusCircle className="w-4 h-4 text-green-600" />
+                                                            : <FaMinusCircle className="w-4 h-4 text-red-500" />
+                                                        }
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-gray-800 text-sm font-medium truncate">{t.description || '—'}</p>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <p className="text-gray-400 text-xs">{new Date(t.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                                                            {t.bet && t.bet.marketName && (
+                                                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-700">
+                                                                    {t.bet.marketName}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-gray-800 text-sm font-medium truncate">{t.description || '—'}</p>
-                                                    <p className="text-gray-400 text-xs">{new Date(t.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                                                <div className="text-right shrink-0">
+                                                    <p className={`font-mono font-bold text-sm ${t.type === 'credit' ? 'text-green-600' : 'text-red-500'}`}>
+                                                        {t.type === 'credit' ? '+' : '-'}{formatCurrency(t.amount)}
+                                                    </p>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${t.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+                                                        {t.type}
+                                                    </span>
                                                 </div>
                                             </div>
-                                            <div className="text-right shrink-0">
-                                                <p className={`font-mono font-bold text-sm ${t.type === 'credit' ? 'text-green-600' : 'text-red-500'}`}>
-                                                    {t.type === 'credit' ? '+' : '-'}{formatCurrency(t.amount)}
-                                                </p>
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${t.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
-                                                    {t.type}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </>
                     )}
 
@@ -738,37 +786,139 @@ const PlayerDetail = () => {
                             ) : statementData.length === 0 ? (
                                 <div className="p-8 text-center text-gray-400">No transactions in this period.</div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm min-w-[700px]">
-                                        <thead className="bg-gray-50">
-                                            <tr>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Credit</th>
-                                                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Debit</th>
-                                                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100">
-                                            {statementData.map((row, i) => (
-                                                <tr key={i} className="hover:bg-gray-50">
-                                                    <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{row.date.toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                                                    <td className="px-3 py-2 text-gray-700 text-xs">{row.type}</td>
-                                                    <td className="px-3 py-2 text-orange-600 font-mono text-xs truncate max-w-[200px]">{row.name}</td>
-                                                    <td className="px-3 py-2">
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                                            row.status === 'WIN' || row.status === 'CREDIT' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
-                                                        }`}>{row.status}</span>
-                                                    </td>
-                                                    <td className="px-3 py-2 text-right font-mono text-green-600 text-xs">{row.credited ? formatCurrency(row.credited) : '—'}</td>
-                                                    <td className="px-3 py-2 text-right font-mono text-red-500 text-xs">{row.debited ? formatCurrency(row.debited) : '—'}</td>
-                                                    <td className="px-3 py-2 text-right font-mono text-gray-800 font-bold text-xs">{formatCurrency(row.runningBalance)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                <div id="statement-slip" className="bg-white p-6 max-w-2xl mx-auto print:p-8 print:max-w-none">
+                                    {/* Print button */}
+                                    <div className="mb-4 print:hidden flex justify-end">
+                                        <button
+                                            onClick={() => window.print()}
+                                            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                                        >
+                                            <FaPrint className="w-4 h-4" />
+                                            Print Statement
+                                        </button>
+                                    </div>
+
+                                    {/* Statement Slip */}
+                                    {statementData.map((summary, i) => (
+                                        <div key={i} className="border-2 border-gray-300 rounded-lg p-6 print:border-gray-800 print:rounded-none">
+                                            {/* Header */}
+                                            <div className="text-center mb-6 pb-4 border-b-2 border-gray-300 print:border-gray-800">
+                                                <h2 className="text-2xl font-bold text-gray-800 mb-2">ACCOUNT STATEMENT</h2>
+                                                <p className="text-sm text-gray-600">
+                                                    {summary.period.from && summary.period.to && formatDateRange(summary.period.from, summary.period.to)}
+                                                </p>
+                                            </div>
+
+                                            {/* Player Info */}
+                                            {summary.player && (
+                                                <div className="mb-6 pb-4 border-b border-gray-200">
+                                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                                        <div>
+                                                            <p className="text-gray-500 mb-1">Player Name</p>
+                                                            <p className="font-semibold text-gray-800">{summary.player.name}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-gray-500 mb-1">Phone</p>
+                                                            <p className="font-semibold text-gray-800">{summary.player.phone || '—'}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Bet Summary */}
+                                            <div className="mb-6 pb-4 border-b border-gray-200">
+                                                <h3 className="text-lg font-bold text-gray-800 mb-3">BET SUMMARY</h3>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Bets Placed</span>
+                                                        <span className="font-mono font-semibold text-gray-800">{summary.bets.count} bets</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Bet Amount</span>
+                                                        <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.bets.totalAmount)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Win Amount</span>
+                                                        <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.bets.totalWin)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Loss Amount</span>
+                                                        <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.bets.totalLoss)}</span>
+                                                    </div>
+                                                    {summary.bets.totalPending > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Pending Bets</span>
+                                                            <span className="font-mono font-semibold text-orange-600">{formatCurrency(summary.bets.totalPending)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Wallet Summary */}
+                                            <div className="mb-6 pb-4 border-b border-gray-200">
+                                                <h3 className="text-lg font-bold text-gray-800 mb-3">WALLET TRANSACTIONS</h3>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Deposits</span>
+                                                        <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.wallet.deposits)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Withdrawals</span>
+                                                        <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.wallet.withdrawals)}</span>
+                                                    </div>
+                                                    {summary.wallet.otherCredits > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Other Credits</span>
+                                                            <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.wallet.otherCredits)}</span>
+                                                        </div>
+                                                    )}
+                                                    {summary.wallet.otherDebits > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Other Debits</span>
+                                                            <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.wallet.otherDebits)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Totals */}
+                                            <div className="mb-6 pb-4 border-b-2 border-gray-300 print:border-gray-800">
+                                                <h3 className="text-lg font-bold text-gray-800 mb-3">TOTALS</h3>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Credits</span>
+                                                        <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.totals.totalCredits)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Debits</span>
+                                                        <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.totals.totalDebits)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between pt-2 border-t border-gray-200">
+                                                        <span className="text-gray-800 font-bold">Net Amount</span>
+                                                        <span className={`font-mono font-bold text-lg ${summary.totals.netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {formatCurrency(summary.totals.netAmount)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Current Status */}
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                                    <span className="text-gray-700 font-semibold">Current Wallet Balance</span>
+                                                    <span className="font-mono font-bold text-xl text-gray-800">{formatCurrency(summary.currentBalance)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                                                </div>
+                                            </div>
+
+                                            {/* Footer */}
+                                            <div className="mt-6 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
+                                                <p>Generated on {new Date().toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' })}</p>
+                                                <p className="mt-1">This is a computer-generated statement</p>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </>
@@ -852,70 +1002,6 @@ const PlayerDetail = () => {
                     </div>
                 )}
 
-                {/* ========== DEBT MODAL ========== */}
-                {debtModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm">
-                            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                                <h3 className="text-base font-bold text-gray-800">💳 Manage Debt</h3>
-                                <button type="button" onClick={() => setDebtModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
-                            </div>
-                            <div className="p-4 space-y-4">
-                                {/* Current debt */}
-                                <div className="bg-red-50 rounded-lg px-3 py-2 text-center border border-red-200">
-                                    <p className="text-red-400 text-xs uppercase">Current Debt</p>
-                                    <p className="text-red-600 font-mono font-bold text-xl">{formatCurrency(player.debt ?? 0)}</p>
-                                </div>
-
-                                {debtError && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">{debtError}</div>}
-                                {debtSuccess && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">{debtSuccess}</div>}
-
-                                {!debtSuccess && (
-                                    <>
-                                        <div>
-                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">
-                                                New Debt Amount
-                                            </label>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    placeholder="0"
-                                                    value={debtAmount}
-                                                    onChange={(e) => setDebtAmount(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
-                                                    className="w-full pl-8 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 font-mono text-lg text-center focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                                    autoFocus
-                                                />
-                                            </div>
-                                            <p className="text-xs text-gray-400 mt-1">Debt is automatically deducted from bet amounts and winnings</p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={handleDebtSubmit}
-                                            disabled={debtLoading || debtAmount === ''}
-                                            className="w-full font-bold py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                        >
-                                            {debtLoading ? (
-                                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            ) : (
-                                                <>
-                                                    <FaFileInvoiceDollar className="w-4 h-4" /> Set Debt
-                                                </>
-                                            )}
-                                        </button>
-                                    </>
-                                )}
-
-                                {debtSuccess && (
-                                    <button type="button" onClick={() => setDebtModalOpen(false)} className="w-full py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold transition-colors">
-                                        Done
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </Layout>
     );

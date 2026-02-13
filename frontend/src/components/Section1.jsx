@@ -127,27 +127,6 @@ const Section1 = () => {
         {/* ── Right gold line ── */}
         <div className="flex-1 h-[1px] bg-gradient-to-l from-[#d4af37]/10 via-[#d4af37]/50 to-[#d4af37]/70 min-w-[20px]" />
 
-        {/* ── KING BAZAAR Button ── */}
-        <button
-          onClick={() => navigate('/bidoptions', { state: { marketType: 'king' } })}
-          className="group relative overflow-hidden rounded-xl bg-[#111113] border border-[#f2c14e]/25 hover:border-[#f2c14e]/60 transition-all duration-300 active:scale-[0.97] cursor-pointer shrink-0"
-        >
-          <div className="absolute inset-0 bg-gradient-to-l from-[#f2c14e]/[0.06] to-transparent group-hover:from-[#f2c14e]/[0.12] transition-all duration-300" />
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent -translate-x-[200%] group-hover:translate-x-[200%] transition-transform duration-700 pointer-events-none" />
-          <div className="relative flex items-center gap-3 px-4 py-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#f2c14e] to-[#b8860b] flex items-center justify-center shrink-0 shadow-[0_2px_14px_rgba(212,175,55,0.4)] group-hover:shadow-[0_2px_20px_rgba(212,175,55,0.6)] group-hover:scale-105 transition-all duration-300">
-              <span className="text-xl leading-none">🎲</span>
-            </div>
-            <div className="text-left">
-              <h3 className="text-[#f2c14e] text-base font-black tracking-wider leading-none">KING BAZAAR</h3>
-              <p className="text-gray-500 text-[11px] mt-1 group-hover:text-gray-400 transition-colors">Play Now →</p>
-            </div>
-            <svg className="w-4 h-4 ml-1 text-[#f2c14e]/30 group-hover:text-[#f2c14e] group-hover:translate-x-0.5 transition-all" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-          <div className="h-[2px] bg-gradient-to-r from-transparent via-[#f2c14e]/30 to-transparent group-hover:via-[#f2c14e]/60 transition-all" />
-        </button>
       </div>
 
       {/* ═══ Mobile: MARKETS Header only ═══ */}

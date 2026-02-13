@@ -17,11 +17,8 @@ import SupportStatus from '../pages/Support/SupportStatus';
 import Bids from '../pages/Bids';
 import Profile from '../pages/Profile';
 import BetHistory from '../pages/BetHistory';
-import StarlineBetHistory from '../pages/StarlineBetHistory';
 import MarketResultHistory from '../pages/MarketResultHistory';
-import StartlineDashboard from '../pages/StartlineDashboard';
 import TopWinners from '../pages/TopWinners';
-import StarlineMarket from '../pages/StarlineMarket';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -120,9 +117,7 @@ const Layout = ({ children }) => {
     location.pathname === '/download' ||
     location.pathname === '/profile' ||
     location.pathname === '/bet-history' ||
-    location.pathname === '/starline-bet-history' ||
     location.pathname === '/market-result-history' ||
-    location.pathname === '/startline-dashboard' ||
     isSupportPage;
   const isBetsPage = location.pathname === '/bids';
   const isHistoryPage =
@@ -167,10 +162,7 @@ const AppRoutes = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/bids" element={<Bids />} />
           <Route path="/bet-history" element={<BetHistory />} />
-          <Route path="/starline-bet-history" element={<StarlineBetHistory />} />
           <Route path="/market-result-history" element={<MarketResultHistory />} />
-          <Route path="/startline-dashboard" element={<StartlineDashboard />} />
-          <Route path="/starline-market" element={<StarlineMarket />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/top-winners" element={<TopWinners />} />
         </Routes>

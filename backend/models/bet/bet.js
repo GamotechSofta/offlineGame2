@@ -52,6 +52,17 @@ const betSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    /** Whether this bet was placed by a bookie on behalf of the player */
+    placedByBookie: {
+        type: Boolean,
+        default: false,
+    },
+    /** Bookie ID who placed this bet (if placedByBookie is true) */
+    placedByBookieId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Admin',
+        default: null,
+    },
 }, {
     timestamps: true,
 });

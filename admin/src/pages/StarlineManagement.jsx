@@ -400,6 +400,14 @@ const StarlineManagement = ({ embedded = false }) => {
 
     const performDeclareOpen = async (pwd) => {
         if (!selectedResultMarket) return;
+        
+        // Check if market is already closed
+        const hasClose = selectedResultMarket.closingNumber && /^\d{3}$/.test(String(selectedResultMarket.closingNumber));
+        if (hasClose) {
+            alert('Cannot declare open result for a market that is already closed. The closing number has already been declared.');
+            return;
+        }
+        
         const val = openPatti.replace(/\D/g, '').slice(0, 3);
         if (val.length !== 3) {
             alert('Enter 3-digit Open Patti.');

@@ -232,42 +232,6 @@ const WalletSection = () => {
         </div>
       </div>
 
-      {/* Market Category Buttons */}
-      <div className="mt-4 min-[375px]:mt-6 sm:mt-8 grid grid-cols-2 gap-2 min-[375px]:gap-3 sm:gap-4 max-w-lg mx-auto">
-        <button 
-          onClick={() => navigate('/startline-dashboard')}
-          className="group relative rounded-xl min-[375px]:rounded-2xl sm:rounded-3xl bg-[#1a1a1a] p-3 min-[375px]:p-4 sm:p-5 md:p-6 text-left shadow-[0_8px_20px_rgba(0,0,0,0.4)] border border-white/10 hover:border-yellow-500/30 hover:bg-[#222] active:scale-95 transition-all duration-200"
-        >
-          <div className="flex items-center justify-between gap-2 min-[375px]:gap-3">
-            <div className="flex items-center gap-2 min-[375px]:gap-3 sm:gap-4 min-w-0">
-              <div className="h-10 w-10 min-[375px]:h-12 min-[375px]:w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-lg min-[375px]:rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#f2c14e] to-[#d4af37] text-[#4b3608] flex items-center justify-center text-lg min-[375px]:text-xl sm:text-2xl md:text-3xl font-bold shadow-[0_6px_16px_rgba(242,193,78,0.4)] shrink-0">
-                ★
-              </div>
-              <p className="text-white text-xs min-[375px]:text-sm sm:text-base md:text-lg font-bold leading-tight whitespace-normal break-words">
-                STARLINE
-              </p>
-            </div>
-            <span className="text-white/30 text-xl sm:text-2xl group-hover:text-yellow-500/60 transition-colors">›</span>
-          </div>
-        </button>
-
-        <button 
-          onClick={() => navigate('/bidoptions', { state: { marketType: 'king' } })}
-          className="group relative rounded-xl min-[375px]:rounded-2xl sm:rounded-3xl bg-[#1a1a1a] p-3 min-[375px]:p-4 sm:p-5 md:p-6 text-left shadow-[0_8px_20px_rgba(0,0,0,0.4)] border border-white/10 hover:border-purple-500/30 hover:bg-[#222] active:scale-95 transition-all duration-200"
-        >
-          <div className="flex items-center justify-between gap-2 min-[375px]:gap-3">
-            <div className="flex items-center gap-2 min-[375px]:gap-3 sm:gap-4 min-w-0">
-              <div className="h-10 w-10 min-[375px]:h-12 min-[375px]:w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-lg min-[375px]:rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#e8e1ff] to-[#d4c5ff] text-[#4a3c9a] flex items-center justify-center text-lg min-[375px]:text-xl sm:text-2xl md:text-3xl shadow-[0_6px_16px_rgba(232,225,255,0.4)] shrink-0">
-                🎲
-              </div>
-              <p className="text-white text-xs min-[375px]:text-sm sm:text-base md:text-lg font-bold leading-tight whitespace-normal break-words">
-                KING BAZAAR
-              </p>
-            </div>
-            <span className="text-white/30 text-xl sm:text-2xl group-hover:text-purple-500/60 transition-colors">›</span>
-          </div>
-        </button>
-      </div>
 
     </section>
   );

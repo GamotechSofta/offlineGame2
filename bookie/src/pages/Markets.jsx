@@ -7,6 +7,7 @@ const Markets = () => {
     const [markets, setMarkets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [currentTime, setCurrentTime] = useState(new Date());
 
     const fetchMarkets = async () => {
         try {
@@ -26,12 +27,69 @@ const Markets = () => {
         fetchMarkets();
     }, []);
 
+    // Update current time every minute to check if markets have closed
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 60000); // Update every minute
+        return () => clearInterval(interval);
+    }, []);
+
     useRefreshOnMarketReset(fetchMarkets);
 
+    // Helper function to check if current time has passed closing time
+    const isPastClosingTime = (market) => {
+        const closeStr = (market?.closingTime || '').toString().trim();
+        if (!closeStr) return false;
+
+        // Get today's date in IST
+        const todayIST = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).format(currentTime);
+
+        // Normalize time string (handle HH:MM or HH:MM:SS)
+        const normalizeTimeStr = (timeStr) => {
+            const parts = String(timeStr).split(':');
+            const h = parts[0] || '00';
+            const m = parts[1] || '00';
+            return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:00`;
+        };
+
+        // Parse closing time in IST
+        const closeAt = new Date(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`).getTime();
+        const openAt = new Date(`${todayIST}T00:00:00+05:30`).getTime();
+
+        // If closing time is before or equal to opening time, it's next day
+        if (closeAt <= openAt) {
+            const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
+            baseDate.setDate(baseDate.getDate() + 1);
+            const nextDayStr = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'Asia/Kolkata',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            }).format(baseDate);
+            const nextDayCloseAt = new Date(`${nextDayStr}T${normalizeTimeStr(closeStr)}+05:30`).getTime();
+            return currentTime.getTime() >= nextDayCloseAt;
+        }
+
+        return currentTime.getTime() >= closeAt;
+    };
+
     // ***-**-*** → Open (green), 156-2*-*** → Running (green), 987-45-456 → Closed (red)
+    // Also check if closing time has passed
     const getMarketStatus = (market) => {
         const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
         const hasClosing = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
+        const pastClosingTime = isPastClosingTime(market);
+
+        // If closing time has passed, show as closed
+        if (pastClosingTime) return { status: 'closed', color: 'bg-red-600' };
+        
+        // Otherwise check based on declared results
         if (hasOpening && hasClosing) return { status: 'closed', color: 'bg-red-600' };
         if (hasOpening && !hasClosing) return { status: 'running', color: 'bg-green-600' };
         return { status: 'open', color: 'bg-green-600' };

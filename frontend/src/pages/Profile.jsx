@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config/api';
 
 const readUserFromStorage = () => {
   try {
@@ -191,6 +192,39 @@ const Profile = () => {
     ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null;
 
+  const IconStatement = () => (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+    </svg>
+  );
+
+  const handleDownloadStatement = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const userId = user?.id || user?._id;
+      if (!userId) {
+        showToast('Please log in to download statement');
+        return;
+      }
+
+      // Get date range (last 30 days by default)
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+
+      const url = `${API_BASE_URL}/bets/my-statement?userId=${encodeURIComponent(userId)}&startDate=${startDateStr}&endDate=${endDateStr}`;
+      
+      // Open in new window to trigger download
+      window.open(url, '_blank');
+      showToast('Downloading statement...');
+    } catch (err) {
+      showToast('Failed to download statement');
+    }
+  };
+
   /* ───────── Quick action buttons ───────── */
   const quickActions = [
     { icon: <IconAddFund />, label: 'Add Fund', path: '/funds?tab=add-fund', color: 'from-emerald-500 to-emerald-600' },
@@ -201,6 +235,7 @@ const Profile = () => {
 
   /* ───────── Menu items ───────── */
   const menuItems = [
+    { icon: <IconStatement />, label: 'Bet Statement', desc: 'Download bets placed by bookie', action: handleDownloadStatement, color: 'text-orange-400' },
     { icon: <IconBank />, label: 'Bank Details', desc: 'Manage payment methods', path: '/bank', color: 'text-blue-400' },
     { icon: <IconId />, label: 'KYC Verification', desc: 'Verify your identity', action: () => showToast('KYC coming soon'), color: 'text-emerald-400' },
     { icon: <IconShield />, label: 'Security', desc: 'Password & security settings', action: () => showToast('Security settings coming soon'), color: 'text-purple-400' },

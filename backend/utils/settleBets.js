@@ -59,46 +59,29 @@ function getTodayMidnight() {
 }
 
 /**
- * Helper: Pay winnings to user, deducting from debt first, then adding to wallet.
- * Returns the amount actually added to wallet (after debt deduction).
+ * Helper: Pay winnings to user, adding to wallet.
+ * Returns the amount added to wallet.
  */
 async function payWinnings(userId, payout, description, referenceId) {
     if (!payout || payout <= 0) return 0;
 
-    // Check user debt
-    const user = await User.findById(userId).select('debt').lean();
-    const debt = user?.debt ?? 0;
-
-    // Deduct from debt first
-    let remainingPayout = payout;
-    let debtPaid = 0;
-    
-    if (debt > 0 && remainingPayout > 0) {
-        debtPaid = Math.min(debt, remainingPayout);
-        remainingPayout -= debtPaid;
-        // Update debt
-        await User.updateOne({ _id: userId }, { $inc: { debt: -debtPaid } });
-    }
-
-    // Add remaining to wallet
-    if (remainingPayout > 0) {
-        await Wallet.findOneAndUpdate(
-            { userId },
-            { $inc: { balance: remainingPayout } },
-            { upsert: true }
-        );
-    }
+    // Add payout to wallet
+    await Wallet.findOneAndUpdate(
+        { userId },
+        { $inc: { balance: payout } },
+        { upsert: true }
+    );
 
     // Create transaction record
     await WalletTransaction.create({
         userId,
         type: 'credit',
         amount: payout,
-        description: description + (debtPaid > 0 ? ` (₹${debtPaid} deducted from debt)` : ''),
+        description: description,
         referenceId: referenceId?.toString(),
     });
 
-    return remainingPayout;
+    return payout;
 }
 
 /** Today in IST (YYYY-MM-DD) – same as getMarketStats so preview matches Market Detail. */
@@ -144,6 +127,12 @@ export async function settleOpening(marketId, openingNumber) {
     }
     const market = await Market.findById(marketId);
     if (!market) throw new Error('Market not found');
+    
+    // Check if market is already closed (has closing number)
+    if (market.closingNumber && /^\d{3}$/.test(String(market.closingNumber))) {
+        throw new Error('Cannot open a market that is already closed. The closing number has already been declared.');
+    }
+    
     const canonicalId = market._id.toString();
     await Market.findByIdAndUpdate(marketId, { openingNumber });
 

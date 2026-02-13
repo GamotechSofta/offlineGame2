@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import PDFDocument from 'pdfkit';
 import Bet from '../models/bet/bet.js';
 import User from '../models/user/user.js';
 import Market from '../models/market/market.js';
@@ -46,7 +47,7 @@ export const placeBet = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid marketId' });
         }
 
-        const user = await User.findById(userId).select('isActive debt').lean();
+        const user = await User.findById(userId).select('isActive').lean();
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
@@ -108,24 +109,10 @@ export const placeBet = async (req, res) => {
             await wallet.save();
         }
 
-        // Check user debt (user already fetched above with isActive)
-        const debt = user?.debt ?? 0;
-
-        // Deduct from debt first, then from wallet balance
-        let remainingAmount = totalAmount;
-        let debtPaid = 0;
-        
-        if (debt > 0 && remainingAmount > 0) {
-            debtPaid = Math.min(debt, remainingAmount);
-            remainingAmount -= debtPaid;
-            // Update debt
-            await User.updateOne({ _id: userId }, { $inc: { debt: -debtPaid } });
-        }
-
-        if (remainingAmount > 0 && wallet.balance < remainingAmount) {
+        if (wallet.balance < totalAmount) {
             return res.status(400).json({
                 success: false,
-                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}${debtPaid > 0 ? ` (₹${debtPaid} paid from debt)` : ''}`,
+                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}`,
             });
         }
 
@@ -265,7 +252,7 @@ export const placeBetForPlayer = async (req, res) => {
         }
 
         // Verify this player belongs to the bookie
-        const user = await User.findById(userId).select('isActive referredBy username debt').lean();
+        const user = await User.findById(userId).select('isActive referredBy username').lean();
         if (!user) {
             return res.status(404).json({ success: false, message: 'Player not found' });
         }
@@ -325,24 +312,10 @@ export const placeBetForPlayer = async (req, res) => {
             await wallet.save();
         }
 
-        // Check user debt (user already fetched above with isActive, referredBy, username)
-        const debt = user?.debt ?? 0;
-
-        // Deduct from debt first, then from wallet balance
-        let remainingAmount = totalAmount;
-        let debtPaid = 0;
-        
-        if (debt > 0 && remainingAmount > 0) {
-            debtPaid = Math.min(debt, remainingAmount);
-            remainingAmount -= debtPaid;
-            // Update debt
-            await User.updateOne({ _id: userId }, { $inc: { debt: -debtPaid } });
-        }
-
-        if (remainingAmount > 0 && wallet.balance < remainingAmount) {
+        if (wallet.balance < totalAmount) {
             return res.status(400).json({
                 success: false,
-                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}${debtPaid > 0 ? ` (₹${debtPaid} paid from debt)` : ''}`,
+                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}`,
             });
         }
 
@@ -364,6 +337,8 @@ export const placeBetForPlayer = async (req, res) => {
                     amount,
                     status: 'pending',
                     payout: 0,
+                    placedByBookie: true,
+                    placedByBookieId: bookie._id,
                 });
                 betIds.push(bet._id);
                 createdBets.push(bet);
@@ -526,5 +501,325 @@ export const getTopWinners = async (req, res) => {
         res.status(200).json({ success: true, data: winnersWithRate });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Download bet statement for a player (PDF format)
+ * Query params: userId (required), startDate (optional), endDate (optional)
+ * Shows all bets for the player (both placed by bookie and directly by player)
+ */
+export const downloadBetStatement = async (req, res) => {
+    try {
+        const { userId, startDate, endDate } = req.query;
+
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ success: false, message: 'Valid userId is required' });
+        }
+
+        // Verify user exists and get bookie filter
+        const user = await User.findById(userId).select('username email phone').lean();
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Player not found' });
+        }
+
+        // Check if bookie can access this player
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        if (bookieUserIds !== null && !bookieUserIds.some(id => id.toString() === userId)) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        // Build query for bets - show all bets for the player
+        const query = {
+            userId,
+            // Show all bets (both placed by bookie and directly by player)
+        };
+
+        // Date filter
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) {
+                const start = new Date(startDate);
+                start.setHours(0, 0, 0, 0);
+                query.createdAt.$gte = start;
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                query.createdAt.$lte = end;
+            }
+        }
+
+        // Fetch bets
+        const bets = await Bet.find(query)
+            .populate('marketId', 'marketName')
+            .populate('placedByBookieId', 'username')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Calculate totals
+        const totalBetAmount = bets.reduce((sum, b) => sum + (b.amount || 0), 0);
+        const totalWinAmount = bets.filter(b => b.status === 'won').reduce((sum, b) => sum + (b.payout || 0), 0);
+        const totalLossAmount = bets.filter(b => b.status === 'lost').reduce((sum, b) => sum + (b.amount || 0), 0);
+        // Total = Amount on bet - Win amount
+        // This represents the net amount the player owes to the bookie
+        const total = totalBetAmount - totalWinAmount;
+
+        // Create PDF
+        const doc = new PDFDocument({ margin: 50 });
+        
+        // Set response headers
+        const filename = `bet-statement-${user.username}-${Date.now()}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+        // Pipe PDF to response
+        doc.pipe(res);
+
+        // Header
+        doc.fontSize(20).text('Bet Statement', { align: 'center' });
+        doc.moveDown();
+        
+        // Player Information
+        doc.fontSize(14).text('Player Information', { underline: true });
+        doc.fontSize(12);
+        doc.text(`Name: ${user.username || 'N/A'}`);
+        doc.text(`Email: ${user.email || 'N/A'}`);
+        doc.text(`Phone: ${user.phone || 'N/A'}`);
+        if (startDate || endDate) {
+            doc.text(`Period: ${startDate ? new Date(startDate).toLocaleDateString() : 'Start'} - ${endDate ? new Date(endDate).toLocaleDateString() : 'End'}`);
+        } else {
+            doc.text(`Period: All Time`);
+        }
+        doc.moveDown();
+
+        // Summary Section
+        doc.fontSize(14).text('Summary', { underline: true });
+        doc.fontSize(12);
+        doc.text(`Total Bet Amount: ₹${totalBetAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        doc.text(`Total Win Amount: ₹${totalWinAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        doc.text(`Total Loss Amount: ₹${totalLossAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        doc.moveDown();
+        doc.fontSize(14).text(`Total (Bet Amount - Win Amount): ₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, { underline: true });
+        doc.moveDown(2);
+
+        // Bet Details Table Header
+        doc.fontSize(12).text('Bet Details', { underline: true });
+        doc.moveDown(0.5);
+        
+        // Table headers
+        const tableTop = doc.y;
+        doc.fontSize(10);
+        doc.text('Date', 50, tableTop);
+        doc.text('Market', 120, tableTop);
+        doc.text('Type', 250, tableTop);
+        doc.text('Number', 320, tableTop);
+        doc.text('Amount', 400, tableTop);
+        doc.text('Status', 480, tableTop);
+        doc.text('Payout', 540, tableTop);
+        doc.text('Placed By', 600, tableTop);
+        
+        // Draw line under header
+        doc.moveTo(50, doc.y + 5).lineTo(650, doc.y + 5).stroke();
+        doc.moveDown();
+
+        // Bet rows
+        let yPos = doc.y;
+        bets.forEach((bet, index) => {
+            // Check if we need a new page
+            if (yPos > 700) {
+                doc.addPage();
+                yPos = 50;
+            }
+
+            const date = new Date(bet.createdAt).toLocaleDateString('en-IN');
+            const marketName = bet.marketId?.marketName || 'N/A';
+            const betType = (bet.betType || '').toUpperCase();
+            const betNumber = bet.betNumber || 'N/A';
+            const amount = `₹${(bet.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const status = (bet.status || 'pending').toUpperCase();
+            const payout = bet.status === 'won' ? `₹${(bet.payout || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+            const placedBy = bet.placedByBookie ? (bet.placedByBookieId?.username || 'Bookie') : 'Player';
+
+            doc.text(date, 50, yPos);
+            doc.text(marketName.substring(0, 15), 120, yPos);
+            doc.text(betType, 250, yPos);
+            doc.text(betNumber, 320, yPos);
+            doc.text(amount, 400, yPos);
+            doc.text(status, 480, yPos);
+            doc.text(payout, 540, yPos);
+            doc.text(placedBy, 600, yPos);
+
+            yPos += 20;
+        });
+
+        // Footer
+        doc.fontSize(8).text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 50, doc.page.height - 50, { align: 'center' });
+        doc.text('This is a computer-generated statement', 50, doc.page.height - 35, { align: 'center' });
+
+        // Finalize PDF
+        doc.end();
+    } catch (error) {
+        console.error('[downloadBetStatement]', error);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, message: error.message || 'Failed to generate statement' });
+        }
+    }
+};
+
+/**
+ * Download bet statement for current player (PDF format) - Player accessible
+ * Query params: startDate (optional), endDate (optional)
+ * Body or Query: userId (required) - player can only access their own statement
+ * Shows all bets for the player (both placed by bookie and directly by player)
+ */
+export const downloadMyBetStatement = async (req, res) => {
+    try {
+        const { userId, startDate, endDate } = req.body.userId ? req.body : req.query;
+
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ success: false, message: 'Valid userId is required' });
+        }
+
+        // Verify user exists
+        const user = await User.findById(userId).select('username email phone').lean();
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Player not found' });
+        }
+
+        // Build query for bets - show all bets for the player
+        const query = {
+            userId,
+            // Show all bets (both placed by bookie and directly by player)
+        };
+
+        // Date filter
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) {
+                const start = new Date(startDate);
+                start.setHours(0, 0, 0, 0);
+                query.createdAt.$gte = start;
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                query.createdAt.$lte = end;
+            }
+        }
+
+        // Fetch bets
+        const bets = await Bet.find(query)
+            .populate('marketId', 'marketName')
+            .populate('placedByBookieId', 'username')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Calculate totals
+        const totalBetAmount = bets.reduce((sum, b) => sum + (b.amount || 0), 0);
+        const totalWinAmount = bets.filter(b => b.status === 'won').reduce((sum, b) => sum + (b.payout || 0), 0);
+        const totalLossAmount = bets.filter(b => b.status === 'lost').reduce((sum, b) => sum + (b.amount || 0), 0);
+        // Total = Amount on bet - Win amount
+        const total = totalBetAmount - totalWinAmount;
+
+        // Create PDF
+        const doc = new PDFDocument({ margin: 50 });
+        
+        // Set response headers
+        const filename = `bet-statement-${user.username}-${Date.now()}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+        // Pipe PDF to response
+        doc.pipe(res);
+
+        // Header
+        doc.fontSize(20).text('Bet Statement', { align: 'center' });
+        doc.moveDown();
+        
+        // Player Information
+        doc.fontSize(14).text('Player Information', { underline: true });
+        doc.fontSize(12);
+        doc.text(`Name: ${user.username || 'N/A'}`);
+        doc.text(`Email: ${user.email || 'N/A'}`);
+        doc.text(`Phone: ${user.phone || 'N/A'}`);
+        if (startDate || endDate) {
+            doc.text(`Period: ${startDate ? new Date(startDate).toLocaleDateString() : 'Start'} - ${endDate ? new Date(endDate).toLocaleDateString() : 'End'}`);
+        } else {
+            doc.text(`Period: All Time`);
+        }
+        doc.moveDown();
+
+        // Summary Section
+        doc.fontSize(14).text('Summary', { underline: true });
+        doc.fontSize(12);
+        doc.text(`Total Bet Amount: ₹${totalBetAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        doc.text(`Total Win Amount: ₹${totalWinAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        doc.text(`Total Loss Amount: ₹${totalLossAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        doc.moveDown();
+        doc.fontSize(14).text(`Total (Bet Amount - Win Amount): ₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, { underline: true });
+        doc.moveDown(2);
+
+        // Bet Details Table Header
+        doc.fontSize(12).text('Bet Details', { underline: true });
+        doc.moveDown(0.5);
+        
+        // Table headers
+        const tableTop = doc.y;
+        doc.fontSize(10);
+        doc.text('Date', 50, tableTop);
+        doc.text('Market', 120, tableTop);
+        doc.text('Type', 250, tableTop);
+        doc.text('Number', 320, tableTop);
+        doc.text('Amount', 400, tableTop);
+        doc.text('Status', 480, tableTop);
+        doc.text('Payout', 540, tableTop);
+        doc.text('Placed By', 600, tableTop);
+        
+        // Draw line under header
+        doc.moveTo(50, doc.y + 5).lineTo(650, doc.y + 5).stroke();
+        doc.moveDown();
+
+        // Bet rows
+        let yPos = doc.y;
+        bets.forEach((bet, index) => {
+            // Check if we need a new page
+            if (yPos > 700) {
+                doc.addPage();
+                yPos = 50;
+            }
+
+            const date = new Date(bet.createdAt).toLocaleDateString('en-IN');
+            const marketName = bet.marketId?.marketName || 'N/A';
+            const betType = (bet.betType || '').toUpperCase();
+            const betNumber = bet.betNumber || 'N/A';
+            const amount = `₹${(bet.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const status = (bet.status || 'pending').toUpperCase();
+            const payout = bet.status === 'won' ? `₹${(bet.payout || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+            const placedBy = bet.placedByBookie ? (bet.placedByBookieId?.username || 'Bookie') : 'Player';
+
+            doc.text(date, 50, yPos);
+            doc.text(marketName.substring(0, 15), 120, yPos);
+            doc.text(betType, 250, yPos);
+            doc.text(betNumber, 320, yPos);
+            doc.text(amount, 400, yPos);
+            doc.text(status, 480, yPos);
+            doc.text(payout, 540, yPos);
+            doc.text(placedBy, 600, yPos);
+
+            yPos += 20;
+        });
+
+        // Footer
+        doc.fontSize(8).text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 50, doc.page.height - 50, { align: 'center' });
+        doc.text('This is a computer-generated statement', 50, doc.page.height - 35, { align: 'center' });
+
+        // Finalize PDF
+        doc.end();
+    } catch (error) {
+        console.error('[downloadMyBetStatement]', error);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, message: error.message || 'Failed to generate statement' });
+        }
     }
 };

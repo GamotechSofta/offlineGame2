@@ -477,7 +477,7 @@ export const getSingleUser = async (req, res) => {
         const bookieUserIds = await getBookieUserIds(req.admin);
 
         const user = await User.findById(id)
-            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt debt')
+            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt')
             .populate('referredBy', 'username')
             .lean();
 

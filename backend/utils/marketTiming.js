@@ -1,29 +1,32 @@
 /**
- * Market betting window: market opens at midnight (00:00) IST and closes at closing time each day.
- * Users can bet only between midnight IST and (closing time - betClosureTime).
+ * Market betting window: market opens at startingTime IST and closes at closing time each day.
+ * Users can bet only between startingTime IST and (closing time - betClosureTime).
  * Times are in "HH:MM" or "HH:MM:SS"; betClosureTime is seconds before closing when betting stops.
  * Uses IST (Asia/Kolkata) to match market reset and user expectations.
  *
- * @param {Object} market - { closingTime, betClosureTime } (startingTime is not used for the betting window)
+ * @param {Object} market - { startingTime, closingTime, betClosureTime }
  * @param {Date} [now] - current time (default: new Date())
  * @returns {{ allowed: boolean, message?: string }}
  */
 export function isBettingAllowed(market, now = new Date()) {
+    const startStr = (market?.startingTime || '').toString().trim();
     const closeStr = (market?.closingTime || '').toString().trim();
     const betClosureSec = Number(market?.betClosureTime);
     const closureSec = Number.isFinite(betClosureSec) && betClosureSec >= 0 ? betClosureSec : 0;
 
-    if (!closeStr) {
+    if (!startStr || !closeStr) {
         return { allowed: false, message: 'Market timing not configured.' };
     }
 
     const todayIST = getTodayIST();
-    const openAt = parseISTDateTime(`${todayIST}T00:00:00+05:30`);
+    let openAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`);
     let closeAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`);
+    
     if (!openAt || !closeAt) {
         return { allowed: false, message: 'Invalid market time format.' };
     }
 
+    // Handle markets that span midnight (e.g., 23:00 - 01:00)
     if (closeAt <= openAt) {
         const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
         baseDate.setDate(baseDate.getDate() + 1);
@@ -40,9 +43,10 @@ export function isBettingAllowed(market, now = new Date()) {
     const nowMs = now.getTime();
 
     if (nowMs < openAt) {
+        const startTimeFormatted = startStr.slice(0, 5); // Format as HH:MM
         return {
             allowed: false,
-            message: 'Betting opens at 12:00 AM (midnight). You can place bets after midnight.',
+            message: `Betting opens at ${startTimeFormatted}. You can place bets after the market opening time.`,
         };
     }
     if (nowMs > lastBetAt) {

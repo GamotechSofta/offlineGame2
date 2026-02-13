@@ -210,30 +210,15 @@ const Bids = () => {
       color: '#25d366',
       iconUrl: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769799295/result_ekwn16.png'
     },
-    {
-      title: 'Starline Bet History',
-      subtitle: 'You can view starline history',
-      color: '#ef4444'
-    },
-    {
-      title: 'King Bazaar Bet History',
-      subtitle: 'You can view starline result',
-      color: '#3b82f6'
-    },
-    
   ]), []);
 
   const TAB_TO_TITLE = useMemo(() => ({
     'bet-history': 'Bet History',
     'game-results': 'Game Results',
-    'starline-bet-history': 'Starline Bet History',
-    'starline-result-history': 'King Bazaar Bet History',
   }), []);
   const TITLE_TO_TAB = useMemo(() => ({
     'Bet History': 'bet-history',
     'Game Results': 'game-results',
-    'Starline Bet History': 'starline-bet-history',
-    'King Bazaar Bet History': 'starline-result-history',
   }), []);
 
   const tabParam = (searchParams.get('tab') || '').toString();
@@ -241,11 +226,10 @@ const Bids = () => {
   const [activeTitle, setActiveTitle] = useState(initialTitle);
   const activeItem = items.find((i) => i.title === activeTitle) || items[0];
   const isBetHistoryPanel = activeTitle === 'Bet History';
-  const isStarlineBetHistoryPanel = activeTitle === 'Starline Bet History';
   const isGameResultsPanel = activeTitle === 'Game Results';
   const rightPanelTitle = activeTitle === 'Game Results' ? 'Market Result History' : activeTitle;
-  const historyScope = isStarlineBetHistoryPanel ? 'starline' : 'main';
-  const isAnyHistoryPanel = isBetHistoryPanel || isStarlineBetHistoryPanel;
+  const historyScope = 'main';
+  const isAnyHistoryPanel = isBetHistoryPanel;
 
   // Desktop Bet History filters (desktop panel inside My Bets)
   const [isDesktopFilterOpen, setIsDesktopFilterOpen] = useState(false);
@@ -276,10 +260,6 @@ const Bids = () => {
   const handleMobileItemClick = (item) => {
     if (item?.title === 'Bet History') {
       navigate('/bet-history');
-      return;
-    }
-    if (item?.title === 'Starline Bet History') {
-      navigate('/starline-bet-history');
       return;
     }
     if (item?.title === 'Game Results') {
