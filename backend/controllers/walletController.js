@@ -279,3 +279,66 @@ export const getBalance = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+/**
+ * Admin: Set debt amount for a player.
+ * Body: { userId, debt } (debt >= 0)
+ */
+export const setDebt = async (req, res) => {
+    try {
+        const { userId, debt } = req.body;
+
+        if (!userId || debt == null || debt === '') {
+            return res.status(400).json({
+                success: false,
+                message: 'userId and debt are required',
+            });
+        }
+
+        const newDebt = Number(debt);
+        if (!Number.isFinite(newDebt) || newDebt < 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Debt must be a non-negative number',
+            });
+        }
+
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        if (bookieUserIds !== null && !bookieUserIds.some((id) => String(id) === String(userId))) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only set debt for your assigned players',
+            });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Player not found',
+            });
+        }
+
+        const previousDebt = user.debt ?? 0;
+        user.debt = newDebt;
+        await user.save();
+
+        const player = await User.findById(userId).select('username').lean();
+        if (req.admin) {
+            await logActivity({
+                action: 'debt_set',
+                performedBy: req.admin.username,
+                performedByType: req.admin.role || 'admin',
+                targetType: 'user',
+                targetId: String(userId),
+                details: `Debt set to ₹${newDebt} for player "${player?.username || userId}" (was ₹${previousDebt})`,
+                meta: { userId, debt: newDebt, previousDebt },
+                ip: getClientIp(req),
+            });
+        }
+
+        res.status(200).json({ success: true, data: { debt: newDebt } });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

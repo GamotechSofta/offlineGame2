@@ -19,16 +19,36 @@ export const bookieLogin = async (req, res) => {
 
         const normalizedPhone = phone ? String(phone).replace(/\D/g, '').slice(0, 10) : '';
 
-        let bookie = normalizedPhone.length >= 10
-            ? await Admin.findOne({ phone: normalizedPhone, role: 'bookie' })
-            : null;
+        let bookie = null;
+        // Try to find by phone first (if phone is provided and valid)
+        if (normalizedPhone.length >= 10) {
+            // Try exact match first
+            bookie = await Admin.findOne({ phone: normalizedPhone, role: 'bookie' });
+            // If not found, try finding by any phone format (in case stored differently)
+            if (!bookie) {
+                const allBookies = await Admin.find({ role: 'bookie' }).select('phone username').lean();
+                const matched = allBookies.find((b) => {
+                    if (!b.phone) return false;
+                    const storedPhone = String(b.phone).replace(/\D/g, '').slice(0, 10);
+                    return storedPhone === normalizedPhone;
+                });
+                if (matched) {
+                    bookie = await Admin.findOne({ _id: matched._id, role: 'bookie' });
+                }
+            }
+        }
+        // If still not found and username provided, try username
         if (!bookie && username) {
             bookie = await Admin.findOne({ username: String(username).trim(), role: 'bookie' });
         }
         if (!bookie) {
+            // Check if any bookie accounts exist at all (for debugging)
+            const bookieCount = await Admin.countDocuments({ role: 'bookie' });
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials',
+                message: bookieCount === 0 
+                    ? 'No bookie accounts found. Please contact admin to create your account.'
+                    : 'Invalid credentials. Please check your phone number and password. If you don\'t have an account, contact admin.',
             });
         }
 
@@ -45,7 +65,7 @@ export const bookieLogin = async (req, res) => {
         if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials',
+                message: 'Invalid credentials. Please check your phone number and password.',
             });
         }
 

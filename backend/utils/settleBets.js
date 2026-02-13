@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Bet from '../models/bet/bet.js';
 import Market from '../models/market/market.js';
+import User from '../models/user/user.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getRatesMap, DEFAULT_RATES } from '../models/rate/rate.js';
 
@@ -55,6 +56,49 @@ function digitFromPatti(threeDigitStr) {
 function getTodayMidnight() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+}
+
+/**
+ * Helper: Pay winnings to user, deducting from debt first, then adding to wallet.
+ * Returns the amount actually added to wallet (after debt deduction).
+ */
+async function payWinnings(userId, payout, description, referenceId) {
+    if (!payout || payout <= 0) return 0;
+
+    // Check user debt
+    const user = await User.findById(userId).select('debt').lean();
+    const debt = user?.debt ?? 0;
+
+    // Deduct from debt first
+    let remainingPayout = payout;
+    let debtPaid = 0;
+    
+    if (debt > 0 && remainingPayout > 0) {
+        debtPaid = Math.min(debt, remainingPayout);
+        remainingPayout -= debtPaid;
+        // Update debt
+        await User.updateOne({ _id: userId }, { $inc: { debt: -debtPaid } });
+    }
+
+    // Add remaining to wallet
+    if (remainingPayout > 0) {
+        await Wallet.findOneAndUpdate(
+            { userId },
+            { $inc: { balance: remainingPayout } },
+            { upsert: true }
+        );
+    }
+
+    // Create transaction record
+    await WalletTransaction.create({
+        userId,
+        type: 'credit',
+        amount: payout,
+        description: description + (debtPaid > 0 ? ` (₹${debtPaid} deducted from debt)` : ''),
+        referenceId: referenceId?.toString(),
+    });
+
+    return remainingPayout;
 }
 
 /** Today in IST (YYYY-MM-DD) – same as getMarketStats so preview matches Market Detail. */
@@ -143,18 +187,7 @@ export async function settleOpening(marketId, openingNumber) {
                 { status: won ? 'won' : 'lost', payout }
             );
             if (won && payout > 0) {
-                await Wallet.findOneAndUpdate(
-                    { userId: bet.userId },
-                    { $inc: { balance: payout } },
-                    { upsert: true }
-                );
-                await WalletTransaction.create({
-                    userId: bet.userId,
-                    type: 'credit',
-                    amount: payout,
-                    description: `Win – ${market.marketName} (Single ${num})`,
-                    referenceId: bet._id.toString(),
-                });
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Single ${num})`, bet._id);
             }
         } else if (type === 'panna' && /^[0-9]{3}$/.test(num)) {
             const won = num === open3;
@@ -166,18 +199,7 @@ export async function settleOpening(marketId, openingNumber) {
                 { status: won ? 'won' : 'lost', payout }
             );
             if (won && payout > 0) {
-                await Wallet.findOneAndUpdate(
-                    { userId: bet.userId },
-                    { $inc: { balance: payout } },
-                    { upsert: true }
-                );
-                await WalletTransaction.create({
-                    userId: bet.userId,
-                    type: 'credit',
-                    amount: payout,
-                    description: `Win – ${market.marketName} (Panna ${num})`,
-                    referenceId: bet._id.toString(),
-                });
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Panna ${num})`, bet._id);
             }
         } else if (type === 'half-sangam') {
             // Half Sangam Format A (Open Pana - Open Ank) settled at open: e.g. "156-2" wins when open result is 156 (open ank = 1+5+6 = 2)
@@ -194,18 +216,7 @@ export async function settleOpening(marketId, openingNumber) {
                     { status: won ? 'won' : 'lost', payout }
                 );
                 if (won && payout > 0) {
-                    await Wallet.findOneAndUpdate(
-                        { userId: bet.userId },
-                        { $inc: { balance: payout } },
-                        { upsert: true }
-                    );
-                    await WalletTransaction.create({
-                        userId: bet.userId,
-                        type: 'credit',
-                        amount: payout,
-                        description: `Win – ${market.marketName} (Half Sangam)`,
-                        referenceId: bet._id.toString(),
-                    });
+                    await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Half Sangam)`, bet._id);
                 }
             }
             // Format B (Open Ank - Close Pana) remains pending until closing
@@ -265,18 +276,7 @@ export async function settleClosing(marketId, closingNumber) {
             const payout = won ? amount * getRateForKey(rates, 'single') : 0;
             await Bet.updateOne({ _id: bet._id }, { status: won ? 'won' : 'lost', payout });
             if (won && payout > 0) {
-                await Wallet.findOneAndUpdate(
-                    { userId: bet.userId },
-                    { $inc: { balance: payout } },
-                    { upsert: true }
-                );
-                await WalletTransaction.create({
-                    userId: bet.userId,
-                    type: 'credit',
-                    amount: payout,
-                    description: `Win – ${market.marketName} (Single ${num})`,
-                    referenceId: bet._id.toString(),
-                });
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Single ${num})`, bet._id);
             }
         }
         // CLOSE-session Patti/Panna (settles on closing patti)
@@ -287,18 +287,7 @@ export async function settleClosing(marketId, closingNumber) {
             const payout = won ? amount * getRateForKey(rates, rateKey) : 0;
             await Bet.updateOne({ _id: bet._id }, { status: won ? 'won' : 'lost', payout });
             if (won && payout > 0) {
-                await Wallet.findOneAndUpdate(
-                    { userId: bet.userId },
-                    { $inc: { balance: payout } },
-                    { upsert: true }
-                );
-                await WalletTransaction.create({
-                    userId: bet.userId,
-                    type: 'credit',
-                    amount: payout,
-                    description: `Win – ${market.marketName} (Panna ${num})`,
-                    referenceId: bet._id.toString(),
-                });
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Panna ${num})`, bet._id);
             }
         }
         else if (type === 'jodi' && /^[0-9]{2}$/.test(num)) {
@@ -310,18 +299,7 @@ export async function settleClosing(marketId, closingNumber) {
                 { status: won ? 'won' : 'lost', payout }
             );
             if (won && payout > 0) {
-                await Wallet.findOneAndUpdate(
-                    { userId: bet.userId },
-                    { $inc: { balance: payout } },
-                    { upsert: true }
-                );
-                await WalletTransaction.create({
-                    userId: bet.userId,
-                    type: 'credit',
-                    amount: payout,
-                    description: `Win – ${market.marketName} (Jodi ${num})`,
-                    referenceId: bet._id.toString(),
-                });
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Jodi ${num})`, bet._id);
             }
         } else if (type === 'half-sangam') {
             // Half Sangam is open-only: settled at Declare Open. Any pending half-sangam at close = lost.
@@ -341,18 +319,7 @@ export async function settleClosing(marketId, closingNumber) {
                 { status: won ? 'won' : 'lost', payout }
             );
             if (won && payout > 0) {
-                await Wallet.findOneAndUpdate(
-                    { userId: bet.userId },
-                    { $inc: { balance: payout } },
-                    { upsert: true }
-                );
-                await WalletTransaction.create({
-                    userId: bet.userId,
-                    type: 'credit',
-                    amount: payout,
-                    description: `Win – ${market.marketName} (Full Sangam)`,
-                    referenceId: bet._id.toString(),
-                });
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Full Sangam)`, bet._id);
             }
         }
     }

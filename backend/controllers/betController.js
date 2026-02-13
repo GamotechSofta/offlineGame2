@@ -46,7 +46,7 @@ export const placeBet = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid marketId' });
         }
 
-        const user = await User.findById(userId).select('isActive').lean();
+        const user = await User.findById(userId).select('isActive debt').lean();
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
@@ -108,15 +108,31 @@ export const placeBet = async (req, res) => {
             await wallet.save();
         }
 
-        if (wallet.balance < totalAmount) {
+        // Check user debt (user already fetched above with isActive)
+        const debt = user?.debt ?? 0;
+
+        // Deduct from debt first, then from wallet balance
+        let remainingAmount = totalAmount;
+        let debtPaid = 0;
+        
+        if (debt > 0 && remainingAmount > 0) {
+            debtPaid = Math.min(debt, remainingAmount);
+            remainingAmount -= debtPaid;
+            // Update debt
+            await User.updateOne({ _id: userId }, { $inc: { debt: -debtPaid } });
+        }
+
+        if (remainingAmount > 0 && wallet.balance < remainingAmount) {
             return res.status(400).json({
                 success: false,
-                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}`,
+                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}${debtPaid > 0 ? ` (₹${debtPaid} paid from debt)` : ''}`,
             });
         }
 
-        wallet.balance -= totalAmount;
-        await wallet.save();
+        if (remainingAmount > 0) {
+            wallet.balance -= remainingAmount;
+            await wallet.save();
+        }
 
         // Validate scheduledDate if provided
         let scheduledDateObj = null;
@@ -249,7 +265,7 @@ export const placeBetForPlayer = async (req, res) => {
         }
 
         // Verify this player belongs to the bookie
-        const user = await User.findById(userId).select('isActive referredBy username').lean();
+        const user = await User.findById(userId).select('isActive referredBy username debt').lean();
         if (!user) {
             return res.status(404).json({ success: false, message: 'Player not found' });
         }
@@ -309,15 +325,31 @@ export const placeBetForPlayer = async (req, res) => {
             await wallet.save();
         }
 
-        if (wallet.balance < totalAmount) {
+        // Check user debt (user already fetched above with isActive, referredBy, username)
+        const debt = user?.debt ?? 0;
+
+        // Deduct from debt first, then from wallet balance
+        let remainingAmount = totalAmount;
+        let debtPaid = 0;
+        
+        if (debt > 0 && remainingAmount > 0) {
+            debtPaid = Math.min(debt, remainingAmount);
+            remainingAmount -= debtPaid;
+            // Update debt
+            await User.updateOne({ _id: userId }, { $inc: { debt: -debtPaid } });
+        }
+
+        if (remainingAmount > 0 && wallet.balance < remainingAmount) {
             return res.status(400).json({
                 success: false,
-                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}`,
+                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}${debtPaid > 0 ? ` (₹${debtPaid} paid from debt)` : ''}`,
             });
         }
 
-        wallet.balance -= totalAmount;
-        await wallet.save();
+        if (remainingAmount > 0) {
+            wallet.balance -= remainingAmount;
+            await wallet.save();
+        }
 
         const betIds = [];
         const createdBets = [];

@@ -19,6 +19,13 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        
+        // Frontend validation
+        if (!username || !password) {
+            setError('Username and password are required');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -30,7 +37,14 @@ const Login = () => {
                 body: JSON.stringify({ username, password }),
             });
 
-            const data = await response.json();
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                setError('Invalid response from server. Please try again.');
+                setLoading(false);
+                return;
+            }
 
             if (data.success) {
                 localStorage.setItem('admin', JSON.stringify(data.data));
@@ -126,7 +140,7 @@ const Login = () => {
                         type="submit"
                         disabled={loading}
                         className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 
-                                 text-gray-800 font-bold py-3.5 px-4 rounded-xl transition-all duration-200 
+                                 text-white font-bold py-3.5 px-4 rounded-xl transition-all duration-200 
                                  glow-orange hover:-translate-y-0.5
                                  disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                                  flex items-center justify-center gap-2"

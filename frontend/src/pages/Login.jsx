@@ -116,7 +116,14 @@ const Login = () => {
         body: JSON.stringify(body),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        setError('Invalid response from server. Please try again.');
+        setLoading(false);
+        return;
+      }
 
       if (data.success) {
         // Store user data (preserve signup date when available)

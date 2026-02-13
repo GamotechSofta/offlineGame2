@@ -26,6 +26,10 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        
+        // Prevent multiple submissions
+        if (loading) return;
+        
         if (!phone || !password) {
             setError('Phone number and password are required');
             return;
@@ -37,6 +41,7 @@ const Login = () => {
         setLoading(true);
 
         try {
+            console.log('Attempting login with phone:', phone);
             const response = await fetch(`${API_BASE_URL}/bookie/login`, {
                 method: 'POST',
                 headers: {
@@ -44,17 +49,34 @@ const Login = () => {
                 },
                 body: JSON.stringify({ phone, password }),
             });
+            console.log('Login response status:', response.status);
 
-            const data = await response.json();
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                // If response is not JSON, check status code
+                if (response.status === 401) {
+                    setError('Invalid credentials. Please check your phone number and password.');
+                } else if (response.status === 403) {
+                    setError('Your account has been suspended. Please contact admin.');
+                } else {
+                    setError(`Server error (${response.status}). Please try again.`);
+                }
+                setLoading(false);
+                return;
+            }
 
             if (data.success) {
                 login(data.data);
                 sessionStorage.setItem('bookiePassword', password);
                 navigate('/dashboard');
             } else {
-                setError(data.message || 'Login failed');
+                // Show the actual error message from server
+                setError(data.message || `Login failed (${response.status})`);
             }
         } catch (err) {
+            console.error('Login error:', err);
             setError('Network error. Please check if the server is running.');
         } finally {
             setLoading(false);

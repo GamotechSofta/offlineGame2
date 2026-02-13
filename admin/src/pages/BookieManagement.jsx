@@ -138,11 +138,12 @@ const BookieManagement = () => {
             });
             const data = await response.json();
             if (data.success) {
-                setSuccess('Bookie account created successfully!');
+                const phoneNumber = formData.phone.replace(/\D/g, '').slice(0, 10);
+                setSuccess(`Bookie account created successfully! Login credentials - Phone: ${phoneNumber}, Password: ${formData.password}`);
                 setShowCreateModal(false);
                 setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '' });
                 fetchBookies();
-                setTimeout(() => setSuccess(''), 3000);
+                setTimeout(() => setSuccess(''), 10000); // Show for 10 seconds so user can note the credentials
             } else {
                 setError(data.message || 'Failed to create bookie');
             }

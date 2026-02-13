@@ -70,6 +70,12 @@ const userSchema = new mongoose.Schema({
         firstLoginAt: { type: Date, required: true },
         lastLoginAt: { type: Date, required: true },
     }],
+    /** Debt amount owed to bookie (deducted from bet amounts and winnings) */
+    debt: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
 }, {
     timestamps: true,
 });

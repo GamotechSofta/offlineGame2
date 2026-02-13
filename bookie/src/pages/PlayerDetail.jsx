@@ -75,6 +75,13 @@ const PlayerDetail = () => {
     const [fundError, setFundError] = useState('');
     const [fundSuccess, setFundSuccess] = useState('');
 
+    // Debt modal
+    const [debtModalOpen, setDebtModalOpen] = useState(false);
+    const [debtAmount, setDebtAmount] = useState('');
+    const [debtLoading, setDebtLoading] = useState(false);
+    const [debtError, setDebtError] = useState('');
+    const [debtSuccess, setDebtSuccess] = useState('');
+
     // Init date to today
     useEffect(() => {
         const preset = DATE_PRESETS.find((p) => p.id === 'today');
@@ -273,6 +280,37 @@ const PlayerDetail = () => {
         }
     };
 
+    const handleDebtSubmit = async () => {
+        const num = Number(debtAmount);
+        if (!Number.isFinite(num) || num < 0) {
+            setDebtError('Enter a valid non-negative amount');
+            return;
+        }
+
+        setDebtError('');
+        setDebtSuccess('');
+        setDebtLoading(true);
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/wallet/set-debt`, {
+                method: 'PUT',
+                headers: getBookieAuthHeaders(),
+                body: JSON.stringify({ userId, debt: num }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setDebtSuccess(`Debt set to ${formatCurrency(num)}`);
+                fetchPlayer();
+            } else {
+                setDebtError(data.message || 'Failed');
+            }
+        } catch (err) {
+            setDebtError('Network error. Please try again.');
+        } finally {
+            setDebtLoading(false);
+        }
+    };
+
     // Bet stats
     const betStats = {
         total: bets.length,
@@ -410,6 +448,12 @@ const PlayerDetail = () => {
                                         <p className="text-gray-400 text-xs uppercase tracking-wider">Joined</p>
                                         <p className="text-gray-600 text-xs">{player.createdAt ? new Date(player.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</p>
                                     </div>
+                                    <div>
+                                        <p className="text-gray-400 text-xs uppercase tracking-wider">Debt</p>
+                                        <p className={`text-sm font-bold ${(player.debt ?? 0) > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                                            {formatCurrency(player.debt ?? 0)}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -434,6 +478,9 @@ const PlayerDetail = () => {
                         </button>
                         <button onClick={() => navigate(`/games?playerId=${userId}`)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold transition-colors">
                             <FaGamepad className="w-3.5 h-3.5" /> Place Bet
+                        </button>
+                        <button onClick={() => { setDebtAmount(String(player.debt ?? 0)); setDebtError(''); setDebtSuccess(''); setDebtModalOpen(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-semibold transition-colors">
+                            <FaFileInvoiceDollar className="w-3.5 h-3.5" /> Debt
                         </button>
                         <button onClick={() => { fetchPlayer(); if (activeTab === 'bets') fetchBets(); if (activeTab === 'wallet') fetchWalletTx(); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs sm:text-sm font-semibold transition-colors ml-auto">
                             <FaSyncAlt className="w-3 h-3" /> Refresh
@@ -797,6 +844,71 @@ const PlayerDetail = () => {
 
                                 {fundSuccess && (
                                     <button type="button" onClick={() => setFundModalOpen(false)} className="w-full py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold transition-colors">
+                                        Done
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ========== DEBT MODAL ========== */}
+                {debtModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm">
+                            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                                <h3 className="text-base font-bold text-gray-800">💳 Manage Debt</h3>
+                                <button type="button" onClick={() => setDebtModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
+                            </div>
+                            <div className="p-4 space-y-4">
+                                {/* Current debt */}
+                                <div className="bg-red-50 rounded-lg px-3 py-2 text-center border border-red-200">
+                                    <p className="text-red-400 text-xs uppercase">Current Debt</p>
+                                    <p className="text-red-600 font-mono font-bold text-xl">{formatCurrency(player.debt ?? 0)}</p>
+                                </div>
+
+                                {debtError && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">{debtError}</div>}
+                                {debtSuccess && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">{debtSuccess}</div>}
+
+                                {!debtSuccess && (
+                                    <>
+                                        <div>
+                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">
+                                                New Debt Amount
+                                            </label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    value={debtAmount}
+                                                    onChange={(e) => setDebtAmount(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
+                                                    className="w-full pl-8 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 font-mono text-lg text-center focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <p className="text-xs text-gray-400 mt-1">Debt is automatically deducted from bet amounts and winnings</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleDebtSubmit}
+                                            disabled={debtLoading || debtAmount === ''}
+                                            className="w-full font-bold py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {debtLoading ? (
+                                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <FaFileInvoiceDollar className="w-4 h-4" /> Set Debt
+                                                </>
+                                            )}
+                                        </button>
+                                    </>
+                                )}
+
+                                {debtSuccess && (
+                                    <button type="button" onClick={() => setDebtModalOpen(false)} className="w-full py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold transition-colors">
                                         Done
                                     </button>
                                 )}

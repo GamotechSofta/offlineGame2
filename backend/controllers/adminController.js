@@ -25,6 +25,15 @@ export const adminLogin = async (req, res) => {
             });
         }
 
+        // Check if admin account is active
+        if (admin.status === 'inactive') {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account has been suspended. Please contact support for assistance.',
+                code: 'ACCOUNT_SUSPENDED',
+            });
+        }
+
         const isPasswordValid = await admin.comparePassword(password);
         if (!isPasswordValid) {
             return res.status(401).json({
@@ -205,6 +214,9 @@ export const createBookie = async (req, res) => {
             commissionPercentage: (commissionPercentage != null && Number.isFinite(Number(commissionPercentage))) ? Math.min(100, Math.max(0, Number(commissionPercentage))) : 0,
         });
         await bookie.save();
+        
+        // Verify the bookie was created correctly (for debugging)
+        console.log(`[Bookie Created] ID: ${bookie._id}, Username: ${bookie.username}, Phone: ${bookie.phone}, Status: ${bookie.status}, Role: ${bookie.role}`);
 
         await logActivity({
             action: 'create_bookie',
@@ -218,7 +230,7 @@ export const createBookie = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Bookie created successfully. They can log in to the Bookie Panel with phone + password.',
+            message: `Bookie created successfully. Login credentials - Phone: ${trimmedPhone}, Password: [as provided]`,
             data: {
                 id: bookie._id,
                 username: bookie.username,

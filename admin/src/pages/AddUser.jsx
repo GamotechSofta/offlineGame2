@@ -80,50 +80,103 @@ const AddUser = () => {
         try {
             const admin = JSON.parse(localStorage.getItem('admin'));
             const password = sessionStorage.getItem('adminPassword') || '';
-            const payload = {
-                firstName: trimmedFirst,
-                lastName: trimmedLast,
-                username,
-                email: formData.email.trim(),
-                phone: formData.phone.replace(/\D/g, '').slice(0, 10),
-                password: formData.password,
-                role: formData.role,
-                balance: formData.balance === '' ? 0 : (parseFloat(formData.balance) || 0),
-            };
-            const response = await fetch(`${API_BASE_URL}/users/create`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Basic ${btoa(`${admin.username}:${password}`)}`,
-                },
-                body: JSON.stringify(payload),
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                setSuccess('Player created successfully!');
-                setFormData({
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    password: '',
-                    confirmPassword: '',
-                    role: 'user',
-                    balance: '',
-                });
-                setCreatedPlayers((prev) => [
-                    {
-                        id: data.data?.id,
-                        username: data.data?.username ?? username,
-                        email: data.data?.email ?? formData.email,
-                        phone: data.data?.phone ?? formData.phone,
-                        createdAt: new Date(),
+            
+            // If role is 'bookie', create bookie account (Admin collection), otherwise create player (User collection)
+            if (formData.role === 'bookie') {
+                const payload = {
+                    firstName: trimmedFirst,
+                    lastName: trimmedLast,
+                    username,
+                    email: formData.email.trim(),
+                    phone: formData.phone.replace(/\D/g, '').slice(0, 10),
+                    password: formData.password,
+                    commissionPercentage: 0, // Default commission, can be updated later
+                };
+                const response = await fetch(`${API_BASE_URL}/admin/bookies`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Basic ${btoa(`${admin.username}:${password}`)}`,
                     },
-                    ...prev,
-                ].slice(0, 20));
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const phoneNumber = formData.phone.replace(/\D/g, '').slice(0, 10);
+                    setSuccess(`Bookie account created successfully! Login credentials - Phone: ${phoneNumber}, Password: ${formData.password}`);
+                    setFormData({
+                        firstName: '',
+                        lastName: '',
+                        email: '',
+                        phone: '',
+                        password: '',
+                        confirmPassword: '',
+                        role: 'user',
+                        balance: '',
+                    });
+                    setCreatedPlayers((prev) => [
+                        {
+                            id: data.data?.id,
+                            username: data.data?.username ?? username,
+                            email: data.data?.email ?? formData.email,
+                            phone: data.data?.phone ?? phoneNumber,
+                            role: 'bookie',
+                            createdAt: new Date(),
+                        },
+                        ...prev,
+                    ].slice(0, 20));
+                } else {
+                    setError(data.message || 'Failed to create bookie');
+                }
             } else {
-                setError(data.message || 'Failed to create player');
+                // Create regular player (User collection)
+                const payload = {
+                    firstName: trimmedFirst,
+                    lastName: trimmedLast,
+                    username,
+                    email: formData.email.trim(),
+                    phone: formData.phone.replace(/\D/g, '').slice(0, 10),
+                    password: formData.password,
+                    role: formData.role,
+                    balance: formData.balance === '' ? 0 : (parseFloat(formData.balance) || 0),
+                };
+                const response = await fetch(`${API_BASE_URL}/users/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Basic ${btoa(`${admin.username}:${password}`)}`,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    setSuccess('Player created successfully!');
+                    setFormData({
+                        firstName: '',
+                        lastName: '',
+                        email: '',
+                        phone: '',
+                        password: '',
+                        confirmPassword: '',
+                        role: 'user',
+                        balance: '',
+                    });
+                    setCreatedPlayers((prev) => [
+                        {
+                            id: data.data?.id,
+                            username: data.data?.username ?? username,
+                            email: data.data?.email ?? formData.email,
+                            phone: data.data?.phone ?? formData.phone,
+                            role: data.data?.role || 'user',
+                            createdAt: new Date(),
+                        },
+                        ...prev,
+                    ].slice(0, 20));
+                } else {
+                    setError(data.message || 'Failed to create player');
+                }
             }
         } catch (err) {
             setError('Network error. Please check if the server is running.');
@@ -300,22 +353,29 @@ const AddUser = () => {
                                         <option value="user">Player</option>
                                         <option value="bookie">Bookie</option>
                                     </select>
+                                    {formData.role === 'bookie' && (
+                                        <p className="mt-1 text-xs text-orange-600 font-medium">
+                                            Bookies log in to the Bookie Panel with phone + password
+                                        </p>
+                                    )}
                                 </div>
-                                <div>
-                                    <label htmlFor="balance" className={labelClass}>Initial Balance (₹)</label>
-                                    <input
-                                        id="balance"
-                                        type="number"
-                                        name="balance"
-                                        value={formData.balance}
-                                        onChange={handleChange}
-                                        placeholder="0"
-                                        min="0"
-                                        step="1"
-                                        className={inputClass}
-                                        autoComplete="off"
-                                    />
-                                </div>
+                                {formData.role !== 'bookie' && (
+                                    <div>
+                                        <label htmlFor="balance" className={labelClass}>Initial Balance (₹)</label>
+                                        <input
+                                            id="balance"
+                                            type="number"
+                                            name="balance"
+                                            value={formData.balance}
+                                            onChange={handleChange}
+                                            placeholder="0"
+                                            min="0"
+                                            step="1"
+                                            className={inputClass}
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -341,7 +401,7 @@ const AddUser = () => {
                                 ) : (
                                     <>
                                         <FaUserPlus className="w-5 h-5" />
-                                        Create Player
+                                        {formData.role === 'bookie' ? 'Create Bookie' : 'Create Player'}
                                     </>
                                 )}
                             </button>
