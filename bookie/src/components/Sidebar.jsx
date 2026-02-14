@@ -15,6 +15,8 @@ import {
     FaUsers,
     FaTimes,
     FaMoneyBillWave,
+    FaKeyboard,
+    FaFileInvoiceDollar,
 } from 'react-icons/fa';
 
 const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
@@ -33,11 +35,13 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/revenue', label: 'Revenue', icon: FaMoneyBillWave },
         { path: '/payments', label: 'Payments', icon: FaCreditCard },
         { path: '/wallet', label: 'Wallet', icon: FaWallet },
+        { path: '/receipt', label: 'Receipt', icon: FaFileInvoiceDollar },
         { path: '/help-desk', label: 'Help Desk', icon: FaLifeRing },
+        { path: '/shortcuts', label: 'Shortcuts', icon: FaKeyboard },
     ];
 
     const isActive = (path) => {
-        if (path === '/my-users' || path === '/markets') {
+        if (path === '/my-users' || path === '/markets' || path === '/receipt') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
         }
         if (path === '/reports') {

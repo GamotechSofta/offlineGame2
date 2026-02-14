@@ -70,6 +70,18 @@ const userSchema = new mongoose.Schema({
         firstLoginAt: { type: Date, required: true },
         lastLoginAt: { type: Date, required: true },
     }],
+    /** To Give - Money bookie owes to player (separate from wallet, for tracking) */
+    toGive: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    /** To Take - Money player owes to bookie (separate from wallet, for tracking) */
+    toTake: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
 }, {
     timestamps: true,
 });

@@ -79,6 +79,14 @@ const PlayerDetail = () => {
     const [fundError, setFundError] = useState('');
     const [fundSuccess, setFundSuccess] = useState('');
 
+    // To Give / To Take modal
+    const [toGiveTakeModalOpen, setToGiveTakeModalOpen] = useState(false);
+    const [toGiveValue, setToGiveValue] = useState('');
+    const [toTakeValue, setToTakeValue] = useState('');
+    const [toGiveTakeLoading, setToGiveTakeLoading] = useState(false);
+    const [toGiveTakeError, setToGiveTakeError] = useState('');
+    const [toGiveTakeSuccess, setToGiveTakeSuccess] = useState('');
+
 
     // Init date to today
     useEffect(() => {
@@ -100,6 +108,14 @@ const PlayerDetail = () => {
 
     // Fetch player
     useEffect(() => { fetchPlayer(); }, [userId]);
+
+    // Initialize toGive and toTake when player loads
+    useEffect(() => {
+        if (player) {
+            setToGiveValue((player.toGive ?? 0).toString());
+            setToTakeValue((player.toTake ?? 0).toString());
+        }
+    }, [player]);
 
     // Fetch markets when component mounts
     useEffect(() => {
@@ -324,6 +340,51 @@ const PlayerDetail = () => {
         }
     };
 
+    const openToGiveTakeModal = () => {
+        setToGiveValue((player?.toGive ?? 0).toString());
+        setToTakeValue((player?.toTake ?? 0).toString());
+        setToGiveTakeError('');
+        setToGiveTakeSuccess('');
+        setToGiveTakeModalOpen(true);
+    };
+
+    const handleToGiveTakeSubmit = async () => {
+        const numToGive = Number(toGiveValue);
+        const numToTake = Number(toTakeValue);
+        
+        if (!Number.isFinite(numToGive) || numToGive < 0) {
+            setToGiveTakeError('To Give must be a non-negative number');
+            return;
+        }
+        if (!Number.isFinite(numToTake) || numToTake < 0) {
+            setToGiveTakeError('To Take must be a non-negative number');
+            return;
+        }
+
+        setToGiveTakeError('');
+        setToGiveTakeSuccess('');
+        setToGiveTakeLoading(true);
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/${userId}/to-give-take`, {
+                method: 'PATCH',
+                headers: getBookieAuthHeaders(),
+                body: JSON.stringify({ toGive: numToGive, toTake: numToTake }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToGiveTakeSuccess('Updated successfully');
+                fetchPlayer();
+            } else {
+                setToGiveTakeError(data.message || 'Failed to update');
+            }
+        } catch (err) {
+            setToGiveTakeError('Network error. Please try again.');
+        } finally {
+            setToGiveTakeLoading(false);
+        }
+    };
+
 
     // Bet stats
     const betStats = {
@@ -465,10 +526,22 @@ const PlayerDetail = () => {
                                 </div>
                             </div>
 
-                            {/* Wallet balance card */}
-                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl p-4 min-w-[180px] text-center shadow-lg">
-                                <p className="text-white/80 text-xs uppercase tracking-wider mb-1">Wallet Balance</p>
-                                <p className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(player.walletBalance ?? 0)}</p>
+                            {/* Wallet balance and To Give/Take cards */}
+                            <div className="flex flex-col gap-3 min-w-[180px]">
+                                <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl p-4 text-center shadow-lg">
+                                    <p className="text-white/80 text-xs uppercase tracking-wider mb-1">Wallet Balance</p>
+                                    <p className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(player.walletBalance ?? 0)}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg p-3 text-center">
+                                        <p className="text-white/80 text-[10px] uppercase tracking-wider mb-0.5">To Give</p>
+                                        <p className="text-lg font-bold font-mono">{formatCurrency(player.toGive ?? 0)}</p>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg p-3 text-center">
+                                        <p className="text-white/80 text-[10px] uppercase tracking-wider mb-0.5">To Take</p>
+                                        <p className="text-lg font-bold font-mono">{formatCurrency(player.toTake ?? 0)}</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -483,6 +556,9 @@ const PlayerDetail = () => {
                         </button>
                         <button onClick={() => openFundModal('set')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-600 hover:bg-gray-700 text-white text-xs sm:text-sm font-semibold transition-colors">
                             <FaWallet className="w-3.5 h-3.5" /> Set Balance
+                        </button>
+                        <button onClick={openToGiveTakeModal} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs sm:text-sm font-semibold transition-colors">
+                            <FaExchangeAlt className="w-3.5 h-3.5" /> To Give/Take
                         </button>
                         <button onClick={() => navigate(`/games?playerId=${userId}`)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold transition-colors">
                             <FaGamepad className="w-3.5 h-3.5" /> Place Bet
@@ -576,6 +652,8 @@ const PlayerDetail = () => {
                                     <div><p className="text-gray-400 text-xs uppercase">Phone</p><p className="text-gray-800">{player.phone || '—'}</p></div>
                                     <div><p className="text-gray-400 text-xs uppercase">Role</p><p className="text-gray-800 capitalize">{player.role || 'Player'}</p></div>
                                     <div><p className="text-gray-400 text-xs uppercase">Balance</p><p className="text-green-600 font-mono font-bold">{formatCurrency(player.walletBalance ?? 0)}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">To Give</p><p className="text-blue-600 font-mono font-bold">{formatCurrency(player.toGive ?? 0)}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">To Take</p><p className="text-red-600 font-mono font-bold">{formatCurrency(player.toTake ?? 0)}</p></div>
                                     <div><p className="text-gray-400 text-xs uppercase">Account</p><p className={player.isActive !== false ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>{player.isActive !== false ? 'Active' : 'Suspended'}</p></div>
                                     <div><p className="text-gray-400 text-xs uppercase">Created</p><p className="text-gray-600 text-xs">{player.createdAt ? new Date(player.createdAt).toLocaleString('en-IN') : '—'}</p></div>
                                     <div><p className="text-gray-400 text-xs uppercase">Player ID</p><p className="text-gray-500 font-mono text-xs truncate" title={player._id}>{player._id}</p></div>
@@ -908,7 +986,34 @@ const PlayerDetail = () => {
                                                     <span className="text-gray-700 font-semibold">Current Wallet Balance</span>
                                                     <span className="font-mono font-bold text-xl text-gray-800">{formatCurrency(summary.currentBalance)}</span>
                                                 </div>
-                                                <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                                                
+                                                {/* To Give & To Take Section - Editable */}
+                                                <div className="border-t-2 border-gray-300 pt-4 mt-4 print:border-gray-800">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <h3 className="text-lg font-bold text-gray-800 print:text-base">TO GIVE / TO TAKE</h3>
+                                                        <button
+                                                            onClick={() => {
+                                                                setToGiveValue((player?.toGive ?? 0).toString());
+                                                                setToTakeValue((player?.toTake ?? 0).toString());
+                                                                setToGiveTakeModalOpen(true);
+                                                            }}
+                                                            className="print:hidden text-orange-600 hover:text-orange-700 text-sm font-medium underline flex items-center gap-1"
+                                                        >
+                                                            <FaExchangeAlt className="w-3 h-3" /> Edit
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 print:bg-transparent print:border print:border-blue-300">
+                                                            <p className="text-gray-600 text-sm mb-1">To Give</p>
+                                                            <p className="font-mono font-bold text-2xl text-blue-600 print:text-lg">{formatCurrency(player?.toGive ?? 0)}</p>
+                                                            <p className="text-xs text-gray-500 mt-1 print:hidden">Money to give to player</p>
+                                                        </div>
+                                                        <div className="bg-red-50 rounded-lg p-4 border border-red-200 print:bg-transparent print:border print:border-red-300">
+                                                            <p className="text-gray-600 text-sm mb-1">To Take</p>
+                                                            <p className="font-mono font-bold text-2xl text-red-600 print:text-lg">{formatCurrency(player?.toTake ?? 0)}</p>
+                                                            <p className="text-xs text-gray-500 mt-1 print:hidden">Money to take from player</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -994,6 +1099,74 @@ const PlayerDetail = () => {
 
                                 {fundSuccess && (
                                     <button type="button" onClick={() => setFundModalOpen(false)} className="w-full py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold transition-colors">
+                                        Done
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ========== TO GIVE / TO TAKE MODAL ========== */}
+                {toGiveTakeModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm">
+                            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                                <h3 className="text-base font-bold text-gray-800">💰 To Give / To Take</h3>
+                                <button type="button" onClick={() => setToGiveTakeModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
+                            </div>
+                            <div className="p-4 space-y-4">
+                                {toGiveTakeError && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">{toGiveTakeError}</div>}
+                                {toGiveTakeSuccess && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">{toGiveTakeSuccess}</div>}
+
+                                {!toGiveTakeSuccess && (
+                                    <>
+                                        <div>
+                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">To Give (Money to give to player)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    value={toGiveValue}
+                                                    onChange={(e) => setToGiveValue(e.target.value.replace(/[^0-9.]/g, '').slice(0, 12))}
+                                                    className="w-full pl-8 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 font-mono text-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">To Take (Money to take from player)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    value={toTakeValue}
+                                                    onChange={(e) => setToTakeValue(e.target.value.replace(/[^0-9.]/g, '').slice(0, 12))}
+                                                    className="w-full pl-8 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 font-mono text-lg text-center focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                                />
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleToGiveTakeSubmit}
+                                            disabled={toGiveTakeLoading}
+                                            className="w-full font-bold py-3 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {toGiveTakeLoading ? (
+                                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <>💾 Update</>
+                                            )}
+                                        </button>
+                                    </>
+                                )}
+
+                                {toGiveTakeSuccess && (
+                                    <button type="button" onClick={() => setToGiveTakeModalOpen(false)} className="w-full py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold transition-colors">
                                         Done
                                     </button>
                                 )}

@@ -443,7 +443,7 @@ export const getUsers = async (req, res) => {
         }
 
         let users = await User.find(query)
-            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt')
+            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt toGive toTake')
             .populate('referredBy', 'username')
             .sort(filter === 'bookie' ? { referredBy: 1, createdAt: -1 } : { createdAt: -1 })
             .limit(500)
@@ -477,7 +477,7 @@ export const getSingleUser = async (req, res) => {
         const bookieUserIds = await getBookieUserIds(req.admin);
 
         const user = await User.findById(id)
-            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt')
+            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt toGive toTake')
             .populate('referredBy', 'username')
             .lean();
 
@@ -503,6 +503,70 @@ export const getSingleUser = async (req, res) => {
                 ...withBalance,
                 walletBalance: withBalance.walletBalance ?? 0,
                 isOnline,
+                toGive: user.toGive ?? 0,
+                toTake: user.toTake ?? 0,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Update toGive and toTake for a player
+ * Body: { toGive?, toTake? }
+ */
+export const updatePlayerToGiveToTake = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { toGive, toTake } = req.body;
+        const bookieUserIds = await getBookieUserIds(req.admin);
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Player not found' });
+        }
+
+        if (bookieUserIds !== null) {
+            const allowed = bookieUserIds.some((uid) => uid.toString() === id);
+            if (!allowed) {
+                return res.status(403).json({ success: false, message: 'Access denied to this player' });
+            }
+        }
+
+        if (toGive !== undefined) {
+            const numToGive = Number(toGive);
+            if (!Number.isFinite(numToGive) || numToGive < 0) {
+                return res.status(400).json({ success: false, message: 'toGive must be a non-negative number' });
+            }
+            user.toGive = numToGive;
+        }
+
+        if (toTake !== undefined) {
+            const numToTake = Number(toTake);
+            if (!Number.isFinite(numToTake) || numToTake < 0) {
+                return res.status(400).json({ success: false, message: 'toTake must be a non-negative number' });
+            }
+            user.toTake = numToTake;
+        }
+
+        await user.save();
+
+        await logActivity({
+            action: 'update_player_to_give_take',
+            performedBy: req.admin?.username || 'Admin',
+            performedByType: req.admin?.role || 'admin',
+            targetType: 'user',
+            targetId: user._id.toString(),
+            details: `Updated toGive: ${user.toGive}, toTake: ${user.toTake} for player "${user.username}"`,
+            ip: getClientIp(req),
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                toGive: user.toGive,
+                toTake: user.toTake,
             },
         });
     } catch (error) {

@@ -82,7 +82,36 @@ input[type="number"] {
 /* Print styles for statement */
 @media print {
   @page {
-    margin: 1cm;
+    margin: 0.5cm;
+    size: A4;
+  }
+  
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+    height: auto;
+  }
+  
+  body > div,
+  body > div > div {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  header,
+  aside,
+  main > div:not(#bet-receipt):not(#statement-slip),
+  .print\\:hidden {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    margin-left: 0 !important;
+    padding-top: 0 !important;
   }
   
   body * {
@@ -90,15 +119,29 @@ input[type="number"] {
   }
   
   #statement-slip,
-  #statement-slip * {
+  #statement-slip *,
+  #bet-receipt,
+  #bet-receipt * {
     visibility: visible;
   }
   
-  #statement-slip {
-    position: absolute;
+  #statement-slip,
+  #bet-receipt {
+    position: fixed;
     left: 0;
     top: 0;
     width: 100%;
+    height: auto;
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+  }
+  
+  #bet-receipt > div,
+  #statement-slip > div {
+    margin: 0 !important;
+    padding: 0.5cm !important;
   }
   
   .print\\:hidden {
@@ -107,6 +150,14 @@ input[type="number"] {
   
   .print\\:p-8 {
     padding: 2rem !important;
+  }
+  
+  .print\\:p-4 {
+    padding: 1rem !important;
+  }
+  
+  .print\\:p-3 {
+    padding: 0.75rem !important;
   }
   
   .print\\:max-w-none {
@@ -119,5 +170,16 @@ input[type="number"] {
   
   .print\\:rounded-none {
     border-radius: 0 !important;
+  }
+  
+  /* Prevent page breaks inside table */
+  .receipt-table thead,
+  .receipt-table tbody,
+  .receipt-table tfoot {
+    page-break-inside: avoid;
+  }
+  
+  .receipt-table tr {
+    page-break-inside: avoid;
   }
 }

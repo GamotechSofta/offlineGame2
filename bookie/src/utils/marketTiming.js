@@ -36,21 +36,21 @@ function parseISTDateTime(isoStr) {
 
 /**
  * Check if current time is within market's opening window
- * Market is open between startingTime and closingTime
+ * Market is open from 12:00 AM (midnight) until closingTime
  */
 export function isMarketOpen(market, now = new Date()) {
-    const startStr = (market?.startingTime || '').toString().trim();
     const closeStr = (market?.closingTime || '').toString().trim();
     
-    if (!startStr || !closeStr) return false;
+    if (!closeStr) return false;
 
     const todayIST = getTodayIST();
-    const startAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`);
+    // Markets open at 12:00 AM (midnight) IST
+    const startAt = parseISTDateTime(`${todayIST}T00:00:00+05:30`);
     let closeAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`);
     
     if (!startAt || !closeAt) return false;
 
-    // Handle markets that span midnight (e.g., 23:00 - 01:00)
+    // Handle markets that span midnight (e.g., closing time before midnight)
     if (closeAt <= startAt) {
         const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
         baseDate.setDate(baseDate.getDate() + 1);
@@ -98,14 +98,11 @@ export function isPastClosingTime(market, now = new Date()) {
 }
 
 /**
- * Check if market hasn't opened yet (before starting time)
+ * Check if market hasn't opened yet (before 12 AM)
  */
 export function isBeforeOpeningTime(market, now = new Date()) {
-    const startStr = (market?.startingTime || '').toString().trim();
-    if (!startStr) return false;
-
     const todayIST = getTodayIST();
-    const startAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`);
+    const startAt = parseISTDateTime(`${todayIST}T00:00:00+05:30`);
     
     if (!startAt) return false;
 
@@ -115,19 +112,17 @@ export function isBeforeOpeningTime(market, now = new Date()) {
 /**
  * Get time until market opens (in milliseconds)
  * Returns null if already open or closed
+ * Markets open at 12:00 AM (midnight)
  */
 export function getTimeUntilOpen(market, now = new Date()) {
     if (isMarketOpen(market, now) || isPastClosingTime(market, now)) return null;
-    
-    const startStr = (market?.startingTime || '').toString().trim();
-    if (!startStr) return null;
 
     const todayIST = getTodayIST();
-    let startAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`);
+    let startAt = parseISTDateTime(`${todayIST}T00:00:00+05:30`);
     
     if (!startAt) return null;
 
-    // If start time has passed today, check tomorrow
+    // If midnight has passed today, check tomorrow
     if (now.getTime() >= startAt) {
         const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
         baseDate.setDate(baseDate.getDate() + 1);
@@ -137,7 +132,7 @@ export function getTimeUntilOpen(market, now = new Date()) {
             month: '2-digit',
             day: '2-digit',
         }).format(baseDate);
-        startAt = parseISTDateTime(`${nextDayStr}T${normalizeTimeStr(startStr)}+05:30`);
+        startAt = parseISTDateTime(`${nextDayStr}T00:00:00+05:30`);
     }
 
     return startAt - now.getTime();

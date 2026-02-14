@@ -20,6 +20,8 @@ import PlayerDetail from './pages/PlayerDetail';
 import GamesMarkets from './pages/GamesMarkets';
 import GameTypes from './pages/GameTypes';
 import BookieGameBid from './pages/GameBid/index';
+import Shortcuts from './pages/Shortcuts';
+import Receipt from './pages/Receipt';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -80,8 +82,11 @@ const AppRoutes = () => (
         <Route path="/revenue" element={<PrivateRoute><Revenue /></PrivateRoute>} />
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
+        <Route path="/receipt" element={<PrivateRoute><Receipt /></PrivateRoute>} />
+        <Route path="/receipt/:sessionId" element={<PrivateRoute><Receipt /></PrivateRoute>} />
 
         <Route path="/help-desk" element={<PrivateRoute><HelpDesk /></PrivateRoute>} />
+        <Route path="/shortcuts" element={<PrivateRoute><Shortcuts /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
 );

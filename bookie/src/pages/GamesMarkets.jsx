@@ -74,52 +74,15 @@ const GamesMarkets = () => {
             };
         }
         
-        // Check if market is currently open
-        if (isMarketOpen(market, currentTime)) {
-            if (hasOpening && !hasClosing) {
-                return { 
-                    status: 'running', 
-                    label: 'RUNNING', 
-                    color: 'bg-orange-500', 
-                    textColor: 'text-orange-500', 
-                    borderColor: 'border-orange-500/30',
-                    icon: FaHourglassHalf,
-                    reason: 'Open result declared'
-                };
-            }
-            return { 
-                status: 'open', 
-                label: 'OPEN', 
-                color: 'bg-green-500', 
-                textColor: 'text-green-600', 
-                borderColor: 'border-green-200',
-                icon: FaCheckCircle,
-                reason: 'Betting open'
-            };
-        }
-        
-        // Market hasn't opened yet
-        if (isBeforeOpeningTime(market, currentTime)) {
-            return { 
-                status: 'upcoming', 
-                label: 'UPCOMING', 
-                color: 'bg-blue-500', 
-                textColor: 'text-blue-600', 
-                borderColor: 'border-blue-200',
-                icon: FaClock,
-                reason: 'Not yet open'
-            };
-        }
-        
-        // Default to closed if we can't determine
+        // Market is open (from 12 AM until closing time)
         return { 
-            status: 'closed', 
-            label: 'CLOSED', 
-            color: 'bg-gray-500', 
-            textColor: 'text-gray-600', 
-            borderColor: 'border-gray-200',
-            icon: FaTimesCircle,
-            reason: 'Unknown'
+            status: 'open', 
+            label: 'OPEN', 
+            color: 'bg-green-500', 
+            textColor: 'text-green-600', 
+            borderColor: 'border-green-200',
+            icon: FaCheckCircle,
+            reason: 'Betting open'
         };
     };
 

@@ -132,6 +132,41 @@ export const getDashboardStats = async (req, res) => {
             ...(Object.keys(walletMatch).length ? [{ $match: walletMatch }] : []),
             { $group: { _id: null, total: { $sum: '$balance' } } },
         ]);
+        
+        // Calculate To Give (positive balances) and To Receive (negative balances) from wallet
+        const walletBalances = await Wallet.find(walletMatch).select('balance').lean();
+        let toGiveFromWallet = 0; // Money bookie owes to players (positive balances)
+        let toReceiveFromWallet = 0; // Money players owe to bookie (negative balances)
+        walletBalances.forEach(w => {
+            const bal = w.balance || 0;
+            if (bal > 0) {
+                toGiveFromWallet += bal;
+            } else if (bal < 0) {
+                toReceiveFromWallet += Math.abs(bal);
+            }
+        });
+        
+        // Calculate To Give and To Take from user model (separate tracking fields)
+        const usersWithToGiveTake = await User.find(userFilter).select('toGive toTake').lean();
+        let toGive = 0;
+        let toTake = 0;
+        usersWithToGiveTake.forEach(u => {
+            toGive += u.toGive || 0;
+            toTake += u.toTake || 0;
+        });
+        
+        // Calculate Advance (total deposits/credits given to players)
+        const totalAdvance = await Payment.aggregate([
+            { $match: { type: 'deposit', status: { $in: ['approved', 'completed'] }, ...paymentFilter } },
+            { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]);
+        
+        // Calculate Loss (total loss from lost bets - all time)
+        const totalLoss = await Bet.aggregate([
+            { $match: { status: 'lost', ...betFilter } },
+            { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]);
+        
         const totalTickets = await HelpDesk.countDocuments(helpDeskFilter);
         const openTickets = await HelpDesk.countDocuments({ status: 'open', ...helpDeskFilter });
         const inProgressTickets = await HelpDesk.countDocuments({ status: 'in-progress', ...helpDeskFilter });
@@ -188,7 +223,13 @@ export const getDashboardStats = async (req, res) => {
                 },
                 wallet: {
                     totalBalance: totalWalletBalance[0]?.total || 0,
+                    toGive: toGiveFromWallet,
+                    toReceive: toReceiveFromWallet,
                 },
+                toGive: toGive,
+                toTake: toTake,
+                advance: totalAdvance[0]?.total || 0,
+                loss: totalLoss[0]?.total || 0,
                 helpDesk: {
                     total: totalTickets,
                     open: openTickets,

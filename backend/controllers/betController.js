@@ -3,6 +3,7 @@ import PDFDocument from 'pdfkit';
 import Bet from '../models/bet/bet.js';
 import User from '../models/user/user.js';
 import Market from '../models/market/market.js';
+import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingAllowed } from '../utils/marketTiming.js';
@@ -47,7 +48,7 @@ export const placeBet = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid marketId' });
         }
 
-        const user = await User.findById(userId).select('isActive').lean();
+        const user = await User.findById(userId).select('isActive referredBy').lean();
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
@@ -57,6 +58,17 @@ export const placeBet = async (req, res) => {
                 message: 'Your account has been suspended. Please contact admin.',
                 code: 'ACCOUNT_SUSPENDED',
             });
+        }
+
+        // Get bookie commission if user is referred by a bookie
+        let bookieCommission = 0;
+        let bookieId = null;
+        if (user.referredBy) {
+            const bookie = await Admin.findById(user.referredBy).select('commissionPercentage').lean();
+            if (bookie) {
+                bookieCommission = bookie.commissionPercentage || 0;
+                bookieId = bookie._id;
+            }
         }
 
         const market = await Market.findById(marketId).lean();
@@ -83,6 +95,7 @@ export const placeBet = async (req, res) => {
 
         const sanitized = [];
         let totalAmount = 0;
+        let totalCommission = 0;
         for (const b of bets) {
             const betType = (b.betType || '').toString().trim().toLowerCase();
             const betNumber = (b.betNumber || '').toString().trim();
@@ -99,8 +112,12 @@ export const placeBet = async (req, res) => {
                     message: 'Each bet must have betType, betNumber and amount > 0',
                 });
             }
+            // Calculate commission for this bet
+            const commissionAmount = bookieCommission > 0 ? Math.round((amount * bookieCommission / 100) * 100) / 100 : 0;
+            const betAmountAfterCommission = amount - commissionAmount;
             totalAmount += amount;
-            sanitized.push({ betType, betNumber, amount, betOn });
+            totalCommission += commissionAmount;
+            sanitized.push({ betType, betNumber, amount: betAmountAfterCommission, betOn, commissionAmount, commissionPercentage: bookieCommission });
         }
 
         let wallet = await Wallet.findOne({ userId });
@@ -152,7 +169,7 @@ export const placeBet = async (req, res) => {
         const betIds = [];
         const createdBets = [];
         try {
-            for (const { betType, betNumber, amount, betOn } of sanitized) {
+            for (const { betType, betNumber, amount, betOn, commissionAmount, commissionPercentage } of sanitized) {
                 const bet = await Bet.create({
                     userId,
                     marketId,
@@ -164,6 +181,9 @@ export const placeBet = async (req, res) => {
                     payout: 0,
                     scheduledDate: scheduledDateObj,
                     isScheduled: isScheduled,
+                    commissionAmount: commissionAmount || 0,
+                    commissionPercentage: commissionPercentage || 0,
+                    placedByBookieId: bookieId,
                 });
                 betIds.push(bet._id);
                 createdBets.push(bet);
@@ -287,6 +307,7 @@ export const placeBetForPlayer = async (req, res) => {
 
         const sanitized = [];
         let totalAmount = 0;
+        let totalCommission = 0;
         for (const b of bets) {
             const betType = (b.betType || '').toString().trim().toLowerCase();
             const betNumber = (b.betNumber || '').toString().trim();
@@ -302,8 +323,12 @@ export const placeBetForPlayer = async (req, res) => {
                     message: 'Each bet must have betType, betNumber and amount > 0',
                 });
             }
+            // Calculate commission for this bet
+            const commissionAmount = bookieCommission > 0 ? Math.round((amount * bookieCommission / 100) * 100) / 100 : 0;
+            const betAmountAfterCommission = amount - commissionAmount;
             totalAmount += amount;
-            sanitized.push({ betType, betNumber, amount, betOn });
+            totalCommission += commissionAmount;
+            sanitized.push({ betType, betNumber, amount: betAmountAfterCommission, betOn, commissionAmount, commissionPercentage: bookieCommission });
         }
 
         let wallet = await Wallet.findOne({ userId });
@@ -319,15 +344,14 @@ export const placeBetForPlayer = async (req, res) => {
             });
         }
 
-        if (remainingAmount > 0) {
-            wallet.balance -= remainingAmount;
-            await wallet.save();
-        }
+        // Deduct total amount from wallet (includes commission)
+        wallet.balance -= totalAmount;
+        await wallet.save();
 
         const betIds = [];
         const createdBets = [];
         try {
-            for (const { betType, betNumber, amount, betOn } of sanitized) {
+            for (const { betType, betNumber, amount, betOn, commissionAmount, commissionPercentage } of sanitized) {
                 const bet = await Bet.create({
                     userId,
                     marketId,
@@ -339,6 +363,8 @@ export const placeBetForPlayer = async (req, res) => {
                     payout: 0,
                     placedByBookie: true,
                     placedByBookieId: bookie._id,
+                    commissionAmount: commissionAmount || 0,
+                    commissionPercentage: commissionPercentage || 0,
                 });
                 betIds.push(bet._id);
                 createdBets.push(bet);
@@ -426,6 +452,112 @@ export const getBetHistory = async (req, res) => {
             .limit(1000);
 
         res.status(200).json({ success: true, data: bets });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Get bet sessions - groups bets placed together (same userId, marketId, within 5 seconds)
+ * GET /api/v1/bets/sessions?userId=&marketId=&startDate=&endDate=
+ * Returns array of sessions, each containing session info and bets array
+ */
+export const getBetSessions = async (req, res) => {
+    try {
+        const { userId, marketId, startDate, endDate } = req.query;
+        const bookie = req.admin; // Current bookie admin
+        
+        if (!bookie || bookie.role !== 'bookie') {
+            return res.status(403).json({ success: false, message: 'Bookie access required' });
+        }
+
+        const query = {};
+
+        // Only get bets placed by this specific bookie
+        query.placedByBookie = true;
+        query.placedByBookieId = bookie._id;
+
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        if (bookieUserIds !== null) {
+            query.userId = { $in: bookieUserIds };
+            if (userId) {
+                const ids = bookieUserIds.map((id) => id.toString());
+                if (ids.includes(userId)) query.userId = userId;
+            }
+        } else if (userId) {
+            query.userId = userId;
+        }
+        if (marketId) query.marketId = marketId;
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) {
+                const start = new Date(startDate);
+                start.setHours(0, 0, 0, 0);
+                query.createdAt.$gte = start;
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                query.createdAt.$lte = end;
+            }
+        }
+
+        const bets = await Bet.find(query)
+            .populate('userId', 'username phone email')
+            .populate({ path: 'marketId', select: 'marketName', model: Market })
+            .sort({ createdAt: -1 })
+            .limit(5000)
+            .lean();
+
+        // Group bets by userId, marketId, and createdAt (within 5 seconds)
+        const sessionsMap = new Map();
+        const SESSION_WINDOW_MS = 5000; // 5 seconds
+
+        bets.forEach((bet) => {
+            const betTime = new Date(bet.createdAt).getTime();
+            const userId = String(bet.userId?._id || bet.userId);
+            const marketId = String(bet.marketId?._id || bet.marketId);
+            
+            // Find existing session within window
+            let sessionKey = null;
+            for (const [key, session] of sessionsMap.entries()) {
+                const [sUserId, sMarketId, sTime] = key.split('|');
+                const sessionTime = Number(sTime);
+                if (sUserId === userId && sMarketId === marketId && Math.abs(betTime - sessionTime) <= SESSION_WINDOW_MS) {
+                    sessionKey = key;
+                    break;
+                }
+            }
+
+            if (!sessionKey) {
+                // Create new session
+                sessionKey = `${userId}|${marketId}|${betTime}`;
+                sessionsMap.set(sessionKey, {
+                    sessionId: sessionKey,
+                    userId: bet.userId?._id || bet.userId,
+                    playerName: bet.userId?.username || '',
+                    playerPhone: bet.userId?.phone || '',
+                    marketId: bet.marketId?._id || bet.marketId,
+                    marketName: bet.marketId?.marketName || '',
+                    createdAt: bet.createdAt,
+                    totalBets: 0,
+                    totalAmount: 0,
+                    bets: [],
+                });
+            }
+
+            const session = sessionsMap.get(sessionKey);
+            session.bets.push(bet);
+            session.totalBets += 1;
+            session.totalAmount += bet.amount || 0;
+        });
+
+        // Convert map to array and sort by createdAt (newest first)
+        const sessions = Array.from(sessionsMap.values()).sort((a, b) => 
+            new Date(b.createdAt) - new Date(a.createdAt)
+        );
+
+        res.status(200).json({ success: true, data: sessions });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

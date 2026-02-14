@@ -18,6 +18,7 @@ const AddUser = () => {
         confirmPassword: '',
         role: 'user',
         balance: '', // empty = 0 on submit; user can clear field
+        commissionPercentage: '', // For bookie creation
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -90,7 +91,7 @@ const AddUser = () => {
                     email: formData.email.trim(),
                     phone: formData.phone.replace(/\D/g, '').slice(0, 10),
                     password: formData.password,
-                    commissionPercentage: 0, // Default commission, can be updated later
+                    commissionPercentage: formData.commissionPercentage ? Number(formData.commissionPercentage) : 0,
                 };
                 const response = await fetch(`${API_BASE_URL}/admin/bookies`, {
                     method: 'POST',
@@ -114,6 +115,7 @@ const AddUser = () => {
                         confirmPassword: '',
                         role: 'user',
                         balance: '',
+                        commissionPercentage: '',
                     });
                     setCreatedPlayers((prev) => [
                         {
@@ -359,6 +361,25 @@ const AddUser = () => {
                                         </p>
                                     )}
                                 </div>
+                                {formData.role === 'bookie' && (
+                                    <div>
+                                        <label htmlFor="commissionPercentage" className={labelClass}>Commission Percentage (%)</label>
+                                        <input
+                                            id="commissionPercentage"
+                                            type="number"
+                                            name="commissionPercentage"
+                                            value={formData.commissionPercentage}
+                                            onChange={handleChange}
+                                            placeholder="0"
+                                            min="0"
+                                            max="100"
+                                            step="0.01"
+                                            className={inputClass}
+                                            autoComplete="off"
+                                        />
+                                        <p className="mt-1 text-xs text-gray-500">Commission deducted from player bet amounts (0-100%)</p>
+                                    </div>
+                                )}
                                 {formData.role !== 'bookie' && (
                                     <div>
                                         <label htmlFor="balance" className={labelClass}>Initial Balance (₹)</label>

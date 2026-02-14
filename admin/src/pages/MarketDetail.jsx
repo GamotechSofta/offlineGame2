@@ -991,7 +991,6 @@ const MarketDetail = () => {
                             <span className="text-gray-400">Row = 1st digit, Column = 2nd digit.</span> Total: ₹{formatNum(jodiDisplay.totalAmount)} · {formatNum(jodiDisplay.totalBets)} bets
                         </p>
                     </SectionCard>
-                    )}
 
                     <SectionCard title="Single Patti">
                         <div className="mb-4 p-3 sm:p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-2">

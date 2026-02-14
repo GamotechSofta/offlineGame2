@@ -344,6 +344,30 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            {/* To Give & To Take KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">To Give (all-time)</p>
+                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.toGive || 0)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Money to give to players</p>
+                </div>
+                <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">To Take (all-time)</p>
+                    <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(stats?.toTake || 0)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Money to take from players</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Advance (all-time)</p>
+                    <p className="text-2xl font-bold text-purple-600 font-mono">{formatCurrency(stats?.advance)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Total deposits given</p>
+                </div>
+                <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Loss (all-time)</p>
+                    <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(stats?.loss)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Total loss from bets</p>
+                </div>
+            </div>
+
             {/* Detailed Sections */}
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
                 {/* Revenue Details */}
@@ -381,6 +405,20 @@ const Dashboard = () => {
                 {/* Wallet */}
                 <SectionCard title="Wallet Balance" description="All players combined (all-time)" icon={FaWallet} linkTo="/wallet" linkLabel="Wallet">
                     <StatRow label="Total Balance" value={formatCurrency(stats?.wallet?.totalBalance)} colorClass="text-green-600" />
+                    <StatRow label="To Give (Wallet)" value={formatCurrency(stats?.wallet?.toGive)} colorClass="text-blue-600" />
+                    <StatRow label="To Receive (Wallet)" value={formatCurrency(stats?.wallet?.toReceive)} colorClass="text-red-600" />
+                </SectionCard>
+
+                {/* To Give & To Take */}
+                <SectionCard title="To Give & To Take" description="Separate tracking (all-time)" icon={FaMoneyBillWave} linkTo="/my-users" linkLabel="My Players">
+                    <StatRow label="To Give" value={formatCurrency(stats?.toGive || 0)} colorClass="text-blue-600" />
+                    <StatRow label="To Take" value={formatCurrency(stats?.toTake || 0)} colorClass="text-red-600" />
+                </SectionCard>
+
+                {/* Advance & Loss */}
+                <SectionCard title="Advance & Loss" description="All-time totals" icon={FaMoneyBillWave} linkTo="/reports" linkLabel="Reports">
+                    <StatRow label="Total Advance" value={formatCurrency(stats?.advance)} colorClass="text-purple-600" />
+                    <StatRow label="Total Loss" value={formatCurrency(stats?.loss)} colorClass="text-red-600" />
                 </SectionCard>
 
                 {/* Help Desk */}

@@ -157,7 +157,7 @@ const MyUsers = () => {
                     <div>
                         {/* Desktop Table */}
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm min-w-[800px]">
+                            <table className="w-full text-sm min-w-[1000px]">
                                 <thead className="bg-gray-100">
                                     <tr>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase w-8">#</th>
@@ -165,6 +165,8 @@ const MyUsers = () => {
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Email</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Phone</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Wallet</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">To Give</th>
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">To Take</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Account</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Created</th>
@@ -185,6 +187,16 @@ const MyUsers = () => {
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3">
                                                     <span className="font-mono font-medium text-green-600 text-xs sm:text-sm">
                                                         ₹{Number(item.walletBalance ?? 0).toLocaleString('en-IN')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3">
+                                                    <span className="font-mono font-medium text-blue-600 text-xs sm:text-sm">
+                                                        ₹{Number(item.toGive ?? 0).toLocaleString('en-IN')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-2 sm:px-3 py-2 sm:py-3">
+                                                    <span className="font-mono font-medium text-red-600 text-xs sm:text-sm">
+                                                        ₹{Number(item.toTake ?? 0).toLocaleString('en-IN')}
                                                     </span>
                                                 </td>
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3">

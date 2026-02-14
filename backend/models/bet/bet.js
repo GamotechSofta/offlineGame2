@@ -63,6 +63,19 @@ const betSchema = new mongoose.Schema({
         ref: 'Admin',
         default: null,
     },
+    /** Commission amount deducted from bet (for bookie commission) */
+    commissionAmount: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    /** Commission percentage used (for reference) */
+    commissionPercentage: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+    },
 }, {
     timestamps: true,
 });

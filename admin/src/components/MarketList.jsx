@@ -72,8 +72,9 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
     const getMarketStatus = (market) => {
         const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
         const hasClosing = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
+        // If both results are declared, market is closed
         if (hasOpening && hasClosing) return { status: 'closed', color: 'bg-red-500' };
-        if (hasOpening && !hasClosing) return { status: 'running', color: 'bg-green-500' };
+        // Otherwise, market is open (from 12 AM until closing time)
         return { status: 'open', color: 'bg-green-500' };
     };
 
@@ -91,7 +92,6 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
                         {/* Status Badge */}
                         <div className={`${status.color} text-white text-[10px] sm:text-xs font-semibold px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full inline-block mb-3 sm:mb-4`}>
                             {status.status === 'open' && 'OPEN'}
-                            {status.status === 'running' && 'CLOSED IS RUNNING'}
                             {status.status === 'closed' && 'CLOSED'}
                         </div>
 
