@@ -2,6 +2,7 @@ import Bet from '../models/bet/bet.js';
 import Payment from '../models/payment/payment.js';
 import User from '../models/user/user.js';
 import Admin from '../models/admin/admin.js';
+import { Wallet } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 
 export const getReport = async (req, res) => {
@@ -453,6 +454,62 @@ export const getBookieRevenueDetail = async (req, res) => {
                     createdAt: b.createdAt,
                 })),
             },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Get customer balance overview - shows all players with their toGive, toTake, and calculated balance
+ * Balance = walletBalance + toGive - toTake
+ */
+export const getCustomerBalanceOverview = async (req, res) => {
+    try {
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        const userFilter = bookieUserIds !== null ? { _id: { $in: bookieUserIds } } : {};
+
+        // Get all users with their toGive and toTake
+        const users = await User.find(userFilter)
+            .select('_id username email phone toGive toTake createdAt')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Get wallet balances for all users
+        const userIds = users.map((u) => u._id);
+        const wallets = await Wallet.find({ userId: { $in: userIds } })
+            .select('userId balance')
+            .lean();
+
+        // Create a map of userId -> wallet balance
+        const walletMap = {};
+        wallets.forEach((w) => {
+            walletMap[w.userId.toString()] = w.balance || 0;
+        });
+
+        // Calculate balance for each user: walletBalance + toGive - toTake
+        const customerBalances = users.map((user, index) => {
+            const walletBalance = walletMap[user._id.toString()] || 0;
+            const toGive = user.toGive || 0;
+            const toTake = user.toTake || 0;
+            const balance = walletBalance + toGive - toTake;
+
+            return {
+                srNo: index + 1,
+                userId: user._id,
+                name: user.username,
+                email: user.email || '',
+                phone: user.phone || '',
+                yene: toTake, // येणे - To Receive (money player owes to bookie)
+                dene: toGive, // देणे - To Give (money bookie owes to player)
+                aad: balance, // आड - Balance (walletBalance + toGive - toTake)
+                walletBalance: walletBalance,
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            data: customerBalances,
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

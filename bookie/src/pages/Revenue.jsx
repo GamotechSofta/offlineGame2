@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 import {
     FaMoneyBillWave,
     FaSyncAlt,
@@ -10,30 +11,30 @@ import {
     FaUsers,
 } from 'react-icons/fa';
 
-const PRESETS = [
-    { id: 'today', label: 'Today', getRange: () => {
+const getPresets = (t) => [
+    { id: 'today', label: t('today'), getRange: () => {
         const d = new Date();
         const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         return { from, to: from };
     }},
-    { id: 'yesterday', label: 'Yesterday', getRange: () => {
+    { id: 'yesterday', label: t('yesterday'), getRange: () => {
         const d = new Date(); d.setDate(d.getDate() - 1);
         const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         return { from, to: from };
     }},
-    { id: 'this_week', label: 'This Week', getRange: () => {
+    { id: 'this_week', label: t('thisWeek'), getRange: () => {
         const d = new Date(); const day = d.getDay();
         const sun = new Date(d); sun.setDate(d.getDate() - day);
         const sat = new Date(sun); sat.setDate(sun.getDate() + 6);
         const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
         return { from: fmt(sun), to: fmt(sat) };
     }},
-    { id: 'this_month', label: 'This Month', getRange: () => {
+    { id: 'this_month', label: t('thisMonth'), getRange: () => {
         const d = new Date(); const y = d.getFullYear(), m = d.getMonth();
         const last = new Date(y, m + 1, 0);
         return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` };
     }},
-    { id: 'last_month', label: 'Last Month', getRange: () => {
+    { id: 'last_month', label: t('lastMonth'), getRange: () => {
         const d = new Date(); const y = d.getFullYear(), m = d.getMonth() - 1;
         const last = new Date(y, m + 1, 0);
         return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` };
@@ -53,6 +54,8 @@ const formatNumber = (n) => {
 };
 
 const Revenue = () => {
+    const { t } = useLanguage();
+    const PRESETS = getPresets(t);
     const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -93,7 +96,7 @@ const Revenue = () => {
     };
 
     return (
-        <Layout title="Revenue">
+        <Layout title={t('revenue')}>
             <div className="space-y-4 sm:space-y-5">
                 {/* Header */}
                 <div>

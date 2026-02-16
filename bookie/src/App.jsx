@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { useHeartbeat } from './hooks/useHeartbeat';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -22,6 +23,7 @@ import GameTypes from './pages/GameTypes';
 import BookieGameBid from './pages/GameBid/index';
 import Shortcuts from './pages/Shortcuts';
 import Receipt from './pages/Receipt';
+import CreateReceipt from './pages/CreateReceipt';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -84,6 +86,7 @@ const AppRoutes = () => (
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
         <Route path="/receipt" element={<PrivateRoute><Receipt /></PrivateRoute>} />
         <Route path="/receipt/:sessionId" element={<PrivateRoute><Receipt /></PrivateRoute>} />
+        <Route path="/create-receipt" element={<PrivateRoute><CreateReceipt /></PrivateRoute>} />
 
         <Route path="/help-desk" element={<PrivateRoute><HelpDesk /></PrivateRoute>} />
         <Route path="/shortcuts" element={<PrivateRoute><Shortcuts /></PrivateRoute>} />
@@ -95,9 +98,11 @@ const App = () => {
     return (
         <Router>
             <ScrollToTop />
-            <AuthProvider>
-                <AppRoutes />
-            </AuthProvider>
+            <LanguageProvider>
+                <AuthProvider>
+                    <AppRoutes />
+                </AuthProvider>
+            </LanguageProvider>
         </Router>
     );
 };

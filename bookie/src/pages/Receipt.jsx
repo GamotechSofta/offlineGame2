@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 import {
     FaArrowLeft,
     FaSearch,
@@ -37,14 +38,14 @@ const formatDateTime = (date) => {
     });
 };
 
-const DATE_PRESETS = [
-    { id: 'today', label: 'Today', getRange: () => { const d = new Date(); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
-    { id: 'yesterday', label: 'Yesterday', getRange: () => { const d = new Date(); d.setDate(d.getDate() - 1); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
-    { id: 'last_7_days', label: 'Last 7 Days', getRange: () => { const d = new Date(); const to = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; const fromDate = new Date(d); fromDate.setDate(d.getDate() - 6); const from = `${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-${String(fromDate.getDate()).padStart(2, '0')}`; return { from, to }; } },
-    { id: 'this_week', label: 'This Week', getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
-    { id: 'last_week', label: 'Last Week', getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day - 7); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
-    { id: 'this_month', label: 'This Month', getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth(); const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
-    { id: 'last_month', label: 'Last Month', getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth() - 1; const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
+const getDatePresets = (t) => [
+    { id: 'today', label: t('today'), getRange: () => { const d = new Date(); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
+    { id: 'yesterday', label: t('yesterday'), getRange: () => { const d = new Date(); d.setDate(d.getDate() - 1); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
+    { id: 'last_7_days', label: t('last7Days'), getRange: () => { const d = new Date(); const to = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; const fromDate = new Date(d); fromDate.setDate(d.getDate() - 6); const from = `${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-${String(fromDate.getDate()).padStart(2, '0')}`; return { from, to }; } },
+    { id: 'this_week', label: t('thisWeek'), getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
+    { id: 'last_week', label: t('lastWeek'), getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day - 7); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
+    { id: 'this_month', label: t('thisMonth'), getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth(); const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
+    { id: 'last_month', label: t('lastMonth'), getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth() - 1; const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
 ];
 
 const getBetTypeLabel = (type, betNumber = '') => {
@@ -75,6 +76,7 @@ const getBetTypeLabel = (type, betNumber = '') => {
 };
 
 const Receipt = () => {
+    const { t } = useLanguage();
     const { sessionId } = useParams();
     const navigate = useNavigate();
     const [sessions, setSessions] = useState([]);
@@ -103,6 +105,8 @@ const Receipt = () => {
     const [toGiveTakeError, setToGiveTakeError] = useState('');
     const [toGiveTakeSuccess, setToGiveTakeSuccess] = useState('');
 
+    const DATE_PRESETS = getDatePresets(t);
+
     // Init date to last 7 days (to show past data)
     useEffect(() => {
         const preset = DATE_PRESETS.find((p) => p.id === 'last_7_days');
@@ -112,7 +116,7 @@ const Receipt = () => {
             setDateTo(to);
             setDatePreset('last_7_days');
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -741,7 +745,7 @@ const Receipt = () => {
         const finalTotal = remainingToPay - paidAmount - cuttingAmount;
 
         return (
-            <Layout title="Bet Receipt">
+            <Layout title={t('receipt')}>
                 <style>{`
                     @media print {
                         @page {
@@ -849,10 +853,10 @@ const Receipt = () => {
                             onClick={handleBackToList}
                             className="text-gray-400 hover:text-orange-500 text-sm inline-flex items-center gap-1 mb-1"
                         >
-                            <FaArrowLeft className="w-3 h-3" /> All Receipts
+                            <FaArrowLeft className="w-3 h-3" /> {t('receipts')}
                         </button>
                         <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-                            Bet Receipt
+                            {t('receipt')}
                         </h1>
                     </div>
 
@@ -1164,12 +1168,12 @@ const Receipt = () => {
     // Show players list if no player is selected
     if (!selectedPlayerId) {
         return (
-            <Layout title="Receipt">
+            <Layout title={t('receipt')}>
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
                         <FaFileInvoiceDollar className="text-orange-500" />
-                        Receipts
+                        {t('receipts')}
                     </h1>
                 </div>
 
@@ -1179,7 +1183,7 @@ const Receipt = () => {
                         <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                         <input
                             type="text"
-                            placeholder="Search by player name, phone or email..."
+                            placeholder={t('searchPlayers')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className={`w-full pl-10 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
@@ -1208,11 +1212,11 @@ const Receipt = () => {
                     {loading ? (
                         <div className="p-8 text-center">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
-                            <p className="mt-4 text-gray-400">Loading players...</p>
-                        </div>
-                    ) : players.length === 0 ? (
-                        <div className="p-8 text-center text-gray-400">
-                            <p>No players found.</p>
+                            <p className="mt-4 text-gray-400">{t('loading')}</p>
+                    </div>
+                ) : players.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                        <p>{t('noData')}</p>
                         </div>
                     ) : filteredPlayers.length === 0 ? (
                         <div className="p-8 text-center text-gray-400">
@@ -1248,7 +1252,7 @@ const Receipt = () => {
                                                         title="View receipts"
                                                     >
                                                         <FaFileInvoiceDollar className="w-3 h-3" />
-                                                        View Receipts
+                                                        {t('viewReceipts')}
                                                     </button>
                                                 </td>
                                             </tr>
@@ -1284,11 +1288,11 @@ const Receipt = () => {
                         onClick={handleBackToPlayers}
                         className="text-gray-400 hover:text-orange-500 text-sm inline-flex items-center gap-1 mb-2"
                     >
-                        <FaArrowLeft className="w-3 h-3" /> Back to Players
+                        <FaArrowLeft className="w-3 h-3" /> {t('back')} {t('to')} {t('myPlayers')}
                     </button>
                     <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
                         <FaFileInvoiceDollar className="text-orange-500" />
-                        Receipts - {selectedPlayerName}
+                        {t('receipts')} - {selectedPlayerName}
                     </h1>
                 </div>
             </div>
@@ -1373,11 +1377,11 @@ const Receipt = () => {
                 {loading ? (
                     <div className="p-8 text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
-                        <p className="mt-4 text-gray-400">Loading receipts...</p>
+                        <p className="mt-4 text-gray-400">{t('loading')}</p>
                     </div>
                 ) : sessions.length === 0 ? (
                     <div className="p-8 text-center text-gray-400">
-                        <p>No bet receipts found for the selected date range.</p>
+                        <p>{t('noReceiptsFound')}</p>
                     </div>
                 ) : filteredSessions.length === 0 ? (
                     <div className="p-8 text-center text-gray-400">

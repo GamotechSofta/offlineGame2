@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 
 const AddUser = () => {
+    const { t } = useLanguage();
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -36,7 +38,7 @@ const AddUser = () => {
             });
             const data = await response.json();
             if (data.success) {
-                setSuccess('Player created successfully! Player is now linked to your account.');
+                setSuccess(t('playerCreatedSuccess'));
                 setFormData({
                     username: '',
                     email: '',
@@ -46,18 +48,18 @@ const AddUser = () => {
                     balance: 0,
                 });
             } else {
-                setError(data.message || 'Failed to create user');
+                setError(data.message || t('failedToCreateUser'));
             }
         } catch (err) {
-            setError('Network error. Please check if the server is running.');
+            setError(t('error') + ': Network error. Please check if the server is running.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Layout title="Add Player">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Add New Player</h1>
+        <Layout title={t('addPlayer')}>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">{t('addNewPlayer')}</h1>
 
                 {error && (
                     <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
@@ -75,7 +77,7 @@ const AddUser = () => {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-gray-600 text-sm font-medium mb-2">
-                                Username *
+                                {t('username')} *
                             </label>
                             <input
                                 type="text"
@@ -89,7 +91,7 @@ const AddUser = () => {
 
                         <div>
                             <label className="block text-gray-600 text-sm font-medium mb-2">
-                                Email *
+                                {t('email')} *
                             </label>
                             <input
                                 type="email"
@@ -103,7 +105,7 @@ const AddUser = () => {
 
                         <div>
                             <label className="block text-gray-600 text-sm font-medium mb-2">
-                                Password *
+                                {t('password')} *
                             </label>
                             <input
                                 type="password"
@@ -118,7 +120,7 @@ const AddUser = () => {
 
                         <div>
                             <label className="block text-gray-600 text-sm font-medium mb-2">
-                                Phone
+                                {t('phone')}
                             </label>
                             <input
                                 type="tel"
@@ -146,7 +148,7 @@ const AddUser = () => {
 
                         <div>
                             <label className="block text-gray-600 text-sm font-medium mb-2">
-                                Initial Balance
+                                {t('initialBalance')}
                             </label>
                             <input
                                 type="number"
@@ -164,7 +166,7 @@ const AddUser = () => {
                             disabled={loading}
                             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-gray-800 font-semibold py-3 px-4 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-orange-500/20"
                         >
-                            {loading ? 'Creating...' : 'Create Player'}
+                            {loading ? t('loading') : t('createPlayer')}
                         </button>
                     </div>
                 </form>

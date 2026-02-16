@@ -1,15 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     FaTachometerAlt,
     FaChartBar,
     FaUserPlus,
     FaHistory,
-    FaTrophy,
     FaChartLine,
     FaCreditCard,
     FaWallet,
-    FaLifeRing,
     FaLink,
     FaSignOutAlt,
     FaUsers,
@@ -17,35 +15,37 @@ import {
     FaMoneyBillWave,
     FaKeyboard,
     FaFileInvoiceDollar,
+    FaGlobe,
+    FaChevronDown,
+    FaEdit,
 } from 'react-icons/fa';
+import { useLanguage } from '../context/LanguageContext';
 
 const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { t, language, changeLanguage } = useLanguage();
+    const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
 
     const menuItems = [
-        { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
-        { path: '/my-users', label: 'My Players', icon: FaUsers },
-        { path: '/markets', label: 'Markets', icon: FaChartBar },
-        { path: '/add-user', label: 'Add Player', icon: FaUserPlus },
-        { path: '/referral-link', label: 'My Referral Link', icon: FaLink },
-        { path: '/bet-history', label: 'Bet History', icon: FaHistory },
-        { path: '/top-winners', label: 'Top Winners', icon: FaTrophy },
-        { path: '/reports', label: 'Report', icon: FaChartLine },
-        { path: '/revenue', label: 'Revenue', icon: FaMoneyBillWave },
-        { path: '/payments', label: 'Payments', icon: FaCreditCard },
-        { path: '/wallet', label: 'Wallet', icon: FaWallet },
-        { path: '/receipt', label: 'Receipt', icon: FaFileInvoiceDollar },
-        { path: '/help-desk', label: 'Help Desk', icon: FaLifeRing },
-        { path: '/shortcuts', label: 'Shortcuts', icon: FaKeyboard },
+        { path: '/dashboard', label: t('dashboard'), icon: FaTachometerAlt, key: 'dashboard' },
+        { path: '/my-users', label: t('myPlayers'), icon: FaUsers, key: 'myPlayers' },
+        { path: '/markets', label: t('markets'), icon: FaChartBar, key: 'markets' },
+        { path: '/add-user', label: t('addPlayer'), icon: FaUserPlus, key: 'addPlayer' },
+        { path: '/referral-link', label: t('referralLink'), icon: FaLink, key: 'referralLink' },
+        { path: '/bet-history', label: t('betHistory'), icon: FaHistory, key: 'betHistory' },
+        { path: '/reports', label: t('report'), icon: FaChartLine, key: 'report' },
+        { path: '/revenue', label: t('revenue'), icon: FaMoneyBillWave, key: 'revenue' },
+        { path: '/payments', label: t('payments'), icon: FaCreditCard, key: 'payments' },
+        { path: '/wallet', label: t('wallet'), icon: FaWallet, key: 'wallet' },
+        { path: '/receipt', label: t('receipt'), icon: FaFileInvoiceDollar, key: 'receipt' },
+        { path: '/create-receipt', label: t('createReceipt'), icon: FaEdit, key: 'createReceipt' },
+        { path: '/shortcuts', label: t('shortcuts'), icon: FaKeyboard, key: 'shortcuts' },
     ];
 
     const isActive = (path) => {
         if (path === '/my-users' || path === '/markets' || path === '/receipt') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
-        }
-        if (path === '/reports') {
-            return location.pathname === '/reports' || location.pathname.startsWith('/revenue');
         }
         return location.pathname === path;
     };
@@ -66,7 +66,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
             {/* Logo + Close (mobile) */}
             <div className="p-4 sm:p-6 border-b border-gray-200 shrink-0 flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-orange-500">Bookie Panel</h2>
+                    <h2 className="text-lg sm:text-xl font-bold text-orange-500">{t('bookiePanel')}</h2>
                     {user?.username && (
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{user.username}</p>
                     )}
@@ -99,14 +99,81 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
                 ))}
             </nav>
 
-            {/* Logout */}
-            <div className="p-3 sm:p-4 border-t border-gray-200 shrink-0">
+            {/* Language Selector & Logout */}
+            <div className="p-3 sm:p-4 border-t border-gray-200 shrink-0 space-y-2">
+                {/* Language Selector */}
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => setLanguageMenuOpen(!languageMenuOpen)}
+                        className="w-full flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold transition-all duration-200 text-sm sm:text-base hover:-translate-y-0.5"
+                    >
+                        <div className="flex items-center gap-3">
+                            <FaGlobe className="w-5 h-5 sm:text-xl shrink-0" />
+                            <span>{t('changeLanguage')}</span>
+                        </div>
+                        <FaChevronDown className={`w-4 h-4 transition-transform ${languageMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {/* Language Dropdown */}
+                    {languageMenuOpen && (
+                        <>
+                            <div 
+                                className="fixed inset-0 z-40" 
+                                onClick={() => setLanguageMenuOpen(false)}
+                            />
+                            <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        changeLanguage('en');
+                                        setLanguageMenuOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
+                                        language === 'en' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                                    }`}
+                                >
+                                    <span className="text-sm">English</span>
+                                    {language === 'en' && <span className="ml-auto text-blue-600">✓</span>}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        changeLanguage('hi');
+                                        setLanguageMenuOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-t border-gray-200 ${
+                                        language === 'hi' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                                    }`}
+                                >
+                                    <span className="text-sm">हिंदी</span>
+                                    {language === 'hi' && <span className="ml-auto text-blue-600">✓</span>}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        changeLanguage('mr');
+                                        setLanguageMenuOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-t border-gray-200 ${
+                                        language === 'mr' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                                    }`}
+                                >
+                                    <span className="text-sm">मराठी</span>
+                                    {language === 'mr' && <span className="ml-auto text-blue-600">✓</span>}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+                
+                {/* Logout */}
                 <button
                     onClick={onLogout}
                     className="w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold transition-all duration-200 text-sm sm:text-base glow-red hover:-translate-y-0.5"
                 >
                     <FaSignOutAlt className="w-5 h-5 sm:text-xl shrink-0" />
-                    <span>Logout</span>
+                    <span>{t('logout')}</span>
                 </button>
             </div>
         </aside>

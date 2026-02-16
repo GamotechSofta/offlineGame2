@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL } from '../utils/api';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
+import { useLanguage } from '../context/LanguageContext';
 
 const Markets = () => {
+    const { t } = useLanguage();
     const [markets, setMarkets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -96,12 +98,12 @@ const Markets = () => {
     };
 
     return (
-        <Layout title="Markets">
+        <Layout title={t('markets')}>
             <>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Markets (View Only)</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">{t('marketsTitle')}</h1>
                 {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">{error}</div>}
                 {loading ? (
-                    <p className="text-gray-400 py-12 text-center">Loading markets...</p>
+                    <p className="text-gray-400 py-12 text-center">{t('loading')}</p>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         {markets.map((market) => {

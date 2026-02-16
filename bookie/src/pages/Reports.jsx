@@ -1,50 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 import {
-    FaChartLine,
-    FaMoneyBillWave,
-    FaCoins,
-    FaChartBar,
-    FaSyncAlt,
+    FaSearch,
     FaCalendarAlt,
-    FaChevronRight,
-    FaHistory,
-    FaTrophy,
-    FaUsers,
+    FaDownload,
     FaPrint,
+    FaEdit,
+    FaCheck,
+    FaTimes,
+    FaFileCsv,
+    FaSyncAlt,
+    FaUsers,
+    FaMoneyBillWave,
+    FaArrowUp,
+    FaArrowDown,
 } from 'react-icons/fa';
 
-const PRESETS = [
-    { id: 'today', label: 'Today', getRange: () => {
-        const d = new Date();
-        const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        return { from, to: from };
-    }},
-    { id: 'yesterday', label: 'Yesterday', getRange: () => {
-        const d = new Date(); d.setDate(d.getDate() - 1);
-        const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        return { from, to: from };
-    }},
-    { id: 'this_week', label: 'This Week', getRange: () => {
-        const d = new Date(); const day = d.getDay();
-        const sun = new Date(d); sun.setDate(d.getDate() - day);
-        const sat = new Date(sun); sat.setDate(sun.getDate() + 6);
-        const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
-        return { from: fmt(sun), to: fmt(sat) };
-    }},
-    { id: 'this_month', label: 'This Month', getRange: () => {
-        const d = new Date(); const y = d.getFullYear(), m = d.getMonth();
-        const last = new Date(y, m + 1, 0);
-        return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` };
-    }},
-    { id: 'last_month', label: 'Last Month', getRange: () => {
-        const d = new Date(); const y = d.getFullYear(), m = d.getMonth() - 1;
-        const last = new Date(y, m + 1, 0);
-        return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` };
-    }},
-];
+// Customer Balance Overview Reports Page
 
 const formatCurrency = (n) => {
     const num = Number(n);
@@ -52,281 +26,494 @@ const formatCurrency = (n) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(num);
 };
 
-const formatNumber = (n) => {
-    const num = Number(n);
-    if (!Number.isFinite(num)) return '0';
-    return new Intl.NumberFormat('en-IN').format(num);
-};
-
-const formatRangeLabel = (from, to) => {
-    if (!from || !to) return 'Select dates';
-    if (from === to) {
-        const d = new Date(from + 'T12:00:00');
-        return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    }
-    const a = new Date(from + 'T12:00:00');
-    const b = new Date(to + 'T12:00:00');
-    return `${a.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} \u2013 ${b.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-};
-
-const QUICK_LINKS = [
-    { to: '/revenue', label: 'Revenue', icon: FaMoneyBillWave, description: 'Your commission earnings & breakdown', color: 'emerald' },
-    { to: '/bet-history', label: 'Bet History', icon: FaHistory, description: 'View all bets placed by your users' },
-    { to: '/top-winners', label: 'Top Winners', icon: FaTrophy, description: 'Leaderboard of winning players' },
-    { to: '/my-users', label: 'My Players', icon: FaUsers, description: 'Active players referred by you' },
-];
-
 const Reports = () => {
-    const [report, setReport] = useState(null);
+    const { t } = useLanguage();
+    const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [dateRange, setDateRange] = useState(() => {
-        const d = new Date();
-        const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        return { startDate: today, endDate: today };
-    });
-    const [activePreset, setActivePreset] = useState('today');
+    const [error, setError] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [editingId, setEditingId] = useState(null);
+    const [editValues, setEditValues] = useState({ yene: '', dene: '' });
+    const [updating, setUpdating] = useState(false);
+    const [updateError, setUpdateError] = useState('');
+    const [updateSuccess, setUpdateSuccess] = useState('');
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
-        fetchReport();
-    }, [dateRange]);
+        fetchCustomerBalance();
+    }, []);
 
-    const fetchReport = async () => {
+    const fetchCustomerBalance = async (showRefreshing = false) => {
         try {
-            setLoading(true);
-            const response = await fetch(
-                `${API_BASE_URL}/reports?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-                { headers: getBookieAuthHeaders() }
-            );
+            if (showRefreshing) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
+            }
+            setError('');
+            const response = await fetch(`${API_BASE_URL}/reports/customer-balance`, {
+                headers: getBookieAuthHeaders(),
+            });
             const data = await response.json();
-            if (data.success) setReport(data.data);
-            else setReport(null);
+            if (data.success) {
+                setCustomers(data.data || []);
+            } else {
+                setError(data.message || t('failedToFetchCustomerBalance'));
+            }
         } catch (err) {
-            console.error('Error fetching report:', err);
-            setReport(null);
+            setError(t('networkErrorCheckServer'));
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
-    const applyPreset = (presetId) => {
-        const preset = PRESETS.find((p) => p.id === presetId);
-        if (preset) {
-            const { from, to } = preset.getRange();
-            setDateRange({ startDate: from, endDate: to });
-            setActivePreset(presetId);
+    const handleEdit = (customer) => {
+        setEditingId(customer.userId);
+        setEditValues({
+            yene: customer.yene.toString(),
+            dene: customer.dene.toString(),
+        });
+        setUpdateError('');
+        setUpdateSuccess('');
+    };
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setEditValues({ yene: '', dene: '' });
+        setUpdateError('');
+        setUpdateSuccess('');
+    };
+
+    const handleSave = async (userId) => {
+        try {
+            setUpdating(true);
+            setUpdateError('');
+            setUpdateSuccess('');
+
+            const numToTake = Number(editValues.yene);
+            const numToGive = Number(editValues.dene);
+
+            if (!Number.isFinite(numToTake) || numToTake < 0) {
+                setUpdateError(t('yeneMustBeNonNegative'));
+                setUpdating(false);
+                return;
+            }
+
+            if (!Number.isFinite(numToGive) || numToGive < 0) {
+                setUpdateError(t('deneMustBeNonNegative'));
+                setUpdating(false);
+                return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/users/${userId}/to-give-take`, {
+                method: 'PATCH',
+                headers: {
+                    ...getBookieAuthHeaders(),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    toTake: numToTake,
+                    toGive: numToGive,
+                }),
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setUpdateSuccess(t('updatedSuccessfully'));
+                // Refresh the data
+                setTimeout(() => {
+                    fetchCustomerBalance();
+                    setEditingId(null);
+                    setEditValues({ yene: '', dene: '' });
+                    setUpdateSuccess('');
+                }, 1000);
+            } else {
+                setUpdateError(data.message || t('failedToUpdate'));
+            }
+        } catch (err) {
+            setUpdateError(t('networkErrorTryAgain'));
+        } finally {
+            setUpdating(false);
         }
+    };
+
+    const handleExportCSV = () => {
+        const headers = [t('srNo'), t('name'), t('yene'), t('dene'), t('aad')];
+        const rows = filteredCustomers.map((c) => [
+            c.srNo,
+            c.name,
+            c.yene,
+            c.dene,
+            c.aad,
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `customer-balance-${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handlePrint = () => {
         window.print();
     };
 
+    const q = searchQuery.trim().toLowerCase();
+    const filteredCustomers = q
+        ? customers.filter((c) => {
+            const name = (c.name || '').toLowerCase();
+            const srNo = c.srNo.toString();
+            return name.includes(q) || srNo.includes(q);
+        })
+        : customers;
+
+    // Calculate summary statistics
+    const totalYene = filteredCustomers.reduce((sum, c) => sum + (c.yene || 0), 0);
+    const totalDene = filteredCustomers.reduce((sum, c) => sum + (c.dene || 0), 0);
+    const totalAad = filteredCustomers.reduce((sum, c) => sum + (c.aad || 0), 0);
+    const positiveBalance = filteredCustomers.filter((c) => c.aad >= 0).length;
+    const negativeBalance = filteredCustomers.filter((c) => c.aad < 0).length;
+
     return (
-        <Layout title="Reports">
-            <div className="space-y-4 sm:space-y-6 print:hidden">
-                {/* Page header */}
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <FaChartLine className="w-6 h-6 text-orange-500 shrink-0" />
-                        Reports
-                    </h1>
-                    <p className="text-gray-400 text-xs sm:text-sm mt-1">Financial and betting summary for the selected period</p>
+        <Layout title={t('report')}>
+            <div className="space-y-4 sm:space-y-6">
+                {/* Header with Refresh */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-3">
+                            <span className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                                <FaMoneyBillWave className="w-5 h-5 text-orange-500" />
+                            </span>
+                            {t('customerBalanceOverview')}
+                        </h1>
+                        <p className="text-gray-500 text-sm mt-1">{t('showingDataFor')}: {filteredCustomers.length} {filteredCustomers.length === 1 ? t('customer') : t('customers')}</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => fetchCustomerBalance(true)}
+                        disabled={refreshing || loading}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 transition-all disabled:opacity-60 text-sm font-medium"
+                    >
+                        <FaSyncAlt className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                        {t('refresh')}
+                    </button>
                 </div>
 
-                {/* Date filters */}
-                <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
-                    <div className="flex flex-wrap items-center gap-2 mb-2.5">
-                        <FaCalendarAlt className="w-4 h-4 text-orange-500 shrink-0" />
-                        <span className="text-sm font-medium text-gray-600">Period</span>
+                {/* Summary Cards */}
+                {!loading && filteredCustomers.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                        <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-4 border border-blue-200">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalCustomers')}</p>
+                            <p className="text-xl sm:text-2xl font-bold text-gray-800 font-mono">{filteredCustomers.length}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-4 border border-red-200">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                <FaArrowDown className="w-3 h-3" />
+                                {t('yene')} ({t('total')})
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold text-red-600 font-mono">{formatCurrency(totalYene)}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-4 border border-blue-200">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                <FaArrowUp className="w-3 h-3" />
+                                {t('dene')} ({t('total')})
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold text-blue-600 font-mono">{formatCurrency(totalDene)}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-4 border border-green-200">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('aad')} ({t('total')})</p>
+                            <p className={`text-xl sm:text-2xl font-bold font-mono ${totalAad >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {formatCurrency(totalAad)}
+                            </p>
+                        </div>
+                        <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-4 border border-purple-200 col-span-2 lg:col-span-1">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('balanceStatus')}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-green-600 font-semibold text-sm">+{positiveBalance}</span>
+                                <span className="text-gray-400">/</span>
+                                <span className="text-red-600 font-semibold text-sm">-{negativeBalance}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
-                        {PRESETS.map((p) => (
+                )}
+
+                {/* Search and Filters */}
+                <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-4">
+                    {/* Search Bar */}
+                    <div className="relative">
+                        <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder={t('searchByNameOrSrNo')}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm sm:text-base"
+                        />
+                        {searchQuery && (
                             <button
-                                key={p.id}
                                 type="button"
-                                onClick={() => applyPreset(p.id)}
-                                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                                    activePreset === p.id ? 'bg-orange-500 text-gray-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm"
                             >
-                                {p.label}
+                                ✕
                             </button>
-                        ))}
+                        )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <input type="date" value={dateRange.startDate}
-                            onChange={(e) => { setDateRange((r) => ({ ...r, startDate: e.target.value })); setActivePreset(''); }}
-                            className="px-2 sm:px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-xs sm:text-sm w-[130px] sm:w-auto"
-                        />
-                        <span className="text-gray-500 text-sm">to</span>
-                        <input type="date" value={dateRange.endDate}
-                            onChange={(e) => { setDateRange((r) => ({ ...r, endDate: e.target.value })); setActivePreset(''); }}
-                            className="px-2 sm:px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-xs sm:text-sm w-[130px] sm:w-auto"
-                        />
-                        <button type="button" onClick={fetchReport} disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-amber-400 text-gray-800 font-semibold rounded-lg transition-colors disabled:opacity-50 text-xs sm:text-sm"
-                        >
-                            <FaSyncAlt className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </button>
-                        <span className="text-gray-500 text-xs sm:text-sm hidden sm:inline">{formatRangeLabel(dateRange.startDate, dateRange.endDate)}</span>
-                    </div>
-                </div>
 
-                {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="bg-white rounded-xl h-24 animate-pulse border border-gray-200" />
-                        ))}
-                    </div>
-                ) : report ? (
-                    <>
-                        {/* Summary strip */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                            <div className="bg-gradient-to-br from-green-50 to-green-600/5 rounded-xl p-4 sm:p-5 border border-green-200">
-                                <div className="flex items-center justify-between">
-                                    <div className="min-w-0">
-                                        <p className="text-xs sm:text-sm font-medium text-gray-400">Total Revenue</p>
-                                        <p className="text-lg sm:text-2xl font-bold text-green-600 mt-1 truncate">{formatCurrency(report.totalRevenue)}</p>
-                                    </div>
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-green-500/20 flex items-center justify-center shrink-0 ml-2">
-                                        <FaMoneyBillWave className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-gradient-to-br from-red-500/10 to-red-600/5 rounded-xl p-4 sm:p-5 border border-red-500/30">
-                                <div className="flex items-center justify-between">
-                                    <div className="min-w-0">
-                                        <p className="text-xs sm:text-sm font-medium text-gray-400">Total Payouts</p>
-                                        <p className="text-lg sm:text-2xl font-bold text-red-500 mt-1 truncate">{formatCurrency(report.totalPayouts)}</p>
-                                    </div>
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0 ml-2">
-                                        <FaCoins className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-gradient-to-br from-orange-50 to-amber-600/5 rounded-xl p-4 sm:p-5 border border-orange-200">
-                                <div className="flex items-center justify-between">
-                                    <div className="min-w-0">
-                                        <p className="text-xs sm:text-sm font-medium text-gray-400">Net Profit</p>
-                                        <p className={`text-lg sm:text-2xl font-bold mt-1 truncate ${report.netProfit >= 0 ? 'text-orange-500' : 'text-red-500'}`}>{formatCurrency(report.netProfit)}</p>
-                                    </div>
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-orange-500/20 flex items-center justify-center shrink-0 ml-2">
-                                        <FaChartBar className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Betting stats */}
-                        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-                            <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
-                                <FaChartBar className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-                                Betting Summary
-                            </h2>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
-                                    <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Total Bets</p>
-                                    <p className="text-lg sm:text-xl font-bold text-gray-800 mt-1">{formatNumber(report.totalBets)}</p>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
-                                    <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Active Players</p>
-                                    <p className="text-lg sm:text-xl font-bold text-gray-800 mt-1">{formatNumber(report.activeUsers)}</p>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-green-500/20">
-                                    <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Winning Bets</p>
-                                    <p className="text-lg sm:text-xl font-bold text-green-600 mt-1">{formatNumber(report.winningBets)}</p>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-red-500/20">
-                                    <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Losing Bets</p>
-                                    <p className="text-lg sm:text-xl font-bold text-red-500 mt-1">{formatNumber(report.losingBets)}</p>
-                                </div>
-                            </div>
-                            <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 flex flex-wrap items-center gap-3">
-                                <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 rounded-lg">
-                                    <span className="text-xs sm:text-sm text-gray-400">Win Rate</span>
-                                    <span className="text-base sm:text-lg font-bold text-gray-800">{report.winRate}%</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handlePrint}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                                >
-                                    <FaPrint className="w-3.5 h-3.5" />
-                                    Print
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Quick links */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                            {QUICK_LINKS.map((item) => (
-                                <Link
-                                    key={item.to}
-                                    to={item.to}
-                                    className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border transition-all group ${
-                                        item.color === 'emerald'
-                                            ? 'bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border-emerald-500/30 hover:border-emerald-400/50'
-                                            : 'bg-gray-50 border-gray-200 hover:border-orange-200 hover:bg-gray-100/80'
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                                            item.color === 'emerald'
-                                                ? 'bg-orange-500/20 group-hover:bg-orange-500/30'
-                                                : 'bg-orange-500/20 group-hover:bg-orange-500/30'
-                                        }`}>
-                                            <item.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${item.color === 'emerald' ? 'text-orange-500' : 'text-orange-500'}`} />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className={`text-sm font-semibold transition-colors ${
-                                                item.color === 'emerald' ? 'text-gray-800 group-hover:text-orange-500' : 'text-gray-800 group-hover:text-orange-500'
-                                            }`}>{item.label}</p>
-                                            <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 truncate">{item.description}</p>
-                                        </div>
-                                    </div>
-                                    <FaChevronRight className={`w-3.5 h-3.5 shrink-0 ml-2 transition-colors ${
-                                        item.color === 'emerald' ? 'text-gray-600 group-hover:text-orange-500' : 'text-gray-600 group-hover:text-orange-500'
-                                    }`} />
-                                </Link>
-                            ))}
-                        </div>
-                    </>
-                ) : (
-                    <div className="bg-white rounded-xl border border-gray-200 p-8 sm:p-12 text-center">
-                        <FaChartLine className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mx-auto mb-4" />
-                        <p className="text-gray-400 text-sm sm:text-lg">No report data available for this period</p>
-                        <p className="text-gray-500 text-xs sm:text-sm mt-2">Try a different date range or refresh</p>
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-200">
                         <button
                             type="button"
-                            onClick={fetchReport}
-                            className="mt-4 px-4 py-2 bg-orange-500 hover:bg-amber-400 text-gray-800 font-semibold rounded-lg transition-colors text-sm"
+                            onClick={handleExportCSV}
+                            disabled={filteredCustomers.length === 0}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors text-sm shadow-sm hover:shadow-md"
                         >
-                            Refresh
+                            <FaFileCsv className="w-4 h-4" />
+                            {t('exportCustomerBalanceCSV')}
                         </button>
+                        <button
+                            type="button"
+                            onClick={handlePrint}
+                            disabled={filteredCustomers.length === 0}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors text-sm shadow-sm hover:shadow-md print:hidden"
+                        >
+                            <FaPrint className="w-4 h-4" />
+                            {t('print')}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex items-start gap-3">
+                        <div className="flex-shrink-0">
+                            <FaTimes className="w-5 h-5 text-red-500" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-red-800 font-medium">{t('error')}</p>
+                            <p className="text-red-600 text-sm mt-1">{error}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Success Message */}
+                {updateSuccess && (
+                    <div className="bg-green-50 border-l-4 border-green-500 rounded-lg p-4 flex items-start gap-3">
+                        <div className="flex-shrink-0">
+                            <FaCheck className="w-5 h-5 text-green-500" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-green-800 font-medium">{t('success')}</p>
+                            <p className="text-green-600 text-sm mt-1">{updateSuccess}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Update Error Message */}
+                {updateError && (
+                    <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex items-start gap-3">
+                        <div className="flex-shrink-0">
+                            <FaTimes className="w-5 h-5 text-red-500" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-red-800 font-medium">{t('error')}</p>
+                            <p className="text-red-600 text-sm mt-1">{updateError}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Table */}
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                    {loading ? (
+                        <div className="p-12 text-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
+                            <p className="mt-4 text-gray-400">{t('loading')}</p>
+                        </div>
+                    ) : filteredCustomers.length === 0 ? (
+                        <div className="p-12 text-center">
+                            <FaUsers className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                            <p className="text-gray-400 text-lg font-medium">{t('noData')}</p>
+                            <p className="text-gray-500 text-sm mt-2">
+                                {searchQuery ? t('noResultsFound') : t('noCustomersAvailable')}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200 sticky top-0 z-10">
+                                    <tr>
+                                        <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">{t('srNo')}</th>
+                                        <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider min-w-[150px]">{t('name')}</th>
+                                        <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider min-w-[120px]">{t('yene')}</th>
+                                        <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider min-w-[120px]">{t('dene')}</th>
+                                        <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider min-w-[130px]">{t('aad')}</th>
+                                        <th className="px-4 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider w-24">{t('actions')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {filteredCustomers.map((customer) => {
+                                        const isEditing = editingId === customer.userId;
+                                        return (
+                                            <tr 
+                                                key={customer.userId} 
+                                                className={`hover:bg-orange-50/50 transition-colors ${isEditing ? 'bg-orange-50' : ''}`}
+                                            >
+                                                <td className="px-4 py-4 text-sm font-medium text-gray-600">{customer.srNo}</td>
+                                                <td className="px-4 py-4">
+                                                    <div className="font-semibold text-gray-800">{customer.name}</div>
+                                                    {customer.phone && (
+                                                        <div className="text-xs text-gray-500 mt-0.5">{customer.phone}</div>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4 text-sm">
+                                                    {isEditing ? (
+                                                        <div className="flex justify-end">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="0.01"
+                                                                value={editValues.yene}
+                                                                onChange={(e) => setEditValues({ ...editValues, yene: e.target.value })}
+                                                                className="w-28 px-3 py-2 border-2 border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                                                                disabled={updating}
+                                                                autoFocus
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-right">
+                                                            <span className="font-mono font-semibold text-red-600 text-base">
+                                                                {formatCurrency(customer.yene)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4 text-sm">
+                                                    {isEditing ? (
+                                                        <div className="flex justify-end">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="0.01"
+                                                                value={editValues.dene}
+                                                                onChange={(e) => setEditValues({ ...editValues, dene: e.target.value })}
+                                                                className="w-28 px-3 py-2 border-2 border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                                                                disabled={updating}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-right">
+                                                            <span className="font-mono font-semibold text-blue-600 text-base">
+                                                                {formatCurrency(customer.dene)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4 text-sm">
+                                                    <div className="text-right">
+                                                        <span className={`font-mono font-bold text-base ${
+                                                            customer.aad >= 0 
+                                                                ? 'text-green-600' 
+                                                                : 'text-red-600'
+                                                        }`}>
+                                                            {formatCurrency(customer.aad)}
+                                                        </span>
+                                                        {customer.aad !== 0 && (
+                                                            <div className={`text-xs mt-0.5 flex items-center justify-end gap-1 ${
+                                                                customer.aad >= 0 ? 'text-green-500' : 'text-red-500'
+                                                            }`}>
+                                                                {customer.aad >= 0 ? (
+                                                                    <FaArrowUp className="w-2.5 h-2.5" />
+                                                                ) : (
+                                                                    <FaArrowDown className="w-2.5 h-2.5" />
+                                                                )}
+                                                                {customer.aad >= 0 ? t('positive') : t('negative')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    {isEditing ? (
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSave(customer.userId)}
+                                                                disabled={updating}
+                                                                className="p-2 text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+                                                                title={t('save')}
+                                                            >
+                                                                <FaCheck className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleCancelEdit}
+                                                                disabled={updating}
+                                                                className="p-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+                                                                title={t('cancel')}
+                                                            >
+                                                                <FaTimes className="w-4 h-4" />
+                                                            </button>
+                                                            {updating && (
+                                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center justify-center">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleEdit(customer)}
+                                                                className="p-2 text-orange-600 hover:text-white hover:bg-orange-600 rounded-lg transition-all shadow-sm hover:shadow-md"
+                                                                title={t('edit')}
+                                                            >
+                                                                <FaEdit className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Summary Footer */}
+                {!loading && filteredCustomers.length > 0 && (
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200 p-4 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div className="text-gray-600">
+                                <span className="font-medium">{t('showingDataFor')}:</span>{' '}
+                                <span className="font-bold text-gray-800">{filteredCustomers.length}</span>{' '}
+                                {filteredCustomers.length === 1 ? t('customer') : t('customers')}
+                                {searchQuery && filteredCustomers.length !== customers.length && (
+                                    <span className="text-gray-500"> ({t('filteredFrom')} {customers.length})</span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                    {t('positive')}: {positiveBalance}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                    {t('negative')}: {negativeBalance}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
-
-            {/* Print-only summary */}
-            {report && (
-                <div className="hidden print:block mt-8 p-6 bg-white text-gray-800 rounded-lg">
-                    <h2 className="text-xl font-bold mb-4">Report Summary</h2>
-                    <p className="text-sm text-gray-600 mb-4">{formatRangeLabel(dateRange.startDate, dateRange.endDate)}</p>
-                    <table className="w-full text-sm">
-                        <tbody>
-                            <tr><td className="py-1 font-medium">Total Revenue</td><td className="text-right">{formatCurrency(report.totalRevenue)}</td></tr>
-                            <tr><td className="py-1 font-medium">Total Payouts</td><td className="text-right">{formatCurrency(report.totalPayouts)}</td></tr>
-                            <tr><td className="py-1 font-medium">Net Profit</td><td className="text-right">{formatCurrency(report.netProfit)}</td></tr>
-                            <tr><td className="py-1 font-medium">Total Bets</td><td className="text-right">{formatNumber(report.totalBets)}</td></tr>
-                            <tr><td className="py-1 font-medium">Active Players</td><td className="text-right">{formatNumber(report.activeUsers)}</td></tr>
-                            <tr><td className="py-1 font-medium">Winning Bets</td><td className="text-right">{formatNumber(report.winningBets)}</td></tr>
-                            <tr><td className="py-1 font-medium">Losing Bets</td><td className="text-right">{formatNumber(report.losingBets)}</td></tr>
-                            <tr><td className="py-1 font-medium">Win Rate</td><td className="text-right">{report.winRate}%</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            )}
         </Layout>
     );
 };

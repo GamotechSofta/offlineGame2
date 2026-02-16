@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 
 const Wallet = () => {
+    const { t } = useLanguage();
     const [wallets, setWallets] = useState([]);
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -40,14 +42,14 @@ const Wallet = () => {
     };
 
     return (
-        <Layout title="Wallet">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Wallet (View Only)</h1>
+        <Layout title={t('wallet')}>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">{t('walletTitle')}</h1>
             <div className="flex gap-4 mb-4 sm:mb-6 border-b border-gray-200">
-                <button onClick={() => setActiveTab('wallets')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'wallets' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-400 hover:text-gray-600'}`}>Player Wallets</button>
-                <button onClick={() => setActiveTab('transactions')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'transactions' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-400 hover:text-gray-600'}`}>Transactions</button>
+                <button onClick={() => setActiveTab('wallets')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'wallets' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-400 hover:text-gray-600'}`}>{t('playerWallets')}</button>
+                <button onClick={() => setActiveTab('transactions')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'transactions' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-400 hover:text-gray-600'}`}>{t('transactions')}</button>
             </div>
             {loading ? (
-                <p className="text-gray-400 py-12 text-center">Loading...</p>
+                <p className="text-gray-400 py-12 text-center">{t('loading')}</p>
             ) : activeTab === 'wallets' ? (
                 <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
                     <table className="w-full">

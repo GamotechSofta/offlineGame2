@@ -30,9 +30,14 @@ function getDateRange(fromStr, toStr) {
 
 export const getDashboardStats = async (req, res) => {
     try {
+        // Get all user IDs that belong to this bookie (via referredBy field)
+        // Returns null for super_admin (no filter - see all), array of IDs for bookie, empty array if no users
         const bookieUserIds = await getBookieUserIds(req.admin);
+        
+        // Build filters: if bookieUserIds is null (super_admin), filter is {} (match all)
+        // If bookieUserIds is array (even empty), filter by those IDs (empty array = match nothing, which is correct)
         const userFilter = bookieUserIds !== null ? { _id: { $in: bookieUserIds } } : {};
-        const betFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
+        const betFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {}; // All bets from bookie's players
         const paymentFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
         const walletMatch = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
         const helpDeskFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
@@ -59,15 +64,19 @@ export const getDashboardStats = async (req, res) => {
         });
 
         // Revenue & Bets in selected range
+        // Include all bets from bookie's players (both placed by bookie and by players themselves)
+        const revenueMatch = { ...dateMatch, ...betFilter, status: { $ne: 'cancelled' } };
         const totalRevenue = await Bet.aggregate([
-            { $match: { ...dateMatch, ...betFilter } },
+            { $match: revenueMatch },
             { $group: { _id: null, total: { $sum: '$amount' } } },
         ]);
+        const payoutMatch = { status: 'won', ...dateMatch, ...betFilter };
         const totalPayouts = await Bet.aggregate([
-            { $match: { status: 'won', ...dateMatch, ...betFilter } },
+            { $match: payoutMatch },
             { $group: { _id: null, total: { $sum: '$payout' } } },
         ]);
-        const totalBets = await Bet.countDocuments({ ...dateMatch, ...betFilter });
+        const betCountMatch = { ...dateMatch, ...betFilter, status: { $ne: 'cancelled' } };
+        const totalBets = await Bet.countDocuments(betCountMatch);
         const winningBets = await Bet.countDocuments({ status: 'won', ...dateMatch, ...betFilter });
         const losingBets = await Bet.countDocuments({ status: 'lost', ...dateMatch, ...betFilter });
         const pendingBets = await Bet.countDocuments({ status: 'pending', ...betFilter });
@@ -161,9 +170,10 @@ export const getDashboardStats = async (req, res) => {
             { $group: { _id: null, total: { $sum: '$amount' } } },
         ]);
         
-        // Calculate Loss (total loss from lost bets - all time)
+        // Calculate Loss (total loss from lost bets - all time, excluding cancelled)
+        const lossMatch = { status: 'lost', ...betFilter };
         const totalLoss = await Bet.aggregate([
-            { $match: { status: 'lost', ...betFilter } },
+            { $match: lossMatch },
             { $group: { _id: null, total: { $sum: '$amount' } } },
         ]);
         

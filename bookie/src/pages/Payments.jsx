@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 
 const Payments = () => {
+    const { t } = useLanguage();
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({ status: '', type: '' });
@@ -28,41 +30,41 @@ const Payments = () => {
     };
 
     return (
-        <Layout title="Payments">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Payments (View Only)</h1>
+        <Layout title={t('payments')}>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">{t('paymentsViewOnly')}</h1>
             <div className="bg-white rounded-lg p-4 mb-4 sm:mb-6 flex flex-wrap gap-3 items-center border border-gray-200">
                 <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800">
-                    <option value="">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="completed">Completed</option>
+                    <option value="">{t('allStatus')}</option>
+                    <option value="pending">{t('pending')}</option>
+                    <option value="approved">{t('approved')}</option>
+                    <option value="rejected">{t('rejected')}</option>
+                    <option value="completed">{t('completed')}</option>
                 </select>
                 <select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })} className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800">
-                    <option value="">All Types</option>
-                    <option value="deposit">Deposit</option>
-                    <option value="withdrawal">Withdrawal</option>
+                    <option value="">{t('allTypes')}</option>
+                    <option value="deposit">{t('deposit')}</option>
+                    <option value="withdrawal">{t('withdrawal')}</option>
                 </select>
             </div>
             {loading ? (
-                <p className="text-gray-400 py-12 text-center">Loading...</p>
+                <p className="text-gray-400 py-12 text-center">{t('loading')}</p>
             ) : (
                 <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
                     <table className="w-full">
                         <thead className="bg-gray-100">
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">ID</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Player</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Type</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Amount</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Method</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('player')}</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('type')}</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('amount')}</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('method')}</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('status')}</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('date')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-700">
                             {payments.length === 0 ? (
-                                <tr><td colSpan="7" className="px-6 py-4 text-center text-gray-400">No payments found</td></tr>
+                                <tr><td colSpan="7" className="px-6 py-4 text-center text-gray-400">{t('noPaymentsFound')}</td></tr>
                             ) : (
                                 payments.map((p) => (
                                     <tr key={p._id} className="hover:bg-gray-100">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 import {
     FaArrowLeft,
     FaCalendarAlt,
@@ -18,11 +19,11 @@ import {
     FaFilter,
 } from 'react-icons/fa';
 
-const TABS = [
-    { id: 'overview', label: 'Overview', icon: FaUser },
-    { id: 'bets', label: 'Bet History', icon: FaHistory },
-    { id: 'wallet', label: 'Fund History', icon: FaExchangeAlt },
-    { id: 'statement', label: 'Statement', icon: FaFileInvoiceDollar },
+const getTabs = (t) => [
+    { id: 'overview', label: t('overview'), icon: FaUser },
+    { id: 'bets', label: t('betHistory'), icon: FaHistory },
+    { id: 'wallet', label: t('fundHistory'), icon: FaExchangeAlt },
+    { id: 'statement', label: t('statement'), icon: FaFileInvoiceDollar },
 ];
 
 const formatDateRange = (from, to) => {
@@ -32,18 +33,19 @@ const formatDateRange = (from, to) => {
     return `${a.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })} ~ ${b.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })}`;
 };
 
-const DATE_PRESETS = [
-    { id: 'today', label: 'Today', getRange: () => { const d = new Date(); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
-    { id: 'yesterday', label: 'Yesterday', getRange: () => { const d = new Date(); d.setDate(d.getDate() - 1); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
-    { id: 'this_week', label: 'This Week', getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
-    { id: 'last_week', label: 'Last Week', getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day - 7); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
-    { id: 'this_month', label: 'This Month', getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth(); const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
-    { id: 'last_month', label: 'Last Month', getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth() - 1; const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
+const getDatePresets = (t) => [
+    { id: 'today', label: t('today'), getRange: () => { const d = new Date(); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
+    { id: 'yesterday', label: t('yesterday'), getRange: () => { const d = new Date(); d.setDate(d.getDate() - 1); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
+    { id: 'this_week', label: t('thisWeek'), getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
+    { id: 'last_week', label: t('lastWeek'), getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day - 7); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
+    { id: 'this_month', label: t('thisMonth'), getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth(); const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
+    { id: 'last_month', label: t('lastMonth'), getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth() - 1; const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
 ];
 
 const formatCurrency = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
 const PlayerDetail = () => {
+    const { t } = useLanguage();
     const { userId } = useParams();
     const navigate = useNavigate();
     const [player, setPlayer] = useState(null);
@@ -454,7 +456,7 @@ const PlayerDetail = () => {
 
     if (loading) {
         return (
-            <Layout title="Player">
+            <Layout title={t('playerDetail')}>
                 <div className="animate-pulse space-y-4">
                     <div className="h-8 w-48 bg-gray-200 rounded" />
                     <div className="h-24 bg-gray-200 rounded-xl" />
@@ -466,7 +468,7 @@ const PlayerDetail = () => {
 
     if (error || !player) {
         return (
-            <Layout title="Player">
+            <Layout title={t('playerDetail')}>
                 <div className="flex flex-col items-center justify-center min-h-[40vh]">
                     <p className="text-red-500 mb-4">{error || 'Player not found'}</p>
                     <Link to="/my-users" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold">
@@ -872,7 +874,7 @@ const PlayerDetail = () => {
                                             className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
                                         >
                                             <FaPrint className="w-4 h-4" />
-                                            Print Statement
+                                            {t('printStatement')}
                                         </button>
                                     </div>
 
