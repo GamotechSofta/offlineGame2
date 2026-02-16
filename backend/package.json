@@ -8,6 +8,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon index.js",
+    "dev": "nodemon index.js",
     "create-admin": "node scripts/createAdmin.js",
     "create-bookie": "node scripts/createBookie.js"
   },
