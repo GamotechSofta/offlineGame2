@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "create-env": "node create-env.js",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
