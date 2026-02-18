@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     FaTachometerAlt,
-    FaChartBar,
     FaUserPlus,
     FaHistory,
     FaChartLine,
-    FaCreditCard,
     FaWallet,
     FaLink,
     FaSignOutAlt,
@@ -17,7 +15,8 @@ import {
     FaFileInvoiceDollar,
     FaGlobe,
     FaChevronDown,
-    FaEdit,
+    FaUserCheck,
+    FaCreditCard,
 } from 'react-icons/fa';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -30,21 +29,20 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const menuItems = [
         { path: '/dashboard', label: t('dashboard'), icon: FaTachometerAlt, key: 'dashboard' },
         { path: '/my-users', label: t('myPlayers'), icon: FaUsers, key: 'myPlayers' },
-        { path: '/markets', label: t('markets'), icon: FaChartBar, key: 'markets' },
         { path: '/add-user', label: t('addPlayer'), icon: FaUserPlus, key: 'addPlayer' },
         { path: '/referral-link', label: t('referralLink'), icon: FaLink, key: 'referralLink' },
         { path: '/bet-history', label: t('betHistory'), icon: FaHistory, key: 'betHistory' },
+        { path: '/bets-by-user', label: t('betsByUser'), icon: FaUserCheck, key: 'betsByUser' },
         { path: '/reports', label: t('report'), icon: FaChartLine, key: 'report' },
         { path: '/revenue', label: t('revenue'), icon: FaMoneyBillWave, key: 'revenue' },
         { path: '/payments', label: t('payments'), icon: FaCreditCard, key: 'payments' },
         { path: '/wallet', label: t('wallet'), icon: FaWallet, key: 'wallet' },
         { path: '/receipt', label: t('receipt'), icon: FaFileInvoiceDollar, key: 'receipt' },
-        { path: '/create-receipt', label: t('createReceipt'), icon: FaEdit, key: 'createReceipt' },
         { path: '/shortcuts', label: t('shortcuts'), icon: FaKeyboard, key: 'shortcuts' },
     ];
 
     const isActive = (path) => {
-        if (path === '/my-users' || path === '/markets' || path === '/receipt') {
+        if (path === '/my-users' || path === '/receipt') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
         }
         return location.pathname === path;
@@ -100,81 +98,81 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
             </nav>
 
             {/* Language Selector & Logout */}
-            <div className="p-3 sm:p-4 border-t border-gray-200 shrink-0 space-y-2">
-                {/* Language Selector */}
-                <div className="relative">
-                    <button
-                        type="button"
-                        onClick={() => setLanguageMenuOpen(!languageMenuOpen)}
-                        className="w-full flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold transition-all duration-200 text-sm sm:text-base hover:-translate-y-0.5"
-                    >
-                        <div className="flex items-center gap-3">
-                            <FaGlobe className="w-5 h-5 sm:text-xl shrink-0" />
-                            <span>{t('changeLanguage')}</span>
-                        </div>
-                        <FaChevronDown className={`w-4 h-4 transition-transform ${languageMenuOpen ? 'rotate-180' : ''}`} />
-                    </button>
+            <div className="p-3 sm:p-4 border-t border-gray-200 shrink-0">
+                <div className="flex items-center gap-2">
+                    {/* Language Selector */}
+                    <div className="relative flex-1">
+                        <button
+                            type="button"
+                            onClick={() => setLanguageMenuOpen(!languageMenuOpen)}
+                            className="w-full flex items-center justify-center gap-2 px-2 sm:px-3 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold transition-all duration-200 text-xs sm:text-sm hover:-translate-y-0.5"
+                        >
+                            <FaGlobe className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                            <span className="hidden sm:inline">{t('changeLanguage')}</span>
+                            <FaChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${languageMenuOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {/* Language Dropdown */}
+                        {languageMenuOpen && (
+                            <>
+                                <div 
+                                    className="fixed inset-0 z-40" 
+                                    onClick={() => setLanguageMenuOpen(false)}
+                                />
+                                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            changeLanguage('en');
+                                            setLanguageMenuOpen(false);
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
+                                            language === 'en' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                                        }`}
+                                    >
+                                        <span className="text-sm">English</span>
+                                        {language === 'en' && <span className="ml-auto text-blue-600">✓</span>}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            changeLanguage('hi');
+                                            setLanguageMenuOpen(false);
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-t border-gray-200 ${
+                                            language === 'hi' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                                        }`}
+                                    >
+                                        <span className="text-sm">हिंदी</span>
+                                        {language === 'hi' && <span className="ml-auto text-blue-600">✓</span>}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            changeLanguage('mr');
+                                            setLanguageMenuOpen(false);
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-t border-gray-200 ${
+                                            language === 'mr' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                                        }`}
+                                    >
+                                        <span className="text-sm">मराठी</span>
+                                        {language === 'mr' && <span className="ml-auto text-blue-600">✓</span>}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
                     
-                    {/* Language Dropdown */}
-                    {languageMenuOpen && (
-                        <>
-                            <div 
-                                className="fixed inset-0 z-40" 
-                                onClick={() => setLanguageMenuOpen(false)}
-                            />
-                            <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        changeLanguage('en');
-                                        setLanguageMenuOpen(false);
-                                    }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
-                                        language === 'en' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
-                                    }`}
-                                >
-                                    <span className="text-sm">English</span>
-                                    {language === 'en' && <span className="ml-auto text-blue-600">✓</span>}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        changeLanguage('hi');
-                                        setLanguageMenuOpen(false);
-                                    }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-t border-gray-200 ${
-                                        language === 'hi' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
-                                    }`}
-                                >
-                                    <span className="text-sm">हिंदी</span>
-                                    {language === 'hi' && <span className="ml-auto text-blue-600">✓</span>}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        changeLanguage('mr');
-                                        setLanguageMenuOpen(false);
-                                    }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-t border-gray-200 ${
-                                        language === 'mr' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
-                                    }`}
-                                >
-                                    <span className="text-sm">मराठी</span>
-                                    {language === 'mr' && <span className="ml-auto text-blue-600">✓</span>}
-                                </button>
-                            </div>
-                        </>
-                    )}
+                    {/* Logout */}
+                    <button
+                        onClick={onLogout}
+                        className="flex-1 flex items-center justify-center gap-2 px-2 sm:px-3 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold transition-all duration-200 text-xs sm:text-sm glow-red hover:-translate-y-0.5"
+                    >
+                        <FaSignOutAlt className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                        <span className="hidden sm:inline">{t('logout')}</span>
+                    </button>
                 </div>
-                
-                {/* Logout */}
-                <button
-                    onClick={onLogout}
-                    className="w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold transition-all duration-200 text-sm sm:text-base glow-red hover:-translate-y-0.5"
-                >
-                    <FaSignOutAlt className="w-5 h-5 sm:text-xl shrink-0" />
-                    <span>{t('logout')}</span>
-                </button>
             </div>
         </aside>
     );

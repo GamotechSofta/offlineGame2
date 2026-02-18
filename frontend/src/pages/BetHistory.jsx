@@ -392,7 +392,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
   };
 
   return (
-    <div className={`min-h-screen bg-black text-white px-3 sm:px-4 pt-3 ${hasPagination ? 'pb-[calc(100px+env(safe-area-inset-bottom,0px))]' : 'pb-[calc(7rem+env(safe-area-inset-bottom,0px))]'}`}>
+    <div className={`min-h-screen bg-white text-gray-800 px-3 sm:px-4 pt-3 ${hasPagination ? 'pb-[calc(100px+env(safe-area-inset-bottom,0px))]' : 'pb-[calc(7rem+env(safe-area-inset-bottom,0px))]'}`}>
       <div className="w-full max-w-3xl mx-auto">
         {/* Header row */}
         <div className="flex items-center justify-between gap-3 mb-4">
@@ -400,20 +400,20 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/15 active:scale-95 transition"
+              className="w-10 h-10 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center text-gray-700 hover:bg-gray-200 active:scale-95 transition"
               aria-label="Back"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold truncate">{pageTitle}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold truncate text-gray-800">{pageTitle}</h1>
           </div>
 
           <button
             type="button"
             onClick={() => setIsFilterOpen(true)}
-            className="shrink-0 flex items-center gap-2 text-[#d4af37] hover:text-[#f3b61b] transition-colors"
+            className="shrink-0 flex items-center gap-2 text-orange-500 hover:text-orange-600 transition-colors"
             aria-label="Filter"
             title="Filter"
           >
@@ -427,7 +427,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
         {/* Cards */}
         <div className="space-y-4">
           {filtered.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-[#202124] p-6 text-center text-gray-300">
+            <div className="rounded-2xl border-2 border-orange-200 bg-white p-6 text-center text-gray-600 shadow-sm">
               {userId ? 'No bets found.' : 'Please login to see your bet history.'}
             </div>
           ) : paged.map(({ x, r, idx, points, session, marketTitle, verdict }) => {
@@ -435,44 +435,44 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
             const gameType = (x?.labelKey || 'Bet').toString();
 
             return (
-            <div key={`${x.id}-${r?.id ?? idx}`} className="rounded-2xl overflow-hidden border border-white/10 bg-[#202124] shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
-              <div className="bg-black/30 px-4 py-3 text-center border-b border-white/10">
-                <div className="text-[#d4af37] font-extrabold tracking-wide">
+            <div key={`${x.id}-${r?.id ?? idx}`} className="rounded-2xl overflow-hidden border-2 border-orange-200 bg-white shadow-sm">
+              <div className="bg-orange-50 px-4 py-3 text-center border-b border-orange-200">
+                <div className="text-orange-500 font-extrabold tracking-wide">
                   {marketTitle.toUpperCase()} {session ? `(${session})` : ''}
                 </div>
               </div>
 
               <div className="px-4 py-4">
-                <div className="grid grid-cols-3 text-center text-[#d4af37] font-bold">
+                <div className="grid grid-cols-3 text-center text-orange-500 font-bold">
                   <div>Game Type</div>
                   <div>{(x?.labelKey || 'Bet').toString()}</div>
                   <div>Points</div>
                 </div>
-                <div className="mt-3 grid grid-cols-3 text-center text-white/90">
+                <div className="mt-3 grid grid-cols-3 text-center text-gray-800">
                   <div className="font-semibold">{gameType}</div>
                   <div className="font-extrabold">{betValue}</div>
                   <div className="font-extrabold">{points}</div>
                 </div>
               </div>
 
-              <div className="h-px bg-white/10" />
+              <div className="h-px bg-orange-200" />
 
-              <div className="px-4 py-3 text-center text-white/70">
+              <div className="px-4 py-3 text-center text-gray-600">
                 Transaction: <span className="font-semibold">{formatTxnTime(x?.createdAt)}</span>
               </div>
 
-              <div className="h-px bg-white/10" />
+              <div className="h-px bg-orange-200" />
 
               {verdict.state === 'won' ? (
-                <div className="px-4 py-3 text-center font-semibold text-[#43b36a]">
+                <div className="px-4 py-3 text-center font-semibold text-green-600">
                   Congratulations, You Won {verdict.payout ? `₹${Number(verdict.payout || 0).toLocaleString('en-IN')}` : ''}
                 </div>
               ) : verdict.state === 'lost' ? (
-                <div className="px-4 py-3 text-center font-semibold text-red-400">
+                <div className="px-4 py-3 text-center font-semibold text-red-500">
                   Better Luck Next time
                 </div>
               ) : (
-                <div className="px-4 py-3 text-center font-semibold text-[#43b36a]">
+                <div className="px-4 py-3 text-center font-semibold text-green-600">
                   Bet Placed
                 </div>
               )}
@@ -492,28 +492,28 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
             onClick={() => setIsFilterOpen(false)}
           />
 
-          <div className="relative w-full max-w-md rounded-[28px] overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.65)] border border-white/10 bg-[#202124]">
-            <div className="bg-black text-white text-center py-4 text-2xl font-extrabold border-b border-white/10">
+          <div className="relative w-full max-w-md rounded-[28px] overflow-hidden shadow-xl border-2 border-orange-200 bg-white">
+            <div className="bg-orange-500 text-white text-center py-4 text-2xl font-extrabold border-b border-orange-200">
               Filter Type
             </div>
 
-            <div className="bg-[#202124] text-white">
+            <div className="bg-white text-gray-800">
               <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">
-                <div className="text-lg font-bold text-[#d4af37] mb-3">By Game Type</div>
+                <div className="text-lg font-bold text-orange-500 mb-3">By Game Type</div>
                 <div className="flex items-center justify-around gap-6 pb-4">
-                  <label className="flex items-center gap-3 text-base sm:text-lg">
+                  <label className="flex items-center gap-3 text-base sm:text-lg text-gray-700">
                     <input
                       type="checkbox"
-                      className="w-6 h-6 accent-[#d4af37]"
+                      className="w-6 h-6 accent-orange-500"
                       checked={draftSessions.includes('OPEN')}
                       onChange={() => toggleDraft(draftSessions, 'OPEN', setDraftSessions)}
                     />
                     Open
                   </label>
-                  <label className="flex items-center gap-3 text-base sm:text-lg">
+                  <label className="flex items-center gap-3 text-base sm:text-lg text-gray-700">
                     <input
                       type="checkbox"
-                      className="w-6 h-6 accent-[#d4af37]"
+                      className="w-6 h-6 accent-orange-500"
                       checked={draftSessions.includes('CLOSE')}
                       onChange={() => toggleDraft(draftSessions, 'CLOSE', setDraftSessions)}
                     />
@@ -521,15 +521,15 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                   </label>
                 </div>
 
-                <div className="h-px bg-white/10 my-3" />
+                <div className="h-px bg-orange-200 my-3" />
 
-                <div className="text-lg font-bold text-[#d4af37] mb-3">By Winning Status</div>
+                <div className="text-lg font-bold text-orange-500 mb-3">By Winning Status</div>
                 <div className="flex items-center justify-around gap-3 pb-4">
                   {['Win', 'Loose', 'Pending'].map((s) => (
-                    <label key={s} className="flex items-center gap-3 text-base sm:text-lg">
+                    <label key={s} className="flex items-center gap-3 text-base sm:text-lg text-gray-700">
                       <input
                         type="checkbox"
-                        className="w-6 h-6 accent-[#d4af37]"
+                        className="w-6 h-6 accent-orange-500"
                         checked={draftStatuses.includes(s)}
                         onChange={() => toggleDraft(draftStatuses, s, setDraftStatuses)}
                       />
@@ -538,22 +538,22 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                   ))}
                 </div>
 
-                <div className="h-px bg-white/10 my-3" />
+                <div className="h-px bg-orange-200 my-3" />
 
-                <div className="text-lg font-bold text-[#d4af37] mb-3">By Games</div>
+                <div className="text-lg font-bold text-orange-500 mb-3">By Games</div>
                 <div className="space-y-3 pb-2">
                   {marketOptions.map((name) => (
                     <label
                       key={name.key}
-                      className="flex items-center gap-4 bg-black/25 rounded-xl border border-white/10 shadow-sm px-4 py-4 hover:border-[#d4af37]/40 transition-colors"
+                      className="flex items-center gap-4 bg-orange-50 rounded-xl border-2 border-orange-200 shadow-sm px-4 py-4 hover:border-orange-300 transition-colors"
                     >
                       <input
                         type="checkbox"
-                        className="w-6 h-6 accent-[#d4af37]"
+                        className="w-6 h-6 accent-orange-500"
                         checked={draftMarkets.includes(name.key)}
                         onChange={() => toggleDraft(draftMarkets, name.key, setDraftMarkets)}
                       />
-                      <span className="text-sm sm:text-base font-semibold tracking-wide text-white">
+                      <span className="text-sm sm:text-base font-semibold tracking-wide text-gray-800">
                         {name.label.toUpperCase()}
                       </span>
                     </label>
@@ -566,7 +566,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                   <button
                     type="button"
                     onClick={() => setIsFilterOpen(false)}
-                    className="rounded-full bg-black border border-white/10 text-white font-bold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:border-[#d4af37]/40 transition-colors"
+                    className="rounded-full bg-gray-100 border-2 border-gray-300 text-gray-700 font-bold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:border-gray-400 hover:bg-gray-200 transition-colors"
                   >
                     Cancel
                   </button>
@@ -578,7 +578,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                       setSelectedMarkets(draftMarkets);
                       setIsFilterOpen(false);
                     }}
-                    className="rounded-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-extrabold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:from-[#e5c04a] hover:to-[#d4af37] transition-colors"
+                    className="rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-extrabold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:from-orange-600 hover:to-orange-700 transition-colors"
                   >
                     Filter
                   </button>
@@ -596,7 +596,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
           style={{ bottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
         >
           <div className="mx-auto w-full max-w-[520px] pointer-events-auto">
-            <div className="bg-[#202124] rounded-full border border-white/10 px-4 py-2 flex items-center justify-between shadow-[0_10px_22px_rgba(0,0,0,0.40)]">
+            <div className="bg-white rounded-full border-2 border-orange-200 px-4 py-2 flex items-center justify-between shadow-md">
               <button
                 type="button"
                 onClick={() => {
@@ -604,7 +604,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                   scrollToTop();
                 }}
                 disabled={currentPage <= 1}
-                className="flex items-center gap-1 text-white/90 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 text-gray-700 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:text-orange-500"
               >
                 <span className="text-lg leading-none">‹</span>
                 <span>PREV</span>
@@ -612,7 +612,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm border border-white/10"
+                  className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-sm border-2 border-orange-500"
                 >
                   {currentPage}
                 </button>
@@ -624,7 +624,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                   scrollToTop();
                 }}
                 disabled={currentPage >= totalPages}
-                className="flex items-center gap-1 text-white/90 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 text-gray-700 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:text-orange-500"
               >
                 <span>NEXT</span>
                 <span className="text-lg leading-none">›</span>

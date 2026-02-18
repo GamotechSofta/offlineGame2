@@ -36,7 +36,7 @@ function parseISTDateTime(isoStr) {
 
 /**
  * Check if current time is within market's opening window
- * Market is open from 12:00 AM (midnight) until closingTime
+ * Market is open from startingTime (or midnight if not specified) until closingTime
  */
 export function isMarketOpen(market, now = new Date()) {
     const closeStr = (market?.closingTime || '').toString().trim();
@@ -44,13 +44,19 @@ export function isMarketOpen(market, now = new Date()) {
     if (!closeStr) return false;
 
     const todayIST = getTodayIST();
-    // Markets open at 12:00 AM (midnight) IST
-    const startAt = parseISTDateTime(`${todayIST}T00:00:00+05:30`);
+    const startStr = (market?.startingTime || '').toString().trim();
+    
+    // Use startingTime if provided, otherwise default to midnight
+    const startAt = startStr 
+        ? parseISTDateTime(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`)
+        : parseISTDateTime(`${todayIST}T00:00:00+05:30`);
+    
     let closeAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`);
     
     if (!startAt || !closeAt) return false;
 
-    // Handle markets that span midnight (e.g., closing time before midnight)
+    // If closing time is before or equal to opening time, market spans midnight
+    // Example: 11 PM (23:00) to 1 AM (01:00) - closing is next day
     if (closeAt <= startAt) {
         const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
         baseDate.setDate(baseDate.getDate() + 1);
@@ -69,6 +75,7 @@ export function isMarketOpen(market, now = new Date()) {
 
 /**
  * Check if market's closing time has passed
+ * Handles markets that span midnight (e.g., 11 PM - 1 AM) correctly
  */
 export function isPastClosingTime(market, now = new Date()) {
     const closeStr = (market?.closingTime || '').toString().trim();
@@ -81,7 +88,8 @@ export function isPastClosingTime(market, now = new Date()) {
     
     if (!closeAt) return false;
 
-    // Handle markets that span midnight
+    // If closing time is before or equal to opening time, market spans midnight
+    // Example: 11 PM (23:00) to 1 AM (01:00) - closing is next day
     if (startAt && closeAt <= startAt) {
         const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
         baseDate.setDate(baseDate.getDate() + 1);
@@ -92,9 +100,11 @@ export function isPastClosingTime(market, now = new Date()) {
             day: '2-digit',
         }).format(baseDate);
         closeAt = parseISTDateTime(`${nextDayStr}T${normalizeTimeStr(closeStr)}+05:30`);
+        if (!closeAt) return false;
     }
 
-    return now.getTime() >= closeAt;
+    // Use > instead of >= so market is accessible until after closing time
+    return now.getTime() > closeAt;
 }
 
 /**

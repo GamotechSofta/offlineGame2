@@ -9,12 +9,12 @@ const statusLabel = (status) => {
 
 const statusClass = (status) => {
   const map = {
-    open: 'bg-blue-600/80 text-white',
-    'in-progress': 'bg-amber-600/80 text-white',
-    resolved: 'bg-green-600/80 text-white',
-    closed: 'bg-gray-600 text-gray-300',
+    open: 'bg-orange-100 text-orange-700 border border-orange-300',
+    'in-progress': 'bg-orange-100 text-orange-700 border border-orange-300',
+    resolved: 'bg-green-100 text-green-700 border border-green-300',
+    closed: 'bg-gray-100 text-gray-600 border border-gray-300',
   };
-  return map[status] || 'bg-gray-700 text-gray-400';
+  return map[status] || 'bg-gray-100 text-gray-600 border border-gray-300';
 };
 
 const SupportStatus = () => {
@@ -102,31 +102,31 @@ const SupportStatus = () => {
   }, [userId]);
 
   return (
-    <div className="min-h-screen bg-black text-white px-3 sm:px-6 md:px-8 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen bg-white text-gray-800 px-3 sm:px-6 md:px-8 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
       <div className="w-full max-w-xl mx-auto">
         <div className="flex items-center gap-3 pt-4 pb-3">
           <button
             type="button"
             onClick={() => navigate('/support')}
-            className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center hover:bg-gray-700 transition-colors shrink-0"
+            className="w-10 h-10 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center hover:bg-orange-100 transition-colors shrink-0 text-gray-800"
             aria-label="Back"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
-          <h1 className="text-xl sm:text-2xl font-semibold text-white">Check problem status</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Check problem status</h1>
         </div>
-        <p className="text-gray-400 text-sm sm:text-base mb-6">See status and reply for your submitted tickets.</p>
+        <p className="text-gray-600 text-sm sm:text-base mb-6">See status and reply for your submitted tickets.</p>
 
         {!userId ? (
-          <div className="p-4 bg-gray-900 border border-gray-700 rounded-2xl text-amber-400/90 text-center">
+          <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl text-orange-600 text-center">
             Please login to see your ticket status.
           </div>
         ) : ticketsLoading ? (
-          <p className="text-gray-500 text-sm">Loading...</p>
+          <p className="text-gray-600 text-sm">Loading...</p>
         ) : myTickets.length === 0 ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 text-center text-gray-400 text-sm">
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 text-center text-gray-600 text-sm">
             No tickets yet. Raise a help ticket from Help Desk.
           </div>
         ) : (
@@ -134,11 +134,11 @@ const SupportStatus = () => {
             {myTickets.map((t) => (
               <div
                 key={t._id}
-                className="bg-gray-900 rounded-2xl border border-gray-800 p-4 shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+                className="bg-white rounded-2xl border border-orange-200 p-4 shadow-md hover:shadow-lg transition-shadow"
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-white truncate">{t.subject}</p>
+                    <p className="font-medium text-gray-800 truncate">{t.subject}</p>
                     <p className="text-xs text-gray-500 mt-0.5">
                       {t.createdAt ? new Date(t.createdAt).toLocaleString() : ''}
                     </p>
@@ -147,11 +147,11 @@ const SupportStatus = () => {
                     {statusLabel(t.status)}
                   </span>
                 </div>
-                <p className="text-sm text-gray-400 mt-2 line-clamp-3">{t.description}</p>
+                <p className="text-sm text-gray-600 mt-2 line-clamp-3">{t.description}</p>
                 {t.adminResponse && (
-                  <div className="mt-3 pt-3 border-t border-gray-800">
+                  <div className="mt-3 pt-3 border-t border-orange-200">
                     <p className="text-xs text-gray-500 mb-1">Response from support</p>
-                    <p className="text-sm text-amber-400/90 whitespace-pre-wrap">{t.adminResponse}</p>
+                    <p className="text-sm text-orange-600 whitespace-pre-wrap">{t.adminResponse}</p>
                   </div>
                 )}
               </div>

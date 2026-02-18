@@ -1,5 +1,5 @@
 import express from 'express';
-import { placeBet, placeBetForPlayer, getBetHistory, getBetSessions, getTopWinners, downloadBetStatement, downloadMyBetStatement } from '../../controllers/betController.js';
+import { placeBet, placeBetForPlayer, getBetHistory, getBetsByUser, getBetSessions, getTopWinners, downloadBetStatement, downloadMyBetStatement } from '../../controllers/betController.js';
 import { verifyAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -19,6 +19,7 @@ router.post('/my-statement', downloadMyBetStatement);
 
 // Admin/Bookie routes
 router.get('/history', verifyAdmin, getBetHistory);
+router.get('/by-user', verifyAdmin, getBetsByUser);
 router.get('/sessions', verifyAdmin, getBetSessions);
 router.get('/top-winners', verifyAdmin, getTopWinners);
 router.get('/download-statement', verifyAdmin, downloadBetStatement);

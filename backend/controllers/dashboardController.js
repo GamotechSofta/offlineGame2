@@ -9,22 +9,32 @@ import HelpDesk from '../models/helpDesk/helpDesk.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingClosed } from '../utils/marketTiming.js';
 
-/** Parse from/to query (YYYY-MM-DD). Default to today if missing. Returns { start, end } in UTC-like range for DB. */
+/** Parse from/to query (YYYY-MM-DD). Returns { start, end } in UTC-like range for DB. 
+ * If fromStr and toStr are not provided, returns null to indicate "all time" */
 function getDateRange(fromStr, toStr) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    let start = new Date(today);
-    let end = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
-    if (fromStr && toStr) {
-        const [y1, m1, d1] = fromStr.split('-').map(Number);
-        const [y2, m2, d2] = toStr.split('-').map(Number);
-        if (!Number.isNaN(y1) && !Number.isNaN(m1) && !Number.isNaN(d1)) {
-            start = new Date(y1, m1 - 1, d1);
-        }
-        if (!Number.isNaN(y2) && !Number.isNaN(m2) && !Number.isNaN(d2)) {
-            end = new Date(y2, m2 - 1, d2, 23, 59, 59, 999);
-        }
+    // If no dates provided, return null to show all data
+    if (!fromStr || !toStr) {
+        return { start: null, end: null };
     }
+    
+    const [y1, m1, d1] = fromStr.split('-').map(Number);
+    const [y2, m2, d2] = toStr.split('-').map(Number);
+    
+    let start = null;
+    let end = null;
+    
+    if (!Number.isNaN(y1) && !Number.isNaN(m1) && !Number.isNaN(d1)) {
+        start = new Date(y1, m1 - 1, d1);
+    }
+    if (!Number.isNaN(y2) && !Number.isNaN(m2) && !Number.isNaN(d2)) {
+        end = new Date(y2, m2 - 1, d2, 23, 59, 59, 999);
+    }
+    
+    // If dates are invalid, return null for "all time"
+    if (!start || !end) {
+        return { start: null, end: null };
+    }
+    
     return { start, end };
 }
 
@@ -44,7 +54,10 @@ export const getDashboardStats = async (req, res) => {
 
         const { from, to } = req.query;
         const { start: rangeStart, end: rangeEnd } = getDateRange(from, to);
-        const dateMatch = { createdAt: { $gte: rangeStart, $lte: rangeEnd } };
+        // If rangeStart is null, don't apply date filter (show all data)
+        const dateMatch = (rangeStart === null || rangeEnd === null) 
+            ? {} 
+            : { createdAt: { $gte: rangeStart, $lte: rangeEnd } };
 
         // Total Users (all-time)
         const totalUsers = await User.countDocuments(userFilter);
@@ -80,6 +93,12 @@ export const getDashboardStats = async (req, res) => {
         const winningBets = await Bet.countDocuments({ status: 'won', ...dateMatch, ...betFilter });
         const losingBets = await Bet.countDocuments({ status: 'lost', ...dateMatch, ...betFilter });
         const pendingBets = await Bet.countDocuments({ status: 'pending', ...betFilter });
+        
+        // Calculate pending bet amounts (all-time, not filtered by date range)
+        const pendingBetAmount = await Bet.aggregate([
+            { $match: { status: 'pending', ...betFilter } },
+            { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]);
 
         // Payments in range (deposits/withdrawals completed in period)
         const totalDeposits = await Payment.aggregate([
@@ -184,12 +203,18 @@ export const getDashboardStats = async (req, res) => {
         const revenue = totalRevenue[0]?.total || 0;
         const payouts = totalPayouts[0]?.total || 0;
         const netProfit = revenue - payouts;
+        // Calculate Total Profit: Net Profit + (To Take - To Give)
+        // This represents the overall financial position including bet profits and outstanding amounts
+        const totalProfit = netProfit + (toTake - toGive);
         const winRate = totalBets > 0 ? ((winningBets / totalBets) * 100).toFixed(2) : 0;
 
         res.status(200).json({
             success: true,
             data: {
-                dateRange: { from: rangeStart.toISOString(), to: rangeEnd.toISOString() },
+                dateRange: { 
+                    from: rangeStart ? rangeStart.toISOString() : null, 
+                    to: rangeEnd ? rangeEnd.toISOString() : null 
+                },
                 users: {
                     total: totalUsers,
                     active: activeUsers,
@@ -238,6 +263,8 @@ export const getDashboardStats = async (req, res) => {
                 },
                 toGive: toGive,
                 toTake: toTake,
+                totalProfit: totalProfit,
+                pending: pendingBetAmount[0]?.total || 0,
                 advance: totalAdvance[0]?.total || 0,
                 loss: totalLoss[0]?.total || 0,
                 helpDesk: {

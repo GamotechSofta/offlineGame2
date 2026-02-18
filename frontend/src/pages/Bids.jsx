@@ -474,7 +474,7 @@ const Bids = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen bg-white text-gray-800 pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
       <style>{`
         .hide-scrollbar {
           scrollbar-width: none; /* Firefox */
@@ -491,7 +491,7 @@ const Bids = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={handleBack}
-              className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/15 active:scale-95 transition"
+              className="w-10 h-10 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center text-gray-700 hover:bg-gray-200 active:scale-95 transition"
               aria-label="Back"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -502,7 +502,7 @@ const Bids = () => {
           </div>
 
           <div className="hidden md:flex items-center justify-between gap-4 px-1">
-            <div className="text-2xl font-extrabold text-white">{rightPanelTitle}</div>
+            <div className="text-2xl font-extrabold text-gray-900">{rightPanelTitle}</div>
             {isGameResultsPanel ? (
               <div className="w-[320px]">
                 <ResultDatePicker
@@ -510,14 +510,14 @@ const Bids = () => {
                   onChange={setResultsDate}
                   maxDate={new Date()}
                   label="Select Date"
-                  buttonClassName="px-4 py-2 rounded-full bg-black/40 border border-white/10 text-white font-bold text-sm shadow-sm hover:border-[#d4af37]/40 transition-colors"
+                  buttonClassName="px-4 py-2 rounded-full bg-white border border-orange-200 text-gray-800 font-bold text-sm shadow-sm hover:border-orange-400 transition-colors"
                 />
               </div>
             ) : isAnyHistoryPanel ? (
               <button
                 type="button"
                 onClick={() => setIsDesktopFilterOpen(true)}
-                className="px-4 py-2 rounded-full bg-black/40 border border-white/10 text-[#d4af37] font-bold text-sm shadow-sm hover:border-[#d4af37]/40 transition-colors"
+                className="px-4 py-2 rounded-full bg-white border border-orange-200 text-orange-600 font-bold text-sm shadow-sm hover:border-orange-400 transition-colors"
                 aria-label="Filter By"
                 title="Filter By"
               >
@@ -533,7 +533,7 @@ const Bids = () => {
             <div
               key={item.title}
               onClick={() => handleMobileItemClick(item)}
-              className="bg-[#202124] border border-white/10 rounded-2xl p-4 flex items-center justify-between shadow-[0_12px_24px_rgba(0,0,0,0.35)]"
+              className="bg-white border border-orange-200 rounded-2xl p-4 flex items-center justify-between shadow-md"
             >
               <div className="flex items-center gap-4">
                 <div
@@ -550,11 +550,11 @@ const Bids = () => {
                   )}
                 </div>
                 <div>
-                  <p className="text-base sm:text-lg font-semibold">{item.title}</p>
-                  <p className="text-xs sm:text-sm text-gray-400">{item.subtitle}</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{item.title}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">{item.subtitle}</p>
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-black/30 border border-white/10 flex items-center justify-center text-white/70">
+              <div className="w-9 h-9 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center text-gray-600">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                 </svg>
@@ -573,8 +573,8 @@ const Bids = () => {
                   key={item.title}
                   type="button"
                   onClick={() => handleDesktopItemClick(item)}
-                  className={`w-full text-left bg-[#202124] border rounded-2xl p-4 md:p-5 flex items-center justify-between shadow-[0_12px_24px_rgba(0,0,0,0.35)] transition-colors ${
-                    active ? 'border-[#d4af37]/40 bg-[#202124]' : 'border-white/10 hover:border-white/20'
+                  className={`w-full text-left bg-white border rounded-2xl p-4 md:p-5 flex items-center justify-between shadow-md transition-colors ${
+                    active ? 'border-orange-400 bg-orange-50' : 'border-orange-200 hover:border-orange-300'
                   }`}
                 >
                   <div className="flex items-center gap-4">
@@ -592,12 +592,12 @@ const Bids = () => {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-base font-semibold text-white truncate">{item.title}</p>
-                      <p className="text-xs text-gray-400 truncate">{item.subtitle}</p>
+                      <p className="text-base font-semibold text-gray-900 truncate">{item.title}</p>
+                      <p className="text-xs text-gray-600 truncate">{item.subtitle}</p>
                     </div>
                   </div>
                   <div className={`w-9 h-9 rounded-full border flex items-center justify-center ${
-                    active ? 'bg-[#d4af37]/15 border-[#d4af37]/35 text-[#d4af37]' : 'bg-black/30 border-white/10 text-white/70'
+                    active ? 'bg-orange-100 border-orange-400 text-orange-600' : 'bg-orange-50 border-orange-200 text-gray-600'
                   }`}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
@@ -612,7 +612,7 @@ const Bids = () => {
             className={
               (isAnyHistoryPanel || isGameResultsPanel)
                 ? 'bg-transparent border-0 shadow-none p-0'
-                : 'rounded-2xl bg-[#202124] border border-white/10 shadow-[0_12px_24px_rgba(0,0,0,0.35)] p-6'
+                : 'rounded-2xl bg-white border border-orange-200 shadow-md p-6'
             }
           >
             {(isAnyHistoryPanel || isGameResultsPanel) ? null : (
@@ -631,8 +631,8 @@ const Bids = () => {
                   )}
                 </div>
                 <div className="min-w-0 text-center">
-                  <div className="text-xl font-bold text-white truncate">{activeItem?.title}</div>
-                  <div className="text-sm text-gray-400">{activeItem?.subtitle}</div>
+                  <div className="text-xl font-bold text-gray-900 truncate">{activeItem?.title}</div>
+                  <div className="text-sm text-gray-600">{activeItem?.subtitle}</div>
                 </div>
               </div>
             )}
@@ -641,11 +641,11 @@ const Bids = () => {
               <div className={isAnyHistoryPanel ? 'mt-0' : 'mt-6'}>
                 <div className="max-h-[calc(100vh-220px)] overflow-y-auto hide-scrollbar">
                   {desktopBetHistory.uid && filteredDesktopRows.length === 0 ? (
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-gray-300 text-sm">
+                    <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-gray-600 text-sm">
                       No bets found.
                     </div>
                   ) : !desktopBetHistory.uid ? (
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-gray-300 text-sm">
+                    <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-gray-600 text-sm">
                       Please login to see your bet history.
                     </div>
                   ) : (
@@ -655,48 +655,48 @@ const Bids = () => {
                         return (
                           <div
                             key={`${x.id}-${r?.id ?? idx}`}
-                            className="rounded-2xl overflow-hidden border border-white/10 bg-black/25"
+                            className="rounded-2xl overflow-hidden border border-orange-200 bg-white"
                           >
-                            <div className="bg-[#0b2b55] px-4 py-3 flex items-center justify-between">
-                              <div className="text-white font-extrabold tracking-wide truncate">
+                            <div className="bg-orange-50 px-4 py-3 flex items-center justify-between border-b border-orange-200">
+                              <div className="text-orange-600 font-extrabold tracking-wide truncate">
                                 {market.toUpperCase()}
                               </div>
                               {session ? (
-                                <div className="text-xs font-bold text-[#d4af37] border border-[#d4af37]/30 rounded-full px-3 py-1">
+                                <div className="text-xs font-bold text-orange-600 border border-orange-300 rounded-full px-3 py-1 bg-white">
                                   {session}
                                 </div>
                               ) : null}
                             </div>
 
                             <div className="px-4 py-4">
-                              <div className="grid grid-cols-3 text-center text-[#d4af37] font-bold text-sm">
+                              <div className="grid grid-cols-3 text-center text-orange-600 font-bold text-sm">
                                 <div>Game Type</div>
                                 <div>{(x?.labelKey || 'Bet').toString()}</div>
                                 <div>Points</div>
                               </div>
-                              <div className="mt-3 grid grid-cols-3 text-center text-white/90 text-sm">
+                              <div className="mt-3 grid grid-cols-3 text-center text-gray-800 text-sm">
                                 <div className="font-semibold">{gameType}</div>
                                 <div className="font-extrabold">{betValue}</div>
                                 <div className="font-extrabold">{points}</div>
                               </div>
                             </div>
 
-                            <div className="h-px bg-white/10" />
-                            <div className="px-4 py-3 text-center text-white/70 text-sm">
+                            <div className="h-px bg-orange-200" />
+                            <div className="px-4 py-3 text-center text-gray-600 text-sm">
                               Transaction: <span className="font-semibold">{formatTxnTime(x?.createdAt)}</span>
                             </div>
 
-                            <div className="h-px bg-white/10" />
+                            <div className="h-px bg-orange-200" />
                             {verdict.state === 'won' ? (
-                              <div className="px-4 py-3 text-center font-semibold text-[#43b36a]">
+                              <div className="px-4 py-3 text-center font-semibold text-green-600">
                                 Congratulations, You Won {verdict.payout ? `₹${Number(verdict.payout || 0).toLocaleString('en-IN')}` : ''}
                               </div>
                             ) : verdict.state === 'lost' ? (
-                              <div className="px-4 py-3 text-center font-semibold text-red-400">
+                              <div className="px-4 py-3 text-center font-semibold text-red-500">
                                 Better Luck Next time
                               </div>
                             ) : (
-                              <div className="px-4 py-3 text-center font-semibold text-[#43b36a]">
+                              <div className="px-4 py-3 text-center font-semibold text-orange-500">
                                 Bet Placed
                               </div>
                             )}
@@ -711,7 +711,7 @@ const Bids = () => {
               <div className="mt-3">
                 <div className="max-h-[calc(100vh-260px)] overflow-y-auto hide-scrollbar">
                   {resultsRows.length === 0 ? (
-                    <div className="rounded-2xl border border-white/10 bg-[#202124] p-6 text-center text-gray-300">
+                    <div className="rounded-2xl border border-orange-200 bg-white p-6 text-center text-gray-600">
                       No markets found.
                     </div>
                   ) : (
@@ -719,10 +719,10 @@ const Bids = () => {
                       {resultsRows.map((r) => (
                         <div
                           key={r.id}
-                          className="rounded-2xl bg-[#202124] border border-white/10 px-5 py-4 shadow-[0_10px_22px_rgba(0,0,0,0.35)] flex items-center justify-between gap-4"
+                          className="rounded-2xl bg-white border border-orange-200 px-5 py-4 shadow-md flex items-center justify-between gap-4"
                         >
-                          <div className="font-extrabold tracking-wide text-white truncate">{r.name.toUpperCase()}</div>
-                          <div className="font-extrabold tracking-wide text-[#d4af37] shrink-0">{r.result}</div>
+                          <div className="font-extrabold tracking-wide text-gray-900 truncate">{r.name.toUpperCase()}</div>
+                          <div className="font-extrabold tracking-wide text-orange-600 shrink-0">{r.result}</div>
                         </div>
                       ))}
                     </div>
@@ -730,7 +730,7 @@ const Bids = () => {
                 </div>
               </div>
             ) : (
-              <div className="mt-6 text-gray-300 text-sm">
+              <div className="mt-6 text-gray-600 text-sm">
                 Select an item from the left menu. We will add the actual pages/content here next.
               </div>
             )}
@@ -748,19 +748,19 @@ const Bids = () => {
             onClick={() => setIsDesktopFilterOpen(false)}
           />
 
-          <div className="relative w-full max-w-md rounded-[28px] overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.65)] border border-white/10 bg-[#202124]">
-            <div className="bg-black text-white text-center py-4 text-2xl font-extrabold border-b border-white/10">
+          <div className="relative w-full max-w-md rounded-[28px] overflow-hidden shadow-xl border border-orange-200 bg-white">
+            <div className="bg-orange-500 text-white text-center py-4 text-2xl font-extrabold border-b border-orange-300">
               Filter Type
             </div>
 
-            <div className="bg-[#202124] text-white">
+            <div className="bg-white text-gray-800">
               <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">
-                <div className="text-lg font-bold text-[#d4af37] mb-3">By Game Type</div>
+                <div className="text-lg font-bold text-orange-600 mb-3">By Game Type</div>
                 <div className="flex items-center justify-around gap-6 pb-4">
                   <label className="flex items-center gap-3 text-base sm:text-lg">
                     <input
                       type="checkbox"
-                      className="w-6 h-6 accent-[#d4af37]"
+                      className="w-6 h-6 accent-orange-500"
                       checked={draftSessions.includes('OPEN')}
                       onChange={() => toggleDraft(draftSessions, 'OPEN', setDraftSessions)}
                     />
@@ -769,7 +769,7 @@ const Bids = () => {
                   <label className="flex items-center gap-3 text-base sm:text-lg">
                     <input
                       type="checkbox"
-                      className="w-6 h-6 accent-[#d4af37]"
+                      className="w-6 h-6 accent-orange-500"
                       checked={draftSessions.includes('CLOSE')}
                       onChange={() => toggleDraft(draftSessions, 'CLOSE', setDraftSessions)}
                     />
@@ -777,15 +777,15 @@ const Bids = () => {
                   </label>
                 </div>
 
-                <div className="h-px bg-white/10 my-3" />
+                <div className="h-px bg-orange-200 my-3" />
 
-                <div className="text-lg font-bold text-[#d4af37] mb-3">By Winning Status</div>
+                <div className="text-lg font-bold text-orange-600 mb-3">By Winning Status</div>
                 <div className="flex items-center justify-around gap-3 pb-4">
                   {['Win', 'Loose', 'Pending'].map((s) => (
                     <label key={s} className="flex items-center gap-3 text-base sm:text-lg">
                       <input
                         type="checkbox"
-                        className="w-6 h-6 accent-[#d4af37]"
+                        className="w-6 h-6 accent-orange-500"
                         checked={draftStatuses.includes(s)}
                         onChange={() => toggleDraft(draftStatuses, s, setDraftStatuses)}
                       />
@@ -794,22 +794,22 @@ const Bids = () => {
                   ))}
                 </div>
 
-                <div className="h-px bg-white/10 my-3" />
+                <div className="h-px bg-orange-200 my-3" />
 
-                <div className="text-lg font-bold text-[#d4af37] mb-3">By Games</div>
+                <div className="text-lg font-bold text-orange-600 mb-3">By Games</div>
                 <div className="space-y-3 pb-2">
                   {marketOptions.map((name) => (
                     <label
                       key={name.key}
-                      className="flex items-center gap-4 bg-black/25 rounded-xl border border-white/10 shadow-sm px-4 py-4 hover:border-[#d4af37]/40 transition-colors"
+                      className="flex items-center gap-4 bg-orange-50 rounded-xl border border-orange-200 shadow-sm px-4 py-4 hover:border-orange-400 transition-colors"
                     >
                       <input
                         type="checkbox"
-                        className="w-6 h-6 accent-[#d4af37]"
+                        className="w-6 h-6 accent-orange-500"
                         checked={draftMarkets.includes(name.key)}
                         onChange={() => toggleDraft(draftMarkets, name.key, setDraftMarkets)}
                       />
-                      <span className="text-sm sm:text-base font-semibold tracking-wide text-white">
+                      <span className="text-sm sm:text-base font-semibold tracking-wide text-gray-800">
                         {name.label.toUpperCase()}
                       </span>
                     </label>
@@ -822,7 +822,7 @@ const Bids = () => {
                   <button
                     type="button"
                     onClick={() => setIsDesktopFilterOpen(false)}
-                    className="rounded-full bg-black border border-white/10 text-white font-bold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:border-[#d4af37]/40 transition-colors"
+                    className="rounded-full bg-gray-100 border border-gray-300 text-gray-800 font-bold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:border-orange-400 transition-colors"
                   >
                     Cancel
                   </button>
@@ -834,7 +834,7 @@ const Bids = () => {
                       setSelectedMarkets(draftMarkets);
                       setIsDesktopFilterOpen(false);
                     }}
-                    className="rounded-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-extrabold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:from-[#e5c04a] hover:to-[#d4af37] transition-colors"
+                    className="rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-extrabold py-4 text-base sm:text-lg shadow-md active:scale-[0.99] hover:from-orange-600 hover:to-orange-700 transition-colors"
                   >
                     Filter
                   </button>

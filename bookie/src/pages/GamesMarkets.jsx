@@ -91,7 +91,13 @@ const GamesMarkets = () => {
 
     const handleMarketClick = (marketId) => {
         const query = playerId ? `?playerId=${playerId}` : '';
-        navigate(`/games/${marketId}${query}`);
+        // If playerId is present, go directly to first game type (single-digit) to show the betting screen
+        // Otherwise, go to game types selection screen
+        if (playerId) {
+            navigate(`/games/${marketId}/single-digit${query}`);
+        } else {
+            navigate(`/games/${marketId}${query}`);
+        }
     };
 
     return (

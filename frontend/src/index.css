@@ -70,24 +70,24 @@ input[type="number"] {
   appearance: textfield;
 }
 
-/* Custom scrollbar for dark theme */
+/* Custom scrollbar for light theme */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: #f3f4f6;
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #404040;
+  background: #f97316;
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #505050;
+  background: #ea580c;
 }
 
 /* Hide native date input calendar icon */
@@ -106,7 +106,7 @@ input[type="date"]::-webkit-clear-button {
 html {
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
-  background: #000;
+  background: #ffffff;
   height: 100%;
 }
 
@@ -115,12 +115,13 @@ body {
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   padding-bottom: env(safe-area-inset-bottom, 0);
-  background: #000;
+  background: #ffffff;
   position: relative;
+  color: #1f2937;
 }
 
 #root {
-  background: #000;
+  background: #ffffff;
   min-height: 100%;
   min-height: -webkit-fill-available;
 }

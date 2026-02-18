@@ -164,6 +164,7 @@ export const getProfile = async (req, res) => {
                 phone: bookie.phone,
                 role: bookie.role,
                 uiTheme: bookie.uiTheme || { themeId: 'default' },
+                canManagePayments: bookie.canManagePayments || false,
             },
         });
     } catch (error) {

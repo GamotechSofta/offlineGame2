@@ -209,8 +209,8 @@ const JodiBulkBid = ({ market, title }) => {
                     disabled={!canSubmit}
                     className={`hidden md:inline-flex items-center justify-center font-bold text-base min-h-[52px] min-w-[280px] px-7 rounded-full shadow-lg transition-all whitespace-nowrap ${
                         canSubmit
-                            ? 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] hover:from-[#e5c04a] hover:to-[#d4af37] active:scale-[0.98]'
-                            : 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] opacity-50 cursor-not-allowed'
+                            ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98]'
+                            : 'bg-gradient-to-r from-orange-300 to-orange-400 text-white opacity-50 cursor-not-allowed'
                     }`}
                 >
                     Submit Bet
@@ -222,12 +222,12 @@ const JodiBulkBid = ({ market, title }) => {
         >
             <div className="px-2 sm:px-4 md:px-4 py-1 md:py-1 w-full">
                 {warning && (
-                    <div className="mb-3 bg-red-500/10 border border-red-500/30 text-red-200 rounded-xl px-4 py-3 text-sm">
+                    <div className="mb-3 bg-red-50 border-2 border-red-300 text-red-600 rounded-xl px-4 py-3 text-sm">
                         {warning}
                     </div>
                 )}
 
-                <div className="bg-[#202124] border border-white/10 rounded-2xl p-2 sm:p-3 md:p-3 overflow-hidden w-full">
+                <div className="bg-white border-2 border-orange-200 rounded-2xl p-2 sm:p-3 md:p-3 overflow-hidden w-full">
                     <div className="overflow-x-auto md:overflow-x-hidden scrollbar-hidden">
                         <div
                             className="grid w-full gap-[2px] sm:gap-1 md:gap-1"
@@ -242,14 +242,14 @@ const JodiBulkBid = ({ market, title }) => {
                             {DIGITS.map((c) => (
                                 <div
                                     key={`h-${c}`}
-                                    className="h-6 md:h-7 w-full flex items-center justify-center text-[#f2c14e] font-bold text-[10px] md:text-sm"
+                                    className="h-6 md:h-7 w-full flex items-center justify-center text-orange-500 font-bold text-[10px] md:text-sm"
                                 >
                                     {c}
                                 </div>
                             ))}
 
                             {/* Column bulk inputs */}
-                            <div className="h-6 md:h-7 w-full flex items-center justify-center text-[9px] md:text-xs text-gray-400 font-semibold px-1">
+                            <div className="h-6 md:h-7 w-full flex items-center justify-center text-[9px] md:text-xs text-gray-600 font-semibold px-1">
                                 <span className="md:hidden leading-[10px] text-center">
                                     Enter
                                     <br />
@@ -272,7 +272,7 @@ const JodiBulkBid = ({ market, title }) => {
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && colBulk[c]) applyCol(c, colBulk[c]);
                                     }}
-                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-black/40 border border-white/10 text-white rounded text-[9px] md:text-xs text-center placeholder:text-white/15 focus:outline-none focus:border-[#d4af37]"
+                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-white border-2 border-orange-200 text-gray-800 rounded text-[9px] md:text-xs text-center placeholder:text-gray-400 focus:outline-none focus:border-orange-500"
                                 />
                             ))}
 
@@ -281,7 +281,7 @@ const JodiBulkBid = ({ market, title }) => {
                                 <React.Fragment key={`row-${r}`}>
                                     {/* Row label + bulk */}
                                     <div className="flex items-center gap-1 min-w-0">
-                                        <div className="w-4 md:w-6 h-6 md:h-7 flex items-center justify-center text-[#f2c14e] font-bold text-[10px] md:text-sm">
+                                        <div className="w-4 md:w-6 h-6 md:h-7 flex items-center justify-center text-orange-500 font-bold text-[10px] md:text-sm">
                                             {r}
                                         </div>
                                         <input
@@ -296,7 +296,7 @@ const JodiBulkBid = ({ market, title }) => {
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && rowBulk[r]) applyRow(r, rowBulk[r]);
                                             }}
-                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-black/40 border border-white/10 text-white rounded text-[9px] md:text-xs text-center placeholder:text-white/15 focus:outline-none focus:border-[#d4af37]"
+                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 rounded text-[9px] md:text-xs text-center placeholder:text-gray-400 focus:outline-none focus:border-orange-500"
                                         />
                                     </div>
                                     <div className="h-6 md:h-7" />
@@ -305,7 +305,7 @@ const JodiBulkBid = ({ market, title }) => {
                                         const key = `${r}${c}`;
                                         return (
                                             <div key={key} className="flex flex-col items-center justify-center">
-                                                <div className="text-[8px] md:text-[10px] leading-none text-white/30 mb-0.5 select-none">
+                                                <div className="text-[8px] md:text-[10px] leading-none text-gray-400 mb-0.5 select-none">
                                                     {key}
                                                 </div>
                                                 <input
@@ -318,7 +318,7 @@ const JodiBulkBid = ({ market, title }) => {
                                                             [key]: sanitizePoints(e.target.value),
                                                         }))
                                                     }
-                                                    className="no-spinner h-6 md:h-7 w-full bg-black/40 border border-white/10 text-white rounded text-[9px] md:text-xs text-center focus:outline-none focus:border-[#d4af37]"
+                                                    className="no-spinner h-6 md:h-7 w-full bg-white border-2 border-orange-200 text-gray-800 rounded text-[9px] md:text-xs text-center focus:outline-none focus:border-orange-500"
                                                 />
                                             </div>
                                         );
@@ -339,8 +339,8 @@ const JodiBulkBid = ({ market, title }) => {
                         disabled={!canSubmit}
                         className={`w-full font-bold text-base py-4 min-h-[56px] rounded-xl shadow-lg transition-all ${
                             canSubmit
-                                ? 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] hover:from-[#e5c04a] hover:to-[#d4af37] active:scale-[0.98]'
-                                : 'bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] opacity-50 cursor-not-allowed'
+                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98]'
+                                : 'bg-gradient-to-r from-orange-300 to-orange-400 text-white opacity-50 cursor-not-allowed'
                         }`}
                     >
                         Submit Bet

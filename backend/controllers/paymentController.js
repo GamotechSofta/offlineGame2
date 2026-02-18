@@ -38,47 +38,113 @@ export const getPaymentConfig = async (req, res) => {
  */
 export const createDepositRequest = async (req, res) => {
     try {
+        console.log('📥 Deposit request received');
+        console.log('Request body:', { 
+            amount: req.body.amount, 
+            userId: req.body.userId,
+            upiTransactionId: req.body.upiTransactionId,
+            hasFile: !!req.file 
+        });
+
         const { amount, upiTransactionId, userNote } = req.body;
         const userId = req.body.userId;
 
         if (!userId) {
+            console.error('❌ Missing userId');
             return res.status(400).json({ success: false, message: 'User ID is required' });
         }
 
         const minDeposit = parseInt(process.env.MIN_DEPOSIT) || 100;
         const maxDeposit = parseInt(process.env.MAX_DEPOSIT) || 50000;
 
-        if (!amount || amount < minDeposit || amount > maxDeposit) {
+        // Parse amount as number
+        const numAmount = parseFloat(amount);
+        if (isNaN(numAmount)) {
+            console.error('❌ Invalid amount:', amount);
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid amount. Please enter a valid number.',
+            });
+        }
+
+        if (!numAmount || numAmount < minDeposit || numAmount > maxDeposit) {
+            console.error('❌ Amount out of range:', numAmount);
             return res.status(400).json({
                 success: false,
                 message: `Amount must be between ₹${minDeposit} and ₹${maxDeposit}`,
             });
         }
 
-        // Upload screenshot to Cloudinary if provided
-        let screenshotUrl = null;
-        if (req.file) {
-            try {
-                const result = await uploadToCloudinary(req.file.buffer, 'payments');
-                screenshotUrl = result.secure_url;
-            } catch (uploadError) {
-                return res.status(500).json({
-                    success: false,
-                    message: 'Failed to upload screenshot. Please try again.',
-                });
-            }
+        // Upload screenshot to Cloudinary
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'Screenshot is required for deposit requests.',
+            });
         }
 
+        if (!req.file.buffer) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid file. Please upload a valid image file.',
+            });
+        }
+
+        // Upload screenshot to Cloudinary
+        let screenshotUrl = null;
+        try {
+            // Check if Cloudinary is configured
+            const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+            const apiKey = process.env.CLOUDINARY_API_KEY;
+            const apiSecret = process.env.CLOUDINARY_API_SECRET;
+            
+            if (!cloudName || !apiKey || !apiSecret) {
+                console.error('❌ Cloudinary credentials not configured');
+                console.error('Missing variables:');
+                if (!cloudName) console.error('  - CLOUDINARY_CLOUD_NAME');
+                if (!apiKey) console.error('  - CLOUDINARY_API_KEY');
+                if (!apiSecret) console.error('  - CLOUDINARY_API_SECRET');
+                console.error('\n💡 Solution: Create Games/backend/.env file with:');
+                console.error('   CLOUDINARY_CLOUD_NAME=dzd47mpdo');
+                console.error('   CLOUDINARY_API_KEY=524934744573422');
+                console.error('   CLOUDINARY_API_SECRET=BNFxqN-XXuwmmVXCAFGjJZuZtbA');
+                console.error('\n   Then restart the backend server.\n');
+                
+                return res.status(500).json({
+                    success: false,
+                    message: 'Server configuration error: Cloudinary credentials not set. Please check backend .env file and restart server.',
+                });
+            }
+
+            console.log('☁️ Uploading to Cloudinary...');
+            const uploadResult = await uploadToCloudinary(req.file.buffer, 'payments');
+            screenshotUrl = uploadResult.secure_url;
+            console.log('✅ Cloudinary upload successful:', screenshotUrl);
+        } catch (uploadError) {
+            console.error('❌ Cloudinary upload error:', uploadError);
+            console.error('Error details:', {
+                message: uploadError.message,
+                name: uploadError.name,
+                stack: uploadError.stack
+            });
+            return res.status(500).json({
+                success: false,
+                message: uploadError.message || 'Failed to upload screenshot. Please try again.',
+            });
+        }
+
+        console.log('💾 Creating payment record...');
         const payment = await Payment.create({
             userId,
             type: 'deposit',
-            amount,
+            amount: numAmount,
             method: 'upi',
             status: 'pending',
-            screenshotUrl,
+            screenshotUrl: screenshotUrl,
             upiTransactionId: upiTransactionId || '',
             userNote: userNote || '',
         });
+        console.log('✅ Payment created:', payment._id);
 
         await logActivity({
             action: 'deposit_request_created',
@@ -90,13 +156,25 @@ export const createDepositRequest = async (req, res) => {
             ip: getClientIp(req),
         });
 
+        console.log('✅ Deposit request completed successfully');
         res.status(201).json({
             success: true,
             message: 'Deposit request submitted successfully. Please wait for admin approval.',
             data: payment,
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('❌ Deposit request error:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Error details:', {
+            message: error.message,
+            name: error.name,
+            code: error.code
+        });
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Internal server error. Please try again later.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 };
 
@@ -201,7 +279,22 @@ export const getMyDeposits = async (req, res) => {
             .limit(100)
             .lean();
 
-        res.status(200).json({ success: true, data: deposits });
+        // Process deposits - use Cloudinary URL if available, otherwise fallback to buffer endpoint
+        const depositsWithScreenshotUrl = deposits.map(deposit => {
+            const depositObj = { ...deposit };
+            // If screenshotUrl exists (Cloudinary), use it directly
+            // Otherwise, if old buffer exists, use the endpoint
+            if (!depositObj.screenshotUrl && deposit.screenshot && deposit.screenshot.data) {
+                depositObj.screenshotUrl = `/api/v1/payments/my-screenshot/${deposit._id}`;
+            }
+            // Remove the actual buffer data from response
+            if (depositObj.screenshot) {
+                delete depositObj.screenshot.data;
+            }
+            return depositObj;
+        });
+
+        res.status(200).json({ success: true, data: depositsWithScreenshotUrl });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -252,9 +345,63 @@ export const getPayments = async (req, res) => {
             .populate('bankDetailId', 'accountHolderName bankName accountNumber upiId ifscCode')
             .populate('processedBy', 'username')
             .sort({ createdAt: -1 })
-            .limit(1000);
+            .limit(1000)
+            .lean();
 
-        res.status(200).json({ success: true, data: payments });
+        // Process payments - use Cloudinary URL if available, otherwise fallback to buffer endpoint
+        const paymentsWithScreenshotUrl = payments.map(payment => {
+            const paymentObj = { ...payment };
+            // If screenshotUrl exists (Cloudinary), use it directly
+            // Otherwise, if old buffer exists, use the endpoint
+            if (!paymentObj.screenshotUrl && payment.screenshot && payment.screenshot.data) {
+                paymentObj.screenshotUrl = `/api/v1/payments/${payment._id}/screenshot`;
+            }
+            // Remove the actual buffer data from response
+            if (paymentObj.screenshot) {
+                delete paymentObj.screenshot.data;
+            }
+            return paymentObj;
+        });
+
+        res.status(200).json({ success: true, data: paymentsWithScreenshotUrl });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Get payment screenshot image
+ * For admin: can view any screenshot (via /:id/screenshot)
+ * For users: can only view their own screenshots (via /my-screenshot/:id with userId query)
+ * 
+ * Note: New payments use Cloudinary URLs (screenshotUrl), old payments may have buffer data
+ */
+export const getPaymentScreenshot = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const payment = await Payment.findById(id).select('screenshot screenshotUrl userId');
+
+        // If not admin (req.admin is undefined), check if user owns this payment
+        if (!req.admin) {
+            const { userId } = req.query;
+            if (!userId || payment.userId.toString() !== userId) {
+                return res.status(403).json({ success: false, message: 'Access denied' });
+            }
+        }
+
+        // If Cloudinary URL exists, redirect to it
+        if (payment && payment.screenshotUrl) {
+            return res.redirect(payment.screenshotUrl);
+        }
+
+        // Fallback to buffer data for old payments
+        if (!payment || !payment.screenshot || !payment.screenshot.data) {
+            return res.status(404).json({ success: false, message: 'Screenshot not found' });
+        }
+
+        res.set('Content-Type', payment.screenshot.contentType || 'image/jpeg');
+        res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+        res.send(payment.screenshot.data);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -291,9 +438,24 @@ export const getPendingCount = async (req, res) => {
 /**
  * Admin: Approve payment
  * Body: { adminRemarks?: string, secretDeclarePassword?: string } – secret required if admin has it set
+ * Access: Super admin always allowed, bookie allowed if canManagePayments is true
  */
 export const approvePayment = async (req, res) => {
     try {
+        // Check if admin has permission to manage payments
+        const admin = await Admin.findById(req.admin._id);
+        if (!admin) {
+            return res.status(403).json({ success: false, message: 'Admin not found' });
+        }
+
+        // Super admin always has permission, bookie needs canManagePayments
+        if (admin.role === 'bookie' && !admin.canManagePayments) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have permission to manage payments. Please contact super admin.',
+            });
+        }
+
         const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
         if (adminWithSecret?.secretDeclarePassword) {
             const provided = (req.body.secretDeclarePassword ?? '').toString().trim();
@@ -373,9 +535,24 @@ export const approvePayment = async (req, res) => {
 
 /**
  * Admin: Reject payment
+ * Access: Super admin always allowed, bookie allowed if canManagePayments is true
  */
 export const rejectPayment = async (req, res) => {
     try {
+        // Check if admin has permission to manage payments
+        const admin = await Admin.findById(req.admin._id);
+        if (!admin) {
+            return res.status(403).json({ success: false, message: 'Admin not found' });
+        }
+
+        // Super admin always has permission, bookie needs canManagePayments
+        if (admin.role === 'bookie' && !admin.canManagePayments) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have permission to manage payments. Please contact super admin.',
+            });
+        }
+
         const { id } = req.params;
         const { adminRemarks } = req.body;
 

@@ -11,10 +11,11 @@ import {
     approvePayment,
     rejectPayment,
     updatePaymentStatus,
+    getPaymentScreenshot,
 } from '../../controllers/paymentController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
-// Configure multer with memory storage for Cloudinary uploads
+// Configure multer with memory storage for database storage
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
@@ -42,10 +43,12 @@ router.post('/deposit', upload.single('screenshot'), createDepositRequest);
 router.post('/withdraw', createWithdrawalRequest);
 router.get('/my-deposits', getMyDeposits);
 router.get('/my-withdrawals', getMyWithdrawals);
+router.get('/my-screenshot/:id', getPaymentScreenshot); // User can view their own screenshot
 
 // ===== Admin APIs =====
 router.get('/', verifyAdmin, getPayments);
 router.get('/pending-count', verifyAdmin, getPendingCount);
+router.get('/:id/screenshot', verifyAdmin, getPaymentScreenshot);
 router.post('/:id/approve', verifyAdmin, approvePayment);
 router.post('/:id/reject', verifyAdmin, rejectPayment);
 router.patch('/:id/status', verifySuperAdmin, updatePaymentStatus);

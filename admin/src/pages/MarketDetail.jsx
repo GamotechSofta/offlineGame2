@@ -506,6 +506,382 @@ const FullSangamSection = ({ items = {}, totalAmount = 0, totalBets = 0 }) => {
     );
 };
 
+// Helper function to get panna type and rate
+const getPannaType = (panna) => {
+    if (!panna || panna.length !== 3) return null;
+    const a = panna[0], b = panna[1], c = panna[2];
+    if (a === b && b === c) return 'triplePatti';
+    if (a === b || b === c || a === c) return 'doublePatti';
+    return 'singlePatti';
+};
+
+// Helper function to analyze bets for a specific session
+const analyzeBets = (betsList, rates, sessionType) => {
+    const singleRate = rates.single || 10;
+    const jodiRate = rates.jodi || 100;
+    const singlePattiRate = rates.singlePatti || 150;
+    const doublePattiRate = rates.doublePatti || 300;
+    const triplePattiRate = rates.triplePatti || 1000;
+
+    // Analyze Single Digits
+    const singleDigitAnalysis = DIGITS.map((digit) => {
+        const betsOnDigit = betsList.filter(
+            (b) => b.betType === 'single' && b.betNumber === digit
+        );
+        const totalBetAmount = betsOnDigit.reduce((sum, b) => sum + (b.amount || 0), 0);
+        const potentialPayout = totalBetAmount * singleRate;
+        const netProfit = totalBetAmount - potentialPayout;
+        const uniquePlayers = new Set(betsOnDigit.map((b) => b.userId?._id || b.userId)).size;
+
+        return {
+            number: digit,
+            type: 'single',
+            totalBetAmount,
+            potentialPayout,
+            netProfit,
+            betCount: betsOnDigit.length,
+            playerCount: uniquePlayers,
+        };
+    });
+
+    // Analyze Jodi (only for close session, as jodi is settled at close)
+    const jodiAnalysis = [];
+    if (sessionType === 'close') {
+        for (let d1 = 0; d1 <= 9; d1++) {
+            for (let d2 = 0; d2 <= 9; d2++) {
+                const jodi = `${d1}${d2}`;
+                const betsOnJodi = betsList.filter(
+                    (b) => b.betType === 'jodi' && b.betNumber === jodi
+                );
+                const totalBetAmount = betsOnJodi.reduce((sum, b) => sum + (b.amount || 0), 0);
+                const potentialPayout = totalBetAmount * jodiRate;
+                const netProfit = totalBetAmount - potentialPayout;
+                const uniquePlayers = new Set(betsOnJodi.map((b) => b.userId?._id || b.userId)).size;
+
+                if (totalBetAmount > 0) {
+                    jodiAnalysis.push({
+                        number: jodi,
+                        type: 'jodi',
+                        totalBetAmount,
+                        potentialPayout,
+                        netProfit,
+                        betCount: betsOnJodi.length,
+                        playerCount: uniquePlayers,
+                    });
+                }
+            }
+        }
+    }
+
+    // Analyze Panna
+    const pannaAnalysis = [];
+    const pannaMap = new Map();
+    
+    betsList.forEach((bet) => {
+        if (bet.betType === 'panna' && bet.betNumber && bet.betNumber.length === 3) {
+            const panna = bet.betNumber;
+            if (!pannaMap.has(panna)) {
+                pannaMap.set(panna, []);
+            }
+            pannaMap.get(panna).push(bet);
+        }
+    });
+
+    pannaMap.forEach((betList, panna) => {
+        const totalBetAmount = betList.reduce((sum, b) => sum + (b.amount || 0), 0);
+        const pannaType = getPannaType(panna);
+        const rate = pannaType === 'triplePatti' ? triplePattiRate :
+                     pannaType === 'doublePatti' ? doublePattiRate : singlePattiRate;
+        const potentialPayout = totalBetAmount * rate;
+        const netProfit = totalBetAmount - potentialPayout;
+        const uniquePlayers = new Set(betList.map((b) => b.userId?._id || b.userId)).size;
+
+        pannaAnalysis.push({
+            number: panna,
+            type: 'panna',
+            pannaType,
+            totalBetAmount,
+            potentialPayout,
+            netProfit,
+            betCount: betList.length,
+            playerCount: uniquePlayers,
+        });
+    });
+
+    // Sort by net profit (most profitable first)
+    const mostProfitableSingle = [...singleDigitAnalysis]
+        .sort((a, b) => b.netProfit - a.netProfit)
+        .slice(0, 5);
+    const mostProfitableJodi = [...jodiAnalysis]
+        .sort((a, b) => b.netProfit - a.netProfit)
+        .slice(0, 5);
+    const mostProfitablePanna = [...pannaAnalysis]
+        .sort((a, b) => b.netProfit - a.netProfit)
+        .slice(0, 5);
+
+    // Sort by risk (most risky = highest payout)
+    const mostRiskySingle = [...singleDigitAnalysis]
+        .sort((a, b) => b.potentialPayout - a.potentialPayout)
+        .slice(0, 5);
+    const mostRiskyJodi = [...jodiAnalysis]
+        .sort((a, b) => b.potentialPayout - a.potentialPayout)
+        .slice(0, 5);
+    const mostRiskyPanna = [...pannaAnalysis]
+        .sort((a, b) => b.potentialPayout - a.potentialPayout)
+        .slice(0, 5);
+
+    // Most popular (most players)
+    const mostPopularSingle = [...singleDigitAnalysis]
+        .sort((a, b) => b.playerCount - a.playerCount)
+        .slice(0, 5);
+    const mostPopularJodi = [...jodiAnalysis]
+        .sort((a, b) => b.playerCount - a.playerCount)
+        .slice(0, 5);
+    const mostPopularPanna = [...pannaAnalysis]
+        .sort((a, b) => b.playerCount - a.playerCount)
+        .slice(0, 5);
+
+    return {
+        singleDigit: {
+            mostProfitable: mostProfitableSingle,
+            mostRisky: mostRiskySingle,
+            mostPopular: mostPopularSingle,
+        },
+        jodi: {
+            mostProfitable: mostProfitableJodi,
+            mostRisky: mostRiskyJodi,
+            mostPopular: mostPopularJodi,
+        },
+        panna: {
+            mostProfitable: mostProfitablePanna,
+            mostRisky: mostRiskyPanna,
+            mostPopular: mostPopularPanna,
+        },
+    };
+};
+
+// Market Analytics Component
+const MarketAnalytics = ({ bets, rates, market }) => {
+    const analyticsOpen = useMemo(() => {
+        return analyzeBets(bets.open || [], rates, 'open');
+    }, [bets.open, rates]);
+
+    const analyticsClose = useMemo(() => {
+        return analyzeBets(bets.close || [], rates, 'close');
+    }, [bets.close, rates]);
+
+    // Helper component to render analytics for a session
+    const renderAnalytics = (analytics, sessionName, sessionColor) => (
+        <div className="space-y-6">
+            <div className="flex items-center gap-2 mb-4">
+                <span className={`w-2 h-2 rounded-full ${sessionColor}`}></span>
+                <h3 className="text-lg font-bold text-orange-600">{sessionName} Analytics</h3>
+            </div>
+
+            {/* Single Digit Analytics */}
+            <div>
+                <h4 className="text-base font-semibold text-gray-700 mb-3">Single Digit (0-9)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Most Profitable */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h5 className="font-semibold text-green-700 mb-2 text-sm">✅ Most Profitable</h5>
+                        <div className="space-y-2">
+                            {analytics.singleDigit.mostProfitable.length > 0 ? (
+                                analytics.singleDigit.mostProfitable.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
+                                        <div className="text-right">
+                                            <div className="text-green-600 font-semibold">+₹{formatNum(item.netProfit)}</div>
+                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-xs text-gray-400 text-center py-2">No bets</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Most Risky */}
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h5 className="font-semibold text-red-700 mb-2 text-sm">⚠️ Most Risky</h5>
+                        <div className="space-y-2">
+                            {analytics.singleDigit.mostRisky.length > 0 ? (
+                                analytics.singleDigit.mostRisky.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
+                                        <div className="text-right">
+                                            <div className="text-red-600 font-semibold">-₹{formatNum(item.potentialPayout)}</div>
+                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-xs text-gray-400 text-center py-2">No bets</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Most Popular */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h5 className="font-semibold text-blue-700 mb-2 text-sm">👥 Most Popular</h5>
+                        <div className="space-y-2">
+                            {analytics.singleDigit.mostPopular.length > 0 ? (
+                                analytics.singleDigit.mostPopular.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
+                                        <div className="text-right">
+                                            <div className="text-blue-600 font-semibold">{item.playerCount} players</div>
+                                            <div className="text-xs text-gray-500">₹{formatNum(item.totalBetAmount)}</div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-xs text-gray-400 text-center py-2">No bets</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Jodi Analytics - Only for close session */}
+            {sessionName === 'Closing' && analytics.jodi.mostProfitable.length > 0 && (
+                <div>
+                    <h4 className="text-base font-semibold text-gray-700 mb-3">Jodi (00-99)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Most Profitable */}
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <h5 className="font-semibold text-green-700 mb-2 text-sm">✅ Most Profitable</h5>
+                            <div className="space-y-2">
+                                {analytics.jodi.mostProfitable.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
+                                        <div className="text-right">
+                                            <div className="text-green-600 font-semibold">+₹{formatNum(item.netProfit)}</div>
+                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Most Risky */}
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <h5 className="font-semibold text-red-700 mb-2 text-sm">⚠️ Most Risky</h5>
+                            <div className="space-y-2">
+                                {analytics.jodi.mostRisky.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
+                                        <div className="text-right">
+                                            <div className="text-red-600 font-semibold">-₹{formatNum(item.potentialPayout)}</div>
+                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Most Popular */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h5 className="font-semibold text-blue-700 mb-2 text-sm">👥 Most Popular</h5>
+                            <div className="space-y-2">
+                                {analytics.jodi.mostPopular.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
+                                        <div className="text-right">
+                                            <div className="text-blue-600 font-semibold">{item.playerCount} players</div>
+                                            <div className="text-xs text-gray-500">₹{formatNum(item.totalBetAmount)}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Panna Analytics */}
+            {analytics.panna.mostProfitable.length > 0 && (
+                <div>
+                    <h4 className="text-base font-semibold text-gray-700 mb-3">Panna (000-999)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Most Profitable */}
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <h5 className="font-semibold text-green-700 mb-2 text-sm">✅ Most Profitable</h5>
+                            <div className="space-y-2">
+                                {analytics.panna.mostProfitable.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                        <div>
+                                            <span className="font-mono font-bold text-gray-800">{item.number}</span>
+                                            <span className="text-xs text-gray-500 ml-1">({item.pannaType})</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-green-600 font-semibold">+₹{formatNum(item.netProfit)}</div>
+                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Most Risky */}
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <h5 className="font-semibold text-red-700 mb-2 text-sm">⚠️ Most Risky</h5>
+                            <div className="space-y-2">
+                                {analytics.panna.mostRisky.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                        <div>
+                                            <span className="font-mono font-bold text-gray-800">{item.number}</span>
+                                            <span className="text-xs text-gray-500 ml-1">({item.pannaType})</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-red-600 font-semibold">-₹{formatNum(item.potentialPayout)}</div>
+                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Most Popular */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h5 className="font-semibold text-blue-700 mb-2 text-sm">👥 Most Popular</h5>
+                            <div className="space-y-2">
+                                {analytics.panna.mostPopular.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                        <div>
+                                            <span className="font-mono font-bold text-gray-800">{item.number}</span>
+                                            <span className="text-xs text-gray-500 ml-1">({item.pannaType})</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-blue-600 font-semibold">{item.playerCount} players</div>
+                                            <div className="text-xs text-gray-500">₹{formatNum(item.totalBetAmount)}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="space-y-8">
+            {/* Opening Analytics */}
+            <div className="border-b border-gray-200 pb-6">
+                {renderAnalytics(analyticsOpen, 'Opening', 'bg-green-500')}
+            </div>
+
+            {/* Closing Analytics */}
+            <div>
+                {renderAnalytics(analyticsClose, 'Closing', 'bg-red-500')}
+            </div>
+        </div>
+    );
+};
+
 const MarketDetail = () => {
     const { marketId } = useParams();
     const navigate = useNavigate();
@@ -515,6 +891,7 @@ const MarketDetail = () => {
     const [singlePattiSummary, setSinglePattiSummary] = useState(null);
     const [allBets, setAllBets] = useState(null);
     const [loadingBets, setLoadingBets] = useState(false);
+    const [rates, setRates] = useState(null);
     /** 'open' | 'closed' – view only open bets or only closed bets */
     const [statusView, setStatusView] = useState('open');
     const initialStatusSetForMarketId = React.useRef(null);
@@ -577,9 +954,54 @@ const MarketDetail = () => {
         }
     };
 
+    const fetchRates = async () => {
+        try {
+            const headers = getAuthHeaders();
+            const res = await fetch(`${API_BASE_URL}/rates`, { headers });
+            const json = await res.json();
+            if (json.success && json.data) {
+                const ratesMap = {};
+                // Handle both array and object formats
+                if (Array.isArray(json.data)) {
+                    json.data.forEach((rate) => {
+                        ratesMap[rate.gameType] = rate.rate;
+                    });
+                } else {
+                    // If it's already an object
+                    Object.assign(ratesMap, json.data);
+                }
+                setRates(ratesMap);
+            } else {
+                // Use defaults if API fails
+                setRates({
+                    single: 10,
+                    jodi: 100,
+                    singlePatti: 150,
+                    doublePatti: 300,
+                    triplePatti: 1000,
+                    halfSangam: 5000,
+                    fullSangam: 10000,
+                });
+            }
+        } catch (err) {
+            console.error('Failed to fetch rates:', err);
+            // Use defaults if API fails
+            setRates({
+                single: 10,
+                jodi: 100,
+                singlePatti: 150,
+                doublePatti: 300,
+                triplePatti: 1000,
+                halfSangam: 5000,
+                fullSangam: 10000,
+            });
+        }
+    };
+
     useEffect(() => {
         if (data?.market) {
             fetchAllBets();
+            fetchRates();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [marketId, data]);
@@ -1172,6 +1594,13 @@ const MarketDetail = () => {
                         totalBets={fullSangamDisplay.totalBets}
                     />
                 </div>
+
+                {/* Market Analytics & Suggestions */}
+                {!loadingBets && allBets && rates && (
+                    <SectionCard title="📊 Market Analytics & Suggestions" className="mt-8">
+                        <MarketAnalytics bets={allBets} rates={rates} market={market} />
+                    </SectionCard>
+                )}
 
                 {/* Detailed Bet Analysis Section */}
                 <SectionCard title="Detailed Bet Analysis" className="mt-8">

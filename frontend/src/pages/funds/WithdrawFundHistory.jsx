@@ -30,12 +30,12 @@ const WithdrawFundHistory = () => {
 
     const getStatusBadge = (status) => {
         const styles = {
-            pending: 'bg-yellow-600/30 text-yellow-400',
-            approved: 'bg-green-600/30 text-green-400',
-            rejected: 'bg-red-600/30 text-red-400',
-            completed: 'bg-blue-600/30 text-blue-400',
+            pending: 'bg-orange-100 text-orange-700 border border-orange-300',
+            approved: 'bg-green-100 text-green-700 border border-green-300',
+            rejected: 'bg-red-100 text-red-700 border border-red-300',
+            completed: 'bg-blue-100 text-blue-700 border border-blue-300',
         };
-        return styles[status] || 'bg-gray-600/30 text-gray-400';
+        return styles[status] || 'bg-gray-100 text-gray-600 border border-gray-300';
     };
 
     const formatDate = (dateString) => {
@@ -67,9 +67,9 @@ const WithdrawFundHistory = () => {
     return (
         <div className="space-y-6">
             {/* Total Withdrawn */}
-            <div className="bg-gradient-to-r from-purple-900/40 to-purple-800/30 rounded-2xl p-5 border border-purple-500/30">
-                <p className="text-gray-400 text-sm">Total Withdrawn</p>
-                <p className="text-3xl font-bold text-white">₹{totalWithdrawn.toLocaleString()}</p>
+            <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-2xl p-5 border border-orange-200">
+                <p className="text-gray-600 text-sm">Total Withdrawn</p>
+                <p className="text-3xl font-bold text-orange-600">₹{totalWithdrawn.toLocaleString()}</p>
             </div>
 
             {/* Stats */}
@@ -77,38 +77,38 @@ const WithdrawFundHistory = () => {
                 <div 
                     onClick={() => setFilter('all')}
                     className={`p-3 rounded-xl text-center cursor-pointer transition-colors ${
-                        filter === 'all' ? 'bg-blue-600/30 border border-blue-500' : 'bg-[#1a1a1a] border border-white/10'
+                        filter === 'all' ? 'bg-orange-500 text-white border border-orange-500' : 'bg-white text-gray-700 border border-orange-200 hover:bg-orange-50'
                     }`}
                 >
-                    <p className="text-lg font-bold text-white">{stats.total}</p>
-                    <p className="text-xs text-gray-400">Total</p>
+                    <p className="text-lg font-bold">{stats.total}</p>
+                    <p className="text-xs">Total</p>
                 </div>
                 <div 
                     onClick={() => setFilter('pending')}
                     className={`p-3 rounded-xl text-center cursor-pointer transition-colors ${
-                        filter === 'pending' ? 'bg-yellow-600/30 border border-yellow-500' : 'bg-[#1a1a1a] border border-white/10'
+                        filter === 'pending' ? 'bg-orange-100 text-orange-700 border border-orange-300' : 'bg-white text-gray-700 border border-orange-200 hover:bg-orange-50'
                     }`}
                 >
-                    <p className="text-lg font-bold text-yellow-400">{stats.pending}</p>
-                    <p className="text-xs text-gray-400">Pending</p>
+                    <p className="text-lg font-bold text-orange-600">{stats.pending}</p>
+                    <p className="text-xs text-gray-600">Pending</p>
                 </div>
                 <div 
                     onClick={() => setFilter('approved')}
                     className={`p-3 rounded-xl text-center cursor-pointer transition-colors ${
-                        filter === 'approved' ? 'bg-green-600/30 border border-green-500' : 'bg-[#1a1a1a] border border-white/10'
+                        filter === 'approved' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-white text-gray-700 border border-orange-200 hover:bg-orange-50'
                     }`}
                 >
-                    <p className="text-lg font-bold text-green-400">{stats.approved}</p>
-                    <p className="text-xs text-gray-400">Approved</p>
+                    <p className="text-lg font-bold text-green-600">{stats.approved}</p>
+                    <p className="text-xs text-gray-600">Approved</p>
                 </div>
                 <div 
                     onClick={() => setFilter('rejected')}
                     className={`p-3 rounded-xl text-center cursor-pointer transition-colors ${
-                        filter === 'rejected' ? 'bg-red-600/30 border border-red-500' : 'bg-[#1a1a1a] border border-white/10'
+                        filter === 'rejected' ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-white text-gray-700 border border-orange-200 hover:bg-orange-50'
                     }`}
                 >
-                    <p className="text-lg font-bold text-red-400">{stats.rejected}</p>
-                    <p className="text-xs text-gray-400">Rejected</p>
+                    <p className="text-lg font-bold text-red-600">{stats.rejected}</p>
+                    <p className="text-xs text-gray-600">Rejected</p>
                 </div>
             </div>
 
@@ -119,15 +119,15 @@ const WithdrawFundHistory = () => {
                     <p className="text-gray-400 mt-3">Loading history...</p>
                 </div>
             ) : filteredWithdrawals.length === 0 ? (
-                <div className="text-center py-8 bg-[#1a1a1a] rounded-xl border border-white/10">
-                    <svg className="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="text-center py-8 bg-white rounded-xl border border-orange-200">
+                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <p className="text-gray-400">No withdrawal history found</p>
+                    <p className="text-gray-600">No withdrawal history found</p>
                     {filter !== 'all' && (
                         <button
                             onClick={() => setFilter('all')}
-                            className="mt-2 text-blue-400 text-sm hover:text-blue-300"
+                            className="mt-2 text-orange-600 text-sm hover:text-orange-700"
                         >
                             View all withdrawals
                         </button>
@@ -138,7 +138,7 @@ const WithdrawFundHistory = () => {
                     {filteredWithdrawals.map((withdrawal) => (
                         <div
                             key={withdrawal._id}
-                            className="bg-[#1a1a1a] rounded-xl p-4 border border-white/10"
+                            className="bg-white rounded-xl p-4 border border-orange-200 shadow-sm hover:shadow-md transition-shadow"
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -161,7 +161,7 @@ const WithdrawFundHistory = () => {
                                         )}
                                     </div>
                                     <div>
-                                        <p className="text-white font-semibold">₹{withdrawal.amount.toLocaleString()}</p>
+                                        <p className="text-gray-800 font-semibold">₹{withdrawal.amount.toLocaleString()}</p>
                                         <p className="text-gray-500 text-xs">{formatDate(withdrawal.createdAt)}</p>
                                     </div>
                                 </div>
@@ -172,8 +172,8 @@ const WithdrawFundHistory = () => {
 
                             {/* Bank Details */}
                             {withdrawal.bankDetailId && (
-                                <div className="mt-3 pt-3 border-t border-white/5">
-                                    <p className="text-gray-400 text-sm">
+                                <div className="mt-3 pt-3 border-t border-orange-100">
+                                    <p className="text-gray-600 text-sm">
                                         <span className="text-gray-500">To:</span> {withdrawal.bankDetailId.accountHolderName}
                                     </p>
                                     {withdrawal.bankDetailId.bankName && (
@@ -191,9 +191,9 @@ const WithdrawFundHistory = () => {
 
                             {/* Admin Remarks */}
                             {(withdrawal.adminRemarks || withdrawal.processedAt) && (
-                                <div className="mt-2 pt-2 border-t border-white/5 space-y-1">
+                                <div className="mt-2 pt-2 border-t border-orange-100 space-y-1">
                                     {withdrawal.adminRemarks && (
-                                        <p className="text-gray-400 text-sm">
+                                        <p className="text-gray-600 text-sm">
                                             <span className="text-gray-500">Admin:</span> {withdrawal.adminRemarks}
                                         </p>
                                     )}

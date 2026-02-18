@@ -60,13 +60,11 @@ export const placeBet = async (req, res) => {
             });
         }
 
-        // Get bookie commission if user is referred by a bookie
-        let bookieCommission = 0;
+        // Get bookie ID if user is referred by a bookie (for reference only, commission calculated at end of day)
         let bookieId = null;
         if (user.referredBy) {
-            const bookie = await Admin.findById(user.referredBy).select('commissionPercentage').lean();
+            const bookie = await Admin.findById(user.referredBy).select('_id').lean();
             if (bookie) {
-                bookieCommission = bookie.commissionPercentage || 0;
                 bookieId = bookie._id;
             }
         }
@@ -95,7 +93,6 @@ export const placeBet = async (req, res) => {
 
         const sanitized = [];
         let totalAmount = 0;
-        let totalCommission = 0;
         for (const b of bets) {
             const betType = (b.betType || '').toString().trim().toLowerCase();
             const betNumber = (b.betNumber || '').toString().trim();
@@ -112,31 +109,30 @@ export const placeBet = async (req, res) => {
                     message: 'Each bet must have betType, betNumber and amount > 0',
                 });
             }
-            // Calculate commission for this bet
-            const commissionAmount = bookieCommission > 0 ? Math.round((amount * bookieCommission / 100) * 100) / 100 : 0;
-            const betAmountAfterCommission = amount - commissionAmount;
+            // Store full bet amount (commission will be calculated at end of day on total daily revenue)
             totalAmount += amount;
-            totalCommission += commissionAmount;
-            sanitized.push({ betType, betNumber, amount: betAmountAfterCommission, betOn, commissionAmount, commissionPercentage: bookieCommission });
+            sanitized.push({ betType, betNumber, amount, betOn });
         }
 
-        let wallet = await Wallet.findOne({ userId });
-        if (!wallet) {
-            wallet = new Wallet({ userId, balance: 0 });
-            await wallet.save();
-        }
+        // Use atomic operation to prevent race conditions
+        // Try to decrement balance atomically - this will fail if balance is insufficient
+        const walletUpdate = await Wallet.findOneAndUpdate(
+            { userId, balance: { $gte: totalAmount } },
+            { $inc: { balance: -totalAmount } },
+            { new: true, upsert: false }
+        );
 
-        if (wallet.balance < totalAmount) {
+        if (!walletUpdate) {
+            // Check if wallet exists to provide better error message
+            const existingWallet = await Wallet.findOne({ userId });
+            const currentBalance = existingWallet?.balance ?? 0;
             return res.status(400).json({
                 success: false,
-                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}`,
+                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${currentBalance}`,
             });
         }
 
-        if (remainingAmount > 0) {
-            wallet.balance -= remainingAmount;
-            await wallet.save();
-        }
+        const wallet = walletUpdate;
 
         // Validate scheduledDate if provided
         let scheduledDateObj = null;
@@ -144,8 +140,12 @@ export const placeBet = async (req, res) => {
         if (scheduledDate) {
             scheduledDateObj = new Date(scheduledDate);
             if (isNaN(scheduledDateObj.getTime())) {
-                wallet.balance += totalAmount;
-                await wallet.save();
+                // Rollback: restore balance atomically
+                await Wallet.findOneAndUpdate(
+                    { userId },
+                    { $inc: { balance: totalAmount } },
+                    { upsert: false }
+                );
                 return res.status(400).json({
                     success: false,
                     message: 'Invalid scheduledDate format',
@@ -156,8 +156,12 @@ export const placeBet = async (req, res) => {
             now.setHours(0, 0, 0, 0);
             scheduledDateObj.setHours(0, 0, 0, 0);
             if (scheduledDateObj < now) {
-                wallet.balance += totalAmount;
-                await wallet.save();
+                // Rollback: restore balance atomically
+                await Wallet.findOneAndUpdate(
+                    { userId },
+                    { $inc: { balance: totalAmount } },
+                    { upsert: false }
+                );
                 return res.status(400).json({
                     success: false,
                     message: 'Scheduled date must be today or in the future',
@@ -169,7 +173,7 @@ export const placeBet = async (req, res) => {
         const betIds = [];
         const createdBets = [];
         try {
-            for (const { betType, betNumber, amount, betOn, commissionAmount, commissionPercentage } of sanitized) {
+            for (const { betType, betNumber, amount, betOn } of sanitized) {
                 const bet = await Bet.create({
                     userId,
                     marketId,
@@ -181,16 +185,20 @@ export const placeBet = async (req, res) => {
                     payout: 0,
                     scheduledDate: scheduledDateObj,
                     isScheduled: isScheduled,
-                    commissionAmount: commissionAmount || 0,
-                    commissionPercentage: commissionPercentage || 0,
+                    commissionAmount: 0, // Commission calculated at end of day
+                    commissionPercentage: 0, // Commission calculated at end of day
                     placedByBookieId: bookieId,
                 });
                 betIds.push(bet._id);
                 createdBets.push(bet);
             }
         } catch (createErr) {
-            wallet.balance += totalAmount;
-            await wallet.save();
+            // Rollback: restore balance atomically
+            await Wallet.findOneAndUpdate(
+                { userId },
+                { $inc: { balance: totalAmount } },
+                { upsert: false }
+            );
             throw createErr;
         }
 
@@ -217,8 +225,12 @@ export const placeBet = async (req, res) => {
                 );
             }
         } catch (txErr) {
-            wallet.balance += totalAmount;
-            await wallet.save();
+            // Rollback: restore balance atomically
+            await Wallet.findOneAndUpdate(
+                { userId },
+                { $inc: { balance: totalAmount } },
+                { upsert: false }
+            );
             throw txErr;
         }
 
@@ -307,7 +319,6 @@ export const placeBetForPlayer = async (req, res) => {
 
         const sanitized = [];
         let totalAmount = 0;
-        let totalCommission = 0;
         for (const b of bets) {
             const betType = (b.betType || '').toString().trim().toLowerCase();
             const betNumber = (b.betNumber || '').toString().trim();
@@ -323,35 +334,35 @@ export const placeBetForPlayer = async (req, res) => {
                     message: 'Each bet must have betType, betNumber and amount > 0',
                 });
             }
-            // Calculate commission for this bet
-            const commissionAmount = bookieCommission > 0 ? Math.round((amount * bookieCommission / 100) * 100) / 100 : 0;
-            const betAmountAfterCommission = amount - commissionAmount;
+            // Store full bet amount (commission will be calculated at end of day on total daily revenue)
             totalAmount += amount;
-            totalCommission += commissionAmount;
-            sanitized.push({ betType, betNumber, amount: betAmountAfterCommission, betOn, commissionAmount, commissionPercentage: bookieCommission });
+            sanitized.push({ betType, betNumber, amount, betOn });
         }
 
-        let wallet = await Wallet.findOne({ userId });
-        if (!wallet) {
-            wallet = new Wallet({ userId, balance: 0 });
-            await wallet.save();
-        }
+        // Use atomic operation to prevent race conditions
+        // Try to decrement balance atomically - this will fail if balance is insufficient
+        const walletUpdate = await Wallet.findOneAndUpdate(
+            { userId, balance: { $gte: totalAmount } },
+            { $inc: { balance: -totalAmount } },
+            { new: true, upsert: false }
+        );
 
-        if (wallet.balance < totalAmount) {
+        if (!walletUpdate) {
+            // Check if wallet exists to provide better error message
+            const existingWallet = await Wallet.findOne({ userId });
+            const currentBalance = existingWallet?.balance ?? 0;
             return res.status(400).json({
                 success: false,
-                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${wallet.balance}`,
+                message: `Insufficient balance. Required: ₹${totalAmount}, Available: ₹${currentBalance}`,
             });
         }
 
-        // Deduct total amount from wallet (includes commission)
-        wallet.balance -= totalAmount;
-        await wallet.save();
+        const wallet = walletUpdate;
 
         const betIds = [];
         const createdBets = [];
         try {
-            for (const { betType, betNumber, amount, betOn, commissionAmount, commissionPercentage } of sanitized) {
+            for (const { betType, betNumber, amount, betOn } of sanitized) {
                 const bet = await Bet.create({
                     userId,
                     marketId,
@@ -363,15 +374,19 @@ export const placeBetForPlayer = async (req, res) => {
                     payout: 0,
                     placedByBookie: true,
                     placedByBookieId: bookie._id,
-                    commissionAmount: commissionAmount || 0,
-                    commissionPercentage: commissionPercentage || 0,
+                    commissionAmount: 0, // Commission calculated at end of day
+                    commissionPercentage: 0, // Commission calculated at end of day
                 });
                 betIds.push(bet._id);
                 createdBets.push(bet);
             }
         } catch (createErr) {
-            wallet.balance += totalAmount;
-            await wallet.save();
+            // Rollback: restore balance atomically
+            await Wallet.findOneAndUpdate(
+                { userId },
+                { $inc: { balance: totalAmount } },
+                { upsert: false }
+            );
             throw createErr;
         }
 
@@ -398,8 +413,12 @@ export const placeBetForPlayer = async (req, res) => {
                 );
             }
         } catch (txErr) {
-            wallet.balance += totalAmount;
-            await wallet.save();
+            // Rollback: restore balance atomically
+            await Wallet.findOneAndUpdate(
+                { userId },
+                { $inc: { balance: totalAmount } },
+                { upsert: false }
+            );
             throw txErr;
         }
 
@@ -446,8 +465,55 @@ export const getBetHistory = async (req, res) => {
         }
 
         const bets = await Bet.find(query)
-            .populate('userId', 'username email')
+            .populate('userId', 'username email phone')
             .populate({ path: 'marketId', select: 'marketName', model: Market })
+            .populate('placedByBookieId', 'username')
+            .sort({ createdAt: -1 })
+            .limit(1000);
+
+        res.status(200).json({ success: true, data: bets });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Get bets placed by users (not by bookie)
+ * GET /api/v1/bets/by-user?userId=&marketId=&status=&startDate=&endDate=
+ * Returns bets where placedByBookie is false or not set (bets placed directly by users)
+ */
+export const getBetsByUser = async (req, res) => {
+    try {
+        const { userId, marketId, status, startDate, endDate } = req.query;
+        const query = {};
+
+        // Only get bets placed by users themselves (not by bookie)
+        query.$or = [
+            { placedByBookie: false },
+            { placedByBookie: { $exists: false } }
+        ];
+
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        if (bookieUserIds !== null) {
+            query.userId = { $in: bookieUserIds };
+            if (userId) {
+                const ids = bookieUserIds.map((id) => id.toString());
+                if (ids.includes(userId)) query.userId = userId;
+            }
+        } else if (userId) {
+            query.userId = userId;
+        }
+        if (marketId) query.marketId = marketId;
+        if (status) query.status = status;
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) query.createdAt.$gte = new Date(startDate);
+            if (endDate) query.createdAt.$lte = new Date(endDate);
+        }
+
+        const bets = await Bet.find(query)
+            .populate('userId', 'username phone email')
+            .populate({ path: 'marketId', select: 'marketName gameName', model: Market })
             .sort({ createdAt: -1 })
             .limit(1000);
 

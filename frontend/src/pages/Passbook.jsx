@@ -24,7 +24,7 @@ const IconDebit = () => (
   </svg>
 );
 const IconEmpty = () => (
-  <svg className="w-16 h-16 text-gray-600" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
+  <svg className="w-16 h-16 md:w-20 md:h-20 text-gray-400" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
   </svg>
 );
@@ -52,15 +52,15 @@ const formatAmount = (amount) => {
 
 /* ───────── Skeleton Loader ───────── */
 const SkeletonRow = () => (
-  <div className="flex items-center gap-3.5 px-4 py-4 animate-pulse">
-    <div className="w-10 h-10 rounded-xl bg-white/5" />
+  <div className="flex items-center gap-3.5 md:gap-4 px-4 md:px-6 py-4 md:py-5 animate-pulse">
+    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-200" />
     <div className="flex-1 space-y-2">
-      <div className="h-3.5 w-32 rounded-lg bg-white/5" />
-      <div className="h-3 w-20 rounded-lg bg-white/5" />
+      <div className="h-3.5 md:h-4 w-32 md:w-40 rounded-lg bg-gray-200" />
+      <div className="h-3 md:h-3.5 w-20 md:w-24 rounded-lg bg-gray-200" />
     </div>
     <div className="space-y-2 text-right">
-      <div className="h-4 w-16 rounded-lg bg-white/5 ml-auto" />
-      <div className="h-3 w-12 rounded-lg bg-white/5 ml-auto" />
+      <div className="h-4 md:h-5 w-16 md:w-20 rounded-lg bg-gray-200 ml-auto" />
+      <div className="h-3 md:h-3.5 w-12 md:w-16 rounded-lg bg-gray-200 ml-auto" />
     </div>
   </div>
 );
@@ -137,25 +137,25 @@ const Passbook = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0b] text-white pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen bg-white pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-4">
 
       {/* ── Sticky Header ── */}
-      <div className="sticky top-0 z-40 bg-[#0a0a0b]/80 backdrop-blur-xl border-b border-white/5">
-        <div className="flex items-center gap-3 px-4 py-3 max-w-lg mx-auto">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-orange-200 shadow-sm">
+        <div className="flex items-center gap-3 px-4 py-3 max-w-7xl mx-auto">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
+            className="w-9 h-9 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center hover:bg-orange-100 active:scale-95 transition-all text-gray-700"
             aria-label="Back"
           >
             <IconBack />
           </button>
-          <h2 className="text-base font-semibold tracking-wide flex-1">Passbook</h2>
+          <h2 className="text-base md:text-lg font-semibold tracking-wide flex-1 text-gray-800">Passbook</h2>
           <button
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className={`w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all ${refreshing ? 'animate-spin' : ''}`}
+            className={`w-9 h-9 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center hover:bg-orange-100 active:scale-95 transition-all text-gray-700 ${refreshing ? 'animate-spin' : ''}`}
             aria-label="Refresh"
           >
             <IconRefresh />
@@ -163,56 +163,56 @@ const Passbook = () => {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-4 md:pt-6 space-y-4 md:space-y-6">
 
         {/* ── Balance Card ── */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] border border-white/10 shadow-2xl">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-yellow-500/5 blur-2xl" />
-          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-blue-500/5 blur-2xl" />
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-50 via-white to-orange-50 border-2 border-orange-200 shadow-xl">
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-orange-100/50 blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-orange-100/50 blur-2xl" />
           
-          <div className="relative p-5">
-            <div className="flex items-center justify-between mb-4">
+          <div className="relative p-5 md:p-6">
+            <div className="flex items-center justify-between mb-4 md:mb-5">
               <div>
-                <p className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Current Balance</p>
-                <p className="text-[#f2c14e] text-3xl font-extrabold tracking-tight">
+                <p className="text-gray-600 text-xs md:text-sm font-medium uppercase tracking-wider mb-1">Current Balance</p>
+                <p className="text-orange-500 text-3xl md:text-4xl font-extrabold tracking-tight">
                   ₹{balance !== null ? formatAmount(balance) : '---'}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-[#f2c14e]/10 border border-[#f2c14e]/20 flex items-center justify-center text-[#f2c14e]">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-orange-50 border-2 border-orange-200 flex items-center justify-center text-orange-500">
                 <IconWallet />
               </div>
             </div>
 
             {/* Credit / Debit Summary */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-3">
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-200 p-3 md:p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
                     </svg>
                   </div>
-                  <span className="text-emerald-400/70 text-[10px] font-semibold uppercase tracking-wider">Credited</span>
+                  <span className="text-emerald-600 text-[10px] md:text-xs font-semibold uppercase tracking-wider">Credited</span>
                 </div>
-                <p className="text-emerald-400 text-lg font-bold">₹{formatAmount(stats.totalCredit)}</p>
+                <p className="text-emerald-600 text-lg md:text-xl font-bold">₹{formatAmount(stats.totalCredit)}</p>
               </div>
-              <div className="rounded-2xl bg-red-500/10 border border-red-500/20 p-3">
+              <div className="rounded-2xl bg-red-50 border-2 border-red-200 p-3 md:p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
+                    <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5V4.5m0 0L5.25 11.25M12 4.5l6.75 6.75" />
                     </svg>
                   </div>
-                  <span className="text-red-400/70 text-[10px] font-semibold uppercase tracking-wider">Withdrawn</span>
+                  <span className="text-red-600 text-[10px] md:text-xs font-semibold uppercase tracking-wider">Withdrawn</span>
                 </div>
-                <p className="text-red-400 text-lg font-bold">₹{formatAmount(stats.totalDebit)}</p>
+                <p className="text-red-600 text-lg md:text-xl font-bold">₹{formatAmount(stats.totalDebit)}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* ── Filter Tabs ── */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hidden pb-1">
+        <div className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hidden pb-1">
           {filters.map((f) => {
             const active = filter === f.key;
             return (
@@ -220,15 +220,15 @@ const Passbook = () => {
                 key={f.key}
                 type="button"
                 onClick={() => setFilter(f.key)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all active:scale-95 ${
+                className={`flex items-center gap-1.5 px-4 md:px-5 py-2.5 md:py-3 rounded-2xl text-sm md:text-base font-semibold whitespace-nowrap transition-all active:scale-95 ${
                   active
-                    ? 'bg-[#f2c14e]/15 border border-[#f2c14e]/30 text-[#f2c14e]'
-                    : 'bg-[#141416] border border-white/5 text-gray-400 hover:text-white hover:border-white/10'
+                    ? 'bg-orange-100 border-2 border-orange-300 text-orange-600 shadow-sm'
+                    : 'bg-white border-2 border-orange-200 text-gray-600 hover:text-orange-600 hover:border-orange-300 hover:bg-orange-50'
                 }`}
               >
                 {f.label}
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  active ? 'bg-[#f2c14e]/20 text-[#f2c14e]' : 'bg-white/5 text-gray-500'
+                <span className={`text-xs md:text-sm px-1.5 md:px-2 py-0.5 md:py-1 rounded-full ${
+                  active ? 'bg-orange-200 text-orange-700' : 'bg-gray-100 text-gray-500'
                 }`}>
                   {f.count}
                 </span>
@@ -238,9 +238,9 @@ const Passbook = () => {
         </div>
 
         {/* ── Transaction History ── */}
-        <div className="rounded-3xl bg-[#141416] border border-white/5 overflow-hidden">
-          <div className="px-5 pt-5 pb-2">
-            <h3 className="text-white font-semibold text-sm uppercase tracking-wider">Transaction History</h3>
+        <div className="rounded-3xl bg-white border-2 border-orange-200 overflow-hidden shadow-sm">
+          <div className="px-5 md:px-6 pt-5 md:pt-6 pb-2 md:pb-3">
+            <h3 className="text-gray-800 font-semibold text-sm md:text-base uppercase tracking-wider">Transaction History</h3>
           </div>
 
           {loading ? (
@@ -249,22 +249,22 @@ const Passbook = () => {
             </div>
           ) : filtered.length === 0 ? (
             /* Empty state */
-            <div className="flex flex-col items-center justify-center py-12 px-4">
+            <div className="flex flex-col items-center justify-center py-12 md:py-16 px-4">
               <IconEmpty />
-              <p className="text-gray-400 font-semibold mt-4 text-sm">No transactions found</p>
-              <p className="text-gray-600 text-xs mt-1 text-center">
+              <p className="text-gray-600 font-semibold mt-4 text-sm md:text-base">No transactions found</p>
+              <p className="text-gray-500 text-xs md:text-sm mt-1 text-center">
                 {filter === 'all'
                   ? 'Your transaction history will appear here'
                   : `No ${filter === 'credit' ? 'credit' : 'withdrawal'} transactions yet`}
               </p>
             </div>
           ) : (
-            <div className="pb-2">
+            <div className="pb-2 md:pb-4">
               {grouped.map(([date, txs]) => (
                 <div key={date}>
                   {/* Date Header */}
-                  <div className="px-5 py-2 mt-1">
-                    <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-widest">{date}</p>
+                  <div className="px-5 md:px-6 py-2 md:py-3 mt-1 bg-orange-50/50">
+                    <p className="text-gray-600 text-[10px] md:text-xs font-semibold uppercase tracking-widest">{date}</p>
                   </div>
 
                   {/* Transactions */}
@@ -273,32 +273,32 @@ const Passbook = () => {
                     return (
                       <div
                         key={tx._id || idx}
-                        className="flex items-center gap-3.5 px-4 py-3.5 mx-2 rounded-2xl hover:bg-white/[0.02] transition-colors"
+                        className="flex items-center gap-3.5 md:gap-4 px-4 md:px-6 py-3.5 md:py-4 mx-2 md:mx-4 rounded-2xl hover:bg-orange-50 transition-colors border-b border-gray-100 last:border-b-0"
                       >
                         {/* Icon */}
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 ${
                           isCredit
-                            ? 'bg-emerald-500/10 text-emerald-400'
-                            : 'bg-red-500/10 text-red-400'
+                            ? 'bg-emerald-100 text-emerald-600 border-2 border-emerald-200'
+                            : 'bg-red-100 text-red-600 border-2 border-red-200'
                         }`}>
                           {isCredit ? <IconCredit /> : <IconDebit />}
                         </div>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-white text-sm font-medium truncate">
+                          <p className="text-gray-800 text-sm md:text-base font-medium truncate">
                             {tx.description || (isCredit ? 'Amount Credited' : 'Amount Withdrawn')}
                           </p>
-                          <p className="text-gray-500 text-xs mt-0.5">{formatTime(tx.createdAt)}</p>
+                          <p className="text-gray-500 text-xs md:text-sm mt-0.5">{formatTime(tx.createdAt)}</p>
                         </div>
 
                         {/* Amount */}
                         <div className="text-right shrink-0">
-                          <p className={`text-sm font-bold ${isCredit ? 'text-emerald-400' : 'text-red-400'}`}>
+                          <p className={`text-sm md:text-base font-bold ${isCredit ? 'text-emerald-600' : 'text-red-600'}`}>
                             {isCredit ? '+' : '-'}₹{formatAmount(tx.amount)}
                           </p>
-                          <p className={`text-[10px] font-semibold uppercase tracking-wider mt-0.5 ${
-                            isCredit ? 'text-emerald-500/50' : 'text-red-500/50'
+                          <p className={`text-[10px] md:text-xs font-semibold uppercase tracking-wider mt-0.5 ${
+                            isCredit ? 'text-emerald-500' : 'text-red-500'
                           }`}>
                             {isCredit ? 'Credit' : 'Debit'}
                           </p>

@@ -45,8 +45,8 @@ const Funds = () => {
       key: 'add-fund',
       title: 'Add Fund',
       subtitle: 'You can add fund to your wallet',
-      color: '#34a853',
-      icon: <span className="text-3xl font-extrabold text-black leading-none">₹</span>,
+      color: '#f97316',
+      icon: <span className="text-3xl font-extrabold text-white leading-none">₹</span>,
       component: AddFund,
     },
     {
@@ -55,7 +55,7 @@ const Funds = () => {
       subtitle: 'You can withdraw winnings',
       color: '#ef4444',
       icon: (
-        <svg className="w-7 h-7 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m-4-4l4 4 4-4M16 6a6 6 0 00-8 0" />
         </svg>
       ),
@@ -67,7 +67,7 @@ const Funds = () => {
       subtitle: 'Add your bank detail for withdrawals',
       color: '#3b82f6',
       icon: (
-        <svg className="w-7 h-7 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 10l8-4 8 4" />
         </svg>
       ),
@@ -79,7 +79,7 @@ const Funds = () => {
       subtitle: 'You can check your add point history',
       color: '#1e3a8a',
       icon: (
-        <svg className="w-7 h-7 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v5l3 2" />
           <circle cx="12" cy="12" r="8" />
         </svg>
@@ -92,7 +92,7 @@ const Funds = () => {
       subtitle: 'You can check your Withdraw point history',
       color: '#f59e0b',
       icon: (
-        <svg className="w-7 h-7 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v5l3 2" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M20 12a8 8 0 11-2.343-5.657" />
         </svg>
@@ -128,27 +128,27 @@ const Funds = () => {
   const isAddFundMobileView = mobileView === 'add-fund';
 
   return (
-    <div className="min-h-screen bg-black text-white pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0 md:pt-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen bg-white text-gray-800 pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0 md:pt-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
       <div className="w-full max-w-lg md:max-w-none mx-auto md:mx-0">
         <div className="mb-4 md:grid md:grid-cols-[360px_1fr] md:gap-6 md:items-center">
           <div className="flex items-center gap-3 pt-4 md:pt-0">
             <button
               type="button"
               onClick={() => mobileView ? handleMobileBack() : navigate(-1)}
-              className="min-w-[44px] min-h-[44px] rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/15 active:scale-95 transition touch-manipulation"
+              className="min-w-[44px] min-h-[44px] rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center text-gray-700 hover:bg-gray-200 active:scale-95 transition touch-manipulation"
               aria-label="Back"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
               {mobileView ? items.find(i => i.key === mobileView)?.title : 'Funds'}
             </h1>
           </div>
 
           <div className="hidden md:flex items-center justify-between gap-4 px-1">
-            <div className="text-2xl font-extrabold text-white">{activeItem?.title}</div>
+            <div className="text-2xl font-extrabold text-gray-800">{activeItem?.title}</div>
           </div>
         </div>
 
@@ -161,7 +161,7 @@ const Funds = () => {
                 <div
                   key={item.key}
                   onClick={() => handleItemClick(item.key)}
-                  className="bg-[#202124] border border-white/10 rounded-2xl p-3 flex items-center justify-between shadow-[0_12px_24px_rgba(0,0,0,0.35)]"
+                  className="bg-white border-2 border-orange-200 rounded-2xl p-3 flex items-center justify-between shadow-sm hover:border-orange-300 transition-colors"
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
@@ -170,17 +170,17 @@ const Funds = () => {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-black shadow-[0_10px_20px_rgba(0,0,0,0.35)]"
+                      className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md"
                       style={{ backgroundColor: item.color }}
                     >
                       {item.icon}
                     </div>
                     <div>
-                      <p className="text-sm sm:text-base font-semibold">{item.title}</p>
-                      <p className="text-[11px] sm:text-xs text-gray-400 leading-snug">{item.subtitle}</p>
+                      <p className="text-sm sm:text-base font-semibold text-gray-800">{item.title}</p>
+                      <p className="text-[11px] sm:text-xs text-gray-600 leading-snug">{item.subtitle}</p>
                     </div>
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-black/30 border border-white/10 flex items-center justify-center text-white/70">
+                  <div className="w-8 h-8 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-500">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                     </svg>
@@ -191,7 +191,7 @@ const Funds = () => {
           ) : (
             // Component view
             <div
-              className={`bg-[#202124] border border-white/10 rounded-2xl shadow-[0_12px_24px_rgba(0,0,0,0.35)] ${
+              className={`bg-white border-2 border-orange-200 rounded-2xl shadow-sm ${
                 isAddFundMobileView
                   ? 'p-3 max-h-[calc(100vh-220px)] overflow-y-auto scrollbar-hidden'
                   : 'p-4 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hidden'
@@ -214,25 +214,25 @@ const Funds = () => {
                   key={item.key}
                   type="button"
                   onClick={() => setActiveKey(item.key)}
-                  className={`w-full text-left bg-[#202124] border rounded-2xl p-3 md:p-5 flex items-center justify-between shadow-[0_12px_24px_rgba(0,0,0,0.35)] transition-colors ${
-                    active ? 'border-[#d4af37]/40 bg-[#202124]' : 'border-white/10 hover:border-white/20'
+                  className={`w-full text-left bg-white border-2 rounded-2xl p-3 md:p-5 flex items-center justify-between shadow-sm transition-colors ${
+                    active ? 'border-orange-500 bg-orange-50' : 'border-orange-200 hover:border-orange-300'
                   }`}
                 >
                   <div className="flex items-center gap-3 md:gap-4">
                     <div
-                      className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-black shadow-[0_10px_20px_rgba(0,0,0,0.35)]"
+                      className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white shadow-md"
                       style={{ backgroundColor: item.color }}
                     >
                       {item.icon}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm md:text-base font-semibold text-white truncate">{item.title}</p>
-                      <p className="text-xs text-gray-400 truncate">{item.subtitle}</p>
+                      <p className="text-sm md:text-base font-semibold text-gray-800 truncate">{item.title}</p>
+                      <p className="text-xs text-gray-600 truncate">{item.subtitle}</p>
                     </div>
                   </div>
                   <div
                     className={`w-8 h-8 md:w-9 md:h-9 rounded-full border flex items-center justify-center ${
-                      active ? 'bg-[#d4af37]/15 border-[#d4af37]/35 text-[#d4af37]' : 'bg-black/30 border-white/10 text-white/70'
+                      active ? 'bg-orange-500 border-orange-500 text-white' : 'bg-gray-50 border-gray-300 text-gray-500'
                     }`}
                   >
                     <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,17 +244,17 @@ const Funds = () => {
             })}
           </aside>
 
-          <main className="rounded-2xl bg-[#202124] border border-white/10 shadow-[0_12px_24px_rgba(0,0,0,0.35)] p-6">
+          <main className="rounded-2xl bg-white border-2 border-orange-200 shadow-sm p-6">
             <div className="flex items-center justify-center gap-4 mb-6">
               <div
-                className="w-14 h-14 rounded-full flex items-center justify-center text-black shadow-[0_10px_20px_rgba(0,0,0,0.35)]"
-                style={{ backgroundColor: activeItem?.color || '#f3b61b' }}
+                className="w-14 h-14 rounded-full flex items-center justify-center text-white shadow-md"
+                style={{ backgroundColor: activeItem?.color || '#f97316' }}
               >
                 {activeItem?.icon}
               </div>
               <div className="min-w-0 text-center">
-                <div className="text-xl font-bold text-white truncate">{activeItem?.title}</div>
-                <div className="text-sm text-gray-400">{activeItem?.subtitle}</div>
+                <div className="text-xl font-bold text-gray-800 truncate">{activeItem?.title}</div>
+                <div className="text-sm text-gray-600">{activeItem?.subtitle}</div>
               </div>
             </div>
 

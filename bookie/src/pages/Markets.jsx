@@ -60,11 +60,18 @@ const Markets = () => {
             return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:00`;
         };
 
+        const startStr = (market?.startingTime || '').toString().trim();
+        
+        // Use startingTime if provided, otherwise default to midnight
+        const openAt = startStr 
+            ? new Date(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`).getTime()
+            : new Date(`${todayIST}T00:00:00+05:30`).getTime();
+        
         // Parse closing time in IST
-        const closeAt = new Date(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`).getTime();
-        const openAt = new Date(`${todayIST}T00:00:00+05:30`).getTime();
+        let closeAt = new Date(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`).getTime();
 
-        // If closing time is before or equal to opening time, it's next day
+        // If closing time is before or equal to opening time, market spans midnight
+        // Example: 11 PM (23:00) to 1 AM (01:00) - closing is next day
         if (closeAt <= openAt) {
             const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
             baseDate.setDate(baseDate.getDate() + 1);
@@ -74,11 +81,11 @@ const Markets = () => {
                 month: '2-digit',
                 day: '2-digit',
             }).format(baseDate);
-            const nextDayCloseAt = new Date(`${nextDayStr}T${normalizeTimeStr(closeStr)}+05:30`).getTime();
-            return currentTime.getTime() >= nextDayCloseAt;
+            closeAt = new Date(`${nextDayStr}T${normalizeTimeStr(closeStr)}+05:30`).getTime();
         }
 
-        return currentTime.getTime() >= closeAt;
+        // Use > instead of >= so market is accessible until after closing time
+        return currentTime.getTime() > closeAt;
     };
 
     // ***-**-*** → Open (green), 156-2*-*** → Running (green), 987-45-456 → Closed (red)

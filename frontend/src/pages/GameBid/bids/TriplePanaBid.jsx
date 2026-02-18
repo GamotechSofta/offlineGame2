@@ -207,10 +207,10 @@ const TriplePanaBid = ({ market, title }) => {
             <button
                 type="button"
                 onClick={() => setActiveTab('easy')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border active:scale-[0.98] transition-colors ${
+                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
                     activeTab === 'easy'
-                        ? 'bg-[#d4af37] text-[#4b3608] border-[#d4af37]'
-                        : 'bg-[#202124] text-gray-400 border-white/10 hover:border-[#d4af37]/50'
+                        ? 'bg-orange-500 text-white border-orange-500'
+                        : 'bg-white text-gray-600 border-orange-200 hover:border-orange-400'
                 }`}
             >
                 EASY MODE
@@ -218,10 +218,10 @@ const TriplePanaBid = ({ market, title }) => {
             <button
                 type="button"
                 onClick={() => setActiveTab('special')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border active:scale-[0.98] transition-colors ${
+                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
                     activeTab === 'special'
-                        ? 'bg-[#d4af37] text-[#4b3608] border-[#d4af37]'
-                        : 'bg-[#202124] text-gray-400 border-white/10 hover:border-[#d4af37]/50'
+                        ? 'bg-orange-500 text-white border-orange-500'
+                        : 'bg-white text-gray-600 border-orange-200 hover:border-orange-400'
                 }`}
             >
                 SPECIAL MODE
@@ -241,7 +241,7 @@ const TriplePanaBid = ({ market, title }) => {
                     type="text"
                     value={todayDate}
                     readOnly
-                    className="w-full pl-10 py-3 sm:py-2.5 min-h-[44px] bg-[#202124] border border-white/10 text-white rounded-full text-sm font-bold text-center focus:outline-none"
+                    className="w-full pl-10 py-3 sm:py-2.5 min-h-[44px] bg-white border-2 border-orange-200 text-gray-800 rounded-full text-sm font-bold text-center focus:outline-none"
                 />
             </div>
             <div className="relative">
@@ -249,7 +249,7 @@ const TriplePanaBid = ({ market, title }) => {
                     value={session}
                     onChange={(e) => setSession(e.target.value)}
                     disabled={isRunning}
-                    className={`w-full appearance-none bg-[#202124] border border-white/10 text-white font-bold text-sm py-3 sm:py-2.5 min-h-[44px] px-4 rounded-full text-center focus:outline-none focus:border-[#d4af37] ${isRunning ? 'opacity-80 cursor-not-allowed' : ''}`}
+                    className={`w-full appearance-none bg-white border-2 border-orange-200 text-gray-800 font-bold text-sm py-3 sm:py-2.5 min-h-[44px] px-4 rounded-full text-center focus:outline-none focus:border-orange-500 ${isRunning ? 'opacity-60 cursor-not-allowed bg-gray-100' : ''}`}
                 >
                     {isRunning ? (
                         <option value="CLOSE">CLOSE</option>
@@ -260,7 +260,7 @@ const TriplePanaBid = ({ market, title }) => {
                         </>
                     )}
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
@@ -287,7 +287,7 @@ const TriplePanaBid = ({ market, title }) => {
             <div className="px-3 sm:px-4 py-4 sm:py-2 md:max-w-3xl md:mx-auto md:items-start">
                 <div className="space-y-4">
                     {warning && (
-                        <div className="bg-red-500/10 border border-red-500/30 text-red-200 rounded-xl px-4 py-3 text-sm">
+                        <div className="bg-red-50 border-2 border-red-300 text-red-600 rounded-xl px-4 py-3 text-sm">
                             {warning}
                         </div>
                     )}
@@ -298,13 +298,13 @@ const TriplePanaBid = ({ market, title }) => {
                         <>
                             <div className="flex flex-col gap-3">
                                 <div className="flex flex-row items-center gap-2">
-                                    <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
-                                    <div className="flex-1 min-w-0 bg-[#202124] border border-white/10 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-white">
+                                    <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
+                                    <div className="flex-1 min-w-0 bg-white border-2 border-orange-200 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-gray-800">
                                         {session}
                                     </div>
                                 </div>
                                 <div className="flex flex-row items-center gap-2">
-                                    <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Enter Pana:</label>
+                                    <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Enter Pana:</label>
                                     <input
                                         type="text"
                                         inputMode="numeric"
@@ -312,13 +312,13 @@ const TriplePanaBid = ({ market, title }) => {
                                         onChange={handleNumberInputChange}
                                         placeholder="Pana"
                                         maxLength={3}
-                                        className={`flex-1 min-w-0 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${
-                                            isPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#d4af37] focus:border-[#d4af37]'
+                                        className={`flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${
+                                            isPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-orange-500 focus:border-orange-500'
                                         }`}
                                     />
                                 </div>
                                 <div className="flex flex-row items-center gap-2">
-                                    <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Enter Points:</label>
+                                    <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Enter Points:</label>
                                     <input
                                         ref={pointsInputRef}
                                         type="text"
@@ -326,14 +326,14 @@ const TriplePanaBid = ({ market, title }) => {
                                         value={inputPoints}
                                         onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                         placeholder="Point"
-                                        className="no-spinner flex-1 min-w-0 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#d4af37] focus:border-[#d4af37] focus:outline-none"
+                                        className="no-spinner flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
                                     />
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={handleAddBid}
-                                className="w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all active:scale-[0.98]"
+                                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 transition-all active:scale-[0.98]"
                             >
                                 Add
                             </button>
@@ -343,7 +343,7 @@ const TriplePanaBid = ({ market, title }) => {
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
                                 {tripleNumbers.map((num) => (
                                     <div key={num} className="flex items-center gap-2">
-                                        <div className="w-12 h-10 bg-[#202124] border border-white/10 text-[#f2c14e] flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">
+                                        <div className="w-12 h-10 bg-orange-500 border-2 border-orange-300 text-white flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">
                                             {num}
                                         </div>
                                         <input
@@ -357,7 +357,7 @@ const TriplePanaBid = ({ market, title }) => {
                                                     [num]: e.target.value.replace(/\D/g, '').slice(0, 6),
                                                 }))
                                             }
-                                            className="w-full h-10 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-r-md focus:outline-none focus:border-[#d4af37] px-3 text-sm font-semibold"
+                                            className="w-full h-10 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-orange-500 px-3 text-sm font-semibold"
                                         />
                                     </div>
                                 ))}
@@ -365,7 +365,7 @@ const TriplePanaBid = ({ market, title }) => {
                             <button
                                 type="button"
                                 onClick={handleAddSpecialModeBids}
-                                className="w-full bg-gradient-to-r from-[#d4af37] to-[#cca84d] text-[#4b3608] font-bold py-3 rounded-md shadow-md hover:from-[#e5c04a] hover:to-[#d4af37] transition-all"
+                                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3 rounded-md shadow-md hover:from-orange-600 hover:to-orange-700 transition-all"
                             >
                                 Add to List
                             </button>

@@ -48,7 +48,7 @@ const Reports = () => {
             if (showRefreshing) {
                 setRefreshing(true);
             } else {
-                setLoading(true);
+            setLoading(true);
             }
             setError('');
             const response = await fetch(`${API_BASE_URL}/reports/customer-balance`, {
@@ -139,33 +139,224 @@ const Reports = () => {
     };
 
     const handleExportCSV = () => {
-        const headers = [t('srNo'), t('name'), t('yene'), t('dene'), t('aad')];
-        const rows = filteredCustomers.map((c) => [
-            c.srNo,
-            c.name,
-            c.yene,
-            c.dene,
-            c.aad,
-        ]);
+        try {
+            const headers = [t('srNo'), t('name'), t('yene'), t('dene'), t('aad')];
+            const rows = filteredCustomers.map((c) => [
+                c.srNo,
+                c.name || '',
+                c.yene || 0,
+                c.dene || 0,
+                c.aad || 0,
+            ]);
 
-        const csvContent = [
-            headers.join(','),
-            ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
-        ].join('\n');
+            // Add BOM for UTF-8 to support special characters
+            const BOM = '\uFEFF';
+            const csvContent = BOM + [
+                headers.join(','),
+                ...rows.map((row) => row.map((cell) => {
+                    // Escape quotes and wrap in quotes
+                    const cellStr = String(cell).replace(/"/g, '""');
+                    return `"${cellStr}"`;
+                }).join(',')),
+            ].join('\n');
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `customer-balance-${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `customer-balance-${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            link.style.position = 'absolute';
+            link.style.left = '-9999px';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 100);
+        } catch (err) {
+            console.error('CSV export error:', err);
+            setError('Failed to export CSV. Please try again.');
+        }
     };
 
     const handlePrint = () => {
         window.print();
+    };
+
+    const handlePrintUser = (customer) => {
+        // Use a more reliable method to open print window
+        const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+        if (!printWindow) {
+            setError('Please allow popups to print this report.');
+            return;
+        }
+        
+        // Ensure window is ready before writing
+        printWindow.document.open();
+
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Customer Balance Report - ${customer.name}</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { 
+                        font-family: 'Segoe UI', Arial, sans-serif; 
+                        padding: 20px; 
+                        color: #222; 
+                        font-size: 12px;
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 20px;
+                        padding-bottom: 15px;
+                        border-bottom: 2px solid #1f2937;
+                    }
+                    .header h1 {
+                        font-size: 20px;
+                        font-weight: bold;
+                        color: #1f2937;
+                        margin-bottom: 5px;
+                    }
+                    .header p {
+                        font-size: 11px;
+                        color: #6b7280;
+                    }
+                    .customer-info {
+                        background: #f9fafb;
+                        padding: 15px;
+                        border-radius: 8px;
+                        margin-bottom: 20px;
+                        border: 1px solid #e5e7eb;
+                    }
+                    .customer-info h2 {
+                        font-size: 16px;
+                        color: #1f2937;
+                        margin-bottom: 10px;
+                    }
+                    .info-row {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 5px 0;
+                        font-size: 12px;
+                    }
+                    .info-label {
+                        color: #6b7280;
+                        font-weight: 500;
+                    }
+                    .info-value {
+                        color: #1f2937;
+                        font-weight: 600;
+                    }
+                    .balance-section {
+                        margin-top: 20px;
+                        padding-top: 20px;
+                        border-top: 2px solid #e5e7eb;
+                    }
+                    .balance-row {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 10px 0;
+                        font-size: 13px;
+                        border-bottom: 1px solid #f3f4f6;
+                    }
+                    .balance-label {
+                        color: #4b5563;
+                        font-weight: 500;
+                    }
+                    .balance-value {
+                        font-weight: 600;
+                        font-family: monospace;
+                    }
+                    .balance-value.positive {
+                        color: #16a34a;
+                    }
+                    .balance-value.negative {
+                        color: #dc2626;
+                    }
+                    .balance-value.yene {
+                        color: #dc2626;
+                    }
+                    .balance-value.dene {
+                        color: #2563eb;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        padding-top: 15px;
+                        border-top: 1px solid #e5e7eb;
+                        text-align: center;
+                        font-size: 10px;
+                        color: #6b7280;
+                    }
+                    @media print {
+                        body { padding: 10px; }
+                        @page { margin: 1cm; size: A4; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Customer Balance Report</h1>
+                    <p>Generated: ${new Date().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                </div>
+
+                <div class="customer-info">
+                    <h2>${customer.name || 'N/A'}</h2>
+                    <div class="info-row">
+                        <span class="info-label">Phone:</span>
+                        <span class="info-value">${customer.phone || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Serial No:</span>
+                        <span class="info-value">${customer.srNo}</span>
+                    </div>
+                </div>
+
+                <div class="balance-section">
+                    <div class="balance-row">
+                        <span class="balance-label">${t('yene')} (${t('toTake')}):</span>
+                        <span class="balance-value yene">${formatCurrency(customer.yene || 0)}</span>
+                    </div>
+                    <div class="balance-row">
+                        <span class="balance-label">${t('dene')} (${t('toGive')}):</span>
+                        <span class="balance-value dene">${formatCurrency(customer.dene || 0)}</span>
+                                    </div>
+                    <div class="balance-row" style="background: #f0f9ff; padding: 15px; margin-top: 10px; border: 2px solid #0ea5e9; border-radius: 6px;">
+                        <span class="balance-label" style="font-size: 14px; font-weight: bold;">${t('aad')} (${t('balance')}):</span>
+                        <span class="balance-value ${customer.aad >= 0 ? 'positive' : 'negative'}" style="font-size: 16px;">
+                            ${formatCurrency(customer.aad || 0)}
+                        </span>
+                                    </div>
+                                </div>
+
+                <div class="footer">
+                    <p>Computer Generated Report | ${new Date().toLocaleString('en-IN')}</p>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(function() {
+                            window.close();
+                        }, 100);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        
+        // Ensure content is loaded before printing
+        printWindow.onload = () => {
+            setTimeout(() => {
+                printWindow.print();
+                // Don't auto-close, let user close manually after printing
+            }, 500);
+        };
     };
 
     const q = searchQuery.trim().toLowerCase();
@@ -197,7 +388,7 @@ const Reports = () => {
                             {t('customerBalanceOverview')}
                         </h1>
                         <p className="text-gray-500 text-sm mt-1">{t('showingDataFor')}: {filteredCustomers.length} {filteredCustomers.length === 1 ? t('customer') : t('customers')}</p>
-                    </div>
+                            </div>
                     <button
                         type="button"
                         onClick={() => fetchCustomerBalance(true)}
@@ -207,7 +398,7 @@ const Reports = () => {
                         <FaSyncAlt className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                         {t('refresh')}
                     </button>
-                </div>
+                                    </div>
 
                 {/* Summary Cards */}
                 {!loading && filteredCustomers.length > 0 && (
@@ -215,36 +406,36 @@ const Reports = () => {
                         <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-4 border border-blue-200">
                             <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalCustomers')}</p>
                             <p className="text-xl sm:text-2xl font-bold text-gray-800 font-mono">{filteredCustomers.length}</p>
-                        </div>
+                                    </div>
                         <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-4 border border-red-200">
                             <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
                                 <FaArrowDown className="w-3 h-3" />
                                 {t('yene')} ({t('total')})
                             </p>
                             <p className="text-xl sm:text-2xl font-bold text-red-600 font-mono">{formatCurrency(totalYene)}</p>
-                        </div>
+                                </div>
                         <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-4 border border-blue-200">
                             <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
                                 <FaArrowUp className="w-3 h-3" />
                                 {t('dene')} ({t('total')})
                             </p>
                             <p className="text-xl sm:text-2xl font-bold text-blue-600 font-mono">{formatCurrency(totalDene)}</p>
-                        </div>
+                            </div>
                         <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-4 border border-green-200">
                             <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('aad')} ({t('total')})</p>
                             <p className={`text-xl sm:text-2xl font-bold font-mono ${totalAad >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                 {formatCurrency(totalAad)}
                             </p>
-                        </div>
+                                    </div>
                         <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-4 border border-purple-200 col-span-2 lg:col-span-1">
                             <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('balanceStatus')}</p>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className="text-green-600 font-semibold text-sm">+{positiveBalance}</span>
                                 <span className="text-gray-400">/</span>
                                 <span className="text-red-600 font-semibold text-sm">-{negativeBalance}</span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
                 )}
 
                 {/* Search and Filters */}
@@ -268,7 +459,7 @@ const Reports = () => {
                                 ✕
                             </button>
                         )}
-                    </div>
+                        </div>
 
                     {/* Action Buttons */}
                     <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-200">
@@ -281,17 +472,17 @@ const Reports = () => {
                             <FaFileCsv className="w-4 h-4" />
                             {t('exportCustomerBalanceCSV')}
                         </button>
-                        <button
-                            type="button"
-                            onClick={handlePrint}
+                                <button
+                                    type="button"
+                                    onClick={handlePrint}
                             disabled={filteredCustomers.length === 0}
                             className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors text-sm shadow-sm hover:shadow-md print:hidden"
-                        >
+                                >
                             <FaPrint className="w-4 h-4" />
                             {t('print')}
-                        </button>
-                    </div>
-                </div>
+                                </button>
+                            </div>
+                        </div>
 
                 {/* Error Message */}
                 {error && (
@@ -324,12 +515,12 @@ const Reports = () => {
                     <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex items-start gap-3">
                         <div className="flex-shrink-0">
                             <FaTimes className="w-5 h-5 text-red-500" />
-                        </div>
+                                        </div>
                         <div className="flex-1">
                             <p className="text-red-800 font-medium">{t('error')}</p>
                             <p className="text-red-600 text-sm mt-1">{updateError}</p>
-                        </div>
-                    </div>
+                                        </div>
+                                    </div>
                 )}
 
                 {/* Table */}
@@ -465,9 +656,9 @@ const Reports = () => {
                                                             {updating && (
                                                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
                                                             )}
-                                                        </div>
+                        </div>
                                                     ) : (
-                                                        <div className="flex items-center justify-center">
+                                                        <div className="flex items-center justify-center gap-2">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleEdit(customer)}
@@ -476,16 +667,24 @@ const Reports = () => {
                                                             >
                                                                 <FaEdit className="w-4 h-4" />
                                                             </button>
-                                                        </div>
-                                                    )}
+                        <button
+                            type="button"
+                                                                onClick={() => handlePrintUser(customer)}
+                                                                className="p-2 text-blue-600 hover:text-white hover:bg-blue-600 rounded-lg transition-all shadow-sm hover:shadow-md"
+                                                                title={t('printUserReport')}
+                        >
+                                                                <FaPrint className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
                                                 </td>
                                             </tr>
                                         );
                                     })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
                 </div>
 
                 {/* Summary Footer */}

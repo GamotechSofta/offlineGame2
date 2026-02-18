@@ -103,8 +103,8 @@ const BottomNavbar = () => {
       }}
     >
       {/* Backplate to prevent white background showing behind navbar */}
-      <div className="absolute inset-0 bg-black pointer-events-none" />
-      <div className="relative bg-black rounded-3xl border border-gray-700 shadow-[0_4px_20px_rgba(0,0,0,0.4)] flex items-end justify-around px-1 py-2 min-h-[64px]">
+      <div className="absolute inset-0 bg-white pointer-events-none" />
+      <div className="relative bg-white rounded-3xl border-2 border-orange-200 shadow-lg flex items-end justify-around px-1 py-2 min-h-[64px]">
         {navItems.map((item) => {
           const active = isActive(item.path);
           const isCenter = item.isCenter;
@@ -123,16 +123,16 @@ const BottomNavbar = () => {
                 className="flex flex-col items-center justify-center -mt-6 relative z-10 active:scale-90 transition-transform duration-150 touch-manipulation"
               >
                 <div
-                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.35)] transition-all duration-200 ${
+                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${
                     active
-                      ? 'bg-[#f3b61b] ring-2 ring-[#f3b61b]/60 ring-offset-2 ring-offset-black scale-105'
-                      : 'bg-gray-800 border border-gray-700'
+                      ? 'bg-orange-500 ring-2 ring-orange-500/60 ring-offset-2 ring-offset-white scale-105'
+                      : 'bg-orange-50 border-2 border-orange-200'
                   }`}
                 >
-                  {/* Icon: white when inactive, dark when active (on yellow bg) */}
+                  {/* Icon: gray when inactive, white when active (on orange bg) */}
                   <div
-                    className={`transition-[filter] duration-200 ${
-                      active ? '[filter:brightness(0)]' : '[filter:brightness(0)_invert(1)]'
+                    className={`transition-all duration-200 ${
+                      active ? 'brightness-0 invert' : 'brightness-0 opacity-40'
                     }`}
                   >
                     {item.icon}
@@ -140,7 +140,7 @@ const BottomNavbar = () => {
                 </div>
                 <span
                   className={`text-[10px] sm:text-xs font-bold mt-1 transition-colors duration-200 ${
-                    active ? 'text-[#f3b61b]' : 'text-white'
+                    active ? 'text-orange-500' : 'text-gray-600'
                   }`}
                 >
                   {item.label}
@@ -161,10 +161,10 @@ const BottomNavbar = () => {
               }}
               className="relative flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-xl min-w-[56px] active:scale-95 transition-all duration-150 touch-manipulation"
             >
-              {/* Icon: white when inactive, golden when active - same as text */}
+              {/* Icon: gray when inactive, orange when active */}
               <div
                 className={`transition-all duration-200 ${
-                  active ? 'scale-110 [filter:brightness(0)_invert(0.88)_sepia(0.25)_saturate(8)_hue-rotate(5deg)]' : 'scale-100 [filter:brightness(0)_invert(1)]'
+                  active ? 'scale-110 brightness-0 opacity-60' : 'scale-100 brightness-0 opacity-40'
                 }`}
               >
                 {item.icon}
@@ -172,12 +172,12 @@ const BottomNavbar = () => {
               {/* Active indicator dot below icon */}
               <div className="h-1.5 w-full flex items-center justify-center">
                 {active && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#f3b61b] shadow-[0_0_8px_rgba(0,0,0,0.4)] mx-auto" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-md mx-auto" />
                 )}
               </div>
               <span
                 className={`text-[10px] sm:text-xs font-bold transition-colors duration-200 ${
-                  active ? 'text-[#f3b61b]' : 'text-white'
+                  active ? 'text-orange-500' : 'text-gray-600'
                 }`}
               >
                 {item.label}

@@ -51,6 +51,11 @@ const adminSchema = new mongoose.Schema({
         default: null,
         select: false,
     },
+    /** Bookie-only: Permission to manage payment requests (approve/reject). Set by super admin. */
+    canManagePayments: {
+        type: Boolean,
+        default: false,
+    },
 }, {
     timestamps: true,
 });

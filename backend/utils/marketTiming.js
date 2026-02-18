@@ -18,15 +18,21 @@ export function isBettingAllowed(market, now = new Date()) {
     }
 
     const todayIST = getTodayIST();
-    // Markets open at 12:00 AM (midnight) IST
-    const openAt = parseISTDateTime(`${todayIST}T00:00:00+05:30`);
+    const startStr = (market?.startingTime || '').toString().trim();
+    
+    // Use startingTime if provided, otherwise default to midnight
+    const openAt = startStr 
+        ? parseISTDateTime(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`)
+        : parseISTDateTime(`${todayIST}T00:00:00+05:30`);
+    
     let closeAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`);
     
     if (!openAt || !closeAt) {
         return { allowed: false, message: 'Invalid market time format.' };
     }
 
-    // Handle markets that span midnight (e.g., closing time before midnight)
+    // If closing time is before or equal to opening time, market spans midnight
+    // Example: 11 PM (23:00) to 1 AM (01:00) - closing is next day
     if (closeAt <= openAt) {
         const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
         baseDate.setDate(baseDate.getDate() + 1);
@@ -42,11 +48,11 @@ export function isBettingAllowed(market, now = new Date()) {
     const lastBetAt = closeAt - closureSec * 1000;
     const nowMs = now.getTime();
 
-    // Markets are always open from 12 AM until closing time
     if (nowMs < openAt) {
+        const startTimeDisplay = startStr || '12:00 AM (midnight)';
         return {
             allowed: false,
-            message: 'Betting opens at 12:00 AM. You can place bets after midnight.',
+            message: `Betting opens at ${startTimeDisplay}. You can place bets after the opening time.`,
         };
     }
     if (nowMs > lastBetAt) {
@@ -80,16 +86,25 @@ function parseISTDateTime(isoStr) {
 /**
  * Check if market's betting has closed (past closing time for today).
  * Uses IST. Returns true when result declaration is expected.
+ * Handles markets that span midnight (e.g., 11 PM - 1 AM) correctly.
  */
 export function isBettingClosed(market, now = new Date()) {
     const closeStr = (market?.closingTime || '').toString().trim();
     if (!closeStr) return false;
 
     const todayIST = getTodayIST();
+    const startStr = (market?.startingTime || '').toString().trim();
+    
+    // Use startingTime if provided, otherwise default to midnight
+    const openAt = startStr 
+        ? parseISTDateTime(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`)
+        : parseISTDateTime(`${todayIST}T00:00:00+05:30`);
+    
     let closeAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`);
     if (!closeAt) return false;
 
-    const openAt = parseISTDateTime(`${todayIST}T00:00:00+05:30`);
+    // If closing time is before or equal to opening time, market spans midnight
+    // Example: 11 PM (23:00) to 1 AM (01:00) - closing is next day
     if (closeAt <= openAt) {
         const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
         baseDate.setDate(baseDate.getDate() + 1);
@@ -102,6 +117,7 @@ export function isBettingClosed(market, now = new Date()) {
         closeAt = parseISTDateTime(`${nextDayStr}T${normalizeTimeStr(closeStr)}+05:30`);
     }
 
+    // Use > instead of >= so market is accessible until after closing time
     return now.getTime() > closeAt;
 }
 

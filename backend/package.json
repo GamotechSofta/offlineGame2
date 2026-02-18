@@ -10,7 +10,8 @@
     "start": "nodemon index.js",
     "dev": "nodemon index.js",
     "create-admin": "node scripts/createAdmin.js",
-    "create-bookie": "node scripts/createBookie.js"
+    "create-bookie": "node scripts/createBookie.js",
+    "check-env": "node scripts/checkEnv.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

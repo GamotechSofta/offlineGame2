@@ -93,7 +93,7 @@ const Layout = ({ children }) => {
   // Same header (logoipsum, Download App, bell) for all pages - mobile-style
   if (isHomePage) {
     return (
-      <div className="min-h-screen min-h-ios-screen pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0 bg-black w-full">
+      <div className="min-h-screen min-h-ios-screen pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0 bg-white w-full">
         <AppHeader />
         <div className="pt-[calc(56px+env(safe-area-inset-top,0px))] sm:pt-[calc(52px+env(safe-area-inset-top,0px))] md:pt-[calc(56px+env(safe-area-inset-top,0px))]">
           {children}
@@ -108,23 +108,13 @@ const Layout = ({ children }) => {
     location.pathname === '/support' ||
     location.pathname === '/support/new' ||
     location.pathname === '/support/status';
-  const isDarkPage =
-    isBidPage ||
-    location.pathname === '/bids' ||
-    location.pathname === '/bank' ||
-    location.pathname === '/funds' ||
-    location.pathname === '/passbook' ||
-    location.pathname === '/download' ||
-    location.pathname === '/profile' ||
-    location.pathname === '/bet-history' ||
-    location.pathname === '/market-result-history' ||
-    isSupportPage;
+  // All pages now use white background with orange/white theme
   const isBetsPage = location.pathname === '/bids';
   const isHistoryPage =
     location.pathname === '/bet-history' || location.pathname === '/market-result-history';
 
   return (
-    <div className={`min-h-screen min-h-ios-screen pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0 w-full max-w-full overflow-x-hidden ${isDarkPage ? 'bg-black' : 'bg-gray-50'}`}>
+    <div className="min-h-screen min-h-ios-screen pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0 w-full max-w-full overflow-x-hidden bg-white">
       <AppHeader />
       {/* Reduce mobile top-gap under fixed header */}
       {/* Desktop: ensure no overlap under fixed header */}

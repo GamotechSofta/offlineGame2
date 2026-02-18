@@ -18,6 +18,9 @@ import {
 } from 'react-icons/fa';
 
 const getPresets = (t) => [
+    { id: 'all', label: t('all'), getRange: () => {
+        return { from: null, to: null };
+    }},
     { id: 'today', label: t('today'), getRange: () => {
         const d = new Date();
         const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
@@ -126,7 +129,7 @@ const Dashboard = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [datePreset, setDatePreset] = useState('today');
+    const [datePreset, setDatePreset] = useState('all');
     const [customFrom, setCustomFrom] = useState('');
     const [customTo, setCustomTo] = useState('');
     const [customMode, setCustomMode] = useState(false);
@@ -138,7 +141,12 @@ const Dashboard = () => {
     const getFromTo = () => {
         if (customMode && customFrom && customTo) return { from: customFrom, to: customTo };
         const preset = PRESETS.find((p) => p.id === datePreset);
-        return preset ? preset.getRange() : PRESETS[0].getRange();
+        const range = preset ? preset.getRange() : PRESETS[0].getRange();
+        // If "all" is selected, return null values to fetch all data
+        if (range.from === null && range.to === null) {
+            return { from: null, to: null };
+        }
+        return range;
     };
 
     useEffect(() => {
@@ -153,7 +161,11 @@ const Dashboard = () => {
             setError('');
             const { from, to } = rangeOverride || getFromTo();
             const params = new URLSearchParams();
-            if (from && to) { params.set('from', from); params.set('to', to); }
+            // Only add date params if they are provided (not null for "all" option)
+            if (from && to) { 
+                params.set('from', from); 
+                params.set('to', to); 
+            }
             if (isRefresh) params.set('_', String(Date.now()));
             const query = params.toString();
             const url = `${API_BASE_URL}/dashboard/stats${query ? `?${query}` : ''}`;
@@ -231,7 +243,9 @@ const Dashboard = () => {
         );
     }
 
-    const displayLabel = customMode && customFrom && customTo ? formatRangeLabel(customFrom, customTo, t) : (PRESETS.find((p) => p.id === datePreset)?.label || t('today'));
+    const displayLabel = customMode && customFrom && customTo 
+        ? formatRangeLabel(customFrom, customTo, t) 
+        : (PRESETS.find((p) => p.id === datePreset)?.label || t('all'));
 
     return (
         <Layout title={t('dashboard')}>
@@ -275,6 +289,7 @@ const Dashboard = () => {
                                 </button>
                             );
                         })}
+                        <span className="text-xs text-gray-400 px-2">{t('showingDataFor')} <span className="text-orange-500 font-medium">{displayLabel}</span></span>
                         <button
                             type="button"
                             onClick={handleCustomToggle}
@@ -298,7 +313,6 @@ const Dashboard = () => {
                             </div>
                         )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">{t('showingDataFor')} <span className="text-orange-500 font-medium">{displayLabel}</span></p>
                 </div>
             </div>
 
@@ -324,51 +338,32 @@ const Dashboard = () => {
                 </div>
             )}
 
-            {/* Primary KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Primary KPIs - Related Financial Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalRevenuePeriod')}</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(stats?.revenue?.total)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('betAmountCollected')}</p>
-                </div>
-                <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('netProfitPeriod')}</p>
-                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.revenue?.netProfit)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('revenueMinusPayouts')}</p>
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalPlayersAllTime')}</p>
-                    <p className="text-2xl font-bold text-purple-600 font-mono">{stats?.users?.total ?? 0}</p>
-                    <p className="text-xs text-gray-500 mt-1">{stats?.users?.active ?? 0} {t('active')} · {stats?.users?.newToday ?? 0} {t('newInRange')}</p>
-                </div>
-                <div className="bg-gradient-to-br from-orange-50 to-transparent rounded-xl p-5 border border-orange-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetsPeriod')}</p>
-                    <p className="text-2xl font-bold text-orange-500 font-mono">{stats?.bets?.total ?? 0}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('winRate')}: {stats?.bets?.winRate ?? 0}%</p>
-                </div>
-            </div>
-
-            {/* To Give & To Take KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toGiveAllTime')}</p>
-                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.toGive || 0)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('moneyToGiveToPlayers')}</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetAmount')}</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(stats?.revenue?.total || 0)}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('totalBetAmountDescription')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toTakeAllTime')}</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toReceived')}</p>
                     <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(stats?.toTake || 0)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('moneyToTakeFromPlayers')}</p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalAdvanceAllTime')}</p>
-                    <p className="text-2xl font-bold text-purple-600 font-mono">{formatCurrency(stats?.advance)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('totalDepositsGiven')}</p>
+                <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toGive')}</p>
+                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.toGive || 0)}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('moneyToGiveToPlayers')}</p>
                 </div>
-                <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalLossAllTime')}</p>
-                    <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(stats?.loss)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('totalLossFromBets')}</p>
+                <div className="bg-gradient-to-br from-orange-50 to-transparent rounded-xl p-5 border border-orange-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('pending')}</p>
+                    <p className="text-2xl font-bold text-orange-600 font-mono">{formatCurrency(stats?.pending || 0)}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('pendingBetsAmount')}</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalProfit')}</p>
+                    <p className="text-2xl font-bold text-purple-600 font-mono">{formatCurrency(stats?.totalProfit || 0)}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('totalProfitDescription')}</p>
                 </div>
             </div>
 

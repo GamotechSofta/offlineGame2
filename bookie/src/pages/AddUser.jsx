@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const AddUser = () => {
     const { t } = useLanguage();
@@ -16,6 +17,7 @@ const AddUser = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -107,28 +109,47 @@ const AddUser = () => {
                             <label className="block text-gray-600 text-sm font-medium mb-2">
                                 {t('password')} *
                             </label>
-                            <input
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                                required
-                                minLength="6"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2 pr-10 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    placeholder={t('enterPassword')}
+                                    required
+                                    minLength="6"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
+                                    aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+                                >
+                                    {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{t('passwordRequiredForLogin')}</p>
                         </div>
 
                         <div>
                             <label className="block text-gray-600 text-sm font-medium mb-2">
-                                {t('phone')}
+                                {t('phone')} *
                             </label>
                             <input
                                 type="tel"
                                 name="phone"
                                 value={formData.phone}
-                                onChange={handleChange}
+                                onChange={(e) => {
+                                    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                    setFormData({ ...formData, phone: value });
+                                }}
                                 className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                placeholder="10-digit phone number"
+                                required
+                                maxLength="10"
                             />
+                            <p className="text-xs text-gray-500 mt-1">{t('phoneRequiredForLogin')}</p>
                         </div>
 
                         <div>

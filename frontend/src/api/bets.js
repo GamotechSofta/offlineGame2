@@ -25,8 +25,11 @@ export function updateUserBalance(newBalance) {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     user.balance = newBalance;
+    user.walletBalance = newBalance; // Also update walletBalance for compatibility
     localStorage.setItem('user', JSON.stringify(user));
+    // Dispatch both events for compatibility
     window.dispatchEvent(new Event('userLogin'));
+    window.dispatchEvent(new CustomEvent('balanceUpdated', { detail: { balance: newBalance } }));
   } catch (_) {}
 }
 
@@ -65,6 +68,26 @@ export async function placeBet(marketId, bets, scheduledDate = null) {
     if (s === 'close') return 'close';
     return undefined;
   };
+
+  // Validate bets before sending
+  const totalAmount = bets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  if (totalAmount <= 0) {
+    return { success: false, message: 'Total bet amount must be greater than 0' };
+  }
+  
+  // Validate each bet
+  for (const b of bets) {
+    const amount = Number(b.amount) || 0;
+    if (amount <= 0) {
+      return { success: false, message: 'Each bet amount must be greater than 0' };
+    }
+    if (amount > 1000000) {
+      return { success: false, message: 'Bet amount cannot exceed ₹10,00,000' };
+    }
+    if (!b.betNumber || String(b.betNumber).trim() === '') {
+      return { success: false, message: 'Bet number is required for all bets' };
+    }
+  }
 
   const payload = {
     userId,

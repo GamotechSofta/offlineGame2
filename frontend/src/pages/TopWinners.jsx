@@ -72,13 +72,13 @@ const TopWinners = () => {
   }, [rows]);
 
   return (
-    <div className="min-h-screen bg-black text-white px-3 sm:px-6 md:px-8 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen bg-white text-gray-800 px-3 sm:px-6 md:px-8 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
       <div className="w-full max-w-2xl mx-auto">
         <div className="flex items-center gap-3 pt-4 pb-3">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="min-w-[44px] min-h-[44px] rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/15 active:scale-95 transition touch-manipulation"
+            className="min-w-[44px] min-h-[44px] rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center text-gray-800 hover:bg-orange-100 active:scale-95 transition touch-manipulation"
             aria-label="Back"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,8 +98,8 @@ const TopWinners = () => {
                 onClick={() => setTimeRange(t.key)}
                 className={`h-9 px-4 rounded-full border text-sm font-semibold transition-colors ${
                   active
-                    ? 'bg-[#d4af37] text-black border-[#d4af37]/60'
-                    : 'bg-[#202124] text-white border-white/10 hover:border-[#d4af37]/30'
+                    ? 'bg-orange-500 text-white border-orange-500'
+                    : 'bg-white text-gray-700 border-orange-200 hover:border-orange-300 hover:bg-orange-50'
                 }`}
               >
                 {t.label}
@@ -109,7 +109,7 @@ const TopWinners = () => {
         </div>
 
         {error ? (
-          <div className="p-4 bg-red-900/50 border border-red-600 rounded-xl text-red-300 text-sm">
+          <div className="p-4 bg-red-50 border border-red-300 rounded-xl text-red-600 text-sm">
             {error}
           </div>
         ) : null}
@@ -117,11 +117,11 @@ const TopWinners = () => {
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-[76px] rounded-2xl bg-[#202124] border border-white/10 animate-pulse" />
+              <div key={i} className="h-[76px] rounded-2xl bg-orange-50 border border-orange-200 animate-pulse" />
             ))}
           </div>
         ) : normalized.length === 0 ? (
-          <div className="bg-[#202124] border border-white/10 rounded-2xl p-6 text-center text-gray-400 text-sm">
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 text-center text-gray-600 text-sm">
             No winners found.
           </div>
         ) : (
@@ -129,7 +129,7 @@ const TopWinners = () => {
             {normalized.map((r) => (
               <div
                 key={`${r.rank}-${r.username}`}
-                className="bg-[#202124] border border-white/10 rounded-2xl p-4 shadow-[0_12px_24px_rgba(0,0,0,0.35)] flex items-center gap-3"
+                className="bg-white border border-orange-200 rounded-2xl p-4 shadow-md hover:shadow-lg transition-shadow flex items-center gap-3"
               >
                 <div
                   className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${medalBg(r.rank)} text-black flex items-center justify-center font-extrabold shadow-[0_10px_20px_rgba(0,0,0,0.35)] shrink-0`}
@@ -140,10 +140,10 @@ const TopWinners = () => {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-white font-bold truncate">{r.username}</div>
-                    <div className="text-[#d4af37] font-extrabold shrink-0">₹ {INR(r.totalWinnings)}</div>
+                    <div className="text-gray-800 font-bold truncate">{r.username}</div>
+                    <div className="text-orange-600 font-extrabold shrink-0">₹ {INR(r.totalWinnings)}</div>
                   </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
+                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-600">
                     <span className="shrink-0">Wins: {INR(r.totalWins)}</span>
                     {r.winRate ? <span className="shrink-0">Win rate: {r.winRate}%</span> : null}
                   </div>

@@ -252,7 +252,7 @@ const Receipt = () => {
 
     const fetchMarketDetails = async (marketId) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/markets/${marketId}`, {
+            const response = await fetch(`${API_BASE_URL}/markets/get-market/${marketId}`, {
                 headers: getBookieAuthHeaders(),
             });
             const data = await response.json();
@@ -375,7 +375,7 @@ const Receipt = () => {
         
         if (!marketData && selectedSession.marketId) {
             try {
-                const response = await fetch(`${API_BASE_URL}/markets/${selectedSession.marketId}`, {
+                const response = await fetch(`${API_BASE_URL}/markets/get-market/${selectedSession.marketId}`, {
                     headers: getBookieAuthHeaders(),
                 });
                 const data = await response.json();

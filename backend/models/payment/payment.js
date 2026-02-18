@@ -32,6 +32,16 @@ const paymentSchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
+    // Screenshot stored as base64 in database
+    screenshot: {
+        data: {
+            type: Buffer,
+        },
+        contentType: {
+            type: String,
+            default: 'image/jpeg',
+        },
+    },
     // UTR / Transaction ID entered by user
     upiTransactionId: {
         type: String,

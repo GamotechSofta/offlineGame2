@@ -53,6 +53,10 @@ const PlayerDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
+    // Tabs and date presets
+    const TABS = getTabs(t);
+    const DATE_PRESETS = getDatePresets(t);
+
     // Date range (shared across tabs)
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
@@ -98,7 +102,7 @@ const PlayerDetail = () => {
             setDateFrom(from);
             setDateTo(to);
         }
-    }, []);
+    }, [DATE_PRESETS]);
 
     useEffect(() => {
         const handleClickOutside = (e) => {

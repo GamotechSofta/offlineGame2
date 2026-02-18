@@ -44,24 +44,45 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-black w-full px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between shadow-sm">
-      {/* Left side - Hamburger menu and Logo */}
+    <nav className="bg-white w-full px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between shadow-md border-b border-orange-100">
+      {/* Left side - Hamburger menu, Home icon and Logo */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Hamburger Menu Icon */}
-        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-[#f3b61b]/50 flex items-center justify-center cursor-pointer hover:bg-[#f3b61b]/10 transition-colors">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-gray-300 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors">
           <div className="flex flex-col gap-1 sm:gap-1.5">
-            <div className="w-2.5 sm:w-3 h-0.5 bg-[#f3b61b]"></div>
-            <div className="w-3 sm:w-4 h-0.5 bg-[#f3b61b]"></div>
-            <div className="w-2.5 sm:w-3 h-0.5 bg-[#f3b61b]"></div>
+            <div className="w-2.5 sm:w-3 h-0.5 bg-black"></div>
+            <div className="w-3 sm:w-4 h-0.5 bg-black"></div>
+            <div className="w-2.5 sm:w-3 h-0.5 bg-black"></div>
           </div>
         </div>
         
+        {/* Home Icon */}
+        <Link 
+          to="/" 
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-gray-300 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
+          title="Home"
+        >
+          <svg 
+            className="w-5 h-5 sm:w-6 sm:h-6 text-black" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth="2" 
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
+            />
+          </svg>
+        </Link>
+        
         {/* Logo Text - Clickable to home */}
         <Link to="/" className="flex items-center cursor-pointer">
-          <span className="text-base sm:text-xl md:text-2xl font-bold text-[#f3b61b] underline decoration-[#f3b61b] decoration-2 underline-offset-2">
+          <span className="text-base sm:text-xl md:text-2xl font-bold text-orange-500 underline decoration-orange-500 decoration-2 underline-offset-2">
             RATAN
           </span>
-          <span className="text-base sm:text-xl md:text-2xl font-bold text-[#f3b61b] underline decoration-[#f3b61b] decoration-2 underline-offset-2 ml-0.5 sm:ml-1">
+          <span className="text-base sm:text-xl md:text-2xl font-bold text-orange-500 underline decoration-orange-500 decoration-2 underline-offset-2 ml-0.5 sm:ml-1">
             365
           </span>
         </Link>
@@ -69,22 +90,10 @@ const Navbar = () => {
 
       {/* Right side - Buttons and User info */}
       <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-        {/* Download App Button */}
-        <button 
-          onClick={() => navigate('/download')}
-          className="bg-[#f3b61b] text-black px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg shadow-md hover:opacity-90 transition-colors font-medium text-xs sm:text-sm md:text-base flex items-center gap-1.5"
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          <span className="hidden sm:inline">Download App</span>
-          <span className="sm:hidden">App</span>
-        </button>
-        
         {/* Bank Button */}
         <button 
           onClick={() => navigate('/bank')}
-          className="bg-[#f3b61b] text-black px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg shadow-md hover:opacity-90 transition-colors font-medium text-xs sm:text-sm md:text-base"
+          className="bg-orange-500 text-white px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg shadow-md hover:bg-orange-600 transition-colors font-medium text-xs sm:text-sm md:text-base"
         >
           Bank
         </button>
@@ -95,11 +104,11 @@ const Navbar = () => {
             {/* Profile Icon - Clickable to profile or logout */}
             <div 
               onClick={handleLogout}
-              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-[#f3b61b]/50 bg-gray-800 flex items-center justify-center cursor-pointer hover:bg-[#f3b61b]/10 transition-colors"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-orange-500 bg-orange-50 flex items-center justify-center cursor-pointer hover:bg-orange-100 transition-colors"
               title="Logout"
             >
               <svg 
-                className="w-5 h-5 sm:w-6 sm:h-6 text-[#f3b61b]" 
+                className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" 
                 fill="currentColor" 
                 viewBox="0 0 20 20"
               >
@@ -112,7 +121,7 @@ const Navbar = () => {
             </div>
             
             {/* Username - Hidden on very small screens */}
-            <span className="text-[#f3b61b] font-medium text-sm sm:text-base md:text-lg hidden sm:inline">
+            <span className="text-gray-800 font-medium text-sm sm:text-base md:text-lg hidden sm:inline">
               {user.username}
             </span>
           </>
@@ -120,11 +129,11 @@ const Navbar = () => {
           /* Sign In/Sign Up Icon */
           <div 
             onClick={() => navigate('/login')}
-            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-gray-600 bg-gray-800 flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-orange-500 bg-orange-50 flex items-center justify-center cursor-pointer hover:bg-orange-100 transition-colors"
             title="Sign In / Sign Up"
           >
             <svg 
-              className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" 
+              className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"

@@ -23,7 +23,7 @@ import GameTypes from './pages/GameTypes';
 import BookieGameBid from './pages/GameBid/index';
 import Shortcuts from './pages/Shortcuts';
 import Receipt from './pages/Receipt';
-import CreateReceipt from './pages/CreateReceipt';
+import BetsByUser from './pages/BetsByUser';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -79,6 +79,7 @@ const AppRoutes = () => (
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
         <Route path="/referral-link" element={<PrivateRoute><ReferralLink /></PrivateRoute>} />
         <Route path="/bet-history" element={<PrivateRoute><BetHistory /></PrivateRoute>} />
+        <Route path="/bets-by-user" element={<PrivateRoute><BetsByUser /></PrivateRoute>} />
         <Route path="/top-winners" element={<PrivateRoute><TopWinners /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
         <Route path="/revenue" element={<PrivateRoute><Revenue /></PrivateRoute>} />
@@ -86,7 +87,6 @@ const AppRoutes = () => (
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
         <Route path="/receipt" element={<PrivateRoute><Receipt /></PrivateRoute>} />
         <Route path="/receipt/:sessionId" element={<PrivateRoute><Receipt /></PrivateRoute>} />
-        <Route path="/create-receipt" element={<PrivateRoute><CreateReceipt /></PrivateRoute>} />
 
         <Route path="/help-desk" element={<PrivateRoute><HelpDesk /></PrivateRoute>} />
         <Route path="/shortcuts" element={<PrivateRoute><Shortcuts /></PrivateRoute>} />

@@ -204,7 +204,7 @@ const MyUsers = () => {
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3">
                                                     <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
                                                         isOnline
-                                                            ? 'bg-green-900/50 text-green-600 border border-green-700'
+                                                            ? 'bg-green-100 text-green-700 border border-green-300'
                                                             : 'bg-gray-100 text-gray-400 border border-gray-200'
                                                     }`}>
                                                         <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
@@ -214,7 +214,7 @@ const MyUsers = () => {
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3">
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                                                         item.isActive !== false
-                                                            ? 'bg-green-900/50 text-green-600 border border-green-700'
+                                                            ? 'bg-green-100 text-green-700 border border-green-300'
                                                             : 'bg-red-50 text-red-500 border border-red-200'
                                                     }`}>
                                                         {item.isActive !== false ? t('active') : t('suspended')}

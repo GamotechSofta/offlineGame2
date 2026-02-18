@@ -28,6 +28,7 @@ const BookieManagement = () => {
         password: '',
         confirmPassword: '',
         commissionPercentage: '',
+        canManagePayments: false,
     });
 
     const [formLoading, setFormLoading] = useState(false);
@@ -130,6 +131,7 @@ const BookieManagement = () => {
                 phone: formData.phone.replace(/\D/g, '').slice(0, 10),
                 password: formData.password,
                 commissionPercentage: formData.commissionPercentage ? Number(formData.commissionPercentage) : 0,
+                canManagePayments: formData.canManagePayments || false,
             };
             const response = await fetch(`${API_BASE_URL}/admin/bookies`, {
                 method: 'POST',
@@ -141,7 +143,7 @@ const BookieManagement = () => {
                 const phoneNumber = formData.phone.replace(/\D/g, '').slice(0, 10);
                 setSuccess(`Bookie account created successfully! Login credentials - Phone: ${phoneNumber}, Password: ${formData.password}`);
                 setShowCreateModal(false);
-                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '' });
+                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false });
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 10000); // Show for 10 seconds so user can note the credentials
             } else {
@@ -180,6 +182,7 @@ const BookieManagement = () => {
                 email: formData.email.trim(),
                 phone: formData.phone.replace(/\D/g, '').slice(0, 10) || formData.phone,
                 commissionPercentage: formData.commissionPercentage !== '' ? Number(formData.commissionPercentage) : undefined,
+                canManagePayments: formData.canManagePayments,
             };
             if (formData.password) updateData.password = formData.password;
 
@@ -193,7 +196,7 @@ const BookieManagement = () => {
                 setSuccess('Bookie updated successfully!');
                 setShowEditModal(false);
                 setSelectedBookie(null);
-                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '' });
+                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false });
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 3000);
             } else {
@@ -311,6 +314,7 @@ const BookieManagement = () => {
             password: '',
             confirmPassword: '',
             commissionPercentage: bookie.commissionPercentage != null ? String(bookie.commissionPercentage) : '0',
+            canManagePayments: bookie.canManagePayments || false,
         });
         setShowEditModal(true);
     };
@@ -343,7 +347,7 @@ const BookieManagement = () => {
                         <h1 className="text-2xl sm:text-3xl font-bold">Bookie Accounts Management</h1>
                         <button
                             onClick={() => {
-                                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '' });
+                                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false });
                                 setShowCreateModal(true);
                             }}
                             className="w-full sm:w-auto flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-gray-800 font-bold py-2.5 px-4 rounded-lg transition-colors text-sm sm:text-base"
@@ -401,6 +405,9 @@ const BookieManagement = () => {
                                             Commission
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                            Payment Management
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Status
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
@@ -439,6 +446,15 @@ const BookieManagement = () => {
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200">
                                                     <FaPercent className="w-2.5 h-2.5" />
                                                     {bookie.commissionPercentage ?? 0}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                                    bookie.canManagePayments 
+                                                        ? 'bg-green-100 text-green-700 border border-green-200' 
+                                                        : 'bg-gray-100 text-gray-600 border border-gray-200'
+                                                }`}>
+                                                    {bookie.canManagePayments ? 'Enabled' : 'Disabled'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -591,6 +607,19 @@ const BookieManagement = () => {
                                     <p className="mt-1 text-xs text-gray-500">Commission this bookie earns (0–100%). Default: 0%</p>
                                 </div>
                                 <div>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            name="canManagePayments"
+                                            checked={formData.canManagePayments}
+                                            onChange={(e) => setFormData({ ...formData, canManagePayments: e.target.checked })}
+                                            className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                                        />
+                                        <span className="text-gray-600 text-sm font-medium">Allow Payment Management</span>
+                                    </label>
+                                    <p className="mt-1 text-xs text-gray-500">Allow this bookie to approve/reject payment requests from their players</p>
+                                </div>
+                                <div>
                                     <label className="block text-gray-600 text-sm font-medium mb-2">Password *</label>
                                     <div className="relative">
                                         <input
@@ -720,6 +749,19 @@ const BookieManagement = () => {
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>
                                     </div>
                                     <p className="mt-1 text-xs text-gray-500">Commission this bookie earns (0–100%).</p>
+                                </div>
+                                <div>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            name="canManagePayments"
+                                            checked={formData.canManagePayments}
+                                            onChange={(e) => setFormData({ ...formData, canManagePayments: e.target.checked })}
+                                            className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                                        />
+                                        <span className="text-gray-600 text-sm font-medium">Allow Payment Management</span>
+                                    </label>
+                                    <p className="mt-1 text-xs text-gray-500">Allow this bookie to approve/reject payment requests from their players</p>
                                 </div>
                                 <div>
                                     <label className="block text-gray-600 text-sm font-medium mb-2">

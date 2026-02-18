@@ -353,7 +353,7 @@ export const updateBookie = async (req, res) => {
         }
 
         const { id } = req.params;
-        const { username, firstName, lastName, email, phone, status, password, uiTheme, commissionPercentage } = req.body;
+        const { username, firstName, lastName, email, phone, status, password, uiTheme, commissionPercentage, canManagePayments } = req.body;
 
         const bookie = await Admin.findOne({ _id: id, role: 'bookie' });
         if (!bookie) {
@@ -416,6 +416,10 @@ export const updateBookie = async (req, res) => {
                 bookie.commissionPercentage = cp;
             }
         }
+        // Update payment management permission if provided
+        if (canManagePayments !== undefined) {
+            bookie.canManagePayments = Boolean(canManagePayments);
+        }
         // Update password if provided
         if (password) {
             if (password.length < 6) {
@@ -451,6 +455,7 @@ export const updateBookie = async (req, res) => {
                 role: bookie.role,
                 uiTheme: bookie.uiTheme,
                 commissionPercentage: bookie.commissionPercentage,
+                canManagePayments: bookie.canManagePayments,
             },
         });
     } catch (error) {

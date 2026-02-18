@@ -289,7 +289,7 @@ const BidReviewModal = ({
                   <p className="text-gray-400 text-xs mt-0.5">{receiptData.timestamp}</p>
                 </div>
 
-                {/* Bet summary table */}
+                {/* Bet summary table - Two column layout */}
                 {receiptData.showGameType && receiptData.grouped ? (
                   <div className="space-y-3">
                     {Object.entries(receiptData.grouped).map(([label, items]) => (
@@ -298,12 +298,14 @@ const BidReviewModal = ({
                           <span className="text-orange-600 font-semibold text-[10px] uppercase tracking-wide">{label} <span className="text-gray-400">({items.length})</span></span>
                           <span className="text-orange-600 text-[11px] font-bold">₹{items.reduce((s, r) => s + Number(r.points || 0), 0).toLocaleString('en-IN')}</span>
                         </div>
-                        <div className="divide-y divide-gray-100">
+                        <div className="grid grid-cols-2 divide-x divide-gray-200">
                           {items.map((r) => (
-                            <div key={r.id} className="grid grid-cols-3 text-center px-3 py-1.5 text-xs">
-                              <span className="text-gray-800 font-bold">{renderBetNumber(r.number)}</span>
-                              <span className="text-orange-500 font-bold">₹{r.points}</span>
-                              <span className="text-gray-500 uppercase text-[10px]">{r.type}</span>
+                            <div key={r.id} className="px-2 py-1.5 border-b border-gray-100 last:border-b-0">
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <span className="text-gray-800 font-bold flex-1 truncate">{renderBetNumber(r.number)}</span>
+                                <span className="text-orange-500 font-bold shrink-0">₹{r.points}</span>
+                                <span className="text-gray-500 uppercase text-[10px] shrink-0">{r.type}</span>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -312,17 +314,32 @@ const BidReviewModal = ({
                   </div>
                 ) : (
                   <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="grid grid-cols-3 text-center px-3 py-2 bg-gray-100 border-b border-gray-200 text-[10px] font-semibold text-orange-600 uppercase">
-                      <span>{receiptData.labelKey}</span>
-                      <span>Points</span>
-                      <span>Session</span>
+                    <div className="px-3 py-2 bg-gray-100 border-b border-gray-200">
+                      <div className="grid grid-cols-2 divide-x divide-gray-300">
+                        <div className="text-center text-[10px] font-semibold text-orange-600 uppercase">
+                          <div className="grid grid-cols-3 gap-1">
+                            <span>{receiptData.labelKey}</span>
+                            <span>Points</span>
+                            <span>Session</span>
+                          </div>
+                        </div>
+                        <div className="text-center text-[10px] font-semibold text-orange-600 uppercase">
+                          <div className="grid grid-cols-3 gap-1">
+                            <span>{receiptData.labelKey}</span>
+                            <span>Points</span>
+                            <span>Session</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="divide-y divide-gray-100">
+                    <div className="grid grid-cols-2 divide-x divide-gray-200">
                       {receiptData.rows.map((r) => (
-                        <div key={r.id} className="grid grid-cols-3 text-center px-3 py-1.5 text-xs">
-                          <span className="text-gray-800 font-bold">{renderBetNumber(r.number)}</span>
-                          <span className="text-orange-500 font-bold">₹{r.points}</span>
-                          <span className="text-gray-500 uppercase text-[10px]">{r.type}</span>
+                        <div key={r.id} className="px-2 py-1.5 border-b border-gray-100 last:border-b-0">
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <span className="text-gray-800 font-bold flex-1 truncate">{renderBetNumber(r.number)}</span>
+                            <span className="text-orange-500 font-bold shrink-0">₹{r.points}</span>
+                            <span className="text-gray-500 uppercase text-[10px] shrink-0">{r.type}</span>
+                          </div>
                         </div>
                       ))}
                     </div>
