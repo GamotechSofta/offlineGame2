@@ -35,8 +35,9 @@ function parseISTDateTime(isoStr) {
 }
 
 /**
- * Check if current time is within market's opening window
- * Market is open from startingTime (or midnight if not specified) until closingTime
+ * Check if current time is within market's betting window
+ * Betting is allowed until opening time and until closing time
+ * Betting closes at opening time and at closing time
  */
 export function isMarketOpen(market, now = new Date()) {
     const closeStr = (market?.closingTime || '').toString().trim();
@@ -70,7 +71,8 @@ export function isMarketOpen(market, now = new Date()) {
     }
 
     const nowMs = now.getTime();
-    return nowMs >= startAt && nowMs < closeAt;
+    // Betting is allowed only if before opening time AND before closing time
+    return nowMs < startAt && nowMs < closeAt;
 }
 
 /**

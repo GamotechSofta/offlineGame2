@@ -1,6 +1,7 @@
 /**
  * Check if betting is allowed for a market at the given time.
- * Market opens at midnight (00:00) IST and closes at closing time each day.
+ * Users can bet until opening time and until closing time.
+ * Betting closes at opening time and at closing time.
  * Uses IST (Asia/Kolkata) to match market reset and backend.
  *
  * @param {{ closingTime: string, betClosureTime?: number }} market
@@ -46,17 +47,19 @@ export function isBettingAllowed(market, now = new Date()) {
   const lastBetAt = closeAt - closureSec * 1000;
   const nowMs = now.getTime();
 
-  if (nowMs < openAt) {
+  // Betting closes at opening time - if current time is at or after opening time, betting is closed
+  if (nowMs >= openAt) {
     const startTimeDisplay = startStr || '12:00 AM (midnight)';
     return {
       allowed: false,
-      message: `Betting opens at ${startTimeDisplay}. You can place bets after the opening time.`,
+      message: `Betting closed. Opening time (${startTimeDisplay}) has passed. You can place bets until the opening time.`,
     };
   }
-  if (nowMs > lastBetAt) {
+  // Betting closes at closing time - if current time is at or after closing time, betting is closed
+  if (nowMs >= lastBetAt) {
     return {
       allowed: false,
-      message: `Betting has closed for this market. Bets are not accepted after ${closureSec > 0 ? 'the set closure time.' : 'closing time.'}`,
+      message: `Betting closed. Closing time has passed. You can place bets until ${closureSec > 0 ? 'the set closure time.' : 'closing time.'}`,
     };
   }
   return { allowed: true };
