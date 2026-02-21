@@ -6,7 +6,7 @@ const heroImageUrl =
 const HeroSection = () => {
   return (
     <section
-      className="w-full max-w-full overflow-hidden mb-6"
+      className="w-full max-w-full overflow-hidden mb-6 mt-5"
       style={{
         aspectRatio: '1920 / 500',
         backgroundImage: `url(${heroImageUrl})`,
