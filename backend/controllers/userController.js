@@ -356,6 +356,26 @@ export const createUser = async (req, res) => {
             return res.status(409).json({ success: false, message: 'A player with this username already exists' });
         }
 
+        const initialBalanceForPlayer = Number(balance) || 0;
+
+        // When bookie creates a player with initial balance, deduct from bookie's balance
+        if (source === 'bookie' && finalReferredBy && initialBalanceForPlayer > 0) {
+            const bookieId = finalReferredBy;
+            const updated = await Admin.findOneAndUpdate(
+                { _id: bookieId, role: 'bookie', balance: { $gte: initialBalanceForPlayer } },
+                { $inc: { balance: -initialBalanceForPlayer } },
+                { new: true }
+            );
+            if (!updated) {
+                const bookie = await Admin.findOne({ _id: bookieId, role: 'bookie' }).select('balance').lean();
+                const available = bookie?.balance ?? 0;
+                return res.status(400).json({
+                    success: false,
+                    message: `Insufficient bookie balance. Required: ₹${initialBalanceForPlayer}, Available: ₹${available}`,
+                });
+            }
+        }
+
         // Hash password manually to avoid pre-save hook issues
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -367,7 +387,7 @@ export const createUser = async (req, res) => {
             password: hashedPassword,
             phone: trimmedPhone,
             role: role || 'user',
-            balance: balance || 0,
+            balance: initialBalanceForPlayer,
             isActive: true,
             source,
             referredBy: finalReferredBy || null,
@@ -381,7 +401,7 @@ export const createUser = async (req, res) => {
         // Create wallet for user
         await Wallet.collection.insertOne({
             userId,
-            balance: balance || 0,
+            balance: initialBalanceForPlayer,
             createdAt: new Date(),
             updatedAt: new Date(),
         });

@@ -56,6 +56,12 @@ const adminSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    /** Bookie-only: Balance allocated by super admin. Deducted when bookie gives balance to players they create. */
+    balance: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
 }, {
     timestamps: true,
 });

@@ -69,6 +69,11 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
                     {user?.username && (
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{user.username}</p>
                     )}
+                    {(user?.balance !== undefined && user?.balance !== null) && (
+                        <p className="text-sm font-semibold text-green-600 mt-1">
+                            {t('balance')}: ₹{Number(user.balance).toLocaleString('en-IN')}
+                        </p>
+                    )}
                 </div>
                 <button
                     type="button"

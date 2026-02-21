@@ -149,7 +149,7 @@ export const createBookie = async (req, res) => {
             });
         }
 
-        const { username, firstName, lastName, email, password, phone, commissionPercentage } = req.body;
+        const { username, firstName, lastName, email, password, phone, commissionPercentage, balance } = req.body;
 
         const derivedUsername = (firstName != null && lastName != null)
             ? `${String(firstName).trim()} ${String(lastName).trim()}`.trim()
@@ -208,6 +208,7 @@ export const createBookie = async (req, res) => {
             return res.status(409).json({ success: false, message: 'A bookie with this name already exists' });
         }
 
+        const initialBalance = (balance != null && Number.isFinite(Number(balance))) ? Math.max(0, Number(balance)) : 0;
         const bookie = new Admin({
             username: derivedUsername,
             password,
@@ -216,6 +217,7 @@ export const createBookie = async (req, res) => {
             phone: trimmedPhone,
             status: 'active',
             commissionPercentage: (commissionPercentage != null && Number.isFinite(Number(commissionPercentage))) ? Math.min(100, Math.max(0, Number(commissionPercentage))) : 0,
+            balance: initialBalance,
         });
         await bookie.save();
         
@@ -243,6 +245,7 @@ export const createBookie = async (req, res) => {
                 phone: bookie.phone,
                 status: bookie.status,
                 commissionPercentage: bookie.commissionPercentage,
+                balance: bookie.balance ?? 0,
             },
         });
     } catch (error) {
@@ -357,7 +360,7 @@ export const updateBookie = async (req, res) => {
         }
 
         const { id } = req.params;
-        const { username, firstName, lastName, email, phone, status, password, uiTheme, commissionPercentage, canManagePayments } = req.body;
+        const { username, firstName, lastName, email, phone, status, password, uiTheme, commissionPercentage, canManagePayments, balance } = req.body;
 
         const bookie = await Admin.findOne({ _id: id, role: 'bookie' });
         if (!bookie) {
@@ -424,6 +427,13 @@ export const updateBookie = async (req, res) => {
         if (canManagePayments !== undefined) {
             bookie.canManagePayments = Boolean(canManagePayments);
         }
+        // Update balance if provided (super admin can set bookie balance)
+        if (balance !== undefined && balance !== null && balance !== '') {
+            const newBal = Number(balance);
+            if (Number.isFinite(newBal) && newBal >= 0) {
+                bookie.balance = newBal;
+            }
+        }
         // Update password if provided
         if (password) {
             if (password.length < 6) {
@@ -460,6 +470,7 @@ export const updateBookie = async (req, res) => {
                 uiTheme: bookie.uiTheme,
                 commissionPercentage: bookie.commissionPercentage,
                 canManagePayments: bookie.canManagePayments,
+                balance: bookie.balance ?? 0,
             },
         });
     } catch (error) {
