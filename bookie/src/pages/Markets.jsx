@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import { API_BASE_URL } from '../utils/api';
+import { API_BASE_URL, getMarketDisplayName } from '../utils/api';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import { useLanguage } from '../context/LanguageContext';
 
 const Markets = () => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [markets, setMarkets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -122,7 +122,7 @@ const Markets = () => {
                                         {status === 'running' && 'CLOSED IS RUNNING'}
                                         {status === 'closed' && 'CLOSED'}
                                     </div>
-                                    <h3 className="text-xl font-bold text-gray-800 mb-2">{market.marketName}</h3>
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">{getMarketDisplayName(market, language)}</h3>
                                     <div className="space-y-2 text-sm text-gray-600">
                                         <p><span className="font-semibold">Opening:</span> {market.startingTime}</p>
                                         <p><span className="font-semibold">Closing:</span> {market.closingTime}</p>

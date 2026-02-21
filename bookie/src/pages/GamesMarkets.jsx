@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import { API_BASE_URL } from '../utils/api';
+import { API_BASE_URL, getMarketDisplayName } from '../utils/api';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import { FaDice, FaClock } from 'react-icons/fa';
-import { isPastClosingTime } from '../utils/marketTiming';
+import { isPastClosingTime, getMarketSession } from '../utils/marketTiming';
 
 /** Format "13:00" / "15:10" to "1pm" / "3:10pm" */
 function formatTimeLabel(timeStr) {
@@ -23,6 +24,7 @@ function formatTimeLabel(timeStr) {
 const GamesMarkets = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { language } = useLanguage();
     const playerId = searchParams.get('playerId') || '';
 
     const [markets, setMarkets] = useState([]);
@@ -66,6 +68,9 @@ const GamesMarkets = () => {
         return { status: 'open' };
     };
 
+    /** 'open' | 'close' | 'closed' – which session is active for placing bets */
+    const getSession = (market) => getMarketSession(market, currentTime);
+
     const availableMarkets = markets;
 
     const handleMarketClick = (marketId) => {
@@ -104,12 +109,15 @@ const GamesMarkets = () => {
                         <p className="text-gray-600">No markets available</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {availableMarkets.map((market) => {
                             const { status } = getMarketStatus(market);
+                            const session = getSession(market);
                             const isClosed = status === 'closed';
                             const isClickable = !isClosed;
                             const resultDisplay = market.displayResult || '***_**_***';
+                            const openActive = session === 'open';
+                            const closeActive = session === 'close';
 
                             return (
                                 <button
@@ -117,38 +125,70 @@ const GamesMarkets = () => {
                                     type="button"
                                     onClick={() => isClickable && handleMarketClick(market._id)}
                                     disabled={!isClickable}
-                                    className={`text-left w-full bg-white rounded-[1.25rem] border border-black p-5 transition-all ${
+                                    className={`text-left w-full bg-white rounded-xl border border-black p-3 transition-all ${
                                         isClickable
                                             ? 'hover:shadow-lg cursor-pointer'
                                             : 'opacity-70 cursor-not-allowed'
                                     }`}
                                 >
-                                    <div className="flex items-center justify-between gap-4">
-                                        {/* Left: open pill + time */}
-                                        <div className="flex flex-col items-start shrink-0">
-                                            <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                                    {/* Clear market status: open for bets vs closed */}
+                                    <div className="flex justify-center mb-1.5">
+                                        {isClosed ? (
+                                            <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">
+                                                Closed
+                                            </span>
+                                        ) : (
+                                            <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-500 text-white">
+                                                Open for bets
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2 sm:gap-3">
+                                        {/* Left: Open — bets until opening time; after that open is closed for bets */}
+                                        <div className="flex flex-col items-start shrink-0 w-[72px] sm:w-[80px]">
+                                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                                isClosed ? 'bg-gray-100 text-gray-400' : openActive ? 'bg-green-500 text-white' : 'bg-green-100 text-green-600'
+                                            }`}>
                                                 open
                                             </span>
-                                            <span className="text-sm text-black mt-1 font-normal">
+                                            <span className="text-xs text-black mt-0.5 font-normal">
                                                 {formatTimeLabel(market.startingTime)}
                                             </span>
+                                            <span className="text-[9px] text-gray-500 mt-0.5 max-w-[72px] leading-tight">
+                                                Open bets until this time
+                                            </span>
                                         </div>
-                                        {/* Center: market name + masked id */}
-                                        <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-2">
-                                            <h3 className="text-xl font-bold text-black text-center w-full truncate">
-                                                {market.marketName}
+                                        {/* Center: market name (full, one line) + which session + rule summary */}
+                                        <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-1 sm:px-2 overflow-hidden">
+                                            <h3 title={getMarketDisplayName(market, language)} className="text-sm sm:text-base font-bold text-black w-full min-w-0 overflow-x-auto overflow-y-hidden scrollbar-hidden text-center leading-tight">
+                                                <span className="whitespace-nowrap inline-block">{getMarketDisplayName(market, language)}</span>
                                             </h3>
-                                            <p className="text-sm text-black font-mono font-normal tracking-wide mt-1">
+                                            {!isClosed ? (
+                                                <>
+                                                    <p className="text-[10px] font-medium text-orange-600 mt-0.5">
+                                                        Bets on: {openActive ? 'Open' : 'Close'}
+                                                    </p>
+                                                    <p className="text-[9px] text-gray-500 mt-0.5 text-center leading-tight">
+                                                        Open until {formatTimeLabel(market.startingTime)} · Close until {formatTimeLabel(market.closingTime)}
+                                                    </p>
+                                                </>
+                                            ) : null}
+                                            <p className="text-xs text-black font-mono font-normal tracking-wide mt-0.5">
                                                 {resultDisplay}
                                             </p>
                                         </div>
-                                        {/* Right: close pill + time */}
-                                        <div className="flex flex-col items-end shrink-0">
-                                            <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600">
+                                        {/* Right: Close — bets until closing time; after that market is closed */}
+                                        <div className="flex flex-col items-end shrink-0 w-[72px] sm:w-[80px]">
+                                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                                isClosed ? 'bg-gray-100 text-gray-400' : closeActive ? 'bg-red-500 text-white' : 'bg-red-100 text-red-600'
+                                            }`}>
                                                 close
                                             </span>
-                                            <span className="text-sm text-black mt-1 font-normal">
+                                            <span className="text-xs text-black mt-0.5 font-normal">
                                                 {formatTimeLabel(market.closingTime)}
+                                            </span>
+                                            <span className="text-[9px] text-gray-500 mt-0.5 text-right max-w-[72px] leading-tight">
+                                                Close bets until this time
                                             </span>
                                         </div>
                                     </div>

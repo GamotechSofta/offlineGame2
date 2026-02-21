@@ -182,7 +182,7 @@ const Profile = () => {
   const handleLogout = () => {
     localStorage.removeItem('user');
     window.dispatchEvent(new Event('userLogout'));
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   if (!user) return null;

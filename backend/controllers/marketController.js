@@ -79,7 +79,7 @@ const upsertMarketResultSnapshot = async (marketDoc, dateKey) => {
  */
 export const createMarket = async (req, res) => {
     try {
-        const { marketName, startingTime, closingTime, betClosureTime, marketType } = req.body;
+        const { marketName, marketNameHi, startingTime, closingTime, betClosureTime, marketType } = req.body;
         if (!marketName || !startingTime || !closingTime) {
             return res.status(400).json({
                 success: false,
@@ -88,6 +88,7 @@ export const createMarket = async (req, res) => {
         }
         const betClosureSec = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
         const payload = { marketName, startingTime, closingTime, betClosureTime: betClosureSec, marketType: 'main' };
+        if (marketNameHi !== undefined) payload.marketNameHi = marketNameHi && String(marketNameHi).trim() ? String(marketNameHi).trim() : null;
         const market = new Market(payload);
         await market.save();
 
@@ -132,12 +133,16 @@ export const getMarkets = async (req, res) => {
     try {
         await ensureResultsResetForNewDay(Market);
         const markets = await Market.find().sort({ startingTime: 1 });
+        const lang = (req.query.lang || req.get('x-lang') || '').toString().toLowerCase();
+        const useHi = lang === 'hi' || lang.includes('hi');
         let data = markets.map((m) => {
             const doc = m.toObject();
             doc.displayResult = m.getDisplayResult();
+            doc.name = doc.marketName || '';
+            doc.name_hi = doc.marketNameHi || '';
+            if (useHi && doc.marketNameHi) doc.name = doc.marketNameHi;
             return doc;
         });
-        // Filter only main markets (starline removed)
         data = data.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline');
         res.status(200).json({ success: true, data });
     } catch (error) {
@@ -179,9 +184,10 @@ export const updateMarket = async (req, res) => {
         if (!existing) {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
-        const { marketName, startingTime, closingTime, betClosureTime, marketType } = req.body;
+        const { marketName, marketNameHi, startingTime, closingTime, betClosureTime, marketType } = req.body;
         const updates = {};
         if (marketName !== undefined) updates.marketName = marketName;
+        if (marketNameHi !== undefined) updates.marketNameHi = marketNameHi && String(marketNameHi).trim() ? String(marketNameHi).trim() : null;
         if (startingTime !== undefined) updates.startingTime = startingTime;
         if (closingTime !== undefined) updates.closingTime = closingTime;
         if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;

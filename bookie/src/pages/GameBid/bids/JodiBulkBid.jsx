@@ -21,7 +21,7 @@ const getNextCell = (row, col, direction) => {
     return { row: DIGITS[r], col: DIGITS[c] };
 };
 
-const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false }) => {
+const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fitSingleScreen = false }) => {
     const { market } = usePlayerBet();
     const { addToCart } = useBetCart();
     const [session, setSession] = useState('OPEN');
@@ -136,9 +136,9 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
             noHeader={embedInSingleScroll}
             noDateSession={embedInSingleScroll}
             noFooter={embedInSingleScroll}
-            contentPaddingClass="pb-24"
+            contentPaddingClass={fitSingleScreen ? 'pb-4' : 'pb-24'}
         >
-            <div className={`w-full font-['Inter',sans-serif] ${embedInSingleScroll ? 'px-0 py-0' : 'px-3 sm:px-5 py-3'}`}>
+            <div className={`w-full font-['Inter',sans-serif] ${embedInSingleScroll ? 'px-0 py-0' : fitSingleScreen ? 'px-2 sm:px-3 py-2' : 'px-3 sm:px-5 py-3'}`}>
                 {warning && (
                     <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white text-gray-800 rounded-xl px-4 py-3 text-sm font-medium shadow-lg max-w-[calc(100%-2rem)] backdrop-blur-sm">
                         {warning}
@@ -146,7 +146,7 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                 )}
 
                 {(() => {
-                    const compact = embedInSingleScroll;
+                    const compact = embedInSingleScroll || fitSingleScreen;
                     const rowH = compact ? 'h-[28px] min-h-[28px]' : 'h-10 min-h-10';
                     const cellBase = 'no-spinner w-full min-w-0 bg-white text-gray-800 text-center placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:ring-offset-0 rounded-lg shadow-sm';
                     const cellCl = compact
@@ -155,10 +155,10 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                     const headerDigitCl = 'text-blue-900 font-bold';
                     const labelCl = compact ? 'text-[8px] leading-none text-gray-400 select-none' : 'text-[9px] md:text-[10px] leading-none text-gray-400 mb-0.5 select-none';
                     return (
-                        <div className={`overflow-hidden w-full rounded-2xl bg-gray-50/80 ${compact ? 'p-2' : 'p-4 sm:p-5'} ${embedInSingleScroll ? 'shadow-none' : 'shadow-md'}`}>
+                        <div className={`overflow-hidden w-full rounded-2xl bg-gray-50/80 ${compact ? 'p-2' : 'p-4 sm:p-5'} ${(embedInSingleScroll || fitSingleScreen) ? 'shadow-none' : 'shadow-md'}`}>
                             <div className="overflow-x-auto overflow-y-hidden scrollbar-hidden">
                                 <div
-                                    className="grid w-full min-w-0 gap-2"
+                                    className={`grid w-full min-w-0 ${compact ? 'gap-1' : 'gap-2'}`}
                                     style={{ gridTemplateColumns: 'minmax(56px, 0.4fr) minmax(4px, 0.1fr) repeat(10, minmax(0, 1fr))' }}
                                 >
                                     <div className={`${rowH} min-w-0`} />
@@ -247,12 +247,12 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                 })()}
 
                 {/* Add to Cart — Safety Orange primary action */}
-                <div className={`${embedInSingleScroll ? 'mt-3' : 'mt-6'}`}>
+                <div className={`${(embedInSingleScroll || fitSingleScreen) ? 'mt-2' : 'mt-6'}`}>
                     <button
                         type="button"
                         onClick={handleAddToCart}
                         disabled={!canSubmit}
-                        className={`w-full font-bold rounded-xl transition-all ${embedInSingleScroll ? 'text-sm py-3 min-h-[48px]' : 'text-base py-4 min-h-[56px]'} shadow-md ${
+                        className={`w-full font-bold rounded-xl transition-all ${(embedInSingleScroll || fitSingleScreen) ? 'text-sm py-2.5 min-h-[44px]' : 'text-base py-4 min-h-[56px]'} shadow-md ${
                             canSubmit
                                 ? 'bg-[#FF6600] text-white hover:bg-[#E55C00] active:scale-[0.98] shadow-orange-500/25'
                                 : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none'

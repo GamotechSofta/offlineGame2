@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import BookieBidLayout from '../BookieBidLayout';
 import { usePlayerBet } from '../PlayerBetContext';
 import { useBetCart } from '../BetCartContext';
+
+const DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false }) => {
     const { market } = usePlayerBet();
@@ -15,6 +17,7 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
         } catch (e) { /* ignore */ }
         return new Date().toISOString().split('T')[0];
     });
+    const inputRefs = useRef({});
 
     const handleDateChange = (newDate) => {
         try { localStorage.setItem('bookieBetSelectedDate', newDate); } catch (e) { /* ignore */ }
@@ -40,6 +43,16 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
         resetInputs();
     };
 
+    const handlePtsKeyDown = (num, e) => {
+        if (e.key === 'ArrowRight' && num < 9) {
+            e.preventDefault();
+            inputRefs.current[num + 1]?.focus?.();
+        } else if (e.key === 'ArrowLeft' && num > 0) {
+            e.preventDefault();
+            inputRefs.current[num - 1]?.focus?.();
+        }
+    };
+
     const isRunning = market?.status === 'running';
     useEffect(() => { if (isRunning) setSession('CLOSE'); }, [isRunning]);
 
@@ -63,12 +76,19 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
                 <div className="space-y-4">
                     {warning && <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-green-200 text-green-600 rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md backdrop-blur-sm">{warning}</div>}
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-                        {[0,1,2,3,4,5,6,7,8,9].map((num) => (
+                        {DIGITS.map((num) => (
                             <div key={num} className="flex items-center gap-2">
                                 <div className="w-10 h-10 bg-gray-100 border border-gray-200 text-orange-500 flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">{num}</div>
-                                <input type="number" min="0" placeholder="Pts" value={digitInputs[num]}
+                                <input
+                                    ref={(el) => { inputRefs.current[num] = el; }}
+                                    type="number"
+                                    min="0"
+                                    placeholder="Pts"
+                                    value={digitInputs[num]}
                                     onChange={(e) => setDigitInputs((p) => ({ ...p, [num]: e.target.value }))}
-                                    className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-orange-500 px-3 text-sm font-semibold" />
+                                    onKeyDown={(e) => handlePtsKeyDown(num, e)}
+                                    className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-orange-500 px-3 text-sm font-semibold"
+                                />
                             </div>
                         ))}
                     </div>

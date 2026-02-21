@@ -110,6 +110,35 @@ export function isPastClosingTime(market, now = new Date()) {
 }
 
 /**
+ * Check if opening time has passed (so open bets are closed, close bets are allowed until closing time).
+ * startingTime = "opening time" (e.g. 5pm) — after this, only close bets are accepted until closingTime.
+ */
+export function isPastOpeningTime(market, now = new Date()) {
+    const startStr = (market?.startingTime || '').toString().trim();
+    if (!startStr) return false;
+    const todayIST = getTodayIST();
+    const openAt = parseISTDateTime(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`);
+    if (!openAt) return false;
+    return now.getTime() >= openAt;
+}
+
+/**
+ * Get current betting session for a market (time-based).
+ * - Open bets: until opening time (startingTime). After that, open market is closed for bets.
+ * - Close bets: from opening time until closing time (closingTime). After closing time, market is fully closed.
+ * Returns: 'closed' | 'open' (bets on Open) | 'close' (bets on Close)
+ */
+export function getMarketSession(market, now = new Date()) {
+    const hasOpening = market?.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
+    const hasClosing = market?.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
+    if (hasOpening && hasClosing) return 'closed';
+    if (isPastClosingTime(market, now)) return 'closed';
+    // After opening time (e.g. 5pm): open bets closed, close bets open until closing time (e.g. 7pm)
+    if (isPastOpeningTime(market, now)) return 'close';
+    return 'open';
+}
+
+/**
  * Check if market hasn't opened yet (before 12 AM)
  */
 export function isBeforeOpeningTime(market, now = new Date()) {

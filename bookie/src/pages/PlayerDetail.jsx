@@ -44,6 +44,27 @@ const getDatePresets = (t) => [
 
 const formatCurrency = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
+const getPannaSubLabel = (betNumber, t) => {
+    const s = String(betNumber || '').trim();
+    if (s.length !== 3 || !/^\d{3}$/.test(s)) return t('pana');
+    const a = s[0], b = s[1], c = s[2];
+    if (a === b && b === c) return t('triplePana');
+    if (a === b || b === c || a === c) return t('doublePanaBulk');
+    return t('singlePanaBulk');
+};
+const getBetTypeLabel = (betType, t, betNumber) => {
+    if (!betType) return '—';
+    const key = String(betType).trim().toLowerCase();
+    if (key === 'panna') return getPannaSubLabel(betNumber, t);
+    const labels = {
+        'single': t('singleDigit'),
+        'jodi': t('jodiBulk'),
+        'full-sangam': t('fullSangam'),
+        'half-sangam': t('halfSangamO'),
+    };
+    return labels[key] || betType;
+};
+
 const PlayerDetail = () => {
     const { t } = useLanguage();
     const { userId } = useParams();
@@ -412,7 +433,7 @@ const PlayerDetail = () => {
         const betRows = filteredBets.map((b) => `
             <tr>
                 <td>${b.betNumber || '—'}</td>
-                <td>${b.betType || '—'}</td>
+                <td>${getBetTypeLabel(b.betType, t, b.betNumber)}</td>
                 <td>${b.marketId?.marketName || '—'}</td>
                 <td style="text-align:right">${formatCurrency(b.amount)}</td>
                 <td style="text-align:right; color:${b.status === 'won' ? '#16a34a' : '#666'}">${formatCurrency(b.payout || 0)}</td>
@@ -759,7 +780,7 @@ const PlayerDetail = () => {
                                             {filteredBets.map((b) => (
                                                 <tr key={b._id} className="hover:bg-gray-50">
                                                     <td className="px-3 py-2 font-mono font-bold text-orange-600">{b.betNumber || '—'}</td>
-                                                    <td className="px-3 py-2 text-gray-600 capitalize text-xs">{b.betType || '—'}</td>
+                                                    <td className="px-3 py-2 text-gray-600 text-xs">{getBetTypeLabel(b.betType, t, b.betNumber)}</td>
                                                     <td className="px-3 py-2 text-gray-600 text-xs truncate max-w-[120px]">{b.marketId?.marketName || '—'}</td>
                                                     <td className="px-3 py-2 text-gray-500 uppercase text-xs">{b.betOn || '—'}</td>
                                                     <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(b.amount)}</td>

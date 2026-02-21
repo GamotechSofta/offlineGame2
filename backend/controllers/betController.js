@@ -6,7 +6,7 @@ import Market from '../models/market/market.js';
 import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
-import { isBettingAllowed } from '../utils/marketTiming.js';
+import { isBettingAllowed, isBettingAllowedForSession } from '../utils/marketTiming.js';
 
 const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'half-sangam', 'full-sangam'];
 const THREE_DIGITS = /^\d{3}$/;
@@ -82,17 +82,17 @@ export const placeBet = async (req, res) => {
                 ? 'open'
                 : (market?.openingNumber && THREE_DIGITS.test(String(market.openingNumber)) ? 'close' : 'open');
 
-        const timing = isBettingAllowed(market);
-        if (!timing.allowed) {
+        if (!isBettingAllowed(market).allowed) {
             return res.status(400).json({
                 success: false,
-                message: timing.message || 'Betting is not allowed for this market at this time.',
+                message: 'Betting is not allowed for this market at this time.',
                 code: 'BETTING_CLOSED',
             });
         }
 
         const sanitized = [];
         let totalAmount = 0;
+        const now = new Date();
         for (const b of bets) {
             const betType = (b.betType || '').toString().trim().toLowerCase();
             const betNumber = (b.betNumber || '').toString().trim();
@@ -109,7 +109,14 @@ export const placeBet = async (req, res) => {
                     message: 'Each bet must have betType, betNumber and amount > 0',
                 });
             }
-            // Store full bet amount (commission will be calculated at end of day on total daily revenue)
+            const timing = isBettingAllowedForSession(market, now, betOn);
+            if (!timing.allowed) {
+                return res.status(400).json({
+                    success: false,
+                    message: timing.message || 'Betting is not allowed for this session at this time.',
+                    code: 'BETTING_CLOSED',
+                });
+            }
             totalAmount += amount;
             sanitized.push({ betType, betNumber, amount, betOn });
         }
@@ -308,17 +315,17 @@ export const placeBetForPlayer = async (req, res) => {
                 ? 'open'
                 : (market?.openingNumber && THREE_DIGITS.test(String(market.openingNumber)) ? 'close' : 'open');
 
-        const timing = isBettingAllowed(market);
-        if (!timing.allowed) {
+        if (!isBettingAllowed(market).allowed) {
             return res.status(400).json({
                 success: false,
-                message: timing.message || 'Betting is not allowed for this market at this time.',
+                message: 'Betting is not allowed for this market at this time.',
                 code: 'BETTING_CLOSED',
             });
         }
 
         const sanitized = [];
         let totalAmount = 0;
+        const now = new Date();
         for (const b of bets) {
             const betType = (b.betType || '').toString().trim().toLowerCase();
             const betNumber = (b.betNumber || '').toString().trim();
@@ -334,7 +341,14 @@ export const placeBetForPlayer = async (req, res) => {
                     message: 'Each bet must have betType, betNumber and amount > 0',
                 });
             }
-            // Store full bet amount (commission will be calculated at end of day on total daily revenue)
+            const timing = isBettingAllowedForSession(market, now, betOn);
+            if (!timing.allowed) {
+                return res.status(400).json({
+                    success: false,
+                    message: timing.message || 'Betting is not allowed for this session at this time.',
+                    code: 'BETTING_CLOSED',
+                });
+            }
             totalAmount += amount;
             sanitized.push({ betType, betNumber, amount, betOn });
         }

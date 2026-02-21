@@ -63,6 +63,7 @@ const ScrollToTop = () => {
 
   return null;
 };
+// Only /login is accessible without being logged in; all other routes redirect to login
 const PUBLIC_PATHS = ['/login'];
 
 const Layout = ({ children }) => {
@@ -81,6 +82,7 @@ const Layout = ({ children }) => {
     };
   }, []);
 
+  // Unauthenticated: redirect to login (first visit or after logout)
   const isPublicPath = PUBLIC_PATHS.includes(location.pathname);
   if (!hasUser && !isPublicPath) {
     return <Navigate to="/login" replace />;

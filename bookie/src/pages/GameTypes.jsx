@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../utils/api';
+import { API_BASE_URL, getMarketDisplayName } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 const GAME_OPTIONS = [
@@ -86,6 +87,7 @@ const GameTypes = () => {
     const navigate = useNavigate();
     const { marketId } = useParams();
     const [searchParams] = useSearchParams();
+    const { language } = useLanguage();
     const playerId = searchParams.get('playerId') || '';
     const [market, setMarket] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -155,7 +157,7 @@ const GameTypes = () => {
                             ) : market ? (
                                 <>
                                     <h1 className="text-gray-800 font-bold text-base sm:text-lg tracking-wider uppercase inline-block border-b-2 border-orange-500 pb-1 px-2 py-1 truncate max-w-full">
-                                        {market.marketName || 'SELECT GAME'}
+                                        {market ? getMarketDisplayName(market, language) : 'SELECT GAME'}
                                     </h1>
                                     <div className="mt-1 flex items-center justify-center gap-3 text-xs text-gray-400">
                                         <span>{market.startingTime} - {market.closingTime}</span>

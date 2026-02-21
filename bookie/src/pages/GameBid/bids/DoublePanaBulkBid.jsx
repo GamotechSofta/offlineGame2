@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BookieBidLayout from '../BookieBidLayout';
 import { usePlayerBet } from '../PlayerBetContext';
 import { useBetCart } from '../BetCartContext';
@@ -74,6 +74,30 @@ const DoublePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
         }
         return groups;
     }, [doublePanas]);
+
+    const ptsInputOrder = useMemo(() => {
+        const order = [];
+        for (let d = 0; d <= 9; d++) {
+            const list = panasBySumDigit[String(d)] || [];
+            list.forEach((n) => order.push(n));
+        }
+        return order;
+    }, [panasBySumDigit]);
+
+    const ptsInputRefs = useRef({});
+
+    const handlePtsArrowKey = (num, e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        const idx = ptsInputOrder.indexOf(num);
+        if (idx === -1) return;
+        if (e.key === 'ArrowRight' && idx < ptsInputOrder.length - 1) {
+            e.preventDefault();
+            ptsInputRefs.current[ptsInputOrder[idx + 1]]?.focus?.();
+        } else if (e.key === 'ArrowLeft' && idx > 0) {
+            e.preventDefault();
+            ptsInputRefs.current[ptsInputOrder[idx - 1]]?.focus?.();
+        }
+    };
 
     const specialCount = useMemo(
         () => Object.values(specialInputs).filter((v) => Number(v) > 0).length,
@@ -192,6 +216,7 @@ const DoublePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                                 {num}
                                             </div>
                                             <input
+                                                ref={(el) => { ptsInputRefs.current[num] = el; }}
                                                 type="text"
                                                 inputMode="numeric"
                                                 placeholder="Pts"
@@ -202,6 +227,7 @@ const DoublePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                                         [num]: sanitizePoints(e.target.value),
                                                     }))
                                                 }
+                                                onKeyDown={(e) => handlePtsArrowKey(num, e)}
                                                 className="no-spinner flex-1 min-w-0 h-8 bg-gray-100 border border-l-0 border-gray-200 text-gray-800 placeholder-gray-400 rounded-r focus:outline-none focus:border-orange-500 px-2 text-[11px] font-semibold text-center"
                                             />
                                         </div>

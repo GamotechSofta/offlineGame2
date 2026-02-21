@@ -8,7 +8,6 @@ import Dashboard from './pages/Dashboard';
 import Markets from './pages/Markets';
 import AddUser from './pages/AddUser';
 import MyUsers from './pages/MyUsers';
-import ReferralLink from './pages/ReferralLink';
 import BetHistory from './pages/BetHistory';
 import TopWinners from './pages/TopWinners';
 import Reports from './pages/Reports';
@@ -79,7 +78,6 @@ const AppRoutes = () => (
         <Route path="/games/:marketId/:gameType" element={<PrivateRoute><BookieGameBid /></PrivateRoute>} />
         <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
-        <Route path="/referral-link" element={<PrivateRoute><ReferralLink /></PrivateRoute>} />
         <Route path="/bet-history" element={<PrivateRoute><BetHistory /></PrivateRoute>} />
         <Route path="/bets-by-user" element={<PrivateRoute><BetsByUser /></PrivateRoute>} />
         <Route path="/top-winners" element={<PrivateRoute><TopWinners /></PrivateRoute>} />

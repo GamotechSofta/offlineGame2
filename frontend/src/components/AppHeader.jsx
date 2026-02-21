@@ -97,7 +97,7 @@ const AppHeader = () => {
     localStorage.removeItem('user');
     setUser(null);
     window.dispatchEvent(new Event('userLogout'));
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   const displayName = user?.username || 'Sign In';

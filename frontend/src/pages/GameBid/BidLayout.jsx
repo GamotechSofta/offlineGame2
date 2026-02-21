@@ -53,7 +53,7 @@ const BidLayout = ({
     const location = useLocation();
     const contentRef = useRef(null);
     const dateInputRef = React.useRef(null);
-    const { allowed: bettingAllowed, message: bettingMessage } = useBettingWindow();
+    const { allowed: bettingAllowed, closeOnly: bettingCloseOnly, message: bettingMessage } = useBettingWindow();
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     const wallet = Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage();
     
@@ -101,14 +101,14 @@ const BidLayout = ({
     // Schedule button should only show if date is in the future (not today)
     const isScheduled = currentDate > minDate;
     
-    // Determine session options based on date selection:
-    // - If today and market is running: only CLOSE
+    // Determine session options based on date selection and betting window:
+    // - If today and (market is running OR opening time passed = closeOnly): only CLOSE
     // - If today and market is open: both OPEN and CLOSE
     // - If scheduled (future date): always both OPEN and CLOSE
     const sessionOptions =
         Array.isArray(sessionOptionsOverride) && sessionOptionsOverride.length
             ? sessionOptionsOverride
-            : (isToday && isRunning ? ['CLOSE'] : ['OPEN', 'CLOSE']);
+            : (isToday && (isRunning || bettingCloseOnly) ? ['CLOSE'] : ['OPEN', 'CLOSE']);
 
     useEffect(() => {
         // If market is "CLOSED IS RUNNING" and it's today, force session to CLOSE and lock it.
@@ -117,15 +117,15 @@ const BidLayout = ({
             if (desired && session !== desired) setSession(desired);
             return;
         }
-        // Only force CLOSE if it's today and market is running
-        if (isToday && isRunning && session !== 'CLOSE') {
+        // Force CLOSE if it's today and (market is running OR opening time has passed = closeOnly)
+        if (isToday && (isRunning || bettingCloseOnly) && session !== 'CLOSE') {
             setSession('CLOSE');
         }
         // If scheduled (future date) and session was locked to CLOSE, allow OPEN option
         if (isScheduled && sessionOptions.includes('OPEN') && session === 'CLOSE' && isRunning) {
             // Don't force change, but allow user to choose OPEN for scheduled bets
         }
-    }, [isToday, isScheduled, isRunning, session, setSession, sessionOptionsOverride, sessionOptions, currentDate]);
+    }, [isToday, isScheduled, isRunning, bettingCloseOnly, session, setSession, sessionOptionsOverride, sessionOptions, currentDate]);
 
     // Scroll to top when route changes
     useEffect(() => {

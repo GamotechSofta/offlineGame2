@@ -40,6 +40,11 @@ const marketSchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
+    /** Hindi display name for the market (editable, not auto-translated). */
+    marketNameHi: {
+        type: String,
+        default: null,
+    },
     startingTime: {
         type: String,
         required: true,

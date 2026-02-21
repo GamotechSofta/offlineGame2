@@ -3,6 +3,30 @@ import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 
+// Derive Single/Double/Triple Pana from 3-digit betNumber (all same → Triple, two same → Double, all different → Single)
+const getPannaSubLabel = (betNumber, t) => {
+    const s = String(betNumber || '').trim();
+    if (s.length !== 3 || !/^\d{3}$/.test(s)) return t('pana');
+    const a = s[0], b = s[1], c = s[2];
+    if (a === b && b === c) return t('triplePana');
+    if (a === b || b === c || a === c) return t('doublePanaBulk');
+    return t('singlePanaBulk');
+};
+
+// Map API betType (and optional betNumber for panna) to full display names
+const getBetTypeLabel = (betType, t, betNumber) => {
+    if (!betType) return '—';
+    const key = String(betType).trim().toLowerCase();
+    if (key === 'panna') return getPannaSubLabel(betNumber, t);
+    const labels = {
+        'single': t('singleDigit'),
+        'jodi': t('jodiBulk'),
+        'full-sangam': t('fullSangam'),
+        'half-sangam': t('halfSangamO'),
+    };
+    return labels[key] || betType;
+};
+
 const BetHistory = () => {
     const { t } = useLanguage();
     const [bets, setBets] = useState([]);
@@ -77,7 +101,7 @@ const BetHistory = () => {
                                                 ? (bet.marketId.marketName || '—')
                                                 : (bet.marketId ? String(bet.marketId) : '—')}
                                         </td>
-                                        <td className="px-6 py-4 text-sm">{bet.betType}</td>
+                                        <td className="px-6 py-4 text-sm">{getBetTypeLabel(bet.betType, t, bet.betNumber)}</td>
                                         <td className="px-6 py-4 text-sm">₹{bet.amount}</td>
                                         <td className="px-6 py-4 text-sm">
                                             <span className={`px-2 py-1 rounded text-xs ${bet.status === 'won' ? 'bg-green-600' : bet.status === 'lost' ? 'bg-red-600' : bet.status === 'pending' ? 'bg-orange-600' : 'bg-gray-200'}`}>{bet.status}</span>

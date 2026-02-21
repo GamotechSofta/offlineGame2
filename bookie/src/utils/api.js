@@ -14,4 +14,17 @@ export const getReferralUrl = (bookieId) => {
     return `${FRONTEND_URL}/login?ref=${bookieId}`;
 };
 
+/**
+ * Display name for a market based on current language.
+ * Uses Hindi name when language is 'hi' and market has name_hi/marketNameHi; otherwise English name.
+ * Names are stored per language (not auto-translated).
+ */
+export const getMarketDisplayName = (market, language) => {
+    if (!market) return '';
+    const hi = market.marketNameHi ?? market.name_hi ?? '';
+    const en = market.marketName ?? market.name ?? '';
+    if (language === 'hi' && hi) return hi;
+    return en || hi;
+};
+
 export { API_BASE_URL, FRONTEND_URL };

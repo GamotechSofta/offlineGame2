@@ -37,6 +37,7 @@ const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
 const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, apiBaseUrl, getAuthHeaders }) => {
     const [formData, setFormData] = useState({
         marketName: '',
+        marketNameHi: '',
         startingTime: '00:00',
         closingTime: '12:00',
         betClosureTime: '',
@@ -59,6 +60,7 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
             setFormData((prev) => ({
                 ...prev,
                 marketName: market.marketName || '',
+                marketNameHi: market.marketNameHi || '',
                 startingTime: market.startingTime || '',
                 closingTime: closing24 || market.closingTime || '',
                 betClosureTime: market.betClosureTime ?? '',
@@ -219,6 +221,20 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
                                         placeholder="e.g., Rudraksh Morning"
                                         required
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-gray-600 text-sm font-medium mb-2">
+                                        Market Name (Hindi)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="marketNameHi"
+                                        value={formData.marketNameHi}
+                                        onChange={handleChange}
+                                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 text-base"
+                                        placeholder="e.g., नाइट मार्केट"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Optional. Shown when bookie language is Hindi.</p>
                                 </div>
                             </>
                         )}

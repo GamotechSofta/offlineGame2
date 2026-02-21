@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { usePlayerBet } from './PlayerBetContext';
 import { useBetCart } from './BetCartContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { getMarketDisplayName } from '../../utils/api';
 import BidReviewModal from './BidReviewModal';
 import { GAME_TYPE_ORDER, BID_COMPONENTS } from './gameTypes';
 
@@ -22,23 +24,9 @@ const SingleScrollGameBid = () => {
     } = usePlayerBet();
     const { cartItems, cartCount, cartTotal, clearCart } = useBetCart();
 
-    const [marketName, setMarketName] = useState('');
+    const { language } = useLanguage();
     const [isReviewOpen, setIsReviewOpen] = useState(false);
-
-    useEffect(() => {
-        const fetchMarketName = async () => {
-            try {
-                const { API_BASE_URL } = await import('../../utils/api');
-                const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
-                const data = await res.json();
-                if (data.success && Array.isArray(data.data)) {
-                    const found = data.data.find((m) => m._id === marketId);
-                    if (found) setMarketName(found.marketName || '');
-                }
-            } catch (err) { /* silent */ }
-        };
-        fetchMarketName();
-    }, [marketId]);
+    const marketDisplayName = market ? getMarketDisplayName(market, language) : '';
 
     const handlePlaceBet = async () => {
         const mktId = market?._id || market?.id;
@@ -112,7 +100,7 @@ const SingleScrollGameBid = () => {
                         </svg>
                     </button>
                     <h1 className="flex-1 text-center mx-2 text-sm sm:text-base md:text-lg font-bold uppercase tracking-tight truncate text-gray-900 min-w-0">
-                        {marketName ? `${marketName} — All Games` : 'All Games'}
+                        {marketDisplayName ? `${marketDisplayName} — All Games` : 'All Games'}
                     </h1>
                     <div className="flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white text-xs sm:text-sm font-bold shadow-sm">
                         <span className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-white font-bold">₹</span>
@@ -209,7 +197,7 @@ const SingleScrollGameBid = () => {
                 open={isReviewOpen}
                 onClose={() => setIsReviewOpen(false)}
                 onSubmit={handlePlaceBet}
-                marketTitle={marketName}
+                marketTitle={marketDisplayName}
                 dateText={dateText}
                 labelKey="Number"
                 rows={reviewRows}
