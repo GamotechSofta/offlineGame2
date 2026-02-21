@@ -19,31 +19,53 @@ const GameBidInner = ({ marketId, gameType, playerId, betType, title, BidCompone
     const [cartOpen, setCartOpen] = useState(false);
     const [market, setMarket] = useState(null);
 
-    // Ctrl + ArrowRight → next game, Ctrl + ArrowLeft → previous game
+    // Navigate to previous/next game type (by index)
+    const goToPrevGame = useCallback(() => {
+        const currentIdx = GAME_TYPE_ORDER.indexOf(gameType);
+        if (currentIdx === -1) return;
+        const nextIdx = (currentIdx - 1 + GAME_TYPE_ORDER.length) % GAME_TYPE_ORDER.length;
+        const nextGame = GAME_TYPE_ORDER[nextIdx];
+        const query = playerId ? `?playerId=${playerId}` : '';
+        navigate(`/games/${marketId}/${nextGame}${query}`);
+    }, [gameType, marketId, playerId, navigate]);
+
+    const goToNextGame = useCallback(() => {
+        const currentIdx = GAME_TYPE_ORDER.indexOf(gameType);
+        if (currentIdx === -1) return;
+        const nextIdx = (currentIdx + 1) % GAME_TYPE_ORDER.length;
+        const nextGame = GAME_TYPE_ORDER[nextIdx];
+        const query = playerId ? `?playerId=${playerId}` : '';
+        navigate(`/games/${marketId}/${nextGame}${query}`);
+    }, [gameType, marketId, playerId, navigate]);
+
+    // ArrowLeft / ArrowRight (or Ctrl+Arrow) → previous/next game box; skip when focus is in input/textarea/select
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (!e.ctrlKey) return;
             if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+            const withCtrl = e.ctrlKey || e.metaKey;
+            const target = e.target;
+            const isEditable = target && (
+                target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.tagName === 'SELECT' ||
+                (target.isContentEditable && target.getAttribute('contenteditable') === 'true')
+            );
+            if (isEditable && !withCtrl) return;
 
             e.preventDefault();
             const currentIdx = GAME_TYPE_ORDER.indexOf(gameType);
             if (currentIdx === -1) return;
 
-            let nextIdx;
             if (e.key === 'ArrowRight') {
-                nextIdx = (currentIdx + 1) % GAME_TYPE_ORDER.length;
+                goToNextGame();
             } else {
-                nextIdx = (currentIdx - 1 + GAME_TYPE_ORDER.length) % GAME_TYPE_ORDER.length;
+                goToPrevGame();
             }
-
-            const nextGame = GAME_TYPE_ORDER[nextIdx];
-            const query = playerId ? `?playerId=${playerId}` : '';
-            navigate(`/games/${marketId}/${nextGame}${query}`);
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [gameType, marketId, playerId, navigate]);
+    }, [gameType, goToPrevGame, goToNextGame]);
 
     // Sidebar width (left)
     const [sidebarWidth, setSidebarWidth] = useState(getStoredSidebarWidth);
@@ -115,6 +137,32 @@ const GameBidInner = ({ marketId, gameType, playerId, betType, title, BidCompone
                     marginRight: 'var(--cart-w, 0px)',
                 }}
             >
+                {/* Previous / Next game — keyboard: Arrow Left / Arrow Right; click or Tab+Enter on buttons */}
+                <div className="flex items-center justify-center gap-2 py-2 px-2 border-b border-gray-100 bg-gray-50/80">
+                    <button
+                        type="button"
+                        onClick={goToPrevGame}
+                        className="p-2 min-w-[44px] min-h-[44px] rounded-full bg-white border border-gray-200 text-gray-600 hover:text-orange-500 hover:border-orange-300 hover:bg-orange-50 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1"
+                        aria-label="Previous game type"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <span className="text-xs text-gray-500 font-medium px-2 truncate max-w-[140px] sm:max-w-[200px]" title={title}>
+                        {title}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={goToNextGame}
+                        className="p-2 min-w-[44px] min-h-[44px] rounded-full bg-white border border-gray-200 text-gray-600 hover:text-orange-500 hover:border-orange-300 hover:bg-orange-50 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1"
+                        aria-label="Next game type"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
                 <BidComponent
                     title={title}
                     gameType={gameType}

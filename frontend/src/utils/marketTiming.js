@@ -1,12 +1,13 @@
 /**
  * Check if betting is allowed for a market at the given time.
- * Users can bet until opening time and until closing time.
- * Betting closes at opening time and at closing time.
+ * - Before opening time: OPEN and CLOSE bets allowed.
+ * - From opening time until closing time: only CLOSE bets allowed (closeOnly: true).
+ * - After closing time: no betting.
  * Uses IST (Asia/Kolkata) to match market reset and backend.
  *
- * @param {{ closingTime: string, betClosureTime?: number }} market
+ * @param {{ startingTime?: string, closingTime: string, betClosureTime?: number }} market
  * @param {Date} [now]
- * @returns {{ allowed: boolean, message?: string }}
+ * @returns {{ allowed: boolean, closeOnly?: boolean, message?: string }}
  */
 export function isBettingAllowed(market, now = new Date()) {
   const closeStr = (market?.closingTime || '').toString().trim();
@@ -47,20 +48,16 @@ export function isBettingAllowed(market, now = new Date()) {
   const lastBetAt = closeAt - closureSec * 1000;
   const nowMs = now.getTime();
 
-  // Betting closes at opening time - if current time is at or after opening time, betting is closed
-  if (nowMs >= openAt) {
-    const startTimeDisplay = startStr || '12:00 AM (midnight)';
-    return {
-      allowed: false,
-      message: `Betting closed. Opening time (${startTimeDisplay}) has passed. You can place bets until the opening time.`,
-    };
-  }
-  // Betting closes at closing time - if current time is at or after closing time, betting is closed
+  // After closing time: no betting
   if (nowMs >= lastBetAt) {
     return {
       allowed: false,
       message: `Betting closed. Closing time has passed. You can place bets until ${closureSec > 0 ? 'the set closure time.' : 'closing time.'}`,
     };
+  }
+  // From opening time until closing time: only CLOSE bets allowed — default session to CLOSE
+  if (nowMs >= openAt) {
+    return { allowed: true, closeOnly: true };
   }
   return { allowed: true };
 }

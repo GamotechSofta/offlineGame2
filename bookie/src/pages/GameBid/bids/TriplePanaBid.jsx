@@ -36,6 +36,7 @@ const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }
     const [specialInputs, setSpecialInputs] = useState(() =>
         Object.fromEntries(tripleNumbers.map((n) => [n, '']))
     );
+    const specialInputRefs = useRef({});
 
     const isRunning = market?.status === 'running';
     useEffect(() => { if (isRunning) setSession('CLOSE'); }, [isRunning]);
@@ -128,12 +129,22 @@ const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }
                     ) : (
                         <>
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-                                {tripleNumbers.map((num) => (
+                                {tripleNumbers.map((num, idx) => (
                                     <div key={num} className="flex items-center gap-2">
                                         <div className="w-12 h-10 bg-gray-100 border border-gray-200 text-orange-500 flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">{num}</div>
-                                        <input type="text" inputMode="numeric" placeholder="Pts" value={specialInputs[num] || ''}
+                                        <input
+                                            ref={(el) => { specialInputRefs.current[idx] = el; }}
+                                            type="text"
+                                            inputMode="numeric"
+                                            placeholder="Pts"
+                                            value={specialInputs[num] || ''}
                                             onChange={(e) => setSpecialInputs((p) => ({ ...p, [num]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
-                                            className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-orange-500 px-3 text-sm font-semibold" />
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowRight' && idx < tripleNumbers.length - 1) { e.preventDefault(); specialInputRefs.current[idx + 1]?.focus?.(); }
+                                                else if (e.key === 'ArrowLeft' && idx > 0) { e.preventDefault(); specialInputRefs.current[idx - 1]?.focus?.(); }
+                                            }}
+                                            className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-orange-500 px-3 text-sm font-semibold"
+                                        />
                                     </div>
                                 ))}
                             </div>

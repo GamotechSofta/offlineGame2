@@ -60,6 +60,7 @@ const EasyModeBid = ({
     }, [isRunning, lockSessionToOpen, session]);
 
     const jodiNumbers = useMemo(() => Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0')), []);
+    const jodiPtsRefs = useRef({});
     const isPanaSumMode = specialModeType === 'doublePana' || specialModeType === 'singlePana';
     const validPanasForSumMode = specialModeType === 'doublePana' ? validDoublePanas : (specialModeType === 'singlePana' ? validSinglePanas : []);
 
@@ -251,14 +252,24 @@ const EasyModeBid = ({
                         {specialModeType === 'jodi' ? (
                             <>
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 xl:grid-rows-10 xl:grid-flow-col xl:gap-2">
-                                    {jodiNumbers.map((num) => (
+                                    {jodiNumbers.map((num, idx) => (
                                         <div key={num} className="flex items-center gap-1.5">
                                             <div className="w-10 h-9 bg-gray-100 border border-gray-200 text-orange-500 flex items-center justify-center rounded-l-md font-bold text-xs shrink-0">
                                                 <span className="inline-flex items-center gap-1"><span>{num[0]}</span><span>{num[1]}</span></span>
                                             </div>
-                                            <input type="number" min="0" placeholder="Pts" value={specialInputs[num] || ''}
+                                            <input
+                                                ref={(el) => { jodiPtsRefs.current[idx] = el; }}
+                                                type="number"
+                                                min="0"
+                                                placeholder="Pts"
+                                                value={specialInputs[num] || ''}
                                                 onChange={(e) => setSpecialInputs((p) => ({ ...p, [num]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
-                                                className="w-full h-9 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-orange-500 px-2 text-xs font-semibold" />
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'ArrowRight' && idx < jodiNumbers.length - 1) { e.preventDefault(); jodiPtsRefs.current[idx + 1]?.focus?.(); }
+                                                    else if (e.key === 'ArrowLeft' && idx > 0) { e.preventDefault(); jodiPtsRefs.current[idx - 1]?.focus?.(); }
+                                                }}
+                                                className="w-full h-9 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-orange-500 px-2 text-xs font-semibold"
+                                            />
                                         </div>
                                     ))}
                                 </div>
