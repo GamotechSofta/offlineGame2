@@ -119,15 +119,24 @@ const BetsByUser = () => {
         }
     };
 
-    const getBetTypeLabel = (betType) => {
+    const getPannaSubLabel = (betNumber) => {
+        const s = String(betNumber || '').trim();
+        if (s.length !== 3 || !/^\d{3}$/.test(s)) return t('pana');
+        const a = s[0], b = s[1], c = s[2];
+        if (a === b && b === c) return t('triplePana');
+        if (a === b || b === c || a === c) return t('doublePanaBulk');
+        return t('singlePanaBulk');
+    };
+    const getBetTypeLabel = (betType, betNumber) => {
+        const key = String(betType || '').trim().toLowerCase();
+        if (key === 'panna') return getPannaSubLabel(betNumber);
         const labels = {
             'single': t('singleDigit'),
-            'jodi': t('jodi'),
-            'panna': t('pana'),
-            'half-sangam': t('halfSangam'),
+            'jodi': t('jodiBulk'),
+            'half-sangam': t('halfSangamO'),
             'full-sangam': t('fullSangam'),
         };
-        return labels[betType] || betType;
+        return labels[key] || betType;
     };
 
     // Filter players by search query
@@ -415,7 +424,7 @@ const BetsByUser = () => {
                                                 {bet.marketId?.marketName || bet.marketId?.gameName || '—'}
                                             </td>
                                             <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                {getBetTypeLabel(bet.betType)}
+                                                {getBetTypeLabel(bet.betType, bet.betNumber)}
                                             </td>
                                             <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
                                                 {bet.betNumber}
