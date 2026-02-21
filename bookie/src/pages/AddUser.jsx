@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const AddUser = () => {
     const { t } = useLanguage();
+    const { updateBookie } = useAuth();
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -49,6 +51,14 @@ const AddUser = () => {
                     role: 'user',
                     balance: 0,
                 });
+                // Refresh bookie profile so sidebar balance updates
+                try {
+                    const profileRes = await fetch(`${API_BASE_URL}/bookie/profile`, { headers: getBookieAuthHeaders() });
+                    const profileData = await profileRes.json();
+                    if (profileData.success && profileData.data) updateBookie(profileData.data);
+                } catch {
+                    // ignore
+                }
             } else {
                 setError(data.message || t('failedToCreateUser'));
             }

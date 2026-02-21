@@ -41,6 +41,19 @@ export const AuthProvider = ({ children }) => {
         setBookie(data);
     };
 
+    const updateBookie = (data) => {
+        if (!data) return;
+        try {
+            const stored = localStorage.getItem(AUTH_KEY);
+            const current = stored ? JSON.parse(stored) : {};
+            const merged = { ...current, ...data };
+            localStorage.setItem(AUTH_KEY, JSON.stringify(merged));
+            setBookie(merged);
+        } catch {
+            // ignore
+        }
+    };
+
     const logout = () => {
         localStorage.removeItem(AUTH_KEY);
         sessionStorage.removeItem('bookiePassword');
@@ -48,7 +61,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ bookie, loading, login, logout }}>
+        <AuthContext.Provider value={{ bookie, loading, login, logout, updateBookie }}>
             {children}
         </AuthContext.Provider>
     );

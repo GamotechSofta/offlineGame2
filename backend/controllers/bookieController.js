@@ -89,6 +89,7 @@ export const bookieLogin = async (req, res) => {
                 email: bookie.email,
                 phone: bookie.phone,
                 uiTheme: bookie.uiTheme || { themeId: 'default' },
+                balance: bookie.balance ?? 0,
             },
         });
     } catch (error) {
@@ -165,6 +166,7 @@ export const getProfile = async (req, res) => {
                 role: bookie.role,
                 uiTheme: bookie.uiTheme || { themeId: 'default' },
                 canManagePayments: bookie.canManagePayments || false,
+                balance: bookie.balance ?? 0,
             },
         });
     } catch (error) {
