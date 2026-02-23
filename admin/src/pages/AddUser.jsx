@@ -184,16 +184,16 @@ const AddUser = () => {
         navigate('/');
     };
 
-    const inputClass = "w-full px-4 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all";
-    const labelClass = "block text-gray-600 text-sm font-medium mb-1.5";
+    const inputClass = "w-full px-3 py-1.5 text-sm bg-gray-100/80 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all";
+    const labelClass = "block text-gray-600 text-sm font-medium mb-1";
 
     return (
         <AdminLayout onLogout={handleLogout} title="Add Player">
-            <div className="flex flex-col lg:flex-row lg:items-start gap-6 lg:gap-8">
+            <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-6">
                 {/* Left: Form */}
             <div className="min-w-0 flex-1 max-w-2xl">
                 {/* Header */}
-                <div className="flex items-center gap-3 mb-6">
+                <div className="flex items-center gap-3 mb-4">
                     <button
                         type="button"
                         onClick={() => navigate('/all-users')}
@@ -203,34 +203,34 @@ const AddUser = () => {
                         <FaArrowLeft className="w-5 h-5" />
                     </button>
                     <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold">Add New Player</h1>
-                        <p className="text-gray-400 text-sm mt-0.5">Create a new player account</p>
+                        <h1 className="text-xl sm:text-2xl font-bold">Add New Player</h1>
+                        <p className="text-gray-400 text-xs mt-0.5">Create a new player account</p>
                     </div>
                 </div>
 
                 {error && (
-                    <div className="mb-6 p-4 bg-red-900/30 border border-red-200/60 rounded-xl text-red-600 text-sm">
+                    <div className="mb-4 p-3 bg-red-900/30 border border-red-200/60 rounded-lg text-red-600 text-sm">
                         {error}
                     </div>
                 )}
 
                 {success && (
-                    <div className="mb-6 p-4 bg-green-900/30 border border-green-700/60 rounded-xl text-green-200 text-sm flex items-center gap-2">
+                    <div className="mb-4 p-3 bg-green-900/30 border border-green-700/60 rounded-lg text-green-200 text-sm flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                         {success}
                     </div>
                 )}
 
                 {/* Form Card */}
-                <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xl">
-                    <div className="p-5 sm:p-8">
+                <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-lg">
+                    <div className="p-4 sm:p-5">
                         {/* Basic Info Section - matches frontend signup (firstName, lastName, email, phone) */}
-                        <div className="mb-8">
-                            <h2 className="text-base font-semibold text-orange-500 mb-4 flex items-center gap-2">
-                                <span className="w-1 h-5 bg-orange-500 rounded-full" />
+                        <div className="mb-5">
+                            <h2 className="text-sm font-semibold text-orange-500 mb-2 flex items-center gap-2">
+                                <span className="w-1 h-4 bg-orange-500 rounded-full" />
                                 Basic Information
                             </h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label htmlFor="firstName" className={labelClass}>First Name *</label>
                                     <input
@@ -283,18 +283,18 @@ const AddUser = () => {
                                         maxLength={10}
                                         required
                                     />
-                                    <p className="mt-1 text-xs text-gray-500">Players log in with phone + password. Must be 10 digits starting with 6–9.</p>
+                                    <p className="mt-0.5 text-xs text-gray-500">Login: phone + password. 10 digits (6–9 start).</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Security Section */}
-                        <div className="mb-8">
-                            <h2 className="text-base font-semibold text-orange-500 mb-4 flex items-center gap-2">
-                                <span className="w-1 h-5 bg-orange-500 rounded-full" />
+                        <div className="mb-5">
+                            <h2 className="text-sm font-semibold text-orange-500 mb-2 flex items-center gap-2">
+                                <span className="w-1 h-4 bg-orange-500 rounded-full" />
                                 Account Security
                             </h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label htmlFor="password" className={labelClass}>Password *</label>
                                     <input
@@ -308,7 +308,7 @@ const AddUser = () => {
                                         required
                                         minLength={6}
                                     />
-                                    <p className="mt-1 text-xs text-gray-500">Minimum 6 characters required</p>
+                                    <p className="mt-0.5 text-xs text-gray-500">Min 6 characters</p>
                                 </div>
                                 <div>
                                     <label htmlFor="confirmPassword" className={labelClass}>Confirm Password *</label>
@@ -327,12 +327,12 @@ const AddUser = () => {
                         </div>
 
                         {/* Account Details Section */}
-                        <div className="mb-8">
-                            <h2 className="text-base font-semibold text-orange-500 mb-4 flex items-center gap-2">
-                                <span className="w-1 h-5 bg-orange-500 rounded-full" />
+                        <div className="mb-5">
+                            <h2 className="text-sm font-semibold text-orange-500 mb-2 flex items-center gap-2">
+                                <span className="w-1 h-4 bg-orange-500 rounded-full" />
                                 Account Details
                             </h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label htmlFor="role" className={labelClass}>Role *</label>
                                     <select
@@ -347,8 +347,8 @@ const AddUser = () => {
                                         <option value="bookie">Bookie</option>
                                     </select>
                                     {formData.role === 'bookie' && (
-                                        <p className="mt-1 text-xs text-orange-600 font-medium">
-                                            Bookies log in to the Bookie Panel with phone + password
+                                        <p className="mt-0.5 text-xs text-orange-600 font-medium">
+                                            Bookie Panel: phone + password
                                         </p>
                                     )}
                                 </div>
@@ -368,7 +368,7 @@ const AddUser = () => {
                                             className={inputClass}
                                             autoComplete="off"
                                         />
-                                        <p className="mt-1 text-xs text-gray-500">Commission deducted from player bet amounts (0-100%)</p>
+                                        <p className="mt-0.5 text-xs text-gray-500">0–100% from player bets</p>
                                     </div>
                                 )}
                                 {formData.role !== 'bookie' && (
@@ -392,18 +392,18 @@ const AddUser = () => {
                         </div>
 
                         {/* Submit */}
-                        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 pt-2">
+                        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-1">
                             <button
                                 type="button"
                                 onClick={() => navigate('/all-users')}
-                                className="px-6 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors font-medium"
+                                className="px-5 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors font-medium text-sm"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-orange-500 hover:bg-orange-500/90 text-gray-800 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-2 rounded-lg bg-orange-500 hover:bg-orange-500/90 text-gray-800 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? (
                                     <>
@@ -412,7 +412,7 @@ const AddUser = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <FaUserPlus className="w-5 h-5" />
+                                        <FaUserPlus className="w-4 h-4" />
                                         {formData.role === 'bookie' ? 'Create Bookie' : 'Create Player'}
                                     </>
                                 )}
@@ -423,30 +423,30 @@ const AddUser = () => {
             </div>
 
                 {/* Right: Created players list */}
-                <div className="lg:w-80 xl:w-96 shrink-0">
-                    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden sticky top-4">
-                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-100/30">
+                <div className="lg:w-72 xl:w-80 shrink-0">
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden sticky top-4 shadow-lg">
+                        <div className="px-3 py-2 border-b border-gray-200 bg-gray-100/30">
                             <h2 className="text-sm font-semibold text-orange-500 flex items-center gap-2">
                                 <FaUser className="w-4 h-4" />
                                 Created Players
                             </h2>
                             <p className="text-gray-500 text-xs mt-0.5">Recently added in this session</p>
                         </div>
-                        <div className="max-h-[60vh] overflow-y-auto p-3">
+                        <div className="max-h-[50vh] overflow-y-auto p-2">
                             {createdPlayers.length === 0 ? (
-                                <p className="text-gray-500 text-sm py-4 text-center">No players created yet</p>
+                                <p className="text-gray-500 text-xs py-3 text-center">No players created yet</p>
                             ) : (
-                                <ul className="space-y-2">
+                                <ul className="space-y-1.5">
                                     {createdPlayers.map((p) => (
                                         <li key={(p.id || p.createdAt?.getTime?.()) ?? Math.random()}>
                                             <Link
                                                 to={p.id ? `/all-users/${p.id}` : '/all-users'}
-                                                className="block p-3 rounded-xl bg-gray-50 border border-gray-200 hover:border-orange-300 hover:bg-gray-100 transition-colors"
+                                                className="block p-2 rounded-lg bg-gray-50 border border-gray-200 hover:border-orange-300 hover:bg-gray-100 transition-colors"
                                             >
-                                                <p className="font-medium text-gray-800 truncate">{p.username}</p>
+                                                <p className="font-medium text-gray-800 text-sm truncate">{p.username}</p>
                                                 <p className="text-gray-400 text-xs truncate mt-0.5">{p.email || '—'}</p>
                                                 {p.phone && <p className="text-gray-400 text-xs truncate mt-0.5">{p.phone}</p>}
-                                                <p className="text-gray-500 text-xs mt-1">
+                                                <p className="text-gray-500 text-xs mt-0.5">
                                                     {p.createdAt ? new Date(p.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
                                                 </p>
                                             </Link>

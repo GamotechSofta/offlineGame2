@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     FaTachometerAlt,
@@ -20,6 +20,8 @@ import {
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const navRef = useRef(null);
+    const savedScrollTop = useRef(0);
 
     const menuItems = [
         { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
@@ -40,16 +42,27 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         if (path === '/all-users' || path === '/markets') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
         }
+        if (path === '/revenue') {
+            return location.pathname === '/revenue' || location.pathname.startsWith('/revenue/');
+        }
         if (path === '/reports') {
-            return location.pathname === '/reports' || location.pathname.startsWith('/revenue');
+            return location.pathname === '/reports';
         }
         return location.pathname === path;
     };
 
     const handleNav = (path) => {
+        savedScrollTop.current = navRef.current?.scrollTop ?? 0;
         navigate(path);
         onClose?.();
     };
+
+    useEffect(() => {
+        if (navRef.current != null && savedScrollTop.current > 0) {
+            navRef.current.scrollTop = savedScrollTop.current;
+            savedScrollTop.current = 0;
+        }
+    }, [location.pathname]);
 
     return (
         <aside
@@ -73,7 +86,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             </div>
 
             {/* Menu Items */}
-            <nav className="flex-1 p-3 sm:p-4 space-y-1 overflow-y-auto">
+            <nav ref={navRef} className="flex-1 p-3 sm:p-4 space-y-1 overflow-y-auto">
                 {menuItems.map((item) => (
                     <button
                         key={item.path}
