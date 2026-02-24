@@ -53,9 +53,9 @@ if (allSet) {
     console.log('2. Add the following variables:');
     console.log('\n   MONGODB_URI=mongodb://localhost:27017/offlineBookie');
     console.log('   PORT=3010');
-    console.log('   CLOUDINARY_CLOUD_NAME=dzd47mpdo');
-    console.log('   CLOUDINARY_API_KEY=524934744573422');
-    console.log('   CLOUDINARY_API_SECRET=BNFxqN-XXuwmmVXCAFGjJZuZtbA');
+    console.log('   CLOUDINARY_CLOUD_NAME=your_cloud_name  (get from Cloudinary Dashboard)');
+    console.log('   CLOUDINARY_API_KEY=your_api_key');
+    console.log('   CLOUDINARY_API_SECRET=your_api_secret');
     console.log('   NODE_ENV=development');
     console.log('\n3. Restart your backend server');
 }

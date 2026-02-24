@@ -103,10 +103,10 @@ export const createDepositRequest = async (req, res) => {
                 if (!cloudName) console.error('  - CLOUDINARY_CLOUD_NAME');
                 if (!apiKey) console.error('  - CLOUDINARY_API_KEY');
                 if (!apiSecret) console.error('  - CLOUDINARY_API_SECRET');
-                console.error('\n💡 Solution: Create Games/backend/.env file with:');
-                console.error('   CLOUDINARY_CLOUD_NAME=dzd47mpdo');
-                console.error('   CLOUDINARY_API_KEY=524934744573422');
-                console.error('   CLOUDINARY_API_SECRET=BNFxqN-XXuwmmVXCAFGjJZuZtbA');
+                console.error('\n💡 Solution: Create Games/backend/.env with Cloudinary credentials from https://console.cloudinary.com/');
+                console.error('   CLOUDINARY_CLOUD_NAME=your_cloud_name');
+                console.error('   CLOUDINARY_API_KEY=your_api_key');
+                console.error('   CLOUDINARY_API_SECRET=your_api_secret');
                 console.error('\n   Then restart the backend server.\n');
                 
                 return res.status(500).json({

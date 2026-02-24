@@ -2,13 +2,13 @@
 
 ## Environment Variables
 
-Add the following environment variables to your `.env` file in the `Games/backend/` directory:
+Get your credentials from the [Cloudinary Dashboard](https://console.cloudinary.com/) and add them to your `.env` file in the `Games/backend/` directory:
 
 ```env
-# Cloudinary Configuration
-CLOUDINARY_CLOUD_NAME=dzd47mpdo
-CLOUDINARY_API_KEY=524934744573422
-CLOUDINARY_API_SECRET=BNFxqN-XXuwmmVXCAFGjJZuZtbA
+# Cloudinary Configuration (get from https://console.cloudinary.com/)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 ## What Changed

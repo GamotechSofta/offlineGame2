@@ -16,7 +16,7 @@ Create a file named `.env` in the `Games/backend/` directory.
 
 ### Step 2: Add Cloudinary Credentials
 
-Copy and paste this into your `.env` file:
+Get your credentials from the [Cloudinary Dashboard](https://console.cloudinary.com/) (Dashboard → Account Details). Then add them to your `.env` file:
 
 ```env
 # MongoDB Connection
@@ -26,9 +26,10 @@ MONGODB_URI=mongodb://localhost:27017/offlineBookie
 PORT=3010
 
 # Cloudinary Configuration (REQUIRED for payment screenshots)
-CLOUDINARY_CLOUD_NAME=dzd47mpdo
-CLOUDINARY_API_KEY=524934744573422
-CLOUDINARY_API_SECRET=BNFxqN-XXuwmmVXCAFGjJZuZtbA
+# Get these from https://console.cloudinary.com/ - never commit real values
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 
 # Environment
 NODE_ENV=development
@@ -74,7 +75,7 @@ This will show you which variables are set and which are missing.
 
 ## 📝 Complete .env File Example
 
-Here's a complete `.env` file for local development:
+Here's a complete `.env` file for local development. Replace Cloudinary placeholders with your values from the [Cloudinary Dashboard](https://console.cloudinary.com/):
 
 ```env
 # Database Connection
@@ -84,10 +85,10 @@ MONGODB_URI=mongodb://localhost:27017/offlineBookie
 PORT=3010
 NODE_ENV=development
 
-# Cloudinary Configuration (REQUIRED)
-CLOUDINARY_CLOUD_NAME=dzd47mpdo
-CLOUDINARY_API_KEY=524934744573422
-CLOUDINARY_API_SECRET=BNFxqN-XXuwmmVXCAFGjJZuZtbA
+# Cloudinary Configuration (REQUIRED) - get from Cloudinary Dashboard
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 
 # Payment Configuration (Optional - has defaults)
 UPI_ID=your-upi-id@paytm
@@ -117,14 +118,14 @@ MAX_WITHDRAWAL=25000
 ### Mistake 4: Extra Spaces or Quotes
 ❌ **Wrong:** 
 ```env
-CLOUDINARY_CLOUD_NAME = "dzd47mpdo"
-CLOUDINARY_API_KEY = 524934744573422
+CLOUDINARY_CLOUD_NAME = "your_cloud_name"
+CLOUDINARY_API_KEY = your_api_key
 ```
 
 ✅ **Correct:**
 ```env
-CLOUDINARY_CLOUD_NAME=dzd47mpdo
-CLOUDINARY_API_KEY=524934744573422
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
 ```
 
 ---
@@ -145,10 +146,10 @@ If deploying to Render, Vercel, or other platforms:
 
 1. **Don't use `.env` file** - use the platform's environment variable settings
 2. Go to your deployment platform dashboard
-3. Add these environment variables:
-   - `CLOUDINARY_CLOUD_NAME=dzd47mpdo`
-   - `CLOUDINARY_API_KEY=524934744573422`
-   - `CLOUDINARY_API_SECRET=BNFxqN-XXuwmmVXCAFGjJZuZtbA`
+3. Add these environment variables with your real values from the Cloudinary Dashboard:
+   - `CLOUDINARY_CLOUD_NAME` (your cloud name)
+   - `CLOUDINARY_API_KEY` (your API key)
+   - `CLOUDINARY_API_SECRET` (your API secret)
 4. Redeploy your service
 
 ---
@@ -166,9 +167,9 @@ If deploying to Render, Vercel, or other platforms:
 ## 📞 Quick Checklist
 
 - [ ] `.env` file exists in `Games/backend/` directory
-- [ ] File contains `CLOUDINARY_CLOUD_NAME=dzd47mpdo`
-- [ ] File contains `CLOUDINARY_API_KEY=524934744573422`
-- [ ] File contains `CLOUDINARY_API_SECRET=BNFxqN-XXuwmmVXCAFGjJZuZtbA`
+- [ ] File contains `CLOUDINARY_CLOUD_NAME` (from Cloudinary Dashboard)
+- [ ] File contains `CLOUDINARY_API_KEY` (from Cloudinary Dashboard)
+- [ ] File contains `CLOUDINARY_API_SECRET` (from Cloudinary Dashboard)
 - [ ] No extra spaces or quotes in values
 - [ ] Backend server has been restarted after creating `.env`
 - [ ] Backend console shows no Cloudinary errors
