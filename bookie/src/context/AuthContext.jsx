@@ -43,7 +43,6 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         localStorage.removeItem(AUTH_KEY);
-        sessionStorage.removeItem('bookiePassword');
         setBookie(null);
     };
 

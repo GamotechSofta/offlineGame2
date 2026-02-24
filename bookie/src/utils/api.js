@@ -3,11 +3,10 @@ const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173
 
 export const getBookieAuthHeaders = () => {
     const bookie = JSON.parse(localStorage.getItem('bookie') || '{}');
-    const password = sessionStorage.getItem('bookiePassword') || '';
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${btoa(`${bookie.username}:${password}`)}`,
-    };
+    const token = bookie?.token || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return headers;
 };
 
 export const getReferralUrl = (bookieId) => {

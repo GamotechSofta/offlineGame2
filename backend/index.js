@@ -33,9 +33,16 @@ connectDB();
 app.set('trust proxy', 1);
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-    : ['*']; // Default: allow all (for development)
+const isProduction = process.env.NODE_ENV === 'production';
+const allowedOriginsRaw = process.env.ALLOWED_ORIGINS;
+if (isProduction && (!allowedOriginsRaw || !allowedOriginsRaw.trim())) {
+    throw new Error(
+        'ALLOWED_ORIGINS must be set in production. Set it to your frontend origin(s), e.g. ALLOWED_ORIGINS=https://yourdomain.com,https://admin.yourdomain.com'
+    );
+}
+const allowedOrigins = allowedOriginsRaw
+    ? allowedOriginsRaw.split(',').map(origin => origin.trim()).filter(Boolean)
+    : ['*']; // Default: allow all (development only)
 
 const corsOptions = {
     origin: function (origin, callback) {

@@ -71,7 +71,6 @@ const Login = () => {
 
             if (data.success) {
                 login(data.data);
-                sessionStorage.setItem('bookiePassword', password);
                 navigate('/dashboard');
             } else {
                 // Show the actual error message from server

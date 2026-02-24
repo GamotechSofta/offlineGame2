@@ -100,7 +100,7 @@ const AddUser = () => {
                 const data = await response.json();
                 if (data.success) {
                     const phoneNumber = formData.phone.replace(/\D/g, '').slice(0, 10);
-                    setSuccess(`Bookie account created successfully! Login credentials - Phone: ${phoneNumber}, Password: ${formData.password}`);
+                    setSuccess(`Bookie account created successfully! Login with Phone: ${phoneNumber} and the password you set.`);
                     setFormData({
                         firstName: '',
                         lastName: '',

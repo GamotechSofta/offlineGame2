@@ -51,7 +51,6 @@ const Login = () => {
                 const { token, ...adminData } = data.data;
                 localStorage.setItem('admin', JSON.stringify(adminData));
                 if (token) localStorage.setItem('adminToken', token);
-                sessionStorage.setItem('adminPassword', p);
                 navigate('/dashboard', { replace: true });
             } else {
                 setError(data.message || 'Login failed');

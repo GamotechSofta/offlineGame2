@@ -1,5 +1,6 @@
 import Admin from '../models/admin/admin.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
+import { signAdminToken } from '../utils/adminJwt.js';
 
 /**
  * Bookie login - only allows users with role 'bookie' and status 'active'
@@ -79,8 +80,7 @@ export const bookieLogin = async (req, res) => {
             ip: getClientIp(req),
         });
 
-        console.log(`[Bookie Login] Username: ${bookie.username}, Balance from DB: ${bookie.balance}`);
-        
+        const token = signAdminToken(bookie);
         res.status(200).json({
             success: true,
             message: 'Login successful',
@@ -92,6 +92,7 @@ export const bookieLogin = async (req, res) => {
                 phone: bookie.phone,
                 balance: bookie.balance || 0,
                 uiTheme: bookie.uiTheme || { themeId: 'default' },
+                token,
             },
         });
     } catch (error) {

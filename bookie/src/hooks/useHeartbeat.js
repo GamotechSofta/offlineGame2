@@ -6,7 +6,6 @@ const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also detects suspended 
 
 const logoutSuspendedBookie = () => {
   localStorage.removeItem('bookie');
-  sessionStorage.removeItem('bookiePassword');
   window.location.href = '/';
 };
 
