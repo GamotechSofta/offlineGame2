@@ -87,7 +87,7 @@ const Section1 = () => {
 
 
   return (
-    <section className="w-full bg-gray-100 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
+    <section className="w-full bg-gray-200 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
       {/* ═══ Desktop: MARKETS header ── */}
       <div className="hidden md:flex items-center gap-4 mt-4 mb-5 w-full max-w-7xl mx-auto px-4">
         {/* ── Left orange line ── */}
@@ -131,57 +131,69 @@ const Section1 = () => {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 min-[375px]:gap-3 sm:gap-4">
           {markets.map((market) => {
-            // open + running = clickable; closed = not clickable
             const isClickable = market.status === 'open' || market.status === 'running';
+            const statusText = market.status === 'closed' ? 'Closed for today' : market.status === 'running' ? 'Close is Running' : 'Market is Open';
             return (
             <div
               key={market.id}
               onClick={() => isClickable && navigate('/bidoptions', { state: { market } })}
-              className={`bg-white border-2 rounded-lg overflow-hidden transform transition-transform duration-200 ${
+              className={`bg-white rounded-lg overflow-hidden transform transition-transform duration-200 shadow hover:shadow-lg ${
                 isClickable 
-                  ? 'cursor-pointer hover:scale-[1.02] border-orange-300 hover:border-orange-500 shadow-sm' 
-                  : 'cursor-not-allowed border-gray-300'
+                  ? 'cursor-pointer hover:scale-[1.01] border border-gray-200 hover:border-orange-300' 
+                  : 'cursor-not-allowed border border-gray-200'
               }`}
             >
-              {/* Status: ***-**-***=Open(green), 156-2*-***=Running(green), 987-45-456=Closed(red) */}
-              <div className={`${
-                market.status === 'closed' ? 'bg-orange-500' : 'bg-green-600'
-              } py-1.5 min-[375px]:py-2 px-2 min-[375px]:px-3 text-center`}>
-                <p className="text-white text-[10px] min-[375px]:text-xs sm:text-sm font-semibold leading-tight">
-                  {market.status === 'open' && 'MARKET IS OPEN'}
-                  {market.status === 'running' && 'CLOSED IS RUNNING'}
-                  {market.status === 'closed' && 'MARKET CLOSED'}
-                </p>
-              </div>
+              <div className="p-1.5 sm:p-2 flex flex-col">
+                {/* Top: Market name (left) + Status (right) */}
+                <div className="flex items-start justify-between gap-2 mb-0.5">
+                  <h3 className="text-gray-900 text-sm sm:text-base font-bold truncate flex-1 min-w-0 leading-tight">
+                    {market.gameName}
+                  </h3>
+                  <span className={`text-[10px] sm:text-xs font-medium shrink-0 leading-tight px-1.5 py-0.5 ${market.status === 'closed' ? 'text-red-500' : 'text-green-600'}`}>
+                    {statusText}
+                  </span>
+                </div>
 
-            {/* Card Content */}
-            <div className="p-2 min-[375px]:p-3 sm:p-4 bg-white">
-              {/* Time with Clock Icon */}
-              <div className="flex items-center gap-1 mb-1.5 min-[375px]:mb-2">
-                <svg
-                  className="w-3 h-3 sm:w-4 sm:h-4 text-gray-700 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-gray-800 text-[10px] min-[375px]:text-xs sm:text-sm truncate font-medium">{market.timeRange}</p>
-              </div>
+                {/* Middle: Result numbers (green) + Icons (right) */}
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-green-600 text-base sm:text-lg md:text-xl font-bold leading-tight flex-1 min-w-0">
+                    {market.result}
+                  </p>
+                  <div className="flex items-center justify-center shrink-0 ml-auto self-center pt-2">
+                    {market.status === 'closed' ? (
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-500 flex items-center justify-center text-white p-2">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); navigate('/bidoptions', { state: { market } }); }}
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-green-500 flex items-center justify-center text-white hover:bg-green-600 active:scale-95 p-2"
+                        aria-label="Play"
+                      >
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-              {/* Game Name */}
-              <h3 className="text-gray-900 text-xs min-[375px]:text-sm sm:text-base md:text-lg font-bold mb-2 min-[375px]:mb-3 truncate">
-                {market.gameName}
-              </h3>
-
-              {/* Result */}
-              <div>
-                <p className="text-orange-600 text-lg min-[375px]:text-xl sm:text-2xl md:text-3xl font-bold">
-                  {market.result}
-                </p>
+                {/* Bottom: Open Bids / Close Bids times */}
+                <div className="flex gap-2 text-gray-600">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 leading-tight">Open Bids</p>
+                    <p className="text-xs sm:text-sm font-semibold leading-tight">{formatTime(market.startingTime) || '-'}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 leading-tight">Close Bids</p>
+                    <p className="text-xs sm:text-sm font-semibold leading-tight">{formatTime(market.closingTime) || '-'}</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
             );
           })}
         </div>

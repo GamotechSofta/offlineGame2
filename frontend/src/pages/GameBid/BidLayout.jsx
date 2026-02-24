@@ -147,7 +147,7 @@ const BidLayout = ({
         <div className="min-h-screen min-h-ios-screen bg-white font-sans w-full max-w-full overflow-x-hidden">
             {/* Header - White/Orange theme - iOS safe area padding */}
             <div
-                className="bg-white border-b-2 border-orange-200 py-1.5 flex items-center justify-between gap-2 sticky top-0 z-10 mt-2 shadow-sm"
+                className="bg-white border-b-2 border-orange-200 py-1.5 flex items-center justify-between gap-2 sticky top-0 z-10 shadow-sm"
                 style={{ paddingLeft: 'max(0.75rem, env(safe-area-inset-left))', paddingRight: 'max(0.75rem, env(safe-area-inset-right))' }}
             >
                 <button

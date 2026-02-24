@@ -123,7 +123,7 @@ const Layout = ({ children }) => {
       <div
         className={
           isBidPage
-            ? 'pt-[calc(52px+env(safe-area-inset-top,0px))] sm:pt-[calc(68px+env(safe-area-inset-top,0px))] md:pt-[calc(70px+env(safe-area-inset-top,0px))]'
+            ? 'pt-[calc(52px+env(safe-area-inset-top,0px))] sm:pt-[calc(54px+env(safe-area-inset-top,0px))] md:pt-[calc(56px+env(safe-area-inset-top,0px))]'
             : ((isBetsPage || isHistoryPage) ? 'pt-[calc(72px+env(safe-area-inset-top,0px))] sm:pt-[calc(76px+env(safe-area-inset-top,0px))] md:pt-[calc(88px+env(safe-area-inset-top,0px))]' : 'pt-[calc(56px+env(safe-area-inset-top,0px))] sm:pt-[calc(68px+env(safe-area-inset-top,0px))] md:pt-[calc(72px+env(safe-area-inset-top,0px))]')
         }
       >
