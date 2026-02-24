@@ -17,7 +17,7 @@ const HeroSection = () => {
     <>
       {/* Desktop: section with aspect ratio so the background has height */}
       <section
-        className="w-full max-w-full overflow-hidden mb-6 mt-5 relative hidden md:block"
+        className="w-full max-w-full overflow-hidden mb-6 relative hidden md:block"
         style={{ aspectRatio: '1920/500' }}
       >
         <div
@@ -26,7 +26,7 @@ const HeroSection = () => {
         />
       </section>
       {/* Mobile: img at original aspect ratio */}
-      <section className="w-full max-w-full overflow-hidden mb-6 mt-5 md:hidden">
+      <section className="w-full max-w-full overflow-hidden mb-6 md:hidden">
         <img
           src={heroImageMobile}
           alt=""

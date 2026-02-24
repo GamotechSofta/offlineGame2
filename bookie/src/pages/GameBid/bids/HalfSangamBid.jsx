@@ -7,9 +7,10 @@ import { isValidAnyPana } from '../panaRules';
 const sanitizeDigits = (v, maxLen) => (v ?? '').toString().replace(/\D/g, '').slice(0, maxLen);
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
 
-// Half Sangam: single game with common UI for (O) Open Pana + Close Ank and (C) Open Ank + Close Pana
+// Half Sangam: single form with Flip to toggle (O) Open Pana+Close Ank ↔ (C) Open Ank+Close Pana
 const HalfSangamBid = ({ title, gameType, betType, embedInSingleScroll = false }) => {
     const { market } = usePlayerBet();
+    const [flipped, setFlipped] = useState(false);
     const { addToCart } = useBetCart();
     const [session, setSession] = useState('OPEN');
     const [bids, setBids] = useState([]);
@@ -43,7 +44,7 @@ const HalfSangamBid = ({ title, gameType, betType, embedInSingleScroll = false }
     const handleDelete = (id) => setBids((prev) => prev.filter((b) => b.id !== id));
 
     const inputCl = 'flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none focus:ring-orange-500 focus:border-orange-500';
-    const labelCl = 'text-gray-400 text-sm font-medium shrink-0 w-40';
+    const labelCl = 'text-gray-900 text-sm font-medium shrink-0 w-40';
 
     return (
         <BookieBidLayout
@@ -73,18 +74,9 @@ const HalfSangamBid = ({ title, gameType, betType, embedInSingleScroll = false }
 
                 <div className="md:grid md:grid-cols-2 md:gap-8 md:items-start space-y-6 md:space-y-0">
                     <div className="space-y-6">
-                        <HalfSangamOSection
-                            bids={bids}
-                            setBids={setBids}
-                            session={session}
-                            showWarning={showWarning}
-                            inputCl={inputCl}
-                            labelCl={labelCl}
-                            sanitizeDigits={sanitizeDigits}
-                            sanitizePoints={sanitizePoints}
-                            isValidAnyPana={isValidAnyPana}
-                        />
-                        <HalfSangamCSection
+                        <HalfSangamFormSection
+                            flipped={flipped}
+                            setFlipped={setFlipped}
                             bids={bids}
                             setBids={setBids}
                             session={session}
@@ -99,7 +91,7 @@ const HalfSangamBid = ({ title, gameType, betType, embedInSingleScroll = false }
                             type="button"
                             onClick={handleAddToCart}
                             disabled={!bids.length}
-                            className={`w-full font-bold py-3.5 min-h-[48px] rounded-lg shadow-md transition-all active:scale-[0.98] ${
+                            className={`-mt-3 w-full font-bold py-3.5 min-h-[48px] rounded-lg shadow-md transition-all active:scale-[0.98] ${
                                 bids.length
                                     ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700'
                                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -143,96 +135,127 @@ const HalfSangamBid = ({ title, gameType, betType, embedInSingleScroll = false }
     );
 };
 
-function HalfSangamOSection({ bids, setBids, session, showWarning, inputCl, labelCl, sanitizeDigits, sanitizePoints, isValidAnyPana }) {
-    const [openPana, setOpenPana] = useState('');
-    const [closeAnk, setCloseAnk] = useState('');
+// Single form: Flip toggles between (O) Open Pana+Close Ank and (C) Open Ank+Close Pana
+function HalfSangamFormSection({ flipped, setFlipped, bids, setBids, session, showWarning, inputCl, labelCl, sanitizeDigits, sanitizePoints, isValidAnyPana }) {
+    const [first, setFirst] = useState('');
+    const [second, setSecond] = useState('');
     const [points, setPoints] = useState('');
-    const [openPanaInvalid, setOpenPanaInvalid] = useState(false);
+    const [panaInvalid, setPanaInvalid] = useState(false);
     const pointsInputRef = useRef(null);
+
+    const handleFlip = () => {
+        setFlipped((prev) => !prev);
+        setFirst('');
+        setSecond('');
+        setPoints('');
+        setPanaInvalid(false);
+    };
 
     const handleAdd = () => {
         const pts = Number(points);
         if (!pts || pts <= 0) { showWarning('Please enter points.'); return; }
-        if (!isValidAnyPana(openPana)) { showWarning('Open Pana must be a valid Pana (Single / Double / Triple).'); return; }
-        const enteredCloseAnk = (closeAnk ?? '').toString().trim();
-        if (!/^[0-9]$/.test(enteredCloseAnk)) { showWarning('Please enter a valid Close Ank (0-9).'); return; }
-        const numberKey = `${openPana}-${enteredCloseAnk}`;
-        setBids((prev) => [...prev, { id: Date.now() + Math.random(), number: numberKey, points: String(pts), type: session }]);
-        setOpenPana(''); setCloseAnk(''); setPoints('');
+        const pana = flipped ? second : first;
+        const ank = flipped ? first : second;
+        if (!isValidAnyPana(pana)) {
+            showWarning(flipped ? 'Close Pana must be a valid Pana.' : 'Open Pana must be a valid Pana.');
+            return;
+        }
+        const ankStr = (ank ?? '').toString().trim();
+        if (!/^[0-9]$/.test(ankStr)) {
+            showWarning(flipped ? 'Please enter a valid Open Ank (0-9).' : 'Please enter a valid Close Ank (0-9).');
+            return;
+        }
+        const numberKey = flipped ? `${ankStr}-${pana}` : `${pana}-${ankStr}`;
+        setBids((prev) => {
+            const next = [...prev];
+            const idx = next.findIndex((b) => String(b.number) === numberKey && String(b.type) === String(session));
+            if (idx >= 0) {
+                const cur = Number(next[idx].points || 0) || 0;
+                next[idx] = { ...next[idx], points: String(cur + pts) };
+                return next;
+            }
+            return [...next, { id: Date.now() + Math.random(), number: numberKey, points: String(pts), type: session }];
+        });
+        setFirst('');
+        setSecond('');
+        setPoints('');
+        setPanaInvalid(false);
     };
 
+    const handleFirstChange = (v) => {
+        if (flipped) {
+            setFirst(sanitizeDigits(v, 1));
+        } else {
+            const next = sanitizeDigits(v, 3);
+            setFirst(next);
+            setPanaInvalid(!!next && next.length === 3 && !isValidAnyPana(next));
+            if (next.length === 3) pointsInputRef.current?.focus?.();
+        }
+    };
+    const handleSecondChange = (v) => {
+        if (flipped) {
+            const next = sanitizeDigits(v, 3);
+            setSecond(next);
+            setPanaInvalid(!!next && next.length === 3 && !isValidAnyPana(next));
+            if (next.length === 3) pointsInputRef.current?.focus?.();
+        } else {
+            setSecond(sanitizeDigits(v, 1));
+        }
+    };
+
+    const firstLabel = flipped ? 'Open Ank:' : 'Open Pana:';
+    const secondLabel = flipped ? 'Close Pana:' : 'Close Ank:';
+    const firstPlaceholder = flipped ? 'Ank' : 'Pana';
+    const secondPlaceholder = flipped ? 'Pana' : 'Ank';
+    const titleText = flipped ? 'Half Sangam (C) — Open Ank + Close Pana' : 'Half Sangam (O) — Open Pana + Close Ank';
+    const panaInputInvalid = flipped ? (second.length === 3 && panaInvalid) : (first.length === 3 && panaInvalid);
+
     return (
-        <div className="p-4 rounded-xl border border-orange-200 bg-orange-50/30 space-y-3">
-            <h3 className="text-orange-600 font-semibold text-sm">Half Sangam (O) — Open Pana + Close Ank</h3>
+        <div className="p-4 space-y-3">
+            <h3 className="text-orange-600 font-semibold text-sm">{titleText}</h3>
             <div className="flex flex-row items-center gap-2">
-                <label className={labelCl}>Open Pana:</label>
-                <input type="text" inputMode="numeric" value={openPana}
-                    onChange={(e) => {
-                        const next = sanitizeDigits(e.target.value, 3);
-                        setOpenPana(next);
-                        setOpenPanaInvalid(!!next && next.length === 3 && !isValidAnyPana(next));
-                        if (next.length === 3) pointsInputRef.current?.focus?.();
-                    }}
-                    placeholder="Pana"
-                    className={`${inputCl} ${openPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
+                <label className={labelCl}>{firstLabel}</label>
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    value={first}
+                    onChange={(e) => handleFirstChange(e.target.value)}
+                    placeholder={firstPlaceholder}
+                    className={`${inputCl} ${!flipped && panaInputInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                 />
             </div>
             <div className="flex flex-row items-center gap-2">
-                <label className={labelCl}>Close Ank:</label>
-                <input type="text" inputMode="numeric" value={closeAnk} onChange={(e) => setCloseAnk(sanitizeDigits(e.target.value, 1))} placeholder="Ank" className={inputCl} />
+                <span className="shrink-0 w-40" />
+                <button
+                    type="button"
+                    onClick={handleFlip}
+                    className="flex-1 min-w-0 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2.5 min-h-[40px] rounded-full shadow-sm transition-all active:scale-[0.98]"
+                >
+                    Flip
+                </button>
             </div>
             <div className="flex flex-row items-center gap-2">
-                <label className={labelCl}>Points:</label>
-                <input ref={pointsInputRef} type="text" inputMode="numeric" value={points} onChange={(e) => setPoints(sanitizePoints(e.target.value))} placeholder="Point" className={`no-spinner ${inputCl}`} />
-            </div>
-            <button type="button" onClick={handleAdd} className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3 min-h-[44px] rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 transition-all active:scale-[0.98]">
-                Add to List
-            </button>
-        </div>
-    );
-}
-
-function HalfSangamCSection({ bids, setBids, session, showWarning, inputCl, labelCl, sanitizeDigits, sanitizePoints, isValidAnyPana }) {
-    const [openAnk, setOpenAnk] = useState('');
-    const [closePana, setClosePana] = useState('');
-    const [points, setPoints] = useState('');
-    const [closePanaInvalid, setClosePanaInvalid] = useState(false);
-    const pointsInputRef = useRef(null);
-
-    const handleAdd = () => {
-        const pts = Number(points);
-        if (!pts || pts <= 0) { showWarning('Please enter points.'); return; }
-        if (!isValidAnyPana(closePana)) { showWarning('Close Pana must be a valid Pana (Single / Double / Triple).'); return; }
-        const enteredOpenAnk = (openAnk ?? '').toString().trim();
-        if (!/^[0-9]$/.test(enteredOpenAnk)) { showWarning('Please enter a valid Open Ank (0-9).'); return; }
-        const numberKey = `${enteredOpenAnk}-${closePana}`;
-        setBids((prev) => [...prev, { id: Date.now() + Math.random(), number: numberKey, points: String(pts), type: session }]);
-        setOpenAnk(''); setClosePana(''); setPoints('');
-    };
-
-    return (
-        <div className="p-4 rounded-xl border border-orange-200 bg-orange-50/30 space-y-3">
-            <h3 className="text-orange-600 font-semibold text-sm">Half Sangam (C) — Open Ank + Close Pana</h3>
-            <div className="flex flex-row items-center gap-2">
-                <label className={labelCl}>Open Ank:</label>
-                <input type="text" inputMode="numeric" value={openAnk} onChange={(e) => setOpenAnk(sanitizeDigits(e.target.value, 1))} placeholder="Ank" className={inputCl} />
-            </div>
-            <div className="flex flex-row items-center gap-2">
-                <label className={labelCl}>Close Pana:</label>
-                <input type="text" inputMode="numeric" value={closePana}
-                    onChange={(e) => {
-                        const next = sanitizeDigits(e.target.value, 3);
-                        setClosePana(next);
-                        setClosePanaInvalid(!!next && next.length === 3 && !isValidAnyPana(next));
-                        if (next.length === 3) pointsInputRef.current?.focus?.();
-                    }}
-                    placeholder="Pana"
-                    className={`${inputCl} ${closePanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
+                <label className={labelCl}>{secondLabel}</label>
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    value={second}
+                    onChange={(e) => handleSecondChange(e.target.value)}
+                    placeholder={secondPlaceholder}
+                    className={`${inputCl} ${flipped && panaInputInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                 />
             </div>
             <div className="flex flex-row items-center gap-2">
                 <label className={labelCl}>Points:</label>
-                <input ref={pointsInputRef} type="text" inputMode="numeric" value={points} onChange={(e) => setPoints(sanitizePoints(e.target.value))} placeholder="Point" className={`no-spinner ${inputCl}`} />
+                <input
+                    ref={pointsInputRef}
+                    type="text"
+                    inputMode="numeric"
+                    value={points}
+                    onChange={(e) => setPoints(sanitizePoints(e.target.value))}
+                    placeholder="Point"
+                    className={`no-spinner ${inputCl}`}
+                />
             </div>
             <button type="button" onClick={handleAdd} className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3 min-h-[44px] rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 transition-all active:scale-[0.98]">
                 Add to List

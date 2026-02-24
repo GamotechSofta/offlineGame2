@@ -147,23 +147,23 @@ const BidLayout = ({
         <div className="min-h-screen min-h-ios-screen bg-white font-sans w-full max-w-full overflow-x-hidden">
             {/* Header - White/Orange theme - iOS safe area padding */}
             <div
-                className="bg-white border-b-2 border-orange-200 py-2 flex items-center justify-between gap-2 sticky top-0 z-10 mt-4 shadow-sm"
+                className="bg-white border-b-2 border-gray-800 py-1.5 flex items-center justify-between gap-2 sticky top-0 z-10 mt-2 shadow-sm"
                 style={{ paddingLeft: 'max(0.75rem, env(safe-area-inset-left))', paddingRight: 'max(0.75rem, env(safe-area-inset-right))' }}
             >
                 <button
                     onClick={() => market ? navigate('/bidoptions', { state: { market } }) : navigate(-1)}
-                    className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-orange-50 border-2 border-orange-200 hover:bg-orange-100 hover:border-orange-300 text-orange-500 rounded-full active:scale-95 transition-colors touch-manipulation"
+                    className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center bg-orange-50 border-2 border-gray-800 hover:bg-orange-100 hover:border-gray-700 text-orange-500 rounded-full active:scale-95 transition-colors touch-manipulation"
                     aria-label="Back"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                 </button>
-                <h1 className="text-xs sm:text-base md:text-lg font-bold uppercase tracking-wide truncate flex-1 text-center mx-1 text-gray-800 min-w-0">
+                <h1 className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-wide truncate flex-1 text-center mx-1 text-gray-800 min-w-0">
                     {market?.gameName ? `${market.gameName} - ${title}` : title}
                 </h1>
-                <div className="bg-orange-500 text-white px-2 sm:px-3 py-1 rounded-full flex items-center gap-1.5 text-[11px] sm:text-sm font-bold shadow-md shrink-0">
-                    <div className="w-5 h-5 bg-white rounded flex items-center justify-center text-orange-500 text-xs font-bold">₹</div>
+                <div className="bg-orange-500 text-white px-2 sm:px-2.5 py-0.5 rounded-full flex items-center gap-1 text-[11px] sm:text-sm font-bold shadow-md shrink-0">
+                    <div className="w-4 h-4 bg-white rounded flex items-center justify-center text-orange-500 text-[10px] font-bold">₹</div>
                     {wallet.toFixed(1)}
                 </div>
             </div>
@@ -212,59 +212,21 @@ const BidLayout = ({
                                 e.preventDefault();
                                 return false;
                             }}
-                            className={`w-full pl-9 sm:pl-10 pr-3 py-2.5 min-h-[44px] h-[44px] bg-white border-2 border-orange-200 text-gray-800 rounded-full text-xs sm:text-sm font-bold text-center focus:outline-none focus:border-orange-500 cursor-pointer truncate ${dateSessionControlClassName}`}
+                            className={`w-full pl-9 sm:pl-10 pr-3 py-2.5 min-h-[44px] h-[44px] bg-white border-2 border-gray-800 text-gray-800 rounded-full text-xs sm:text-sm font-bold text-center focus:outline-none focus:border-gray-800 cursor-pointer truncate ${dateSessionControlClassName}`}
                             style={{
                                 colorScheme: 'light',
                             }}
                             title="Select date for scheduling your bet"
                         />
                     </div>
-                    
-                    {/* Schedule Button */}
-                    <button
-                        type="button"
-                        onClick={() => {
-                            // Open the date picker when Schedule button is clicked
-                            if (dateInputRef.current) {
-                                // Try modern showPicker API first
-                                if (typeof dateInputRef.current.showPicker === 'function') {
-                                    dateInputRef.current.showPicker().catch(() => {
-                                        // Fallback if showPicker fails
-                                        dateInputRef.current.focus();
-                                        dateInputRef.current.click();
-                                    });
-                                } else {
-                                    // Fallback for browsers that don't support showPicker
-                                    dateInputRef.current.focus();
-                                    dateInputRef.current.click();
-                                }
-                            }
-                        }}
-                        className={`shrink-0 px-2 sm:px-3 py-2.5 min-h-[44px] h-[44px] font-bold text-xs sm:text-sm rounded-full transition-all active:scale-[0.98] shadow-md flex items-center justify-center gap-1.5 min-w-[44px] ${
-                            isScheduled
-                                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-400 hover:to-green-500 cursor-pointer'
-                                : 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 cursor-pointer'
-                        }`}
-                        title={isScheduled ? "Bet scheduled! Click to change date" : "Click to open calendar and schedule bet"}
-                    >
-                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="hidden sm:inline whitespace-nowrap truncate max-w-[70px]">{isScheduled ? 'Scheduled' : 'Schedule'}</span>
-                        {isScheduled && (
-                            <svg className="hidden sm:block w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                        )}
-                    </button>
-                    
+
                     {/* Session Select - hidden on mobile, each bid screen has its own session control */}
                     <div className="relative flex-1 min-w-0 hidden md:block">
                         <select
                             value={session}
                             onChange={(e) => setSession(e.target.value)}
                             disabled={lockSessionSelect || (isToday && isRunning)}
-                            className={`w-full appearance-none bg-white border-2 border-orange-200 text-gray-800 font-bold text-xs sm:text-sm py-2.5 min-h-[44px] h-[44px] px-4 pr-8 rounded-full text-center focus:outline-none focus:border-orange-500 ${(lockSessionSelect || (isToday && isRunning)) ? 'opacity-60 cursor-not-allowed bg-gray-100' : ''} ${dateSessionControlClassName}`}
+                            className={`w-full appearance-none bg-white border-2 border-gray-800 text-gray-800 font-bold text-xs sm:text-sm py-2.5 min-h-[44px] h-[44px] px-4 pr-8 rounded-full text-center focus:outline-none focus:border-gray-800 ${(lockSessionSelect || (isToday && isRunning)) ? 'opacity-60 cursor-not-allowed bg-gray-100' : ''} ${dateSessionControlClassName}`}
                         >
                             {sessionOptions.map((opt) => (
                                 <option key={opt} value={opt}>
@@ -309,7 +271,7 @@ const BidLayout = ({
                     <div
                         className={`w-full max-w-sm md:max-w-md rounded-2xl flex flex-col sm:flex-row items-center gap-4 sm:gap-6 ${
                             showFooterStats
-                                ? 'bg-white backdrop-blur-sm border-2 border-orange-200 shadow-xl px-4 py-4'
+                                ? 'bg-white backdrop-blur-sm border-2 border-gray-800 shadow-xl px-4 py-4'
                                 : 'bg-transparent border-0 shadow-none p-0'
                         }`}
                     >

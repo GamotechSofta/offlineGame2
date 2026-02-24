@@ -351,12 +351,12 @@ const JodiBulkBid = ({ market, title }) => {
                     </div>
                 )}
 
-                <div className="bg-white border-2 border-orange-200 rounded-2xl p-2 sm:p-3 md:p-3 overflow-hidden w-full">
+                <div className="bg-white border-2 border-gray-200 rounded-2xl p-2 sm:p-3 md:p-3 overflow-hidden w-full">
                     <div className="flex justify-end mb-2">
                         <button
                             type="button"
                             onClick={clearAll}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold border-2 border-orange-300 text-orange-600 bg-white hover:bg-orange-50 active:scale-[0.98] transition-all"
+                            className="px-4 py-2 rounded-lg text-sm font-semibold border-2 border-gray-300 text-orange-600 bg-white hover:bg-orange-50 active:scale-[0.98] transition-all"
                         >
                             Clear
                         </button>
@@ -369,7 +369,7 @@ const JodiBulkBid = ({ market, title }) => {
                                 disabled={!canSlideLeft}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
                                     canSlideLeft
-                                        ? 'bg-white border-orange-300 text-orange-600'
+                                        ? 'bg-white border-gray-300 text-orange-600'
                                         : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                             >
@@ -384,7 +384,7 @@ const JodiBulkBid = ({ market, title }) => {
                                 disabled={!canSlideRight}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
                                     canSlideRight
-                                        ? 'bg-white border-orange-300 text-orange-600'
+                                        ? 'bg-white border-gray-300 text-orange-600'
                                         : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                             >
@@ -436,7 +436,7 @@ const JodiBulkBid = ({ market, title }) => {
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && colBulk[c]) applyCol(c, colBulk[c]);
                                     }}
-                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-white border-2 border-orange-200 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-900 placeholder:opacity-500 placeholder:font-normal focus:outline-none focus:border-orange-500"
+                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-white border-2 border-gray-200 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-900 placeholder:opacity-500 placeholder:font-normal focus:outline-none focus:border-orange-500"
                                 />
                             ))}
 
@@ -460,7 +460,7 @@ const JodiBulkBid = ({ market, title }) => {
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && rowBulk[r]) applyRow(r, rowBulk[r]);
                                             }}
-                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-orange-500"
+                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-white border-2 border-gray-200 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-orange-500"
                                         />
                                     </div>
                                     <div className="h-6 md:h-7" />
@@ -486,7 +486,7 @@ const JodiBulkBid = ({ market, title }) => {
                                                         }))
                                                     }
                                                     onKeyDown={(e) => handleCellKeyDown(e, r, c)}
-                                                    className="no-spinner h-6 md:h-7 w-full bg-white border-2 border-orange-200 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-orange-500"
+                                                    className="no-spinner h-6 md:h-7 w-full bg-white border-2 border-gray-200 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-orange-500"
                                                 />
                                             </div>
                                         );

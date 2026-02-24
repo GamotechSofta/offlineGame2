@@ -194,10 +194,10 @@ const BidOptions = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col items-center">
       {/* Header */}
-      <div className="w-full flex items-center px-3 sm:px-4 pt-4 sm:pt-5 pb-3 sm:pb-4 bg-white border-b-2 border-orange-200 relative shadow-sm">
+      <div className="w-full flex items-center px-3 sm:px-4 pt-2 sm:pt-3 pb-2 sm:pb-3 bg-white border-b-2 border-orange-200 relative shadow-sm">
         <button
           onClick={() => navigate(isStarline ? '/startline-dashboard' : '/')}
-          className="absolute left-3 sm:left-4 flex items-center justify-center min-w-[44px] min-h-[44px] -ml-1 text-gray-600 hover:text-orange-500 active:scale-95 touch-manipulation"
+          className="absolute left-3 sm:left-4 flex items-center justify-center min-w-[36px] min-h-[36px] -ml-1 text-gray-600 hover:text-orange-500 active:scale-95 touch-manipulation"
           aria-label="Back"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -206,7 +206,7 @@ const BidOptions = () => {
         </button>
         <div className="w-full text-center pr-12 pl-12 min-w-0">
           {/* Dynamic market name from selected market */}
-          <h1 className="text-gray-800 font-bold text-base sm:text-lg tracking-wider uppercase inline-block border-b-2 border-orange-500 pb-1 px-2 py-1 truncate max-w-full">
+          <h1 className="text-gray-800 font-bold text-sm sm:text-base tracking-wider uppercase inline-block border-b-2 border-orange-500 pb-0.5 px-2 py-0.5 truncate max-w-full">
             {market?.gameName || 'SELECT MARKET'}
           </h1>
           {isStarline ? (
@@ -229,7 +229,7 @@ const BidOptions = () => {
                 gameMode: option.title.toLowerCase().includes('bulk') ? 'bulk' : 'easy'
               }
             })}
-            className="relative rounded-2xl bg-white border-2 border-orange-200 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2 sm:gap-2.5 hover:border-orange-400 hover:bg-orange-50 active:scale-[0.98] transition-all cursor-pointer shadow-md hover:shadow-lg group touch-manipulation min-h-[104px] sm:min-h-[120px] md:min-h-[132px]"
+            className="relative rounded-2xl bg-gray-100 border-2 border-gray-200 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2 sm:gap-2.5 hover:border-gray-400 hover:bg-gray-200 active:scale-[0.98] transition-all cursor-pointer shadow-md hover:shadow-lg group touch-manipulation min-h-[104px] sm:min-h-[120px] md:min-h-[132px]"
           >
             {/* Icon Container with subtle glow effect */}
             <div className="flex items-center justify-center w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] md:w-[96px] md:h-[96px] group-hover:scale-[1.03] transition-transform duration-300">

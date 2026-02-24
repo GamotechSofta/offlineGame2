@@ -127,7 +127,7 @@ const AppHeader = () => {
   return (
     <>
       <div
-        className="fixed top-0 left-0 right-0 z-50 w-full bg-white border-b-2 border-orange-200 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))] md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] py-2.5 sm:py-2 md:py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.5rem+env(safe-area-inset-top,0px))] md:pt-[calc(0.625rem+env(safe-area-inset-top,0px))]"
+        className="fixed top-0 left-0 right-0 z-50 w-full bg-white border-b-2 border-orange-200 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))] md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] py-1 sm:py-1 md:py-1.5 pt-[calc(0.375rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.25rem+env(safe-area-inset-top,0px))] md:pt-[calc(0.375rem+env(safe-area-inset-top,0px))] pb-1 sm:pb-1 md:pb-1.5"
       >
         <div className="flex items-center justify-between gap-2 sm:gap-2 md:gap-3">
           {/* Hamburger Menu and Logo together on the left */}
@@ -135,24 +135,24 @@ const AppHeader = () => {
             <button
               type="button"
               onClick={() => setIsMenuOpen(true)}
-              className="w-10 h-10 sm:w-9 sm:h-9 md:w-10 md:h-10 shrink-0 rounded-xl bg-gray-50 border-2 border-gray-300 flex items-center justify-center cursor-pointer active:scale-95 hover:bg-gray-100 transition-all duration-200 shadow-sm"
+              className="w-8 h-8 sm:w-7 sm:h-7 md:w-8 md:h-8 shrink-0 rounded-lg bg-gray-50 border-2 border-gray-300 flex items-center justify-center cursor-pointer active:scale-95 hover:bg-gray-100 transition-all duration-200 shadow-sm"
               aria-label="Open menu"
             >
-            <div className="flex flex-col gap-1.5 sm:gap-1.5">
-              <div className="w-5 sm:w-5 md:w-5 h-[2.5px] bg-black rounded-full"></div>
-              <div className="w-4 sm:w-4 md:w-4 h-[2.5px] bg-black rounded-full"></div>
-              <div className="w-3.5 sm:w-3 md:w-3 h-[2.5px] bg-black rounded-full"></div>
+            <div className="flex flex-col gap-1 sm:gap-1">
+              <div className="w-4 sm:w-4 md:w-4 h-[2px] bg-black rounded-full"></div>
+              <div className="w-3.5 sm:w-3.5 md:w-3.5 h-[2px] bg-black rounded-full"></div>
+              <div className="w-3 sm:w-3 md:w-3 h-[2px] bg-black rounded-full"></div>
             </div>
             </button>
 
             {/* Home Icon */}
             <Link 
               to="/" 
-              className="w-10 h-10 sm:w-9 sm:h-9 md:w-10 md:h-10 shrink-0 rounded-xl bg-gray-50 border-2 border-gray-300 flex items-center justify-center cursor-pointer active:scale-95 hover:bg-gray-100 transition-all duration-200 shadow-sm"
+              className="w-8 h-8 sm:w-7 sm:h-7 md:w-8 md:h-8 shrink-0 rounded-lg bg-gray-50 border-2 border-gray-300 flex items-center justify-center cursor-pointer active:scale-95 hover:bg-gray-100 transition-all duration-200 shadow-sm"
               title="Home"
             >
               <svg 
-                className="w-5 h-5 sm:w-5 sm:h-5 md:w-5 md:h-5 text-black" 
+                className="w-4 h-4 sm:w-4 sm:h-4 md:w-4 md:h-4 text-black" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
@@ -175,28 +175,28 @@ const AppHeader = () => {
           {/* Wallet - desktop only, responsive size */}
           <button
             onClick={() => navigate('/funds?tab=add-fund')}
-            className="hidden md:flex shrink-0 items-center gap-1.5 md:gap-2 lg:gap-2.5 rounded-lg bg-orange-50 border-2 border-orange-200 px-2.5 md:px-3 lg:px-4 py-1.5 md:py-2 hover:bg-orange-100 hover:border-orange-300 transition-colors"
+            className="hidden md:flex shrink-0 items-center gap-1.5 md:gap-2 lg:gap-2.5 rounded-lg bg-orange-50 border-2 border-orange-200 px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 hover:bg-orange-100 hover:border-orange-300 transition-colors"
           >
             <img
               src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769780438/Untitled_90_x_160_px_1080_x_1080_px_ychsx6.png"
               alt="Wallet"
-              className="w-7 h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 object-contain"
+              className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 object-contain"
             />
-            <span className="text-sm md:text-base lg:text-lg font-bold text-gray-800">₹{formattedBalance}</span>
+            <span className="text-xs md:text-sm lg:text-base font-bold text-gray-800">₹{formattedBalance}</span>
           </button>
 
           {/* Profile Icon - improved mobile touch target */}
           <button
             type="button"
             onClick={handleProfileClick}
-            className={`w-10 h-10 sm:w-9 sm:h-9 md:w-10 md:h-10 shrink-0 rounded-xl border-2 flex items-center justify-center cursor-pointer active:scale-95 transition-all duration-200 shadow-sm ${
+            className={`w-8 h-8 sm:w-7 sm:h-7 md:w-8 md:h-8 shrink-0 rounded-lg border-2 flex items-center justify-center cursor-pointer active:scale-95 transition-all duration-200 shadow-sm ${
               user ? 'bg-orange-50 border-orange-500 hover:bg-orange-100 hover:border-orange-600' : 'bg-white border-orange-300 hover:bg-orange-50 hover:border-orange-400'
             }`}
             title={user ? `${user.username} - View Profile` : 'Sign In / Sign Up'}
             aria-label="Profile"
           >
             <svg
-              className={`w-5 h-5 sm:w-5 sm:h-5 md:w-5 md:h-5 ${user ? 'text-orange-500' : 'text-orange-400'}`}
+              className={`w-4 h-4 sm:w-4 sm:h-4 md:w-4 md:h-4 ${user ? 'text-orange-500' : 'text-orange-400'}`}
               fill={user ? 'currentColor' : 'none'}
               stroke={user ? 'none' : 'currentColor'}
               strokeWidth={user ? 0 : 1.5}

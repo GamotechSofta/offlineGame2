@@ -125,7 +125,7 @@ const BidReviewModal = ({
       {/* Modal */}
       <div className="relative w-full max-w-md sm:max-w-lg">
         {stage === 'success' ? (
-          <div className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden border-2 border-orange-200">
+          <div className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden border-2 border-gray-200">
             <style>{`
               @keyframes successPop {
                 0% { transform: scale(0.6); opacity: 0; }
@@ -171,11 +171,11 @@ const BidReviewModal = ({
           </div>
         ) : (
           <div
-            className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden border-2 border-orange-200 max-h-[min(90svh,720px)] sm:max-h-[calc(100vh-48px)] flex flex-col"
+            className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden border-2 border-gray-200 max-h-[min(90svh,720px)] sm:max-h-[calc(100vh-48px)] flex flex-col"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0px)' }}
           >
             {/* Title bar */}
-            <div className="bg-orange-500 text-white px-3 sm:px-4 py-2.5 text-center text-sm sm:text-lg font-semibold shrink-0 border-b-2 border-orange-600">
+            <div className="bg-orange-500 text-white px-3 sm:px-4 py-2.5 text-center text-sm sm:text-lg font-semibold shrink-0 border-b-2 border-gray-600">
               {formatDateTitle(marketTitle, dateText)}
             </div>
 
@@ -190,7 +190,7 @@ const BidReviewModal = ({
                 </div>
                 <div className="mt-2.5 sm:mt-3 space-y-2 sm:space-y-3">
                   {rows.map((r) => (
-                    <div key={r.id} className="bg-orange-50 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-orange-200">
+                    <div key={r.id} className="bg-orange-50 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-200">
                       <div className="grid grid-cols-3 text-center text-gray-800 font-semibold text-[12px] sm:text-base">
                         <div className="truncate">{renderBetNumber(r.number)}</div>
                         <div className="truncate text-orange-500">{r.points}</div>
@@ -203,17 +203,17 @@ const BidReviewModal = ({
 
               {/* Summary 2x2 */}
               <div className="px-3 sm:px-4 pt-3 sm:pt-4 shrink-0">
-                <div className="rounded-2xl overflow-hidden border-2 border-orange-200 bg-orange-50">
+                <div className="rounded-2xl overflow-hidden border-2 border-gray-200 bg-orange-50">
                   <div className="grid grid-cols-2">
-                    <div className="p-3 sm:p-4 text-center border-r-2 border-b-2 border-orange-200">
+                    <div className="p-3 sm:p-4 text-center border-r-2 border-b-2 border-gray-200">
                       <div className="text-gray-600 text-[11px] sm:text-sm">Total Bets</div>
                       <div className="text-gray-800 font-bold text-base sm:text-lg leading-tight">{totalBids}</div>
                     </div>
-                    <div className="p-3 sm:p-4 text-center border-b-2 border-orange-200">
+                    <div className="p-3 sm:p-4 text-center border-b-2 border-gray-200">
                       <div className="text-gray-600 text-[11px] sm:text-sm">Total Bet Amount</div>
                       <div className="text-orange-500 font-bold text-base sm:text-lg leading-tight">{amount}</div>
                     </div>
-                    <div className="p-3 sm:p-4 text-center border-r-2 border-orange-200">
+                    <div className="p-3 sm:p-4 text-center border-r-2 border-gray-200">
                       <div className="text-gray-600 text-[11px] sm:text-sm">Wallet Balance Before Deduction</div>
                       <div className="text-gray-800 font-bold text-base sm:text-lg leading-tight">{formatMoney(before)}</div>
                     </div>
@@ -253,12 +253,12 @@ const BidReviewModal = ({
             </div>
 
             {/* Buttons (sticky bottom inside modal) */}
-            <div className="px-3 sm:px-4 py-3 sm:py-4 grid grid-cols-2 gap-3 sm:gap-4 bg-white shrink-0 border-t-2 border-orange-200">
+            <div className="px-3 sm:px-4 py-3 sm:py-4 grid grid-cols-2 gap-3 sm:gap-4 bg-white shrink-0 border-t-2 border-gray-200">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={submitting}
-                className="bg-white border-2 border-orange-200 text-gray-700 font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:border-orange-400 hover:bg-orange-50 disabled:opacity-50"
+                className="bg-white border-2 border-gray-200 text-gray-700 font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:border-gray-400 hover:bg-orange-50 disabled:opacity-50"
               >
                 Cancel
               </button>

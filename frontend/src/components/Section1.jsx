@@ -87,7 +87,7 @@ const Section1 = () => {
 
 
   return (
-    <section className="w-full bg-white min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
+    <section className="w-full bg-gray-100 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
       {/* ═══ Desktop: MARKETS header ── */}
       <div className="hidden md:flex items-center gap-4 mt-4 mb-5 w-full max-w-7xl mx-auto px-4">
         {/* ── Left orange line ── */}
@@ -137,15 +137,15 @@ const Section1 = () => {
             <div
               key={market.id}
               onClick={() => isClickable && navigate('/bidoptions', { state: { market } })}
-              className={`bg-white border-2 border-orange-200 rounded-lg overflow-hidden shadow-md transform transition-transform duration-200 ${
+              className={`bg-white border-2 rounded-lg overflow-hidden transform transition-transform duration-200 ${
                 isClickable 
-                  ? 'cursor-pointer hover:scale-[1.02] hover:border-orange-400' 
-                  : 'cursor-not-allowed opacity-60'
+                  ? 'cursor-pointer hover:scale-[1.02] border-orange-300 hover:border-orange-500 shadow-sm' 
+                  : 'cursor-not-allowed border-gray-300'
               }`}
             >
               {/* Status: ***-**-***=Open(green), 156-2*-***=Running(green), 987-45-456=Closed(red) */}
               <div className={`${
-                market.status === 'closed' ? 'bg-red-500' : 'bg-green-500'
+                market.status === 'closed' ? 'bg-orange-500' : 'bg-green-600'
               } py-1.5 min-[375px]:py-2 px-2 min-[375px]:px-3 text-center`}>
                 <p className="text-white text-[10px] min-[375px]:text-xs sm:text-sm font-semibold leading-tight">
                   {market.status === 'open' && 'MARKET IS OPEN'}
@@ -155,28 +155,28 @@ const Section1 = () => {
               </div>
 
             {/* Card Content */}
-            <div className="p-2 min-[375px]:p-3 sm:p-4">
+            <div className="p-2 min-[375px]:p-3 sm:p-4 bg-white">
               {/* Time with Clock Icon */}
               <div className="flex items-center gap-1 mb-1.5 min-[375px]:mb-2">
                 <svg
-                  className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 shrink-0"
+                  className="w-3 h-3 sm:w-4 sm:h-4 text-gray-700 shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-gray-600 text-[10px] min-[375px]:text-xs sm:text-sm truncate">{market.timeRange}</p>
+                <p className="text-gray-800 text-[10px] min-[375px]:text-xs sm:text-sm truncate font-medium">{market.timeRange}</p>
               </div>
 
               {/* Game Name */}
-              <h3 className="text-gray-800 text-xs min-[375px]:text-sm sm:text-base md:text-lg font-semibold mb-2 min-[375px]:mb-3 truncate">
+              <h3 className="text-gray-900 text-xs min-[375px]:text-sm sm:text-base md:text-lg font-bold mb-2 min-[375px]:mb-3 truncate">
                 {market.gameName}
               </h3>
 
               {/* Result */}
               <div>
-                <p className="text-orange-500 text-lg min-[375px]:text-xl sm:text-2xl md:text-3xl font-bold">
+                <p className="text-orange-600 text-lg min-[375px]:text-xl sm:text-2xl md:text-3xl font-bold">
                   {market.result}
                 </p>
               </div>

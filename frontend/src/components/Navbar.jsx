@@ -44,7 +44,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white w-full px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between shadow-md border-b border-orange-100">
+    <nav className="bg-white w-full px-2 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between border-b border-orange-100">
       {/* Left side - Hamburger menu, Home icon and Logo */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Hamburger Menu Icon */}
