@@ -50,8 +50,8 @@ const HalfSangamBid = ({ market, title }) => {
     const totalPoints = useMemo(() => bids.reduce((sum, b) => sum + Number(b.points || 0), 0), [bids]);
     const submitBtnClass = (enabled) =>
         enabled
-            ? 'w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 transition-all active:scale-[0.98]'
-            : 'w-full bg-gradient-to-r from-orange-300 to-orange-400 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md opacity-50 cursor-not-allowed';
+            ? 'w-full bg-gradient-to-r bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]'
+            : 'w-full bg-gradient-to-r bg-gray-400 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md opacity-50 cursor-not-allowed';
 
     const clearAll = () => {
         setIsReviewOpen(false);
@@ -89,7 +89,7 @@ const HalfSangamBid = ({ market, title }) => {
         setIsReviewOpen(true);
     };
 
-    const inputCl = 'flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none focus:ring-orange-500 focus:border-orange-200';
+    const inputCl = 'flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none focus:ring-[#1B3150] focus:border-gray-300';
     const labelCl = 'text-gray-900 text-sm font-medium shrink-0 w-40';
 
     return (
@@ -148,21 +148,21 @@ const HalfSangamBid = ({ market, title }) => {
 
                     {/* Right: combined list */}
                     <div className="mt-10 md:mt-0">
-                        <div className="grid grid-cols-[1.4fr_0.7fr_0.6fr] gap-2 sm:gap-3 text-center text-orange-500 font-bold text-xs sm:text-sm mb-2 px-2">
+                        <div className="grid grid-cols-[1.4fr_0.7fr_0.6fr] gap-2 sm:gap-3 text-center text-[#1B3150] font-bold text-xs sm:text-sm mb-2 px-2">
                             <div className="truncate">Sangam</div>
                             <div className="truncate">Amount</div>
                             <div className="truncate">Delete</div>
                         </div>
-                        <div className="h-px bg-orange-200 w-full mb-2" />
+                        <div className="h-px bg-gray-300 w-full mb-2" />
                         {bids.length === 0 ? null : (
                             <div className="space-y-2">
                                 {bids.map((b) => (
                                     <div
                                         key={b.id}
-                                        className="grid grid-cols-[1.4fr_0.7fr_0.6fr] gap-2 sm:gap-3 text-center items-center py-2.5 px-3 bg-orange-50 rounded-lg border-2 border-orange-200 text-sm"
+                                        className="grid grid-cols-[1.4fr_0.7fr_0.6fr] gap-2 sm:gap-3 text-center items-center py-2.5 px-3 bg-gray-50 rounded-lg border-2 border-gray-300 text-sm"
                                     >
                                         <div className="font-bold text-gray-800 truncate">{b.number}</div>
-                                        <div className="font-bold text-orange-500 truncate">{b.points}</div>
+                                        <div className="font-bold text-[#1B3150] truncate">{b.points}</div>
                                         <div className="flex justify-center">
                                             <button type="button" onClick={() => handleDelete(b.id)} className="p-2 text-red-500 hover:text-red-600 active:scale-95" aria-label="Delete">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -272,7 +272,7 @@ function HalfSangamFormSection({ flipped, setFlipped, bids, setBids, session, sh
 
     return (
         <div className="p-4 space-y-3">
-            <h3 className="text-orange-600 font-semibold text-sm">{titleText}</h3>
+            <h3 className="text-[#1B3150] font-semibold text-sm">{titleText}</h3>
             <div className="flex flex-row items-center gap-2">
                 <label className={labelCl}>{firstLabel}</label>
                 <input
@@ -317,7 +317,7 @@ function HalfSangamFormSection({ flipped, setFlipped, bids, setBids, session, sh
                     className={`no-spinner ${inputCl}`}
                 />
             </div>
-            <button type="button" onClick={handleAdd} className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3 min-h-[44px] rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 transition-all active:scale-[0.98]">
+            <button type="button" onClick={handleAdd} className="w-full bg-gradient-to-r bg-[#1B3150] text-white font-bold py-3 min-h-[44px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]">
                 Add to List
             </button>
         </div>

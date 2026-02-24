@@ -110,7 +110,7 @@ const Layout = ({ children }) => {
     location.pathname === '/support' ||
     location.pathname === '/support/new' ||
     location.pathname === '/support/status';
-  // All pages now use white background with orange/white theme
+  // All pages now use white background with navy/white theme
   const isBetsPage = location.pathname === '/bids';
   const isHistoryPage =
     location.pathname === '/bet-history' || location.pathname === '/market-result-history';

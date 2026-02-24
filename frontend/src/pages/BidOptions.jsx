@@ -194,10 +194,10 @@ const BidOptions = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col items-center">
       {/* Header */}
-      <div className="w-full flex items-center px-3 sm:px-4 pt-2 sm:pt-3 pb-2 sm:pb-3 bg-white border-b-2 border-orange-200 relative shadow-sm">
+      <div className="w-full flex items-center px-3 sm:px-4 pt-2 sm:pt-3 pb-2 sm:pb-3 bg-white border-b-2 border-gray-300 relative shadow-sm">
         <button
           onClick={() => navigate(isStarline ? '/startline-dashboard' : '/')}
-          className="absolute left-3 sm:left-4 flex items-center justify-center min-w-[36px] min-h-[36px] -ml-1 text-gray-600 hover:text-orange-500 active:scale-95 touch-manipulation"
+          className="absolute left-3 sm:left-4 flex items-center justify-center min-w-[36px] min-h-[36px] -ml-1 text-gray-600 hover:text-[#1B3150] active:scale-95 touch-manipulation"
           aria-label="Back"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -206,11 +206,11 @@ const BidOptions = () => {
         </button>
         <div className="w-full text-center pr-12 pl-12 min-w-0">
           {/* Dynamic market name from selected market */}
-          <h1 className="text-gray-800 font-bold text-sm sm:text-base tracking-wider uppercase inline-block border-b-2 border-orange-500 pb-0.5 px-2 py-0.5 truncate max-w-full">
+          <h1 className="text-gray-800 font-bold text-sm sm:text-base tracking-wider uppercase inline-block border-b-2 border-[#1B3150] pb-0.5 px-2 py-0.5 truncate max-w-full">
             {market?.gameName || 'SELECT MARKET'}
           </h1>
           {isStarline ? (
-            <div className="mt-2 text-xs font-extrabold tracking-[0.22em] text-orange-500 uppercase">
+            <div className="mt-2 text-xs font-extrabold tracking-[0.22em] text-[#1B3150] uppercase">
               STARLINE MARKET
             </div>
           ) : null}

@@ -140,12 +140,12 @@ const Passbook = () => {
     <div className="min-h-screen bg-white pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-4">
 
       {/* ── Sticky Header ── */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-orange-200 shadow-sm">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm">
         <div className="flex items-center gap-3 px-4 py-3 max-w-7xl mx-auto">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center hover:bg-orange-100 active:scale-95 transition-all text-gray-700"
+            className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-95 transition-all text-gray-700"
             aria-label="Back"
           >
             <IconBack />
@@ -155,7 +155,7 @@ const Passbook = () => {
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className={`w-9 h-9 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center hover:bg-orange-100 active:scale-95 transition-all text-gray-700 ${refreshing ? 'animate-spin' : ''}`}
+            className={`w-9 h-9 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-95 transition-all text-gray-700 ${refreshing ? 'animate-spin' : ''}`}
             aria-label="Refresh"
           >
             <IconRefresh />
@@ -166,19 +166,19 @@ const Passbook = () => {
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-4 md:pt-6 space-y-4 md:space-y-6">
 
         {/* ── Balance Card ── */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-50 via-white to-orange-50 border-2 border-orange-200 shadow-xl">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-orange-100/50 blur-2xl" />
-          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-orange-100/50 blur-2xl" />
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-gray-50 via-white to-gray-50 border-2 border-gray-200 shadow-xl">
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-gray-100/50 blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-gray-100/50 blur-2xl" />
           
           <div className="relative p-5 md:p-6">
             <div className="flex items-center justify-between mb-4 md:mb-5">
               <div>
                 <p className="text-gray-600 text-xs md:text-sm font-medium uppercase tracking-wider mb-1">Current Balance</p>
-                <p className="text-orange-500 text-3xl md:text-4xl font-extrabold tracking-tight">
+                <p className="text-[#1B3150] text-3xl md:text-4xl font-extrabold tracking-tight">
                   ₹{balance !== null ? formatAmount(balance) : '---'}
                 </p>
               </div>
-              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-orange-50 border-2 border-orange-200 flex items-center justify-center text-orange-500">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gray-50 border-2 border-gray-200 flex items-center justify-center text-[#1B3150]">
                 <IconWallet />
               </div>
             </div>
@@ -222,13 +222,13 @@ const Passbook = () => {
                 onClick={() => setFilter(f.key)}
                 className={`flex items-center gap-1.5 px-4 md:px-5 py-2.5 md:py-3 rounded-2xl text-sm md:text-base font-semibold whitespace-nowrap transition-all active:scale-95 ${
                   active
-                    ? 'bg-orange-100 border-2 border-orange-300 text-orange-600 shadow-sm'
-                    : 'bg-white border-2 border-orange-200 text-gray-600 hover:text-orange-600 hover:border-orange-300 hover:bg-orange-50'
+                    ? 'bg-gray-100 border-2 border-gray-300 text-gray-600 shadow-sm'
+                    : 'bg-white border-2 border-gray-200 text-gray-600 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 {f.label}
                 <span className={`text-xs md:text-sm px-1.5 md:px-2 py-0.5 md:py-1 rounded-full ${
-                  active ? 'bg-orange-200 text-orange-700' : 'bg-gray-100 text-gray-500'
+                  active ? 'bg-[#1B3150] text-white' : 'bg-gray-100 text-gray-500'
                 }`}>
                   {f.count}
                 </span>
@@ -238,7 +238,7 @@ const Passbook = () => {
         </div>
 
         {/* ── Transaction History ── */}
-        <div className="rounded-3xl bg-white border-2 border-orange-200 overflow-hidden shadow-sm">
+        <div className="rounded-3xl bg-white border-2 border-gray-200 overflow-hidden shadow-sm">
           <div className="px-5 md:px-6 pt-5 md:pt-6 pb-2 md:pb-3">
             <h3 className="text-gray-800 font-semibold text-sm md:text-base uppercase tracking-wider">Transaction History</h3>
           </div>
@@ -263,7 +263,7 @@ const Passbook = () => {
               {grouped.map(([date, txs]) => (
                 <div key={date}>
                   {/* Date Header */}
-                  <div className="px-5 md:px-6 py-2 md:py-3 mt-1 bg-orange-50/50">
+                  <div className="px-5 md:px-6 py-2 md:py-3 mt-1 bg-gray-50/50">
                     <p className="text-gray-600 text-[10px] md:text-xs font-semibold uppercase tracking-widest">{date}</p>
                   </div>
 
@@ -273,7 +273,7 @@ const Passbook = () => {
                     return (
                       <div
                         key={tx._id || idx}
-                        className="flex items-center gap-3.5 md:gap-4 px-4 md:px-6 py-3.5 md:py-4 mx-2 md:mx-4 rounded-2xl hover:bg-orange-50 transition-colors border-b border-gray-100 last:border-b-0"
+                        className="flex items-center gap-3.5 md:gap-4 px-4 md:px-6 py-3.5 md:py-4 mx-2 md:mx-4 rounded-2xl hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                       >
                         {/* Icon */}
                         <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 ${

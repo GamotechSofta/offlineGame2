@@ -127,7 +127,7 @@ const AppHeader = () => {
   return (
     <>
       <div
-        className="fixed top-0 left-0 right-0 z-50 w-full bg-white border-b-2 border-orange-200 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))] md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] py-1 sm:py-1 md:py-1.5 pt-[calc(0.375rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.25rem+env(safe-area-inset-top,0px))] md:pt-[calc(0.375rem+env(safe-area-inset-top,0px))] pb-1 sm:pb-1 md:pb-1.5"
+        className="fixed top-0 left-0 right-0 z-50 w-full bg-white border-b-2 border-gray-300 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))] md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] py-1 sm:py-1 md:py-1.5 pt-[calc(0.375rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.25rem+env(safe-area-inset-top,0px))] md:pt-[calc(0.375rem+env(safe-area-inset-top,0px))] pb-1 sm:pb-1 md:pb-1.5"
       >
         <div className="flex items-center justify-between gap-2 sm:gap-2 md:gap-3">
           {/* Hamburger Menu and Logo together on the left */}
@@ -175,7 +175,7 @@ const AppHeader = () => {
           {/* Wallet - desktop only, responsive size */}
           <button
             onClick={() => navigate('/funds?tab=add-fund')}
-            className="hidden md:flex shrink-0 items-center gap-1.5 md:gap-2 lg:gap-2.5 rounded-lg bg-orange-50 border-2 border-orange-200 px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 hover:bg-orange-100 hover:border-orange-300 transition-colors"
+            className="hidden md:flex shrink-0 items-center gap-1.5 md:gap-2 lg:gap-2.5 rounded-lg bg-gray-50 border-2 border-gray-300 px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 hover:bg-gray-100 hover:border-gray-400 transition-colors"
           >
             <img
               src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769780438/Untitled_90_x_160_px_1080_x_1080_px_ychsx6.png"
@@ -190,13 +190,13 @@ const AppHeader = () => {
             type="button"
             onClick={handleProfileClick}
             className={`w-8 h-8 sm:w-7 sm:h-7 md:w-8 md:h-8 shrink-0 rounded-lg border-2 flex items-center justify-center cursor-pointer active:scale-95 transition-all duration-200 shadow-sm ${
-              user ? 'bg-orange-50 border-orange-500 hover:bg-orange-100 hover:border-orange-600' : 'bg-white border-orange-300 hover:bg-orange-50 hover:border-orange-400'
+              user ? 'bg-gray-50 border-gray-500 hover:bg-gray-100 hover:border-[#1B3150]' : 'bg-white border-gray-400 hover:bg-gray-50 hover:border-[#1B3150]'
             }`}
             title={user ? `${user.username} - View Profile` : 'Sign In / Sign Up'}
             aria-label="Profile"
           >
             <svg
-              className={`w-4 h-4 sm:w-4 sm:h-4 md:w-4 md:h-4 ${user ? 'text-orange-500' : 'text-orange-400'}`}
+              className={`w-4 h-4 sm:w-4 sm:h-4 md:w-4 md:h-4 ${user ? 'text-gray-500' : 'text-[#1B3150]'}`}
               fill={user ? 'currentColor' : 'none'}
               stroke={user ? 'none' : 'currentColor'}
               strokeWidth={user ? 0 : 1.5}
@@ -220,9 +220,9 @@ const AppHeader = () => {
             onClick={() => setIsMenuOpen(false)}
             aria-label="Close menu overlay"
           />
-          <aside className="relative h-full w-[86%] max-w-[360px] sm:w-[70%] sm:max-w-[380px] md:w-[420px] md:max-w-none bg-white shadow-[6px_0_24px_rgba(0,0,0,0.2)] border-r-2 border-orange-200">
+          <aside className="relative h-full w-[86%] max-w-[360px] sm:w-[70%] sm:max-w-[380px] md:w-[420px] md:max-w-none bg-white shadow-[6px_0_24px_rgba(0,0,0,0.2)] border-r-2 border-gray-300">
             {/* User Profile Section */}
-            <div className="px-5 sm:px-6 pt-6 pb-5 border-b-2 border-orange-200 bg-gradient-to-b from-orange-50 to-white">
+            <div className="px-5 sm:px-6 pt-6 pb-5 border-b-2 border-gray-300 bg-gradient-to-b from-gray-50 to-white">
               <div className="flex items-start justify-between gap-3">
                 <button
                   type="button"
@@ -235,7 +235,7 @@ const AppHeader = () => {
                 >
                   {/* Avatar */}
                   <div className="relative shrink-0">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 border-2 border-orange-300 flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-lg">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-gray-500 to-[#1B3150] border-2 border-gray-400 flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-lg">
                       {avatarInitial}
                     </div>
                     {user && (
@@ -255,7 +255,7 @@ const AppHeader = () => {
                 <button
                   type="button"
                   onClick={() => setIsMenuOpen(false)}
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-orange-50 border-2 border-orange-200 flex items-center justify-center text-orange-500 hover:text-orange-600 hover:bg-orange-100 hover:border-orange-300 active:scale-95 transition-all duration-200 shrink-0"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-50 border-2 border-gray-300 flex items-center justify-center text-gray-500 hover:text-[#1B3150] hover:bg-gray-100 hover:border-gray-400 active:scale-95 transition-all duration-200 shrink-0"
                   aria-label="Close menu"
                 >
                   <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -279,10 +279,10 @@ const AppHeader = () => {
                       navigate(item.path);
                     }
                   }}
-                  className="group w-full bg-white rounded-xl sm:rounded-2xl px-4 py-3.5 sm:py-4 flex items-center gap-4 border-2 border-orange-200 hover:border-orange-400 hover:bg-orange-50 hover:shadow-lg active:scale-[0.98] transition-all duration-200"
+                  className="group w-full bg-white rounded-xl sm:rounded-2xl px-4 py-3.5 sm:py-4 flex items-center gap-4 border-2 border-gray-300 hover:border-[#1B3150] hover:bg-gray-50 hover:shadow-lg active:scale-[0.98] transition-all duration-200"
                 >
                   {/* Icon Container */}
-                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-orange-50 border-2 border-orange-200 flex items-center justify-center shrink-0 group-hover:border-orange-400 group-hover:bg-orange-100 group-hover:shadow-md transition-all duration-200">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gray-50 border-2 border-gray-300 flex items-center justify-center shrink-0 group-hover:border-[#1B3150] group-hover:bg-gray-100 group-hover:shadow-md transition-all duration-200">
                     {item.label === 'Top Winners' ? (
                       <img
                         src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769797561/podium_swqjij.png"
@@ -361,12 +361,12 @@ const AppHeader = () => {
                   </div>
                   
                   {/* Menu Text */}
-                  <span className="text-sm sm:text-base font-semibold text-gray-800 group-hover:text-orange-600 transition-colors duration-200 flex-1 text-left">
+                  <span className="text-sm sm:text-base font-semibold text-gray-800 group-hover:text-[#1B3150] transition-colors duration-200 flex-1 text-left">
                     {item.label}
                   </span>
                   
                   {/* Arrow Indicator */}
-                  <svg className="w-5 h-5 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-500 group-hover:translate-x-1 transition-all duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                 </button>

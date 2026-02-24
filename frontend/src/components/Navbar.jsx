@@ -44,7 +44,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white w-full px-2 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between border-b border-orange-100">
+    <nav className="bg-white w-full px-2 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between border-b border-gray-200">
       {/* Left side - Hamburger menu, Home icon and Logo */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Hamburger Menu Icon */}
@@ -79,10 +79,10 @@ const Navbar = () => {
         
         {/* Logo Text - Clickable to home */}
         <Link to="/" className="flex items-center cursor-pointer">
-          <span className="text-base sm:text-xl md:text-2xl font-bold text-orange-500 underline decoration-orange-500 decoration-2 underline-offset-2">
+          <span className="text-base sm:text-xl md:text-2xl font-bold text-[#1B3150] underline decoration-[#1B3150] decoration-2 underline-offset-2">
             RATAN
           </span>
-          <span className="text-base sm:text-xl md:text-2xl font-bold text-orange-500 underline decoration-orange-500 decoration-2 underline-offset-2 ml-0.5 sm:ml-1">
+          <span className="text-base sm:text-xl md:text-2xl font-bold text-[#1B3150] underline decoration-[#1B3150] decoration-2 underline-offset-2 ml-0.5 sm:ml-1">
             365
           </span>
         </Link>
@@ -93,7 +93,7 @@ const Navbar = () => {
         {/* Bank Button */}
         <button 
           onClick={() => navigate('/bank')}
-          className="bg-orange-500 text-white px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg shadow-md hover:bg-orange-600 transition-colors font-medium text-xs sm:text-sm md:text-base"
+          className="bg-[#1B3150] text-white px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg shadow-md hover:bg-[#152842] transition-colors font-medium text-xs sm:text-sm md:text-base"
         >
           Bank
         </button>
@@ -104,11 +104,11 @@ const Navbar = () => {
             {/* Profile Icon - Clickable to profile or logout */}
             <div 
               onClick={handleLogout}
-              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-orange-500 bg-orange-50 flex items-center justify-center cursor-pointer hover:bg-orange-100 transition-colors"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-[#1B3150] bg-gray-50 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
               title="Logout"
             >
               <svg 
-                className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" 
+                className="w-5 h-5 sm:w-6 sm:h-6 text-[#1B3150]" 
                 fill="currentColor" 
                 viewBox="0 0 20 20"
               >
@@ -129,11 +129,11 @@ const Navbar = () => {
           /* Sign In/Sign Up Icon */
           <div 
             onClick={() => navigate('/login')}
-            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-orange-500 bg-orange-50 flex items-center justify-center cursor-pointer hover:bg-orange-100 transition-colors"
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-[#1B3150] bg-gray-50 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
             title="Sign In / Sign Up"
           >
             <svg 
-              className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" 
+              className="w-5 h-5 sm:w-6 sm:h-6 text-[#1B3150]" 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"

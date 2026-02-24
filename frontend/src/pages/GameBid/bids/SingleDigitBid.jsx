@@ -144,13 +144,13 @@ const SingleDigitBid = ({ market, title }) => {
         <div className="grid grid-cols-2 gap-3">
             <button
                 onClick={() => setActiveTab('special')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${activeTab === 'special' ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-600 border-orange-200 hover:border-orange-400'}`}
+                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${activeTab === 'special' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}
             >
                 SPECIAL MODE
             </button>
             <button
                 onClick={() => setActiveTab('easy')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${activeTab === 'easy' ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-600 border-orange-200 hover:border-orange-400'}`}
+                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${activeTab === 'easy' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}
             >
                 EASY MODE
             </button>
@@ -170,11 +170,11 @@ const SingleDigitBid = ({ market, title }) => {
                     <div className="flex flex-col gap-3">
                         <div className="flex flex-row items-center gap-2">
                             <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
-                            <div className="flex-1 min-w-0 bg-white border-2 border-orange-200 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-gray-800">{session}</div>
+                            <div className="flex-1 min-w-0 bg-white border-2 border-gray-300 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-gray-800">{session}</div>
                         </div>
                         <div className="flex flex-row items-center gap-2">
                             <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Enter Single Digit:</label>
-                            <input type="text" inputMode="numeric" value={inputNumber} onChange={handleNumberInputChange} placeholder="Digit" maxLength={1} className="flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none" />
+                            <input type="text" inputMode="numeric" value={inputNumber} onChange={handleNumberInputChange} placeholder="Digit" maxLength={1} className="flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none" />
                         </div>
                         <div className="flex flex-row items-center gap-2">
                             <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Enter Points:</label>
@@ -185,23 +185,23 @@ const SingleDigitBid = ({ market, title }) => {
                                 value={inputPoints}
                                 onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                 placeholder="Point"
-                                className="no-spinner flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
+                                className="no-spinner flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
                             />
                         </div>
                     </div>
-                    <button onClick={handleAddBid} className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 transition-all active:scale-[0.98]">Add</button>
+                    <button onClick={handleAddBid} className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]">Add</button>
                 </>
             ) : (
                 <>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
                         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                             <div key={num} className="flex items-center gap-2">
-                                <div className="w-10 h-10 bg-orange-500 border-2 border-orange-200 text-white flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">{num}</div>
-                                <input type="number" min="0" placeholder="Pts" value={specialModeInputs[num]} onChange={(e) => setSpecialModeInputs((p) => ({ ...p, [num]: e.target.value }))} className="w-full h-10 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-orange-500 px-3 text-sm font-semibold" />
+                                <div className="w-10 h-10 bg-[#1B3150] border-2 border-gray-300 text-white flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">{num}</div>
+                                <input type="number" min="0" placeholder="Pts" value={specialModeInputs[num]} onChange={(e) => setSpecialModeInputs((p) => ({ ...p, [num]: e.target.value }))} className="w-full h-10 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-[#1B3150] px-3 text-sm font-semibold" />
                             </div>
                         ))}
                     </div>
-                    <button onClick={handleAddSpecialModeBids} className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3 rounded-md shadow-md hover:from-orange-600 hover:to-orange-700 transition-all">Add to List</button>
+                    <button onClick={handleAddSpecialModeBids} className="w-full bg-[#1B3150] text-white font-bold py-3 rounded-md shadow-md hover:bg-[#152842] transition-all">Add to List</button>
                 </>
             )}
 

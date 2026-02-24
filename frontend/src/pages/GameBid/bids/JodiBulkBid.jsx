@@ -333,8 +333,8 @@ const JodiBulkBid = ({ market, title }) => {
                     disabled={!canSubmit}
                     className={`hidden md:inline-flex items-center justify-center font-bold text-base min-h-[52px] min-w-[280px] px-7 rounded-full shadow-lg transition-all whitespace-nowrap ${
                         canSubmit
-                            ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98]'
-                            : 'bg-gradient-to-r from-orange-300 to-orange-400 text-white opacity-50 cursor-not-allowed'
+                            ? 'bg-gradient-to-r bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98]'
+                            : 'bg-gradient-to-r bg-gray-400 text-white opacity-50 cursor-not-allowed'
                     }`}
                 >
                     Submit Bet
@@ -351,12 +351,12 @@ const JodiBulkBid = ({ market, title }) => {
                     </div>
                 )}
 
-                <div className="bg-white border-2 border-orange-200 rounded-2xl p-2 sm:p-3 md:p-3 overflow-hidden w-full">
+                <div className="bg-white border-2 border-gray-300 rounded-2xl p-2 sm:p-3 md:p-3 overflow-hidden w-full">
                     <div className="flex justify-end mb-2">
                         <button
                             type="button"
                             onClick={clearAll}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold border-2 border-orange-200 text-orange-600 bg-white hover:bg-orange-50 active:scale-[0.98] transition-all"
+                            className="px-4 py-2 rounded-lg text-sm font-semibold border-2 border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 active:scale-[0.98] transition-all"
                         >
                             Clear
                         </button>
@@ -369,8 +369,8 @@ const JodiBulkBid = ({ market, title }) => {
                                 disabled={!canSlideLeft}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
                                     canSlideLeft
-                                        ? 'bg-white border-orange-200 text-orange-600'
-                                        : 'bg-gray-100 border-orange-200 text-gray-400 cursor-not-allowed'
+                                        ? 'bg-white border-gray-300 text-[#1B3150]'
+                                        : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
                                 }`}
                             >
                                 ← Prev
@@ -384,8 +384,8 @@ const JodiBulkBid = ({ market, title }) => {
                                 disabled={!canSlideRight}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
                                     canSlideRight
-                                        ? 'bg-white border-orange-200 text-orange-600'
-                                        : 'bg-gray-100 border-orange-200 text-gray-400 cursor-not-allowed'
+                                        ? 'bg-white border-gray-300 text-[#1B3150]'
+                                        : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
                                 }`}
                             >
                                 Next →
@@ -406,7 +406,7 @@ const JodiBulkBid = ({ market, title }) => {
                             {visibleDigits.map((c) => (
                                 <div
                                     key={`h-${c}`}
-                                    className="h-6 md:h-7 w-full flex items-center justify-center text-orange-500 font-medium text-[10px] md:text-sm"
+                                    className="h-6 md:h-7 w-full flex items-center justify-center text-[#1B3150] font-medium text-[10px] md:text-sm"
                                 >
                                     {c}
                                 </div>
@@ -436,7 +436,7 @@ const JodiBulkBid = ({ market, title }) => {
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && colBulk[c]) applyCol(c, colBulk[c]);
                                     }}
-                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-white border-2 border-orange-200 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-900 placeholder:opacity-500 placeholder:font-normal focus:outline-none focus:border-orange-500"
+                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-white border-2 border-gray-300 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-900 placeholder:opacity-500 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
                                 />
                             ))}
 
@@ -445,7 +445,7 @@ const JodiBulkBid = ({ market, title }) => {
                                 <React.Fragment key={`row-${r}`}>
                                     {/* Row label + bulk */}
                                     <div className="flex items-center gap-1 min-w-0">
-                                        <div className="w-4 md:w-6 h-6 md:h-7 flex items-center justify-center text-orange-500 font-medium text-[10px] md:text-sm">
+                                        <div className="w-4 md:w-6 h-6 md:h-7 flex items-center justify-center text-[#1B3150] font-medium text-[10px] md:text-sm">
                                             {r}
                                         </div>
                                         <input
@@ -460,7 +460,7 @@ const JodiBulkBid = ({ market, title }) => {
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && rowBulk[r]) applyRow(r, rowBulk[r]);
                                             }}
-                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-orange-500"
+                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
                                         />
                                     </div>
                                     <div className="h-6 md:h-7" />
@@ -486,7 +486,7 @@ const JodiBulkBid = ({ market, title }) => {
                                                         }))
                                                     }
                                                     onKeyDown={(e) => handleCellKeyDown(e, r, c)}
-                                                    className="no-spinner h-6 md:h-7 w-full bg-white border-2 border-orange-200 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-orange-500"
+                                                    className="no-spinner h-6 md:h-7 w-full bg-white border-2 border-gray-300 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
                                                 />
                                             </div>
                                         );
@@ -507,8 +507,8 @@ const JodiBulkBid = ({ market, title }) => {
                         disabled={!canSubmit}
                         className={`w-full font-bold text-base py-4 min-h-[56px] rounded-xl shadow-lg transition-all ${
                             canSubmit
-                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98]'
-                                : 'bg-gradient-to-r from-orange-300 to-orange-400 text-white opacity-50 cursor-not-allowed'
+                                ? 'bg-gradient-to-r bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98]'
+                                : 'bg-gradient-to-r bg-gray-400 text-white opacity-50 cursor-not-allowed'
                         }`}
                     >
                         Submit Bet

@@ -45,7 +45,7 @@ const Funds = () => {
       key: 'add-fund',
       title: 'Add Fund',
       subtitle: 'You can add fund to your wallet',
-      color: '#f97316',
+      color: '#1B3150',
       icon: <span className="text-3xl font-extrabold text-white leading-none">₹</span>,
       component: AddFund,
     },
@@ -161,7 +161,7 @@ const Funds = () => {
                 <div
                   key={item.key}
                   onClick={() => handleItemClick(item.key)}
-                  className="bg-white border-2 border-orange-200 rounded-2xl p-3 flex items-center justify-between shadow-sm hover:border-orange-300 transition-colors"
+                  className="bg-white border-2 border-gray-300 rounded-2xl p-3 flex items-center justify-between shadow-sm hover:border-gray-400 transition-colors"
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
@@ -180,7 +180,7 @@ const Funds = () => {
                       <p className="text-[11px] sm:text-xs text-gray-600 leading-snug">{item.subtitle}</p>
                     </div>
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-500">
+                  <div className="w-8 h-8 rounded-full bg-gray-50 border border-gray-300 flex items-center justify-center text-[#1B3150]">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                     </svg>
@@ -191,7 +191,7 @@ const Funds = () => {
           ) : (
             // Component view
             <div
-              className={`bg-white border-2 border-orange-200 rounded-2xl shadow-sm ${
+              className={`bg-white border-2 border-gray-300 rounded-2xl shadow-sm ${
                 isAddFundMobileView
                   ? 'p-3 max-h-[calc(100vh-220px)] overflow-y-auto scrollbar-hidden'
                   : 'p-4 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hidden'
@@ -215,7 +215,7 @@ const Funds = () => {
                   type="button"
                   onClick={() => setActiveKey(item.key)}
                   className={`w-full text-left bg-white border-2 rounded-2xl p-3 md:p-5 flex items-center justify-between shadow-sm transition-colors ${
-                    active ? 'border-orange-500 bg-orange-50' : 'border-orange-200 hover:border-orange-300'
+                    active ? 'border-[#1B3150] bg-gray-50' : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
                   <div className="flex items-center gap-3 md:gap-4">
@@ -232,7 +232,7 @@ const Funds = () => {
                   </div>
                   <div
                     className={`w-8 h-8 md:w-9 md:h-9 rounded-full border flex items-center justify-center ${
-                      active ? 'bg-orange-500 border-orange-500 text-white' : 'bg-gray-50 border-gray-300 text-gray-500'
+                      active ? 'bg-[#1B3150] border-[#1B3150] text-white' : 'bg-gray-50 border-gray-300 text-gray-500'
                     }`}
                   >
                     <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,11 +244,11 @@ const Funds = () => {
             })}
           </aside>
 
-          <main className="rounded-2xl bg-white border-2 border-orange-200 shadow-sm p-6">
+          <main className="rounded-2xl bg-white border-2 border-gray-300 shadow-sm p-6">
             <div className="flex items-center justify-center gap-4 mb-6">
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center text-white shadow-md"
-                style={{ backgroundColor: activeItem?.color || '#f97316' }}
+                style={{ backgroundColor: activeItem?.color || '#1B3150' }}
               >
                 {activeItem?.icon}
               </div>

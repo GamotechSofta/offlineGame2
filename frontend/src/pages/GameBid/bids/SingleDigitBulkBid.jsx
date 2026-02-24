@@ -182,21 +182,21 @@ const SingleDigitBulkBid = ({ market, title }) => {
                     <div className="w-full min-w-0 md:flex md:justify-center md:items-center">
                         <div className="flex flex-col gap-2 mb-1 md:mb-0 w-full md:max-w-sm">
                             <div className="flex flex-row items-center gap-2">
-                                <label className="text-gray-400 text-xs font-medium shrink-0 w-16">Date:</label>
+                                <label className="text-gray-600 text-xs font-medium shrink-0 w-20">Date:</label>
                                 <div className="relative flex-1 min-w-0">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                        <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                     </div>
-                                    <input type="text" value={todayDate} readOnly className="w-full pl-9 py-2 min-h-[36px] bg-[#202124] border border-white/10 rounded-full text-xs font-bold text-center text-white focus:outline-none" />
+                                    <input type="text" value={todayDate} readOnly className="w-full pl-9 py-2 min-h-[36px] bg-white border-2 border-gray-300 rounded-full text-xs font-bold text-center text-gray-800 focus:outline-none focus:border-gray-400" />
                                 </div>
                             </div>
                             <div className="flex flex-row items-center gap-2">
-                                <label className="text-gray-400 text-xs font-medium shrink-0 w-16">Type:</label>
+                                <label className="text-gray-600 text-xs font-medium shrink-0 w-20">Type:</label>
                                 <select
                                     value={session}
                                     onChange={(e) => setSession(e.target.value)}
                                     disabled={isRunning}
-                                    className={`flex-1 min-w-0 appearance-none bg-[#202124] border border-white/10 text-white font-bold text-xs py-2 min-h-[36px] px-4 rounded-full text-center focus:outline-none focus:border-[#d4af37] ${isRunning ? 'opacity-80 cursor-not-allowed' : ''}`}
+                                    className={`flex-1 min-w-0 appearance-none bg-white border-2 border-gray-300 text-gray-800 font-bold text-xs py-2 min-h-[36px] px-4 rounded-full text-center focus:outline-none focus:border-gray-400 ${isRunning ? 'opacity-80 cursor-not-allowed' : ''}`}
                                 >
                                     {isRunning ? (
                                         <option value="CLOSE">CLOSE</option>
@@ -209,14 +209,14 @@ const SingleDigitBulkBid = ({ market, title }) => {
                                 </select>
                             </div>
                             <div className="flex flex-row items-center gap-2">
-                                <label className="text-gray-400 text-xs font-medium shrink-0 w-16">Enter Points:</label>
+                                <label className="text-gray-600 text-xs font-medium shrink-0 w-20">Enter Points:</label>
                                 <input
                                     type="text"
                                     inputMode="numeric"
                                     value={inputPoints}
                                     onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                     placeholder="Point"
-                                    className="no-spinner flex-1 min-w-0 bg-[#202124] border border-white/10 text-white placeholder-gray-500 rounded-full py-2 min-h-[36px] px-4 text-center text-xs focus:ring-2 focus:ring-[#d4af37] focus:border-[#d4af37] focus:outline-none"
+                                    className="no-spinner flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-500 rounded-full py-2 min-h-[36px] px-4 text-center text-xs focus:ring-2 focus:ring-gray-400 focus:border-gray-400 focus:outline-none"
                                 />
                             </div>
                         </div>
@@ -224,15 +224,15 @@ const SingleDigitBulkBid = ({ market, title }) => {
                     <div className="w-full min-w-0 md:flex md:justify-center md:items-center pt-1 md:pt-6">
                         <div className="grid grid-cols-3 gap-2 w-full max-w-[260px] md:max-w-[200px] mx-auto">
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                                <button key={num} type="button" onClick={() => handleDigitClick(num)} className="relative aspect-square min-h-[40px] bg-[#202124] border border-white/10 hover:border-[#d4af37]/50 text-[#f2c14e] rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md">
+                                <button key={num} type="button" onClick={() => handleDigitClick(num)} className="relative aspect-square min-h-[40px] bg-[#1B3150] border border-white/10 hover:border-[#d4af37]/50 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md">
                                     {num}
-                                    {pointsByDigit[num] > 0 && <span className="absolute top-0.5 right-1 text-[10px] font-bold text-[#f2c14e]">{pointsByDigit[num]}</span>}
+                                    {pointsByDigit[num] > 0 && <span className="absolute top-0.5 right-1 text-[10px] font-bold text-white">{pointsByDigit[num]}</span>}
                                 </button>
                             ))}
                             <div className="col-span-3 flex justify-center">
-                                <button type="button" onClick={() => handleDigitClick(0)} className="relative aspect-square min-w-[40px] min-h-[40px] w-14 bg-[#202124] border border-white/10 hover:border-[#d4af37]/50 text-[#f2c14e] rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md">
+                                <button type="button" onClick={() => handleDigitClick(0)} className="relative aspect-square min-w-[40px] min-h-[40px] w-14 bg-[#1B3150] border border-white/10 hover:border-[#d4af37]/50 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md">
                                     0
-                                    {pointsByDigit[0] > 0 && <span className="absolute top-0.5 right-1 text-[10px] font-bold text-[#f2c14e]">{pointsByDigit[0]}</span>}
+                                    {pointsByDigit[0] > 0 && <span className="absolute top-0.5 right-1 text-[10px] font-bold text-white">{pointsByDigit[0]}</span>}
                                 </button>
                             </div>
                         </div>

@@ -160,9 +160,9 @@ const AddFund = () => {
                 <div className="space-y-4 sm:space-y-5">
                     <div className="rounded-2xl bg-white p-0">
                         {/* Top card (as screenshot) */}
-                        <div className="bg-white rounded-2xl shadow-sm border-2 border-orange-200 overflow-hidden">
+                        <div className="bg-white rounded-2xl shadow-sm border-2 border-gray-300 overflow-hidden">
                             <div className="px-3 sm:px-4 pt-2.5 sm:pt-3 pb-2 flex items-center justify-center gap-2 text-[13px] sm:text-sm text-gray-600">
-                                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                <svg className="w-4 h-4 text-[#1B3150]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h20" />
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 2c3.5 3.5 3.5 16.5 0 20" />
@@ -170,9 +170,9 @@ const AddFund = () => {
                                 <span className="font-semibold tracking-wide">GoldenBets.com</span>
                             </div>
 
-                            <div className="bg-gradient-to-r from-orange-500 via-orange-500 to-orange-600 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-3">
+                            <div className="bg-gradient-to-r from-[#1B3150] via-[#1B3150] to-[#1B3150] px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-3">
                                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/30 border border-white/40 flex items-center justify-center shrink-0">
-                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white flex items-center justify-center text-[13px] sm:text-sm font-extrabold text-orange-600">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white flex items-center justify-center text-[13px] sm:text-sm font-extrabold text-[#1B3150]">
                                         ₹
                                     </div>
                                 </div>
@@ -190,7 +190,7 @@ const AddFund = () => {
                                 </div>
                             </div>
 
-                            <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between bg-orange-50">
+                            <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between bg-gray-50">
                                 <div className="text-[13px] sm:text-sm text-gray-800 font-medium">
                                     {(() => {
                                         try {
@@ -203,7 +203,7 @@ const AddFund = () => {
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
-                                    <span className="w-3 h-3 rounded-full bg-orange-500 inline-block" />
+                                    <span className="w-3 h-3 rounded-full bg-[#1B3150] inline-block" />
                                 </div>
                             </div>
                         </div>
@@ -213,9 +213,9 @@ const AddFund = () => {
                             <button
                                 type="button"
                                 onClick={() => navigate('/support')}
-                                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-white border-2 border-orange-200 text-[13px] sm:text-sm font-semibold text-gray-700 shadow-sm hover:border-orange-300 hover:bg-orange-50 transition-colors"
+                                className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-white border-2 border-gray-300 text-[13px] sm:text-sm font-semibold text-gray-700 shadow-sm hover:border-gray-400 hover:bg-gray-50 transition-colors"
                             >
-                                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" aria-hidden="true">
+                                <svg className="w-4 h-4 text-[#1B3150]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M18 10c0 3.866-3.134 7-7 7a7.003 7.003 0 01-4-1.25L3 17l1.25-4A7.003 7.003 0 017 6c0-1.105.895-2 2-2h2a7 7 0 017 7z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 10h.01M12 10h.01M15 10h.01" />
                                 </svg>
@@ -225,8 +225,8 @@ const AddFund = () => {
 
                         {/* Amount input */}
                         <div className="mt-3 sm:mt-4 flex items-center justify-center gap-2">
-                            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-orange-50 border-2 border-orange-200 flex items-center justify-center shadow-sm shrink-0">
-                                <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gray-50 border-2 border-gray-300 flex items-center justify-center shadow-sm shrink-0">
+                                <svg className="w-5 h-5 text-[#1B3150]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 10l8-4 8 4" />
                                 </svg>
                             </div>
@@ -235,7 +235,7 @@ const AddFund = () => {
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
                                 placeholder="Enter Amount"
-                                className="flex-1 min-w-0 max-w-[520px] bg-white border-2 border-orange-200 rounded-full px-4 py-2.5 sm:py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                className="flex-1 min-w-0 max-w-[520px] bg-white border-2 border-gray-300 rounded-full px-4 py-2.5 sm:py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                 min={minDeposit}
                                 max={maxDeposit}
                             />
@@ -250,8 +250,8 @@ const AddFund = () => {
                                     onClick={() => setAmount(String(amt))}
                                     className={`h-8 sm:h-9 rounded-md border-2 text-[13px] sm:text-sm font-semibold shadow-sm transition-colors ${
                                         amount === String(amt)
-                                            ? 'bg-orange-500 text-white border-orange-500'
-                                            : 'bg-white text-gray-700 border-orange-200 hover:border-orange-300'
+                                            ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                                            : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                                     }`}
                                 >
                                     {amt}
@@ -265,7 +265,7 @@ const AddFund = () => {
                                 type="button"
                                 onClick={handleAddCash}
                                 disabled={addCashLoading}
-                                className={`w-full h-9 sm:h-10 rounded-md bg-gradient-to-r from-orange-500 to-orange-600 text-white font-extrabold shadow-md hover:from-orange-600 hover:to-orange-700 transition-all ${
+                                className={`w-full h-9 sm:h-10 rounded-md bg-gradient-to-r bg-[#1B3150] text-white font-extrabold shadow-md  hover:bg-[#152842] transition-all ${
                                     addCashLoading ? 'opacity-70 cursor-not-allowed' : ''
                                 }`}
                             >
@@ -274,7 +274,7 @@ const AddFund = () => {
                         </div>
 
                         {/* Note */}
-                        <div className="mt-2.5 sm:mt-3 max-w-[520px] mx-auto bg-orange-50 rounded-md border-2 border-orange-200 px-3 py-2 text-[10px] sm:text-[11px] text-gray-700">
+                        <div className="mt-2.5 sm:mt-3 max-w-[520px] mx-auto bg-gray-50 rounded-md border-2 border-gray-300 px-3 py-2 text-[10px] sm:text-[11px] text-gray-700">
                             Deposit time use only phone pay App Always 🙏🙏
                         </div>
                     </div>
@@ -282,10 +282,10 @@ const AddFund = () => {
             ) : (
                 <div className="space-y-6">
                     {/* Amount summary + edit */}
-                    <div className="flex items-center justify-between gap-3 bg-orange-50 rounded-2xl p-4 border-2 border-orange-200">
+                    <div className="flex items-center justify-between gap-3 bg-gray-50 rounded-2xl p-4 border-2 border-gray-300">
                         <div className="min-w-0">
                             <div className="text-gray-600 text-sm">Selected Amount</div>
-                            <div className="text-orange-500 font-extrabold text-lg truncate">₹{Number(amount || 0).toLocaleString('en-IN')}</div>
+                            <div className="text-[#1B3150] font-extrabold text-lg truncate">₹{Number(amount || 0).toLocaleString('en-IN')}</div>
                             <div className="text-gray-500 text-xs mt-0.5">
                                 Min: ₹{minDeposit.toLocaleString('en-IN')} | Max: ₹{maxDeposit.toLocaleString('en-IN')}
                             </div>
@@ -293,15 +293,15 @@ const AddFund = () => {
                         <button
                             type="button"
                             onClick={() => setStep(1)}
-                            className="shrink-0 px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold border-2 border-orange-200 hover:border-orange-300"
+                            className="shrink-0 px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold border-2 border-gray-300 hover:border-gray-400"
                         >
                             Back
                         </button>
                     </div>
 
                     {/* Payment Details */}
-                    <div className="bg-white rounded-2xl p-5 border-2 border-orange-200 shadow-sm">
-                        <h3 className="text-lg font-bold text-orange-500 mb-4">Payment Details</h3>
+                    <div className="bg-white rounded-2xl p-5 border-2 border-gray-300 shadow-sm">
+                        <h3 className="text-lg font-bold text-[#1B3150] mb-4">Payment Details</h3>
 
                         {/* QR Code Section */}
                         <div className="flex flex-col items-center mb-5">
@@ -327,13 +327,13 @@ const AddFund = () => {
 
                         {/* OR Divider */}
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="flex-1 h-px bg-orange-200"></div>
+                            <div className="flex-1 h-px bg-gray-300"></div>
                             <span className="text-gray-600 text-sm">OR</span>
-                            <div className="flex-1 h-px bg-orange-200"></div>
+                            <div className="flex-1 h-px bg-gray-300"></div>
                         </div>
 
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between bg-orange-50 rounded-xl p-4 border-2 border-orange-200">
+                            <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
                                 <div>
                                     <p className="text-gray-600 text-sm">UPI ID</p>
                                     <p className="text-gray-800 font-mono text-lg">{config?.upiId || 'Loading...'}</p>
@@ -345,12 +345,12 @@ const AddFund = () => {
                                         setSuccess('UPI ID copied!');
                                         setTimeout(() => setSuccess(''), 2000);
                                     }}
-                                    className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg text-sm font-extrabold shadow-md"
+                                    className="px-4 py-2 bg-gradient-to-r bg-[#1B3150]  hover:bg-[#152842] text-white rounded-lg text-sm font-extrabold shadow-md"
                                 >
                                     Copy
                                 </button>
                             </div>
-                            <div className="bg-orange-50 rounded-xl p-4 border-2 border-orange-200">
+                            <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
                                 <p className="text-gray-600 text-sm">Pay to</p>
                                 <p className="text-gray-800 font-semibold">{config?.upiName || 'Golden Games'}</p>
                             </div>
@@ -370,7 +370,7 @@ const AddFund = () => {
                                 onChange={(e) => setUpiTransactionId(e.target.value)}
                                 placeholder="Enter 12-digit UTR number"
                                 inputMode="numeric"
-                                className="w-full bg-white border-2 border-orange-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                className="w-full bg-white border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                 required
                             />
                         </div>
@@ -390,7 +390,7 @@ const AddFund = () => {
                                 />
                                 <label
                                     htmlFor="screenshot-upload"
-                                    className="flex flex-col items-center justify-center w-full h-40 bg-orange-50 border-2 border-dashed border-orange-200 rounded-xl cursor-pointer hover:border-orange-300 transition-colors"
+                                    className="flex flex-col items-center justify-center w-full h-40 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-gray-400 transition-colors"
                                 >
                                     {screenshotPreview ? (
                                         <img
@@ -415,15 +415,15 @@ const AddFund = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-extrabold rounded-xl transition-all disabled:opacity-50 shadow-md"
+                            className="w-full py-4 bg-gradient-to-r bg-[#1B3150]  hover:bg-[#152842] text-white font-extrabold rounded-xl transition-all disabled:opacity-50 shadow-md"
                         >
                             {loading ? 'Submitting...' : 'Submit Deposit Request'}
                         </button>
                     </form>
 
                     {/* Instructions */}
-                    <div className="bg-orange-50 rounded-xl p-4 border-2 border-orange-200">
-                        <h4 className="text-orange-600 font-semibold mb-2">How to Add Funds:</h4>
+                    <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
+                        <h4 className="text-[#1B3150] font-semibold mb-2">How to Add Funds:</h4>
                         <ol className="text-gray-700 text-sm space-y-2 list-decimal list-inside">
                             <li>Scan the QR code above OR copy the UPI ID</li>
                             <li>Open any UPI app (GPay, PhonePe, Paytm, etc.)</li>
@@ -471,7 +471,7 @@ const AddFund = () => {
                                     // Navigate to history - this will be handled by parent
                                     window.location.href = '/funds?tab=add-fund-history';
                                 }}
-                                className="w-full py-3 bg-orange-50 hover:bg-orange-100 text-orange-600 font-medium rounded-xl border-2 border-orange-200 transition-colors"
+                                className="w-full py-3 bg-gray-50 hover:bg-gray-100 text-[#1B3150] font-medium rounded-xl border-2 border-gray-300 transition-colors"
                             >
                                 View History
                             </button>

@@ -63,9 +63,9 @@ const WalletSection = () => {
       {/* Available Points Balance Card */}
       <div className="relative w-full max-w-lg mx-auto mb-6 sm:mb-12">
         {/* Main Card - Premium Design */}
-        <div className="relative bg-white rounded-xl min-[375px]:rounded-2xl sm:rounded-3xl px-2 min-[375px]:px-3 pt-2 pb-0 min-[375px]:pt-2.5 sm:px-6 sm:pt-5 sm:pb-0 md:px-7 md:pt-6 md:pb-0 shadow-lg border-2 border-orange-200 z-10 overflow-visible max-w-full">
+        <div className="relative bg-white rounded-xl min-[375px]:rounded-2xl sm:rounded-3xl px-2 min-[375px]:px-3 pt-2 pb-0 min-[375px]:pt-2.5 sm:px-6 sm:pt-5 sm:pb-0 md:px-7 md:pt-6 md:pb-0 shadow-lg border-2 border-gray-300 z-10 overflow-visible max-w-full">
           {/* Subtle background glow */}
-          <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-orange-100 via-orange-50 to-transparent rounded-t-2xl sm:rounded-t-3xl"></div>
+          <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-gray-100 via-gray-50 to-transparent rounded-t-2xl sm:rounded-t-3xl"></div>
           
           {/* Content */}
           <div className="relative flex flex-col">
@@ -75,7 +75,7 @@ const WalletSection = () => {
               <div className="flex items-center gap-2 min-[375px]:gap-3 sm:gap-4 flex-1 min-w-0 overflow-hidden">
                 {/* Wallet Icon - Premium Design */}
                 <div className="relative shrink-0">
-                  <div className="w-[48px] h-[48px] min-[375px]:w-[60px] min-[375px]:h-[60px] sm:w-20 sm:h-20 md:w-[88px] md:h-[88px] bg-orange-50 rounded-xl min-[375px]:rounded-2xl sm:rounded-3xl p-2 min-[375px]:p-3 sm:p-3.5 border-2 border-orange-200 shadow-lg flex items-center justify-center">
+                  <div className="w-[48px] h-[48px] min-[375px]:w-[60px] min-[375px]:h-[60px] sm:w-20 sm:h-20 md:w-[88px] md:h-[88px] bg-gray-50 rounded-xl min-[375px]:rounded-2xl sm:rounded-3xl p-2 min-[375px]:p-3 sm:p-3.5 border-2 border-gray-300 shadow-lg flex items-center justify-center">
                     <img
                       src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769780438/Untitled_90_x_160_px_1080_x_1080_px_ychsx6.png"
                       alt="Wallet Icon"
@@ -100,12 +100,12 @@ const WalletSection = () => {
                   type="button"
                   onClick={handleRefreshBalance}
                   disabled={refreshing}
-                  className="w-9 h-9 min-w-[36px] min-h-[36px] sm:w-12 sm:h-12 md:w-[52px] md:h-[52px] rounded-lg min-[375px]:rounded-xl bg-orange-50 border-2 border-orange-200 flex items-center justify-center text-orange-500 hover:bg-orange-100 hover:border-orange-300 active:scale-95 disabled:opacity-50 transition-all duration-200 shadow-md"
+                  className="w-9 h-9 min-w-[36px] min-h-[36px] sm:w-12 sm:h-12 md:w-[52px] md:h-[52px] rounded-lg min-[375px]:rounded-xl bg-gray-50 border-2 border-gray-300 flex items-center justify-center text-[#1B3150] hover:bg-gray-100 hover:border-gray-400 active:scale-95 disabled:opacity-50 transition-all duration-200 shadow-md"
                   aria-label="Refresh balance"
                   title="Refresh balance"
                 >
                   {refreshing ? (
-                    <span className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-orange-300 border-t-orange-500 rounded-full animate-spin" />
+                    <span className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-gray-400 border-t-[#1B3150] rounded-full animate-spin" />
                   ) : (
                     <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -117,7 +117,7 @@ const WalletSection = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/funds?tab=add-fund')}
-                  className="group relative w-9 h-9 min-[375px]:w-10 min-[375px]:h-10 sm:w-14 sm:h-14 md:w-[56px] md:h-[56px] rounded-lg min-[375px]:rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white overflow-hidden transition-all duration-200 hover:from-orange-600 hover:to-orange-700 active:scale-95 shadow-lg hover:shadow-xl hover:shadow-orange-500/40 shrink-0"
+                  className="group relative w-9 h-9 min-[375px]:w-10 min-[375px]:h-10 sm:w-14 sm:h-14 md:w-[56px] md:h-[56px] rounded-lg min-[375px]:rounded-xl bg-gradient-to-br bg-[#1B3150] flex items-center justify-center text-white overflow-hidden transition-all duration-200 hover:bg-[#152842] active:scale-95 shadow-lg hover:shadow-xl hover:shadow-[#1B3150]/40 shrink-0"
                   aria-label="Add Money"
                   title="Add Money"
                 >
@@ -133,14 +133,14 @@ const WalletSection = () => {
             </div>
 
             {/* Bottom Row - Withdraw Button */}
-            <div className="flex justify-center border-t border-orange-200 relative">
+            <div className="flex justify-center border-t border-gray-300 relative">
               <button 
                 onClick={() => navigate('/funds?tab=withdraw-fund')}
                 className="relative group cursor-pointer active:scale-95 transition-transform duration-200 -mb-0 sm:-mb-[6px] md:-mb-[8px]"
               >
                 {/* Angular Shape Container */}
                 <div
-                  className="w-[min(170px,calc(100vw-3rem))] sm:w-[190px] md:w-[210px] h-[32px] min-[375px]:h-[34px] sm:h-[42px] md:h-[46px] bg-gradient-to-b from-orange-500 via-orange-600 to-orange-700 flex items-center justify-center gap-2 sm:gap-3 shadow-lg"
+                  className="w-[min(170px,calc(100vw-3rem))] sm:w-[190px] md:w-[210px] h-[32px] min-[375px]:h-[34px] sm:h-[42px] md:h-[46px] bg-gradient-to-b bg-[#1B3150] flex items-center justify-center gap-2 sm:gap-3 shadow-lg"
                   style={{
                     clipPath: 'polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)',
                   }}

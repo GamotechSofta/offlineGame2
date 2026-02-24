@@ -175,7 +175,7 @@ const BankDetail = () => {
                 {bankAccounts.length < 5 && !showForm && (
                     <button
                         onClick={() => setShowForm(true)}
-                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium shadow-md"
+                        className="px-4 py-2 bg-[#1B3150] hover:bg-[#1B3150] text-white rounded-lg text-sm font-medium shadow-md"
                     >
                         + Add Account
                     </button>
@@ -196,7 +196,7 @@ const BankDetail = () => {
 
             {/* Add/Edit Form */}
             {showForm && (
-                <div className="bg-white rounded-xl p-5 border border-orange-200 shadow-md">
+                <div className="bg-white rounded-xl p-5 border border-gray-300 shadow-md">
                     <h4 className="text-gray-800 font-semibold mb-4">
                         {editingId ? 'Edit Bank Account' : 'Add New Bank Account'}
                     </h4>
@@ -209,7 +209,7 @@ const BankDetail = () => {
                                 type="text"
                                 value={formData.accountHolderName}
                                 onChange={(e) => setFormData({ ...formData, accountHolderName: e.target.value })}
-                                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                 placeholder="Name as per bank"
                             />
                         </div>
@@ -221,7 +221,7 @@ const BankDetail = () => {
                                     type="text"
                                     value={formData.bankName}
                                     onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                     placeholder="e.g., HDFC Bank"
                                 />
                             </div>
@@ -230,7 +230,7 @@ const BankDetail = () => {
                                 <select
                                     value={formData.accountType}
                                     onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                 >
                                     <option value="savings">Savings</option>
                                     <option value="current">Current</option>
@@ -246,7 +246,7 @@ const BankDetail = () => {
                                     type="text"
                                     value={formData.accountNumber}
                                     onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                     placeholder="Enter account number"
                                 />
                             </div>
@@ -256,7 +256,7 @@ const BankDetail = () => {
                                     type="text"
                                     value={formData.ifscCode}
                                     onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })}
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                     placeholder="e.g., HDFC0001234"
                                 />
                             </div>
@@ -264,7 +264,7 @@ const BankDetail = () => {
 
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-orange-200"></div>
+                                <div className="w-full border-t border-gray-300"></div>
                             </div>
                             <div className="relative flex justify-center">
                                 <span className="px-3 bg-white text-gray-500 text-sm">OR</span>
@@ -277,7 +277,7 @@ const BankDetail = () => {
                                 type="text"
                                 value={formData.upiId}
                                 onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
-                                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                 placeholder="e.g., yourname@paytm"
                             />
                         </div>
@@ -293,7 +293,7 @@ const BankDetail = () => {
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium disabled:opacity-50 shadow-md"
+                                className="flex-1 py-3 bg-[#1B3150] hover:bg-[#1B3150] text-white rounded-lg font-medium disabled:opacity-50 shadow-md"
                             >
                                 {submitting ? 'Saving...' : (editingId ? 'Update' : 'Add Account')}
                             </button>
@@ -309,7 +309,7 @@ const BankDetail = () => {
                     <p className="text-gray-400 mt-3">Loading...</p>
                 </div>
             ) : bankAccounts.length === 0 ? (
-                <div className="text-center py-8 bg-white rounded-xl border border-orange-200">
+                <div className="text-center py-8 bg-white rounded-xl border border-gray-300">
                     <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 10l8-4 8 4" />
                     </svg>
@@ -322,13 +322,13 @@ const BankDetail = () => {
                         <div
                             key={acc._id}
                             className={`bg-white rounded-xl p-4 border shadow-sm hover:shadow-md transition-shadow ${
-                                acc.isDefault ? 'border-orange-300 bg-orange-50' : 'border-orange-200'
+                                acc.isDefault ? 'border-gray-400 bg-gray-50' : 'border-gray-300'
                             }`}
                         >
                             <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                                        <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                                        <svg className="w-6 h-6 text-[#1B3150]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 10l8-4 8 4" />
                                         </svg>
                                     </div>
@@ -336,7 +336,7 @@ const BankDetail = () => {
                                         <div className="flex items-center gap-2">
                                             <p className="text-gray-800 font-semibold">{acc.accountHolderName}</p>
                                             {acc.isDefault && (
-                                                <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded-full border border-orange-300">
+                                                <span className="px-2 py-0.5 bg-gray-100 text-[#1B3150] text-xs rounded-full border border-gray-400">
                                                     Default
                                                 </span>
                                             )}
@@ -356,11 +356,11 @@ const BankDetail = () => {
                                 </div>
                             </div>
                             
-                            <div className="flex gap-2 mt-4 pt-3 border-t border-orange-100">
+                            <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
                                 {!acc.isDefault && (
                                     <button
                                         onClick={() => handleSetDefault(acc._id)}
-                                        className="px-3 py-1.5 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg text-xs border border-orange-300 transition-colors"
+                                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-300 text-[#1B3150] rounded-lg text-xs border border-gray-400 transition-colors"
                                     >
                                         Set Default
                                     </button>
@@ -386,7 +386,7 @@ const BankDetail = () => {
             {/* Success Modal */}
             {showSuccessModal && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-sm w-full p-6 border border-orange-200 shadow-xl text-center">
+                    <div className="bg-white rounded-2xl max-w-sm w-full p-6 border border-gray-300 shadow-xl text-center">
                         {/* Success Icon */}
                         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -396,8 +396,8 @@ const BankDetail = () => {
 
                         <h3 className="text-xl font-bold text-gray-800 mb-2">{successMessage.title}</h3>
                         
-                        <div className="bg-orange-50 rounded-xl p-4 mb-4 border border-orange-200">
-                            <svg className="w-12 h-12 text-orange-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-300">
+                            <svg className="w-12 h-12 text-[#1B3150] mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 10l8-4 8 4" />
                             </svg>
                         </div>
@@ -409,7 +409,7 @@ const BankDetail = () => {
                         <div className="space-y-3">
                             <button
                                 onClick={() => setShowSuccessModal(false)}
-                                className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors shadow-md"
+                                className="w-full py-3 bg-[#1B3150] hover:bg-[#1B3150] text-white font-semibold rounded-xl transition-colors shadow-md"
                             >
                                 Done
                             </button>
@@ -418,7 +418,7 @@ const BankDetail = () => {
                                     setShowSuccessModal(false);
                                     window.location.href = '/funds?tab=withdraw-fund';
                                 }}
-                                className="w-full py-3 bg-white border border-orange-300 hover:bg-orange-50 text-orange-600 font-medium rounded-xl transition-colors"
+                                className="w-full py-3 bg-white border border-gray-400 hover:bg-gray-50 text-[#1B3150] font-medium rounded-xl transition-colors"
                             >
                                 Go to Withdraw
                             </button>

@@ -9,8 +9,8 @@ const statusLabel = (status) => {
 
 const statusClass = (status) => {
   const map = {
-    open: 'bg-orange-100 text-orange-700 border border-orange-300',
-    'in-progress': 'bg-orange-100 text-orange-700 border border-orange-300',
+    open: 'bg-gray-100 text-gray-700 border border-gray-300',
+    'in-progress': 'bg-gray-100 text-gray-700 border border-gray-300',
     resolved: 'bg-green-100 text-green-700 border border-green-300',
     closed: 'bg-gray-100 text-gray-600 border border-gray-300',
   };
@@ -108,7 +108,7 @@ const SupportStatus = () => {
           <button
             type="button"
             onClick={() => navigate('/support')}
-            className="w-10 h-10 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center hover:bg-orange-100 transition-colors shrink-0 text-gray-800"
+            className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors shrink-0 text-gray-800"
             aria-label="Back"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,13 +120,13 @@ const SupportStatus = () => {
         <p className="text-gray-600 text-sm sm:text-base mb-6">See status and reply for your submitted tickets.</p>
 
         {!userId ? (
-          <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl text-orange-600 text-center">
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-gray-600 text-center">
             Please login to see your ticket status.
           </div>
         ) : ticketsLoading ? (
           <p className="text-gray-600 text-sm">Loading...</p>
         ) : myTickets.length === 0 ? (
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 text-center text-gray-600 text-sm">
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center text-gray-600 text-sm">
             No tickets yet. Raise a help ticket from Help Desk.
           </div>
         ) : (
@@ -134,7 +134,7 @@ const SupportStatus = () => {
             {myTickets.map((t) => (
               <div
                 key={t._id}
-                className="bg-white rounded-2xl border border-orange-200 p-4 shadow-md hover:shadow-lg transition-shadow"
+                className="bg-white rounded-2xl border border-gray-200 p-4 shadow-md hover:shadow-lg transition-shadow"
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0 flex-1">
@@ -149,9 +149,9 @@ const SupportStatus = () => {
                 </div>
                 <p className="text-sm text-gray-600 mt-2 line-clamp-3">{t.description}</p>
                 {t.adminResponse && (
-                  <div className="mt-3 pt-3 border-t border-orange-200">
+                  <div className="mt-3 pt-3 border-t border-gray-200">
                     <p className="text-xs text-gray-500 mb-1">Response from support</p>
-                    <p className="text-sm text-orange-600 whitespace-pre-wrap">{t.adminResponse}</p>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{t.adminResponse}</p>
                   </div>
                 )}
               </div>

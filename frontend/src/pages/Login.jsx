@@ -122,11 +122,11 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-orange-50 to-white text-gray-800 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-white text-gray-800 relative overflow-hidden">
       {/* Desktop: Two Column Layout */}
       <div className="hidden md:flex h-screen overflow-hidden">
         {/* Left Side - Image (Fixed, Not Scrollable, Fits Screen) */}
-        <div className="w-1/2 h-screen fixed left-0 top-0 overflow-hidden bg-gradient-to-br from-orange-50 via-white to-orange-50">
+        <div className="w-1/2 h-screen fixed left-0 top-0 overflow-hidden bg-gradient-to-br from-gray-50 via-white to-gray-50">
           <img
             src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1770101961/Black_and_Gold_Classy_Casino_Night_Party_Instagram_Post_1080_x_1080_px_d1n00g.png"
             alt="Login banner"
@@ -140,7 +140,7 @@ const Login = () => {
             <div className="w-full max-w-md">
               {/* Title Section */}
               <div className="w-full mb-4 lg:mb-5">
-                <h1 className="text-2xl lg:text-3xl mb-1.5 font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl lg:text-3xl mb-1.5 font-bold bg-gradient-to-r bg-[#1B3150] bg-clip-text text-transparent">
                   Welcome Back
                 </h1>
                 <p className="text-gray-600 text-sm lg:text-base">
@@ -164,7 +164,7 @@ const Login = () => {
                 <form onSubmit={handleSubmit} className="space-y-3">
                   <div>
                     <label className="block text-gray-700 text-xs font-medium mb-1.5">
-                      Phone Number <span className="text-orange-500">*</span>
+                      Phone Number <span className="text-[#1B3150]">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
@@ -178,7 +178,7 @@ const Login = () => {
                         value={formData.phone}
                         onChange={handleChange}
                         maxLength="10"
-                        className="w-full bg-white border-2 border-orange-200 rounded-lg px-3 pl-10 py-2.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm"
+                        className="w-full bg-white border-2 border-gray-300 rounded-lg px-3 pl-10 py-2.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/50 focus:border-[#1B3150] transition-all text-sm"
                         placeholder="10-digit phone number"
                         required
                       />
@@ -187,7 +187,7 @@ const Login = () => {
 
                   <div>
                     <label className="block text-gray-700 text-xs font-medium mb-1.5">
-                      Password <span className="text-orange-500">*</span>
+                      Password <span className="text-[#1B3150]">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
@@ -200,14 +200,14 @@ const Login = () => {
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
-                        className="w-full bg-white border-2 border-orange-200 rounded-lg px-3 pl-10 pr-10 py-2.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm"
+                        className="w-full bg-white border-2 border-gray-300 rounded-lg px-3 pl-10 pr-10 py-2.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/50 focus:border-[#1B3150] transition-all text-sm"
                         placeholder="Enter your password"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-orange-500 focus:outline-none"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#1B3150] focus:outline-none"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
@@ -228,7 +228,7 @@ const Login = () => {
                         <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all shrink-0 ${
                           isAbove18 
                             ? 'bg-gradient-to-br from-green-500 to-green-600 border-green-500 shadow-md shadow-green-500/30' 
-                            : 'border-gray-400 group-hover:border-orange-300 bg-white'
+                            : 'border-gray-400 group-hover:border-gray-400 bg-white'
                         }`}>
                           {isAbove18 && (
                             <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,8 +239,8 @@ const Login = () => {
                       </div>
                       <span className="text-gray-700 text-xs leading-tight flex-1">
                         I confirm that I am above 18 years of age and agree to the{' '}
-                        <span className="text-orange-500 underline">Terms of Use</span> and{' '}
-                        <span className="text-orange-500 underline">Privacy Policy</span>
+                        <span className="text-[#1B3150] underline">Terms of Use</span> and{' '}
+                        <span className="text-[#1B3150] underline">Privacy Policy</span>
                       </span>
                     </label>
                   </div>
@@ -249,7 +249,7 @@ const Login = () => {
                   <button
                     type="submit"
                     disabled={loading || !isAbove18}
-                    className="w-full bg-gradient-to-r from-orange-500 via-orange-500 to-orange-600 text-white font-bold py-2.5 rounded-lg hover:from-orange-600 hover:via-orange-600 hover:to-orange-700 transition-all duration-200 text-sm uppercase disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 active:scale-[0.98]"
+                    className="w-full bg-gradient-to-r bg-[#1B3150] text-white font-bold py-2.5 rounded-lg hover:bg-[#152842] transition-all duration-200 text-sm uppercase disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#1B3150]/20 hover:shadow-xl hover:shadow-[#1B3150]/40 active:scale-[0.98]"
                   >
                     {loading ? (
                       <span className="flex items-center justify-center gap-2">
@@ -270,9 +270,9 @@ const Login = () => {
               <div className="mt-4 text-center w-full">
                 <p className="text-gray-600 text-xs leading-tight">
                   By continuing, you agree to our{' '}
-                  <span className="text-orange-500 hover:text-orange-600 underline cursor-pointer transition-colors">Terms of Use</span>
+                  <span className="text-[#1B3150] hover:text-[#152842] underline cursor-pointer transition-colors">Terms of Use</span>
                   {' '}and{' '}
-                  <span className="text-orange-500 hover:text-orange-600 underline cursor-pointer transition-colors">Privacy Policy</span>
+                  <span className="text-[#1B3150] hover:text-[#152842] underline cursor-pointer transition-colors">Privacy Policy</span>
                 </p>
               </div>
             </div>

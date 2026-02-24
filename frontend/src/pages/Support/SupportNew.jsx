@@ -128,7 +128,7 @@ const SupportNew = () => {
           <button
             type="button"
             onClick={() => navigate('/support')}
-            className="w-10 h-10 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center hover:bg-orange-100 transition-colors shrink-0 text-gray-800"
+            className="w-10 h-10 rounded-full bg-gray-50 border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors shrink-0 text-gray-800"
             aria-label="Back"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,12 +140,12 @@ const SupportNew = () => {
         <p className="text-gray-600 text-sm sm:text-base mb-6">Describe your problem and attach screenshots if needed.</p>
 
         {!userId && (
-          <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl text-orange-600 shadow-md text-center">
+          <div className="mb-6 p-4 bg-gray-50 border border-gray-300 rounded-2xl text-[#1B3150] shadow-md text-center">
             Please login to submit a support request.
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-orange-200 p-4 sm:p-6 shadow-md w-full">
+        <div className="bg-white rounded-2xl border border-gray-300 p-4 sm:p-6 shadow-md w-full">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="support-subject" className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
@@ -155,7 +155,7 @@ const SupportNew = () => {
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="e.g. Payment issue, Game error"
-                className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
+                className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] transition"
                 disabled={!userId}
               />
             </div>
@@ -169,7 +169,7 @@ const SupportNew = () => {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Explain your issue in detail..."
                 rows={5}
-                className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-y transition"
+                className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] resize-y transition"
                 disabled={!userId}
               />
             </div>
@@ -183,7 +183,7 @@ const SupportNew = () => {
                 accept="image/jpeg,image/jpg,image/png,image/gif"
                 multiple
                 onChange={handleFileChange}
-                className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-orange-500 file:text-white file:font-semibold file:cursor-pointer hover:file:bg-orange-600"
+                className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#1B3150] file:text-white file:font-semibold file:cursor-pointer hover:file:bg-[#1B3150]"
                 disabled={!userId}
               />
               {screenshots.length > 0 && (
@@ -204,7 +204,7 @@ const SupportNew = () => {
             <button
               type="submit"
               disabled={!userId || loading}
-              className="w-full px-6 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition shadow-md hover:shadow-lg"
+              className="w-full px-6 py-2.5 bg-[#1B3150] hover:bg-[#1B3150] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition shadow-md hover:shadow-lg"
             >
               {loading ? 'Submitting...' : 'Submit'}
             </button>

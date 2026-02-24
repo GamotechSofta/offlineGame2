@@ -104,7 +104,7 @@ const BottomNavbar = () => {
     >
       {/* Backplate to prevent white background showing behind navbar */}
       <div className="absolute inset-0 bg-white pointer-events-none" />
-      <div className="relative bg-white rounded-3xl border-2 border-orange-200 shadow-lg flex items-end justify-around px-1 py-2 min-h-[64px]">
+      <div className="relative bg-white rounded-3xl border-2 border-gray-300 shadow-lg flex items-end justify-around px-1 py-2 min-h-[64px]">
         {navItems.map((item) => {
           const active = isActive(item.path);
           const isCenter = item.isCenter;
@@ -125,11 +125,11 @@ const BottomNavbar = () => {
                 <div
                   className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${
                     active
-                      ? 'bg-orange-500 ring-2 ring-orange-500/60 ring-offset-2 ring-offset-white scale-105'
-                      : 'bg-orange-50 border-2 border-orange-200'
+                      ? 'bg-[#1B3150] ring-2 ring-[#1B3150]/40 ring-offset-2 ring-offset-white scale-105'
+                      : 'bg-gray-50 border-2 border-gray-300'
                   }`}
                 >
-                  {/* Icon: gray when inactive, white when active (on orange bg) */}
+                  {/* Icon: gray when inactive, white when active (on navy bg) */}
                   <div
                     className={`transition-all duration-200 ${
                       active ? 'brightness-0 invert' : 'brightness-0 opacity-40'
@@ -140,7 +140,7 @@ const BottomNavbar = () => {
                 </div>
                 <span
                   className={`text-[10px] sm:text-xs font-bold mt-1 transition-colors duration-200 ${
-                    active ? 'text-orange-500' : 'text-gray-600'
+                    active ? 'text-[#1B3150]' : 'text-gray-600'
                   }`}
                 >
                   {item.label}
@@ -161,7 +161,7 @@ const BottomNavbar = () => {
               }}
               className="relative flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-xl min-w-[56px] active:scale-95 transition-all duration-150 touch-manipulation"
             >
-              {/* Icon: gray when inactive, orange when active */}
+              {/* Icon: gray when inactive, navy when active */}
               <div
                 className={`transition-all duration-200 ${
                   active ? 'scale-110 brightness-0 opacity-60' : 'scale-100 brightness-0 opacity-40'
@@ -172,12 +172,12 @@ const BottomNavbar = () => {
               {/* Active indicator dot below icon */}
               <div className="h-1.5 w-full flex items-center justify-center">
                 {active && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-md mx-auto" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#1B3150] shadow-md mx-auto" />
                 )}
               </div>
               <span
                 className={`text-[10px] sm:text-xs font-bold transition-colors duration-200 ${
-                  active ? 'text-orange-500' : 'text-gray-600'
+                  active ? 'text-[#1B3150]' : 'text-gray-600'
                 }`}
               >
                 {item.label}

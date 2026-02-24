@@ -90,34 +90,34 @@ const Section1 = () => {
     <section className="w-full bg-gray-200 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
       {/* ═══ Desktop: MARKETS header ── */}
       <div className="hidden md:flex items-center gap-4 mt-4 mb-5 w-full max-w-7xl mx-auto px-4">
-        {/* ── Left orange line ── */}
-        <div className="flex-1 h-[1px] bg-gradient-to-r from-orange-200 via-orange-400 to-orange-500 min-w-[20px]" />
+        {/* ── Left navy line ── */}
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-gray-300 via-[#1B3150] to-[#1B3150] min-w-[20px]" />
 
         {/* ── MARKETS center ── */}
         <div className="flex items-center gap-2 shrink-0">
-          <svg className="w-2.5 h-2.5 text-orange-400" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0l1.8 4.2L12 6l-4.2 1.8L6 12l-1.8-4.2L0 6l4.2-1.8z"/></svg>
+          <svg className="w-2.5 h-2.5 text-[#1B3150]" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0l1.8 4.2L12 6l-4.2 1.8L6 12l-1.8-4.2L0 6l4.2-1.8z"/></svg>
           <h2 className="text-gray-800 text-lg font-bold tracking-[0.15em] uppercase">Markets</h2>
-          <svg className="w-2.5 h-2.5 text-orange-400" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0l1.8 4.2L12 6l-4.2 1.8L6 12l-1.8-4.2L0 6l4.2-1.8z"/></svg>
+          <svg className="w-2.5 h-2.5 text-[#1B3150]" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0l1.8 4.2L12 6l-4.2 1.8L6 12l-1.8-4.2L0 6l4.2-1.8z"/></svg>
         </div>
 
-        {/* ── Right orange line ── */}
-        <div className="flex-1 h-[1px] bg-gradient-to-l from-orange-200 via-orange-400 to-orange-500 min-w-[20px]" />
+        {/* ── Right navy line ── */}
+        <div className="flex-1 h-[1px] bg-gradient-to-l from-gray-300 via-[#1B3150] to-[#1B3150] min-w-[20px]" />
 
       </div>
 
       {/* ═══ Mobile: MARKETS Header only ═══ */}
       <div className="flex md:hidden items-end justify-center mb-4 min-[375px]:mb-6 sm:mb-8 w-full max-w-7xl mx-auto gap-1 min-[375px]:gap-2 sm:gap-4">
-        <div className="flex-1 h-[2px] bg-orange-500 shrink min-w-0" />
+        <div className="flex-1 h-[2px] bg-[#1B3150] shrink min-w-0" />
         <div className="relative shrink-0 w-[110px] min-[375px]:w-[140px] sm:w-[180px] h-[24px] min-[375px]:h-[28px] sm:h-[34px]">
           <svg className="w-full h-full" viewBox="0 0 240 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
             {/* Add small bottom "wings" so lines join like screenshot */}
-            <path d="M0 39 H26 L40 2 H200 L214 39 H240" stroke="#f97316" strokeWidth="2" />
+            <path d="M0 39 H26 L40 2 H200 L214 39 H240" stroke="#1B3150" strokeWidth="2" />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center pt-2 sm:pt-3">
             <h2 className="text-gray-800 text-sm min-[375px]:text-base sm:text-xl font-bold tracking-wider">MARKETS</h2>
           </div>
         </div>
-        <div className="flex-1 h-[2px] bg-orange-500 shrink min-w-0" />
+        <div className="flex-1 h-[2px] bg-[#1B3150] shrink min-w-0" />
       </div>
       {/* Market Cards Grid */}
       {loading ? (
@@ -139,7 +139,7 @@ const Section1 = () => {
               onClick={() => isClickable && navigate('/bidoptions', { state: { market } })}
               className={`bg-white rounded-lg overflow-hidden transform transition-transform duration-200 shadow hover:shadow-lg ${
                 isClickable 
-                  ? 'cursor-pointer hover:scale-[1.01] border border-gray-200 hover:border-orange-300' 
+                  ? 'cursor-pointer hover:scale-[1.01] border border-gray-200 hover:border-[#1B3150]/50' 
                   : 'cursor-not-allowed border border-gray-200'
               }`}
             >
