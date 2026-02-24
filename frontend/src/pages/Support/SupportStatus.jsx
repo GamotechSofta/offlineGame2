@@ -9,12 +9,12 @@ const statusLabel = (status) => {
 
 const statusClass = (status) => {
   const map = {
-    open: 'bg-gray-100 text-gray-700 border border-gray-300',
-    'in-progress': 'bg-gray-100 text-gray-700 border border-gray-300',
-    resolved: 'bg-green-100 text-green-700 border border-green-300',
-    closed: 'bg-gray-100 text-gray-600 border border-gray-300',
+    open: 'bg-[#1B3150]/10 text-[#1B3150] border-2 border-[#1B3150]/30',
+    'in-progress': 'bg-amber-50 text-amber-700 border-2 border-amber-200',
+    resolved: 'bg-green-100 text-green-700 border-2 border-green-300',
+    closed: 'bg-gray-100 text-gray-600 border-2 border-gray-300',
   };
-  return map[status] || 'bg-gray-100 text-gray-600 border border-gray-300';
+  return map[status] || 'bg-gray-100 text-gray-600 border-2 border-gray-300';
 };
 
 const SupportStatus = () => {
@@ -102,31 +102,31 @@ const SupportStatus = () => {
   }, [userId]);
 
   return (
-    <div className="min-h-screen bg-white text-gray-800 px-3 sm:px-6 md:px-8 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen bg-gray-100 text-gray-800 px-3 sm:px-6 md:px-8 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
       <div className="w-full max-w-xl mx-auto">
         <div className="flex items-center gap-3 pt-4 pb-3">
           <button
             type="button"
             onClick={() => navigate('/support')}
-            className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors shrink-0 text-gray-800"
+            className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center text-gray-800 hover:opacity-80 active:scale-95 transition touch-manipulation"
             aria-label="Back"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Check problem status</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-[#1B3150]">Check problem status</h1>
         </div>
         <p className="text-gray-600 text-sm sm:text-base mb-6">See status and reply for your submitted tickets.</p>
 
         {!userId ? (
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-gray-600 text-center">
+          <div className="p-4 bg-white border-2 border-gray-200 rounded-2xl text-gray-600 text-center shadow-sm">
             Please login to see your ticket status.
           </div>
         ) : ticketsLoading ? (
           <p className="text-gray-600 text-sm">Loading...</p>
         ) : myTickets.length === 0 ? (
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center text-gray-600 text-sm">
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 text-center text-gray-600 text-sm shadow-sm">
             No tickets yet. Raise a help ticket from Help Desk.
           </div>
         ) : (
@@ -134,7 +134,7 @@ const SupportStatus = () => {
             {myTickets.map((t) => (
               <div
                 key={t._id}
-                className="bg-white rounded-2xl border border-gray-200 p-4 shadow-md hover:shadow-lg transition-shadow"
+                className="bg-white rounded-2xl border-2 border-gray-200 p-4 shadow-sm hover:border-[#1B3150] hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0 flex-1">
