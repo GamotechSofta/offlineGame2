@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getAuthHeaders } from '../config/api';
 
 /** MongoDB ObjectId is 24 hex characters */
 const VALID_OBJECTID = /^[a-fA-F0-9]{24}$/;
@@ -107,7 +107,7 @@ export async function placeBet(marketId, bets, scheduledDate = null) {
 
   const response = await fetch(`${API_BASE_URL}/bets/place`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(payload),
   });
 
@@ -138,11 +138,12 @@ export async function getRatesCurrent() {
  */
 export async function getBalance() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const userId = user?.id || user?._id;
-  if (!userId) {
+  if (!user?.id && !user?._id) {
     return { success: false, message: 'Please log in' };
   }
-  const response = await fetch(`${API_BASE_URL}/wallet/balance?userId=${encodeURIComponent(userId)}`);
+  const response = await fetch(`${API_BASE_URL}/wallet/balance`, {
+    headers: getAuthHeaders(),
+  });
   const data = await response.json();
   if (!response.ok) {
     return { success: false, message: data.message || 'Failed to fetch balance' };
@@ -156,12 +157,11 @@ export async function getBalance() {
  */
 export async function getMyWalletTransactions(limit = 200) {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const userId = user?.id || user?._id;
-  if (!userId) {
+  if (!user?.id && !user?._id) {
     return { success: false, message: 'Please log in' };
   }
-  const url = `${API_BASE_URL}/wallet/my-transactions?userId=${encodeURIComponent(userId)}&limit=${encodeURIComponent(limit)}&includeBet=1`;
-  const response = await fetch(url);
+  const url = `${API_BASE_URL}/wallet/my-transactions?limit=${encodeURIComponent(limit)}&includeBet=1`;
+  const response = await fetch(url, { headers: getAuthHeaders() });
   const data = await response.json();
   if (!response.ok) {
     return { success: false, message: data.message || 'Failed to fetch transactions' };

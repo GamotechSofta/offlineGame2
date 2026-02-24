@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, getAuthHeaders } from '../../config/api';
 
 const SupportNew = () => {
   const navigate = useNavigate();
@@ -94,13 +94,13 @@ const SupportNew = () => {
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('userId', userId);
       formData.append('subject', subject.trim() || 'Support Request');
       formData.append('description', description.trim());
       screenshots.forEach((file) => formData.append('screenshots', file));
 
       const response = await fetch(`${API_BASE_URL}/help-desk/tickets`, {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: formData,
       });
       const data = await response.json();

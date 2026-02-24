@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
+import { signUserToken } from '../utils/userJwt.js';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -108,6 +109,7 @@ export const userLogin = async (req, res) => {
         const wallet = await Wallet.findOne({ userId: user._id });
         const balance = wallet ? wallet.balance : 0;
 
+        const token = signUserToken(user);
         const data = {
             id: user._id,
             username: user.username,
@@ -115,6 +117,7 @@ export const userLogin = async (req, res) => {
             phone: user.phone || '',
             role: user.role,
             balance: balance,
+            token,
         };
         if (user.referredBy) {
             data.referredBy = user.referredBy;
@@ -134,9 +137,9 @@ export const userLogin = async (req, res) => {
 
 export const userHeartbeat = async (req, res) => {
     try {
-        const { userId } = req.body;
+        const userId = req.userId;
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'userId is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required', code: 'AUTH_REQUIRED' });
         }
         const user = await User.findById(userId).select('isActive').lean();
         if (!user) {

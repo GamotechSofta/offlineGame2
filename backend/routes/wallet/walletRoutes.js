@@ -1,6 +1,7 @@
 import express from 'express';
 import { getAllWallets, getTransactions, getMyTransactions, adjustBalance, setBalance, getBalance } from '../../controllers/walletController.js';
 import { verifyAdmin } from '../../middleware/adminAuth.js';
+import { verifyUser } from '../../middleware/userAuth.js';
 
 const router = express.Router();
 
@@ -10,12 +11,12 @@ router.get('/transactions', verifyAdmin, getTransactions);
 router.post('/adjust', verifyAdmin, adjustBalance);
 router.put('/set-balance', verifyAdmin, setBalance);
 
-// User: get own balance (client sends userId; no auth token)
-router.get('/balance', getBalance);
-router.post('/balance', getBalance);
+// User: get own balance (player JWT required; userId from token)
+router.get('/balance', verifyUser, getBalance);
+router.post('/balance', verifyUser, getBalance);
 
-// User: get own wallet transactions (client sends userId; no auth token)
-router.get('/my-transactions', getMyTransactions);
-router.post('/my-transactions', getMyTransactions);
+// User: get own wallet transactions (player JWT required)
+router.get('/my-transactions', verifyUser, getMyTransactions);
+router.post('/my-transactions', verifyUser, getMyTransactions);
 
 export default router;

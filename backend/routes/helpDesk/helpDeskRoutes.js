@@ -1,14 +1,13 @@
 import express from 'express';
 import { getTickets, getMyTickets, updateTicketStatus, createTicket, upload } from '../../controllers/helpDeskController.js';
 import { verifyAdmin } from '../../middleware/adminAuth.js';
+import { verifyUser } from '../../middleware/userAuth.js';
 
 const router = express.Router();
 
-// Public route for users to create tickets
-router.post('/tickets', upload, createTicket);
-
-// Public route for logged-in user to fetch their own tickets (status check)
-router.get('/my-tickets', getMyTickets);
+// User routes (player JWT required)
+router.post('/tickets', verifyUser, upload, createTicket);
+router.get('/my-tickets', verifyUser, getMyTickets);
 
 // Admin routes
 router.get('/tickets', verifyAdmin, getTickets);

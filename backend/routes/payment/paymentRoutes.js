@@ -14,6 +14,7 @@ import {
     getPaymentScreenshot,
 } from '../../controllers/paymentController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
+import { verifyUser } from '../../middleware/userAuth.js';
 
 // Configure multer with memory storage for database storage
 const storage = multer.memoryStorage();
@@ -38,12 +39,12 @@ const router = express.Router();
 // ===== Public APIs =====
 router.get('/config', getPaymentConfig);
 
-// ===== User APIs (no admin auth, just userId in body/query) =====
-router.post('/deposit', upload.single('screenshot'), createDepositRequest);
-router.post('/withdraw', createWithdrawalRequest);
-router.get('/my-deposits', getMyDeposits);
-router.get('/my-withdrawals', getMyWithdrawals);
-router.get('/my-screenshot/:id', getPaymentScreenshot); // User can view their own screenshot
+// ===== User APIs (player JWT required; userId from token) =====
+router.post('/deposit', verifyUser, upload.single('screenshot'), createDepositRequest);
+router.post('/withdraw', verifyUser, createWithdrawalRequest);
+router.get('/my-deposits', verifyUser, getMyDeposits);
+router.get('/my-withdrawals', verifyUser, getMyWithdrawals);
+router.get('/my-screenshot/:id', verifyUser, getPaymentScreenshot);
 
 // ===== Admin APIs =====
 router.get('/', verifyAdmin, getPayments);

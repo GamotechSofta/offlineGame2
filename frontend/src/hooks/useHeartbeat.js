@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getAuthHeaders } from '../config/api';
 import { getBalance, updateUserBalance } from '../api/bets';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also used to detect suspended accounts
@@ -23,12 +23,16 @@ export const useHeartbeat = () => {
         if (!userId) return;
         const res = await fetch(`${API_BASE_URL}/users/heartbeat`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId }),
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({}),
         });
         const data = await res.json();
         if (!data.success && data.code === 'ACCOUNT_SUSPENDED') {
           logoutSuspendedUser();
+        } else if (res.status === 401 && (data.code === 'AUTH_REQUIRED' || data.code === 'TOKEN_EXPIRED')) {
+          localStorage.removeItem('user');
+          window.dispatchEvent(new Event('userLogout'));
+          window.location.href = '/login';
         } else if (!res.ok && res.status === 403) {
           logoutSuspendedUser();
         }

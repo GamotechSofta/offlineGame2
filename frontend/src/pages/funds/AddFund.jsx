@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, getAuthHeaders } from '../../config/api';
 
 const AddFund = () => {
     const navigate = useNavigate();
@@ -81,13 +81,13 @@ const AddFund = () => {
 
         try {
             const formData = new FormData();
-            formData.append('userId', user.id);
             formData.append('amount', numAmount);
             formData.append('upiTransactionId', utr);
             formData.append('screenshot', screenshot);
 
             const res = await fetch(`${API_BASE_URL}/payments/deposit`, {
                 method: 'POST',
+                headers: getAuthHeaders(),
                 body: formData,
             });
 

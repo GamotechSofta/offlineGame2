@@ -47,11 +47,10 @@ export const createDepositRequest = async (req, res) => {
         });
 
         const { amount, upiTransactionId, userNote } = req.body;
-        const userId = req.body.userId;
+        const userId = req.userId;
 
         if (!userId) {
-            console.error('❌ Missing userId');
-            return res.status(400).json({ success: false, message: 'User ID is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         const minDeposit = parseInt(process.env.MIN_DEPOSIT) || 100;
@@ -183,10 +182,11 @@ export const createDepositRequest = async (req, res) => {
  */
 export const createWithdrawalRequest = async (req, res) => {
     try {
-        const { amount, bankDetailId, userNote, userId } = req.body;
+        const userId = req.userId;
+        const { amount, bankDetailId, userNote } = req.body;
 
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'User ID is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         const minWithdrawal = parseInt(process.env.MIN_WITHDRAWAL) || 500;
@@ -264,14 +264,13 @@ export const createWithdrawalRequest = async (req, res) => {
 };
 
 /**
- * User: Get my deposit history
+ * User: Get my deposit history. Requires verifyUser (JWT).
  */
 export const getMyDeposits = async (req, res) => {
     try {
-        const { userId } = req.query;
-
+        const userId = req.userId;
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'User ID is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         const deposits = await Payment.find({ userId, type: 'deposit' })
@@ -301,14 +300,13 @@ export const getMyDeposits = async (req, res) => {
 };
 
 /**
- * User: Get my withdrawal history
+ * User: Get my withdrawal history. Requires verifyUser (JWT).
  */
 export const getMyWithdrawals = async (req, res) => {
     try {
-        const { userId } = req.query;
-
+        const userId = req.userId;
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'User ID is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         const withdrawals = await Payment.find({ userId, type: 'withdrawal' })
@@ -381,10 +379,10 @@ export const getPaymentScreenshot = async (req, res) => {
         const { id } = req.params;
         const payment = await Payment.findById(id).select('screenshot screenshotUrl userId');
 
-        // If not admin (req.admin is undefined), check if user owns this payment
+        // If not admin (req.admin is undefined), user route: require ownership via req.userId
         if (!req.admin) {
-            const { userId } = req.query;
-            if (!userId || payment.userId.toString() !== userId) {
+            const userId = req.userId;
+            if (!userId || !payment || payment.userId.toString() !== userId) {
                 return res.status(403).json({ success: false, message: 'Access denied' });
             }
         }

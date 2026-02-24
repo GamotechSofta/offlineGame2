@@ -1,13 +1,16 @@
 import express from 'express';
 import { createUser, userLogin, userSignup, userHeartbeat, getUsers, getSingleUser, togglePlayerStatus, deletePlayer, clearLoginDevices, updatePlayerToGiveToTake, updatePlayerPassword } from '../../controllers/userController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
+import { verifyUser } from '../../middleware/userAuth.js';
 
 const router = express.Router();
 
 // Public routes
 router.post('/login', userLogin);
 router.post('/signup', userSignup);
-router.post('/heartbeat', userHeartbeat);
+
+// Player auth required
+router.post('/heartbeat', verifyUser, userHeartbeat);
 
 // Admin/Bookie routes
 router.get('/', verifyAdmin, getUsers);

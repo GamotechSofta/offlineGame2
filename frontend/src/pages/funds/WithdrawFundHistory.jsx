@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, getAuthHeaders } from '../../config/api';
 
 const WithdrawFundHistory = () => {
     const [withdrawals, setWithdrawals] = useState([]);
@@ -16,7 +16,7 @@ const WithdrawFundHistory = () => {
         if (!user.id) return;
         try {
             setLoading(true);
-            const res = await fetch(`${API_BASE_URL}/payments/my-withdrawals?userId=${user.id}`);
+            const res = await fetch(`${API_BASE_URL}/payments/my-withdrawals`, { headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) {
                 setWithdrawals(data.data || []);

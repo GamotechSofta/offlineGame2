@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, getAuthHeaders } from '../../config/api';
 
 const WithdrawFund = () => {
     const [config, setConfig] = useState(null);
@@ -37,7 +37,7 @@ const WithdrawFund = () => {
     const fetchBankAccounts = async () => {
         if (!user.id) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/bank-details?userId=${user.id}`);
+            const res = await fetch(`${API_BASE_URL}/bank-details`, { headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) {
                 setBankAccounts(data.data || []);
@@ -55,7 +55,7 @@ const WithdrawFund = () => {
     const fetchWalletBalance = async () => {
         if (!user.id) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/wallet/balance?userId=${user.id}`);
+            const res = await fetch(`${API_BASE_URL}/wallet/balance`, { headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) {
                 setWalletBalance(data.data?.balance || 0);
@@ -99,9 +99,8 @@ const WithdrawFund = () => {
         try {
             const res = await fetch(`${API_BASE_URL}/payments/withdraw`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify({
-                    userId: user.id,
                     amount: numAmount,
                     bankDetailId: selectedBankId,
                     userNote,

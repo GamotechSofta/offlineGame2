@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, getAuthHeaders } from '../../config/api';
 
 const BankDetail = () => {
     const [bankAccounts, setBankAccounts] = useState([]);
@@ -32,7 +32,7 @@ const BankDetail = () => {
         if (!user.id) return;
         try {
             setLoading(true);
-            const res = await fetch(`${API_BASE_URL}/bank-details?userId=${user.id}`);
+            const res = await fetch(`${API_BASE_URL}/bank-details`, { headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) {
                 setBankAccounts(data.data || []);
@@ -96,11 +96,8 @@ const BankDetail = () => {
 
             const res = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: user.id,
-                    ...formData,
-                }),
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify(formData),
             });
 
             const data = await res.json();
@@ -130,8 +127,8 @@ const BankDetail = () => {
         try {
             const res = await fetch(`${API_BASE_URL}/bank-details/${id}`, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: user.id }),
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify({}),
             });
 
             const data = await res.json();
@@ -150,8 +147,8 @@ const BankDetail = () => {
         try {
             const res = await fetch(`${API_BASE_URL}/bank-details/${id}/set-default`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: user.id }),
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify({}),
             });
 
             const data = await res.json();

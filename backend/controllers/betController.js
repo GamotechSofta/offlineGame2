@@ -27,17 +27,18 @@ const normalizeBetOn = (v) => {
 };
 
 /**
- * Place bets (user-facing). Body: { userId, marketId, bets: [ { betType, betNumber, amount } ] }
- * Deducts total amount from wallet, creates Bet records. Returns new balance.
+ * Place bets (user-facing). Requires verifyUser (JWT). Body: { marketId, bets: [ { betType, betNumber, amount } ] }
+ * userId is taken from authenticated token. Deducts total amount from wallet, creates Bet records. Returns new balance.
  */
 export const placeBet = async (req, res) => {
     try {
-        const { userId, marketId, bets, scheduledDate } = req.body;
+        const userId = req.userId;
+        const { marketId, bets, scheduledDate } = req.body;
 
         if (!userId || !marketId || !Array.isArray(bets) || bets.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'userId, marketId and non-empty bets array are required',
+                message: 'marketId and non-empty bets array are required',
             });
         }
 
@@ -867,16 +868,17 @@ export const downloadBetStatement = async (req, res) => {
 
 /**
  * Download bet statement for current player (PDF format) - Player accessible
- * Query params: startDate (optional), endDate (optional)
- * Body or Query: userId (required) - player can only access their own statement
+ * Requires verifyUser (JWT). Query params: startDate (optional), endDate (optional)
+ * userId is taken from authenticated token.
  * Shows all bets for the player (both placed by bookie and directly by player)
  */
 export const downloadMyBetStatement = async (req, res) => {
     try {
-        const { userId, startDate, endDate } = req.body.userId ? req.body : req.query;
+        const userId = req.userId;
+        const { startDate, endDate } = req.body?.userId ? req.body : req.query;
 
         if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({ success: false, message: 'Valid userId is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         // Verify user exists

@@ -82,15 +82,15 @@ export const getTransactions = async (req, res) => {
 };
 
 /**
- * User-facing: get wallet transactions for a userId (no auth token in this project).
- * Query/body: { userId, limit? }.
+ * User-facing: get wallet transactions for the authenticated player.
+ * Requires verifyUser (JWT). Query/body: { limit? }.
  * Returns latest transactions (most recent first).
  */
 export const getMyTransactions = async (req, res) => {
     try {
-        const userId = req.body?.userId || req.query?.userId;
+        const userId = req.userId;
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'userId is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
         const limitRaw = req.query?.limit ?? req.body?.limit;
         let limit = Number(limitRaw);
@@ -318,16 +318,16 @@ export const setBalance = async (req, res) => {
 };
 
 /**
- * User-facing: get current wallet balance by userId (for refresh).
- * Body or query: { userId }
+ * User-facing: get current wallet balance for the authenticated player.
+ * Requires verifyUser (JWT).
  */
 export const getBalance = async (req, res) => {
     try {
-        const userId = req.body?.userId || req.query?.userId;
+        const userId = req.userId;
         if (!userId) {
-            return res.status(400).json({
+            return res.status(401).json({
                 success: false,
-                message: 'userId is required',
+                message: 'Authentication required',
             });
         }
 

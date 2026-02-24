@@ -1,11 +1,12 @@
 import express from 'express';
 import { placeBet, placeBetForPlayer, getBetHistory, getBetsByUser, getBetSessions, getTopWinners, downloadBetStatement, downloadMyBetStatement } from '../../controllers/betController.js';
 import { verifyAdmin } from '../../middleware/adminAuth.js';
+import { verifyUser } from '../../middleware/userAuth.js';
 
 const router = express.Router();
 
-// User-facing: place bets (no admin auth; frontend sends userId from session)
-router.post('/place', placeBet);
+// User-facing: place bets (player JWT required; userId from token)
+router.post('/place', verifyUser, placeBet);
 
 // Bookie: place bet on behalf of a player (requires bookie auth)
 router.post('/place-for-player', verifyAdmin, placeBetForPlayer);
@@ -13,9 +14,9 @@ router.post('/place-for-player', verifyAdmin, placeBetForPlayer);
 // Public: show top winners in user app menu
 router.get('/public/top-winners', getTopWinners);
 
-// Player-accessible: download own bet statement (bets placed by bookie)
-router.get('/my-statement', downloadMyBetStatement);
-router.post('/my-statement', downloadMyBetStatement);
+// Player-accessible: download own bet statement (player JWT required)
+router.get('/my-statement', verifyUser, downloadMyBetStatement);
+router.post('/my-statement', verifyUser, downloadMyBetStatement);
 
 // Admin/Bookie routes
 router.get('/history', verifyAdmin, getBetHistory);

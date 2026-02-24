@@ -25,7 +25,8 @@ export const upload = multer({
 
 export const createTicket = async (req, res) => {
     try {
-        const { userId, subject, description } = req.body;
+        const userId = req.userId;
+        const { subject, description } = req.body;
 
         // Upload screenshots to Cloudinary
         let screenshots = [];
@@ -47,7 +48,7 @@ export const createTicket = async (req, res) => {
         if (!userId || !subject || !description) {
             return res.status(400).json({
                 success: false,
-                message: 'userId, subject and description are required',
+                message: 'Subject and description are required',
             });
         }
 
@@ -119,12 +120,12 @@ export const getTickets = async (req, res) => {
     }
 };
 
-/** Get tickets for a specific user (by userId query) - for Support page "my tickets" */
+/** Get tickets for the authenticated user. Requires verifyUser (JWT). */
 export const getMyTickets = async (req, res) => {
     try {
-        const { userId } = req.query;
+        const userId = req.userId;
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'userId is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
         const tickets = await HelpDesk.find({ userId })
             .sort({ createdAt: -1 })

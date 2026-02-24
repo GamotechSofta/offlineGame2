@@ -2,14 +2,13 @@ import BankDetail from '../models/bankDetail/bankDetail.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
 /**
- * User: Get my bank details
+ * User: Get my bank details. Requires verifyUser (JWT).
  */
 export const getMyBankDetails = async (req, res) => {
     try {
-        const { userId } = req.query;
-
+        const userId = req.userId;
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'User ID is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         const bankDetails = await BankDetail.find({ userId, isActive: true })
@@ -23,12 +22,12 @@ export const getMyBankDetails = async (req, res) => {
 };
 
 /**
- * User: Add new bank detail
+ * User: Add new bank detail. Requires verifyUser (JWT).
  */
 export const addBankDetail = async (req, res) => {
     try {
+        const userId = req.userId;
         const {
-            userId,
             accountHolderName,
             accountNumber,
             ifscCode,
@@ -39,7 +38,7 @@ export const addBankDetail = async (req, res) => {
         } = req.body;
 
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'User ID is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         if (!accountHolderName) {
@@ -106,13 +105,13 @@ export const addBankDetail = async (req, res) => {
 };
 
 /**
- * User: Update bank detail
+ * User: Update bank detail. Requires verifyUser (JWT).
  */
 export const updateBankDetail = async (req, res) => {
     try {
         const { id } = req.params;
+        const userId = req.userId;
         const {
-            userId,
             accountHolderName,
             accountNumber,
             ifscCode,
@@ -123,7 +122,7 @@ export const updateBankDetail = async (req, res) => {
         } = req.body;
 
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'User ID is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         const bankDetail = await BankDetail.findOne({ _id: id, userId, isActive: true });
@@ -171,10 +170,10 @@ export const updateBankDetail = async (req, res) => {
 export const deleteBankDetail = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
+        const userId = req.userId;
 
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'User ID is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         const bankDetail = await BankDetail.findOne({ _id: id, userId, isActive: true });
@@ -221,10 +220,10 @@ export const deleteBankDetail = async (req, res) => {
 export const setDefaultBankDetail = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userId } = req.body;
+        const userId = req.userId;
 
         if (!userId) {
-            return res.status(400).json({ success: false, message: 'User ID is required' });
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
         const bankDetail = await BankDetail.findOne({ _id: id, userId, isActive: true });

@@ -6,14 +6,15 @@ import {
     deleteBankDetail,
     setDefaultBankDetail,
 } from '../../controllers/bankDetailController.js';
+import { verifyUser } from '../../middleware/userAuth.js';
 
 const router = express.Router();
 
-// User APIs (userId passed in body/query)
-router.get('/', getMyBankDetails);
-router.post('/', addBankDetail);
-router.put('/:id', updateBankDetail);
-router.delete('/:id', deleteBankDetail);
-router.post('/:id/set-default', setDefaultBankDetail);
+// User APIs (player JWT required; userId from token)
+router.get('/', verifyUser, getMyBankDetails);
+router.post('/', verifyUser, addBankDetail);
+router.put('/:id', verifyUser, updateBankDetail);
+router.delete('/:id', verifyUser, deleteBankDetail);
+router.post('/:id/set-default', verifyUser, setDefaultBankDetail);
 
 export default router;

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getAuthHeaders } from '../config/api';
 
 const readUserFromStorage = () => {
   try {
@@ -201,25 +201,28 @@ const Profile = () => {
   const handleDownloadStatement = async () => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || 'null');
-      const userId = user?.id || user?._id;
-      if (!userId) {
+      if (!user?.id && !user?._id) {
         showToast('Please log in to download statement');
         return;
       }
 
-      // Get date range (last 30 days by default)
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 30);
-
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
 
-      const url = `${API_BASE_URL}/bets/my-statement?userId=${encodeURIComponent(userId)}&startDate=${startDateStr}&endDate=${endDateStr}`;
-      
-      // Open in new window to trigger download
-      window.open(url, '_blank');
+      const url = `${API_BASE_URL}/bets/my-statement?startDate=${startDateStr}&endDate=${endDateStr}`;
+      const res = await fetch(url, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        showToast('Failed to download statement');
+        return;
+      }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
       showToast('Downloading statement...');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
     } catch (err) {
       showToast('Failed to download statement');
     }

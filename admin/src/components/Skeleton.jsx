@@ -1,4 +1,4 @@
-import React from 'react';
+ import React from 'react';
 
 export const SkeletonCard = () => (
     <div className="bg-white rounded-xl p-6 border border-gray-200 animate-pulse">
