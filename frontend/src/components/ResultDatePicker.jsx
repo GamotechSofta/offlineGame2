@@ -43,6 +43,7 @@ export default function ResultDatePicker({
   maxDate,
   label = 'Select Date',
   buttonClassName = '',
+  labelClassName = 'text-gray-600',
 }) {
   const max = useMemo(() => maxDate || new Date(), [maxDate]);
   const safeValue = useMemo(() => clampToMax(value || new Date(), max), [value, max]);
@@ -122,13 +123,13 @@ export default function ResultDatePicker({
   return (
     <>
       <div className="flex items-center justify-between gap-4">
-        <div className="text-white/80 text-base sm:text-lg">{label}</div>
+        <div className={`text-base sm:text-lg ${labelClassName}`}>{label}</div>
         <button
           type="button"
           onClick={() => setOpen(true)}
           className={
             buttonClassName ||
-            'px-5 py-2.5 rounded-full bg-black/40 border border-white/10 text-white font-bold shadow-sm hover:border-[#d4af37]/40 transition-colors'
+            'px-5 py-2.5 rounded-full bg-gray-50 border-2 border-gray-300 text-gray-800 font-bold shadow-sm hover:border-[#1B3150] transition-colors'
           }
           aria-label="Open calendar"
         >
@@ -153,7 +154,7 @@ export default function ResultDatePicker({
                 <div className="text-white text-3xl sm:text-4xl font-light">
                   {draft.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                 </div>
-                <div className="w-10 h-10 rounded-full bg-black/25 border border-white/10 flex items-center justify-center text-white/80">
+                <div className="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-white">
                   {/* pencil icon */}
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 4h2m-1 0v0m8.485 2.515a2.121 2.121 0 010 3L9 21H4v-5L16.485 6.515a2.121 2.121 0 013 0z" />
@@ -212,10 +213,10 @@ export default function ResultDatePicker({
                       onClick={() => setDraft(d)}
                       className={`h-10 w-10 mx-auto rounded-full flex items-center justify-center text-sm transition-colors ${
                         selected
-                          ? 'bg-[#0b2b55] text-white'
+                          ? 'bg-[#1B3150] text-white'
                           : disabled
                             ? 'text-gray-300 cursor-not-allowed'
-                            : 'text-gray-700 hover:bg-black/5'
+                            : 'text-gray-700 hover:bg-gray-100'
                       }`}
                       aria-label={`Day ${d.getDate()}`}
                     >
@@ -231,7 +232,7 @@ export default function ResultDatePicker({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-[#0b2b55] font-semibold tracking-wide"
+                className="text-[#1B3150] font-semibold tracking-wide hover:opacity-80"
               >
                 CANCEL
               </button>
@@ -242,7 +243,7 @@ export default function ResultDatePicker({
                   onChange?.(next);
                   setOpen(false);
                 }}
-                className="text-[#0b2b55] font-semibold tracking-wide"
+                className="text-[#1B3150] font-semibold tracking-wide hover:opacity-80"
               >
                 OK
               </button>
