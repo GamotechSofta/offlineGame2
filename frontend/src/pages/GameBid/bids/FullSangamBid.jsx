@@ -221,8 +221,8 @@ const FullSangamBid = ({ market, title }) => {
                                         }
                                     }}
                                     placeholder="Pana"
-                                    className={`flex-1 min-w-0 bg-white border-2 border-gray-800 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${
-                                        openPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-gray-500 focus:border-gray-800'
+                                    className={`flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${
+                                        openPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-orange-500 focus:border-orange-500'
                                     }`}
                                 />
                             </div>
@@ -254,8 +254,8 @@ const FullSangamBid = ({ market, title }) => {
                                         }
                                     }}
                                     placeholder="Pana"
-                                    className={`flex-1 min-w-0 bg-white border-2 border-gray-800 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${
-                                        closePanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-gray-500 focus:border-gray-800'
+                                    className={`flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${
+                                        closePanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-orange-500 focus:border-orange-500'
                                     }`}
                                 />
                             </div>
@@ -269,7 +269,7 @@ const FullSangamBid = ({ market, title }) => {
                                     value={points}
                                     onChange={(e) => setPoints(sanitizePoints(e.target.value))}
                                     placeholder="Point"
-                                    className="no-spinner flex-1 min-w-0 bg-white border-2 border-gray-800 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-800 focus:outline-none"
+                                    className="no-spinner flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
                                 />
                             </div>
                         </div>
@@ -311,7 +311,7 @@ const FullSangamBid = ({ market, title }) => {
                                 {bids.map((b) => (
                                     <div
                                         key={b.id}
-                                        className="grid grid-cols-[1.4fr_0.7fr_0.7fr_0.5fr] gap-2 sm:gap-3 text-center items-center py-2.5 px-3 bg-orange-50 rounded-lg border-2 border-gray-800 text-sm"
+                                        className="grid grid-cols-[1.4fr_0.7fr_0.7fr_0.5fr] gap-2 sm:gap-3 text-center items-center py-2.5 px-3 bg-orange-50 rounded-lg border-2 border-orange-200 text-sm"
                                     >
                                         <div className="font-bold text-gray-800 truncate">{formatFullSangamDisplay(b.number)}</div>
                                         <div className="font-bold text-orange-500 truncate">{b.points}</div>

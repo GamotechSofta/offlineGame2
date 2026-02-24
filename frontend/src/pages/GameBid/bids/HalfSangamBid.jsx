@@ -89,7 +89,7 @@ const HalfSangamBid = ({ market, title }) => {
         setIsReviewOpen(true);
     };
 
-    const inputCl = 'flex-1 min-w-0 bg-white border-2 border-gray-800 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none focus:ring-gray-500 focus:border-gray-800';
+    const inputCl = 'flex-1 min-w-0 bg-white border-2 border-orange-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none focus:ring-orange-500 focus:border-orange-200';
     const labelCl = 'text-gray-900 text-sm font-medium shrink-0 w-40';
 
     return (
@@ -159,7 +159,7 @@ const HalfSangamBid = ({ market, title }) => {
                                 {bids.map((b) => (
                                     <div
                                         key={b.id}
-                                        className="grid grid-cols-[1.4fr_0.7fr_0.6fr] gap-2 sm:gap-3 text-center items-center py-2.5 px-3 bg-orange-50 rounded-lg border-2 border-gray-800 text-sm"
+                                        className="grid grid-cols-[1.4fr_0.7fr_0.6fr] gap-2 sm:gap-3 text-center items-center py-2.5 px-3 bg-orange-50 rounded-lg border-2 border-orange-200 text-sm"
                                     >
                                         <div className="font-bold text-gray-800 truncate">{b.number}</div>
                                         <div className="font-bold text-orange-500 truncate">{b.points}</div>

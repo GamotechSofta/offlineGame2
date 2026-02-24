@@ -147,12 +147,12 @@ const BidLayout = ({
         <div className="min-h-screen min-h-ios-screen bg-white font-sans w-full max-w-full overflow-x-hidden">
             {/* Header - White/Orange theme - iOS safe area padding */}
             <div
-                className="bg-white border-b-2 border-gray-800 py-1.5 flex items-center justify-between gap-2 sticky top-0 z-10 mt-2 shadow-sm"
+                className="bg-white border-b-2 border-orange-200 py-1.5 flex items-center justify-between gap-2 sticky top-0 z-10 mt-2 shadow-sm"
                 style={{ paddingLeft: 'max(0.75rem, env(safe-area-inset-left))', paddingRight: 'max(0.75rem, env(safe-area-inset-right))' }}
             >
                 <button
                     onClick={() => market ? navigate('/bidoptions', { state: { market } }) : navigate(-1)}
-                    className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center bg-orange-50 border-2 border-gray-800 hover:bg-orange-100 hover:border-gray-700 text-orange-500 rounded-full active:scale-95 transition-colors touch-manipulation"
+                    className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center bg-orange-50 border-2 border-orange-200 hover:bg-orange-100 hover:border-orange-400 text-orange-500 rounded-full active:scale-95 transition-colors touch-manipulation"
                     aria-label="Back"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -212,7 +212,7 @@ const BidLayout = ({
                                 e.preventDefault();
                                 return false;
                             }}
-                            className={`w-full pl-9 sm:pl-10 pr-3 py-2.5 min-h-[44px] h-[44px] bg-white border-2 border-gray-800 text-gray-800 rounded-full text-xs sm:text-sm font-bold text-center focus:outline-none focus:border-gray-800 cursor-pointer truncate ${dateSessionControlClassName}`}
+                            className={`w-full pl-9 sm:pl-10 pr-3 py-2.5 min-h-[44px] h-[44px] bg-white border-2 border-orange-200 text-gray-800 rounded-full text-xs sm:text-sm font-bold text-center focus:outline-none focus:border-orange-200 cursor-pointer truncate ${dateSessionControlClassName}`}
                             style={{
                                 colorScheme: 'light',
                             }}
@@ -226,7 +226,7 @@ const BidLayout = ({
                             value={session}
                             onChange={(e) => setSession(e.target.value)}
                             disabled={lockSessionSelect || (isToday && isRunning)}
-                            className={`w-full appearance-none bg-white border-2 border-gray-800 text-gray-800 font-bold text-xs sm:text-sm py-2.5 min-h-[44px] h-[44px] px-4 pr-8 rounded-full text-center focus:outline-none focus:border-gray-800 ${(lockSessionSelect || (isToday && isRunning)) ? 'opacity-60 cursor-not-allowed bg-gray-100' : ''} ${dateSessionControlClassName}`}
+                            className={`w-full appearance-none bg-white border-2 border-orange-200 text-gray-800 font-bold text-xs sm:text-sm py-2.5 min-h-[44px] h-[44px] px-4 pr-8 rounded-full text-center focus:outline-none focus:border-orange-200 ${(lockSessionSelect || (isToday && isRunning)) ? 'opacity-60 cursor-not-allowed bg-gray-100' : ''} ${dateSessionControlClassName}`}
                         >
                             {sessionOptions.map((opt) => (
                                 <option key={opt} value={opt}>
@@ -271,7 +271,7 @@ const BidLayout = ({
                     <div
                         className={`w-full max-w-sm md:max-w-md rounded-2xl flex flex-col sm:flex-row items-center gap-4 sm:gap-6 ${
                             showFooterStats
-                                ? 'bg-white backdrop-blur-sm border-2 border-gray-800 shadow-xl px-4 py-4'
+                                ? 'bg-white backdrop-blur-sm border-2 border-orange-200 shadow-xl px-4 py-4'
                                 : 'bg-transparent border-0 shadow-none p-0'
                         }`}
                     >
