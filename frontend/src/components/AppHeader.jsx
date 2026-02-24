@@ -12,14 +12,8 @@ const AppHeader = () => {
     { label: 'My Bets', path: '/bids' },
     { label: 'Bank', path: '/funds?tab=bank-detail' },
     { label: 'Funds', path: '/funds' },
-    { label: 'Top Winners', path: '/top-winners' },
-    { label: 'Telegram Channel', path: '/support' },
-    { label: 'Notification', path: '/support' },
-    { label: 'Game Chart', path: '/support' },
     { label: 'Game Rate', path: '/support' },
-    { label: 'Time Table', path: '/support' },
     { label: 'Help Desk', path: '/support' },
-    { label: 'Share App', path: '/support' },
     { label: 'Logout', path: '/login' }
   ];
 
