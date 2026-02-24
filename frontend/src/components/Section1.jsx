@@ -105,19 +105,15 @@ const Section1 = () => {
 
       </div>
 
-      {/* ═══ Mobile: MARKETS Header only ═══ */}
-      <div className="flex md:hidden items-end justify-center mb-4 min-[375px]:mb-6 sm:mb-8 w-full max-w-7xl mx-auto gap-1 min-[375px]:gap-2 sm:gap-4">
-        <div className="flex-1 h-[2px] bg-[#1B3150] shrink min-w-0" />
-        <div className="relative shrink-0 w-[110px] min-[375px]:w-[140px] sm:w-[180px] h-[24px] min-[375px]:h-[28px] sm:h-[34px]">
-          <svg className="w-full h-full" viewBox="0 0 240 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
-            {/* Add small bottom "wings" so lines join like screenshot */}
-            <path d="M0 39 H26 L40 2 H200 L214 39 H240" stroke="#1B3150" strokeWidth="2" />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center pt-2 sm:pt-3">
-            <h2 className="text-gray-800 text-sm min-[375px]:text-base sm:text-xl font-bold tracking-wider">MARKETS</h2>
-          </div>
+      {/* ═══ Mobile: MARKETS Header - + MARKETS + with lines ═══ */}
+      <div className="flex md:hidden items-center justify-center gap-2 min-[375px]:gap-3 mb-4 min-[375px]:mb-6 sm:mb-8 w-full max-w-7xl mx-auto px-2">
+        <div className="flex-1 h-[1px] bg-gray-400 min-w-[20px] shrink-0 shadow-sm" />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[#1B3150] font-bold text-sm min-[375px]:text-base sm:text-lg">+</span>
+          <h2 className="text-[#1B3150] font-bold text-sm min-[375px]:text-base sm:text-lg tracking-wider uppercase">MARKETS</h2>
+          <span className="text-[#1B3150] font-bold text-sm min-[375px]:text-base sm:text-lg">+</span>
         </div>
-        <div className="flex-1 h-[2px] bg-[#1B3150] shrink min-w-0" />
+        <div className="flex-1 h-[1px] bg-gray-400 min-w-[20px] shrink-0 shadow-sm" />
       </div>
       {/* Market Cards Grid */}
       {loading ? (
@@ -129,7 +125,7 @@ const Section1 = () => {
           <p className="text-gray-600">No markets available</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 min-[375px]:gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 min-[375px]:gap-3 sm:gap-4">
           {markets.map((market) => {
             const isClickable = market.status === 'open' || market.status === 'running';
             const statusText = market.status === 'closed' ? 'Closed for today' : market.status === 'running' ? 'Close is Running' : 'Market is Open';

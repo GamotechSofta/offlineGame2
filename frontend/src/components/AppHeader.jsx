@@ -175,10 +175,10 @@ const AppHeader = () => {
           {/* Wallet - desktop only, responsive size */}
           <button
             onClick={() => navigate('/funds?tab=add-fund')}
-            className="hidden md:flex shrink-0 items-center gap-1.5 md:gap-2 lg:gap-2.5 rounded-lg bg-gray-50 border-2 border-gray-300 px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 hover:bg-gray-100 hover:border-gray-400 transition-colors"
+            className="flex shrink-0 items-center gap-1.5 md:gap-2 lg:gap-2.5 rounded-lg bg-gray-50 border-2 border-gray-300 px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 hover:bg-gray-100 hover:border-gray-400 transition-colors"
           >
             <img
-              src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769780438/Untitled_90_x_160_px_1080_x_1080_px_ychsx6.png"
+              src="https://res.cloudinary.com/dnyp5jknp/image/upload/v1771394532/wallet_n1oyef.png"
               alt="Wallet"
               className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 object-contain"
             />

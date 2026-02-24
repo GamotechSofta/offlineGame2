@@ -152,7 +152,7 @@ const BidLayout = ({
             >
                 <button
                     onClick={() => market ? navigate('/bidoptions', { state: { market } }) : navigate(-1)}
-                    className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center bg-gray-200 border-2 border-gray-300 hover:bg-gray-300 text-gray-800 rounded-full active:scale-95 transition-colors touch-manipulation"
+                    className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center text-gray-800 hover:opacity-80 active:scale-95 transition touch-manipulation"
                     aria-label="Back"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -162,9 +162,13 @@ const BidLayout = ({
                 <h1 className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-wide truncate flex-1 text-center mx-1 text-gray-800 min-w-0">
                     {market?.gameName ? `${market.gameName} - ${title}` : title}
                 </h1>
-                <div className="bg-gray-200 text-gray-800 px-2 sm:px-2.5 py-0.5 rounded-full flex items-center gap-1 text-[11px] sm:text-sm font-bold shadow-md shrink-0 border-2 border-gray-300">
-                    <div className="w-4 h-4 bg-white rounded flex items-center justify-center text-gray-800 text-[10px] font-bold">₹</div>
-                    {wallet.toFixed(1)}
+                <div className="bg-gray-200 text-gray-800 px-2 sm:px-2.5 py-0.5 rounded-full flex items-center gap-1.5 text-[11px] sm:text-sm font-bold shadow-md shrink-0 border-2 border-gray-300">
+                    <img
+                        src="https://res.cloudinary.com/dnyp5jknp/image/upload/v1771394532/wallet_n1oyef.png"
+                        alt="Wallet"
+                        className="w-5 h-5 sm:w-5 sm:h-5 object-contain"
+                    />
+                    ₹{wallet.toFixed(1)}
                 </div>
             </div>
 
