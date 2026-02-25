@@ -131,7 +131,7 @@ const Dashboard = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [datePreset, setDatePreset] = useState('all');
+    const [datePreset, setDatePreset] = useState('today');
     const [customFrom, setCustomFrom] = useState('');
     const [customTo, setCustomTo] = useState('');
     const [customMode, setCustomMode] = useState(false);

@@ -143,13 +143,22 @@ const MyUsers = () => {
                     <div className="p-8 text-center text-gray-400">
                         <p>{t('noData')}</p>
                         <p className="mt-2 text-sm">Players who register through your referral link or are created by you will appear here.</p>
-                        <button
-                            type="button"
-                            onClick={() => navigate('/add-user')}
-                            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-500/90 text-gray-800 font-semibold text-sm"
-                        >
-                            <FaUserPlus className="w-4 h-4" /> {t('addPlayer')}
-                        </button>
+                        <div className="mt-4 flex flex-wrap justify-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => navigate('/add-user')}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-500/90 text-gray-800 font-semibold text-sm"
+                            >
+                                <FaUserPlus className="w-4 h-4" /> {t('addPlayer')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/games')}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-semibold text-sm"
+                            >
+                                <FaGamepad className="w-4 h-4" /> All Markets
+                            </button>
+                        </div>
                     </div>
                 ) : filteredUsers.length === 0 ? (
                     <div className="p-8 text-center text-gray-400">
