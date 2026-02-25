@@ -5,7 +5,7 @@ import { FaArrowLeft, FaClock, FaHashtag, FaChartBar, FaEdit } from 'react-icons
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const TRIPLE_PATTI_DIGITS = DIGITS.map((d) => d + d + d);
@@ -890,15 +890,15 @@ const MarketDetail = () => {
 
     const fetchStats = async () => {
         if (!marketId) return;
-        const headers = getAuthHeaders();
         setLoading(true);
         setError('');
         setSinglePattiSummary(null);
         try {
             const [statsRes, summaryRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/markets/get-market-stats/${marketId}`, { headers }),
-                fetch(`${API_BASE_URL}/markets/get-single-patti-summary/${marketId}`, { headers }),
+                fetchWithAuth(`${API_BASE_URL}/markets/get-market-stats/${marketId}`),
+                fetchWithAuth(`${API_BASE_URL}/markets/get-single-patti-summary/${marketId}`),
             ]);
+            if (statsRes.status === 401 || summaryRes.status === 401) return;
             const statsJson = await statsRes.json();
             if (!statsJson.success) {
                 setError(statsJson.message || 'Failed to load market detail');
@@ -931,10 +931,10 @@ const MarketDetail = () => {
 
     const fetchAllBets = async () => {
         if (!marketId) return;
-        const headers = getAuthHeaders();
         setLoadingBets(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/markets/get-market-bets/${marketId}`, { headers });
+            const res = await fetchWithAuth(`${API_BASE_URL}/markets/get-market-bets/${marketId}`);
+            if (res.status === 401) return;
             const json = await res.json();
             if (json.success) {
                 setAllBets(json.data);
@@ -948,8 +948,8 @@ const MarketDetail = () => {
 
     const fetchRates = async () => {
         try {
-            const headers = getAuthHeaders();
-            const res = await fetch(`${API_BASE_URL}/rates`, { headers });
+            const res = await fetchWithAuth(`${API_BASE_URL}/rates`);
+            if (res.status === 401) return;
             const json = await res.json();
             if (json.success && json.data) {
                 const ratesMap = {};

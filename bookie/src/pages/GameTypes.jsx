@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, getMarketDisplayName } from '../utils/api';
+import { API_BASE_URL, getMarketDisplayName, fetchWithAuth } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -95,7 +95,8 @@ const GameTypes = () => {
     useEffect(() => {
         const fetchMarket = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
+                const res = await fetchWithAuth(`${API_BASE_URL}/markets/get-markets`);
+                if (res.status === 401) return;
                 const data = await res.json();
                 if (data.success && Array.isArray(data.data)) {
                     const found = data.data.find((m) => m._id === marketId);

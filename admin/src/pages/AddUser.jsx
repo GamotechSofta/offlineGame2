@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { FaArrowLeft, FaUserPlus, FaUser } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const PHONE_REGEX = /^[6-9]\d{9}$/;
 
@@ -91,12 +91,11 @@ const AddUser = () => {
                     password: formData.password,
                     commissionPercentage: formData.commissionPercentage ? Number(formData.commissionPercentage) : 0,
                 };
-                const response = await fetch(`${API_BASE_URL}/admin/bookies`, {
+                const response = await fetchWithAuth(`${API_BASE_URL}/admin/bookies`, {
                     method: 'POST',
-                    headers: getAuthHeaders(),
                     body: JSON.stringify(payload),
                 });
-
+                if (response.status === 401) return;
                 const data = await response.json();
                 if (data.success) {
                     const phoneNumber = formData.phone.replace(/\D/g, '').slice(0, 10);
@@ -138,12 +137,11 @@ const AddUser = () => {
                     role: formData.role,
                     balance: formData.balance === '' ? 0 : (parseFloat(formData.balance) || 0),
                 };
-                const response = await fetch(`${API_BASE_URL}/users/create`, {
+                const response = await fetchWithAuth(`${API_BASE_URL}/users/create`, {
                     method: 'POST',
-                    headers: getAuthHeaders(),
                     body: JSON.stringify(payload),
                 });
-
+                if (response.status === 401) return;
                 const data = await response.json();
                 if (data.success) {
                     setSuccess('Player created successfully!');

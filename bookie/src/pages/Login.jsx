@@ -43,7 +43,6 @@ const Login = () => {
         setLoading(true);
 
         try {
-            console.log('Attempting login with phone:', phone);
             const response = await fetch(`${API_BASE_URL}/bookie/login`, {
                 method: 'POST',
                 headers: {
@@ -51,8 +50,6 @@ const Login = () => {
                 },
                 body: JSON.stringify({ phone, password }),
             });
-            console.log('Login response status:', response.status);
-
             let data;
             try {
                 data = await response.json();

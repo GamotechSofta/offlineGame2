@@ -4,7 +4,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const PlayerDevices = () => {
     const { userId } = useParams();
@@ -25,7 +25,8 @@ const PlayerDevices = () => {
             setLoading(true);
             setError('');
             try {
-                const res = await fetch(`${API_BASE_URL}/users/${userId}`, { headers: getAuthHeaders() });
+                const res = await fetchWithAuth(`${API_BASE_URL}/users/${userId}`);
+                if (res.status === 401) return;
                 const data = await res.json();
                 if (data.success) {
                     setPlayer(data.data);
@@ -54,10 +55,10 @@ const PlayerDevices = () => {
         setMessage('');
         setError('');
         try {
-            const res = await fetch(`${API_BASE_URL}/users/${userId}/clear-devices`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/users/${userId}/clear-devices`, {
                 method: 'PATCH',
-                headers: getAuthHeaders(),
             });
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setMessage('Devices list cleared successfully');

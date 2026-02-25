@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { API_BASE_URL, getBookieAuthHeaders } from '../../utils/api';
+import { API_BASE_URL, getBookieAuthHeaders, fetchWithAuth } from '../../utils/api';
 import { placeBetForPlayer } from './bookieApi';
 
 const PlayerBetContext = createContext({});
@@ -38,7 +38,8 @@ export const PlayerBetProvider = ({ children }) => {
     useEffect(() => {
         const fetchMarket = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
+                const res = await fetchWithAuth(`${API_BASE_URL}/markets/get-markets`);
+                if (res.status === 401) return;
                 const data = await res.json();
                 if (data.success && Array.isArray(data.data)) {
                     const found = data.data.find((m) => m._id === marketId);

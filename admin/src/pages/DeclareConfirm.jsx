@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const formatNum = (n) => (n != null && Number.isFinite(n) ? Number(n).toLocaleString('en-IN') : '0');
 
@@ -21,10 +21,10 @@ const DeclareConfirm = () => {
     const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
 
     useEffect(() => {
-        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
-            .then((res) => res.json())
+        fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
+            .then((res) => { if (res.status === 401) return; return res.json(); })
             .then((json) => {
-                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+                if (json && json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
             })
             .catch(() => setHasSecretDeclarePassword(false));
     }, []);
@@ -44,11 +44,11 @@ const DeclareConfirm = () => {
         const url = `${API_BASE_URL}/markets/winning-bets-preview/${encodeURIComponent(marketIdStr)}?${query}`;
         setLoading(true);
         setError('');
-        fetch(url, { headers: getAuthHeaders() })
-            .then((res) => res.json())
+        fetchWithAuth(url)
+            .then((res) => { if (res.status === 401) return; return res.json(); })
             .then((json) => {
-                if (json.success && json.data) setData(json.data);
-                else setError(json.message || 'Failed to load winning players');
+                if (json && json.success && json.data) setData(json.data);
+                else setError(json?.message || 'Failed to load winning players');
             })
             .catch(() => setError('Network error'))
             .finally(() => setLoading(false));
@@ -64,11 +64,11 @@ const DeclareConfirm = () => {
             const endpoint = declareType === 'open' ? 'declare-open' : 'declare-close';
             const body = declareType === 'open' ? { openingNumber: number } : { closingNumber: number };
             if (secretDeclarePasswordValue) body.secretDeclarePassword = secretDeclarePasswordValue;
-            const res = await fetch(`${API_BASE_URL}/markets/${endpoint}/${marketIdStr}`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/markets/${endpoint}/${marketIdStr}`, {
                 method: 'POST',
-                headers: getAuthHeaders(),
                 body: JSON.stringify(body),
             });
+            if (res.status === 401) return;
             const json = await res.json();
             if (json.success) {
                 setShowPasswordModal(false);

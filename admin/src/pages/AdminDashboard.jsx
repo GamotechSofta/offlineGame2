@@ -18,7 +18,7 @@ import {
 } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const PRESETS = [
     { id: 'today', label: 'Today', getRange: () => {
@@ -159,19 +159,14 @@ const AdminDashboard = () => {
             if (isRefresh) params.set('_', String(Date.now()));
             const query = params.toString();
             const url = `${API_BASE_URL}/dashboard/stats${query ? `?${query}` : ''}`;
-            const response = await fetch(url, {
-                headers: getAuthHeaders(),
+            const response = await fetchWithAuth(url, {
                 cache: isRefresh ? 'no-store' : 'default',
             });
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setStats(data.data);
             } else {
-                if (response.status === 401) {
-                    clearAdminSession();
-                    navigate('/', { replace: true });
-                    return;
-                }
                 setError('Failed to fetch dashboard stats');
             }
         } catch (err) {

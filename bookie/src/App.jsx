@@ -57,7 +57,7 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-    return bookie ? (
+    return bookie?.token ? (
         <>
             <BookieHeartbeat />
             {children}

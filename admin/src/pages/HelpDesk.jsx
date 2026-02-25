@@ -3,7 +3,7 @@ import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 const UPLOAD_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1').replace(/\/api\/v1\/?$/, '') || 'http://localhost:3010';
 
 const HelpDesk = () => {
@@ -26,9 +26,8 @@ const HelpDesk = () => {
     useEffect(() => {
         const fetchBookies = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/admin/bookies`, {
-                    headers: getAuthHeaders(),
-                });
+                const res = await fetchWithAuth(`${API_BASE_URL}/admin/bookies`);
+                if (res.status === 401) return;
                 const data = await res.json();
                 if (data.success && data.data) setBookies(data.data);
             } catch (_) {}
@@ -44,9 +43,8 @@ const HelpDesk = () => {
             if (filters.userSource) queryParams.append('userSource', filters.userSource);
             if (filters.bookieId) queryParams.append('bookieId', filters.bookieId);
 
-            const response = await fetch(`${API_BASE_URL}/help-desk/tickets?${queryParams}`, {
-                headers: getAuthHeaders(),
-            });
+            const response = await fetchWithAuth(`${API_BASE_URL}/help-desk/tickets?${queryParams}`);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setTickets(data.data);
@@ -60,11 +58,11 @@ const HelpDesk = () => {
 
     const handleStatusUpdate = async (ticketId, newStatus) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/help-desk/tickets/${ticketId}/status`, {
+            const response = await fetchWithAuth(`${API_BASE_URL}/help-desk/tickets/${ticketId}/status`, {
                 method: 'PATCH',
-                headers: getAuthHeaders(),
                 body: JSON.stringify({ status: newStatus }),
             });
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 fetchTickets();

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaArrowDown, FaArrowUp, FaClock, FaFilter, FaEye, FaCheck, FaTimes, FaImage, FaWallet } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const PaymentManagement = () => {
     const navigate = useNavigate();
@@ -36,10 +36,10 @@ const PaymentManagement = () => {
     }, [filters]);
 
     useEffect(() => {
-        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
-            .then((res) => res.json())
+        fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
+            .then((res) => { if (res.status === 401) return; return res.json(); })
             .then((json) => {
-                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+                if (json && json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
             })
             .catch(() => setHasSecretDeclarePassword(false));
     }, []);
@@ -51,9 +51,8 @@ const PaymentManagement = () => {
             if (filters.status) queryParams.append('status', filters.status);
             if (filters.type) queryParams.append('type', filters.type);
 
-            const response = await fetch(`${API_BASE_URL}/payments?${queryParams}`, {
-                headers: getAuthHeaders(),
-            });
+            const response = await fetchWithAuth(`${API_BASE_URL}/payments?${queryParams}`);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setPayments(data.data);
@@ -67,9 +66,8 @@ const PaymentManagement = () => {
 
     const fetchPendingCounts = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/payments/pending-count`, {
-                headers: getAuthHeaders(),
-            });
+            const response = await fetchWithAuth(`${API_BASE_URL}/payments/pending-count`);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setPendingCounts(data.data);
@@ -112,11 +110,11 @@ const PaymentManagement = () => {
                 body.secretDeclarePassword = secretPassword.trim();
             }
 
-            const response = await fetch(endpoint, {
+            const response = await fetchWithAuth(endpoint, {
                 method: 'POST',
-                headers: getAuthHeaders(),
                 body: JSON.stringify(body),
             });
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 fetchPayments();

@@ -3,7 +3,7 @@ import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const ACTION_LABELS = {
     admin_login: 'Admin Login',
@@ -57,9 +57,8 @@ const Logs = () => {
             if (filterAction) params.append('action', filterAction);
             if (filterPerformedBy) params.append('performedBy', filterPerformedBy);
             if (filterType) params.append('performedByType', filterType);
-            const response = await fetch(`${API_BASE_URL}/admin/logs?${params}`, {
-                headers: getAuthHeaders(),
-            });
+            const response = await fetchWithAuth(`${API_BASE_URL}/admin/logs?${params}`);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setLogs(data.data || []);

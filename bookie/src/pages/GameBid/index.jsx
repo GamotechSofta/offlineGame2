@@ -4,7 +4,7 @@ import { PlayerBetProvider } from './PlayerBetContext';
 import { BetCartProvider, useBetCart } from './BetCartContext';
 import CartPanel, { CartToggleButton, getStoredWidth, STORAGE_KEY } from './CartPanel';
 import GamesSidebar, { GamesSidebarToggle, getStoredSidebarWidth, SIDEBAR_STORAGE_KEY } from '../../components/GamesSidebar';
-import { API_BASE_URL, getMarketDisplayName } from '../../utils/api';
+import { API_BASE_URL, getMarketDisplayName, fetchWithAuth } from '../../utils/api';
 import { useLanguage } from '../../context/LanguageContext';
 import { BID_COMPONENTS, getBettableGameTypeOrder } from './gameTypes';
 import { useBetLayout } from '../../context/BetLayoutContext';
@@ -89,7 +89,8 @@ const GameBidInner = ({ marketId, gameType, playerId, betType, title, BidCompone
     useEffect(() => {
         const fetchMarketName = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
+                const res = await fetchWithAuth(`${API_BASE_URL}/markets/get-markets`);
+                if (res.status === 401) return;
                 const data = await res.json();
                 if (data.success && Array.isArray(data.data)) {
                     const found = data.data.find((m) => m._id === marketId);

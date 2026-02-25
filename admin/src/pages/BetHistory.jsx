@@ -3,7 +3,7 @@ import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const formatNum = (num) => {
     if (!num && num !== 0) return '0';
@@ -37,9 +37,8 @@ const BetHistory = () => {
             if (filters.startDate) queryParams.append('startDate', filters.startDate);
             if (filters.endDate) queryParams.append('endDate', filters.endDate);
 
-            const response = await fetch(`${API_BASE_URL}/bets/history?${queryParams}`, {
-                headers: getAuthHeaders(),
-            });
+            const response = await fetchWithAuth(`${API_BASE_URL}/bets/history?${queryParams}`);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setBets(data.data);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { API_BASE_URL, getBookieAuthHeaders, fetchWithAuth } from '../utils/api';
 import { FaArrowLeft, FaDice, FaCheck, FaTimes, FaPlus, FaTrash, FaSearch, FaUser } from 'react-icons/fa';
 
 /* ─── Game type metadata ─── */
@@ -42,7 +42,8 @@ const PlaceBetForPlayer = () => {
     useEffect(() => {
         const fetchMarket = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
+                const res = await fetchWithAuth(`${API_BASE_URL}/markets/get-markets`);
+                if (res.status === 401) return;
                 const data = await res.json();
                 if (data.success && Array.isArray(data.data)) {
                     const found = data.data.find((m) => m._id === marketId);

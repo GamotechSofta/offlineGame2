@@ -3,7 +3,7 @@ import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const Wallet = () => {
     const navigate = useNavigate();
@@ -23,9 +23,8 @@ const Wallet = () => {
     const fetchWallets = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${API_BASE_URL}/wallet/all`, {
-                headers: getAuthHeaders(),
-            });
+            const response = await fetchWithAuth(`${API_BASE_URL}/wallet/all`);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setWallets(data.data);
@@ -40,9 +39,8 @@ const Wallet = () => {
     const fetchTransactions = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${API_BASE_URL}/wallet/transactions`, {
-                headers: getAuthHeaders(),
-            });
+            const response = await fetchWithAuth(`${API_BASE_URL}/wallet/transactions`);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setTransactions(data.data);
@@ -56,11 +54,11 @@ const Wallet = () => {
 
     const handleAdjustBalance = async (userId, amount, type) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/wallet/adjust`, {
+            const response = await fetchWithAuth(`${API_BASE_URL}/wallet/adjust`, {
                 method: 'POST',
-                headers: getAuthHeaders(),
                 body: JSON.stringify({ userId, amount, type }),
             });
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 fetchWallets();

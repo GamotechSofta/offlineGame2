@@ -5,7 +5,7 @@ import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import { FaExclamationTriangle, FaChartBar } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const ADD_RESULT_TABS = [
     { id: 'regular', label: 'Regular Market', icon: FaChartBar },
@@ -57,9 +57,8 @@ const AddResult = () => {
         try {
             const d = new Date();
             const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            const res = await fetch(`${API_BASE_URL}/dashboard/stats?from=${from}&to=${from}`, {
-                headers: getAuthHeaders(),
-            });
+            const res = await fetchWithAuth(`${API_BASE_URL}/dashboard/stats?from=${from}&to=${from}`);
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success && data.data) {
                 setMarketsPendingResult(data.data.marketsPendingResult || 0);
@@ -75,7 +74,8 @@ const AddResult = () => {
         try {
             setLoading(true);
             setError('');
-            const response = await fetch(`${API_BASE_URL}/markets/get-markets`);
+            const response = await fetchWithAuth(`${API_BASE_URL}/markets/get-markets`);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 const all = data.data || [];
@@ -150,9 +150,9 @@ const AddResult = () => {
         }
         setCheckLoading(true);
         setPreview(null);
-        const headers = getAuthHeaders();
         try {
-            const previewRes = await fetch(`${API_BASE_URL}/markets/preview-declare-open/${encodeURIComponent(marketId)}?openingNumber=${encodeURIComponent(val)}`, { headers });
+            const previewRes = await fetchWithAuth(`${API_BASE_URL}/markets/preview-declare-open/${encodeURIComponent(marketId)}?openingNumber=${encodeURIComponent(val)}`);
+            if (previewRes.status === 401) return;
             const previewData = await previewRes.json();
             if (previewData.success && previewData.data != null) {
                 const totalBetAmount = safeNum(previewData.data.totalBetAmount);
@@ -197,10 +197,10 @@ const AddResult = () => {
         }
         setCheckCloseLoading(true);
         setPreviewClose(null);
-        const headers = getAuthHeaders();
         try {
             const url = `${API_BASE_URL}/markets/preview-declare-close/${encodeURIComponent(marketId)}?closingNumber=${encodeURIComponent(val)}`;
-            const res = await fetch(url, { headers });
+            const res = await fetchWithAuth(url);
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success && data.data != null) {
                 setPreviewClose({
@@ -278,10 +278,8 @@ const AddResult = () => {
         if (!window.confirm(msg)) return;
         setClearLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/markets/clear-result/${selectedMarket._id}`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-            });
+            const res = await fetchWithAuth(`${API_BASE_URL}/markets/clear-result/${selectedMarket._id}`, { method: 'POST' });
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setSelectedMarket((prev) => (prev ? { ...prev, openingNumber: null, closingNumber: null } : null));

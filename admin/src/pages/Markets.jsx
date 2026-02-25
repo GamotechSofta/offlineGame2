@@ -7,7 +7,7 @@ import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import { FaChartBar } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const TABS = [
     { id: 'regular', label: 'Regular Market', icon: FaChartBar },
@@ -30,7 +30,8 @@ const Markets = () => {
     const fetchMarkets = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${API_BASE_URL}/markets/get-markets?marketType=main`);
+            const response = await fetchWithAuth(`${API_BASE_URL}/markets/get-markets?marketType=main`);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setMarkets(data.data || []);

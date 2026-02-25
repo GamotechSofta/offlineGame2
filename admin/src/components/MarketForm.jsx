@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchWithAuth } from '../lib/auth';
 
 // Parse "HH:MM" or "H:MM" (24h) to { hour12, minute, ampm }
 const from24Hour = (timeStr) => {
@@ -102,7 +103,6 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
         setLoading(true);
 
         try {
-            const headers = getAuthHeaders();
             const url = market
                 ? `${apiBaseUrl}/markets/update-market/${market._id}`
                 : `${apiBaseUrl}/markets/create-market`;
@@ -120,12 +120,11 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
                     marketType: formData.marketType === 'startline' ? 'startline' : 'main',
                 };
 
-            const response = await fetch(url, {
+            const response = await fetchWithAuth(url, {
                 method: market ? 'PATCH' : 'POST',
-                headers,
                 body: JSON.stringify(payload),
             });
-
+            if (response.status === 401) return;
             const data = await response.json();
 
             if (data.success) {

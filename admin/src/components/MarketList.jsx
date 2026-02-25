@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { fetchWithAuth } from '../lib/auth';
 
 const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) => {
     const navigate = useNavigate();
@@ -10,24 +11,23 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
     const [marketToDelete, setMarketToDelete] = useState(null);
 
     useEffect(() => {
-        fetch(`${apiBaseUrl}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
-            .then((res) => res.json())
+        fetchWithAuth(`${apiBaseUrl}/admin/me/secret-declare-password-status`)
+            .then((res) => { if (res.status === 401) return; return res.json(); })
             .then((json) => {
-                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+                if (json && json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
             })
             .catch(() => setHasSecretDeclarePassword(false));
-    }, [apiBaseUrl, getAuthHeaders]);
+    }, [apiBaseUrl]);
 
     const performDelete = async (marketId, secretDeclarePasswordValue, skipConfirm = false) => {
         if (!skipConfirm && !window.confirm('Are you sure you want to delete this market?')) return;
         try {
-            const headers = getAuthHeaders();
-            const options = { method: 'DELETE', headers };
+            const options = { method: 'DELETE' };
             if (secretDeclarePasswordValue) {
-                headers['Content-Type'] = 'application/json';
                 options.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
             }
-            const response = await fetch(`${apiBaseUrl}/markets/delete-market/${marketId}`, options);
+            const response = await fetchWithAuth(`${apiBaseUrl}/markets/delete-market/${marketId}`, options);
+            if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
                 setShowPasswordModal(false);

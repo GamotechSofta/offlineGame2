@@ -4,7 +4,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash, FaWallet, FaPrint } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const TABS = [
     { id: 'statement', label: 'Account Statement' },
@@ -131,7 +131,8 @@ const PlayerDetail = () => {
         try {
             setLoading(true);
             setError('');
-            const res = await fetch(`${API_BASE_URL}/users/${userId}`, { headers: getAuthHeaders() });
+            const res = await fetchWithAuth(`${API_BASE_URL}/users/${userId}`);
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setPlayer(data.data);
@@ -150,9 +151,10 @@ const PlayerDetail = () => {
         setLoadingTab(true);
         try {
             const [betsRes, txRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/bets/history?userId=${userId}&startDate=${statementFrom}&endDate=${statementTo}`, { headers: getAuthHeaders() }),
-                fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}`, { headers: getAuthHeaders() }),
+                fetchWithAuth(`${API_BASE_URL}/bets/history?userId=${userId}&startDate=${statementFrom}&endDate=${statementTo}`),
+                fetchWithAuth(`${API_BASE_URL}/wallet/transactions?userId=${userId}`),
             ]);
+            if (betsRes.status === 401 || txRes.status === 401) return;
             const betsData = await betsRes.json();
             const txData = await txRes.json();
             const betList = betsData.success ? betsData.data || [] : [];
@@ -227,7 +229,8 @@ const PlayerDetail = () => {
         if (!userId) return;
         setLoadingTab(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}`, { headers: getAuthHeaders() });
+            const res = await fetchWithAuth(`${API_BASE_URL}/wallet/transactions?userId=${userId}`);
+            if (res.status === 401) return;
             const data = await res.json();
             setWalletTx(data.success ? (data.data || []).reverse() : []);
         } catch (err) {
@@ -241,7 +244,8 @@ const PlayerDetail = () => {
         if (!userId) return;
         setLoadingTab(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/bets/history?userId=${userId}`, { headers: getAuthHeaders() });
+            const res = await fetchWithAuth(`${API_BASE_URL}/bets/history?userId=${userId}`);
+            if (res.status === 401) return;
             const data = await res.json();
             setBets(data.success ? data.data || [] : []);
         } catch (err) {
@@ -269,10 +273,10 @@ const PlayerDetail = () => {
     const [pendingAction, setPendingAction] = useState(null);
 
     useEffect(() => {
-        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
-            .then((res) => res.json())
+        fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
+            .then((res) => { if (res.status === 401) return; return res.json(); })
             .then((json) => {
-                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+                if (json && json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
             })
             .catch(() => setHasSecretDeclarePassword(false));
     }, []);
@@ -284,9 +288,10 @@ const PlayerDetail = () => {
         setError('');
         setPasswordError('');
         try {
-            const opts = { method: 'PATCH', headers: getAuthHeaders() };
+            const opts = { method: 'PATCH' };
             if (secretDeclarePasswordValue) opts.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
-            const res = await fetch(`${API_BASE_URL}/users/${userId}/toggle-status`, opts);
+            const res = await fetchWithAuth(`${API_BASE_URL}/users/${userId}/toggle-status`, opts);
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setShowPasswordModal(false);
@@ -346,11 +351,11 @@ const PlayerDetail = () => {
         setWalletActionError('');
         setWalletActionLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/wallet/adjust`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/wallet/adjust`, {
                 method: 'POST',
-                headers: getAuthHeaders(),
                 body: JSON.stringify({ userId, amount, type }),
             });
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setWalletAdjustAmount('');
@@ -374,9 +379,10 @@ const PlayerDetail = () => {
         setError('');
         setPasswordError('');
         try {
-            const opts = { method: 'DELETE', headers: getAuthHeaders() };
+            const opts = { method: 'DELETE' };
             if (secretDeclarePasswordValue) opts.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
-            const res = await fetch(`${API_BASE_URL}/users/${userId}`, opts);
+            const res = await fetchWithAuth(`${API_BASE_URL}/users/${userId}`, opts);
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setShowPasswordModal(false);

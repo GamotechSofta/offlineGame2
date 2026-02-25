@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const Settings = () => {
     const navigate = useNavigate();
@@ -17,10 +17,10 @@ const Settings = () => {
     const [hasSecret, setHasSecret] = useState(false);
 
     useEffect(() => {
-        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
-            .then((res) => res.json())
+        fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
+            .then((res) => { if (res.status === 401) return; return res.json(); })
             .then((json) => {
-                if (json.success) setHasSecret(json.hasSecretDeclarePassword || false);
+                if (json && json.success) setHasSecret(json.hasSecretDeclarePassword || false);
             })
             .catch(() => setHasSecret(false));
     }, []);
@@ -53,11 +53,11 @@ const Settings = () => {
                     body.currentSecretDeclarePassword = currentSecretPassword;
                 }
             }
-            const res = await fetch(`${API_BASE_URL}/admin/me/secret-declare-password`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password`, {
                 method: 'PATCH',
-                headers: getAuthHeaders(),
                 body: JSON.stringify(body),
             });
+            if (res.status === 401) return;
             const json = await res.json();
             if (json.success) {
                 setCurrentSecretPassword('');

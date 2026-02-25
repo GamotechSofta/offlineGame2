@@ -4,7 +4,7 @@ import AdminLayout from '../components/AdminLayout';
 import { FaPencilAlt } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const GAME_LABELS = {
     single: 'Single Digit',
@@ -39,10 +39,10 @@ const UpdateRate = () => {
     }, [navigate]);
 
     useEffect(() => {
-        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
-            .then((res) => res.json())
+        fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
+            .then((res) => { if (res.status === 401) return; return res.json(); })
             .then((json) => {
-                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+                if (json && json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
             })
             .catch(() => setHasSecretDeclarePassword(false));
     }, []);
@@ -51,7 +51,8 @@ const UpdateRate = () => {
         try {
             setLoading(true);
             setError('');
-            const res = await fetch(`${API_BASE_URL}/rates`, { headers: getAuthHeaders() });
+            const res = await fetchWithAuth(`${API_BASE_URL}/rates`);
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) setRates(data.data || []);
             else setError(data.message || 'Failed to fetch rates');
@@ -89,11 +90,11 @@ const UpdateRate = () => {
         try {
             const body = { rate: num };
             if (secretDeclarePasswordValue) body.secretDeclarePassword = secretDeclarePasswordValue;
-            const res = await fetch(`${API_BASE_URL}/rates/${editingKey}`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/rates/${editingKey}`, {
                 method: 'PATCH',
-                headers: getAuthHeaders(),
                 body: JSON.stringify(body),
             });
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setShowPasswordModal(false);

@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { FaUserSlash, FaUserCheck, FaUserPlus, FaSearch } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
 
 const computeIsOnline = (item) => {
@@ -46,12 +46,13 @@ const AllUsers = () => {
         if (showLoader) setError('');
         try {
             const [allRes, superAdminRes, bookieRes, bookiesRes, adminsRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/users`, { headers: getAuthHeaders() }),
-                fetch(`${API_BASE_URL}/users?filter=super_admin`, { headers: getAuthHeaders() }),
-                fetch(`${API_BASE_URL}/users?filter=bookie`, { headers: getAuthHeaders() }),
-                fetch(`${API_BASE_URL}/admin/bookies`, { headers: getAuthHeaders() }),
-                fetch(`${API_BASE_URL}/admin/super-admins`, { headers: getAuthHeaders() }),
+                fetchWithAuth(`${API_BASE_URL}/users`),
+                fetchWithAuth(`${API_BASE_URL}/users?filter=super_admin`),
+                fetchWithAuth(`${API_BASE_URL}/users?filter=bookie`),
+                fetchWithAuth(`${API_BASE_URL}/admin/bookies`),
+                fetchWithAuth(`${API_BASE_URL}/admin/super-admins`),
             ]);
+            if (allRes.status === 401 || superAdminRes.status === 401 || bookieRes.status === 401 || bookiesRes.status === 401 || adminsRes.status === 401) return;
             const allData = await allRes.json();
             const superAdminData = await superAdminRes.json();
             const bookieData = await bookieRes.json();
@@ -76,10 +77,10 @@ const AllUsers = () => {
             return;
         }
         fetchData(true);
-        fetch(`${API_BASE_URL}/admin/me/secret-declare-password-status`, { headers: getAuthHeaders() })
-            .then((res) => res.json())
+        fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
+            .then((res) => { if (res.status === 401) return; return res.json(); })
             .then((json) => {
-                if (json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+                if (json && json.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
             })
             .catch(() => setHasSecretDeclarePassword(false));
 
@@ -102,9 +103,10 @@ const AllUsers = () => {
         setSuccess('');
         setPasswordError('');
         try {
-            const opts = { method: 'PATCH', headers: getAuthHeaders() };
+            const opts = { method: 'PATCH' };
             if (secretDeclarePasswordValue) opts.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
-            const res = await fetch(`${API_BASE_URL}/users/${userId}/toggle-status`, opts);
+            const res = await fetchWithAuth(`${API_BASE_URL}/users/${userId}/toggle-status`, opts);
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setShowPasswordModal(false);
@@ -133,9 +135,10 @@ const AllUsers = () => {
         setSuccess('');
         setPasswordError('');
         try {
-            const opts = { method: 'PATCH', headers: getAuthHeaders() };
+            const opts = { method: 'PATCH' };
             if (secretDeclarePasswordValue) opts.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
-            const res = await fetch(`${API_BASE_URL}/admin/bookies/${bookieId}/toggle-status`, opts);
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/bookies/${bookieId}/toggle-status`, opts);
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setShowPasswordModal(false);

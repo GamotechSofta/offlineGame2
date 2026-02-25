@@ -18,7 +18,7 @@ import {
 } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const TABS = [
     { id: 'overview', label: 'Overview' },
@@ -92,10 +92,10 @@ const BookieDetail = () => {
         try {
             setLoading(true);
             setError('');
-            const res = await fetch(
-                `${API_BASE_URL}/reports/revenue/${bookieId}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-                { headers: getAuthHeaders() }
+            const res = await fetchWithAuth(
+                `${API_BASE_URL}/reports/revenue/${bookieId}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`
             );
+            if (res.status === 401) return;
             const json = await res.json();
             if (json.success) setData(json.data);
             else setError(json.message || 'Failed to load');

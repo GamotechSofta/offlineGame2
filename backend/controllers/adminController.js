@@ -142,8 +142,6 @@ const PHONE_REGEX = /^[6-9]\d{9}$/;
  */
 export const createBookie = async (req, res) => {
     try {
-        console.log('[createBookie] Full request body:', JSON.stringify(req.body, null, 2));
-        
         if (req.admin?.role !== 'super_admin') {
             return res.status(403).json({
                 success: false,
@@ -362,8 +360,6 @@ export const getBookieById = async (req, res) => {
  */
 export const updateBookie = async (req, res) => {
     try {
-        console.log('[updateBookie] Full request body:', JSON.stringify(req.body, null, 2));
-        
         if (req.admin?.role !== 'super_admin') {
             return res.status(403).json({
                 success: false,

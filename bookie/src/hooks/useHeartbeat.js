@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { API_BASE_URL } from '../utils/api';
-import { getBookieAuthHeaders } from '../utils/api';
+import { API_BASE_URL, getBookieAuthHeaders, clearBookieSession } from '../utils/api';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also detects suspended accounts
 
@@ -25,6 +24,10 @@ export const useHeartbeat = () => {
         });
         const data = await res.json();
 
+        if (res.status === 401) {
+          clearBookieSession();
+          return;
+        }
         if (!data.success && data.code === 'ACCOUNT_SUSPENDED') {
           logoutSuspendedBookie();
         } else if (!res.ok && res.status === 403) {

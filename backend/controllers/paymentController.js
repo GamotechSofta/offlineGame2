@@ -38,14 +38,6 @@ export const getPaymentConfig = async (req, res) => {
  */
 export const createDepositRequest = async (req, res) => {
     try {
-        console.log('📥 Deposit request received');
-        console.log('Request body:', { 
-            amount: req.body.amount, 
-            userId: req.body.userId,
-            upiTransactionId: req.body.upiTransactionId,
-            hasFile: !!req.file 
-        });
-
         const { amount, upiTransactionId, userNote } = req.body;
         const userId = req.userId;
 
@@ -118,7 +110,6 @@ export const createDepositRequest = async (req, res) => {
             console.log('☁️ Uploading to Cloudinary...');
             const uploadResult = await uploadToCloudinary(req.file.buffer, 'payments');
             screenshotUrl = uploadResult.secure_url;
-            console.log('✅ Cloudinary upload successful:', screenshotUrl);
         } catch (uploadError) {
             console.error('❌ Cloudinary upload error:', uploadError);
             console.error('Error details:', {
