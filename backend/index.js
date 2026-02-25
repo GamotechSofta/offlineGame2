@@ -73,13 +73,13 @@ const apiLimiter = rateLimit({
 });
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    max: 25,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many login attempts. Try again later.' },
 });
 app.use('/api/v1', (req, res, next) => {
-    if (req.method === 'POST' && /\/login$/.test(req.originalUrl)) return loginLimiter(req, res, next);
+    if (req.method === 'POST' && /\/users\/login$/.test(req.originalUrl)) return loginLimiter(req, res, next);
     next();
 });
 app.use('/api/v1', apiLimiter);
