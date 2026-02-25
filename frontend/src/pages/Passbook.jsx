@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL, getAuthHeaders } from '../config/api';
+import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../config/api';
 
 /* ───────── Icons ───────── */
 const IconBack = () => (
@@ -85,10 +85,10 @@ const Passbook = () => {
 
     try {
       const headers = getAuthHeaders();
-      const [txRes, balRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/wallet/my-transactions?limit=500`, { headers }),
-        fetch(`${API_BASE_URL}/wallet/balance`, { headers }),
-      ]);
+      const txRes = await fetchWithAuth(`${API_BASE_URL}/wallet/my-transactions?limit=500`, { headers });
+      if (txRes.status === 401) return;
+      const balRes = await fetchWithAuth(`${API_BASE_URL}/wallet/balance`, { headers });
+      if (balRes.status === 401) return;
       const txData = await txRes.json();
       const balData = await balRes.json();
 

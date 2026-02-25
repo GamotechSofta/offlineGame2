@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL, getAuthHeaders } from '../config/api';
+import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../config/api';
 
 const readUserFromStorage = () => {
   try {
@@ -213,7 +213,8 @@ const Profile = () => {
       const endDateStr = endDate.toISOString().split('T')[0];
 
       const url = `${API_BASE_URL}/bets/my-statement?startDate=${startDateStr}&endDate=${endDateStr}`;
-      const res = await fetch(url, { headers: getAuthHeaders() });
+      const res = await fetchWithAuth(url);
+      if (res.status === 401) return;
       if (!res.ok) {
         showToast('Failed to download statement');
         return;

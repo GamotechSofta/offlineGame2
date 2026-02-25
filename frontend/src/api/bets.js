@@ -1,4 +1,4 @@
-import { API_BASE_URL, getAuthHeaders } from '../config/api';
+import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../config/api';
 
 /** MongoDB ObjectId is 24 hex characters */
 const VALID_OBJECTID = /^[a-fA-F0-9]{24}$/;
@@ -105,12 +105,13 @@ export async function placeBet(marketId, bets, scheduledDate = null) {
     payload.scheduledDate = scheduledDate;
   }
 
-  const response = await fetch(`${API_BASE_URL}/bets/place`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/bets/place`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(payload),
   });
 
+  if (response.status === 401) return { success: false, message: 'Session expired. Please log in again.' };
   const data = await response.json();
   if (!response.ok) {
     return { success: false, message: data.message || 'Failed to place bet' };
@@ -141,9 +142,10 @@ export async function getBalance() {
   if (!user?.id && !user?._id) {
     return { success: false, message: 'Please log in' };
   }
-  const response = await fetch(`${API_BASE_URL}/wallet/balance`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/wallet/balance`, {
     headers: getAuthHeaders(),
   });
+  if (response.status === 401) return { success: false, message: 'Session expired.' };
   const data = await response.json();
   if (!response.ok) {
     return { success: false, message: data.message || 'Failed to fetch balance' };
@@ -161,7 +163,8 @@ export async function getMyWalletTransactions(limit = 200) {
     return { success: false, message: 'Please log in' };
   }
   const url = `${API_BASE_URL}/wallet/my-transactions?limit=${encodeURIComponent(limit)}&includeBet=1`;
-  const response = await fetch(url, { headers: getAuthHeaders() });
+  const response = await fetchWithAuth(url, { headers: getAuthHeaders() });
+  if (response.status === 401) return { success: false, message: 'Session expired.' };
   const data = await response.json();
   if (!response.ok) {
     return { success: false, message: data.message || 'Failed to fetch transactions' };

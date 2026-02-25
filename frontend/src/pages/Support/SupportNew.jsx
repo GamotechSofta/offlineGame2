@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL, getAuthHeaders } from '../../config/api';
+import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../../config/api';
 
 const SupportNew = () => {
   const navigate = useNavigate();
@@ -98,11 +98,12 @@ const SupportNew = () => {
       formData.append('description', description.trim());
       screenshots.forEach((file) => formData.append('screenshots', file));
 
-      const response = await fetch(`${API_BASE_URL}/help-desk/tickets`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/help-desk/tickets`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: formData,
       });
+      if (response.status === 401) return;
       const data = await response.json();
 
       if (data.success) {

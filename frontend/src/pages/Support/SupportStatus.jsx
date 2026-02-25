@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL, getAuthHeaders } from '../../config/api';
+import { API_BASE_URL, fetchWithAuth } from '../../config/api';
 
 const statusLabel = (status) => {
   const map = { open: 'Open', 'in-progress': 'In Progress', resolved: 'Resolved', closed: 'Closed' };
@@ -63,7 +63,8 @@ const SupportStatus = () => {
     if (!userId) return;
     setTicketsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/help-desk/my-tickets`, { headers: getAuthHeaders() });
+      const res = await fetchWithAuth(`${API_BASE_URL}/help-desk/my-tickets`);
+      if (res.status === 401) return;
       const data = await res.json();
       if (data.success) setMyTickets(data.data || []);
     } catch (_) {

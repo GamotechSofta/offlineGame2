@@ -13,3 +13,23 @@ export function getAuthHeaders() {
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 }
+
+/** Clear user session and redirect to login. Use on 401 or suspend. */
+export function clearUserSession() {
+  localStorage.removeItem('user');
+  window.dispatchEvent(new Event('userLogout'));
+  window.location.href = '/login';
+}
+
+/**
+ * Fetch with auth headers. On 401, clears session and redirects to login.
+ */
+export async function fetchWithAuth(url, options = {}) {
+  const headers = { ...getAuthHeaders(), ...(options.headers || {}) };
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    clearUserSession();
+    return res;
+  }
+  return res;
+}

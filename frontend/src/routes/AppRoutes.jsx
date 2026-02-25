@@ -68,12 +68,26 @@ const PUBLIC_PATHS = ['/login'];
 
 const Layout = ({ children }) => {
   const location = useLocation();
-  const [hasUser, setHasUser] = useState(() => !!localStorage.getItem('user'));
+  const [hasUser, setHasUser] = useState(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      return !!(user && user.token);
+    } catch {
+      return false;
+    }
+  });
   const isLoginPage = location.pathname === '/login';
   const isHomePage = location.pathname === '/';
 
   useEffect(() => {
-    const check = () => setHasUser(!!localStorage.getItem('user'));
+    const check = () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        setHasUser(!!(user && user.token));
+      } catch {
+        setHasUser(false);
+      }
+    };
     window.addEventListener('userLogin', check);
     window.addEventListener('userLogout', check);
     return () => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, getAuthHeaders } from '../../config/api';
+import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../../config/api';
 
 const BankDetail = () => {
     const [bankAccounts, setBankAccounts] = useState([]);
@@ -32,7 +32,8 @@ const BankDetail = () => {
         if (!user.id) return;
         try {
             setLoading(true);
-            const res = await fetch(`${API_BASE_URL}/bank-details`, { headers: getAuthHeaders() });
+            const res = await fetchWithAuth(`${API_BASE_URL}/bank-details`, { headers: getAuthHeaders() });
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setBankAccounts(data.data || []);
@@ -94,12 +95,12 @@ const BankDetail = () => {
             
             const method = editingId ? 'PUT' : 'POST';
 
-            const res = await fetch(url, {
+            const res = await fetchWithAuth(url, {
                 method,
                 headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify(formData),
             });
-
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setSuccessMessage({
@@ -125,12 +126,12 @@ const BankDetail = () => {
         if (!confirm('Are you sure you want to delete this bank account?')) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/bank-details/${id}`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/bank-details/${id}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify({}),
             });
-
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setSuccess('Bank account deleted');
@@ -145,12 +146,12 @@ const BankDetail = () => {
 
     const handleSetDefault = async (id) => {
         try {
-            const res = await fetch(`${API_BASE_URL}/bank-details/${id}/set-default`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/bank-details/${id}/set-default`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify({}),
             });
-
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setSuccess('Default account updated');

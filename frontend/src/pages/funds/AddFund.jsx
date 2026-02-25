@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL, getAuthHeaders } from '../../config/api';
+import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../../config/api';
 
 const AddFund = () => {
     const navigate = useNavigate();
@@ -85,12 +85,12 @@ const AddFund = () => {
             formData.append('upiTransactionId', utr);
             formData.append('screenshot', screenshot);
 
-            const res = await fetch(`${API_BASE_URL}/payments/deposit`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/payments/deposit`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: formData,
             });
-
+            if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
                 setSubmittedAmount(numAmount);

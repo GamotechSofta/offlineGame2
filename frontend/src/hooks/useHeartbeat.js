@@ -1,14 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { API_BASE_URL, getAuthHeaders } from '../config/api';
+import { API_BASE_URL, getAuthHeaders, clearUserSession } from '../config/api';
 import { getBalance, updateUserBalance } from '../api/bets';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also used to detect suspended accounts
-
-const logoutSuspendedUser = () => {
-  localStorage.removeItem('user');
-  window.dispatchEvent(new Event('userLogout'));
-  window.location.href = '/login';
-};
 
 export const useHeartbeat = () => {
   const intervalRef = useRef(null);
@@ -26,15 +20,15 @@ export const useHeartbeat = () => {
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({}),
         });
+        if (res.status === 401) {
+          clearUserSession();
+          return;
+        }
         const data = await res.json();
         if (!data.success && data.code === 'ACCOUNT_SUSPENDED') {
-          logoutSuspendedUser();
-        } else if (res.status === 401 && (data.code === 'AUTH_REQUIRED' || data.code === 'TOKEN_EXPIRED')) {
-          localStorage.removeItem('user');
-          window.dispatchEvent(new Event('userLogout'));
-          window.location.href = '/login';
+          clearUserSession();
         } else if (!res.ok && res.status === 403) {
-          logoutSuspendedUser();
+          clearUserSession();
         }
       } catch {
         // Silently ignore network errors
