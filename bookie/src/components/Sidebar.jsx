@@ -29,7 +29,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const menuItems = [
         { path: '/dashboard', label: t('dashboard'), icon: FaTachometerAlt, key: 'dashboard' },
         { path: '/my-users', label: t('myPlayers'), icon: FaUsers, key: 'myPlayers' },
-        { path: '/games', label: t('markets'), icon: FaChartBar, key: 'markets' },
+        { path: '/markets', label: t('markets'), icon: FaChartBar, key: 'markets' },
         { path: '/add-user', label: t('addPlayer'), icon: FaUserPlus, key: 'addPlayer' },
         { path: '/reports', label: t('report'), icon: FaChartLine, key: 'report' },
         { path: '/revenue', label: t('revenue'), icon: FaMoneyBillWave, key: 'revenue' },
@@ -42,7 +42,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     ];
 
     const isActive = (path) => {
-        if (path === '/my-users' || path === '/receipt' || path === '/games') {
+        if (path === '/my-users' || path === '/receipt' || path === '/games' || path === '/markets') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
         }
         if (path === '/settings') return location.pathname === '/settings';

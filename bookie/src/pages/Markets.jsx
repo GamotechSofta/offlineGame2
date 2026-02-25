@@ -3,6 +3,21 @@ import Layout from '../components/Layout';
 import { API_BASE_URL, getMarketDisplayName, fetchWithAuth } from '../utils/api';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import { useLanguage } from '../context/LanguageContext';
+import { getMarketSession, isPastClosingTime } from '../utils/marketTiming';
+
+/** Format "13:00" / "15:10" to "1pm" / "3:10pm" */
+function formatTimeLabel(timeStr) {
+    if (!timeStr) return '—';
+    const parts = String(timeStr).trim().split(':');
+    const h = parseInt(parts[0], 10) || 0;
+    const m = parts[1] ? parseInt(parts[1], 10) : 0;
+    if (h === 12 && m === 0) return '12pm';
+    if (h === 0 && m === 0) return '12am';
+    const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    const ampm = h >= 12 ? 'pm' : 'am';
+    const minStr = m > 0 ? `:${String(m).padStart(2, '0')}` : '';
+    return `${hour}${minStr}${ampm}`;
+}
 
 const Markets = () => {
     const { t, language } = useLanguage();
@@ -40,102 +55,130 @@ const Markets = () => {
 
     useRefreshOnMarketReset(fetchMarkets);
 
-    // Helper function to check if current time has passed closing time
-    const isPastClosingTime = (market) => {
-        const closeStr = (market?.closingTime || '').toString().trim();
-        if (!closeStr) return false;
-
-        // Get today's date in IST
-        const todayIST = new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-        }).format(currentTime);
-
-        // Normalize time string (handle HH:MM or HH:MM:SS)
-        const normalizeTimeStr = (timeStr) => {
-            const parts = String(timeStr).split(':');
-            const h = parts[0] || '00';
-            const m = parts[1] || '00';
-            return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:00`;
-        };
-
-        const startStr = (market?.startingTime || '').toString().trim();
-        
-        // Use startingTime if provided, otherwise default to midnight
-        const openAt = startStr 
-            ? new Date(`${todayIST}T${normalizeTimeStr(startStr)}+05:30`).getTime()
-            : new Date(`${todayIST}T00:00:00+05:30`).getTime();
-        
-        // Parse closing time in IST
-        let closeAt = new Date(`${todayIST}T${normalizeTimeStr(closeStr)}+05:30`).getTime();
-
-        // If closing time is before or equal to opening time, market spans midnight
-        // Example: 11 PM (23:00) to 1 AM (01:00) - closing is next day
-        if (closeAt <= openAt) {
-            const baseDate = new Date(`${todayIST}T12:00:00+05:30`);
-            baseDate.setDate(baseDate.getDate() + 1);
-            const nextDayStr = new Intl.DateTimeFormat('en-CA', {
-                timeZone: 'Asia/Kolkata',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-            }).format(baseDate);
-            closeAt = new Date(`${nextDayStr}T${normalizeTimeStr(closeStr)}+05:30`).getTime();
-        }
-
-        // Use > instead of >= so market is accessible until after closing time
-        return currentTime.getTime() > closeAt;
-    };
-
     // ***-**-*** → Open (green), 156-2*-*** → Running (green), 987-45-456 → Closed (red)
-    // Also check if closing time has passed
     const getMarketStatus = (market) => {
         const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
         const hasClosing = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
-        const pastClosingTime = isPastClosingTime(market);
+        const pastClosingTime = isPastClosingTime(market, currentTime);
 
-        // If closing time has passed, show as closed
-        if (pastClosingTime) return { status: 'closed', color: 'bg-red-600' };
-        
-        // Otherwise check based on declared results
-        if (hasOpening && hasClosing) return { status: 'closed', color: 'bg-red-600' };
-        if (hasOpening && !hasClosing) return { status: 'running', color: 'bg-green-600' };
-        return { status: 'open', color: 'bg-green-600' };
+        if (pastClosingTime) return { status: 'closed' };
+        if (hasOpening && hasClosing) return { status: 'closed' };
+        if (hasOpening && !hasClosing) return { status: 'running' };
+        return { status: 'open' };
     };
 
     return (
         <Layout title={t('markets')}>
-            <>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">{t('marketsTitle')}</h1>
-                {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">{error}</div>}
+            <div className="min-w-0 max-w-full" style={{ backgroundColor: 'rgb(248, 249, 250)' }}>
+                <div className="mb-6">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-3">
+                        <span className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                        </span>
+                        {t('marketsTitle')}
+                    </h1>
+                    <p className="text-gray-500 text-sm mt-1">View market status, timings and results</p>
+                </div>
+
+                {error && (
+                    <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-600 text-sm">{error}</div>
+                )}
+
                 {loading ? (
-                    <p className="text-gray-400 py-12 text-center">{t('loading')}</p>
+                    <div className="flex flex-col items-center justify-center py-16">
+                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-orange-500" />
+                        <p className="mt-4 text-gray-500 text-sm">{t('loading')}</p>
+                    </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {markets.map((market) => {
-                            const { status, color } = getMarketStatus(market);
+                            const { status } = getMarketStatus(market);
+                            const session = getMarketSession(market, currentTime);
+                            const isClosed = status === 'closed';
+                            const resultDisplay = market.displayResult || '***-**-***';
+                            const openActive = session === 'open';
+                            const closeActive = session === 'close';
+
                             return (
-                                <div key={market._id} className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-                                    <div className={`${color} text-gray-800 text-xs font-semibold px-3 py-1 rounded-full inline-block mb-4`}>
-                                        {status === 'open' && 'OPEN'}
-                                        {status === 'running' && 'CLOSED IS RUNNING'}
-                                        {status === 'closed' && 'CLOSED'}
+                                <div
+                                    key={market._id}
+                                    className="text-left w-full bg-white rounded-xl border border-gray-300 p-3 shadow-sm"
+                                >
+                                    {/* Top: Open for bets / Closed */}
+                                    <div className="flex justify-center mb-1.5">
+                                        {isClosed ? (
+                                            <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">
+                                                Closed
+                                            </span>
+                                        ) : (
+                                            <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-500 text-white">
+                                                Open for bets
+                                            </span>
+                                        )}
                                     </div>
-                                    <h3 className="text-xl font-bold text-gray-800 mb-2">{getMarketDisplayName(market, language)}</h3>
-                                    <div className="space-y-2 text-sm text-gray-600">
-                                        <p><span className="font-semibold">Opening:</span> {market.startingTime}</p>
-                                        <p><span className="font-semibold">Closing:</span> {market.closingTime}</p>
-                                        <p><span className="font-semibold">Result:</span> <span className="text-orange-500 font-mono">{market.displayResult || '***-**-***'}</span></p>
-                                        {market.winNumber && <p><span className="font-semibold">Win Number:</span> <span className="text-green-600 font-mono">{market.winNumber}</span></p>}
+                                    <div className="flex items-center justify-between gap-2 sm:gap-3">
+                                        {/* Left: open pill + opening time + description */}
+                                        <div className="flex flex-col items-start shrink-0 w-[72px] sm:w-[80px]">
+                                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                                isClosed ? 'bg-gray-100 text-gray-400' : openActive ? 'bg-green-500 text-white' : 'bg-green-100 text-green-600'
+                                            }`}>
+                                                open
+                                            </span>
+                                            <span className="text-xs text-black mt-0.5 font-normal font-semibold">
+                                                {formatTimeLabel(market.startingTime)}
+                                            </span>
+                                            <span className="text-[9px] text-gray-500 mt-0.5 max-w-[72px] leading-tight">
+                                                Open bets until this time
+                                            </span>
+                                        </div>
+                                        {/* Center: market name + Bets on + time range + result */}
+                                        <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-1 sm:px-2 overflow-hidden">
+                                            <h3 className="text-sm sm:text-base font-bold text-black w-full min-w-0 overflow-x-auto overflow-y-hidden scrollbar-hidden text-center leading-tight uppercase">
+                                                {getMarketDisplayName(market, language)}
+                                            </h3>
+                                            {!isClosed ? (
+                                                <>
+                                                    <p className="text-[10px] font-medium text-orange-600 mt-0.5">
+                                                        Bets on: {openActive ? 'Open' : 'Close'}
+                                                    </p>
+                                                    <p className="text-[9px] text-gray-500 mt-0.5 text-center leading-tight">
+                                                        Open until {formatTimeLabel(market.startingTime)} · Close until {formatTimeLabel(market.closingTime)}
+                                                    </p>
+                                                </>
+                                            ) : null}
+                                            <p className="text-xs text-black font-mono font-normal tracking-wide mt-0.5">
+                                                {resultDisplay}
+                                            </p>
+                                        </div>
+                                        {/* Right: close pill + closing time + description */}
+                                        <div className="flex flex-col items-end shrink-0 w-[72px] sm:w-[80px]">
+                                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                                isClosed ? 'bg-gray-100 text-gray-400' : closeActive ? 'bg-red-500 text-white' : 'bg-red-100 text-red-600'
+                                            }`}>
+                                                close
+                                            </span>
+                                            <span className="text-xs text-black mt-0.5 font-normal font-semibold">
+                                                {formatTimeLabel(market.closingTime)}
+                                            </span>
+                                            <span className="text-[9px] text-gray-500 mt-0.5 text-right max-w-[72px] leading-tight">
+                                                Close bets until this time
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
                 )}
-            </>
+
+                {!loading && !error && markets.length === 0 && (
+                    <div className="text-center py-12 bg-white rounded-xl border-2 border-gray-200">
+                        <p className="text-gray-500">No markets available</p>
+                    </div>
+                )}
+            </div>
         </Layout>
     );
 };
