@@ -18,6 +18,8 @@ import bankDetailRoutes from './routes/bankDetail/bankDetailRoutes.js';
 import { getClientIp } from './utils/activityLogger.js';
 import { startMidnightResetScheduler } from './utils/midnightReset.js';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -31,6 +33,8 @@ const PORT = process.env.PORT || 3010;
 connectDB();
 
 app.set('trust proxy', 1);
+
+app.use(helmet());
 
 // CORS configuration
 const isProduction = process.env.NODE_ENV === 'production';
@@ -60,6 +64,25 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many login attempts. Try again later.' },
+});
+app.use('/api/v1', (req, res, next) => {
+    if (req.method === 'POST' && /\/login$/.test(req.originalUrl)) return loginLimiter(req, res, next);
+    next();
+});
+app.use('/api/v1', apiLimiter);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -29,7 +29,7 @@ export const verifyAdmin = async (req, res, next) => {
             }
         }
 
-        // Fallback: Basic Auth (username + password – slower, one bcrypt per request)
+        // Fallback: Basic Auth from header only (username + password – slower)
         let username, password;
         if (authHeader && authHeader.startsWith('Basic ')) {
             try {
@@ -38,13 +38,9 @@ export const verifyAdmin = async (req, res, next) => {
             } catch (err) {}
         }
         if (!username || !password) {
-            username = req.body?.username;
-            password = req.body?.password;
-        }
-        if (!username || !password) {
             return res.status(401).json({
                 success: false,
-                message: 'Admin authentication required',
+                message: 'Admin authentication required. Use Authorization: Bearer <token> or Basic <base64(username:password)>.',
             });
         }
 
