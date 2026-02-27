@@ -92,6 +92,12 @@ const PlayerDetail = () => {
     const [walletAdjustAmount, setWalletAdjustAmount] = useState('');
     const [walletActionLoading, setWalletActionLoading] = useState(false);
     const [walletActionError, setWalletActionError] = useState('');
+    const [playerPasswordModalOpen, setPlayerPasswordModalOpen] = useState(false);
+    const [newPlayerPassword, setNewPlayerPassword] = useState('');
+    const [confirmPlayerPassword, setConfirmPlayerPassword] = useState('');
+    const [playerPasswordLoading, setPlayerPasswordLoading] = useState(false);
+    const [playerPasswordError, setPlayerPasswordError] = useState('');
+    const [playerPasswordSuccess, setPlayerPasswordSuccess] = useState('');
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -372,6 +378,52 @@ const PlayerDetail = () => {
         }
     };
 
+    const openPlayerPasswordModal = () => {
+        setPlayerPasswordModalOpen(true);
+        setNewPlayerPassword('');
+        setConfirmPlayerPassword('');
+        setPlayerPasswordError('');
+        setPlayerPasswordSuccess('');
+    };
+
+    const handlePlayerPasswordSubmit = async () => {
+        const pwd = newPlayerPassword.trim();
+        const confirmPwd = confirmPlayerPassword.trim();
+        if (!pwd || pwd.length < 6) {
+            setPlayerPasswordError('Password must be at least 6 characters');
+            return;
+        }
+        if (pwd !== confirmPwd) {
+            setPlayerPasswordError('Passwords do not match');
+            return;
+        }
+        setPlayerPasswordLoading(true);
+        setPlayerPasswordError('');
+        setPlayerPasswordSuccess('');
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/users/${userId}/password`, {
+                method: 'PATCH',
+                body: JSON.stringify({ password: pwd }),
+            });
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (data.success) {
+                setPlayerPasswordSuccess('Password updated successfully');
+                setNewPlayerPassword('');
+                setTimeout(() => {
+                    setPlayerPasswordModalOpen(false);
+                    setPlayerPasswordSuccess('');
+                }, 1500);
+            } else {
+                setPlayerPasswordError(data.message || 'Failed to update password');
+            }
+        } catch (err) {
+            setPlayerPasswordError('Network error. Please try again.');
+        } finally {
+            setPlayerPasswordLoading(false);
+        }
+    };
+
     const performDeletePlayer = async (secretDeclarePasswordValue) => {
         if (!userId || !player?.username) return;
         if (!window.confirm(`Delete player "${player.username}"? This will remove their account and wallet. This cannot be undone.`)) return;
@@ -519,6 +571,14 @@ const PlayerDetail = () => {
                             title="Delete player"
                         >
                             {deletingPlayer ? <span className="animate-spin">⏳</span> : <><FaTrash className="w-4 h-4" /> Delete</>}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={openPlayerPasswordModal}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+                            title="Set player password"
+                        >
+                            Set Password
                         </button>
                         <Link
                             to={`/all-users/${userId}/devices`}
@@ -914,6 +974,60 @@ const PlayerDetail = () => {
                                     <button type="button" onClick={() => handleWalletAdjust('debit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-gray-800 font-semibold disabled:opacity-50">Deduct</button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Set Player Password Modal */}
+            {playerPasswordModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm">
+                        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-base font-bold text-gray-800">Set Player Password</h3>
+                            <button type="button" onClick={() => setPlayerPasswordModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            {playerPasswordError && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">{playerPasswordError}</div>}
+                            {playerPasswordSuccess && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">{playerPasswordSuccess}</div>}
+
+                            {!playerPasswordSuccess && (
+                                <>
+                                    <div>
+                                        <label className="block text-gray-600 text-sm font-medium mb-1.5">New Password</label>
+                                        <input
+                                            type="password"
+                                            value={newPlayerPassword}
+                                            onChange={(e) => setNewPlayerPassword(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                            placeholder="Minimum 6 characters"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-600 text-sm font-medium mb-1.5">Confirm Password</label>
+                                        <input
+                                            type="password"
+                                            value={confirmPlayerPassword}
+                                            onChange={(e) => setConfirmPlayerPassword(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                            placeholder="Re-enter password"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handlePlayerPasswordSubmit}
+                                        disabled={playerPasswordLoading || !newPlayerPassword || !confirmPlayerPassword}
+                                        className="w-full font-bold py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {playerPasswordLoading ? (
+                                            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <>Update Password</>
+                                        )}
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

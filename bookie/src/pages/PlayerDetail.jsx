@@ -118,6 +118,7 @@ const PlayerDetail = () => {
     // Password modal
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [passwordError, setPasswordError] = useState('');
     const [passwordSuccess, setPasswordSuccess] = useState('');
@@ -435,6 +436,7 @@ const PlayerDetail = () => {
 
     const openPasswordModal = () => {
         setNewPassword('');
+        setConfirmPassword('');
         setPasswordError('');
         setPasswordSuccess('');
         setPasswordModalOpen(true);
@@ -443,6 +445,10 @@ const PlayerDetail = () => {
     const handlePasswordSubmit = async () => {
         if (!newPassword || newPassword.length < 6) {
             setPasswordError('Password must be at least 6 characters');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setPasswordError('Passwords do not match');
             return;
         }
         setPasswordError('');
@@ -1252,10 +1258,20 @@ const PlayerDetail = () => {
                                                 autoFocus
                                             />
                                         </div>
+                                        <div>
+                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">Confirm Password</label>
+                                            <input
+                                                type="password"
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                placeholder="Re-enter password"
+                                            />
+                                        </div>
                                         <button
                                             type="button"
                                             onClick={handlePasswordSubmit}
-                                            disabled={passwordLoading || !newPassword}
+                                            disabled={passwordLoading || !newPassword || !confirmPassword}
                                             className="w-full font-bold py-3 rounded-lg bg-purple-500 hover:bg-purple-600 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                                         >
                                             {passwordLoading ? (
