@@ -20,6 +20,12 @@ import BetHistoryScreen from '../screens/BetHistoryScreen';
 import MarketResultHistoryScreen from '../screens/MarketResultHistoryScreen';
 import TopWinnersScreen from '../screens/TopWinnersScreen';
 import StartlineDashboardScreen from '../screens/StartlineDashboardScreen';
+import AddFundScreen from '../screens/AddFundScreen';
+import AddFundPaymentScreen from '../screens/AddFundPaymentScreen';
+import WithdrawFundScreen from '../screens/WithdrawFundScreen';
+import BankDetailScreen from '../screens/BankDetailScreen';
+import AddFundHistoryScreen from '../screens/AddFundHistoryScreen';
+import WithdrawFundHistoryScreen from '../screens/WithdrawFundHistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -47,6 +53,12 @@ function MainLayout() {
         <Stack.Screen name="SupportStatus" component={SupportStatusScreen} />
         <Stack.Screen name="BetHistory" component={BetHistoryScreen} />
         <Stack.Screen name="MarketResultHistory" component={MarketResultHistoryScreen} />
+        <Stack.Screen name="AddFund" component={AddFundScreen} />
+        <Stack.Screen name="AddFundPayment" component={AddFundPaymentScreen} />
+        <Stack.Screen name="WithdrawFund" component={WithdrawFundScreen} />
+        <Stack.Screen name="BankDetail" component={BankDetailScreen} />
+        <Stack.Screen name="AddFundHistory" component={AddFundHistoryScreen} />
+        <Stack.Screen name="WithdrawFundHistory" component={WithdrawFundHistoryScreen} />
         <Stack.Screen name="TopWinners" component={TopWinnersScreen} />
         <Stack.Screen name="StartlineDashboard" component={StartlineDashboardScreen} />
       </Stack.Navigator>

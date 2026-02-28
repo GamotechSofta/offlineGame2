@@ -34,7 +34,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer ref={navigationRef}>
+        <NavigationContainer ref={navigationRef} navigationInChildEnabled>
           <AppContent />
         </NavigationContainer>
       </AuthProvider>

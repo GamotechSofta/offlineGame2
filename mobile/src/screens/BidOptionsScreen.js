@@ -1,7 +1,10 @@
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isBettingAllowed } from '../utils/marketTiming';
+
+const BOTTOM_NAV_HEIGHT = 88;
 
 // Use PNG format for React Native (Image does not support SVG). Fallback letter shown if image fails.
 const OPTIONS = [
@@ -94,7 +97,9 @@ function isStarline(market) {
 export default function BidOptionsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const market = route.params?.market;
+  const gridPaddingBottom = 24 + BOTTOM_NAV_HEIGHT + insets.bottom;
 
   useEffect(() => {
     if (!market) {
@@ -144,7 +149,11 @@ export default function BidOptionsScreen() {
           ) : null}
         </View>
       </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.grid, { paddingBottom: gridPaddingBottom }]}
+        showsVerticalScrollIndicator={false}
+      >
         {visibleOptions.map((option) => (
           <TouchableOpacity
             key={option.id}
@@ -185,7 +194,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 14, fontWeight: '700', color: '#1f2937' },
   starlineLabel: { fontSize: 11, fontWeight: '800', color: '#1B3150', letterSpacing: 1, marginTop: 4 },
   scroll: { flex: 1 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', padding: 12, gap: 12, paddingBottom: 100 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', padding: 12, gap: 12 },
   optionCard: {
     width: '47%',
     minHeight: 104,

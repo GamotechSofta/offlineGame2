@@ -1,14 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const NAV_ITEMS = [
-  { id: 'my-bids', label: 'My Bets', path: 'Bids', icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777192/auction_ofhpps.png' },
-  { id: 'bank', label: 'Bank', path: 'Bank', icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777283/bank_il6uwi.png' },
-  { id: 'home', label: 'Home', path: 'Home', isCenter: true, icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777716/home_pvawyw.png' },
-  { id: 'funds', label: 'Funds', path: 'Funds', icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777500/funding_zjmbzp.png' },
-  { id: 'support', label: 'Support', path: 'Support', icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777618/customer-support_du0zcj.png' },
+  { id: 'my-bids', label: 'My Bets', path: 'Bids', IconSet: MaterialCommunityIcons, iconName: 'gavel' },
+  { id: 'bank', label: 'Bank', path: 'Bank', IconSet: Ionicons, iconName: 'business-outline' },
+  { id: 'home', label: 'Home', path: 'Home', isCenter: true, IconSet: Ionicons, iconName: 'home-outline' },
+  { id: 'funds', label: 'Funds', path: 'Funds', IconSet: Ionicons, iconName: 'wallet-outline' },
+  { id: 'support', label: 'Support', path: 'Support', IconSet: Ionicons, iconName: 'headset-outline' },
 ];
 
 export default function BottomNavbar() {
@@ -53,10 +54,10 @@ export default function BottomNavbar() {
                     active ? styles.centerCircleActive : styles.centerCircleInactive,
                   ]}
                 >
-                  <Image
-                    source={{ uri: item.icon }}
-                    style={[styles.centerIcon, active && styles.centerIconActive]}
-                    resizeMode="contain"
+                  <item.IconSet
+                    name={item.iconName}
+                    size={24}
+                    color={active ? '#fff' : '#9ca3af'}
                   />
                 </View>
                 <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
@@ -73,13 +74,10 @@ export default function BottomNavbar() {
             >
               <View style={styles.navItemInner}>
                 <View style={styles.iconWrap}>
-                  <Image
-                    source={{ uri: item.icon }}
-                    style={[
-                      styles.navIcon,
-                      active ? styles.navIconActive : styles.navIconInactive,
-                    ]}
-                    resizeMode="contain"
+                  <item.IconSet
+                    name={item.iconName}
+                    size={24}
+                    color={active ? '#1B3150' : '#9ca3af'}
                   />
                 </View>
                 <View style={styles.dotWrap}>
@@ -141,9 +139,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navIcon: { width: 24, height: 24 },
-  navIconInactive: { opacity: 0.4 },
-  navIconActive: { opacity: 0.6 },
   dotWrap: {
     height: 6,
     alignItems: 'center',
@@ -189,6 +184,4 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
   },
-  centerIcon: { width: 24, height: 24, opacity: 0.4 },
-  centerIconActive: { width: 24, height: 24, opacity: 1, tintColor: '#fff' },
 });

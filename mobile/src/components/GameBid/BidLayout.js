@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBettingWindow } from './BettingWindowContext';
 import { useAuth } from '../../context/AuthContext';
+
+const BOTTOM_NAV_HEIGHT = 88;
 
 const getWalletFromStorage = (user) => {
   if (!user) return 0;
@@ -33,9 +36,11 @@ export default function BidLayout({
   setSelectedDate = null,
 }) {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { allowed: bettingAllowed, closeOnly: bettingCloseOnly, message: bettingMessage } = useBettingWindow();
   const { user } = useAuth();
   const wallet = Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage(user);
+  const footerBottom = BOTTOM_NAV_HEIGHT + insets.bottom;
 
   const today = new Date();
   const minDate = today.toISOString().split('T')[0];
@@ -87,12 +92,16 @@ export default function BidLayout({
         </View>
       ) : null}
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={[styles.contentInner, { paddingBottom: 80 + footerBottom }]}
+        showsVerticalScrollIndicator={false}
+      >
         {children}
       </ScrollView>
 
       {!hideFooter && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: footerBottom }]}>
           <View style={styles.footerInner}>
             {showFooterStats ? (
               <View style={styles.footerStats}>
@@ -109,7 +118,11 @@ export default function BidLayout({
             <TouchableOpacity
               onPress={onSubmit}
               disabled={!bidsCount || !bettingAllowed}
-              style={[styles.submitBtn, (bidsCount && bettingAllowed) ? styles.submitBtnActive : styles.submitBtnDisabled]}
+              style={[
+                styles.submitBtn,
+                (bidsCount && bettingAllowed) ? styles.submitBtnActive : styles.submitBtnDisabled,
+                !showFooterStats && styles.submitBtnFullWidth,
+              ]}
               activeOpacity={0.9}
             >
               <Text style={styles.submitBtnText}>{submitLabel}</Text>
@@ -170,6 +183,7 @@ const styles = StyleSheet.create({
   footerStatLabel: { fontSize: 10, color: '#4b5563' },
   footerStatValue: { fontSize: 16, fontWeight: '700', color: '#1B3150' },
   submitBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
+  submitBtnFullWidth: { flex: 1 },
   submitBtnActive: { backgroundColor: '#1B3150' },
   submitBtnDisabled: { backgroundColor: '#9ca3af', opacity: 0.5 },
   submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },

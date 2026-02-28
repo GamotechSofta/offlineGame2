@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useBettingWindow } from '../BettingWindowContext';
+import { useAuth } from '../../../context/AuthContext';
 
 const formatMoney = (v) => {
   const n = Number(v);
@@ -27,6 +29,7 @@ export default function BidReviewModal({
   totalBids = 0,
   totalAmount = 0,
 }) {
+  const { user } = useAuth();
   const { allowed: bettingAllowed, message: bettingMessage } = useBettingWindow();
   const [stage, setStage] = useState('review');
   const [submitting, setSubmitting] = useState(false);
@@ -55,6 +58,31 @@ export default function BidReviewModal({
     try {
       const fn = onSubmit?.();
       if (fn && typeof fn.then === 'function') await fn;
+      try {
+        const uid = user?._id || user?.id || null;
+        const entry = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          userId: uid,
+          marketTitle: (marketTitle || '').toString().trim(),
+          dateText: (dateText || '').toString().trim(),
+          labelKey: (labelKey || 'Bet').toString(),
+          rows: (rows || []).map((r, idx) => ({
+            ...r,
+            id: r.id || `${Date.now()}-${idx}-${Math.random().toString(36).slice(2)}`,
+            number: r.number,
+            points: r.points,
+            type: r.type,
+          })),
+          totalBets: Number(totalBids) || 0,
+          totalAmount: Number(totalAmount) || 0,
+          session: (rows?.[0]?.type || '').toString(),
+          createdAt: new Date().toISOString(),
+        };
+        const raw = await AsyncStorage.getItem('betHistory');
+        const prev = raw ? JSON.parse(raw) : [];
+        const next = Array.isArray(prev) ? [entry, ...prev] : [entry];
+        await AsyncStorage.setItem('betHistory', JSON.stringify(next.slice(0, 200)));
+      } catch (_) {}
       setStage('success');
     } catch (e) {
       setSubmitError(e?.message || 'Failed to place bet');
