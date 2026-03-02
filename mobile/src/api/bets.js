@@ -138,38 +138,3 @@ export async function getMyWalletTransactions(limit = 200) {
   }
   return data;
 }
-
-/**
- * Fetch bet history for the current user from backend.
- * @returns {Promise<{ success: boolean, data?: Array, message?: string }>}
- */
-export async function getMarkets() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
-    const data = await res.json();
-    if (data?.success && Array.isArray(data?.data)) return { success: true, data: data.data };
-    return { success: false, message: data?.message || 'Failed', data: [] };
-  } catch (e) {
-    return { success: false, message: e?.message || 'Network error', data: [] };
-  }
-}
-
-export async function getBetHistory(params = {}) {
-  const user = getUserCache();
-  if (!user?.id && !user?._id) {
-    return { success: false, message: 'Please log in' };
-  }
-  const q = new URLSearchParams();
-  const uid = user?.id || user?._id;
-  if (uid) q.append('userId', uid);
-  if (params.startDate) q.append('startDate', params.startDate);
-  if (params.endDate) q.append('endDate', params.endDate);
-  const url = `${API_BASE_URL}/bets/history${q.toString() ? `?${q}` : ''}`;
-  const response = await fetchWithAuth(url, { headers: getAuthHeaders() });
-  if (response.status === 401) return { success: false, message: 'Session expired.' };
-  const data = await response.json();
-  if (!response.ok) {
-    return { success: false, message: data.message || 'Failed to fetch bet history' };
-  }
-  return data;
-}

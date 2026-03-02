@@ -36,16 +36,8 @@ export default function Section1() {
     try {
       setLoading(true);
       const response = await fetch(`${API_BASE_URL}/markets/get-markets`);
-      const rawText = await response.text();
-      let data;
-      try {
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch (parseErr) {
-        console.warn('Markets API returned non-JSON:', rawText?.slice(0, 100));
-        setMarkets([]);
-        return;
-      }
-      if (data && data.success) {
+      const data = await response.json();
+      if (data.success) {
         const mainOnly = (data.data || []).filter((m) => m.marketType !== 'startline');
         const transformedMarkets = mainOnly.map((market) => {
           const st = getMarketStatus(market);
@@ -64,12 +56,9 @@ export default function Section1() {
           };
         });
         setMarkets(transformedMarkets);
-      } else if (!response.ok) {
-        setMarkets([]);
       }
     } catch (error) {
       console.error('Error fetching markets:', error);
-      setMarkets([]);
     } finally {
       setLoading(false);
     }

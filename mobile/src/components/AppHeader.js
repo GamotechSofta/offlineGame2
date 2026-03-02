@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { getBalance, updateUserBalance } from '../api/bets';
 import { useAuth } from '../context/AuthContext';
 
@@ -135,11 +134,7 @@ export default function AppHeader() {
               style={[styles.iconBtn, user ? styles.profileBtnLogged : styles.profileBtn]}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name="person-outline"
-                size={24}
-                color={user ? '#1B3150' : '#9ca3af'}
-              />
+              <Text style={[styles.avatarText, !user && styles.avatarTextGuest]}>{avatarInitial}</Text>
             </TouchableOpacity>
           </View>
         </View>
