@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { InnerStackNavContext } from './InnerStackNavContext';
 import AppHeader from '../components/AppHeader';
 import BottomNavbar from '../components/BottomNavbar';
+import OfflineBanner from '../components/OfflineBanner';
+import { useNetInfo } from '../hooks/useNetInfo';
 import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import BidOptionsScreen from '../screens/BidOptionsScreen';
@@ -20,19 +23,31 @@ import BetHistoryScreen from '../screens/BetHistoryScreen';
 import MarketResultHistoryScreen from '../screens/MarketResultHistoryScreen';
 import TopWinnersScreen from '../screens/TopWinnersScreen';
 import StartlineDashboardScreen from '../screens/StartlineDashboardScreen';
+import AddFundScreen from '../screens/AddFundScreen';
+import AddFundPaymentScreen from '../screens/AddFundPaymentScreen';
+import WithdrawFundScreen from '../screens/WithdrawFundScreen';
+import BankDetailScreen from '../screens/BankDetailScreen';
+import AddFundHistoryScreen from '../screens/AddFundHistoryScreen';
+import WithdrawFundHistoryScreen from '../screens/WithdrawFundHistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
 function MainLayout() {
+  const innerNavRef = useRef(null);
+  const { isConnected } = useNetInfo();
   return (
-    <View style={styles.container}>
-      <AppHeader />
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: '#fff' },
-        }}
-      >
+    <InnerStackNavContext.Provider value={innerNavRef}>
+      <View style={styles.container}>
+        {!isConnected && <OfflineBanner />}
+        <AppHeader />
+        <Stack.Navigator
+          initialRouteName="Home"
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: '#fff' },
+            animation: 'none',
+          }}
+        >
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="BidOptions" component={BidOptionsScreen} />
         <Stack.Screen name="GameBid" component={GameBidScreen} />
@@ -47,11 +62,18 @@ function MainLayout() {
         <Stack.Screen name="SupportStatus" component={SupportStatusScreen} />
         <Stack.Screen name="BetHistory" component={BetHistoryScreen} />
         <Stack.Screen name="MarketResultHistory" component={MarketResultHistoryScreen} />
+        <Stack.Screen name="AddFund" component={AddFundScreen} />
+        <Stack.Screen name="AddFundPayment" component={AddFundPaymentScreen} />
+        <Stack.Screen name="WithdrawFund" component={WithdrawFundScreen} />
+        <Stack.Screen name="BankDetail" component={BankDetailScreen} />
+        <Stack.Screen name="AddFundHistory" component={AddFundHistoryScreen} />
+        <Stack.Screen name="WithdrawFundHistory" component={WithdrawFundHistoryScreen} />
         <Stack.Screen name="TopWinners" component={TopWinnersScreen} />
         <Stack.Screen name="StartlineDashboard" component={StartlineDashboardScreen} />
-      </Stack.Navigator>
-      <BottomNavbar />
-    </View>
+        </Stack.Navigator>
+        <BottomNavbar />
+      </View>
+    </InnerStackNavContext.Provider>
   );
 }
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import { placeBet, placeBetForPlayer, getBetHistory, getBetsByUser, getBetSessions, getTopWinners, downloadBetStatement, downloadMyBetStatement } from '../../controllers/betController.js';
+import { placeBet, placeBetForPlayer, getBetHistory, getMyBetHistory, getBetsByUser, getBetSessions, getTopWinners, downloadBetStatement, downloadMyBetStatement } from '../../controllers/betController.js';
 import { verifyAdmin } from '../../middleware/adminAuth.js';
 import { verifyUser } from '../../middleware/userAuth.js';
 
@@ -13,6 +13,9 @@ router.post('/place-for-player', verifyAdmin, placeBetForPlayer);
 
 // Public: show top winners in user app menu
 router.get('/public/top-winners', getTopWinners);
+
+// Player-accessible: get own bet history (player JWT required)
+router.get('/my-history', verifyUser, getMyBetHistory);
 
 // Player-accessible: download own bet statement (player JWT required)
 router.get('/my-statement', verifyUser, downloadMyBetStatement);

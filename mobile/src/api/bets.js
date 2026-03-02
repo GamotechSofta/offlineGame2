@@ -1,6 +1,16 @@
 import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../config/api';
 import { getUserCache, setUserCache, setItem } from '../config/storage';
 
+/** Safe parse: when server returns plain text (e.g. "Too many requests"), avoid JSON parse error */
+async function safeJson(response) {
+  const text = await response.text();
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return { success: false, message: text || 'Invalid response from server' };
+  }
+}
+
 const VALID_OBJECTID = /^[a-fA-F0-9]{24}$/;
 function toObjectIdString(v) {
   if (v == null) return null;
@@ -92,18 +102,18 @@ export async function placeBet(marketId, bets, scheduledDate = null) {
   });
 
   if (response.status === 401) return { success: false, message: 'Session expired. Please log in again.' };
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
-    return { success: false, message: data.message || 'Failed to place bet' };
+    return { success: false, message: data?.message || 'Failed to place bet' };
   }
   return data;
 }
 
 export async function getRatesCurrent() {
   const response = await fetch(`${API_BASE_URL}/rates/current`);
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
-    return { success: false, message: data.message || 'Failed to fetch rates' };
+    return { success: false, message: data?.message || 'Failed to fetch rates' };
   }
   return data;
 }
@@ -117,9 +127,9 @@ export async function getBalance() {
     headers: getAuthHeaders(),
   });
   if (response.status === 401) return { success: false, message: 'Session expired.' };
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
-    return { success: false, message: data.message || 'Failed to fetch balance' };
+    return { success: false, message: data?.message || 'Failed to fetch balance' };
   }
   return data;
 }
@@ -130,11 +140,89 @@ export async function getMyWalletTransactions(limit = 200) {
     return { success: false, message: 'Please log in' };
   }
   const url = `${API_BASE_URL}/wallet/my-transactions?limit=${encodeURIComponent(limit)}&includeBet=1`;
-  const response = await fetchWithAuth(url, { headers: getAuthHeaders() });
+  const response = await fetch(url, { headers: getAuthHeaders() });
   if (response.status === 401) return { success: false, message: 'Session expired.' };
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
-    return { success: false, message: data.message || 'Failed to fetch transactions' };
+    return { success: false, message: data?.message || 'Failed to fetch transactions', data: [] };
   }
   return data;
+}
+
+/**
+ * Fetch bet history for the current user from backend.
+ * @returns {Promise<{ success: boolean, data?: Array, message?: string }>}
+ */
+export async function getMarkets() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
+    const data = await safeJson(res);
+    if (data?.success && Array.isArray(data?.data)) return { success: true, data: data.data };
+    return { success: false, message: data?.message || 'Failed', data: [] };
+  } catch (e) {
+    return { success: false, message: e?.message || 'Network error', data: [] };
+  }
+}
+
+/**
+ * Fetch bet history for the current user.
+ * Tries /bets/my-history first; if 404 (endpoint not deployed), falls back to wallet transactions.
+ */
+export async function getBetHistory(params = {}) {
+  try {
+    const user = getUserCache();
+    if (!user?.id && !user?._id) {
+      return { success: false, message: 'Please log in', data: [] };
+    }
+    if (!user?.token) {
+      return { success: false, message: 'Session expired. Please log in again.', data: [] };
+    }
+
+    const q = new URLSearchParams();
+    if (params.startDate) q.append('startDate', params.startDate);
+    if (params.endDate) q.append('endDate', params.endDate);
+    const url = `${API_BASE_URL}/bets/my-history${q.toString() ? `?${q}` : ''}`;
+    const response = await fetch(url, { headers: getAuthHeaders() });
+
+    if (response.status === 401) {
+      return { success: false, message: 'Session expired. Please log in again.', data: [] };
+    }
+
+    const text = await response.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { success: false, message: text || 'Invalid response' };
+    }
+
+    if (response.ok && data?.success && Array.isArray(data?.data)) {
+      const raw = data.data ?? data.bets ?? data.results ?? data.list ?? [];
+      return { success: true, data: Array.isArray(raw) ? raw : [] };
+    }
+
+    const is404 = response.status === 404 || (text && /Cannot GET|Not Found|404/i.test(text));
+    if (is404) {
+      const walletRes = await getMyWalletTransactions(500);
+      if (walletRes?.success && Array.isArray(walletRes?.data)) {
+        const betsFromWallet = walletRes.data
+          .filter((t) => t.type === 'debit' && t.bet && (t.bet.betNumber || t.bet.betType))
+          .map((t) => ({
+            _id: t.referenceId || t._id || `tx-${t.createdAt}-${t.amount}`,
+            betNumber: t.bet.betNumber || '-',
+            betType: t.bet.betType || 'single',
+            amount: t.amount,
+            createdAt: t.createdAt,
+            status: 'pending',
+            marketId: { marketName: t.bet.marketName || 'MARKET' },
+            betOn: 'open',
+          }));
+        return { success: true, data: betsFromWallet };
+      }
+    }
+
+    return { success: false, message: data?.message || 'Failed to fetch bet history', data: [] };
+  } catch (e) {
+    return { success: false, message: e?.message || 'Network error. Check your connection.', data: [] };
+  }
 }

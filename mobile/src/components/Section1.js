@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image, Dimensions } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { API_BASE_URL } from '../config/api';
 import { isPastClosingTime } from '../utils/marketTiming';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
+import { SkeletonCard } from './Skeleton';
+import EmptyState from './EmptyState';
+import AnimatedPressable from './AnimatedPressable';
+import FadeInView from './FadeInView';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const marketsCache = { data: null };
 
 function formatTime(time24) {
   if (!time24) return '';
@@ -27,17 +33,30 @@ function getMarketStatus(market) {
   return { status: 'open', timer: null };
 }
 
-export default function Section1() {
+export default function Section1({ refreshRef }) {
   const navigation = useNavigation();
-  const [markets, setMarkets] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [markets, setMarkets] = useState(() => marketsCache.data || []);
+  const [loading, setLoading] = useState(() => !marketsCache.data);
+  const hasLoadedOnce = useRef(!!marketsCache.data);
 
-  const fetchMarkets = async () => {
+  useEffect(() => {
+    if (refreshRef) refreshRef.current = () => fetchMarkets(true);
+    return () => { if (refreshRef) refreshRef.current = null; };
+  }, [refreshRef]);
+
+  const fetchMarkets = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) setLoading(true);
       const response = await fetch(`${API_BASE_URL}/markets/get-markets`);
-      const data = await response.json();
-      if (data.success) {
+      const rawText = await response.text();
+      let data;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch (parseErr) {
+        setMarkets([]);
+        return;
+      }
+      if (data && data.success) {
         const mainOnly = (data.data || []).filter((m) => m.marketType !== 'startline');
         const transformedMarkets = mainOnly.map((market) => {
           const st = getMarketStatus(market);
@@ -55,22 +74,37 @@ export default function Section1() {
             closingNumber: market.closingNumber,
           };
         });
+        marketsCache.data = transformedMarkets;
         setMarkets(transformedMarkets);
+      } else if (!response.ok) {
+        if (!marketsCache.data) setMarkets([]);
       }
     } catch (error) {
       console.error('Error fetching markets:', error);
+      if (!marketsCache.data) setMarkets([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchMarkets();
-    const dataInterval = setInterval(fetchMarkets, 30000);
-    return () => clearInterval(dataInterval);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      if (marketsCache.data) {
+        setMarkets(marketsCache.data);
+        setLoading(false);
+      }
+      const isFirstFocus = !hasLoadedOnce.current;
+      if (isFirstFocus) {
+        hasLoadedOnce.current = true;
+        if (!marketsCache.data) fetchMarkets(false);
+        else setLoading(false);
+      }
+      const dataInterval = setInterval(() => fetchMarkets(true), 90000); // 90s to avoid rate limiting
+      return () => clearInterval(dataInterval);
+    }, [])
+  );
 
-  useRefreshOnMarketReset(fetchMarkets);
+  useRefreshOnMarketReset(() => fetchMarkets(true));
 
   return (
     <View style={styles.section}>
@@ -85,17 +119,22 @@ export default function Section1() {
       </View>
 
       {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="small" color="#4b5563" />
-          <Text style={styles.loadingText}>Loading markets...</Text>
+        <View style={styles.grid}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
         </View>
       ) : markets.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.loadingText}>No markets available</Text>
-        </View>
+        <EmptyState
+          icon="grid-outline"
+          title="No markets available"
+          subtitle="Markets will appear when they are open. Pull down to refresh."
+          actionLabel="Refresh"
+          onAction={() => fetchMarkets(true)}
+        />
       ) : (
         <View style={styles.grid}>
-          {markets.map((market) => {
+          {markets.map((market, idx) => {
             const isClickable = market.status === 'open' || market.status === 'running';
             const statusText =
               market.status === 'closed'
@@ -104,48 +143,47 @@ export default function Section1() {
                   ? 'Close is Running'
                   : 'Market is Open';
             return (
-              <TouchableOpacity
-                key={market.id}
-                onPress={() => isClickable && navigation.navigate('BidOptions', { market })}
-                style={[styles.card, !isClickable && styles.cardDisabled]}
-                activeOpacity={isClickable ? 0.8 : 1}
-                disabled={!isClickable}
-              >
-                <View style={styles.cardInner}>
-                  <View style={styles.cardTop}>
-                    <Text style={styles.gameName} numberOfLines={1}>
-                      {market.gameName}
-                    </Text>
-                    <Text style={[styles.statusBadge, market.status === 'closed' ? styles.statusClosed : styles.statusOpen]}>
-                      {statusText}
-                    </Text>
-                  </View>
-                  <View style={styles.cardMiddle}>
-                    <Text style={styles.result}>{market.result}</Text>
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e?.stopPropagation?.();
-                        if (isClickable) navigation.navigate('BidOptions', { market });
-                      }}
-                      style={[styles.playBtn, market.status === 'closed' && styles.playBtnClosed]}
-                      activeOpacity={0.8}
-                      disabled={!isClickable}
-                    >
-                      <Text style={styles.playIcon}>▶</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.cardBottom}>
-                    <View>
-                      <Text style={styles.timeLabel}>Open Bids</Text>
-                      <Text style={styles.timeValue}>{formatTime(market.startingTime) || '-'}</Text>
+              <FadeInView key={market.id} delay={idx * 50} duration={350}>
+                <AnimatedPressable
+                  onPress={() => isClickable && navigation.navigate('BidOptions', { market })}
+                  style={[styles.card, !isClickable && styles.cardDisabled]}
+                  disabled={!isClickable}
+                >
+                  <View style={styles.cardInner}>
+                    <View style={styles.cardTop}>
+                      <Text style={styles.gameName} numberOfLines={1}>
+                        {market.gameName}
+                      </Text>
+                      <Text style={[styles.statusBadge, market.status === 'closed' ? styles.statusClosed : styles.statusOpen]}>
+                        {statusText}
+                      </Text>
                     </View>
-                    <View>
-                      <Text style={styles.timeLabel}>Close Bids</Text>
-                      <Text style={styles.timeValue}>{formatTime(market.closingTime) || '-'}</Text>
+                    <View style={styles.cardMiddle}>
+                      <Text style={styles.result}>{market.result}</Text>
+                      <AnimatedPressable
+                        onPress={(e) => {
+                          e?.stopPropagation?.();
+                          if (isClickable) navigation.navigate('BidOptions', { market });
+                        }}
+                        style={[styles.playBtn, market.status === 'closed' && styles.playBtnClosed]}
+                        disabled={!isClickable}
+                      >
+                        <Text style={styles.playIcon}>▶</Text>
+                      </AnimatedPressable>
+                    </View>
+                    <View style={styles.cardBottom}>
+                      <View>
+                        <Text style={styles.timeLabel}>Open Bids</Text>
+                        <Text style={styles.timeValue}>{formatTime(market.startingTime) || '-'}</Text>
+                      </View>
+                      <View>
+                        <Text style={styles.timeLabel}>Close Bids</Text>
+                        <Text style={styles.timeValue}>{formatTime(market.closingTime) || '-'}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-              </TouchableOpacity>
+                </AnimatedPressable>
+              </FadeInView>
             );
           })}
         </View>

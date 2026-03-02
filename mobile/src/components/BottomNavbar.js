@@ -1,92 +1,78 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import React, { useContext, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useNavigationState } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { InnerStackNavContext } from '../navigation/InnerStackNavContext';
+import { navigationRef } from '../navigation/navigationRef';
+import { hapticLight } from '../utils/haptics';
+
+const TAP_DEBOUNCE_MS = 120;
 
 const NAV_ITEMS = [
-  { id: 'my-bids', label: 'My Bets', path: 'Bids', icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777192/auction_ofhpps.png' },
-  { id: 'bank', label: 'Bank', path: 'Bank', icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777283/bank_il6uwi.png' },
-  { id: 'home', label: 'Home', path: 'Home', isCenter: true, icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777716/home_pvawyw.png' },
-  { id: 'funds', label: 'Funds', path: 'Funds', icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777500/funding_zjmbzp.png' },
-  { id: 'support', label: 'Support', path: 'Support', icon: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777618/customer-support_du0zcj.png' },
+  { id: 'my-bids', label: 'My Bets', path: 'BetHistory', IconSet: MaterialCommunityIcons, iconName: 'gavel', iconActive: 'gavel' },
+  { id: 'bank', label: 'Bank', path: 'Bank', IconSet: Ionicons, iconName: 'business-outline', iconActive: 'business' },
+  { id: 'home', label: 'Home', path: 'Home', IconSet: Ionicons, iconName: 'home-outline', iconActive: 'home' },
+  { id: 'funds', label: 'Funds', path: 'Funds', IconSet: Ionicons, iconName: 'wallet-outline', iconActive: 'wallet' },
+  { id: 'support', label: 'Support', path: 'Support', IconSet: Ionicons, iconName: 'headset-outline', iconActive: 'headset' },
 ];
 
 export default function BottomNavbar() {
-  const navigation = useNavigation();
-  const route = useRoute();
   const insets = useSafeAreaInsets();
+  const innerNavRef = useContext(InnerStackNavContext);
+  const lastTapRef = useRef(0);
 
-  // We're inside Main; active screen is in nested state or params
-  const activeNested = route.name === 'Main'
-    ? (route.state?.routes?.[route.state?.index]?.name ?? route.params?.screen)
-    : route.name;
+  const activeNested = useNavigationState((state) => {
+    const mainRoute = state?.routes?.[state?.index];
+    if (mainRoute?.name === 'Main' && mainRoute?.state) {
+      const inner = mainRoute.state;
+      const name = inner?.routes?.[inner?.index ?? 0]?.name;
+      return name ?? 'Home';
+    }
+    return 'Home';
+  });
   const isActive = (path) => activeNested === path;
+
+  const navigateTo = (path) => {
+    const now = Date.now();
+    if (now - lastTapRef.current < TAP_DEBOUNCE_MS) return;
+    lastTapRef.current = now;
+    if (innerNavRef?.current) {
+      innerNavRef.current.navigate(path);
+    } else if (navigationRef?.isReady?.()) {
+      navigationRef.navigate('Main', { screen: path });
+    }
+    hapticLight();
+  };
 
   return (
     <View
       style={[
         styles.container,
         {
-          paddingBottom: 6 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingLeft: Math.max(12, insets.left),
           paddingRight: Math.max(12, insets.right),
         },
       ]}
     >
-      <View style={styles.absoluteBg} />
-      <View style={styles.navInner}>
+      <View style={styles.navBar}>
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.path);
-          const isCenter = item.isCenter;
-
-          if (isCenter) {
-            return (
-              <TouchableOpacity
-                key={item.id}
-                onPress={() => navigation.navigate('Main', { screen: item.path })}
-                style={styles.centerBtn}
-                activeOpacity={0.9}
-              >
-                <View
-                  style={[
-                    styles.centerCircle,
-                    active ? styles.centerCircleActive : styles.centerCircleInactive,
-                  ]}
-                >
-                  <Image
-                    source={{ uri: item.icon }}
-                    style={[styles.centerIcon, active && styles.centerIconActive]}
-                    resizeMode="contain"
-                  />
-                </View>
-                <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
-              </TouchableOpacity>
-            );
-          }
-
           return (
             <TouchableOpacity
               key={item.id}
-              onPress={() => navigation.navigate('Main', { screen: item.path })}
-              style={styles.navBtn}
-              activeOpacity={0.9}
+              onPress={() => navigateTo(item.path)}
+              style={[styles.barItem, active && styles.barItemActive]}
+              activeOpacity={0.7}
             >
-              <View style={styles.navItemInner}>
-                <View style={styles.iconWrap}>
-                  <Image
-                    source={{ uri: item.icon }}
-                    style={[
-                      styles.navIcon,
-                      active ? styles.navIconActive : styles.navIconInactive,
-                    ]}
-                    resizeMode="contain"
-                  />
-                </View>
-                <View style={styles.dotWrap}>
-                  {active && <View style={styles.dot} />}
-                </View>
-                <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
-              </View>
+              <item.IconSet
+                name={item.iconActive && active ? item.iconActive : item.iconName}
+                size={24}
+                color={active ? '#1B3150' : '#9ca3af'}
+              />
+              <Text style={[styles.barLabel, active && styles.barLabelActive]}>{item.label}</Text>
+              {active && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
           );
         })}
@@ -101,94 +87,41 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingTop: 4,
-  },
-  absoluteBg: {
-    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
   },
-  navInner: {
+  navBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-    minHeight: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingTop: 8,
   },
-  navBtn: {
+  barItem: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
-    paddingHorizontal: 8,
-    minWidth: 56,
   },
-  navItemInner: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  barItemActive: {},
+  barLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#9ca3af',
+    marginTop: 4,
   },
-  iconWrap: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+  barLabelActive: {
+    color: '#1B3150',
+    fontWeight: '700',
   },
-  navIcon: { width: 24, height: 24 },
-  navIconInactive: { opacity: 0.4 },
-  navIconActive: { opacity: 0.6 },
-  dotWrap: {
-    height: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-    marginBottom: 1,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  activeIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: '50%',
+    marginLeft: -12,
+    width: 24,
+    height: 3,
+    borderRadius: 2,
     backgroundColor: '#1B3150',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
   },
-  label: { fontSize: 10, fontWeight: '700', color: '#4b5563', marginTop: 1 },
-  labelActive: { color: '#1B3150' },
-  centerBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -24,
-  },
-  centerCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerCircleInactive: {
-    backgroundColor: '#f9fafb',
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-  },
-  centerCircleActive: {
-    backgroundColor: '#1B3150',
-    borderColor: '#1B3150',
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  centerIcon: { width: 24, height: 24, opacity: 0.4 },
-  centerIconActive: { width: 24, height: 24, opacity: 1, tintColor: '#fff' },
 });

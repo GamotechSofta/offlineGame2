@@ -26,7 +26,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 const PORT = process.env.PORT || 3010;
 
@@ -67,9 +67,13 @@ app.use(express.json());
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
+    max: 600,
     standardHeaders: true,
     legacyHeaders: false,
+    message: { success: false, message: 'Too many requests, please try again later.' },
+    handler: (req, res, next, options) => {
+        res.status(429).json(options.message);
+    },
 });
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -86,6 +90,9 @@ app.use('/api/v1', apiLimiter);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve downloadable files (APK, etc.) – works in production with path.join
+app.use('/downloads', express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
     res.send('Hello World!');

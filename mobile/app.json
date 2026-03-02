@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "games-mobile",
-    "slug": "games-mobile",
+    "name": "SINGLEPANA",
+    "slug": "singlepana",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,23 +11,33 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "web": {
+      "favicon": "./assets/icon.png"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.games.mobile"
+      "bundleIdentifier": "com.singlepana.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.games.mobile"
+      "package": "com.singlepana.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-image-picker"
     ],
     "extra": {
-      "eas": {}
+      "eas": {
+        "projectId": "3f5ace1e-6d5f-4fc6-bd42-67704df4acb1"
+      }
     }
   }
 }

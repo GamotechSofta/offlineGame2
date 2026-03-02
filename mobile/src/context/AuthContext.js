@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getItem, setItem, removeItem, setUserCache, getUserCache, subscribeUserChange } from '../config/storage';
+import { clearUserSession } from '../config/api';
 
 const AuthContext = createContext({ user: null, balance: null, authReady: false, loadUser: () => {}, setUser: () => {}, logout: () => {} });
 
@@ -55,6 +56,7 @@ export function AuthProvider({ children }) {
     setUserState(null);
     setUserCache(null);
     setBalance(0);
+    clearUserSession();
   }, []);
 
   return (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getBalance, updateUserBalance } from '../api/bets';
+import { BACKEND_BASE_URL } from '../config/api';
 
 const AppHeader = () => {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ const AppHeader = () => {
     { label: 'My Bets', path: '/bids' },
     { label: 'Bank', path: '/funds?tab=bank-detail' },
     { label: 'Funds', path: '/funds' },
+    { label: 'Download App', path: null, isDownload: true },
     { label: 'Game Rate', path: '/support' },
     { label: 'Help Desk', path: '/support' },
     { label: 'Logout', path: '/login' }
@@ -164,8 +166,21 @@ const AppHeader = () => {
             
           </div>
 
-        {/* Right side buttons - Wallet, Profile */}
+        {/* Right side buttons - Download, Wallet, Profile */}
         <div className="flex items-center gap-2 sm:gap-2.5 md:gap-3">
+          {/* Download App - direct in navbar */}
+          <button
+            type="button"
+            onClick={() => window.open(`${BACKEND_BASE_URL}/downloads/myapp.apk`, '_blank', 'noopener,noreferrer')}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-gray-50 border-2 border-gray-300 px-2 md:px-2.5 py-1 md:py-1.5 hover:bg-gray-100 hover:border-gray-400 transition-colors"
+            title="Download App"
+          >
+            <svg className="w-5 h-5 md:w-6 md:h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span className="text-xs md:text-sm font-bold text-gray-800 hidden sm:inline">Download</span>
+          </button>
+
           {/* Wallet - desktop only, responsive size */}
           <button
             onClick={() => navigate('/funds?tab=add-fund')}
@@ -269,6 +284,8 @@ const AppHeader = () => {
                     setIsMenuOpen(false);
                     if (item.label === 'Logout') {
                       handleLogout();
+                    } else if (item.isDownload) {
+                      window.open(`${BACKEND_BASE_URL}/downloads/myapp.apk`, '_blank', 'noopener,noreferrer');
                     } else {
                       navigate(item.path);
                     }
@@ -349,6 +366,10 @@ const AppHeader = () => {
                         alt="Logout"
                         className="w-6 h-6 sm:w-7 sm:h-7 object-contain brightness-0"
                       />
+                    ) : item.label === 'Download App' ? (
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
                     ) : (
                       <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-gray-400"></div>
                     )}

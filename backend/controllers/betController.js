@@ -426,6 +426,41 @@ export const placeBetForPlayer = async (req, res) => {
     }
 };
 
+/**
+ * Get current user's bet history (player JWT required).
+ * GET /api/v1/bets/my-history?startDate=&endDate=
+ */
+export const getMyBetHistory = async (req, res) => {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Authentication required. Please log in.' });
+        }
+        const { startDate, endDate } = req.query;
+        const query = { userId };
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) {
+                const start = new Date(startDate);
+                start.setHours(0, 0, 0, 0);
+                query.createdAt.$gte = start;
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                query.createdAt.$lte = end;
+            }
+        }
+        const bets = await Bet.find(query)
+            .populate({ path: 'marketId', select: 'marketName gameName openingNumber closingNumber closingTime', model: Market })
+            .sort({ createdAt: -1 })
+            .limit(500);
+        res.status(200).json({ success: true, data: bets });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 export const getBetHistory = async (req, res) => {
     try {
         const { userId, marketId, status, startDate, endDate } = req.query;

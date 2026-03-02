@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { InnerStackNavContext } from '../navigation/InnerStackNavContext';
 import { getBalance, updateUserBalance } from '../api/bets';
 import { useAuth } from '../context/AuthContext';
+import { hapticLight } from '../utils/haptics';
 
 const MENU_ITEMS = [
-  { label: 'My Bets', path: 'Bids' },
+  { label: 'My Bets', path: 'BetHistory' },
   { label: 'Bank', path: 'Bank' },
   { label: 'Funds', path: 'Funds' },
   { label: 'Game Rate', path: 'Support' },
@@ -26,6 +29,7 @@ const MENU_ITEMS = [
 export default function AppHeader() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const innerNavRef = useContext(InnerStackNavContext);
   const { user, balance, setBalance, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -69,8 +73,15 @@ export default function AppHeader() {
 
   const handleProfileClick = () => {
     setIsMenuOpen(false);
-    if (user) navigation.navigate('Main', { screen: 'Profile' });
-    else navigation.navigate('Login');
+    if (!user) {
+      navigation.navigate('Login');
+      return;
+    }
+    if (innerNavRef?.current) {
+      innerNavRef.current.navigate('Profile');
+    } else {
+      navigation.navigate('Main', { screen: 'Profile' });
+    }
   };
 
   const displayBalance = balance != null ? Number(balance) : 0;
@@ -85,7 +96,7 @@ export default function AppHeader() {
         style={[
           styles.header,
           {
-            paddingTop: 8 + insets.top,
+            paddingTop: Math.max(12, insets.top) + 8,
             paddingBottom: 8,
             paddingLeft: Math.max(12, insets.left),
             paddingRight: Math.max(12, insets.right),
@@ -95,7 +106,7 @@ export default function AppHeader() {
         <View style={styles.headerRow}>
           <View style={styles.leftRow}>
             <TouchableOpacity
-              onPress={() => setIsMenuOpen(true)}
+              onPress={() => { hapticLight(); setIsMenuOpen(true); }}
               style={styles.iconBtn}
               activeOpacity={0.8}
               accessibilityLabel="Open menu"
@@ -106,19 +117,15 @@ export default function AppHeader() {
                 <View style={[styles.hamLine, { width: 12 }]} />
               </View>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Main', { screen: 'Home' })}
-              style={styles.iconBtn}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.homeIcon}>⌂</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.rightRow}>
             <TouchableOpacity
-              onPress={() => navigation.navigate('Main', { screen: 'Funds', params: { tab: 'add-fund' } })}
+              onPress={() => {
+                hapticLight();
+                if (innerNavRef?.current) innerNavRef.current.navigate('Funds', { tab: 'add-fund' });
+                else navigation.navigate('Main', { screen: 'Funds', params: { tab: 'add-fund' } });
+              }}
               style={styles.walletBtn}
               activeOpacity={0.8}
             >
@@ -130,11 +137,15 @@ export default function AppHeader() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={handleProfileClick}
+              onPress={() => { hapticLight(); handleProfileClick(); }}
               style={[styles.iconBtn, user ? styles.profileBtnLogged : styles.profileBtn]}
               activeOpacity={0.8}
             >
-              <Text style={[styles.avatarText, !user && styles.avatarTextGuest]}>{avatarInitial}</Text>
+              <Ionicons
+                name="person-outline"
+                size={24}
+                color={user ? '#1B3150' : '#9ca3af'}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -143,7 +154,7 @@ export default function AppHeader() {
       <Modal visible={isMenuOpen} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setIsMenuOpen(false)}>
           <Pressable style={styles.menuPanel} onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.menuHeader, { paddingTop: 24, paddingBottom: 20 }]}>
+            <View style={[styles.menuHeader, { paddingTop: Math.max(24, insets.top + 12), paddingBottom: 20 }]}>
               <TouchableOpacity
                 onPress={() => {
                   setIsMenuOpen(false);
@@ -179,6 +190,8 @@ export default function AppHeader() {
                     setIsMenuOpen(false);
                     if (item.label === 'Logout') {
                       handleLogout();
+                    } else if (innerNavRef?.current) {
+                      innerNavRef.current.navigate(item.path);
                     } else {
                       navigation.navigate('Main', { screen: item.path });
                     }
@@ -224,7 +237,6 @@ const styles = StyleSheet.create({
   },
   hamburger: { gap: 4 },
   hamLine: { height: 2, backgroundColor: '#000', borderRadius: 1 },
-  homeIcon: { fontSize: 18, color: '#000' },
   walletBtn: {
     flexDirection: 'row',
     alignItems: 'center',
