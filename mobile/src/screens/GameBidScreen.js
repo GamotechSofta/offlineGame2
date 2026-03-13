@@ -12,6 +12,9 @@ import DoublePanaBulkBid from '../components/GameBid/bids/DoublePanaBulkBid';
 import TriplePanaBid from '../components/GameBid/bids/TriplePanaBid';
 import FullSangamBid from '../components/GameBid/bids/FullSangamBid';
 import HalfSangamBid from '../components/GameBid/bids/HalfSangamBid';
+import SpMotorBid from '../components/GameBid/bids/SpMotorBid';
+import DpMotorBid from '../components/GameBid/bids/DpMotorBid';
+import SpDpMotorBid from '../components/GameBid/bids/SpDpMotorBid';
 
 const BID_COMPONENTS = {
   'single digit': SingleDigitBid,
@@ -25,6 +28,9 @@ const BID_COMPONENTS = {
   'triple pana': TriplePanaBid,
   'full sangam': FullSangamBid,
   'half sangam': HalfSangamBid,
+  'sp motor': SpMotorBid,
+  'dp motor': DpMotorBid,
+  'sp dp motor': SpDpMotorBid,
 };
 
 export default function GameBidScreen() {

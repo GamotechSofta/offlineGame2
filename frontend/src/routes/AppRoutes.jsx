@@ -19,6 +19,7 @@ import Profile from '../pages/Profile';
 import BetHistory from '../pages/BetHistory';
 import MarketResultHistory from '../pages/MarketResultHistory';
 import TopWinners from '../pages/TopWinners';
+import RouletteGame from '../pages/RouletteGame';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -106,6 +107,11 @@ const Layout = ({ children }) => {
     return <>{children}</>;
   }
 
+  // Roulette game: full-screen, no header or navbar
+  if (location.pathname === '/roulette' || location.pathname === '/games/roulette') {
+    return <>{children}</>;
+  }
+
   // Same header (logoipsum, Download App, bell) for all pages - mobile-style
   if (isHomePage) {
     return (
@@ -171,6 +177,8 @@ const AppRoutes = () => {
           <Route path="/market-result-history" element={<MarketResultHistory />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/top-winners" element={<TopWinners />} />
+          <Route path="/roulette" element={<RouletteGame />} />
+          <Route path="/games/roulette" element={<RouletteGame />} />
         </Routes>
       </Layout>
     </Router>

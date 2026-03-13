@@ -53,10 +53,15 @@ const getBetTypeLabel = (type, betNumber = '') => {
         'single': 'Single',
         'jodi': 'Jodi',
         'panna': 'Panna',
+        'sp-motor': 'SP Motor',
+        'dp-motor': 'DP Motor',
         'half-sangam': 'Half Sangam',
         'full-sangam': 'Full Sangam',
     };
-    
+
+    if (type === 'sp-motor') return 'SP Motor';
+    if (type === 'dp-motor') return 'DP Motor';
+
     // For panna, determine if it's Single, Double, or Triple Pana based on betNumber
     if (type === 'panna' && betNumber) {
         const numStr = String(betNumber).trim();

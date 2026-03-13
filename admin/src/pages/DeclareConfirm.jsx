@@ -6,6 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const formatNum = (n) => (n != null && Number.isFinite(n) ? Number(n).toLocaleString('en-IN') : '0');
+const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam' }[String(t || '').toLowerCase()] || (t ? String(t) : '—'));
 
 const DeclareConfirm = () => {
     const navigate = useNavigate();
@@ -185,7 +186,7 @@ const DeclareConfirm = () => {
                                                 <tr key={idx} className="border-b border-gray-200 hover:bg-gray-100/30">
                                                     <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-400 text-[11px] sm:text-sm">{idx + 1}</td>
                                                     <td className="py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-800 text-[11px] sm:text-sm truncate max-w-[90px] sm:max-w-[120px] md:max-w-none">{row.username}</td>
-                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-600 capitalize text-[11px] sm:text-sm">{row.betType}</td>
+                                                    <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-600 capitalize text-[11px] sm:text-sm">{getBetTypeLabel(row.betType)}</td>
                                                     <td className="py-2 sm:py-2.5 px-2 sm:px-3 font-mono text-amber-300 text-[11px] sm:text-sm">{row.betNumber}</td>
                                                     <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-mono text-gray-800 text-[11px] sm:text-sm">{formatNum(row.amount)}</td>
                                                     <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-mono font-semibold text-green-600 text-[11px] sm:text-sm">{formatNum(row.payout)}</td>

@@ -34,6 +34,7 @@ export default function BidLayout({
   submitLabel = 'Submit Bets',
   selectedDate = null,
   setSelectedDate = null,
+  stickyFooter = null,
 }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -41,6 +42,8 @@ export default function BidLayout({
   const { user } = useAuth();
   const wallet = Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage(user);
   const footerBottom = BOTTOM_NAV_HEIGHT + insets.bottom;
+  const STICKY_BAR_HEIGHT = 44;
+  const scrollPaddingBottom = stickyFooter ? 80 + footerBottom + STICKY_BAR_HEIGHT : 80 + footerBottom;
 
   const today = new Date();
   const minDate = today.toISOString().split('T')[0];
@@ -94,11 +97,17 @@ export default function BidLayout({
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[styles.contentInner, { paddingBottom: 80 + footerBottom }]}
+        contentContainerStyle={[styles.contentInner, { paddingBottom: scrollPaddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
         {children}
       </ScrollView>
+
+      {stickyFooter ? (
+        <View style={[styles.stickyFooterWrap, { bottom: footerBottom }]}>
+          {stickyFooter}
+        </View>
+      ) : null}
 
       {!hideFooter && (
         <View style={[styles.footer, { paddingBottom: footerBottom }]}>
@@ -158,6 +167,14 @@ const styles = StyleSheet.create({
   dateBtnText: { fontSize: 12, fontWeight: '700', color: '#1f2937' },
   content: { flex: 1 },
   contentInner: { padding: 12, paddingBottom: 100 },
+  stickyFooterWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 44,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
   footer: {
     position: 'absolute',
     bottom: 0,

@@ -15,6 +15,7 @@ import rateRoutes from './routes/rate/rateRoutes.js';
 import dailyCommissionRoutes from './routes/dailyCommission/dailyCommissionRoutes.js';
 
 import bankDetailRoutes from './routes/bankDetail/bankDetailRoutes.js';
+import rouletteRoutes from './routes/roulette/rouletteRoutes.js';
 import { getClientIp } from './utils/activityLogger.js';
 import { startMidnightResetScheduler } from './utils/midnightReset.js';
 import cors from 'cors';
@@ -121,6 +122,7 @@ app.use('/api/v1/rates', rateRoutes);
 app.use('/api/v1/daily-commission', dailyCommissionRoutes);
 
 app.use('/api/v1/bank-details', bankDetailRoutes);
+app.use('/api/v1/roulette', rouletteRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

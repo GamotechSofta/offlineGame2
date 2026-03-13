@@ -130,6 +130,8 @@ const BetsByUser = () => {
     const getBetTypeLabel = (betType, betNumber) => {
         const key = String(betType || '').trim().toLowerCase();
         if (key === 'panna') return getPannaSubLabel(betNumber);
+        if (key === 'sp-motor') return 'SP Motor';
+        if (key === 'dp-motor') return 'DP Motor';
         const labels = {
             'single': t('singleDigit'),
             'jodi': t('jodiBulk'),

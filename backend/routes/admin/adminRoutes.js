@@ -13,6 +13,7 @@ import {
     setSecretDeclarePassword,
 } from '../../controllers/adminController.js';
 import { getLogs } from '../../controllers/activityLogController.js';
+import { getRouletteRecords, getAdminRouletteConfig, updateRouletteConfig } from '../../controllers/adminRouletteController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -38,5 +39,10 @@ router.patch('/bookies/:id/toggle-status', verifyAdmin, toggleBookieStatus); // 
 
 // Keep old route for backward compatibility
 router.post('/create-bookie', verifyAdmin, createBookie);
+
+// Roulette: records (super_admin all, bookie referred only), config (super_admin can update target win %)
+router.get('/roulette/records', verifyAdmin, getRouletteRecords);
+router.get('/roulette/config', verifyAdmin, getAdminRouletteConfig);
+router.patch('/roulette/config', verifySuperAdmin, updateRouletteConfig);
 
 export default router;

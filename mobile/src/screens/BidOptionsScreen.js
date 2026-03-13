@@ -85,6 +85,27 @@ const OPTIONS = [
       'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1770033165/Untitled_design_c5hag8.svg',
     letter: 'H',
   },
+  {
+    id: 12,
+    title: 'SP Motor',
+    icon:
+      'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
+    letter: 'M',
+  },
+  {
+    id: 13,
+    title: 'DP Motor',
+    icon:
+      'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769713943/Untitled_1080_x_1080_px_1080_x_1080_px_6_uccv7o.svg',
+    letter: 'D',
+  },
+  {
+    id: 14,
+    title: 'SP DP Motor',
+    icon:
+      'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
+    letter: 'M',
+  },
 ];
 
 function isStarline(market) {
@@ -121,7 +142,7 @@ export default function BidOptionsScreen() {
   if (isStarline(market)) {
     const allowed = new Set([
       'Single Digit', 'Single Digit Bulk', 'Single Pana', 'Single Pana Bulk',
-      'Double Pana', 'Double Pana Bulk', 'Triple Pana', 'Half Sangam',
+      'Double Pana', 'Double Pana Bulk', 'Triple Pana', 'Half Sangam', 'SP Motor', 'DP Motor', 'SP DP Motor',
     ]);
     visibleOptions = OPTIONS.filter((opt) => allowed.has(opt.title));
   }

@@ -20,6 +20,8 @@ import {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
+const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam' }[String(t || '').toLowerCase()] || (t ? String(t) : '—'));
+
 const TABS = [
     { id: 'overview', label: 'Overview' },
     { id: 'users', label: 'Users' },
@@ -391,7 +393,7 @@ const BookieDetail = () => {
                                     <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                                         <div className="flex items-center gap-2 min-w-0">
                                             <span className="text-orange-500 font-mono font-medium text-sm">{b.betNumber}</span>
-                                            <span className="text-gray-500 text-xs">{b.betType}</span>
+                                            <span className="text-gray-500 text-xs">{getBetTypeLabel(b.betType)}</span>
                                             {b.betOn && <span className="text-gray-600 text-[10px] uppercase">({b.betOn})</span>}
                                         </div>
                                         <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${

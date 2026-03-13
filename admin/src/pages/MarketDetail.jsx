@@ -21,6 +21,9 @@ const formatTime = (timeStr) => {
 
 const formatNum = (n) => (n != null && Number.isFinite(n) ? Number(n).toLocaleString('en-IN') : '0');
 
+/** Display label for bet type (super admin panel) */
+const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam' }[String(t || '').toLowerCase()] || (t ? String(t).toUpperCase() : 'N/A'));
+
 /** Card container matching AddResult/UpdateRate style */
 const SectionCard = ({ title, children, className = '' }) => (
     <div className={`rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${className}`}>
@@ -570,7 +573,7 @@ const analyzeBets = (betsList, rates, sessionType) => {
     const pannaMap = new Map();
     
     betsList.forEach((bet) => {
-        if (bet.betType === 'panna' && bet.betNumber && bet.betNumber.length === 3) {
+        if ((bet.betType === 'panna' || bet.betType === 'sp-motor' || bet.betType === 'dp-motor') && bet.betNumber && bet.betNumber.length === 3) {
             const panna = bet.betNumber;
             if (!pannaMap.has(panna)) {
                 pannaMap.set(panna, []);
@@ -1643,7 +1646,7 @@ const MarketDetail = () => {
                                                         <td className="px-3 py-2 text-gray-600 text-xs">{bet.userId?.phone || '—'}</td>
                                                         <td className="px-3 py-2 text-center">
                                                             <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700">
-                                                                {bet.betType?.toUpperCase() || 'N/A'}
+                                                                {getBetTypeLabel(bet.betType)}
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2 text-center font-mono font-bold text-orange-600">{bet.betNumber || '—'}</td>
@@ -1706,7 +1709,7 @@ const MarketDetail = () => {
                                                         <td className="px-3 py-2 text-gray-600 text-xs">{bet.userId?.phone || '—'}</td>
                                                         <td className="px-3 py-2 text-center">
                                                             <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700">
-                                                                {bet.betType?.toUpperCase() || 'N/A'}
+                                                                {getBetTypeLabel(bet.betType)}
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2 text-center font-mono font-bold text-orange-600">{bet.betNumber || '—'}</td>

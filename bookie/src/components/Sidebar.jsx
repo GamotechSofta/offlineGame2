@@ -17,6 +17,7 @@ import {
     FaChevronDown,
     FaCreditCard,
     FaCog,
+    FaDice,
 } from 'react-icons/fa';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -35,6 +36,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/revenue', label: t('revenue'), icon: FaMoneyBillWave, key: 'revenue' },
         { path: '/payments', label: t('payments'), icon: FaCreditCard, key: 'payments' },
         { path: '/records', label: t('betHistory'), icon: FaFileInvoiceDollar, key: 'records' },
+        { path: '/roulette', label: t('roulette') || 'Roulette', icon: FaDice, key: 'roulette' },
         { path: '/wallet', label: t('wallet'), icon: FaWallet, key: 'wallet' },
         { path: '/receipt', label: t('receipt'), icon: FaFileInvoiceDollar, key: 'receipt' },
         { path: '/shortcuts', label: t('shortcuts'), icon: FaKeyboard, key: 'shortcuts' },

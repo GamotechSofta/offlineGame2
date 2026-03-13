@@ -150,6 +150,39 @@ const BidOptions = () => {
         />
       ),
     },
+    {
+      id: 12,
+      title: 'SP Motor',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
+          alt="SP Motor"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
+    {
+      id: 13,
+      title: 'DP Motor',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769713943/Untitled_1080_x_1080_px_1080_x_1080_px_6_uccv7o.svg"
+          alt="DP Motor"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
+    {
+      id: 14,
+      title: 'SP DP Motor',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
+          alt="SP DP Motor"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
   ];
 
   if (!market) {
@@ -172,6 +205,9 @@ const BidOptions = () => {
           'Double Pana Bulk',
           'Triple Pana',
           'Half Sangam',
+          'SP Motor',
+          'DP Motor',
+          'SP DP Motor',
         ]);
         return allowed.has(t);
       })

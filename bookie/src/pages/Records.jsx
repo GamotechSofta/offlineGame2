@@ -12,6 +12,14 @@ const formatBetDetails = (bet) => {
         if (betOn === 'close') return `CLOSE PANA ${betNumber}`;
         return `OPEN PANA ${betNumber}`;
     }
+    if (betType === 'sp-motor' && betNumber) {
+        if (betOn === 'close') return `CLOSE SP MOTOR ${betNumber}`;
+        return `OPEN SP MOTOR ${betNumber}`;
+    }
+    if (betType === 'dp-motor' && betNumber) {
+        if (betOn === 'close') return `CLOSE DP MOTOR ${betNumber}`;
+        return `OPEN DP MOTOR ${betNumber}`;
+    }
 
     return `${String(bet?.betType || '').toUpperCase()} ${betNumber}`.trim();
 };

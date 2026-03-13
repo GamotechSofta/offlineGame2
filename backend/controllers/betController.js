@@ -8,8 +8,23 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingAllowed, isBettingAllowedForSession } from '../utils/marketTiming.js';
 
-const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'half-sangam', 'full-sangam'];
+const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam'];
 const THREE_DIGITS = /^\d{3}$/;
+
+/** Same rules as Double Pana: 3 digits, two consecutive same, first !== 0, and digit ordering rules. */
+function isValidDoublePana(str) {
+    if (!str || typeof str !== 'string') return false;
+    const s = str.trim();
+    if (!/^[0-9]{3}$/.test(s)) return false;
+    const first = Number(s[0]), second = Number(s[1]), third = Number(s[2]);
+    const hasConsecutiveSame = (first === second) || (second === third);
+    if (!hasConsecutiveSame) return false;
+    if (first === 0) return false;
+    if (second === 0 && third === 0) return true;
+    if (first === second && third === 0) return true;
+    if (third <= first) return false;
+    return true;
+}
 
 const normalizeBetOn = (v) => {
     const s = String(v ?? '').trim().toLowerCase();
@@ -108,6 +123,12 @@ export const placeBet = async (req, res) => {
                 return res.status(400).json({
                     success: false,
                     message: 'Each bet must have betType, betNumber and amount > 0',
+                });
+            }
+            if (betType === 'dp-motor' && !isValidDoublePana(betNumber)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'DP Motor betNumber must be a valid double pana (3 digits, two consecutive same, e.g. 112, 220).',
                 });
             }
             const timing = isBettingAllowedForSession(market, now, betOn);
@@ -215,6 +236,8 @@ export const placeBet = async (req, res) => {
             if (s === 'single') return 'Single Ank';
             if (s === 'jodi') return 'Digit';
             if (s === 'panna') return 'Panna';
+            if (s === 'sp-motor') return 'SP Motor';
+            if (s === 'dp-motor') return 'DP Motor';
             if (s === 'half-sangam') return 'Half Sangam';
             if (s === 'full-sangam') return 'Full Sangam';
             return 'Bet';
@@ -340,6 +363,12 @@ export const placeBetForPlayer = async (req, res) => {
                 return res.status(400).json({
                     success: false,
                     message: 'Each bet must have betType, betNumber and amount > 0',
+                });
+            }
+            if (betType === 'dp-motor' && !isValidDoublePana(betNumber)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'DP Motor betNumber must be a valid double pana (3 digits, two consecutive same, e.g. 112, 220).',
                 });
             }
             const timing = isBettingAllowedForSession(market, now, betOn);

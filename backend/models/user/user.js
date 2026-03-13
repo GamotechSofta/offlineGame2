@@ -82,6 +82,12 @@ const userSchema = new mongoose.Schema({
         default: 0,
         min: 0,
     },
+    /** Roulette / games stats (optional) */
+    gamesPlayed: { type: Number, default: 0 },
+    gamesWon: { type: Number, default: 0 },
+    totalWagered: { type: Number, default: 0 },
+    totalWon: { type: Number, default: 0 },
+    biggestWin: { type: Number, default: 0 },
 }, {
     timestamps: true,
 });

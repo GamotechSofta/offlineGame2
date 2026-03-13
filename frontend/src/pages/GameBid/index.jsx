@@ -12,6 +12,9 @@ import DoublePanaBulkBid from './bids/DoublePanaBulkBid';
 import TriplePanaBid from './bids/TriplePanaBid';
 import FullSangamBid from './bids/FullSangamBid';
 import HalfSangamBid from './bids/HalfSangamBid';
+import SpMotorBid from './bids/SpMotorBid';
+import DpMotorBid from './bids/DpMotorBid';
+import SpDpMotorBid from './bids/SpDpMotorBid';
 
 const BID_COMPONENTS = {
     'single digit': SingleDigitBid,
@@ -24,8 +27,10 @@ const BID_COMPONENTS = {
     'double pana bulk': DoublePanaBulkBid,
     'triple pana': TriplePanaBid,
     'full sangam': FullSangamBid,
-    // Half Sangam: single game with common UI for (O) and (C)
     'half sangam': HalfSangamBid,
+    'sp motor': SpMotorBid,
+    'dp motor': DpMotorBid,
+    'sp dp motor': SpDpMotorBid,
 };
 
 const GameBid = () => {

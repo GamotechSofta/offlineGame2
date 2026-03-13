@@ -15,7 +15,7 @@ import Revenue from './pages/Revenue';
 import Payments from './pages/Payments';
 import Wallet from './pages/Wallet';
 import Records from './pages/Records';
-
+import Roulette from './pages/Roulette';
 import HelpDesk from './pages/HelpDesk';
 import PlayerDetail from './pages/PlayerDetail';
 import GamesMarkets from './pages/GamesMarkets';
@@ -84,6 +84,7 @@ const AppRoutes = () => (
         <Route path="/revenue" element={<PrivateRoute><Revenue /></PrivateRoute>} />
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
         <Route path="/records" element={<PrivateRoute><Records /></PrivateRoute>} />
+        <Route path="/roulette" element={<PrivateRoute><Roulette /></PrivateRoute>} />
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
         <Route path="/receipt" element={<PrivateRoute><Receipt /></PrivateRoute>} />
         <Route path="/receipt/:sessionId" element={<PrivateRoute><Receipt /></PrivateRoute>} />

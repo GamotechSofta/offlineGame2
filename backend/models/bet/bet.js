@@ -24,7 +24,7 @@ const betSchema = new mongoose.Schema({
     betType: {
         type: String,
         required: true,
-        enum: ['single', 'jodi', 'panna', 'half-sangam', 'full-sangam'],
+        enum: ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam'],
     },
     betNumber: {
         type: String,

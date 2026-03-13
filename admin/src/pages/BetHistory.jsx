@@ -10,6 +10,8 @@ const formatNum = (num) => {
     return Number(num).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 };
 
+const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam' }[String(t || '').toLowerCase()] || (t ? String(t).toUpperCase() : 'N/A'));
+
 const BetHistory = () => {
     const navigate = useNavigate();
     const [bets, setBets] = useState([]);
@@ -255,7 +257,7 @@ const BetHistory = () => {
                                                                     <td className="px-3 py-2 text-gray-600 text-xs">{bet.userId?.phone || bet.userId?.email || '—'}</td>
                                                                     <td className="px-3 py-2 text-center">
                                                                         <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700">
-                                                                            {bet.betType?.toUpperCase() || 'N/A'}
+                                                                            {getBetTypeLabel(bet.betType)}
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-3 py-2 text-center font-mono font-bold text-orange-600">{bet.betNumber || '—'}</td>
@@ -318,7 +320,7 @@ const BetHistory = () => {
                                                                     <td className="px-3 py-2 text-gray-600 text-xs">{bet.userId?.phone || bet.userId?.email || '—'}</td>
                                                                     <td className="px-3 py-2 text-center">
                                                                         <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700">
-                                                                            {bet.betType?.toUpperCase() || 'N/A'}
+                                                                            {getBetTypeLabel(bet.betType)}
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-3 py-2 text-center font-mono font-bold text-orange-600">{bet.betNumber || '—'}</td>

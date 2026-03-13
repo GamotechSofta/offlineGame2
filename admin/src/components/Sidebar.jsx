@@ -15,6 +15,7 @@ import {
     FaCoins,
     FaCog,
     FaMoneyBillWave,
+    FaDice,
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
@@ -34,6 +35,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/revenue', label: 'Revenue', icon: FaMoneyBillWave },
         { path: '/payment-management', label: 'Payments', icon: FaCreditCard },
         { path: '/wallet', label: 'Wallet', icon: FaWallet },
+        { path: '/roulette', label: 'Roulette', icon: FaDice },
         { path: '/logs', label: 'Logs', icon: FaClipboardList },
         { path: '/settings', label: 'Settings', icon: FaCog },
     ];
