@@ -3,6 +3,7 @@ import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
 import { useBettingWindow } from '../BettingWindowContext';
 import { placeBet, updateUserBalance } from '../../../api/bets';
+import { isValidSinglePana } from './panaRules';
 
 const sanitizeDigits = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 10);
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
@@ -15,7 +16,10 @@ function generateSinglePanaCombinations(digitStr) {
   for (let i = 0; i < n - 2; i++) {
     for (let j = i + 1; j < n - 1; j++) {
       for (let k = j + 1; k < n; k++) {
-        out.push(digits[i] + digits[j] + digits[k]);
+        const pana = digits[i] + digits[j] + digits[k];
+        if (isValidSinglePana(pana)) {
+          out.push(pana);
+        }
       }
     }
   }
@@ -76,6 +80,7 @@ const SpDpMotorBid = ({ market, title }) => {
     } catch (e) {}
     return new Date().toISOString().split('T')[0];
   });
+  const [sortMode, setSortMode] = useState('none'); // 'none' | 'sp-first' | 'dp-first'
 
   const handleDateChange = (newDate) => {
     try {
@@ -143,9 +148,27 @@ const SpDpMotorBid = ({ market, title }) => {
     setCombinations((prev) => prev.filter((c) => c.id !== id));
   };
 
+  const sortedCombinations = useMemo(() => {
+    const base = [...combinations];
+    if (sortMode === 'sp-first') {
+      base.sort((a, b) => {
+        if (a.kind === b.kind) return Number(a.pana) - Number(b.pana);
+        return a.kind === 'SP' ? -1 : 1;
+      });
+    } else if (sortMode === 'dp-first') {
+      base.sort((a, b) => {
+        if (a.kind === b.kind) return Number(a.pana) - Number(b.pana);
+        return a.kind === 'DP' ? -1 : 1;
+      });
+    } else {
+      base.sort((a, b) => Number(a.pana) - Number(b.pana));
+    }
+    return base;
+  }, [combinations, sortMode]);
+
   const rowsWithPoints = useMemo(
-    () => combinations.filter((c) => Number(c.points) > 0),
-    [combinations]
+    () => sortedCombinations.filter((c) => Number(c.points) > 0),
+    [sortedCombinations]
   );
   const bidsCount = rowsWithPoints.length;
   const totalPoints = useMemo(
@@ -311,19 +334,41 @@ const SpDpMotorBid = ({ market, title }) => {
 
           <div className="w-full md:w-1/2 flex-1 min-w-0 rounded-lg border border-gray-200 overflow-hidden flex flex-col min-h-[200px] sm:min-h-[260px]">
             <div className="overflow-x-auto shrink-0">
-              <div className="grid grid-cols-[minmax(64px,72px)_minmax(56px,72px)_1fr_minmax(44px,48px)] sm:grid-cols-[72px_72px_1fr_48px] gap-2 bg-[#1B3150] text-white font-bold text-xs sm:text-sm py-2.5 px-2 sm:px-3 min-w-0">
-                <div className="text-center">Pana</div>
-                <div className="text-center">Type</div>
-                <div className="text-center">Point</div>
-                <div className="text-center">Delete</div>
+              <div className="flex items-stretch justify-between gap-2 bg-[#1B3150] text-white min-w-0 px-2 sm:px-3 py-2">
+                <div className="grid grid-cols-[minmax(64px,72px)_minmax(56px,72px)_1fr_minmax(44px,48px)] sm:grid-cols-[72px_72px_1fr_48px] gap-2 flex-1 text-xs sm:text-sm font-bold">
+                  <div className="text-center">Pana</div>
+                  <div className="text-center">Type</div>
+                  <div className="text-center">Point</div>
+                  <div className="text-center">Delete</div>
+                </div>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSortMode('sp-first')}
+                    className={`px-2 py-1 rounded text-[10px] sm:text-xs font-semibold border border-white/40 ${
+                      sortMode === 'sp-first' ? 'bg-white text-[#1B3150]' : 'bg-[#1B3150] text-white'
+                    }`}
+                  >
+                    SP First
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortMode('dp-first')}
+                    className={`px-2 py-1 rounded text-[10px] sm:text-xs font-semibold border border-white/40 ${
+                      sortMode === 'dp-first' ? 'bg-white text-[#1B3150]' : 'bg-[#1B3150] text-white'
+                    }`}
+                  >
+                    DP First
+                  </button>
+                </div>
               </div>
             </div>
             <div className="max-h-[240px] sm:max-h-[280px] overflow-y-auto overflow-x-auto flex-1 bg-white">
-              {combinations.length === 0 ? (
+              {sortedCombinations.length === 0 ? (
                 <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
               ) : (
                 <div className="min-w-0">
-                  {combinations.map((c) => (
+                  {sortedCombinations.map((c) => (
                     <div
                       key={c.id}
                       className="grid grid-cols-[minmax(64px,72px)_minmax(56px,72px)_1fr_minmax(44px,48px)] sm:grid-cols-[72px_72px_1fr_48px] gap-2 items-center py-2.5 px-2 sm:px-3 border-b border-gray-200 min-h-[44px]"
