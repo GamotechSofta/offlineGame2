@@ -8,7 +8,7 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingAllowed, isBettingAllowedForSession } from '../utils/marketTiming.js';
 
-const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam'];
+const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam', 'odd-even'];
 const THREE_DIGITS = /^\d{3}$/;
 
 /** Same rules as Double Pana: 3 digits, two consecutive same, first !== 0, and digit ordering rules. */
@@ -131,6 +131,15 @@ export const placeBet = async (req, res) => {
                     message: 'DP Motor betNumber must be a valid double pana (3 digits, two consecutive same, e.g. 112, 220).',
                 });
             }
+            if (betType === 'odd-even') {
+                const oe = betNumber.toLowerCase();
+                if (oe !== 'odd' && oe !== 'even') {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Odd Even betNumber must be "odd" or "even".',
+                    });
+                }
+            }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {
                 return res.status(400).json({
@@ -140,7 +149,8 @@ export const placeBet = async (req, res) => {
                 });
             }
             totalAmount += amount;
-            sanitized.push({ betType, betNumber, amount, betOn });
+            const storedBetNumber = betType === 'odd-even' ? String(betNumber).toLowerCase() : betNumber;
+            sanitized.push({ betType, betNumber: storedBetNumber, amount, betOn });
         }
 
         // Use atomic operation to prevent race conditions
@@ -371,6 +381,15 @@ export const placeBetForPlayer = async (req, res) => {
                     message: 'DP Motor betNumber must be a valid double pana (3 digits, two consecutive same, e.g. 112, 220).',
                 });
             }
+            if (betType === 'odd-even') {
+                const oe = betNumber.toLowerCase();
+                if (oe !== 'odd' && oe !== 'even') {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Odd Even betNumber must be "odd" or "even".',
+                    });
+                }
+            }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {
                 return res.status(400).json({
@@ -380,7 +399,8 @@ export const placeBetForPlayer = async (req, res) => {
                 });
             }
             totalAmount += amount;
-            sanitized.push({ betType, betNumber, amount, betOn });
+            const storedBetNumber = betType === 'odd-even' ? String(betNumber).toLowerCase() : betNumber;
+            sanitized.push({ betType, betNumber: storedBetNumber, amount, betOn });
         }
 
         // Deduct from BOOKIE's balance (not user's wallet)

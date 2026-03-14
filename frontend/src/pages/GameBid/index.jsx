@@ -15,9 +15,11 @@ import HalfSangamBid from './bids/HalfSangamBid';
 import SpMotorBid from './bids/SpMotorBid';
 import DpMotorBid from './bids/DpMotorBid';
 import SpDpMotorBid from './bids/SpDpMotorBid';
+import OddEvenBid from './bids/OddEvenBid';
 
 const BID_COMPONENTS = {
     'single digit': SingleDigitBid,
+    'odd even': OddEvenBid,
     'single digit bulk': SingleDigitBulkBid,
     'jodi': JodiBid,
     'jodi bulk': JodiBulkBid,

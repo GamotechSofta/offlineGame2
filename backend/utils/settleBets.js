@@ -279,6 +279,18 @@ export async function settleOpening(marketId, openingNumber) {
             if (won && payout > 0) {
                 await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Single ${num})`, bet._id, { placedByBookie: bet.placedByBookie, placedByBookieId: bet.placedByBookieId });
             }
+        } else if (type === 'odd-even' && (num === 'odd' || num === 'even')) {
+            const digit = openDigit != null ? Number(openDigit) : null;
+            const isOddDigit = digit != null && digit % 2 === 1;
+            const won = digit != null && ((num === 'odd' && isOddDigit) || (num === 'even' && !isOddDigit));
+            const payout = won ? amount * getRateForKey(rates, 'oddEven') : 0;
+            await Bet.updateOne(
+                { _id: bet._id },
+                { status: won ? 'won' : 'lost', payout }
+            );
+            if (won && payout > 0) {
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Odd Even ${num})`, bet._id, { placedByBookie: bet.placedByBookie, placedByBookieId: bet.placedByBookieId });
+            }
         } else if (isPannaLike(type) && /^[0-9]{3}$/.test(num)) {
             const won = num === open3;
             const pannaType = getPannaType(open3);
@@ -354,6 +366,17 @@ export async function settleClosing(marketId, closingNumber) {
             await Bet.updateOne({ _id: bet._id }, { status: won ? 'won' : 'lost', payout });
             if (won && payout > 0) {
                 await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Single ${num})`, bet._id, { placedByBookie: bet.placedByBookie, placedByBookieId: bet.placedByBookieId });
+            }
+        }
+        // CLOSE-session Odd Even (settles on closing digit)
+        else if (type === 'odd-even' && (bet.betOn || '').toString().toLowerCase() === 'close' && (num === 'odd' || num === 'even')) {
+            const digit = lastDigitClose != null ? Number(lastDigitClose) : null;
+            const isOddDigit = digit != null && digit % 2 === 1;
+            const won = digit != null && ((num === 'odd' && isOddDigit) || (num === 'even' && !isOddDigit));
+            const payout = won ? amount * getRateForKey(rates, 'oddEven') : 0;
+            await Bet.updateOne({ _id: bet._id }, { status: won ? 'won' : 'lost', payout });
+            if (won && payout > 0) {
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (Odd Even ${num})`, bet._id, { placedByBookie: bet.placedByBookie, placedByBookieId: bet.placedByBookieId });
             }
         }
         // CLOSE-session Patti/Panna (settles on closing patti); sp-motor same as panna
@@ -475,6 +498,25 @@ export async function previewDeclareOpen(marketId, openingNumber, options = {}) 
                     totalWinAmountOnPatti += payout;
                 }
             }
+        } else if (type === 'odd-even') {
+            const num = (bet.betNumber || '').toString().trim().toLowerCase();
+            if (num === 'odd' || num === 'even') {
+                totalBetAmount += amount;
+                userIds.add(bet.userId.toString());
+                if (lastDigitOpen != null) {
+                    const digit = Number(lastDigitOpen);
+                    const isOddDigit = digit % 2 === 1;
+                    if ((num === 'odd' && isOddDigit) || (num === 'even' && !isOddDigit)) {
+                        totalBetAmountOnPatti += amount;
+                        playersBetOnPatti.add(bet.userId.toString());
+                        if (isPending) {
+                            const payout = amount * getRateForKey(rates, 'oddEven');
+                            totalWinAmount += payout;
+                            totalWinAmountOnPatti += payout;
+                        }
+                    }
+                }
+            }
         } else if (isPannaLike(type) && rawNum.length >= 3) {
             const num = rawNum.slice(0, 3).padStart(3, '0');
             totalBetAmount += amount;
@@ -576,7 +618,7 @@ export async function previewDeclareClose(marketId, closingNumber, options = {})
         const type = (bet.betType || '').toLowerCase();
         const isCloseSession = (bet.betOn || '').toString().toLowerCase() === 'close';
         // Half Sangam is cross-side and settles on close declaration.
-        return type === 'jodi' || type === 'full-sangam' || type === 'half-sangam' || (type === 'single' && isCloseSession) || (isPannaLike(type) && isCloseSession);
+        return type === 'jodi' || type === 'full-sangam' || type === 'half-sangam' || (type === 'single' && isCloseSession) || (type === 'odd-even' && isCloseSession) || (isPannaLike(type) && isCloseSession);
     };
 
     if (!closingNumber || !/^\d{3}$/.test(closingNumber)) {
@@ -624,6 +666,7 @@ export async function previewDeclareClose(marketId, closingNumber, options = {})
             type === 'full-sangam' ||
             type === 'half-sangam' ||
             (type === 'single' && isCloseSession) ||
+            (type === 'odd-even' && isCloseSession) ||
             (isPannaLike(type) && isCloseSession);
         if (!isCloseSettleType) continue;
 
@@ -637,6 +680,19 @@ export async function previewDeclareClose(marketId, closingNumber, options = {})
                 playersBetOnPatti.add(bet.userId.toString());
                 if (isPending) {
                     const payout = amount * getRateForKey(rates, 'single');
+                    totalWinAmount += payout;
+                    totalWinAmountOnPatti += payout;
+                }
+                isWinning = true;
+            }
+        } else if (type === 'odd-even' && isCloseSession && (num === 'odd' || num === 'even')) {
+            const digit = lastDigitClose != null ? Number(lastDigitClose) : null;
+            const isOddDigit = digit != null && digit % 2 === 1;
+            if (digit != null && ((num === 'odd' && isOddDigit) || (num === 'even' && !isOddDigit))) {
+                totalBetAmountOnPatti += amount;
+                playersBetOnPatti.add(bet.userId.toString());
+                if (isPending) {
+                    const payout = amount * getRateForKey(rates, 'oddEven');
                     totalWinAmount += payout;
                     totalWinAmountOnPatti += payout;
                 }
@@ -750,6 +806,12 @@ export async function getWinningBetsForOpen(marketId, openingNumber, options = {
         let payout = 0;
         if (type === 'single' && /^[0-9]$/.test(num) && lastDigitOpen != null && num === lastDigitOpen) {
             payout = amount * getRateForKey(rates, 'single');
+        } else if (type === 'odd-even' && (num === 'odd' || num === 'even') && lastDigitOpen != null) {
+            const digit = Number(lastDigitOpen);
+            const isOddDigit = digit % 2 === 1;
+            if ((num === 'odd' && isOddDigit) || (num === 'even' && !isOddDigit)) {
+                payout = amount * getRateForKey(rates, 'oddEven');
+            }
         } else if (isPannaLike(type) && /^[0-9]{3}$/.test(num) && open3 != null && num === open3) {
             const pannaType = getPannaType(open3);
             const rateKey = pannaType || 'singlePatti';
@@ -808,11 +870,18 @@ export async function getWinningBetsForClose(marketId, closingNumber, options = 
             type === 'full-sangam' ||
             type === 'half-sangam' ||
             (type === 'single' && isCloseSession) ||
+            (type === 'odd-even' && isCloseSession) ||
             (isPannaLike(type) && isCloseSession);
         if (!isCloseSettleType) continue;
         let payout = 0;
         if (type === 'single' && isCloseSession && /^[0-9]$/.test(num)) {
             if (num === lastDigitClose) payout = amount * getRateForKey(rates, 'single');
+        } else if (type === 'odd-even' && isCloseSession && (num === 'odd' || num === 'even')) {
+            const digit = lastDigitClose != null ? Number(lastDigitClose) : null;
+            const isOddDigit = digit != null && digit % 2 === 1;
+            if (digit != null && ((num === 'odd' && isOddDigit) || (num === 'even' && !isOddDigit))) {
+                payout = amount * getRateForKey(rates, 'oddEven');
+            }
         } else if (isPannaLike(type) && isCloseSession && /^[0-9]{3}$/.test(num)) {
             if (num === close3) payout = amount * getRateForKey(rates, pannaRateKeyClose);
         } else if (type === 'jodi' && /^[0-9]{2}$/.test(num)) {

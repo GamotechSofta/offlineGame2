@@ -7,6 +7,7 @@ import { FaArrowLeft, FaDice, FaCheck, FaTimes, FaPlus, FaTrash, FaSearch, FaUse
 /* ─── Game type metadata ─── */
 const GAME_META = {
     'single-digit': { label: 'Single Digit', betType: 'single', digits: 1, placeholder: 'Enter digit (0-9)', pattern: /^\d$/, help: 'Enter a single digit between 0 and 9' },
+    'odd-even':     { label: 'Odd Even', betType: 'odd-even', digits: 0, placeholder: 'odd or even', pattern: /^(odd|even)$/i, help: 'Enter odd or even' },
     'jodi':         { label: 'Jodi', betType: 'jodi', digits: 2, placeholder: 'Enter 2 digits (00-99)', pattern: /^\d{2}$/, help: 'Enter a two-digit number from 00 to 99' },
     'single-pana':  { label: 'Single Pana', betType: 'panna', digits: 3, placeholder: 'Enter 3 digits (all different)', pattern: /^\d{3}$/, help: 'Enter 3 digits where all are different, e.g. 123' },
     'double-pana':  { label: 'Double Pana', betType: 'panna', digits: 3, placeholder: 'Enter 3 digits (two same)', pattern: /^\d{3}$/, help: 'Enter 3 digits where two are same, e.g. 112' },

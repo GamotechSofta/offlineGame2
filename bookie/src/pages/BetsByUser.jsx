@@ -137,6 +137,7 @@ const BetsByUser = () => {
             'jodi': t('jodiBulk'),
             'half-sangam': t('halfSangamO'),
             'full-sangam': t('fullSangam'),
+            'odd-even': 'Odd Even',
         };
         return labels[key] || betType;
     };

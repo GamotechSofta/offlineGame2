@@ -14,11 +14,12 @@ import BidReviewModal from './BidReviewModal';
 import { useBettingWindow } from '../BettingWindowContext';
 import { placeBet, updateUserBalance } from '../../../api/bets';
 import { useAuth } from '../../../context/AuthContext';
+import { isValidSinglePana } from '../../../utils/panaRules';
 
 const sanitizeDigits = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 10);
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
 
-/** Generate all 3-digit single pana combinations from unique digits (order: ascending). */
+/** Generate all valid 3-digit single pana combinations from unique digits (chart-valid only). */
 function generateSinglePanaCombinations(digitStr) {
   const digits = [...new Set(digitStr.replace(/\D/g, '').split('').sort())];
   if (digits.length < 3) return [];
@@ -27,7 +28,8 @@ function generateSinglePanaCombinations(digitStr) {
   for (let i = 0; i < n - 2; i++) {
     for (let j = i + 1; j < n - 1; j++) {
       for (let k = j + 1; k < n; k++) {
-        out.push(digits[i] + digits[j] + digits[k]);
+        const pana = digits[i] + digits[j] + digits[k];
+        if (isValidSinglePana(pana)) out.push(pana);
       }
     }
   }

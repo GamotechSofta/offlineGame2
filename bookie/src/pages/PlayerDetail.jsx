@@ -64,6 +64,7 @@ const getBetTypeLabel = (betType, t, betNumber) => {
         'jodi': t('jodiBulk'),
         'full-sangam': t('fullSangam'),
         'half-sangam': t('halfSangamO'),
+        'odd-even': 'Odd Even',
     };
     return labels[key] || betType;
 };

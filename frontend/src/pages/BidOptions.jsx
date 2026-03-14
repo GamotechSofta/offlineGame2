@@ -52,6 +52,17 @@ const BidOptions = () => {
       ),
     },
     {
+      id: 2.5,
+      title: 'Odd Even',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769756244/Untitled_90_x_160_px_1080_x_1080_px_1_yinraf.svg"
+          alt="Odd Even"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
+    {
       id: 3,
       title: 'Jodi',
       icon: (
@@ -199,6 +210,7 @@ const BidOptions = () => {
         const allowed = new Set([
           'Single Digit',
           'Single Digit Bulk',
+          'Odd Even',
           'Single Pana',
           'Single Pana Bulk',
           'Double Pana',

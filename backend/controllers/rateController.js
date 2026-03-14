@@ -29,6 +29,7 @@ export const getRates = async (req, res) => {
             { gameType: 'triplePatti', label: 'Triple Patti', rate: map.triplePatti },
             { gameType: 'halfSangam', label: 'Half Sangam', rate: map.halfSangam },
             { gameType: 'fullSangam', label: 'Full Sangam', rate: map.fullSangam },
+            { gameType: 'oddEven', label: 'Odd Even', rate: map.oddEven },
         ];
         res.status(200).json({ success: true, data: list });
     } catch (error) {
@@ -36,7 +37,7 @@ export const getRates = async (req, res) => {
     }
 };
 
-const RATE_GAME_TYPES = ['single', 'jodi', 'singlePatti', 'doublePatti', 'triplePatti', 'halfSangam', 'fullSangam'];
+const RATE_GAME_TYPES = ['single', 'jodi', 'singlePatti', 'doublePatti', 'triplePatti', 'halfSangam', 'fullSangam', 'oddEven'];
 
 /**
  * PATCH /rates/:gameType – update one rate. Body: { rate: number, secretDeclarePassword?: string }
@@ -81,6 +82,7 @@ export const updateRate = async (req, res) => {
             { gameType: 'triplePatti', label: 'Triple Patti', rate: map.triplePatti },
             { gameType: 'halfSangam', label: 'Half Sangam', rate: map.halfSangam },
             { gameType: 'fullSangam', label: 'Full Sangam', rate: map.fullSangam },
+            { gameType: 'oddEven', label: 'Odd Even', rate: map.oddEven },
         ];
         res.status(200).json({ success: true, data: list });
     } catch (error) {

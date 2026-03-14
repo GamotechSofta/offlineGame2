@@ -15,10 +15,12 @@ import HalfSangamBid from '../components/GameBid/bids/HalfSangamBid';
 import SpMotorBid from '../components/GameBid/bids/SpMotorBid';
 import DpMotorBid from '../components/GameBid/bids/DpMotorBid';
 import SpDpMotorBid from '../components/GameBid/bids/SpDpMotorBid';
+import OddEvenBid from '../components/GameBid/bids/OddEvenBid';
 
 const BID_COMPONENTS = {
   'single digit': SingleDigitBid,
   'single digit bulk': SingleDigitBulkBid,
+  'odd even': OddEvenBid,
   'jodi': JodiBid,
   'jodi bulk': JodiBulkBid,
   'single pana': SinglePanaBid,

@@ -23,6 +23,13 @@ const OPTIONS = [
     letter: '1',
   },
   {
+    id: 2.5,
+    title: 'Odd Even',
+    icon:
+      'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769756244/Untitled_90_x_160_px_1080_x_1080_px_1_yinraf.svg',
+    letter: 'O',
+  },
+  {
     id: 3,
     title: 'Jodi',
     icon:
@@ -141,7 +148,7 @@ export default function BidOptionsScreen() {
   let visibleOptions = OPTIONS;
   if (isStarline(market)) {
     const allowed = new Set([
-      'Single Digit', 'Single Digit Bulk', 'Single Pana', 'Single Pana Bulk',
+      'Single Digit', 'Single Digit Bulk', 'Odd Even', 'Single Pana', 'Single Pana Bulk',
       'Double Pana', 'Double Pana Bulk', 'Triple Pana', 'Half Sangam', 'SP Motor', 'DP Motor', 'SP DP Motor',
     ]);
     visibleOptions = OPTIONS.filter((opt) => allowed.has(opt.title));
