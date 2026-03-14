@@ -64,22 +64,23 @@ export async function placeBet(marketId, bets, scheduledDate = null) {
     return undefined;
   };
 
-  const totalAmount = bets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-  if (totalAmount <= 0) {
-    return { success: false, message: 'Total bet amount must be greater than 0' };
+  if (!Array.isArray(bets) || bets.length === 0) {
+    return { success: false, message: 'No bets to place' };
   }
-
   for (const b of bets) {
-    const amount = Number(b.amount) || 0;
-    if (amount <= 0) {
-      return { success: false, message: 'Each bet amount must be greater than 0' };
+    const betType = (b.betType ?? '').toString().trim();
+    const betNumber = (b.betNumber ?? '').toString().trim();
+    const amount = Number(b.amount);
+    if (!betType || !betNumber || !Number.isFinite(amount) || amount <= 0) {
+      return { success: false, message: 'Each bet must have betType, betNumber and amount > 0' };
     }
     if (amount > 1000000) {
       return { success: false, message: 'Bet amount cannot exceed ₹10,00,000' };
     }
-    if (!b.betNumber || String(b.betNumber).trim() === '') {
-      return { success: false, message: 'Bet number is required for all bets' };
-    }
+  }
+  const totalAmount = bets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  if (totalAmount <= 0) {
+    return { success: false, message: 'Total bet amount must be greater than 0' };
   }
 
   const payload = {
