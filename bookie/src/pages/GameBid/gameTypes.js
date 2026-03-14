@@ -5,6 +5,9 @@ import DoublePanaBulkBid from './bids/DoublePanaBulkBid';
 import TriplePanaBid from './bids/TriplePanaBid';
 import FullSangamBid from './bids/FullSangamBid';
 import HalfSangamBid from './bids/HalfSangamBid';
+import SpMotorBid from './bids/SpMotorBid';
+import DpMotorBid from './bids/DpMotorBid';
+import SpDpMotorBid from './bids/SpDpMotorBid';
 
 export const GAME_TYPE_ORDER = [
     'single-digit',
@@ -14,6 +17,9 @@ export const GAME_TYPE_ORDER = [
     'triple-pana',
     'full-sangam',
     'half-sangam',
+    'sp-motor',
+    'dp-motor',
+    'sp-dp-motor',
 ];
 
 export const CLOSE_SESSION_HIDDEN_GAME_TYPES = ['jodi', 'full-sangam', 'half-sangam'];
@@ -31,4 +37,7 @@ export const BID_COMPONENTS = {
     'triple-pana': { component: TriplePanaBid, title: 'Triple Pana', betType: 'panna' },
     'full-sangam': { component: FullSangamBid, title: 'Full Sangam', betType: 'full-sangam' },
     'half-sangam': { component: HalfSangamBid, title: 'Half Sangam', betType: 'half-sangam' },
+    'sp-motor': { component: SpMotorBid, title: 'SP Motor', betType: 'sp-motor' },
+    'dp-motor': { component: DpMotorBid, title: 'DP Motor', betType: 'dp-motor' },
+    'sp-dp-motor': { component: SpDpMotorBid, title: 'SP DP Motor', betType: 'sp-motor' },
 };

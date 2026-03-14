@@ -111,9 +111,9 @@ const Layout = ({ children, title }) => {
                     className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                     aria-label="Open menu"
                 >
-                    <FaBars className="w-6 h-6 text-orange-500" />
+                    <FaBars className="w-6 h-6 text-[#1B3150]" />
                 </button>
-                <h1 className="text-lg font-bold text-orange-600 truncate mx-2">
+                <h1 className="text-lg font-bold text-[#1B3150] truncate mx-2">
                     {title || 'Bookie Panel'}
                 </h1>
                 <div className="w-10" />

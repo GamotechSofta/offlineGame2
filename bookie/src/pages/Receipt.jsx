@@ -874,7 +874,7 @@ const Receipt = () => {
                     <div className="print:hidden">
                         <button
                             onClick={handleBackToList}
-                            className="text-gray-400 hover:text-orange-500 text-sm inline-flex items-center gap-1 mb-1"
+                            className="text-gray-400 hover:text-[#1B3150] text-sm inline-flex items-center gap-1 mb-1"
                         >
                             <FaArrowLeft className="w-3 h-3" /> {t('receipts')}
                         </button>
@@ -890,7 +890,7 @@ const Receipt = () => {
                             <div className="mb-4 print:hidden flex justify-end">
                                 <button
                                     onClick={handlePrintReceipt}
-                                    className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                                    className="flex items-center gap-2 px-4 py-2 bg-[#1B3150] hover:bg-[#152842] text-white rounded-lg font-medium transition-colors"
                                 >
                                     <FaPrint className="w-4 h-4" />
                                     Print Receipt
@@ -940,7 +940,7 @@ const Receipt = () => {
                                             {marketDetails.openingNumber && marketDetails.closingNumber && (
                                                 <span>
                                                     <span className="text-gray-500">Jodi:</span> 
-                                                    <span className="font-mono font-bold text-orange-600 ml-1">
+                                                    <span className="font-mono font-bold text-[#1B3150] ml-1">
                                                         {marketDetails.openingNumber.slice(-1) + marketDetails.closingNumber.slice(-1)}
                                                     </span>
                                                 </span>
@@ -1138,7 +1138,7 @@ const Receipt = () => {
                                             <button
                                                 onClick={handleToGiveTakeUpdate}
                                                 disabled={toGiveTakeLoading}
-                                                className="text-orange-600 hover:text-orange-700 text-[9px] font-medium underline print:hidden disabled:opacity-50"
+                                                className="text-[#1B3150] hover:text-[#152842] text-[9px] font-medium underline print:hidden disabled:opacity-50"
                                             >
                                                 {toGiveTakeLoading ? 'Updating...' : 'Update'}
                                             </button>
@@ -1170,9 +1170,9 @@ const Receipt = () => {
                                     </div>
 
                                     {/* Final Total - Highlighted */}
-                                    <div className="mt-1 pt-1 border-t-2 border-orange-400 flex justify-between items-center py-1 bg-orange-50 print:bg-transparent">
+                                    <div className="mt-1 pt-1 border-t-2 border-[#1B3150]/40 flex justify-between items-center py-1 bg-[#1B3150]/5 print:bg-transparent">
                                         <span className="text-gray-800 font-bold text-xs print:text-[10px]">FINAL TOTAL:</span>
-                                        <span className="font-mono font-bold text-base text-orange-600 print:text-sm">{formatCurrency(finalTotal)}</span>
+                                        <span className="font-mono font-bold text-base text-[#1B3150] print:text-sm">{formatCurrency(finalTotal)}</span>
                                     </div>
                                 </div>
 
@@ -1195,7 +1195,7 @@ const Receipt = () => {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-                        <FaFileInvoiceDollar className="text-orange-500" />
+                        <FaFileInvoiceDollar className="text-[#1B3150]" />
                         {t('receipts')}
                     </h1>
                 </div>
@@ -1209,7 +1209,7 @@ const Receipt = () => {
                             placeholder={t('searchPlayers')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className={`w-full pl-10 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
+                            className={`w-full pl-10 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/50 focus:border-[#1B3150] transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
                         />
                         {searchQuery && (
                             <button
@@ -1234,7 +1234,7 @@ const Receipt = () => {
                 <div className="bg-white rounded-lg overflow-x-auto overflow-y-hidden border border-gray-200 min-w-0 max-w-full">
                     {loading ? (
                         <div className="p-8 text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1B3150] mx-auto" />
                             <p className="mt-4 text-gray-400">{t('loading')}</p>
                     </div>
                 ) : players.length === 0 ? (
@@ -1263,7 +1263,7 @@ const Receipt = () => {
                                             <tr key={player._id} className="hover:bg-gray-50">
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{index + 1}</td>
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 font-medium">
-                                                    <span className="text-orange-500 truncate block max-w-[200px]">{player.username}</span>
+                                                    <span className="text-[#1B3150] truncate block max-w-[200px]">{player.username}</span>
                                                 </td>
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{player.phone || '—'}</td>
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600 truncate max-w-[200px]">{player.email || '—'}</td>
@@ -1271,7 +1271,7 @@ const Receipt = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => handlePlayerClick(player)}
-                                                        className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors"
+                                                        className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white text-xs font-semibold transition-colors"
                                                         title="View receipts"
                                                     >
                                                         <FaFileInvoiceDollar className="w-3 h-3" />
@@ -1309,12 +1309,12 @@ const Receipt = () => {
                     <button
                         type="button"
                         onClick={handleBackToPlayers}
-                        className="text-gray-400 hover:text-orange-500 text-sm inline-flex items-center gap-1 mb-2"
+                        className="text-gray-400 hover:text-[#1B3150] text-sm inline-flex items-center gap-1 mb-2"
                     >
                         <FaArrowLeft className="w-3 h-3" /> {t('back')} {t('to')} {t('myPlayers')}
                     </button>
                     <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-                        <FaFileInvoiceDollar className="text-orange-500" />
+                        <FaFileInvoiceDollar className="text-[#1B3150]" />
                         {t('receipts')} - {selectedPlayerName}
                     </h1>
                 </div>
@@ -1327,9 +1327,9 @@ const Receipt = () => {
                     <button
                         type="button"
                         onClick={() => setCalendarOpen((o) => !o)}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-700 hover:border-orange-300 transition-colors"
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-700 hover:border-[#1B3150]/30 transition-colors"
                     >
-                        <FaCalendarAlt className="w-3.5 h-3.5 text-orange-500" />
+                        <FaCalendarAlt className="w-3.5 h-3.5 text-[#1B3150]" />
                         {dateFrom && dateTo ? `${dateFrom} to ${dateTo}` : 'Select Date'}
                     </button>
                     {calendarOpen && (
@@ -1337,9 +1337,9 @@ const Receipt = () => {
                             <div className="min-w-0 sm:min-w-[200px] py-1">
                                 {DATE_PRESETS.map((p) => (
                                     <button key={p.id} type="button" onClick={() => handlePresetSelect(p.id)}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 flex items-center gap-2"
+                                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[#1B3150]/5 flex items-center gap-2"
                                     >
-                                        {datePreset === p.id ? <span className="text-orange-500">●</span> : <span className="w-2" />}
+                                        {datePreset === p.id ? <span className="text-[#1B3150]">●</span> : <span className="w-2" />}
                                         {p.label}
                                     </button>
                                 ))}
@@ -1355,7 +1355,7 @@ const Receipt = () => {
                                         <label className="block text-xs text-gray-500 mb-1">To</label>
                                         <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-800" />
                                     </div>
-                                    <button type="button" onClick={handleDateApply} className="w-full py-2 rounded-lg bg-orange-500 text-white font-semibold text-sm">
+                                    <button type="button" onClick={handleDateApply} className="w-full py-2 rounded-lg bg-[#1B3150] text-white font-semibold hover:bg-[#152842] text-sm">
                                         Apply
                                     </button>
                                 </div>
@@ -1374,7 +1374,7 @@ const Receipt = () => {
                         placeholder="Search by market name..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className={`w-full pl-10 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
+                        className={`w-full pl-10 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/50 focus:border-[#1B3150] transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
                     />
                     {searchQuery && (
                         <button
@@ -1404,7 +1404,7 @@ const Receipt = () => {
                         onClick={() => setReceiptTypeFilter('placed')}
                         className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                             receiptTypeFilter === 'placed'
-                                ? 'bg-orange-500 text-white'
+                                ? 'bg-[#1B3150] text-white'
                                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
                         }`}
                     >
@@ -1415,7 +1415,7 @@ const Receipt = () => {
                         onClick={() => setReceiptTypeFilter('result')}
                         className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                             receiptTypeFilter === 'result'
-                                ? 'bg-orange-500 text-white'
+                                ? 'bg-[#1B3150] text-white'
                                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
                         }`}
                     >
@@ -1424,7 +1424,7 @@ const Receipt = () => {
                 </div>
                 {loading ? (
                     <div className="p-8 text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1B3150] mx-auto" />
                         <p className="mt-4 text-gray-400">{t('loading')}</p>
                     </div>
                 ) : sessions.length === 0 ? (
@@ -1462,7 +1462,7 @@ const Receipt = () => {
                                             <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600 truncate max-w-[200px]">{session.marketName}</td>
                                             <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs">
                                                 <span className={`px-2 py-0.5 rounded-full font-semibold ${
-                                                    summary.isResultReady ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600'
+                                                    summary.isResultReady ? 'bg-green-100 text-green-700' : 'bg-[#1B3150]/10 text-[#1B3150]'
                                                 }`}>
                                                     {summary.isResultReady ? 'Result' : 'Placed'}
                                                 </span>
@@ -1483,7 +1483,7 @@ const Receipt = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleSessionClick(session)}
-                                                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors"
+                                                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white text-xs font-semibold transition-colors"
                                                     title="View receipt"
                                                 >
                                                     <FaFileInvoiceDollar className="w-3 h-3" />

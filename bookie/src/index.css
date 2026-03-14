@@ -18,12 +18,12 @@ input[type="number"] {
 }
 
 /* Match theme - button glow */
-.glow-orange {
-  box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.15);
+.glow-primary {
+  box-shadow: 0 10px 15px -3px rgba(27, 49, 80, 0.15);
 }
 
-.glow-orange:hover {
-  box-shadow: 0 20px 25px -5px rgba(249, 115, 22, 0.25);
+.glow-primary:hover {
+  box-shadow: 0 20px 25px -5px rgba(27, 49, 80, 0.25);
 }
 
 .glow-red {

@@ -111,7 +111,7 @@ const BetsByUser = () => {
             case 'lost':
                 return 'bg-red-100 text-red-800 border-red-200';
             case 'pending':
-                return 'bg-orange-100 text-orange-800 border-orange-200';
+                return 'bg-[#1B3150]/10 text-[#1B3150] border-[#1B3150]/20';
             case 'cancelled':
                 return 'bg-gray-100 text-gray-800 border-gray-200';
             default:
@@ -176,7 +176,7 @@ const BetsByUser = () => {
                                 placeholder={t('searchPlayers')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-transparent"
                             />
                         </div>
                     </div>
@@ -238,7 +238,7 @@ const BetsByUser = () => {
                                                 <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                                                     <button
                                                         onClick={() => handlePlayerSelect(player)}
-                                                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm font-medium"
+                                                        className="px-4 py-2 bg-[#1B3150] hover:bg-[#152842] text-white rounded-lg transition-colors text-sm font-medium"
                                                     >
                                                         {t('viewBets')}
                                                     </button>
@@ -290,7 +290,7 @@ const BetsByUser = () => {
                                 placeholder={t('enterMarketId')}
                                 value={filters.marketId}
                                 onChange={(e) => setFilters({ ...filters, marketId: e.target.value })}
-                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-transparent text-sm"
                             />
                         </div>
                         <div>
@@ -300,7 +300,7 @@ const BetsByUser = () => {
                             <select
                                 value={filters.status}
                                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-transparent text-sm"
                             >
                                 <option value="">{t('allStatus')}</option>
                                 <option value="pending">{t('pending')}</option>
@@ -317,7 +317,7 @@ const BetsByUser = () => {
                                 type="date"
                                 value={filters.startDate}
                                 onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-transparent text-sm"
                             />
                         </div>
                         <div>
@@ -328,7 +328,7 @@ const BetsByUser = () => {
                                 type="date"
                                 value={filters.endDate}
                                 onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-transparent text-sm"
                             />
                         </div>
                     </div>
@@ -357,7 +357,7 @@ const BetsByUser = () => {
                             <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
                                 {t('totalAmount')}
                             </p>
-                            <p className="text-2xl font-bold text-orange-600">
+                            <p className="text-2xl font-bold text-[#1B3150]">
                                 {formatCurrency(bets.reduce((sum, bet) => sum + (bet.amount || 0), 0))}
                             </p>
                         </div>
@@ -365,7 +365,7 @@ const BetsByUser = () => {
                             <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
                                 {t('pendingBets')}
                             </p>
-                            <p className="text-2xl font-bold text-orange-500">
+                            <p className="text-2xl font-bold text-[#1B3150]">
                                 {bets.filter(b => b.status === 'pending').length}
                             </p>
                         </div>

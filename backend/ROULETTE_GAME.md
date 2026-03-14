@@ -228,7 +228,6 @@ Base path: **`/api/v1/roulette`**. Auth: JWT via `Authorization: Bearer <token>`
 - **Entry:** Dedicated "Play Roulette" banner under hero on Home: “Play Roulette” → navigates to `/roulette`. Route `/games/roulette` also opens the same game.
 - **Flow:** Enter amount → place bets (number grid 0–36 + quick bets red/black/odd/even/low/high) → Spin → result modal (winning number, payout, profit) + balance update.
 - **API usage & auth:** All roulette requests send JWT (frontend uses `fetchWithAuth`; 401 clears session). Balance: GET `/api/v1/wallet/balance`. GET `/api/v1/roulette/stats?userId=...`, GET `/api/v1/roulette/history?userId=...&limit=10` (limit default 10, max 100), POST `/api/v1/roulette/spin` with body `{ userId?, bets, idempotencyKey }`. Server may use userId from token.
-
 ---
 
 ## 9. Scripts

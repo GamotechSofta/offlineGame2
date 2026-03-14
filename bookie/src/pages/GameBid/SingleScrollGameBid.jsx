@@ -115,7 +115,7 @@ const SingleScrollGameBid = () => {
                     <h1 className="flex-1 text-center mx-2 text-sm sm:text-base md:text-lg font-bold uppercase tracking-tight truncate text-gray-900 min-w-0">
                         {marketDisplayName ? `${marketDisplayName} — All Games` : 'All Games'}
                     </h1>
-                    <div className="flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white text-xs sm:text-sm font-bold shadow-sm">
+                    <div className="flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-xl bg-gradient-to-r bg-[#1B3150] text-white text-xs sm:text-sm font-bold shadow-sm">
                         <span className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center text-white font-bold">₹</span>
                         <span className="tabular-nums">{Number(walletBalance ?? 0).toFixed(1)}</span>
                     </div>
@@ -134,7 +134,7 @@ const SingleScrollGameBid = () => {
                             min={minDate}
                             max="2099-12-31"
                             onChange={(e) => { const v = e.target.value; if (v >= minDate) setCurrentDate(v); }}
-                            className="w-full h-10 pl-9 pr-3 rounded-lg bg-white border border-gray-200 text-gray-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 cursor-pointer transition-shadow"
+                            className="w-full h-10 pl-9 pr-3 rounded-lg bg-white border border-gray-200 text-gray-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3150]/30 focus:border-[#1B3150] cursor-pointer transition-shadow"
                             style={{ colorScheme: 'light' }}
                         />
                     </div>
@@ -151,7 +151,7 @@ const SingleScrollGameBid = () => {
                         return (
                             <section key={gt}>
                                 <div className="flex items-center gap-3 px-0 py-2 sm:py-2.5">
-                                    <span className="flex items-center justify-center w-6 h-6 rounded-md bg-orange-500/10 text-orange-600 text-xs font-bold tabular-nums">
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-md bg-[#1B3150]/10 text-[#1B3150] text-xs font-bold tabular-nums">
                                         {i + 1}
                                     </span>
                                     <h2 className="text-base sm:text-lg font-bold text-gray-900">
@@ -187,7 +187,7 @@ const SingleScrollGameBid = () => {
                         disabled={cartCount === 0 || !selectedPlayer}
                         className={`min-w-[120px] font-bold py-3 px-5 rounded-xl text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                             cartCount > 0 && selectedPlayer
-                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md hover:from-orange-600 hover:to-orange-700 focus-visible:ring-orange-500 active:scale-[0.98]'
+                                ? 'bg-gradient-to-r bg-[#1B3150] text-white shadow-md hover:bg-[#152842] focus-visible:ring-[#1B3150] active:scale-[0.98]'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed focus-visible:ring-gray-400'
                         }`}
                     >

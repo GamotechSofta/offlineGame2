@@ -8,7 +8,7 @@ const Header = ({ title, user }) => {
                 <div className="flex items-center gap-4">
                     <span className="text-gray-500 text-sm">
                         {user?.username && (
-                            <span className="text-orange-500 font-medium">{user.username}</span>
+                            <span className="text-[#1B3150] font-medium">{user.username}</span>
                         )}
                     </span>
                 </div>

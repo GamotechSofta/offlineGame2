@@ -382,8 +382,8 @@ const Reports = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-3">
-                            <span className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                                <FaMoneyBillWave className="w-5 h-5 text-orange-500" />
+                            <span className="w-10 h-10 rounded-xl bg-[#1B3150]/20 flex items-center justify-center">
+                                <FaMoneyBillWave className="w-5 h-5 text-[#1B3150]" />
                             </span>
                             {t('customerBalanceOverview')}
                         </h1>
@@ -393,7 +393,7 @@ const Reports = () => {
                         type="button"
                         onClick={() => fetchCustomerBalance(true)}
                         disabled={refreshing || loading}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 transition-all disabled:opacity-60 text-sm font-medium"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-[#1B3150]/20 border border-gray-200 hover:border-[#1B3150]/30 text-gray-600 hover:text-[#1B3150] transition-all disabled:opacity-60 text-sm font-medium"
                     >
                         <FaSyncAlt className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                         {t('refresh')}
@@ -448,7 +448,7 @@ const Reports = () => {
                             placeholder={t('searchByNameOrSrNo')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm sm:text-base"
+                            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/50 focus:border-[#1B3150] transition-all text-sm sm:text-base"
                         />
                         {searchQuery && (
                             <button
@@ -527,7 +527,7 @@ const Reports = () => {
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                     {loading ? (
                         <div className="p-12 text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1B3150] mx-auto" />
                             <p className="mt-4 text-gray-400">{t('loading')}</p>
                         </div>
                     ) : filteredCustomers.length === 0 ? (
@@ -557,7 +557,7 @@ const Reports = () => {
                                         return (
                                             <tr 
                                                 key={customer.userId} 
-                                                className={`hover:bg-orange-50/50 transition-colors ${isEditing ? 'bg-orange-50' : ''}`}
+                                                className={`hover:bg-[#1B3150]/5 transition-colors ${isEditing ? 'bg-[#1B3150]/5' : ''}`}
                                             >
                                                 <td className="px-4 py-4 text-sm font-medium text-gray-600">{customer.srNo}</td>
                                                 <td className="px-4 py-4">
@@ -575,7 +575,7 @@ const Reports = () => {
                                                                 step="0.01"
                                                                 value={editValues.yene}
                                                                 onChange={(e) => setEditValues({ ...editValues, yene: e.target.value })}
-                                                                className="w-28 px-3 py-2 border-2 border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                                                                className="w-28 px-3 py-2 border-2 border-[#1B3150]/30 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] font-mono"
                                                                 disabled={updating}
                                                                 autoFocus
                                                             />
@@ -597,7 +597,7 @@ const Reports = () => {
                                                                 step="0.01"
                                                                 value={editValues.dene}
                                                                 onChange={(e) => setEditValues({ ...editValues, dene: e.target.value })}
-                                                                className="w-28 px-3 py-2 border-2 border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                                                                className="w-28 px-3 py-2 border-2 border-[#1B3150]/30 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] font-mono"
                                                                 disabled={updating}
                                                             />
                                                         </div>
@@ -654,7 +654,7 @@ const Reports = () => {
                                                                 <FaTimes className="w-4 h-4" />
                                                             </button>
                                                             {updating && (
-                                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1B3150]"></div>
                                                             )}
                         </div>
                                                     ) : (
@@ -662,7 +662,7 @@ const Reports = () => {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleEdit(customer)}
-                                                                className="p-2 text-orange-600 hover:text-white hover:bg-orange-600 rounded-lg transition-all shadow-sm hover:shadow-md"
+                                                                className="p-2 text-[#1B3150] hover:text-white hover:bg-[#1B3150] rounded-lg transition-all shadow-sm hover:shadow-md"
                                                                 title={t('edit')}
                                                             >
                                                                 <FaEdit className="w-4 h-4" />

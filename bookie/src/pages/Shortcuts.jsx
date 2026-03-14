@@ -57,12 +57,12 @@ const Shortcuts = () => {
             <div className="max-w-4xl mx-auto p-4 sm:p-6">
                 <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6 text-white">
+                    <div className="bg-gradient-to-r from-[#1B3150] to-[#152842] p-6 text-white">
                         <div className="flex items-center gap-3">
                             <FaKeyboard className="w-8 h-8" />
                             <div>
                                 <h1 className="text-2xl sm:text-3xl font-bold">Keyboard Shortcuts</h1>
-                                <p className="text-orange-100 text-sm mt-1">Speed up your workflow with these shortcuts</p>
+                                <p className="text-white/80 text-sm mt-1">Speed up your workflow with these shortcuts</p>
                             </div>
                         </div>
                     </div>
@@ -72,17 +72,17 @@ const Shortcuts = () => {
                         {shortcuts.map((category, catIdx) => (
                             <div key={catIdx} className="border-b border-gray-200 last:border-b-0 pb-6 last:pb-0">
                                 <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <span className="w-1 h-6 bg-orange-500 rounded-full" />
+                                    <span className="w-1 h-6 bg-[#1B3150] rounded-full" />
                                     {category.category}
                                 </h2>
                                 <div className="space-y-3">
                                     {category.items.map((item, itemIdx) => (
                                         <div
                                             key={itemIdx}
-                                            className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 hover:bg-orange-50 transition-colors border border-gray-100"
+                                            className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 hover:bg-[#1B3150]/5 transition-colors border border-gray-100"
                                         >
                                             {item.icon && (
-                                                <div className="mt-1 text-orange-500">
+                                                <div className="mt-1 text-[#1B3150]">
                                                     <item.icon className="w-5 h-5" />
                                                 </div>
                                             )}

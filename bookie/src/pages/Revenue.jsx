@@ -110,7 +110,7 @@ const Revenue = () => {
                 {/* Date filters */}
                 <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
                     <div className="flex flex-wrap items-center gap-2 mb-2.5">
-                        <FaCalendarAlt className="w-4 h-4 text-orange-500 shrink-0" />
+                        <FaCalendarAlt className="w-4 h-4 text-[#1B3150] shrink-0" />
                         <span className="text-sm font-medium text-gray-600">Period</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3">
@@ -120,7 +120,7 @@ const Revenue = () => {
                                 type="button"
                                 onClick={() => applyPreset(p.id)}
                                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                                    activePreset === p.id ? 'bg-orange-500 text-gray-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    activePreset === p.id ? 'bg-[#1B3150] text-gray-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                             >
                                 {p.label}
@@ -138,7 +138,7 @@ const Revenue = () => {
                             className="px-2 sm:px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-xs sm:text-sm w-[130px] sm:w-auto"
                         />
                         <button type="button" onClick={fetchRevenue} disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 text-xs sm:text-sm"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1B3150] hover:bg-[#152842] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 text-xs sm:text-sm"
                         >
                             <FaSyncAlt className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                             Refresh
@@ -155,12 +155,12 @@ const Revenue = () => {
                             <table className="w-full">
                                 <tbody className="divide-y divide-gray-700/50">
                                     {/* Your Revenue - highlighted row */}
-                                    <tr className="bg-orange-500/10">
+                                    <tr className="bg-[#1B3150]/10">
                                         <td className="px-4 py-3.5 sm:py-4">
                                             <span className="text-xs sm:text-sm font-semibold text-emerald-300 uppercase tracking-wider">Your Revenue</span>
                                         </td>
                                         <td className="px-4 py-3.5 sm:py-4 text-right">
-                                            <span className="text-xl sm:text-2xl font-bold text-orange-500">{formatCurrency(data.bookieRevenue)}</span>
+                                            <span className="text-xl sm:text-2xl font-bold text-[#1B3150]">{formatCurrency(data.bookieRevenue)}</span>
                                         </td>
                                     </tr>
 
@@ -180,7 +180,7 @@ const Revenue = () => {
                                             <span className="text-xs sm:text-sm text-gray-600">Commission Rate</span>
                                         </td>
                                         <td className="px-4 py-3 sm:py-3.5 text-right">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-semibold bg-orange-500/15 text-orange-500">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-semibold bg-[#1B3150]/15 text-[#1B3150]">
                                                 {data.commissionPercentage}%
                                             </span>
                                         </td>
@@ -209,7 +209,7 @@ const Revenue = () => {
                                                 <span className="text-sm sm:text-base font-semibold text-gray-800">{formatNumber(data.totalBets)} bets</span>
                                                 {data.totalBets > 0 && (
                                                     <span className="text-[10px] sm:text-xs text-gray-400">
-                                                        (<span className="text-orange-500">{formatNumber(data.winningBets || 0)} W</span>
+                                                        (<span className="text-[#1B3150]">{formatNumber(data.winningBets || 0)} W</span>
                                                         {' / '}
                                                         <span className="text-red-500">{formatNumber(data.losingBets || 0)} L</span>)
                                                     </span>
@@ -243,9 +243,9 @@ const Revenue = () => {
                                             <div className="text-xs sm:text-sm text-gray-400 text-center">
                                                 {formatCurrency(data.totalBetAmount)}
                                                 <span className="text-gray-600 mx-1.5">&times;</span>
-                                                <span className="text-orange-500 font-medium">{data.commissionPercentage}%</span>
+                                                <span className="text-[#1B3150] font-medium">{data.commissionPercentage}%</span>
                                                 <span className="text-gray-600 mx-1.5">=</span>
-                                                <span className="text-orange-500 font-bold">{formatCurrency(data.bookieRevenue)}</span>
+                                                <span className="text-[#1B3150] font-bold">{formatCurrency(data.bookieRevenue)}</span>
                                             </div>
                                         </td>
                                     </tr>

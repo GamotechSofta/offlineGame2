@@ -48,7 +48,7 @@ const DpMotorBid = ({ market, title }) => {
     market?.status === 'running' ? 'CLOSE' : 'OPEN'
   );
   const [digitInput, setDigitInput] = useState('');
-  const [pointsInput, setPointsInput] = useState('10');
+  const [pointsInput, setPointsInput] = useState('');
   const [combinations, setCombinations] = useState([]);
   const [warning, setWarning] = useState('');
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -88,8 +88,12 @@ const DpMotorBid = ({ market, title }) => {
       showWarning('Enter at least 2 digits to generate double pana combinations.');
       return;
     }
-    const defaultPoints = sanitizePoints(pointsInput) || '10';
-    const pts = Math.max(1, parseInt(defaultPoints, 10));
+    const rawPoints = sanitizePoints(pointsInput);
+    const pts = parseInt(rawPoints, 10);
+    if (!Number.isFinite(pts) || pts < 1) {
+      showWarning('Please enter points.');
+      return;
+    }
     const combos = generateDoublePanaCombinations(digits);
     if (!combos.length) {
       showWarning('No valid double pana from these digits. Use same rules as Double Pana (e.g. 112, 220).');
@@ -244,7 +248,7 @@ const DpMotorBid = ({ market, title }) => {
                 inputMode="numeric"
                 value={pointsInput}
                 onChange={(e) => setPointsInput(sanitizePoints(e.target.value))}
-                placeholder="10"
+                placeholder="Points"
                 className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800 touch-manipulation focus:border-[#1B3150] focus:outline-none focus:ring-1 focus:ring-[#1B3150]"
               />
             </div>

@@ -157,12 +157,12 @@ const GameTypes = () => {
                                 <h1 className="text-gray-800 font-bold text-base sm:text-lg tracking-wider uppercase">Loading...</h1>
                             ) : market ? (
                                 <>
-                                    <h1 className="text-gray-800 font-bold text-base sm:text-lg tracking-wider uppercase inline-block border-b-2 border-orange-500 pb-1 px-2 py-1 truncate max-w-full">
+                                    <h1 className="text-gray-800 font-bold text-base sm:text-lg tracking-wider uppercase inline-block border-b-2 border-[#1B3150] pb-1 px-2 py-1 truncate max-w-full">
                                         {market ? getMarketDisplayName(market, language) : 'SELECT GAME'}
                                     </h1>
                                     <div className="mt-1 flex items-center justify-center gap-3 text-xs text-gray-400">
                                         <span>{market.startingTime} - {market.closingTime}</span>
-                                        <span className="text-orange-500 font-mono font-bold">{market.displayResult || '***-**-***'}</span>
+                                        <span className="text-[#1B3150] font-mono font-bold">{market.displayResult || '***-**-***'}</span>
                                     </div>
                                 </>
                             ) : (
@@ -173,7 +173,7 @@ const GameTypes = () => {
 
                     {loading ? (
                         <div className="flex items-center justify-center py-16">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3150]"></div>
                         </div>
                     ) : !market ? (
                         <div className="text-center py-12">
@@ -181,7 +181,7 @@ const GameTypes = () => {
                             <button
                                 type="button"
                                 onClick={() => navigate('/games')}
-                                className="mt-3 text-orange-500 hover:underline text-sm"
+                                className="mt-3 text-[#1B3150] hover:underline text-sm"
                             >
                                 Go back to markets
                             </button>
@@ -193,7 +193,7 @@ const GameTypes = () => {
                                 <div
                                     key={option.id}
                                     onClick={() => handleGameClick(option)}
-                                    className="relative rounded-2xl bg-white border-2 border-gray-100 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2 sm:gap-2.5 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-500/15 active:scale-[0.97] transition-all cursor-pointer group touch-manipulation min-h-[104px] sm:min-h-[120px] md:min-h-[132px] shadow-sm"
+                                    className="relative rounded-2xl bg-white border-2 border-gray-100 p-3.5 sm:p-4 flex flex-col items-center justify-center gap-2 sm:gap-2.5 hover:border-[#1B3150]/40 hover:shadow-lg hover:shadow-[#1B3150]/15 active:scale-[0.97] transition-all cursor-pointer group touch-manipulation min-h-[104px] sm:min-h-[120px] md:min-h-[132px] shadow-sm"
                                 >
                                     {/* Icon Container */}
                                     <div className="flex items-center justify-center w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] md:w-[96px] md:h-[96px] group-hover:scale-[1.05] transition-transform duration-300">
@@ -201,7 +201,7 @@ const GameTypes = () => {
                                     </div>
 
                                     {/* Title */}
-                                    <span className="text-gray-700 group-hover:text-orange-600 text-[10px] sm:text-[11px] md:text-sm font-bold tracking-[0.12em] sm:tracking-[0.15em] uppercase text-center line-clamp-2 leading-tight transition-colors">
+                                    <span className="text-gray-700 group-hover:text-[#1B3150] text-[10px] sm:text-[11px] md:text-sm font-bold tracking-[0.12em] sm:tracking-[0.15em] uppercase text-center line-clamp-2 leading-tight transition-colors">
                                         {option.title}
                                     </span>
                                 </div>

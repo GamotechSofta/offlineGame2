@@ -75,7 +75,7 @@ const FullSangamBid = ({ title, gameType, betType, embedInSingleScroll = false }
                             <input type="text" inputMode="numeric" value={openPana}
                                 onChange={(e) => { const next = sanitizeDigits(e.target.value, 3); setOpenPana(next); setOpenPanaInvalid(!!next && next.length === 3 && !isValidAnyPana(next)); }}
                                 placeholder="Pana"
-                                className={`flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${openPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-orange-500 focus:border-orange-500'}`} />
+                                className={`flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${openPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'}`} />
                         </div>
                         <div className="flex flex-row items-center gap-2">
                             <label className="text-gray-400 text-sm font-medium shrink-0 w-40">Enter Close Pana:</label>
@@ -89,17 +89,17 @@ const FullSangamBid = ({ title, gameType, betType, embedInSingleScroll = false }
                                     }
                                 }}
                                 placeholder="Pana"
-                                className={`flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${closePanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-orange-500 focus:border-orange-500'}`} />
+                                className={`flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${closePanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'}`} />
                         </div>
                         <div className="flex flex-row items-center gap-2">
                             <label className="text-gray-400 text-sm font-medium shrink-0 w-40">Enter Points:</label>
                             <input ref={pointsInputRef} type="text" inputMode="numeric" value={points}
                                 onChange={(e) => setPoints(sanitizePoints(e.target.value))}
-                                placeholder="Point" className="no-spinner flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none" />
+                                placeholder="Point" className="no-spinner flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none" />
                         </div>
                     </div>
                     <button type="button" onClick={handleAddToCart}
-                        className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 transition-all active:scale-[0.98]">
+                        className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]">
                         Add to Cart
                     </button>
                 </div>

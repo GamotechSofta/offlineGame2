@@ -110,7 +110,7 @@ const HelpDesk = () => {
                                                 key={i}
                                                 type="button"
                                                 onClick={() => setFullScreenImage(s.startsWith('http') ? s : `${BASE_URL}${s}`)}
-                                                className="w-full h-32 rounded border border-gray-200 overflow-hidden focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                                                className="w-full h-32 rounded border border-gray-200 overflow-hidden focus:ring-2 focus:ring-[#1B3150] focus:outline-none"
                                             >
                                                 <img src={s.startsWith('http') ? s : `${BASE_URL}${s}`} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover cursor-pointer" />
                                             </button>
@@ -122,7 +122,7 @@ const HelpDesk = () => {
                             <div className="flex gap-2 mt-6">
                                 {selectedTicket.status === 'open' && (
                                     <>
-                                        <button onClick={() => handleStatusUpdate(selectedTicket._id, 'in-progress')} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded">Mark In Progress</button>
+                                        <button onClick={() => handleStatusUpdate(selectedTicket._id, 'in-progress')} className="px-4 py-2 bg-[#1B3150] hover:bg-[#152842] rounded">Mark In Progress</button>
                                         <button onClick={() => handleStatusUpdate(selectedTicket._id, 'resolved')} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded">Mark Resolved</button>
                                     </>
                                 )}

@@ -22,10 +22,13 @@ const GAME_TYPES_LIST = [
     { id: 'single-digit', title: 'Single Digit', icon: '1', color: 'bg-blue-500' },
     { id: 'jodi', title: 'Jodi Bulk', icon: '12', color: 'bg-purple-500' },
     { id: 'single-pana-bulk', title: 'Single Pana Bulk', icon: '123+', color: 'bg-emerald-600' },
-    { id: 'double-pana-bulk', title: 'Double Pana Bulk', icon: '112+', color: 'bg-orange-600' },
+    { id: 'double-pana-bulk', title: 'Double Pana Bulk', icon: '112+', color: 'bg-[#1B3150]' },
     { id: 'triple-pana', title: 'Triple Pana', icon: '111', color: 'bg-pink-500' },
     { id: 'full-sangam', title: 'Full Sangam', icon: 'F/S', color: 'bg-amber-600' },
     { id: 'half-sangam', title: 'Half Sangam (O)', icon: 'H/S', color: 'bg-cyan-500' },
+    { id: 'sp-motor', title: 'SP Motor', icon: 'SP', color: 'bg-emerald-700' },
+    { id: 'dp-motor', title: 'DP Motor', icon: 'DP', color: 'bg-[#152842]' },
+    { id: 'sp-dp-motor', title: 'SP DP Motor', icon: 'SP/DP', color: 'bg-teal-600' },
 ];
 
 /**
@@ -125,7 +128,7 @@ const GamesSidebar = ({
             <aside
                 style={{ width: `${width}px` }}
                 className={`
-                    fixed left-0 top-0 h-screen bg-white border-r border-gray-200 z-40
+                    fixed left-0 top-0 h-screen bg-white border-r-2 border-gray-200 z-40
                     overflow-hidden flex flex-col shadow-sm
                     transform transition-transform duration-200 ease-in-out
                     lg:translate-x-0
@@ -142,17 +145,17 @@ const GamesSidebar = ({
                     `}
                 >
                     <div className={`w-[3px] h-12 rounded-full transition-colors ${
-                        isDragging ? 'bg-orange-500' : 'bg-gray-200 group-hover:bg-orange-400'
+                        isDragging ? 'bg-[#1B3150]' : 'bg-gray-200 group-hover:bg-[#1B3150]/60'
                     }`} />
                 </div>
 
                 {/* Header */}
-                <div className="p-3 border-b border-gray-200 shrink-0">
+                <div className="p-3 border-b-2 border-gray-200 shrink-0">
                     <div className="flex items-center justify-between mb-2">
                         <button
                             type="button"
                             onClick={handleBackToMarkets}
-                            className="flex items-center gap-1.5 text-gray-500 hover:text-orange-500 text-xs transition-colors"
+                            className="flex items-center gap-1.5 text-gray-500 hover:text-[#1B3150] text-xs transition-colors"
                         >
                             <FaArrowLeft className="w-3 h-3" />
                             <span>Markets</span>
@@ -181,14 +184,16 @@ const GamesSidebar = ({
                             key={game.id}
                             type="button"
                             onClick={() => handleGameClick(game.id)}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all border ${
                                 activeGameType === game.id
-                                    ? 'bg-orange-50 text-orange-600 font-semibold border border-orange-200'
-                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800 border border-transparent'
+                                    ? 'bg-[#1B3150] text-white font-semibold border-[#1B3150] border-r-4 border-r-[#152842] shadow-sm'
+                                    : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-800 border-gray-200'
                             }`}
                         >
                             <span
-                                className={`w-7 h-7 ${game.color} rounded flex items-center justify-center text-white text-[9px] font-bold shrink-0 shadow-sm`}
+                                className={`w-7 h-7 rounded flex items-center justify-center text-[9px] font-bold shrink-0 shadow-sm ${
+                                    activeGameType === game.id ? 'bg-white/25 text-white' : game.color + ' text-white'
+                                }`}
                             >
                                 {game.icon}
                             </span>
@@ -218,7 +223,7 @@ export const GamesSidebarToggle = ({ onClick }) => (
     <button
         type="button"
         onClick={onClick}
-        className="lg:hidden fixed bottom-6 left-3 z-30 w-11 h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg shadow-orange-500/30 flex items-center justify-center transition-all active:scale-95"
+        className="lg:hidden fixed bottom-6 left-3 z-30 w-11 h-11 bg-[#1B3150] hover:bg-[#152842] text-white rounded-full shadow-lg shadow-[#1B3150]/30 flex items-center justify-center transition-all active:scale-95"
         aria-label="Open game types"
     >
         <FaListUl className="w-4 h-4" />

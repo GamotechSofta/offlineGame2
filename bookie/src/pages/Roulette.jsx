@@ -78,7 +78,7 @@ const Roulette = () => {
                         setPagination((p) => ({ ...p, page: 1 }));
                         setApplyKey((k) => k + 1);
                     }}
-                    className="px-4 py-2 bg-orange-500 text-white rounded-lg font-medium"
+                    className="px-4 py-2 bg-[#1B3150] text-white rounded-lg font-medium hover:bg-[#152842]"
                 >
                     {t('apply') || 'Apply'}
                 </button>

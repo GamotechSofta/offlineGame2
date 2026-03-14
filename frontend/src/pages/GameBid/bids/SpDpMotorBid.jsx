@@ -65,7 +65,7 @@ const SpDpMotorBid = ({ market, title }) => {
     market?.status === 'running' ? 'CLOSE' : 'OPEN'
   );
   const [digitInput, setDigitInput] = useState('');
-  const [pointsInput, setPointsInput] = useState('10');
+  const [pointsInput, setPointsInput] = useState('');
   const [combinations, setCombinations] = useState([]);
   const [warning, setWarning] = useState('');
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -296,7 +296,7 @@ const SpDpMotorBid = ({ market, title }) => {
                 inputMode="numeric"
                 value={pointsInput}
                 onChange={(e) => setPointsInput(sanitizePoints(e.target.value))}
-                placeholder="10"
+                placeholder="Points"
                 className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800 touch-manipulation focus:border-[#1B3150] focus:outline-none focus:ring-1 focus:ring-[#1B3150]"
               />
             </div>

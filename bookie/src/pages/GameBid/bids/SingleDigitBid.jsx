@@ -79,7 +79,7 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
                         {DIGITS.map((num) => (
                             <div key={num} className="flex items-center gap-2">
-                                <div className="w-10 h-10 bg-gray-100 border border-gray-200 text-orange-500 flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">{num}</div>
+                                <div className="w-10 h-10 bg-gray-100 border border-gray-200 text-[#1B3150] flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">{num}</div>
                                 <input
                                     ref={(el) => { inputRefs.current[num] = el; }}
                                     type="number"
@@ -88,13 +88,13 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
                                     value={digitInputs[num]}
                                     onChange={(e) => setDigitInputs((p) => ({ ...p, [num]: e.target.value }))}
                                     onKeyDown={(e) => handlePtsKeyDown(num, e)}
-                                    className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-orange-500 px-3 text-sm font-semibold"
+                                    className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-[#1B3150] px-3 text-sm font-semibold"
                                 />
                             </div>
                         ))}
                     </div>
                     <button onClick={handleAddToCart}
-                        className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 transition-all active:scale-[0.98]">
+                        className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]">
                         Add to Cart
                     </button>
                 </div>

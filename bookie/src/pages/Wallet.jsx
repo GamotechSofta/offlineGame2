@@ -45,8 +45,8 @@ const Wallet = () => {
         <Layout title={t('wallet')}>
             <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">{t('walletTitle')}</h1>
             <div className="flex gap-4 mb-4 sm:mb-6 border-b border-gray-200">
-                <button onClick={() => setActiveTab('wallets')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'wallets' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-400 hover:text-gray-600'}`}>{t('playerWallets')}</button>
-                <button onClick={() => setActiveTab('transactions')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'transactions' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-400 hover:text-gray-600'}`}>{t('transactions')}</button>
+                <button onClick={() => setActiveTab('wallets')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'wallets' ? 'text-[#1B3150] border-b-2 border-[#1B3150]' : 'text-gray-400 hover:text-gray-600'}`}>{t('playerWallets')}</button>
+                <button onClick={() => setActiveTab('transactions')} className={`pb-4 px-4 font-semibold transition-colors ${activeTab === 'transactions' ? 'text-[#1B3150] border-b-2 border-[#1B3150]' : 'text-gray-400 hover:text-gray-600'}`}>{t('transactions')}</button>
             </div>
             {loading ? (
                 <p className="text-gray-400 py-12 text-center">{t('loading')}</p>
@@ -63,7 +63,7 @@ const Wallet = () => {
                             {wallets.length === 0 ? <tr><td colSpan="2" className="px-6 py-4 text-center text-gray-400">No wallets found</td></tr> : wallets.map((w) => (
                                 <tr key={w._id} className="hover:bg-gray-100">
                                     <td className="px-6 py-4 text-sm">{w.userId?.username || w.userId}</td>
-                                    <td className="px-6 py-4 text-sm font-semibold text-orange-500">₹{w.balance}</td>
+                                    <td className="px-6 py-4 text-sm font-semibold text-[#1B3150]">₹{w.balance}</td>
                                 </tr>
                             ))}
                         </tbody>

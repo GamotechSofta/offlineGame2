@@ -165,7 +165,7 @@ const DoublePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                             <div key={groupKey} className={`p-3 overflow-hidden ${embedInSingleScroll ? '' : 'bg-gray-50 rounded-xl border border-gray-200'}`}>
                                 {/* Group header with bulk apply */}
                                 <div className="flex items-center gap-2 mb-3 flex-wrap">
-                                    <div className="w-9 h-9 bg-orange-500 text-white flex items-center justify-center rounded-lg font-bold text-sm shrink-0 shadow-sm">
+                                    <div className="w-9 h-9 bg-[#1B3150] text-white flex items-center justify-center rounded-lg font-bold text-sm shrink-0 shadow-sm">
                                         {groupKey}
                                     </div>
                                     <span className="text-gray-400 text-xs font-medium shrink-0">Sum {groupKey}</span>
@@ -178,7 +178,7 @@ const DoublePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                             onBlur={() => { if (groupBulk[groupKey]) applyGroup(groupBulk[groupKey]); }}
                                             onKeyDown={(e) => { if (e.key === 'Enter' && groupBulk[groupKey]) applyGroup(groupBulk[groupKey]); }}
                                             placeholder="Pts"
-                                            className="no-spinner w-16 h-8 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded focus:outline-none focus:border-orange-500 px-2 text-xs font-semibold text-center"
+                                            className="no-spinner w-16 h-8 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded focus:outline-none focus:border-[#1B3150] px-2 text-xs font-semibold text-center"
                                         />
                                         <button
                                             type="button"
@@ -186,7 +186,7 @@ const DoublePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                             disabled={!groupBulk[groupKey]}
                                             className={`h-8 px-2.5 rounded font-bold text-[10px] border transition-colors shrink-0 ${
                                                 groupBulk[groupKey]
-                                                    ? 'bg-orange-500/20 border-orange-500/40 text-orange-500 hover:border-orange-500'
+                                                    ? 'bg-[#1B3150]/20 border-[#1B3150]/40 text-[#1B3150] hover:border-[#1B3150]'
                                                     : 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed'
                                             }`}
                                         >
@@ -213,7 +213,7 @@ const DoublePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
                                     {list.map((num) => (
                                         <div key={num} className="flex items-center min-w-0">
-                                            <div className="w-10 h-8 bg-gray-100 border border-gray-200 text-orange-500 flex items-center justify-center rounded-l font-bold text-[11px] shrink-0">
+                                            <div className="w-10 h-8 bg-gray-100 border border-gray-200 text-[#1B3150] flex items-center justify-center rounded-l font-bold text-[11px] shrink-0">
                                                 {num}
                                             </div>
                                             <input
@@ -229,7 +229,7 @@ const DoublePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                                     }))
                                                 }
                                                 onKeyDown={(e) => handlePtsArrowKey(num, e)}
-                                                className="no-spinner flex-1 min-w-0 h-8 bg-gray-100 border border-l-0 border-gray-200 text-gray-800 placeholder-gray-400 rounded-r focus:outline-none focus:border-orange-500 px-2 text-[11px] font-semibold text-center"
+                                                className="no-spinner flex-1 min-w-0 h-8 bg-gray-100 border border-l-0 border-gray-200 text-gray-800 placeholder-gray-400 rounded-r focus:outline-none focus:border-[#1B3150] px-2 text-[11px] font-semibold text-center"
                                             />
                                         </div>
                                     ))}
@@ -242,7 +242,7 @@ const DoublePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                 {/* Add to Cart Button */}
                 <div className={embedInSingleScroll ? 'mt-2' : 'mt-5 sticky bottom-3 z-10'}>
                     <button type="button" onClick={handleAddToCart} disabled={!canSubmit}
-                        className={`w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 min-h-[52px] rounded-lg shadow-lg transition-all active:scale-[0.98] ${!canSubmit ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        className={`w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[52px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${!canSubmit ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         Add to Cart {specialCount > 0 && `(${specialCount})`}
                     </button>
                 </div>

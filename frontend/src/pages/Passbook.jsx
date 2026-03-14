@@ -107,15 +107,22 @@ const Passbook = () => {
   /* ── Derived data ── */
   const filtered = useMemo(() => {
     if (filter === 'all') return transactions;
-    return transactions.filter((t) => t.type === filter);
+    const typeFilter = filter.toLowerCase();
+    return transactions.filter((t) => (t.type || '').toString().toLowerCase() === typeFilter);
   }, [transactions, filter]);
 
   const stats = useMemo(() => {
     let totalCredit = 0, totalDebit = 0, creditCount = 0, debitCount = 0;
     transactions.forEach((t) => {
       const amt = Number(t.amount) || 0;
-      if (t.type === 'credit') { totalCredit += amt; creditCount++; }
-      else { totalDebit += amt; debitCount++; }
+      const type = (t.type || '').toString().toLowerCase();
+      if (type === 'credit') {
+        totalCredit += amt;
+        creditCount++;
+      } else {
+        totalDebit += amt;
+        debitCount++;
+      }
     });
     return { totalCredit, totalDebit, creditCount, debitCount };
   }, [transactions]);
@@ -195,7 +202,9 @@ const Passbook = () => {
                   </div>
                   <span className="text-emerald-600 text-[10px] md:text-xs font-semibold uppercase tracking-wider">Credited</span>
                 </div>
-                <p className="text-emerald-600 text-lg md:text-xl font-bold">₹{formatAmount(stats.totalCredit)}</p>
+                <p className="text-emerald-600 text-lg md:text-xl font-bold" data-testid="passbook-credited">
+                  ₹{formatAmount(stats.totalCredit)}
+                </p>
               </div>
               <div className="rounded-2xl bg-red-50 border-2 border-red-200 p-3 md:p-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -206,7 +215,9 @@ const Passbook = () => {
                   </div>
                   <span className="text-red-600 text-[10px] md:text-xs font-semibold uppercase tracking-wider">Withdrawn</span>
                 </div>
-                <p className="text-red-600 text-lg md:text-xl font-bold">₹{formatAmount(stats.totalDebit)}</p>
+                <p className="text-red-600 text-lg md:text-xl font-bold" data-testid="passbook-withdrawn">
+                  ₹{formatAmount(stats.totalDebit)}
+                </p>
               </div>
             </div>
           </div>

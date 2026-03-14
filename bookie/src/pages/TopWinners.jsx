@@ -46,7 +46,7 @@ const TopWinners = () => {
                         winners.map((winner, i) => (
                             <div key={winner._id} className="bg-white rounded-lg p-4 sm:p-6 border border-gray-200">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${i === 0 ? 'bg-orange-500 text-gray-800' : i === 1 ? 'bg-gray-400 text-gray-800' : i === 2 ? 'bg-orange-600 text-gray-800' : 'bg-gray-100 text-gray-800'}`}>{i + 1}</div>
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${i === 0 ? 'bg-[#1B3150] text-white' : i === 1 ? 'bg-gray-400 text-gray-800' : i === 2 ? 'bg-[#152842] text-white' : 'bg-gray-100 text-gray-800'}`}>{i + 1}</div>
                                     <div>
                                         <h3 className="font-semibold">{winner.userId?.username || 'Unknown'}</h3>
                                         <p className="text-sm text-gray-400">{winner.userId?.email || ''}</p>
@@ -54,7 +54,7 @@ const TopWinners = () => {
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between"><span className="text-gray-400">Total Wins:</span><span className="font-semibold text-green-600">{winner.totalWins}</span></div>
-                                    <div className="flex justify-between"><span className="text-gray-400">Total Winnings:</span><span className="font-semibold text-orange-500">₹{winner.totalWinnings}</span></div>
+                                    <div className="flex justify-between"><span className="text-gray-400">Total Winnings:</span><span className="font-semibold text-[#1B3150]">₹{winner.totalWinnings}</span></div>
                                     <div className="flex justify-between"><span className="text-gray-400">Win Rate:</span><span className="font-semibold">{winner.winRate}%</span></div>
                                 </div>
                             </div>

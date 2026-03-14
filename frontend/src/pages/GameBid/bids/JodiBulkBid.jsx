@@ -469,8 +469,8 @@ const JodiBulkBid = ({ market, title }) => {
                                         const key = `${r}${c}`;
                                         return (
                                             <div key={key} className="flex flex-col items-center justify-center">
-                                                <div className="text-[8px] md:text-[10px] leading-none text-gray-700 font-normal mb-0.5 select-none">
-                                                    {key[0]} {key[1]}
+                                                <div className="text-[8px] md:text-[10px] leading-none text-gray-700 font-medium mb-0.5 select-none" title={`Row ${r}, Col ${c}`}>
+                                                    {key}
                                                 </div>
                                                 <input
                                                     ref={(el) => {

@@ -81,15 +81,15 @@ const BookieBidLayout = ({
     }, [isToday, isRunning, session, setSession, sessionOptionsOverride]);
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans w-full max-w-full overflow-x-hidden">
+        <div className="min-h-screen bg-white font-sans w-full max-w-full overflow-x-hidden">
             {!noHeader && (
-            <div className="bg-gray-100 border-b border-gray-200 py-2 flex items-center justify-between gap-2 sticky top-0 z-10 px-3">
+            <div className="bg-white border-b-2 border-gray-200 py-2 flex items-center justify-between gap-2 sticky top-0 z-10 px-3 shadow-sm">
                 <button
                     onClick={() => {
                         const query = selectedPlayerId ? `?playerId=${selectedPlayerId}` : '';
                         navigate(`/games/${marketId}${query}`);
                     }}
-                    className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-gray-100 hover:bg-white/20 text-gray-800 rounded-full active:scale-95 transition-colors"
+                    className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-600 hover:text-[#1B3150] rounded-full active:scale-95 transition-colors"
                     aria-label="Back"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -99,8 +99,8 @@ const BookieBidLayout = ({
                 <h1 className="text-xs sm:text-base md:text-lg font-bold uppercase tracking-wide truncate flex-1 text-center mx-1 text-gray-800 min-w-0">
                     {market?.gameName ? `${market.gameName} - ${title}` : title}
                 </h1>
-                <div className="bg-orange-500 text-white px-2 sm:px-3 py-1 rounded-full flex items-center gap-1.5 text-[11px] sm:text-sm font-bold shadow-md shrink-0">
-                    <div className="w-5 h-5 bg-white rounded flex items-center justify-center text-orange-500 text-xs font-bold">₹</div>
+                <div className="bg-[#1B3150] text-white px-2 sm:px-3 py-1.5 rounded-full flex items-center gap-1.5 text-[11px] sm:text-sm font-bold shadow-md shrink-0">
+                    <span className="text-white/90">₹</span>
                     {wallet.toFixed(1)}
                 </div>
             </div>
@@ -130,7 +130,7 @@ const BookieBidLayout = ({
                             }}
                             onKeyDown={(e) => e.preventDefault()}
                             onPaste={(e) => e.preventDefault()}
-                            className="w-full pl-9 sm:pl-10 pr-3 py-2.5 min-h-[44px] h-[44px] bg-gray-100 border border-gray-200 text-gray-800 rounded-full text-xs sm:text-sm font-bold text-center focus:outline-none focus:border-orange-500 cursor-pointer truncate"
+                            className="w-full pl-9 sm:pl-10 pr-3 py-2.5 min-h-[44px] h-[44px] bg-white border-2 border-gray-200 text-gray-800 rounded-lg text-xs sm:text-sm font-bold text-center focus:outline-none focus:border-[#1B3150] focus:ring-1 focus:ring-[#1B3150] cursor-pointer truncate"
                             style={{ colorScheme: 'light' }}
                         />
                     </div>
@@ -141,7 +141,7 @@ const BookieBidLayout = ({
                             value={session}
                             onChange={(e) => setSession(e.target.value)}
                             disabled={lockSessionSelect || (isToday && isRunning)}
-                            className={`w-full appearance-none bg-gray-100 border border-gray-200 text-gray-800 font-bold text-xs sm:text-sm py-2.5 min-h-[44px] h-[44px] px-4 pr-8 rounded-full text-center focus:outline-none focus:border-orange-500 ${(lockSessionSelect || (isToday && isRunning)) ? 'opacity-80 cursor-not-allowed' : ''}`}
+                            className={`w-full appearance-none bg-white border-2 border-gray-200 text-gray-800 font-bold text-xs sm:text-sm py-2.5 min-h-[44px] h-[44px] px-4 pr-8 rounded-lg text-center focus:outline-none focus:border-[#1B3150] focus:ring-1 focus:ring-[#1B3150] ${(lockSessionSelect || (isToday && isRunning)) ? 'opacity-80 cursor-not-allowed' : ''}`}
                         >
                             {sessionOptions.map((opt) => (
                                 <option key={opt} value={opt}>{opt}</option>
@@ -171,20 +171,20 @@ const BookieBidLayout = ({
 
             {/* Footer */}
             {!noFooter && !hideFooter && (
-                <div className="fixed bottom-0 left-0 right-0 lg:left-56 z-10 py-3 px-3 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+                <div className="fixed bottom-0 left-0 right-0 lg:left-56 z-10 py-3 px-3 bg-white border-t-2 border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
                     <div className="flex justify-center">
                         <div className={`w-full max-w-sm md:max-w-md rounded-2xl flex flex-col sm:flex-row items-center gap-4 sm:gap-6 ${
-                            showFooterStats ? 'bg-gray-100/95 border border-gray-200 shadow-xl px-4 py-4' : 'bg-transparent p-0'
+                            showFooterStats ? 'bg-gray-50 border-2 border-gray-200 shadow-lg px-4 py-4' : 'bg-transparent p-0'
                         }`}>
                             {showFooterStats && (
                                 <div className="flex items-center gap-6 sm:gap-8 shrink-0">
                                     <div className="text-center">
-                                        <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Bets</div>
-                                        <div className="text-base sm:text-lg font-bold text-orange-500">{bidsCount}</div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Points</div>
-                                        <div className="text-base sm:text-lg font-bold text-orange-500">{totalPoints}</div>
+                                    <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Bets</div>
+                                    <div className="text-base sm:text-lg font-bold text-[#1B3150]">{bidsCount}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Points</div>
+                                    <div className="text-base sm:text-lg font-bold text-[#1B3150]">{totalPoints}</div>
                                     </div>
                                 </div>
                             )}
@@ -194,8 +194,8 @@ const BookieBidLayout = ({
                                 disabled={!bidsCount || !selectedPlayer}
                                 className={`flex-1 w-full sm:w-auto sm:min-w-[140px] font-bold py-3 px-6 rounded-xl shadow-lg transition-all text-sm sm:text-base ${
                                     bidsCount && selectedPlayer
-                                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98]'
-                                        : 'bg-gradient-to-r from-orange-500 to-orange-600 text-white opacity-50 cursor-not-allowed'
+                                        ? 'bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98]'
+                                        : 'bg-[#1B3150] text-white opacity-50 cursor-not-allowed'
                                 }`}
                             >
                                 {submitLabel}

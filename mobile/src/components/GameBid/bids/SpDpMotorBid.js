@@ -64,7 +64,7 @@ export default function SpDpMotorBid({ market, title }) {
     market?.status === 'running' ? 'CLOSE' : 'OPEN'
   );
   const [digitInput, setDigitInput] = useState('');
-  const [pointsInput, setPointsInput] = useState('10');
+  const [pointsInput, setPointsInput] = useState('');
   const [combinations, setCombinations] = useState([]);
   const [warning, setWarning] = useState('');
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -90,8 +90,12 @@ export default function SpDpMotorBid({ market, title }) {
       showWarning('Enter at least 3 digits for SP and 2 digits for DP.');
       return;
     }
-    const defaultPoints = sanitizePoints(pointsInput) || '10';
-    const pts = Math.max(1, parseInt(defaultPoints, 10));
+    const rawPoints = sanitizePoints(pointsInput);
+    const pts = parseInt(rawPoints, 10);
+    if (!Number.isFinite(pts) || pts < 1) {
+      showWarning('Please enter points.');
+      return;
+    }
 
     const singleCombos = generateSinglePanaCombinations(digits);
     const doubleCombos = generateDoublePanaCombinations(digits);
@@ -260,7 +264,7 @@ export default function SpDpMotorBid({ market, title }) {
                 style={styles.input}
                 value={pointsInput}
                 onChangeText={(v) => setPointsInput(sanitizePoints(v))}
-                placeholder="10"
+                placeholder="Points"
                 placeholderTextColor="#9ca3af"
                 keyboardType="number-pad"
               />

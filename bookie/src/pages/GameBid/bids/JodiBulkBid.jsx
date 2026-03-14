@@ -182,7 +182,7 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
                 {(() => {
                     const compact = embedInSingleScroll || fitSingleScreen;
                     const rowH = compact ? 'h-[28px] min-h-[28px]' : 'h-10 min-h-10';
-                    const cellBase = 'no-spinner w-full min-w-0 bg-white text-gray-800 text-center font-bold placeholder:font-normal placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:ring-offset-0 rounded-lg shadow-sm';
+                    const cellBase = 'no-spinner w-full min-w-0 bg-white text-gray-800 text-center font-bold placeholder:font-normal placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/30 focus:ring-offset-0 rounded-lg shadow-sm';
                     const cellCl = compact
                         ? `${cellBase} h-[28px] min-h-[28px] text-[10px] py-1.5 px-0.5`
                         : `${cellBase} h-10 min-h-10 text-sm py-2 px-1.5`;
@@ -241,8 +241,8 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
                                                 const key = `${r}${c}`;
                                                 const nextCell = (dir) => getNextCell(r, c, dir);
                                                 return (
-                                                    <div key={key} className="flex flex-col items-center justify-center min-w-0">
-                                                        {!compact && <div className={labelCl}>{key}</div>}
+                                                    <div key={key} className="flex flex-col items-center justify-center min-w-0" title={`Row ${r}, Col ${c}`}>
+                                                        <div className={labelCl}>{key}</div>
                                                         <input
                                                             ref={(el) => {
                                                                 if (!cellRefs.current[r]) cellRefs.current[r] = {};
@@ -280,11 +280,11 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
                 })()}
 
                 {/* Clear and Add to Cart */}
-                <div className={`flex flex-col gap-2 ${(embedInSingleScroll || fitSingleScreen) ? 'mt-2' : 'mt-6'}`}>
+                <div className={`flex flex-row flex-wrap items-center gap-2 ${(embedInSingleScroll || fitSingleScreen) ? 'mt-2' : 'mt-6'}`}>
                     <button
                         type="button"
                         onClick={clearLocal}
-                        className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-orange-300 text-orange-600 bg-white hover:bg-orange-50 active:scale-[0.98] transition-all"
+                        className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
                     >
                         Clear
                     </button>
@@ -292,9 +292,9 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
                         type="button"
                         onClick={handleAddToCart}
                         disabled={!canSubmit}
-                        className={`w-full font-bold rounded-xl transition-all ${(embedInSingleScroll || fitSingleScreen) ? 'text-sm py-2.5 min-h-[44px]' : 'text-base py-4 min-h-[56px]'} shadow-md ${
+                        className={`flex-1 min-w-[140px] font-bold rounded-xl transition-all ${(embedInSingleScroll || fitSingleScreen) ? 'text-sm py-2.5 min-h-[44px]' : 'text-base py-4 min-h-[56px]'} shadow-md ${
                             canSubmit
-                                ? 'bg-[#FF6600] text-white hover:bg-[#E55C00] active:scale-[0.98] shadow-orange-500/25'
+                                ? 'bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98] shadow-[#1B3150]/25'
                                 : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none'
                         }`}
                     >

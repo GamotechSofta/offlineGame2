@@ -168,13 +168,13 @@ const BidReviewModal = ({
           th { text-align: center; font-size: 10px; text-transform: uppercase; color: #888; padding: 4px 6px; border-bottom: 1px solid #eee; }
           td { text-align: center; padding: 4px 6px; font-size: 11px; border-bottom: 1px solid #f5f5f5; }
           td.number { font-weight: 700; }
-          td.points { font-weight: 700; color: #ea580c; }
+          td.points { font-weight: 700; color: #1B3150; }
           td.session { text-transform: uppercase; color: #666; font-size: 10px; }
-          .summary { margin-top: 14px; border-top: 2px solid #ea580c; padding-top: 10px; }
+          .summary { margin-top: 14px; border-top: 2px solid #1B3150; padding-top: 10px; }
           .summary-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
           .summary-row .label { color: #666; }
           .summary-row .value { font-weight: 700; }
-          .summary-row .value.orange { color: #ea580c; }
+          .summary-row .value.orange { color: #1B3150; }
           .summary-row .value.green { color: #16a34a; }
           .total-row { border-top: 1px solid #ddd; padding-top: 6px; margin-top: 4px; }
           .total-row .label { font-weight: 700; font-size: 13px; }
@@ -295,15 +295,15 @@ const BidReviewModal = ({
                     {Object.entries(receiptData.grouped).map(([label, items]) => (
                       <div key={label} className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
                         <div className="px-3 py-2 bg-gray-100 border-b border-gray-200 flex items-center justify-between">
-                          <span className="text-orange-600 font-semibold text-[10px] uppercase tracking-wide">{label} <span className="text-gray-400">({items.length})</span></span>
-                          <span className="text-orange-600 text-[11px] font-bold">₹{items.reduce((s, r) => s + Number(r.points || 0), 0).toLocaleString('en-IN')}</span>
+                          <span className="text-[#1B3150] font-semibold text-[10px] uppercase tracking-wide">{label} <span className="text-gray-400">({items.length})</span></span>
+                          <span className="text-[#1B3150] text-[11px] font-bold">₹{items.reduce((s, r) => s + Number(r.points || 0), 0).toLocaleString('en-IN')}</span>
                         </div>
                         <div className="grid grid-cols-2 divide-x divide-gray-200">
                           {items.map((r) => (
                             <div key={r.id} className="px-2 py-1.5 border-b border-gray-100 last:border-b-0">
                               <div className="flex items-center justify-between gap-2 text-xs">
                                 <span className="text-gray-800 font-bold flex-1 truncate">{renderBetNumber(r.number)}</span>
-                                <span className="text-orange-500 font-bold shrink-0">₹{r.points}</span>
+                                <span className="text-[#1B3150] font-bold shrink-0">₹{r.points}</span>
                                 <span className="text-gray-500 uppercase text-[10px] shrink-0">{r.type}</span>
                               </div>
                             </div>
@@ -316,14 +316,14 @@ const BidReviewModal = ({
                   <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
                     <div className="px-3 py-2 bg-gray-100 border-b border-gray-200">
                       <div className="grid grid-cols-2 divide-x divide-gray-300">
-                        <div className="text-center text-[10px] font-semibold text-orange-600 uppercase">
+                        <div className="text-center text-[10px] font-semibold text-[#1B3150] uppercase">
                           <div className="grid grid-cols-3 gap-1">
                             <span>{receiptData.labelKey}</span>
                             <span>Points</span>
                             <span>Session</span>
                           </div>
                         </div>
-                        <div className="text-center text-[10px] font-semibold text-orange-600 uppercase">
+                        <div className="text-center text-[10px] font-semibold text-[#1B3150] uppercase">
                           <div className="grid grid-cols-3 gap-1">
                             <span>{receiptData.labelKey}</span>
                             <span>Points</span>
@@ -337,7 +337,7 @@ const BidReviewModal = ({
                         <div key={r.id} className="px-2 py-1.5 border-b border-gray-100 last:border-b-0">
                           <div className="flex items-center justify-between gap-2 text-xs">
                             <span className="text-gray-800 font-bold flex-1 truncate">{renderBetNumber(r.number)}</span>
-                            <span className="text-orange-500 font-bold shrink-0">₹{r.points}</span>
+                            <span className="text-[#1B3150] font-bold shrink-0">₹{r.points}</span>
                             <span className="text-gray-500 uppercase text-[10px] shrink-0">{r.type}</span>
                           </div>
                         </div>
@@ -355,7 +355,7 @@ const BidReviewModal = ({
                     </div>
                     <div className="p-3 text-center border-b border-gray-200">
                       <p className="text-gray-400 text-[10px] uppercase">Total Amount</p>
-                      <p className="text-orange-600 font-bold text-lg">₹{receiptData.totalAmount.toLocaleString('en-IN')}</p>
+                      <p className="text-[#1B3150] font-bold text-lg">₹{receiptData.totalAmount.toLocaleString('en-IN')}</p>
                     </div>
                     <div className="p-3 text-center">
                       <p className="text-gray-400 text-[10px] uppercase">Balance Before</p>
@@ -383,7 +383,7 @@ const BidReviewModal = ({
               <button
                 type="button"
                 onClick={() => { setStage('review'); handleClose(); }}
-                className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3 rounded-xl shadow-md active:scale-[0.99] transition-transform hover:from-orange-600 hover:to-orange-700"
+                className="flex-1 bg-[#1B3150] text-white font-bold py-3 rounded-xl shadow-md active:scale-[0.99] transition-transform hover:bg-[#152842]"
               >
                 Done
               </button>
@@ -392,14 +392,14 @@ const BidReviewModal = ({
         ) : (
           /* ============ REVIEW STAGE ============ */
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200 max-h-[min(90svh,720px)] sm:max-h-[calc(100vh-48px)] flex flex-col">
-            <div className="bg-orange-500 text-white px-3 sm:px-4 py-2.5 text-center text-sm sm:text-lg font-semibold shrink-0 border-b border-gray-200">
+            <div className="bg-[#1B3150] text-white px-3 sm:px-4 py-2.5 text-center text-sm sm:text-lg font-semibold shrink-0 border-b border-gray-200">
               {formatDateTitle(marketTitle, dateText)}
             </div>
 
             {playerName && (
               <div className="px-3 sm:px-4 pt-2 shrink-0">
-                <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-600 font-medium text-center">
-                  Placing bet for: <span className="font-bold text-orange-700">{playerName}</span>
+                <div className="bg-[#1B3150]/5 border border-[#1B3150]/20 rounded-lg px-3 py-2 text-sm text-[#1B3150] font-medium text-center">
+                  Placing bet for: <span className="font-bold text-[#152842]">{playerName}</span>
                 </div>
               </div>
             )}
@@ -412,9 +412,9 @@ const BidReviewModal = ({
                     {Object.entries(groupedRows).map(([gameLabel, gameRows]) => (
                       <div key={gameLabel}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-orange-500 font-semibold text-xs uppercase tracking-wide">{gameLabel}</span>
+                          <span className="text-[#1B3150] font-semibold text-xs uppercase tracking-wide">{gameLabel}</span>
                           <span className="text-gray-500 text-xs">({gameRows.length})</span>
-                          <span className="text-orange-500 text-xs font-bold ml-auto">
+                          <span className="text-[#1B3150] text-xs font-bold ml-auto">
                             ₹{gameRows.reduce((s, r) => s + Number(r.points || 0), 0).toLocaleString('en-IN')}
                           </span>
                         </div>
@@ -423,7 +423,7 @@ const BidReviewModal = ({
                             <div key={r.id} className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
                               <div className="grid grid-cols-3 text-center text-gray-800 text-[12px] sm:text-sm">
                                 <div className="font-bold truncate">{renderBetNumber(r.number)}</div>
-                                <div className="font-bold text-orange-500 truncate">{r.points}</div>
+                                <div className="font-bold text-[#1B3150] truncate">{r.points}</div>
                                 <div className="font-medium text-gray-600 uppercase truncate">{r.type}</div>
                               </div>
                             </div>
@@ -435,7 +435,7 @@ const BidReviewModal = ({
                 ) : (
                   /* Flat list (original) */
                   <>
-                    <div className="grid grid-cols-3 text-center font-semibold text-orange-500 text-[11px] sm:text-base">
+                    <div className="grid grid-cols-3 text-center font-semibold text-[#1B3150] text-[11px] sm:text-base">
                       <div className="truncate">{labelKey}</div>
                       <div className="truncate">Points</div>
                       <div className="truncate">Type</div>
@@ -445,7 +445,7 @@ const BidReviewModal = ({
                         <div key={r.id} className="bg-gray-50 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200">
                           <div className="grid grid-cols-3 text-center text-gray-800 font-semibold text-[12px] sm:text-base">
                             <div className="truncate">{renderBetNumber(r.number)}</div>
-                            <div className="truncate text-orange-500">{r.points}</div>
+                            <div className="truncate text-[#1B3150]">{r.points}</div>
                             <div className="truncate font-medium text-gray-600 uppercase">{r.type}</div>
                           </div>
                         </div>
@@ -464,7 +464,7 @@ const BidReviewModal = ({
                     </div>
                     <div className="p-3 sm:p-4 text-center border-b border-gray-200">
                       <div className="text-gray-400 text-[11px] sm:text-sm">Total Bet Amount</div>
-                      <div className="text-gray-800 font-bold text-base sm:text-lg text-orange-500 leading-tight">{amount}</div>
+                      <div className="text-gray-800 font-bold text-base sm:text-lg text-[#1B3150] leading-tight">{amount}</div>
                     </div>
                     <div className="p-3 sm:p-4 text-center border-r border-gray-200">
                       <div className="text-gray-400 text-[11px] sm:text-sm">Your Balance Before</div>
@@ -479,7 +479,7 @@ const BidReviewModal = ({
               </div>
 
               {insufficientBalance && (
-                <div className="mx-3 sm:mx-4 mt-2 p-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-sm shrink-0">
+                <div className="mx-3 sm:mx-4 mt-2 p-3 rounded-xl bg-[#1B3150]/5 border border-[#1B3150]/20 text-[#1B3150] text-sm shrink-0">
                   Insufficient player balance. Required: ₹{amount.toLocaleString('en-IN')}, Available: ₹{before.toLocaleString('en-IN')}.
                 </div>
               )}
@@ -500,7 +500,7 @@ const BidReviewModal = ({
                 type="button"
                 onClick={handleClose}
                 disabled={submitting}
-                className="bg-gray-100 border border-gray-200 text-gray-800 font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:border-orange-300 disabled:opacity-50"
+                className="bg-gray-100 border border-gray-200 text-gray-800 font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:border-[#1B3150]/40 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -508,7 +508,7 @@ const BidReviewModal = ({
                 type="button"
                 onClick={handleSubmitClick}
                 disabled={submitting || insufficientBalance}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="bg-[#1B3150] text-white font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:bg-[#152842] disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <>

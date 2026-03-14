@@ -101,7 +101,7 @@ const Records = () => {
                     type="button"
                     onClick={() => setBetByFilter('all')}
                     className={`px-3 py-2 rounded-lg text-sm font-semibold border ${
-                        betByFilter === 'all' ? 'bg-orange-500 text-white border-orange-500' : 'bg-gray-100 text-gray-700 border-gray-200'
+                        betByFilter === 'all' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-700 border-gray-200'
                     }`}
                 >
                     All
@@ -110,7 +110,7 @@ const Records = () => {
                     type="button"
                     onClick={() => setBetByFilter('player')}
                     className={`px-3 py-2 rounded-lg text-sm font-semibold border ${
-                        betByFilter === 'player' ? 'bg-orange-500 text-white border-orange-500' : 'bg-gray-100 text-gray-700 border-gray-200'
+                        betByFilter === 'player' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-700 border-gray-200'
                     }`}
                 >
                     Bets by Player
@@ -119,7 +119,7 @@ const Records = () => {
                     type="button"
                     onClick={() => setBetByFilter('bookie')}
                     className={`px-3 py-2 rounded-lg text-sm font-semibold border ${
-                        betByFilter === 'bookie' ? 'bg-orange-500 text-white border-orange-500' : 'bg-gray-100 text-gray-700 border-gray-200'
+                        betByFilter === 'bookie' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-700 border-gray-200'
                     }`}
                 >
                     Bets by Bookie
@@ -173,7 +173,7 @@ const Records = () => {
                                                     ? 'bg-green-100 text-green-700'
                                                     : r.status === 'lost' || r.status === 'rejected'
                                                         ? 'bg-red-100 text-red-700'
-                                                        : 'bg-orange-100 text-orange-700'
+                                                        : 'bg-[#1B3150]/10 text-[#1B3150]'
                                             }`}>
                                                 {String(r.status || 'pending').toUpperCase()}
                                             </span>

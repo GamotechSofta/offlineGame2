@@ -150,32 +150,6 @@ const GameBidInner = ({ marketId, gameType, playerId, betType, title, BidCompone
                     marginRight: 'var(--cart-w, 0px)',
                 }}
             >
-                {/* Previous / Next game — keyboard: Arrow Left / Arrow Right; click or Tab+Enter on buttons */}
-                <div className="flex items-center justify-center gap-2 py-2 px-2 border-b border-gray-100 bg-gray-50/80">
-                    <button
-                        type="button"
-                        onClick={goToPrevGame}
-                        className="p-2 min-w-[44px] min-h-[44px] rounded-full bg-white border border-gray-200 text-gray-600 hover:text-orange-500 hover:border-orange-300 hover:bg-orange-50 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1"
-                        aria-label="Previous game type"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <span className="text-xs text-gray-500 font-medium px-2 truncate max-w-[140px] sm:max-w-[200px]" title={title}>
-                        {title}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={goToNextGame}
-                        className="p-2 min-w-[44px] min-h-[44px] rounded-full bg-white border border-gray-200 text-gray-600 hover:text-orange-500 hover:border-orange-300 hover:bg-orange-50 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1"
-                        aria-label="Next game type"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
-                </div>
                 <BidComponent
                     title={title}
                     gameType={gameType}
@@ -226,7 +200,7 @@ const BookieGameBid = () => {
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
-                        className="text-orange-500 hover:underline text-sm"
+                        className="text-[#1B3150] hover:underline text-sm"
                     >
                         Go Back
                     </button>

@@ -90,7 +90,7 @@ const GamesMarkets = () => {
             <div className="min-w-0 max-w-full" style={{ backgroundColor: 'rgb(248, 249, 250)' }}>
                 <div className="mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3 text-gray-800">
-                        <FaDice className="text-orange-500" />
+                        <FaDice className="text-[#1B3150]" />
                         Games
                     </h1>
                     <p className="text-gray-500 text-sm mt-1">Select a market to place bets</p>
@@ -166,7 +166,7 @@ const GamesMarkets = () => {
                                             </h3>
                                             {!isClosed ? (
                                                 <>
-                                                    <p className="text-[10px] font-medium text-orange-600 mt-0.5">
+                                                    <p className="text-[10px] font-medium text-[#1B3150] mt-0.5">
                                                         Bets on: {openActive ? 'Open' : 'Close'}
                                                     </p>
                                                     <p className="text-[9px] text-gray-500 mt-0.5 text-center leading-tight">
