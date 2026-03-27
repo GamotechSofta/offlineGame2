@@ -21,7 +21,6 @@ import SpCommonBid from './bids/SpCommonBid';
 const BID_COMPONENTS = {
     'single digit': SingleDigitBid,
     'odd even': OddEvenBid,
-    'sp common': SpCommonBid,
     'single digit bulk': SingleDigitBulkBid,
     'jodi': JodiBid,
     'jodi bulk': JodiBulkBid,
@@ -33,6 +32,7 @@ const BID_COMPONENTS = {
     'full sangam': FullSangamBid,
     'half sangam': HalfSangamBid,
     'sp motor': SpMotorBid,
+    'sp common': SpCommonBid,
     'dp motor': DpMotorBid,
     'sp dp motor': SpDpMotorBid,
 };

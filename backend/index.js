@@ -48,11 +48,18 @@ if (isProduction && (!allowedOriginsRaw || !allowedOriginsRaw.trim())) {
 const allowedOrigins = allowedOriginsRaw
     ? allowedOriginsRaw.split(',').map(origin => origin.trim()).filter(Boolean)
     : ['*']; // Default: allow all (development only)
+const localhostOriginRegex = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
 const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        const isLocalhostOrigin = !!origin && localhostOriginRegex.test(origin);
+        const isExplicitlyAllowed = !!origin && allowedOrigins.includes(origin);
+        const allowAll = allowedOrigins.includes('*');
+        // In local development, always allow localhost/127.0.0.1 origins.
+        const allowLocalDev = !isProduction && isLocalhostOrigin;
+
+        if (!origin || allowAll || isExplicitlyAllowed || allowLocalDev) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));

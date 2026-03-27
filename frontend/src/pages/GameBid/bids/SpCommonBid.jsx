@@ -1,22 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
+import { useBettingWindow } from '../BettingWindowContext';
 import { placeBet, updateUserBalance } from '../../../api/bets';
 import { generateSPCommon } from './spCommonGenerator';
 
-const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
-
-/**
- * SP Common: bet on the result digit (0-9) derived from the 3-digit result.
- * Win when (sum of digits of open/close panel) % 10 equals your chosen digit.
- * e.g. SP Common 1 wins if result is 128, 137, 470, 560, etc. (all give digit 1).
- */
 const SpCommonBid = ({ market, title }) => {
     const [session, setSession] = useState(() => (market?.status === 'running' ? 'CLOSE' : 'OPEN'));
-    const [digitInput, setDigitInput] = useState('');
-    const [pointsInput, setPointsInput] = useState('');
-    const [bids, setBids] = useState([]);
-    const [isReviewOpen, setIsReviewOpen] = useState(false);
     const [warning, setWarning] = useState('');
     const [selectedDate, setSelectedDate] = useState(() => {
         try {
@@ -28,6 +18,12 @@ const SpCommonBid = ({ market, title }) => {
         } catch (e) {}
         return new Date().toISOString().split('T')[0];
     });
+    const [digitInput, setDigitInput] = useState('');
+    const [generatedDigit, setGeneratedDigit] = useState('');
+    const [pointsInput, setPointsInput] = useState('');
+    const [generatedRows, setGeneratedRows] = useState([]);
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [reviewRows, setReviewRows] = useState([]);
 
     const handleDateChange = (newDate) => {
         try {
@@ -42,15 +38,26 @@ const SpCommonBid = ({ market, title }) => {
         showWarning._t = window.setTimeout(() => setWarning(''), 2200);
     };
 
-    const clearAll = () => {
-        setBids([]);
+    const isRunning = market?.status === 'running';
+    useEffect(() => {
+        if (isRunning) setSession('CLOSE');
+    }, [isRunning]);
+
+    const rowsWithPoints = useMemo(
+        () => generatedRows.filter((row) => Number(row.points) > 0),
+        [generatedRows]
+    );
+    const bidsCount = rowsWithPoints.length;
+    const totalPoints = useMemo(
+        () => rowsWithPoints.reduce((sum, row) => sum + (Number(row.points) || 0), 0),
+        [rowsWithPoints]
+    );
+
+    const clearLocal = () => {
         setDigitInput('');
+        setGeneratedDigit('');
         setPointsInput('');
-        const today = new Date().toISOString().split('T')[0];
-        setSelectedDate(today);
-        try {
-            localStorage.removeItem('betSelectedDate');
-        } catch (e) {}
+        setGeneratedRows([]);
     };
 
     const handleGenerate = () => {
@@ -61,65 +68,66 @@ const SpCommonBid = ({ market, title }) => {
         }
         if (result.data.length === 0) {
             showWarning('No panna matches for selected digit(s).');
-            setBids([]);
+            setGeneratedRows([]);
+            setGeneratedDigit('');
             return;
         }
-        setBids(
+        setGeneratedDigit(String(digitInput || '').trim());
+        setGeneratedRows(
             result.data.map((row, idx) => ({
                 id: `${row.pana}-${Date.now()}-${idx}`,
-                number: row.pana,
+                pana: row.pana,
                 points: String(row.points),
-                type: session,
             }))
         );
     };
 
     const updatePoint = (id, value) => {
-        const clean = sanitizePoints(value);
-        setBids((prev) => prev.map((row) => (row.id === id ? { ...row, points: clean } : row)));
+        const clean = (value ?? '').toString().replace(/\D/g, '').slice(0, 6);
+        setGeneratedRows((prev) => prev.map((row) => (row.id === id ? { ...row, points: clean } : row)));
     };
 
     const removeRow = (id) => {
-        setBids((prev) => prev.filter((row) => row.id !== id));
+        setGeneratedRows((prev) => prev.filter((row) => row.id !== id));
     };
 
-    const handleAddBid = () => {
-        if (!bids.length) {
-            showWarning('Please generate combinations first.');
+    const openReview = () => {
+        if (!/^[0-9]$/.test(generatedDigit)) {
+            showWarning('Please generate first using a valid digit (0-9).');
             return;
         }
+        const items = rowsWithPoints.map((row) => ({
+            id: row.id,
+            number: row.pana,
+            points: String(row.points),
+            type: session,
+        }));
+        if (!items.length) {
+            showWarning('Generate and keep at least one row with points.');
+            return;
+        }
+        setReviewRows(items);
         setIsReviewOpen(true);
     };
 
-    const totalPoints = bids.reduce((sum, b) => sum + Number(b.points), 0);
-    const dateText = new Date().toLocaleDateString('en-GB');
-    const marketTitle = market?.gameName || market?.marketName || title;
-    const isRunning = market?.status === 'running';
-
-    useEffect(() => {
-        if (isRunning) setSession('CLOSE');
-    }, [isRunning]);
-
-    const walletBefore = useMemo(() => {
-        try {
-            const u = JSON.parse(localStorage.getItem('user') || 'null');
-            const val = u?.wallet ?? u?.balance ?? u?.points ?? u?.walletAmount ?? u?.wallet_amount ?? u?.amount ?? 0;
-            const n = Number(val);
-            return Number.isFinite(n) ? n : 0;
-        } catch (e) {
-            return 0;
-        }
-    }, []);
+    const totalPointsForFooter = useMemo(
+        () => reviewRows.reduce((sum, r) => sum + Number(r.points || 0), 0),
+        [reviewRows]
+    );
 
     const handleSubmitBet = async () => {
         const marketId = market?._id || market?.id;
         if (!marketId) throw new Error('Market not found');
-        const bets = bids.map((b) => ({
-            betType: 'sp-common',
-            betNumber: String(b.number),
-            amount: Number(b.points) || 0,
-            betOn: String(b?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',
-        }));
+        const payload = reviewRows
+            .map((row) => ({
+                betType: 'sp-common',
+                // Backend validates SP Common as single result digit (0-9), not 3-digit panna.
+                betNumber: generatedDigit,
+                amount: Number(row.points) || 0,
+                betOn: String(row?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',
+            }))
+            .filter((bet) => /^[0-9]$/.test(bet.betNumber) && bet.amount > 0);
+        if (!payload.length) throw new Error('No valid bets to place');
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -127,37 +135,76 @@ const SpCommonBid = ({ market, title }) => {
         selectedDateObj.setHours(0, 0, 0, 0);
         const scheduledDate = selectedDateObj > today ? selectedDate : null;
 
-        const result = await placeBet(marketId, bets, scheduledDate);
-        if (!result.success) throw new Error(result.message);
+        const result = await placeBet(marketId, payload, scheduledDate);
+        if (!result.success) throw new Error(result.message || 'Failed to place bet');
         if (result.data?.newBalance != null) updateUserBalance(result.data.newBalance);
+
         setIsReviewOpen(false);
-        clearAll();
+        setReviewRows([]);
+        clearLocal();
+        const todayStr = new Date().toISOString().split('T')[0];
+        setSelectedDate(todayStr);
+        try {
+            localStorage.setItem('betSelectedDate', todayStr);
+        } catch (e) {}
     };
 
-    const handleCancelBet = () => {
-        setIsReviewOpen(false);
-        clearAll();
-    };
+    const dateText = new Date().toLocaleDateString('en-GB');
+    const marketTitle = market?.gameName || market?.marketName || title;
+    const { allowed: bettingAllowed } = useBettingWindow();
+
+    const walletBefore = useMemo(() => {
+        try {
+            const u = JSON.parse(localStorage.getItem('user') || 'null');
+            const val =
+                u?.wallet ||
+                u?.balance ||
+                u?.points ||
+                u?.walletAmount ||
+                u?.wallet_amount ||
+                u?.amount ||
+                0;
+            const n = Number(val);
+            return Number.isFinite(n) ? n : 0;
+        } catch (e) {
+            return 0;
+        }
+    }, []);
 
     return (
-        <BidLayout market={market} title={title} bidsCount={bids.length} totalPoints={totalPoints} showDateSession={true} extraHeader={null} session={session} setSession={setSession} hideFooter walletBalance={walletBefore} selectedDate={selectedDate} setSelectedDate={handleDateChange}>
-            <div className="px-3 sm:px-4 py-4 sm:py-2 md:max-w-3xl md:mx-auto md:items-start">
+        <BidLayout
+            market={market}
+            title={title}
+            bidsCount={bidsCount}
+            totalPoints={totalPoints}
+            session={session}
+            setSession={setSession}
+            showDateSession
+            selectedDate={selectedDate}
+            setSelectedDate={handleDateChange}
+            hideFooter
+            walletBalance={walletBefore}
+            contentPaddingClass="pb-24"
+        >
+            <div className="p-3 sm:p-4 pb-24 md:pb-6 sm:pb-8 min-h-0">
                 {warning && (
-                    <div className="bg-red-50 border-2 border-red-300 text-red-600 rounded-xl px-4 py-3 text-sm mb-4">
+                    <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-green-200 text-green-600 rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md backdrop-blur-sm">
                         {warning}
                     </div>
                 )}
-                <p className="text-gray-600 text-sm mb-3">Enter a single digit (0-9), points and click Generate.</p>
-                <div className="flex flex-col md:flex-row gap-3 sm:gap-4 items-stretch md:items-start">
-                    <div className="flex flex-col gap-2.5 w-full md:w-[52%] shrink-0 min-w-0">
+
+                <div className="mb-3 text-gray-600 text-xs">Enter a single digit (0-9), points and click Generate.</div>
+
+                <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
+                    <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
                         <div>
                             <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Enter Digit</label>
                             <input
                                 type="text"
-                                placeholder="e.g. 2"
                                 value={digitInput}
                                 onChange={(e) => setDigitInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 1))}
-                                className="w-full h-10 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-md focus:outline-none focus:border-[#1B3150] px-3 text-sm font-semibold"
+                                placeholder="e.g. 2"
+                                className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
                             />
                         </div>
                         <div>
@@ -165,32 +212,34 @@ const SpCommonBid = ({ market, title }) => {
                             <input
                                 type="text"
                                 inputMode="numeric"
-                                placeholder="Points"
                                 value={pointsInput}
-                                onChange={(e) => setPointsInput(sanitizePoints(e.target.value))}
-                                className="w-full h-10 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-md focus:outline-none focus:border-[#1B3150] px-3 text-sm font-semibold"
+                                onChange={(e) => setPointsInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 6))}
+                                placeholder="Points"
+                                className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
                             />
                         </div>
-                        <button onClick={handleGenerate} className="w-full mt-1 bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]">
-                            Generate
+                        <button
+                            type="button"
+                            onClick={handleGenerate}
+                            className="w-full min-h-[48px] py-3.5 rounded-lg bg-[#1B3150] text-white font-bold text-base"
+                        >
+                            GENERATE
                         </button>
                     </div>
 
-                    <div className="w-full md:w-[48%] rounded-lg border border-gray-200 bg-white overflow-hidden min-h-[240px]">
-                        <div className="bg-[#1B3150] text-white font-bold text-sm py-2.5 px-3 text-center">
-                            <div className="grid grid-cols-[72px_1fr_48px] gap-2">
-                                <div className="text-center">Pana</div>
-                                <div className="text-center">Point</div>
-                                <div className="text-center">Delete</div>
-                            </div>
+                    <div className="w-full md:w-1/2 flex-1 min-w-0 rounded-lg border border-gray-200 overflow-hidden flex flex-col min-h-[200px] sm:min-h-[260px] bg-white">
+                        <div className="grid grid-cols-[72px_1fr_48px] gap-2 bg-[#1B3150] text-white font-bold text-xs sm:text-sm py-2.5 px-2 sm:px-3">
+                            <div className="text-center">Pana</div>
+                            <div className="text-center">Point</div>
+                            <div className="text-center">Delete</div>
                         </div>
-                        <div className="max-h-[280px] overflow-y-auto p-0">
-                            {bids.length === 0 ? (
-                                <div className="py-8 text-center text-gray-400 text-sm">Click Generate to show combinations</div>
+                        <div className="max-h-[240px] sm:max-h-[280px] overflow-y-auto flex-1 bg-white">
+                            {generatedRows.length === 0 ? (
+                                <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
                             ) : (
-                                bids.map((row) => (
+                                generatedRows.map((row) => (
                                     <div key={row.id} className="grid grid-cols-[72px_1fr_48px] gap-2 items-center py-2.5 px-2 sm:px-3 border-b border-gray-200 min-h-[44px]">
-                                        <div className="text-center font-bold text-gray-800 text-sm sm:text-base">{row.number}</div>
+                                        <div className="text-center font-bold text-gray-800 text-sm sm:text-base">{row.pana}</div>
                                         <div className="px-1 sm:px-2 min-w-0">
                                             <input
                                                 type="text"
@@ -216,32 +265,50 @@ const SpCommonBid = ({ market, title }) => {
                         </div>
                     </div>
                 </div>
-                <div className="mt-3 mb-2 flex items-center gap-5 text-[#1B3150]">
+
+                <div className="mt-3 mb-1 flex items-center gap-6 text-[#1B3150]">
                     <div className="text-center">
                         <div className="text-[11px] text-gray-500">Count</div>
-                        <div className="text-2xl leading-none font-bold">{bids.length}</div>
+                        <div className="text-2xl leading-none font-bold">{bidsCount}</div>
                     </div>
                     <div className="text-center">
                         <div className="text-[11px] text-gray-500">Bet Amount</div>
                         <div className="text-2xl leading-none font-bold">{totalPoints}</div>
                     </div>
                 </div>
-                <button onClick={handleAddBid} disabled={!bids.length} className={`w-full mt-4 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md transition-all active:scale-[0.98] ${bids.length ? 'bg-[#1B3150] hover:bg-[#152842]' : 'bg-gray-400 cursor-not-allowed'}`}>
-                    Add to List
-                </button>
+
+                <div className="flex flex-col gap-2 mt-4">
+                    <button
+                        type="button"
+                        onClick={clearLocal}
+                        className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all"
+                    >
+                        Clear
+                    </button>
+                    <button
+                        type="button"
+                        onClick={openReview}
+                        disabled={!bidsCount || !bettingAllowed}
+                        className={`w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[52px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${
+                            !bidsCount || !bettingAllowed ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                    >
+                        Add to Cart {bidsCount > 0 && `(${bidsCount})`}
+                    </button>
+                </div>
             </div>
 
             <BidReviewModal
                 open={isReviewOpen}
-                onClose={handleCancelBet}
+                onClose={() => setIsReviewOpen(false)}
                 onSubmit={handleSubmitBet}
                 marketTitle={marketTitle}
                 dateText={dateText}
-                labelKey="Digit"
-                rows={bids}
+                labelKey="Pana"
+                rows={reviewRows}
                 walletBefore={walletBefore}
-                totalBids={bids.length}
-                totalAmount={totalPoints}
+                totalBids={reviewRows.length}
+                totalAmount={totalPointsForFooter}
             />
         </BidLayout>
     );

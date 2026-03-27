@@ -3,7 +3,18 @@ import { VALID_SINGLE_PANAS } from './panaRules';
 const VALID_SINGLE_PANA_LIST = Array.from(VALID_SINGLE_PANAS);
 const VALID_SINGLE_PANA_SET = new Set(VALID_SINGLE_PANA_LIST);
 
-export const normalizeInput = (input) => String(input ?? '').trim();
+const normalizeInput = (input) => String(input ?? '').trim();
+
+// Keep in sync with backend/utils/singlePattiUtils.js (isSinglePatti):
+// valid only when 3 digits and all are unique.
+const isSinglePatti = (patti) => {
+    const s = normalizeInput(patti);
+    if (s.length !== 3 || !/^\d{3}$/.test(s)) return false;
+    const a = s[0];
+    const b = s[1];
+    const c = s[2];
+    return a !== b && b !== c && a !== c;
+};
 
 export const validateDigit = (digit) => {
     const normalized = normalizeInput(digit);
@@ -15,9 +26,7 @@ export const validateDigit = (digit) => {
 
 const isValidSinglePanaFromList = (pana) => {
     const s = normalizeInput(pana);
-    if (!/^\d{3}$/.test(s)) return false;
-    if (s[0] === '0') return false;
-    if (new Set(s.split('')).size !== 3) return false;
+    if (!isSinglePatti(s)) return false;
     return VALID_SINGLE_PANA_SET.has(s);
 };
 
@@ -35,14 +44,12 @@ export const generateSinglePanaForDigit = (digit, points) => {
 
     const results = VALID_SINGLE_PANA_LIST
         .filter((pana) => isValidSinglePanaFromList(pana))
-        .filter((pana) => pana.includes(d))
+        // Match backend first-digit grouping style for Single Patti summary.
+        .filter((pana) => pana.startsWith(d))
         .sort((a, b) => Number(a) - Number(b))
         .map((pana) => ({ pana, points: safePoints }));
 
     return { success: true, message: '', data: results };
 };
 
-export const generateSPCommon = ({ digit, points }) => {
-    return generateSinglePanaForDigit(digit, points);
-};
-
+export const generateSPCommon = ({ digit, points }) => generateSinglePanaForDigit(digit, points);
