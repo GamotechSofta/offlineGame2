@@ -90,7 +90,7 @@ const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }
         </div>
     );
 
-    const addToCartBtnClass = 'w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 transition-all active:scale-[0.98]';
+    const addToCartBtnClass = 'w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98]';
 
     return (
         <BookieBidLayout title={title} bidsCount={0} totalPoints={0} showDateSession={!embedInSingleScroll}

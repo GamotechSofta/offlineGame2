@@ -107,6 +107,17 @@ const BidOptions = () => {
       ),
     },
     {
+      id: 6.5,
+      title: 'SP Common',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
+          alt="SP Common"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
+    {
       id: 7,
       title: 'Double Pana',
       icon: (
@@ -211,6 +222,7 @@ const BidOptions = () => {
           'Single Digit',
           'Single Digit Bulk',
           'Odd Even',
+          'SP Common',
           'Single Pana',
           'Single Pana Bulk',
           'Double Pana',

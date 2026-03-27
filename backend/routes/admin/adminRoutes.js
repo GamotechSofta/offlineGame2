@@ -11,6 +11,7 @@ import {
     toggleBookieStatus,
     getSecretDeclarePasswordStatus,
     setSecretDeclarePassword,
+    getSpCommonList,
 } from '../../controllers/adminController.js';
 import { getLogs } from '../../controllers/activityLogController.js';
 import { getRouletteRecords, getAdminRouletteConfig, updateRouletteConfig } from '../../controllers/adminRouletteController.js';
@@ -24,6 +25,9 @@ router.post('/create', createAdmin); // For initial admin setup
 // Secret declare password (Super Admin only)
 router.get('/me/secret-declare-password-status', verifySuperAdmin, getSecretDeclarePasswordStatus);
 router.patch('/me/secret-declare-password', verifySuperAdmin, setSecretDeclarePassword);
+
+// SP Common list for declare UI (open/close must be from this list)
+router.get('/config/sp-common-list', verifyAdmin, getSpCommonList);
 
 // Super Admin management routes (Super Admin only)
 router.get('/super-admins', verifyAdmin, getAllSuperAdmins); // Get all super admins

@@ -21,6 +21,7 @@ export const getStoredSidebarWidth = () => {
 const GAME_TYPES_LIST = [
     { id: 'single-digit', title: 'Single Digit', icon: '1', color: 'bg-blue-500' },
     { id: 'odd-even', title: 'Odd Even', icon: 'O/E', color: 'bg-indigo-500' },
+    { id: 'sp-common', title: 'SP Common', icon: 'SP', color: 'bg-emerald-500' },
     { id: 'jodi', title: 'Jodi Bulk', icon: '12', color: 'bg-purple-500' },
     { id: 'single-pana-bulk', title: 'Single Pana Bulk', icon: '123+', color: 'bg-emerald-600' },
     { id: 'double-pana-bulk', title: 'Double Pana Bulk', icon: '112+', color: 'bg-[#1B3150]' },

@@ -18,6 +18,7 @@ const EasyModeBid = ({
     desktopSplit = false,
     validDoublePanas = [],
     validSinglePanas = [],
+    apiBetType = null, // when set, used in payload instead of derived betType (e.g. 'sp-common')
 }) => {
     const [activeTab, setActiveTab] = useState('easy'); // easy | special
     const lockSessionToOpen = specialModeType === 'jodi';
@@ -491,8 +492,7 @@ const EasyModeBid = ({
         if (!marketId) throw new Error('Market not found');
         const rows = bids.length ? bids : reviewRows;
         if (!rows.length) throw new Error('No bets to place');
-        const betType =
-            specialModeType === 'jodi' ? 'jodi' : (specialModeType === 'singlePana' || specialModeType === 'doublePana' ? 'panna' : 'single');
+        const betType = apiBetType || (specialModeType === 'jodi' ? 'jodi' : (specialModeType === 'singlePana' || specialModeType === 'doublePana' ? 'panna' : 'single'));
         const payload = rows.map((r) => ({
             betType,
             betNumber: String(r?.number ?? '').trim(),

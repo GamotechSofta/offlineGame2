@@ -447,9 +447,9 @@ const AddResult = () => {
                                 <h3 className="text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">
                                     Open Result
                                 </h3>
-                                <p className="text-[11px] text-gray-500 mb-2 sm:mb-3">Enter 3 digits → Check (preview) → Declare Open</p>
+                                <p className="text-[11px] text-gray-500 mb-2 sm:mb-3">Enter 3 digits (must be from SP Common list) → Check → Declare Open</p>
                                 <div className="mb-2 sm:mb-3">
-                                    <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Open Patti (3 digits)</label>
+                                    <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Open Patti (3 digits, SP Common only)</label>
                                     <input
                                         type="text"
                                         inputMode="numeric"
@@ -517,9 +517,9 @@ const AddResult = () => {
                             {selectedMarket.openingNumber && /^\d{3}$/.test(selectedMarket.openingNumber) && (
                                 <div className="mb-4 sm:mb-6">
                                     <h3 className="text-xs sm:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Close Result</h3>
-                                    <p className="text-[11px] text-gray-500 mb-2 sm:mb-3">Enter 3 digits → Check (preview) → Declare Close</p>
+                                    <p className="text-[11px] text-gray-500 mb-2 sm:mb-3">Enter 3 digits (must be from SP Common list) → Check → Declare Close</p>
                                     <div className="mb-2 sm:mb-3">
-                                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Close Patti (3 digits)</label>
+                                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">Close Patti (3 digits, SP Common only)</label>
                                         <input
                                             type="text"
                                             inputMode="numeric"

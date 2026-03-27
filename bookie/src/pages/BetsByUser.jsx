@@ -138,6 +138,7 @@ const BetsByUser = () => {
             'half-sangam': t('halfSangamO'),
             'full-sangam': t('fullSangam'),
             'odd-even': 'Odd Even',
+            'sp-common': 'SP Common',
         };
         return labels[key] || betType;
     };

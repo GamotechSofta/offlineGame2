@@ -8,7 +8,7 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingAllowed, isBettingAllowedForSession } from '../utils/marketTiming.js';
 
-const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam', 'odd-even'];
+const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam', 'odd-even', 'sp-common'];
 const THREE_DIGITS = /^\d{3}$/;
 
 /** Same rules as Double Pana: 3 digits, two consecutive same, first !== 0, and digit ordering rules. */
@@ -139,6 +139,12 @@ export const placeBet = async (req, res) => {
                         message: 'Odd Even betNumber must be "odd" or "even".',
                     });
                 }
+            }
+            if (betType === 'sp-common' && !/^[0-9]$/.test(String(betNumber || '').trim())) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'SP Common betNumber must be a single digit (0-9). You are betting on the result digit from SP panels.',
+                });
             }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {
@@ -389,6 +395,12 @@ export const placeBetForPlayer = async (req, res) => {
                         message: 'Odd Even betNumber must be "odd" or "even".',
                     });
                 }
+            }
+            if (betType === 'sp-common' && !/^[0-9]$/.test(String(betNumber || '').trim())) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'SP Common betNumber must be a single digit (0-9). You are betting on the result digit from SP panels.',
+                });
             }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {

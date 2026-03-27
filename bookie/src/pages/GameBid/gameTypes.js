@@ -1,5 +1,6 @@
 import SingleDigitBid from './bids/SingleDigitBid';
 import OddEvenBid from './bids/OddEvenBid';
+import SpCommonBid from './bids/SpCommonBid';
 import JodiBulkBid from './bids/JodiBulkBid';
 import SinglePanaBulkBid from './bids/SinglePanaBulkBid';
 import DoublePanaBulkBid from './bids/DoublePanaBulkBid';
@@ -13,6 +14,7 @@ import SpDpMotorBid from './bids/SpDpMotorBid';
 export const GAME_TYPE_ORDER = [
     'single-digit',
     'odd-even',
+    'sp-common',
     'jodi',
     'single-pana-bulk',
     'double-pana-bulk',
@@ -34,6 +36,7 @@ export const getBettableGameTypeOrder = (isPastOpenTime) => {
 export const BID_COMPONENTS = {
     'single-digit': { component: SingleDigitBid, title: 'Single Digit', betType: 'single' },
     'odd-even': { component: OddEvenBid, title: 'Odd Even', betType: 'odd-even' },
+    'sp-common': { component: SpCommonBid, title: 'SP Common', betType: 'sp-common' },
     'jodi': { component: JodiBulkBid, title: 'Jodi Bulk', betType: 'jodi' },
     'single-pana-bulk': { component: SinglePanaBulkBid, title: 'Single Pana Bulk', betType: 'panna' },
     'double-pana-bulk': { component: DoublePanaBulkBid, title: 'Double Pana Bulk', betType: 'panna' },

@@ -58,6 +58,7 @@ const getBetTypeLabel = (type, betNumber = '') => {
         'half-sangam': 'Half Sangam',
         'full-sangam': 'Full Sangam',
         'odd-even': 'Odd Even',
+        'sp-common': 'SP Common',
     };
 
     if (type === 'sp-motor') return 'SP Motor';

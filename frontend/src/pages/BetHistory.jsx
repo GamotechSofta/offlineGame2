@@ -345,19 +345,28 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
     setPage(1);
   }, [selectedSessions, selectedStatuses, selectedMarkets, enriched.length]);
 
-  const PAGE_SIZE = 10;
+  // 12 cards per page on desktop (md+), 10 on mobile
+  const [pageSize, setPageSize] = useState(() => (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches ? 12 : 10));
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const update = () => setPageSize(mq.matches ? 12 : 10);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   const totalPages = useMemo(() => {
-    const n = Math.ceil((filtered?.length || 0) / PAGE_SIZE);
+    const n = Math.ceil((filtered?.length || 0) / pageSize);
     return n > 0 ? n : 1;
-  }, [filtered]);
+  }, [filtered, pageSize]);
 
   const currentPage = Math.min(Math.max(1, page), totalPages);
   const paged = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return (filtered || []).slice(start, start + PAGE_SIZE);
-  }, [filtered, currentPage]);
+    const start = (currentPage - 1) * pageSize;
+    return (filtered || []).slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
 
-  const hasPagination = (filtered?.length || 0) > PAGE_SIZE;
+  const hasPagination = (filtered?.length || 0) > pageSize;
 
   // Draft state for modal
   const [draftSessions, setDraftSessions] = useState([]);
@@ -393,7 +402,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
 
   return (
     <div className={`min-h-screen bg-white text-gray-800 px-3 sm:px-4 pt-3 ${hasPagination ? 'pb-[calc(100px+env(safe-area-inset-bottom,0px))]' : 'pb-[calc(7rem+env(safe-area-inset-bottom,0px))]'}`}>
-      <div className="w-full max-w-3xl mx-auto">
+      <div className="w-full max-w-3xl md:max-w-6xl mx-auto">
         {/* Header row */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -424,10 +433,10 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
           </button>
         </div>
 
-        {/* Cards */}
-        <div className="space-y-4">
+        {/* Cards: 1 column on mobile, 3 per row on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {filtered.length === 0 ? (
-            <div className="rounded-2xl border-2 border-gray-300 bg-white p-6 text-center text-gray-600 shadow-sm">
+            <div className="rounded-2xl border-2 border-gray-300 bg-white p-6 text-center text-gray-600 shadow-sm md:col-span-3">
               {userId ? 'No bets found.' : 'Please login to see your bet history.'}
             </div>
           ) : paged.map(({ x, r, idx, points, session, marketTitle, verdict }) => {

@@ -6,6 +6,7 @@ import MarketResult from '../models/marketResult/marketResult.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isSinglePatti, buildSinglePattiFirstDigitSummary } from '../utils/singlePattiUtils.js';
+import { isSpCommon } from '../config/spCommonList.js';
 import { previewDeclareOpen, previewDeclareClose, settleOpening, settleClosing, getWinningBetsForOpen, getWinningBetsForClose } from '../utils/settleBets.js';
 import { ensureResultsResetForNewDay } from '../utils/resultReset.js';
 import { getRatesMap } from '../models/rate/rate.js';
@@ -253,6 +254,12 @@ export const setOpeningNumber = async (req, res) => {
                 message: 'openingNumber must be exactly 3 digits or empty to clear',
             });
         }
+        if (value !== null && !isSpCommon(value)) {
+            return res.status(400).json({
+                success: false,
+                message: 'openingNumber must be from the SP Common list (valid Single Patti combination)',
+            });
+        }
         
         // Check if market is already closed (has closing number)
         const existingMarket = await Market.findById(id);
@@ -328,6 +335,12 @@ export const setClosingNumber = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'closingNumber must be exactly 3 digits or empty to clear',
+            });
+        }
+        if (value !== null && !isSpCommon(value)) {
+            return res.status(400).json({
+                success: false,
+                message: 'closingNumber must be from the SP Common list (valid Single Patti combination)',
             });
         }
         const market = await Market.findByIdAndUpdate(
@@ -458,6 +471,12 @@ export const declareOpenResult = async (req, res) => {
         const openVal = (openingNumber ?? '').toString().trim();
         if (!/^\d{3}$/.test(openVal)) {
             return res.status(400).json({ success: false, message: 'openingNumber must be exactly 3 digits' });
+        }
+        if (!isSpCommon(openVal)) {
+            return res.status(400).json({
+                success: false,
+                message: 'openingNumber must be from the SP Common list (valid Single Patti combination)',
+            });
         }
         const market = await Market.findById(marketId);
         if (!market) {
@@ -615,6 +634,12 @@ export const declareCloseResult = async (req, res) => {
         const closeVal = (closingNumber ?? '').toString().trim();
         if (!/^\d{3}$/.test(closeVal)) {
             return res.status(400).json({ success: false, message: 'closingNumber must be exactly 3 digits' });
+        }
+        if (!isSpCommon(closeVal)) {
+            return res.status(400).json({
+                success: false,
+                message: 'closingNumber must be from the SP Common list (valid Single Patti combination)',
+            });
         }
         const market = await Market.findById(marketId);
         if (!market) {

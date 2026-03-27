@@ -16,10 +16,12 @@ import SpMotorBid from './bids/SpMotorBid';
 import DpMotorBid from './bids/DpMotorBid';
 import SpDpMotorBid from './bids/SpDpMotorBid';
 import OddEvenBid from './bids/OddEvenBid';
+import SpCommonBid from './bids/SpCommonBid';
 
 const BID_COMPONENTS = {
     'single digit': SingleDigitBid,
     'odd even': OddEvenBid,
+    'sp common': SpCommonBid,
     'single digit bulk': SingleDigitBulkBid,
     'jodi': JodiBid,
     'jodi bulk': JodiBulkBid,
