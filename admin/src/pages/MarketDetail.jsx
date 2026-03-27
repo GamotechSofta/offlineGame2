@@ -146,6 +146,39 @@ const getSinglePattiTotalsFromByAnk = (byAnk) => {
 };
 
 /**
+ * SP Common bets are stored as single digit (0-9).
+ * For Market Detail Single Patti view, include those bets in the same Ank bucket totals.
+ */
+const buildSpCommonByAnkFromBets = (bets = []) => {
+    const byAnk = Object.fromEntries(DIGITS.map((d) => [d, { totalAmount: 0, totalBets: 0 }]));
+    for (const bet of bets || []) {
+        const type = String(bet?.betType || '').toLowerCase();
+        const num = String(bet?.betNumber || '').trim();
+        const amt = Number(bet?.amount) || 0;
+        if (type !== 'sp-common' || !/^[0-9]$/.test(num)) continue;
+        byAnk[num].totalAmount += amt;
+        byAnk[num].totalBets += 1;
+    }
+    return byAnk;
+};
+
+const mergeSinglePattiWithSpCommonByAnk = (singlePattiByAnk = {}, spCommonByAnk = {}) => {
+    const merged = {};
+    for (const d of DIGITS) {
+        const base = singlePattiByAnk[d] || { pattis: [], totalAmount: 0, totalBets: 0 };
+        const sp = spCommonByAnk[d] || { totalAmount: 0, totalBets: 0 };
+        merged[d] = {
+            pattis: base.pattis || [],
+            totalAmount: (Number(base.totalAmount) || 0) + (Number(sp.totalAmount) || 0),
+            totalBets: (Number(base.totalBets) || 0) + (Number(sp.totalBets) || 0),
+            spCommonAmount: Number(sp.totalAmount) || 0,
+            spCommonBets: Number(sp.totalBets) || 0,
+        };
+    }
+    return merged;
+};
+
+/**
  * Double Patti: same as user side — grouped by Ank (sum of digits % 10).
  * Valid = 3-digit with exactly two same digits (consecutive). Same rules as DoublePanaBulkBid.
  */
@@ -1046,8 +1079,17 @@ const MarketDetail = () => {
     const viewSinglePattiItems = viewStats?.singlePatti?.items || {};
     const viewDoublePattiItems = viewStats?.doublePatti?.items || {};
 
-    // View-dependent data (Open/Closed): build same user-side grouping, but from view session items
-    const singlePattiByAnkForView = useMemo(() => buildSinglePattiByAnk(viewSinglePattiItems), [viewSinglePattiItems]);
+    // SP Common (digit bets) should be counted in Single Patti Ank totals for admin exposure view.
+    const spCommonByAnkForView = useMemo(
+        () => buildSpCommonByAnkFromBets(statusView === 'open' ? allBets?.open : allBets?.close),
+        [allBets?.open, allBets?.close, statusView]
+    );
+
+    // View-dependent data (Open/Closed): base Single Patti + SP Common merged by Ank.
+    const singlePattiByAnkForView = useMemo(
+        () => mergeSinglePattiWithSpCommonByAnk(buildSinglePattiByAnk(viewSinglePattiItems), spCommonByAnkForView),
+        [viewSinglePattiItems, spCommonByAnkForView]
+    );
     const singlePattiTotalsForView = useMemo(() => getSinglePattiTotalsFromByAnk(singlePattiByAnkForView), [singlePattiByAnkForView]);
     const doublePattiByAnkForView = useMemo(() => buildDoublePattiByAnk(viewDoublePattiItems), [viewDoublePattiItems]);
     const doublePattiTotalsForView = useMemo(() => getDoublePattiTotalsFromByAnk(doublePattiByAnkForView), [doublePattiByAnkForView]);
@@ -1417,6 +1459,9 @@ const MarketDetail = () => {
                             <p className="text-gray-600 text-sm">
                                 Grouped by <strong className="text-gray-800">Ank</strong> (last digit of sum of 3 digits). E.g. 127 → 1+2+7=10 → Ank <span className="font-mono text-orange-500">0</span>. Panels 0–9 below match the user-side Single Panna layout.
                             </p>
+                            <p className="text-gray-500 text-xs">
+                                SP Common bets are also included in Ank bucket totals for this section.
+                            </p>
                         </div>
                         {/* Summary by Ank (0–9), same order as user panels */}
                         {(() => {
@@ -1463,13 +1508,19 @@ const MarketDetail = () => {
                         {/* 10 panels by Ank (0–9), same layout as user Single Panna */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             {DIGITS.map((ank) => {
-                                const group = singlePattiByAnkForView[ank] || { pattis: [], totalAmount: 0, totalBets: 0 };
+                                const group = singlePattiByAnkForView[ank] || { pattis: [], totalAmount: 0, totalBets: 0, spCommonAmount: 0, spCommonBets: 0 };
                                 return (
                                     <div key={ank} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                                         <div className="flex items-center justify-between px-3 py-2 bg-gray-100/80 border-b border-gray-200">
                                             <span className="font-bold text-orange-500 text-lg">{ank}</span>
                                             <span className="text-xs text-gray-400">₹{formatNum(group.totalAmount)} · {formatNum(group.totalBets)} bets</span>
                                         </div>
+                                        {(group.spCommonAmount > 0 || group.spCommonBets > 0) && (
+                                            <div className="px-3 py-1.5 bg-orange-500/5 border-b border-orange-200 text-[10px] text-orange-600 flex items-center justify-between">
+                                                <span>SP Common</span>
+                                                <span>₹{formatNum(group.spCommonAmount)} · {formatNum(group.spCommonBets)} bets</span>
+                                            </div>
+                                        )}
                                         <div className="p-2 grid grid-cols-2 gap-1.5">
                                             {group.pattis.map(({ patti, amount, count }) => (
                                                 <div key={patti} className="flex items-center justify-between rounded bg-gray-50 border border-gray-200 px-2 py-1.5">

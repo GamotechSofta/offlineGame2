@@ -44,8 +44,8 @@ export const generateSinglePanaForDigit = (digit, points) => {
 
     const results = VALID_SINGLE_PANA_LIST
         .filter((pana) => isValidSinglePanaFromList(pana))
-        // Match backend first-digit grouping style for Single Patti summary.
-        .filter((pana) => pana.startsWith(d))
+        // SP Common panel generation is digit-membership based (all pannas containing selected digit).
+        .filter((pana) => pana.includes(d))
         .sort((a, b) => Number(a) - Number(b))
         .map((pana) => ({ pana, points: safePoints }));
 
