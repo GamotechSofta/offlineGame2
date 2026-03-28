@@ -3,26 +3,13 @@ import BookieBidLayout from '../BookieBidLayout';
 import { usePlayerBet } from '../PlayerBetContext';
 import { useBetCart } from '../BetCartContext';
 import { isPastOpeningTime } from '../../../utils/marketTiming';
-import { isValidSinglePana, isValidDoublePana } from '../panaRules';
+import {
+  generateSpMotorSinglePanas,
+  isValidDoublePana,
+  sanitizeMotorDigitsUnique,
+} from '../panaRules';
 
-const sanitizeDigits = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 10);
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
-
-function generateSinglePanaCombinations(digitStr) {
-  const digits = [...new Set(digitStr.replace(/\D/g, '').split('').sort())];
-  if (digits.length < 3) return [];
-  const out = [];
-  const n = digits.length;
-  for (let i = 0; i < n - 2; i++) {
-    for (let j = i + 1; j < n - 1; j++) {
-      for (let k = j + 1; k < n; k++) {
-        const pana = digits[i] + digits[j] + digits[k];
-        if (isValidSinglePana(pana)) out.push(pana);
-      }
-    }
-  }
-  return out;
-}
 
 function generateDoublePanaCombinations(digitStr) {
   const digits = [...new Set(digitStr.replace(/\D/g, '').split('').sort())];
@@ -76,7 +63,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
   };
 
   const handleGenerate = () => {
-    const digits = sanitizeDigits(digitInput);
+    const digits = sanitizeMotorDigitsUnique(digitInput);
     if (digits.length < 2) {
       showWarning('Enter at least 3 digits for SP and 2 digits for DP.');
       return;
@@ -87,7 +74,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
       showWarning('Please enter points.');
       return;
     }
-    const singleCombos = generateSinglePanaCombinations(digits);
+    const singleCombos = generateSpMotorSinglePanas(digits);
     const doubleCombos = generateDoublePanaCombinations(digits);
     if (!singleCombos.length && !doubleCombos.length) {
       showWarning('Could not generate SP/DP combinations from these digits.');
@@ -191,13 +178,13 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
         <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
           <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
             <div>
-              <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Enter Digit</label>
+              <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Enter digits (0–9, no repeats)</label>
               <input
                 type="text"
                 inputMode="numeric"
                 value={digitInput}
-                onChange={(e) => setDigitInput(sanitizeDigits(e.target.value))}
-                placeholder="e.g. 12345"
+                onChange={(e) => setDigitInput(sanitizeMotorDigitsUnique(e.target.value))}
+                placeholder="e.g. 0389"
                 className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
               />
             </div>

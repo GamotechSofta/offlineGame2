@@ -6,24 +6,9 @@ import BidReviewModal from './BidReviewModal';
 import { useBettingWindow } from '../BettingWindowContext';
 import { placeBet, updateUserBalance } from '../../../api/bets';
 import { useAuth } from '../../../context/AuthContext';
+import { generateSpMotorSinglePanas, sanitizeMotorDigitsUnique } from '../../../utils/panaRules';
 
-const sanitizeDigits = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 10);
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
-
-function generateSinglePanaCombinations(digitStr) {
-  const digits = [...new Set(digitStr.replace(/\D/g, '').split('').sort())];
-  if (digits.length < 3) return [];
-  const out = [];
-  const n = digits.length;
-  for (let i = 0; i < n - 2; i++) {
-    for (let j = i + 1; j < n - 1; j++) {
-      for (let k = j + 1; k < n; k++) {
-        out.push(digits[i] + digits[j] + digits[k]);
-      }
-    }
-  }
-  return out;
-}
 
 function validateDoublePana(n) {
   if (!n) return false;
@@ -85,7 +70,7 @@ export default function SpDpMotorBid({ market, title }) {
   };
 
   const handleGenerate = () => {
-    const digits = sanitizeDigits(digitInput);
+    const digits = sanitizeMotorDigitsUnique(digitInput);
     if (digits.length < 2) {
       showWarning('Enter at least 3 digits for SP and 2 digits for DP.');
       return;
@@ -97,7 +82,7 @@ export default function SpDpMotorBid({ market, title }) {
       return;
     }
 
-    const singleCombos = generateSinglePanaCombinations(digits);
+    const singleCombos = generateSpMotorSinglePanas(digits);
     const doubleCombos = generateDoublePanaCombinations(digits);
 
     if (!singleCombos.length && !doubleCombos.length) {
@@ -248,12 +233,12 @@ export default function SpDpMotorBid({ market, title }) {
         <View style={[styles.twoColRow, isNarrow && styles.twoColRowStack]}>
           <View style={[styles.leftCol, isNarrow && styles.leftColFull]}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Enter Digit</Text>
+              <Text style={styles.label}>Enter digits (0–9, no repeats)</Text>
               <TextInput
                 style={styles.input}
                 value={digitInput}
-                onChangeText={(v) => setDigitInput(sanitizeDigits(v))}
-                placeholder="e.g. 12345"
+                onChangeText={(v) => setDigitInput(sanitizeMotorDigitsUnique(v))}
+                placeholder="e.g. 0389"
                 placeholderTextColor="#9ca3af"
                 keyboardType="number-pad"
               />

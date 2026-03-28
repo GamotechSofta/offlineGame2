@@ -30,6 +30,29 @@ export const isValidSinglePana = (n) => {
   return VALID_SINGLE_PANAS.has(s);
 };
 
+const TRIPLE_PERM_INDICES = [
+  [0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0],
+];
+
+export function generateSpMotorSinglePanas(digitStr) {
+  const digits = [...new Set(String(digitStr ?? '').replace(/\D/g, '').split('').sort())];
+  if (digits.length < 3) return [];
+  const found = new Set();
+  const n = digits.length;
+  for (let i = 0; i < n - 2; i++) {
+    for (let j = i + 1; j < n - 1; j++) {
+      for (let k = j + 1; k < n; k++) {
+        const t = [digits[i], digits[j], digits[k]];
+        for (const [a, b, c] of TRIPLE_PERM_INDICES) {
+          const pana = t[a] + t[b] + t[c];
+          if (isValidSinglePana(pana)) found.add(pana);
+        }
+      }
+    }
+  }
+  return [...found].sort((x, y) => Number(x) - Number(y));
+}
+
 export const isValidDoublePana = (n) => {
   if (!n) return false;
   const str = n.toString().trim();
@@ -53,3 +76,18 @@ export const isValidTriplePana = (n) => {
 
 export const isValidAnyPana = (n) =>
   isValidSinglePana(n) || isValidDoublePana(n) || isValidTriplePana(n);
+
+/** SP / SP+DP Motor: digits 0–9, no duplicates, order preserved (max 10). */
+export const sanitizeMotorDigitsUnique = (v, maxLen = 10) => {
+  const raw = (v ?? '').toString().replace(/\D/g, '');
+  const seen = new Set();
+  let out = '';
+  for (const ch of raw) {
+    if (ch < '0' || ch > '9') continue;
+    if (seen.has(ch)) continue;
+    seen.add(ch);
+    out += ch;
+    if (out.length >= maxLen) break;
+  }
+  return out;
+};
