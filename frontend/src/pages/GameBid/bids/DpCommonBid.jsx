@@ -118,13 +118,21 @@ const DpCommonBid = ({ market, title }) => {
     const handleSubmitBet = async () => {
         const marketId = market?._id || market?.id;
         if (!marketId) throw new Error('Market not found');
+        const digit = String(generatedDigit || digitInput || '')
+            .trim()
+            .replace(/\D/g, '')
+            .slice(0, 1);
         const payload = reviewRows
             .map((row) => ({
                 betType: 'dp-common',
-                // Backend validates DP Common as single result digit (0-9), not 3-digit panna.
-                betNumber: generatedDigit,
+                // Backend stores one result digit (0-9) per line; amounts differ per DP row.
+                betNumber: digit,
                 amount: Number(row.points) || 0,
-                betOn: String(row?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',
+                betOn: String(row?.type || session || '')
+                    .trim()
+                    .toUpperCase() === 'CLOSE'
+                    ? 'close'
+                    : 'open',
             }))
             .filter((bet) => /^[0-9]$/.test(bet.betNumber) && bet.amount > 0);
         if (!payload.length) throw new Error('No valid bets to place');
@@ -193,7 +201,7 @@ const DpCommonBid = ({ market, title }) => {
                     </div>
                 )}
 
-                <div className="mb-3 text-gray-600 text-xs">Enter a single digit (0-9), points and click Generate.</div>
+                
 
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
@@ -293,19 +301,22 @@ const DpCommonBid = ({ market, title }) => {
                             !bidsCount || !bettingAllowed ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
                     >
-                        Add to Cart {bidsCount > 0 && `(${bidsCount})`}
+                        Submit Bet {bidsCount > 0 && `(${bidsCount})`}
                     </button>
                 </div>
             </div>
 
             <BidReviewModal
-                isOpen={isReviewOpen}
+                open={isReviewOpen}
                 onClose={() => setIsReviewOpen(false)}
-                items={reviewRows}
-                totalPoints={totalPointsForFooter}
                 onSubmit={handleSubmitBet}
                 marketTitle={marketTitle}
                 dateText={dateText}
+                labelKey="Pana"
+                rows={reviewRows}
+                walletBefore={walletBefore}
+                totalBids={reviewRows.length}
+                totalAmount={totalPointsForFooter}
             />
         </BidLayout>
     );

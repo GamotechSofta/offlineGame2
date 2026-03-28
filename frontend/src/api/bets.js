@@ -92,13 +92,21 @@ export async function placeBet(marketId, bets, scheduledDate = null) {
   const payload = {
     userId,
     marketId: normalizedMarketId,
-    bets: bets.map((b) => ({
-      betType: b.betType,
-      betNumber: String(b.betNumber).trim(),
-      amount: Number(b.amount) || 0,
-      // optional: session selection ('open' | 'close') for admin open/close views
-      betOn: normalizeBetOn(b.betOn) || normalizeBetOn(b.session) || normalizeBetOn(b.type),
-    })),
+    bets: bets.map((b) => {
+      const betOn =
+        normalizeBetOn(b.betOn) ||
+        normalizeBetOn(b.session) ||
+        normalizeBetOn(b.type);
+      const entry = {
+        betType: String(b.betType ?? '')
+          .trim()
+          .toLowerCase(),
+        betNumber: String(b.betNumber).trim(),
+        amount: Number(b.amount) || 0,
+      };
+      if (betOn) entry.betOn = betOn;
+      return entry;
+    }),
   };
 
   if (scheduledDate) {

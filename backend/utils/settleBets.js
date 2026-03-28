@@ -19,7 +19,7 @@ function toObjectId(id) {
     }
 }
 
-/** True if bet type is panna, sp-motor, or dp-motor (all settle as 3-digit panna). sp-common settles as digit (0-9). */
+/** True if bet type is panna, sp-motor, or dp-motor (all settle as 3-digit panna). sp-common / dp-common settle as digit (0-9). */
 function isPannaLike(type) {
     const t = (type || '').toLowerCase();
     return t === 'panna' || t === 'sp-motor' || t === 'dp-motor';
@@ -301,6 +301,16 @@ export async function settleOpening(marketId, openingNumber) {
             if (won && payout > 0) {
                 await payWinnings(bet.userId, payout, `Win – ${market.marketName} (SP Common ${num})`, bet._id, { placedByBookie: bet.placedByBookie, placedByBookieId: bet.placedByBookieId });
             }
+        } else if (type === 'dp-common' && /^[0-9]$/.test(num)) {
+            const won = openDigit != null && num === openDigit;
+            const payout = won ? amount * getRateForKey(rates, 'doublePatti') : 0;
+            await Bet.updateOne(
+                { _id: bet._id },
+                { status: won ? 'won' : 'lost', payout }
+            );
+            if (won && payout > 0) {
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (DP Common ${num})`, bet._id, { placedByBookie: bet.placedByBookie, placedByBookieId: bet.placedByBookieId });
+            }
         } else if (isPannaLike(type) && /^[0-9]{3}$/.test(num)) {
             const won = num === open3;
             const pannaType = getPannaType(open3);
@@ -396,6 +406,15 @@ export async function settleClosing(marketId, closingNumber) {
             await Bet.updateOne({ _id: bet._id }, { status: won ? 'won' : 'lost', payout });
             if (won && payout > 0) {
                 await payWinnings(bet.userId, payout, `Win – ${market.marketName} (SP Common ${num})`, bet._id, { placedByBookie: bet.placedByBookie, placedByBookieId: bet.placedByBookieId });
+            }
+        }
+        // CLOSE-session DP Common (settles on closing result digit; rate = double patti)
+        else if (type === 'dp-common' && (bet.betOn || '').toString().toLowerCase() === 'close' && /^[0-9]$/.test(num)) {
+            const won = num === lastDigitClose;
+            const payout = won ? amount * getRateForKey(rates, 'doublePatti') : 0;
+            await Bet.updateOne({ _id: bet._id }, { status: won ? 'won' : 'lost', payout });
+            if (won && payout > 0) {
+                await payWinnings(bet.userId, payout, `Win – ${market.marketName} (DP Common ${num})`, bet._id, { placedByBookie: bet.placedByBookie, placedByBookieId: bet.placedByBookieId });
             }
         }
         // CLOSE-session Patti/Panna (settles on closing patti); sp-motor same as panna
@@ -549,6 +568,19 @@ export async function previewDeclareOpen(marketId, openingNumber, options = {}) 
                     totalWinAmountOnPatti += payout;
                 }
             }
+        } else if (type === 'dp-common' && /^[0-9]$/.test(rawNum)) {
+            const num = rawNum;
+            totalBetAmount += amount;
+            userIds.add(bet.userId.toString());
+            if (lastDigitOpen != null && num === lastDigitOpen) {
+                totalBetAmountOnPatti += amount;
+                playersBetOnPatti.add(bet.userId.toString());
+                if (isPending) {
+                    const payout = amount * getRateForKey(rates, 'doublePatti');
+                    totalWinAmount += payout;
+                    totalWinAmountOnPatti += payout;
+                }
+            }
         } else if (isPannaLike(type) && rawNum.length >= 3) {
             const num = rawNum.slice(0, 3).padStart(3, '0');
             totalBetAmount += amount;
@@ -650,7 +682,7 @@ export async function previewDeclareClose(marketId, closingNumber, options = {})
         const type = (bet.betType || '').toLowerCase();
         const isCloseSession = (bet.betOn || '').toString().toLowerCase() === 'close';
         // Half Sangam is cross-side and settles on close declaration.
-        return type === 'jodi' || type === 'full-sangam' || type === 'half-sangam' || (type === 'single' && isCloseSession) || (type === 'odd-even' && isCloseSession) || (type === 'sp-common' && isCloseSession) || (isPannaLike(type) && isCloseSession);
+        return type === 'jodi' || type === 'full-sangam' || type === 'half-sangam' || (type === 'single' && isCloseSession) || (type === 'odd-even' && isCloseSession) || (type === 'sp-common' && isCloseSession) || (type === 'dp-common' && isCloseSession) || (isPannaLike(type) && isCloseSession);
     };
 
     if (!closingNumber || !/^\d{3}$/.test(closingNumber)) {
@@ -700,6 +732,7 @@ export async function previewDeclareClose(marketId, closingNumber, options = {})
             (type === 'single' && isCloseSession) ||
             (type === 'odd-even' && isCloseSession) ||
             (type === 'sp-common' && isCloseSession) ||
+            (type === 'dp-common' && isCloseSession) ||
             (isPannaLike(type) && isCloseSession);
         if (!isCloseSettleType) continue;
 
@@ -713,6 +746,17 @@ export async function previewDeclareClose(marketId, closingNumber, options = {})
                 playersBetOnPatti.add(bet.userId.toString());
                 if (isPending) {
                     const payout = amount * getRateForKey(rates, 'single');
+                    totalWinAmount += payout;
+                    totalWinAmountOnPatti += payout;
+                }
+                isWinning = true;
+            }
+        } else if (type === 'dp-common' && isCloseSession && /^[0-9]$/.test(num)) {
+            if (lastDigitClose != null && num === lastDigitClose) {
+                totalBetAmountOnPatti += amount;
+                playersBetOnPatti.add(bet.userId.toString());
+                if (isPending) {
+                    const payout = amount * getRateForKey(rates, 'doublePatti');
                     totalWinAmount += payout;
                     totalWinAmountOnPatti += payout;
                 }
@@ -858,6 +902,8 @@ export async function getWinningBetsForOpen(marketId, openingNumber, options = {
             }
         } else if (type === 'sp-common' && /^[0-9]$/.test(num) && lastDigitOpen != null && num === lastDigitOpen) {
             payout = amount * getRateForKey(rates, 'single');
+        } else if (type === 'dp-common' && /^[0-9]$/.test(num) && lastDigitOpen != null && num === lastDigitOpen) {
+            payout = amount * getRateForKey(rates, 'doublePatti');
         } else if (isPannaLike(type) && /^[0-9]{3}$/.test(num) && open3 != null && num === open3) {
             const pannaType = getPannaType(open3);
             const rateKey = pannaType || 'singlePatti';
@@ -918,11 +964,14 @@ export async function getWinningBetsForClose(marketId, closingNumber, options = 
             (type === 'single' && isCloseSession) ||
             (type === 'odd-even' && isCloseSession) ||
             (type === 'sp-common' && isCloseSession) ||
+            (type === 'dp-common' && isCloseSession) ||
             (isPannaLike(type) && isCloseSession);
         if (!isCloseSettleType) continue;
         let payout = 0;
         if (type === 'sp-common' && isCloseSession && /^[0-9]$/.test(num)) {
             if (num === lastDigitClose) payout = amount * getRateForKey(rates, 'single');
+        } else if (type === 'dp-common' && isCloseSession && /^[0-9]$/.test(num)) {
+            if (num === lastDigitClose) payout = amount * getRateForKey(rates, 'doublePatti');
         } else if (type === 'single' && isCloseSession && /^[0-9]$/.test(num)) {
             if (num === lastDigitClose) payout = amount * getRateForKey(rates, 'single');
         } else if (type === 'odd-even' && isCloseSession && (num === 'odd' || num === 'even')) {

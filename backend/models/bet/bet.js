@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { BET_TYPES } from './betTypeConstants.js';
 
 const betSchema = new mongoose.Schema({
     userId: {
@@ -24,7 +25,7 @@ const betSchema = new mongoose.Schema({
     betType: {
         type: String,
         required: true,
-        enum: ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam', 'odd-even', 'sp-common'],
+        enum: BET_TYPES,
     },
     betNumber: {
         type: String,

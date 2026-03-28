@@ -17,11 +17,7 @@ import DpMotorBid from './bids/DpMotorBid';
 import SpDpMotorBid from './bids/SpDpMotorBid';
 import OddEvenBid from './bids/OddEvenBid';
 import SpCommonBid from './bids/SpCommonBid';
-<<<<<<< Updated upstream
 import DpCommonBid from './bids/DpCommonBid';
-=======
-import DPCommon from './bids/DPCommon';
->>>>>>> Stashed changes
 
 const BID_COMPONENTS = {
     'single digit': SingleDigitBid,
@@ -38,11 +34,7 @@ const BID_COMPONENTS = {
     'half sangam': HalfSangamBid,
     'sp motor': SpMotorBid,
     'sp common': SpCommonBid,
-<<<<<<< Updated upstream
     'dp common': DpCommonBid,
-=======
-    'dp common': DPCommon,
->>>>>>> Stashed changes
     'dp motor': DpMotorBid,
     'sp dp motor': SpDpMotorBid,
 };

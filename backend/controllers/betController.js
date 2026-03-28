@@ -7,8 +7,7 @@ import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingAllowed, isBettingAllowedForSession } from '../utils/marketTiming.js';
-
-const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam', 'odd-even', 'sp-common', 'dp-common'];
+import { BET_TYPES as VALID_BET_TYPES } from '../models/bet/betTypeConstants.js';
 const THREE_DIGITS = /^\d{3}$/;
 
 /** Same rules as Double Pana: 3 digits, two consecutive same, first !== 0, and digit ordering rules. */
@@ -146,6 +145,12 @@ export const placeBet = async (req, res) => {
                     message: 'SP Common betNumber must be a single digit (0-9). You are betting on the result digit from SP panels.',
                 });
             }
+            if (betType === 'dp-common' && !/^[0-9]$/.test(String(betNumber || '').trim())) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'DP Common betNumber must be a single digit (0-9). You are betting on the result digit from DP panels.',
+                });
+            }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {
                 return res.status(400).json({
@@ -256,6 +261,9 @@ export const placeBet = async (req, res) => {
             if (s === 'dp-motor') return 'DP Motor';
             if (s === 'half-sangam') return 'Half Sangam';
             if (s === 'full-sangam') return 'Full Sangam';
+            if (s === 'odd-even') return 'Odd Even';
+            if (s === 'sp-common') return 'SP Common';
+            if (s === 'dp-common') return 'DP Common';
             return 'Bet';
         };
 
@@ -295,7 +303,16 @@ export const placeBet = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid id format for user or market' });
         }
         if (error.name === 'ValidationError') {
-            return res.status(400).json({ success: false, message: error.message || 'Validation failed' });
+            const details =
+                error.errors &&
+                Object.values(error.errors)
+                    .map((e) => e?.message)
+                    .filter(Boolean)
+                    .join(' ');
+            return res.status(400).json({
+                success: false,
+                message: details || error.message || 'Validation failed',
+            });
         }
         console.error('[placeBet]', error.message || error);
         res.status(500).json({ success: false, message: error.message || 'Failed to place bet' });
@@ -402,6 +419,12 @@ export const placeBetForPlayer = async (req, res) => {
                     message: 'SP Common betNumber must be a single digit (0-9). You are betting on the result digit from SP panels.',
                 });
             }
+            if (betType === 'dp-common' && !/^[0-9]$/.test(String(betNumber || '').trim())) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'DP Common betNumber must be a single digit (0-9). You are betting on the result digit from DP panels.',
+                });
+            }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {
                 return res.status(400).json({
@@ -481,6 +504,18 @@ export const placeBetForPlayer = async (req, res) => {
     } catch (error) {
         if (error.name === 'CastError') {
             return res.status(400).json({ success: false, message: 'Invalid id format' });
+        }
+        if (error.name === 'ValidationError') {
+            const details =
+                error.errors &&
+                Object.values(error.errors)
+                    .map((e) => e?.message)
+                    .filter(Boolean)
+                    .join(' ');
+            return res.status(400).json({
+                success: false,
+                message: details || error.message || 'Validation failed',
+            });
         }
         console.error('[placeBetForPlayer]', error.message || error);
         res.status(500).json({ success: false, message: error.message || 'Failed to place bet' });
