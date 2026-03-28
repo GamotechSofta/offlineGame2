@@ -146,72 +146,6 @@ const getSinglePattiTotalsFromByAnk = (byAnk) => {
 };
 
 /**
- * SP Common bets are stored as single digit (0-9).
- * For Market Detail Single Patti view, include those bets in the same Ank bucket totals.
- */
-const buildSpCommonByAnkFromBets = (bets = []) => {
-    const byAnk = Object.fromEntries(DIGITS.map((d) => [d, { totalAmount: 0, totalBets: 0 }]));
-    for (const bet of bets || []) {
-        const type = String(bet?.betType || '').toLowerCase();
-        const num = String(bet?.betNumber || '').trim();
-        const amt = Number(bet?.amount) || 0;
-        if (type !== 'sp-common' || !/^[0-9]$/.test(num)) continue;
-        byAnk[num].totalAmount += amt;
-        byAnk[num].totalBets += 1;
-    }
-    return byAnk;
-};
-
-const mergeSinglePattiWithSpCommonByAnk = (singlePattiByAnk = {}, spCommonByAnk = {}) => {
-    const merged = {};
-    for (const d of DIGITS) {
-        const base = singlePattiByAnk[d] || { pattis: [], totalAmount: 0, totalBets: 0 };
-        const sp = spCommonByAnk[d] || { totalAmount: 0, totalBets: 0 };
-        merged[d] = {
-            pattis: base.pattis || [],
-            totalAmount: (Number(base.totalAmount) || 0) + (Number(sp.totalAmount) || 0),
-            totalBets: (Number(base.totalBets) || 0) + (Number(sp.totalBets) || 0),
-            spCommonAmount: Number(sp.totalAmount) || 0,
-            spCommonBets: Number(sp.totalBets) || 0,
-        };
-    }
-    return merged;
-};
-
-/**
- * DP Common bets are stored as single digit (0–9).
- * For Market Detail Double Patti view, include those bets in the same Ank bucket totals.
- */
-const buildDpCommonByAnkFromBets = (bets = []) => {
-    const byAnk = Object.fromEntries(DIGITS.map((d) => [d, { totalAmount: 0, totalBets: 0 }]));
-    for (const bet of bets || []) {
-        const type = String(bet?.betType || '').toLowerCase();
-        const num = String(bet?.betNumber || '').trim();
-        const amt = Number(bet?.amount) || 0;
-        if (type !== 'dp-common' || !/^[0-9]$/.test(num)) continue;
-        byAnk[num].totalAmount += amt;
-        byAnk[num].totalBets += 1;
-    }
-    return byAnk;
-};
-
-const mergeDoublePattiWithDpCommonByAnk = (doublePattiByAnk = {}, dpCommonByAnk = {}) => {
-    const merged = {};
-    for (const d of DIGITS) {
-        const base = doublePattiByAnk[d] || { pattis: [], totalAmount: 0, totalBets: 0 };
-        const dp = dpCommonByAnk[d] || { totalAmount: 0, totalBets: 0 };
-        merged[d] = {
-            pattis: base.pattis || [],
-            totalAmount: (Number(base.totalAmount) || 0) + (Number(dp.totalAmount) || 0),
-            totalBets: (Number(base.totalBets) || 0) + (Number(dp.totalBets) || 0),
-            dpCommonAmount: Number(dp.totalAmount) || 0,
-            dpCommonBets: Number(dp.totalBets) || 0,
-        };
-    }
-    return merged;
-};
-
-/**
  * Double Patti: same as user side — grouped by Ank (sum of digits % 10).
  * Valid = 3-digit with exactly two same digits (consecutive). Same rules as DoublePanaBulkBid.
  */
@@ -245,6 +179,127 @@ const buildDoublePanaByAnk = () => {
 };
 
 const DOUBLE_PANA_BY_ANK = buildDoublePanaByAnk();
+
+const ALL_SINGLE_PATTI_IN_CHART = new Set(DIGITS.flatMap((d) => SINGLE_PANA_BY_ANK[d] || []));
+const ALL_DOUBLE_PATTI_IN_CHART = new Set(DIGITS.flatMap((d) => DOUBLE_PANA_BY_ANK[d] || []));
+
+const cloneSinglePattiByAnk = (byAnk) => {
+    const o = {};
+    for (const d of DIGITS) {
+        const g = byAnk[d] || { pattis: [], totalAmount: 0, totalBets: 0 };
+        o[d] = {
+            pattis: (g.pattis || []).map((r) => ({
+                patti: r.patti,
+                amount: Number(r.amount) || 0,
+                count: Number(r.count) || 0,
+            })),
+            totalAmount: Number(g.totalAmount) || 0,
+            totalBets: Number(g.totalBets) || 0,
+        };
+    }
+    return o;
+};
+
+const cloneDoublePattiByAnk = (byAnk) => {
+    const o = {};
+    for (const d of DIGITS) {
+        const g = byAnk[d] || { pattis: [], totalAmount: 0, totalBets: 0 };
+        o[d] = {
+            pattis: (g.pattis || []).map((r) => ({
+                patti: r.patti,
+                amount: Number(r.amount) || 0,
+                count: Number(r.count) || 0,
+            })),
+            totalAmount: Number(g.totalAmount) || 0,
+            totalBets: Number(g.totalBets) || 0,
+        };
+    }
+    return o;
+};
+
+/** SP Common: 3-digit → that patti row; legacy 1-digit → every chart patti containing the digit (amount only on rows). */
+const mergeSinglePattiWithSpCommonBets = (baseByAnk, bets = []) => {
+    const merged = cloneSinglePattiByAnk(baseByAnk);
+    for (const bet of bets) {
+        if (String(bet?.betType || '').toLowerCase() !== 'sp-common') continue;
+        const amt = Number(bet?.amount) || 0;
+        if (!amt) continue;
+        const raw = String(bet?.betNumber || '').trim();
+        const digitsOnly = raw.replace(/\D/g, '');
+        const p3 = digitsOnly.length >= 3 ? digitsOnly.slice(0, 3).padStart(3, '0') : '';
+
+        if (/^[0-9]{3}$/.test(p3) && ALL_SINGLE_PATTI_IN_CHART.has(p3) && isSinglePatti(p3)) {
+            const ank = String(getAnk(p3));
+            const group = merged[ank];
+            let row = group.pattis.find((r) => r.patti === p3);
+            if (!row) {
+                row = { patti: p3, amount: 0, count: 0 };
+                group.pattis.push(row);
+                group.pattis.sort((a, b) => String(a.patti).localeCompare(String(b.patti), undefined, { numeric: true }));
+            }
+            row.amount += amt;
+            row.count += 1;
+            continue;
+        }
+        if (/^[0-9]$/.test(raw)) {
+            for (const ank of DIGITS) {
+                for (const row of merged[ank].pattis) {
+                    if (String(row.patti).includes(raw)) {
+                        row.amount += amt;
+                    }
+                }
+            }
+        }
+    }
+    for (const ank of DIGITS) {
+        const g = merged[ank];
+        g.totalAmount = g.pattis.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+        g.totalBets = g.pattis.reduce((s, r) => s + (Number(r.count) || 0), 0);
+    }
+    return merged;
+};
+
+/** DP Common: 3-digit → that patti row; legacy 1-digit → every chart double patti containing the digit. */
+const mergeDoublePattiWithDpCommonBets = (baseByAnk, bets = []) => {
+    const merged = cloneDoublePattiByAnk(baseByAnk);
+    for (const bet of bets) {
+        if (String(bet?.betType || '').toLowerCase() !== 'dp-common') continue;
+        const amt = Number(bet?.amount) || 0;
+        if (!amt) continue;
+        const raw = String(bet?.betNumber || '').trim();
+        const digitsOnly = raw.replace(/\D/g, '');
+        const p3 = digitsOnly.length >= 3 ? digitsOnly.slice(0, 3).padStart(3, '0') : '';
+
+        if (/^[0-9]{3}$/.test(p3) && ALL_DOUBLE_PATTI_IN_CHART.has(p3) && isDoublePatti(p3)) {
+            const ank = String(getAnk(p3));
+            const group = merged[ank];
+            let row = group.pattis.find((r) => r.patti === p3);
+            if (!row) {
+                row = { patti: p3, amount: 0, count: 0 };
+                group.pattis.push(row);
+                group.pattis.sort((a, b) => String(a.patti).localeCompare(String(b.patti), undefined, { numeric: true }));
+            }
+            row.amount += amt;
+            row.count += 1;
+            continue;
+        }
+        if (/^[0-9]$/.test(raw)) {
+            for (const ank of DIGITS) {
+                for (const row of merged[ank].pattis) {
+                    if (String(row.patti).includes(raw)) {
+                        row.amount += amt;
+                    }
+                }
+            }
+        }
+    }
+    for (const ank of DIGITS) {
+        const g = merged[ank];
+        g.totalAmount = g.pattis.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+        g.totalBets = g.pattis.reduce((s, r) => s + (Number(r.count) || 0), 0);
+    }
+    return merged;
+};
 
 const buildDoublePattiByAnk = (items = {}) => {
     const byAnk = {};
@@ -587,7 +642,7 @@ const analyzeBets = (betsList, rates, sessionType) => {
     // Analyze Single Digits
     const singleDigitAnalysis = DIGITS.map((digit) => {
         const betsOnDigit = betsList.filter(
-            (b) => (b.betType === 'single' || b.betType === 'sp-common') && b.betNumber === digit
+            (b) => b.betType === 'single' && b.betNumber === digit
         );
         const totalBetAmount = betsOnDigit.reduce((sum, b) => sum + (b.amount || 0), 0);
         const potentialPayout = totalBetAmount * singleRate;
@@ -639,8 +694,15 @@ const analyzeBets = (betsList, rates, sessionType) => {
     const pannaMap = new Map();
     
     betsList.forEach((bet) => {
-        if ((bet.betType === 'panna' || bet.betType === 'sp-motor' || bet.betType === 'dp-motor') && bet.betNumber && bet.betNumber.length === 3) {
-            const panna = bet.betNumber;
+        const t = bet.betType;
+        const raw3 = String(bet.betNumber || '').replace(/\D/g, '').slice(0, 3);
+        if (raw3.length < 3) return;
+        const panna = raw3.padStart(3, '0');
+        if (
+            (t === 'panna' || t === 'sp-motor' || t === 'dp-motor') ||
+            (t === 'sp-common' && /^[0-9]{3}$/.test(panna)) ||
+            (t === 'dp-common' && /^[0-9]{3}$/.test(panna))
+        ) {
             if (!pannaMap.has(panna)) {
                 pannaMap.set(panna, []);
             }
@@ -1137,26 +1199,17 @@ const MarketDetail = () => {
     const viewSinglePattiItems = viewStats?.singlePatti?.items || {};
     const viewDoublePattiItems = viewStats?.doublePatti?.items || {};
 
-    // SP Common (digit bets) should be counted in Single Patti Ank totals for admin exposure view.
-    const spCommonByAnkForView = useMemo(
-        () => buildSpCommonByAnkFromBets(statusView === 'open' ? allBets?.open : allBets?.close),
-        [allBets?.open, allBets?.close, statusView]
-    );
+    const sessionBetsForView = statusView === 'open' ? allBets?.open : allBets?.close;
 
-    const dpCommonByAnkForView = useMemo(
-        () => buildDpCommonByAnkFromBets(statusView === 'open' ? allBets?.open : allBets?.close),
-        [allBets?.open, allBets?.close, statusView]
-    );
-
-    // View-dependent data (Open/Closed): base Single Patti + SP Common merged by Ank.
+    // View-dependent: SP/DP Common merged into the same per-patti rows as the user chart (3-digit on that patti; legacy 1-digit spread).
     const singlePattiByAnkForView = useMemo(
-        () => mergeSinglePattiWithSpCommonByAnk(buildSinglePattiByAnk(viewSinglePattiItems), spCommonByAnkForView),
-        [viewSinglePattiItems, spCommonByAnkForView]
+        () => mergeSinglePattiWithSpCommonBets(buildSinglePattiByAnk(viewSinglePattiItems), sessionBetsForView || []),
+        [viewSinglePattiItems, sessionBetsForView]
     );
     const singlePattiTotalsForView = useMemo(() => getSinglePattiTotalsFromByAnk(singlePattiByAnkForView), [singlePattiByAnkForView]);
     const doublePattiByAnkForView = useMemo(
-        () => mergeDoublePattiWithDpCommonByAnk(buildDoublePattiByAnk(viewDoublePattiItems), dpCommonByAnkForView),
-        [viewDoublePattiItems, dpCommonByAnkForView]
+        () => mergeDoublePattiWithDpCommonBets(buildDoublePattiByAnk(viewDoublePattiItems), sessionBetsForView || []),
+        [viewDoublePattiItems, sessionBetsForView]
     );
     const doublePattiTotalsForView = useMemo(() => getDoublePattiTotalsFromByAnk(doublePattiByAnkForView), [doublePattiByAnkForView]);
 
@@ -1526,7 +1579,7 @@ const MarketDetail = () => {
                                 Grouped by <strong className="text-gray-800">Ank</strong> (last digit of sum of 3 digits). E.g. 127 → 1+2+7=10 → Ank <span className="font-mono text-orange-500">0</span>. Panels 0–9 below match the user-side Single Panna layout.
                             </p>
                             <p className="text-gray-500 text-xs">
-                                SP Common bets are also included in Ank bucket totals for this section.
+                                SP Common amounts appear on each matching patti row (new bets store 3-digit panna; older digit-only bets are spread across pattis that contain that digit).
                             </p>
                         </div>
                         {/* Summary by Ank (0–9), same order as user panels */}
@@ -1574,19 +1627,13 @@ const MarketDetail = () => {
                         {/* 10 panels by Ank (0–9), same layout as user Single Panna */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             {DIGITS.map((ank) => {
-                                const group = singlePattiByAnkForView[ank] || { pattis: [], totalAmount: 0, totalBets: 0, spCommonAmount: 0, spCommonBets: 0 };
+                                const group = singlePattiByAnkForView[ank] || { pattis: [], totalAmount: 0, totalBets: 0 };
                                 return (
                                     <div key={ank} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                                         <div className="flex items-center justify-between px-3 py-2 bg-gray-100/80 border-b border-gray-200">
                                             <span className="font-bold text-orange-500 text-lg">{ank}</span>
                                             <span className="text-xs text-gray-400">₹{formatNum(group.totalAmount)} · {formatNum(group.totalBets)} bets</span>
                                         </div>
-                                        {(group.spCommonAmount > 0 || group.spCommonBets > 0) && (
-                                            <div className="px-3 py-1.5 bg-orange-500/5 border-b border-orange-200 text-[10px] text-orange-600 flex items-center justify-between">
-                                                <span>SP Common</span>
-                                                <span>₹{formatNum(group.spCommonAmount)} · {formatNum(group.spCommonBets)} bets</span>
-                                            </div>
-                                        )}
                                         <div className="p-2 grid grid-cols-2 gap-1.5">
                                             {group.pattis.map(({ patti, amount, count }) => (
                                                 <div key={patti} className="flex items-center justify-between rounded bg-gray-50 border border-gray-200 px-2 py-1.5">
@@ -1613,6 +1660,9 @@ const MarketDetail = () => {
                             <p className="text-gray-600 text-sm">
                                 Grouped by <strong className="text-gray-800">Ank</strong> (last digit of sum of 3 digits). Double Patti = 3-digit with <strong className="text-gray-800">exactly two same digits</strong> (e.g. 112, 121, 233). Panels 0–9 match the user Double Pana layout.
                             </p>
+                            <p className="text-gray-500 text-xs">
+                                DP Common amounts appear on each matching patti row (3-digit panna per line, or legacy digit spread like SP Common).
+                            </p>
                         </div>
                         {(() => {
                             let maxAnk = 0;
@@ -1636,7 +1686,7 @@ const MarketDetail = () => {
                                         <tbody>
                                             <tr>
                                                 {DIGITS.map((d) => {
-                                                    const g = doublePattiByAnkForView[d] || { totalAmount: 0, totalBets: 0, dpCommonAmount: 0, dpCommonBets: 0 };
+                                                    const g = doublePattiByAnkForView[d] || { totalAmount: 0, totalBets: 0 };
                                                     const isMax = Number(d) === maxAnk;
                                                     return (
                                                         <td key={d} className={`p-2 border-r border-gray-200 text-center ${isMax ? 'bg-orange-500/25' : ''}`}>
@@ -1657,19 +1707,13 @@ const MarketDetail = () => {
                         })()}
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             {DIGITS.map((ank) => {
-                                const group = doublePattiByAnkForView[ank] || { pattis: [], totalAmount: 0, totalBets: 0, dpCommonAmount: 0, dpCommonBets: 0 };
+                                const group = doublePattiByAnkForView[ank] || { pattis: [], totalAmount: 0, totalBets: 0 };
                                 return (
                                     <div key={ank} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                                         <div className="flex items-center justify-between px-3 py-2 bg-gray-100/80 border-b border-gray-200">
                                             <span className="font-bold text-orange-500 text-lg">{ank}</span>
                                             <span className="text-xs text-gray-400">₹{formatNum(group.totalAmount)} · {formatNum(group.totalBets)} bets</span>
                                         </div>
-                                        {(group.dpCommonAmount > 0 || group.dpCommonBets > 0) && (
-                                            <div className="px-3 py-1.5 bg-amber-500/5 border-b border-amber-200 text-[10px] text-amber-700 flex items-center justify-between">
-                                                <span>DP Common</span>
-                                                <span>₹{formatNum(group.dpCommonAmount)} · {formatNum(group.dpCommonBets)} bets</span>
-                                            </div>
-                                        )}
                                         <div className="p-2 grid grid-cols-2 gap-1.5 max-h-[280px] overflow-y-auto">
                                             {group.pattis.map(({ patti, amount, count }) => (
                                                 <div key={patti} className="flex items-center justify-between rounded bg-gray-50 border border-gray-200 px-2 py-1.5">

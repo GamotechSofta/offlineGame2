@@ -8,22 +8,9 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingAllowed, isBettingAllowedForSession } from '../utils/marketTiming.js';
 import { BET_TYPES as VALID_BET_TYPES } from '../models/bet/betTypeConstants.js';
+import { isSpCommon } from '../config/spCommonList.js';
+import { isValidDoublePana } from '../utils/doublePanaValidate.js';
 const THREE_DIGITS = /^\d{3}$/;
-
-/** Same rules as Double Pana: 3 digits, two consecutive same, first !== 0, and digit ordering rules. */
-function isValidDoublePana(str) {
-    if (!str || typeof str !== 'string') return false;
-    const s = str.trim();
-    if (!/^[0-9]{3}$/.test(s)) return false;
-    const first = Number(s[0]), second = Number(s[1]), third = Number(s[2]);
-    const hasConsecutiveSame = (first === second) || (second === third);
-    if (!hasConsecutiveSame) return false;
-    if (first === 0) return false;
-    if (second === 0 && third === 0) return true;
-    if (first === second && third === 0) return true;
-    if (third <= first) return false;
-    return true;
-}
 
 const normalizeBetOn = (v) => {
     const s = String(v ?? '').trim().toLowerCase();
@@ -139,17 +126,27 @@ export const placeBet = async (req, res) => {
                     });
                 }
             }
-            if (betType === 'sp-common' && !/^[0-9]$/.test(String(betNumber || '').trim())) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'SP Common betNumber must be a single digit (0-9). You are betting on the result digit from SP panels.',
-                });
+            if (betType === 'sp-common') {
+                const sn = String(betNumber || '').trim();
+                const ok1 = /^[0-9]$/.test(sn);
+                const ok3 = /^[0-9]{3}$/.test(sn) && isSpCommon(sn);
+                if (!ok1 && !ok3) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'SP Common: use a single digit (0-9) or a valid 3-digit SP Common panna.',
+                    });
+                }
             }
-            if (betType === 'dp-common' && !/^[0-9]$/.test(String(betNumber || '').trim())) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'DP Common betNumber must be a single digit (0-9). You are betting on the result digit from DP panels.',
-                });
+            if (betType === 'dp-common') {
+                const dn = String(betNumber || '').trim();
+                const ok1 = /^[0-9]$/.test(dn);
+                const ok3 = /^[0-9]{3}$/.test(dn) && isValidDoublePana(dn);
+                if (!ok1 && !ok3) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'DP Common: use a single digit (0-9) or a valid 3-digit double panna (e.g. 112, 400).',
+                    });
+                }
             }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {
@@ -413,17 +410,27 @@ export const placeBetForPlayer = async (req, res) => {
                     });
                 }
             }
-            if (betType === 'sp-common' && !/^[0-9]$/.test(String(betNumber || '').trim())) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'SP Common betNumber must be a single digit (0-9). You are betting on the result digit from SP panels.',
-                });
+            if (betType === 'sp-common') {
+                const sn = String(betNumber || '').trim();
+                const ok1 = /^[0-9]$/.test(sn);
+                const ok3 = /^[0-9]{3}$/.test(sn) && isSpCommon(sn);
+                if (!ok1 && !ok3) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'SP Common: use a single digit (0-9) or a valid 3-digit SP Common panna.',
+                    });
+                }
             }
-            if (betType === 'dp-common' && !/^[0-9]$/.test(String(betNumber || '').trim())) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'DP Common betNumber must be a single digit (0-9). You are betting on the result digit from DP panels.',
-                });
+            if (betType === 'dp-common') {
+                const dn = String(betNumber || '').trim();
+                const ok1 = /^[0-9]$/.test(dn);
+                const ok3 = /^[0-9]{3}$/.test(dn) && isValidDoublePana(dn);
+                if (!ok1 && !ok3) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'DP Common: use a single digit (0-9) or a valid 3-digit double panna (e.g. 112, 400).',
+                    });
+                }
             }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {

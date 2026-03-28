@@ -118,15 +118,10 @@ const DpCommonBid = ({ market, title }) => {
     const handleSubmitBet = async () => {
         const marketId = market?._id || market?.id;
         if (!marketId) throw new Error('Market not found');
-        const digit = String(generatedDigit || digitInput || '')
-            .trim()
-            .replace(/\D/g, '')
-            .slice(0, 1);
         const payload = reviewRows
             .map((row) => ({
                 betType: 'dp-common',
-                // Backend stores one result digit (0-9) per line; amounts differ per DP row.
-                betNumber: digit,
+                betNumber: String(row.number || '').trim(),
                 amount: Number(row.points) || 0,
                 betOn: String(row?.type || session || '')
                     .trim()
@@ -134,7 +129,7 @@ const DpCommonBid = ({ market, title }) => {
                     ? 'close'
                     : 'open',
             }))
-            .filter((bet) => /^[0-9]$/.test(bet.betNumber) && bet.amount > 0);
+            .filter((bet) => /^[0-9]{3}$/.test(bet.betNumber) && bet.amount > 0);
         if (!payload.length) throw new Error('No valid bets to place');
 
         const today = new Date();

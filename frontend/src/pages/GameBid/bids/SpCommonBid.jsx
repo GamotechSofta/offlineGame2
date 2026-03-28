@@ -121,12 +121,11 @@ const SpCommonBid = ({ market, title }) => {
         const payload = reviewRows
             .map((row) => ({
                 betType: 'sp-common',
-                // Backend validates SP Common as single result digit (0-9), not 3-digit panna.
-                betNumber: generatedDigit,
+                betNumber: String(row.number || '').trim(),
                 amount: Number(row.points) || 0,
                 betOn: String(row?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',
             }))
-            .filter((bet) => /^[0-9]$/.test(bet.betNumber) && bet.amount > 0);
+            .filter((bet) => /^[0-9]{3}$/.test(bet.betNumber) && bet.amount > 0);
         if (!payload.length) throw new Error('No valid bets to place');
 
         const today = new Date();
