@@ -22,7 +22,7 @@ const formatTime = (timeStr) => {
 const formatNum = (n) => (n != null && Number.isFinite(n) ? Number(n).toLocaleString('en-IN') : '0');
 
 /** Display label for bet type (super admin panel) */
-const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common' }[String(t || '').toLowerCase()] || (t ? String(t).toUpperCase() : 'N/A'));
+const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common', 'dp-common': 'DP Common' }[String(t || '').toLowerCase()] || (t ? String(t).toUpperCase() : 'N/A'));
 
 /** Card container matching AddResult/UpdateRate style */
 const SectionCard = ({ title, children, className = '' }) => (
@@ -173,6 +173,39 @@ const mergeSinglePattiWithSpCommonByAnk = (singlePattiByAnk = {}, spCommonByAnk 
             totalBets: (Number(base.totalBets) || 0) + (Number(sp.totalBets) || 0),
             spCommonAmount: Number(sp.totalAmount) || 0,
             spCommonBets: Number(sp.totalBets) || 0,
+        };
+    }
+    return merged;
+};
+
+/**
+ * DP Common bets are stored as single digit (0–9).
+ * For Market Detail Double Patti view, include those bets in the same Ank bucket totals.
+ */
+const buildDpCommonByAnkFromBets = (bets = []) => {
+    const byAnk = Object.fromEntries(DIGITS.map((d) => [d, { totalAmount: 0, totalBets: 0 }]));
+    for (const bet of bets || []) {
+        const type = String(bet?.betType || '').toLowerCase();
+        const num = String(bet?.betNumber || '').trim();
+        const amt = Number(bet?.amount) || 0;
+        if (type !== 'dp-common' || !/^[0-9]$/.test(num)) continue;
+        byAnk[num].totalAmount += amt;
+        byAnk[num].totalBets += 1;
+    }
+    return byAnk;
+};
+
+const mergeDoublePattiWithDpCommonByAnk = (doublePattiByAnk = {}, dpCommonByAnk = {}) => {
+    const merged = {};
+    for (const d of DIGITS) {
+        const base = doublePattiByAnk[d] || { pattis: [], totalAmount: 0, totalBets: 0 };
+        const dp = dpCommonByAnk[d] || { totalAmount: 0, totalBets: 0 };
+        merged[d] = {
+            pattis: base.pattis || [],
+            totalAmount: (Number(base.totalAmount) || 0) + (Number(dp.totalAmount) || 0),
+            totalBets: (Number(base.totalBets) || 0) + (Number(dp.totalBets) || 0),
+            dpCommonAmount: Number(dp.totalAmount) || 0,
+            dpCommonBets: Number(dp.totalBets) || 0,
         };
     }
     return merged;
@@ -554,7 +587,7 @@ const analyzeBets = (betsList, rates, sessionType) => {
     // Analyze Single Digits
     const singleDigitAnalysis = DIGITS.map((digit) => {
         const betsOnDigit = betsList.filter(
-            (b) => b.betType === 'single' && b.betNumber === digit
+            (b) => (b.betType === 'single' || b.betType === 'sp-common') && b.betNumber === digit
         );
         const totalBetAmount = betsOnDigit.reduce((sum, b) => sum + (b.amount || 0), 0);
         const potentialPayout = totalBetAmount * singleRate;
@@ -628,6 +661,31 @@ const analyzeBets = (betsList, rates, sessionType) => {
             number: panna,
             type: 'panna',
             pannaType,
+            totalBetAmount,
+            potentialPayout,
+            netProfit,
+            betCount: betList.length,
+            playerCount: uniquePlayers,
+        });
+    });
+
+    const dpCommonMap = new Map();
+    betsList.forEach((bet) => {
+        const num = String(bet?.betNumber ?? '').trim();
+        if (bet.betType === 'dp-common' && /^[0-9]$/.test(num)) {
+            if (!dpCommonMap.has(num)) dpCommonMap.set(num, []);
+            dpCommonMap.get(num).push(bet);
+        }
+    });
+    dpCommonMap.forEach((betList, digit) => {
+        const totalBetAmount = betList.reduce((sum, b) => sum + (b.amount || 0), 0);
+        const potentialPayout = totalBetAmount * doublePattiRate;
+        const netProfit = totalBetAmount - potentialPayout;
+        const uniquePlayers = new Set(betList.map((b) => b.userId?._id || b.userId)).size;
+        pannaAnalysis.push({
+            number: `DP·${digit}`,
+            type: 'dp-common',
+            pannaType: 'doublePatti',
             totalBetAmount,
             potentialPayout,
             netProfit,
@@ -1085,13 +1143,21 @@ const MarketDetail = () => {
         [allBets?.open, allBets?.close, statusView]
     );
 
+    const dpCommonByAnkForView = useMemo(
+        () => buildDpCommonByAnkFromBets(statusView === 'open' ? allBets?.open : allBets?.close),
+        [allBets?.open, allBets?.close, statusView]
+    );
+
     // View-dependent data (Open/Closed): base Single Patti + SP Common merged by Ank.
     const singlePattiByAnkForView = useMemo(
         () => mergeSinglePattiWithSpCommonByAnk(buildSinglePattiByAnk(viewSinglePattiItems), spCommonByAnkForView),
         [viewSinglePattiItems, spCommonByAnkForView]
     );
     const singlePattiTotalsForView = useMemo(() => getSinglePattiTotalsFromByAnk(singlePattiByAnkForView), [singlePattiByAnkForView]);
-    const doublePattiByAnkForView = useMemo(() => buildDoublePattiByAnk(viewDoublePattiItems), [viewDoublePattiItems]);
+    const doublePattiByAnkForView = useMemo(
+        () => mergeDoublePattiWithDpCommonByAnk(buildDoublePattiByAnk(viewDoublePattiItems), dpCommonByAnkForView),
+        [viewDoublePattiItems, dpCommonByAnkForView]
+    );
     const doublePattiTotalsForView = useMemo(() => getDoublePattiTotalsFromByAnk(doublePattiByAnkForView), [doublePattiByAnkForView]);
 
     // Sanity check: Ank grouping matches user side
@@ -1570,7 +1636,7 @@ const MarketDetail = () => {
                                         <tbody>
                                             <tr>
                                                 {DIGITS.map((d) => {
-                                                    const g = doublePattiByAnkForView[d] || { totalAmount: 0, totalBets: 0 };
+                                                    const g = doublePattiByAnkForView[d] || { totalAmount: 0, totalBets: 0, dpCommonAmount: 0, dpCommonBets: 0 };
                                                     const isMax = Number(d) === maxAnk;
                                                     return (
                                                         <td key={d} className={`p-2 border-r border-gray-200 text-center ${isMax ? 'bg-orange-500/25' : ''}`}>
@@ -1591,13 +1657,19 @@ const MarketDetail = () => {
                         })()}
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             {DIGITS.map((ank) => {
-                                const group = doublePattiByAnkForView[ank] || { pattis: [], totalAmount: 0, totalBets: 0 };
+                                const group = doublePattiByAnkForView[ank] || { pattis: [], totalAmount: 0, totalBets: 0, dpCommonAmount: 0, dpCommonBets: 0 };
                                 return (
                                     <div key={ank} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                                         <div className="flex items-center justify-between px-3 py-2 bg-gray-100/80 border-b border-gray-200">
                                             <span className="font-bold text-orange-500 text-lg">{ank}</span>
                                             <span className="text-xs text-gray-400">₹{formatNum(group.totalAmount)} · {formatNum(group.totalBets)} bets</span>
                                         </div>
+                                        {(group.dpCommonAmount > 0 || group.dpCommonBets > 0) && (
+                                            <div className="px-3 py-1.5 bg-amber-500/5 border-b border-amber-200 text-[10px] text-amber-700 flex items-center justify-between">
+                                                <span>DP Common</span>
+                                                <span>₹{formatNum(group.dpCommonAmount)} · {formatNum(group.dpCommonBets)} bets</span>
+                                            </div>
+                                        )}
                                         <div className="p-2 grid grid-cols-2 gap-1.5 max-h-[280px] overflow-y-auto">
                                             {group.pattis.map(({ patti, amount, count }) => (
                                                 <div key={patti} className="flex items-center justify-between rounded bg-gray-50 border border-gray-200 px-2 py-1.5">
