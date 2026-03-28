@@ -8,7 +8,7 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingAllowed, isBettingAllowedForSession } from '../utils/marketTiming.js';
 
-const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam', 'odd-even', 'sp-common'];
+const VALID_BET_TYPES = ['single', 'jodi', 'panna', 'sp-motor', 'dp-motor', 'half-sangam', 'full-sangam', 'odd-even', 'sp-common', 'dp-common'];
 const THREE_DIGITS = /^\d{3}$/;
 
 /** Same rules as Double Pana: 3 digits, two consecutive same, first !== 0, and digit ordering rules. */

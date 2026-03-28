@@ -1,6 +1,7 @@
 import Admin from '../models/admin/admin.js';
 import bcrypt from 'bcryptjs';
 import { SP_COMMON_LIST } from '../config/spCommonList.js';
+import { DP_COMMON_LIST } from '../config/dpCommonList.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signAdminToken } from '../utils/adminJwt.js';
 
@@ -704,12 +705,23 @@ export const setSecretDeclarePassword = async (req, res) => {
 };
 
 /**
- * GET SP Common list – valid 3-digit Single Patti numbers for open/close declaration.
- * Used by admin declare UI to validate or suggest values.
+ * GET SP Common list – valid Single Patti pool for declare UI / validation.
  */
 export const getSpCommonList = async (req, res) => {
     try {
         res.status(200).json({ success: true, data: { list: SP_COMMON_LIST } });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * GET DP Common list – valid 3-digit Double Patti numbers for open/close declaration.
+ * Used by admin declare UI to validate or suggest values.
+ */
+export const getDpCommonList = async (req, res) => {
+    try {
+        res.status(200).json({ success: true, data: { list: DP_COMMON_LIST } });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

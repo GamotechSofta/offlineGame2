@@ -12,6 +12,7 @@ import {
     getSecretDeclarePasswordStatus,
     setSecretDeclarePassword,
     getSpCommonList,
+    getDpCommonList,
 } from '../../controllers/adminController.js';
 import { getLogs } from '../../controllers/activityLogController.js';
 import { getRouletteRecords, getAdminRouletteConfig, updateRouletteConfig } from '../../controllers/adminRouletteController.js';
@@ -28,6 +29,8 @@ router.patch('/me/secret-declare-password', verifySuperAdmin, setSecretDeclarePa
 
 // SP Common list for declare UI (open/close must be from this list)
 router.get('/config/sp-common-list', verifyAdmin, getSpCommonList);
+// DP Common list for declare UI (open/close must be from this list)
+router.get('/config/dp-common-list', verifyAdmin, getDpCommonList);
 
 // Super Admin management routes (Super Admin only)
 router.get('/super-admins', verifyAdmin, getAllSuperAdmins); // Get all super admins

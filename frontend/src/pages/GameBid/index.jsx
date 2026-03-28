@@ -17,6 +17,7 @@ import DpMotorBid from './bids/DpMotorBid';
 import SpDpMotorBid from './bids/SpDpMotorBid';
 import OddEvenBid from './bids/OddEvenBid';
 import SpCommonBid from './bids/SpCommonBid';
+import DpCommonBid from './bids/DpCommonBid';
 
 const BID_COMPONENTS = {
     'single digit': SingleDigitBid,
@@ -33,6 +34,7 @@ const BID_COMPONENTS = {
     'half sangam': HalfSangamBid,
     'sp motor': SpMotorBid,
     'sp common': SpCommonBid,
+    'dp common': DpCommonBid,
     'dp motor': DpMotorBid,
     'sp dp motor': SpDpMotorBid,
 };

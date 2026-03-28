@@ -30,32 +30,24 @@ export const isValidSinglePana = (n) => {
   return VALID_SINGLE_PANAS.has(s);
 };
 
-// Double Pana rules (copied from existing DoublePanaBid)
+// Valid Double Panna set (generated from isValidDoublePana rules)
+export const VALID_DOUBLE_PANAS = new Set([
+  '100', '110', '112', '113', '114', '115', '116', '117', '118', '119',
+  '122', '133', '144', '155', '166', '177', '188', '199', '200', '220',
+  '223', '224', '225', '226', '227', '228', '229', '233', '244', '255',
+  '266', '277', '288', '299', '300', '330', '334', '335', '336', '337',
+  '338', '339', '344', '355', '366', '377', '388', '399', '400', '440',
+  '445', '446', '447', '448', '449', '455', '466', '477', '488', '499',
+  '500', '550', '556', '557', '558', '559', '566', '577', '588', '599',
+  '600', '660', '667', '668', '669', '677', '688', '699', '700', '770',
+  '778', '779', '788', '799', '800', '880', '889', '899', '900', '990'
+]);
+
 export const isValidDoublePana = (n) => {
   if (!n) return false;
   const str = n.toString().trim();
   if (!/^[0-9]{3}$/.test(str)) return false;
-
-  const digits = str.split('').map(Number);
-  const [first, second, third] = digits;
-
-  // Two consecutive digits must be the same (positions 0-1 or 1-2)
-  const hasConsecutiveSame = (first === second) || (second === third);
-  if (!hasConsecutiveSame) return false;
-
-  // Numbers starting with zero are not allowed (001-099)
-  if (first === 0) return false;
-
-  // Special case: Two zeros at the end are allowed (300, 900, 100)
-  if (second === 0 && third === 0) return true;
-
-  // Special case: Numbers ending with zero where first two digits are the same (220, 990, 880, 660)
-  if (first === second && third === 0) return true;
-
-  // For all other cases, last digit must be greater than first
-  if (third <= first) return false;
-
-  return true;
+  return VALID_DOUBLE_PANAS.has(str);
 };
 
 export const isValidTriplePana = (n) => {

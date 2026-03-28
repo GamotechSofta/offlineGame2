@@ -17,12 +17,14 @@ import DpMotorBid from '../components/GameBid/bids/DpMotorBid';
 import SpDpMotorBid from '../components/GameBid/bids/SpDpMotorBid';
 import OddEvenBid from '../components/GameBid/bids/OddEvenBid';
 import SpCommonBid from '../components/GameBid/bids/SpCommonBid';
+import DpCommonBid from '../components/GameBid/bids/DpCommonBid';
 
 const BID_COMPONENTS = {
   'single digit': SingleDigitBid,
   'single digit bulk': SingleDigitBulkBid,
   'odd even': OddEvenBid,
   'sp common': SpCommonBid,
+  'dp common': DpCommonBid,
   'jodi': JodiBid,
   'jodi bulk': JodiBulkBid,
   'single pana': SinglePanaBid,

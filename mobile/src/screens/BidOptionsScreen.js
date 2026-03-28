@@ -65,6 +65,13 @@ const OPTIONS = [
     letter: 'S',
   },
   {
+    id: 6.6,
+    title: 'DP Common',
+    icon:
+      'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
+    letter: 'D',
+  },
+  {
     id: 7,
     title: 'Double Pana',
     icon:
@@ -155,7 +162,7 @@ export default function BidOptionsScreen() {
   let visibleOptions = OPTIONS;
   if (isStarline(market)) {
     const allowed = new Set([
-      'Single Digit', 'Single Digit Bulk', 'Odd Even', 'SP Common', 'Single Pana', 'Single Pana Bulk',
+      'Single Digit', 'Single Digit Bulk', 'Odd Even', 'SP Common', 'DP Common', 'Single Pana', 'Single Pana Bulk',
       'Double Pana', 'Double Pana Bulk', 'Triple Pana', 'Half Sangam', 'SP Motor', 'DP Motor', 'SP DP Motor',
     ]);
     visibleOptions = OPTIONS.filter((opt) => allowed.has(opt.title));
