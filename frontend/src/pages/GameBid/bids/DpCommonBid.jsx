@@ -18,8 +18,7 @@ const DpCommonBid = ({ market, title }) => {
         } catch (e) {}
         return new Date().toISOString().split('T')[0];
     });
-    const [digitInput, setDigitInput] = useState('');
-    const [generatedDigit, setGeneratedDigit] = useState('');
+    const [selectedDigits, setSelectedDigits] = useState([]);
     const [pointsInput, setPointsInput] = useState('');
     const [generatedRows, setGeneratedRows] = useState([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -38,6 +37,14 @@ const DpCommonBid = ({ market, title }) => {
         showWarning._t = window.setTimeout(() => setWarning(''), 2200);
     };
 
+    const toggleDigit = (d) => {
+        const digit = String(d);
+        setSelectedDigits((prev) => {
+            if (prev.includes(digit)) return prev.filter((x) => x !== digit);
+            return [...prev, digit].sort((a, b) => Number(a) - Number(b));
+        });
+    };
+
     const isRunning = market?.status === 'running';
     useEffect(() => {
         if (isRunning) setSession('CLOSE');
@@ -54,28 +61,52 @@ const DpCommonBid = ({ market, title }) => {
     );
 
     const clearLocal = () => {
-        setDigitInput('');
-        setGeneratedDigit('');
+        setSelectedDigits([]);
         setPointsInput('');
         setGeneratedRows([]);
     };
 
     const handleGenerate = () => {
-        const result = generateDPCommon({ digit: digitInput, points: Number(pointsInput) });
-        if (!result.success) {
-            showWarning(result.message);
+        const pts = Number(pointsInput);
+        if (!selectedDigits.length) {
+            showWarning('Please select at least one digit (0-9).');
             return;
         }
-        if (result.data.length === 0) {
+        if (!Number.isFinite(pts) || pts <= 0) {
+            showWarning('Points must be greater than 0.');
+            return;
+        }
+
+        const panaMap = new Map();
+        for (const digit of selectedDigits) {
+            const result = generateDPCommon({ digit, points: pts });
+            if (!result.success) {
+                showWarning(result.message);
+                return;
+            }
+            for (const row of result.data) {
+                const existing = panaMap.get(row.pana);
+                const addPoints = Number(row.points) || 0;
+                if (!existing) {
+                    panaMap.set(row.pana, { pana: row.pana, points: addPoints });
+                } else {
+                    existing.points = (Number(existing.points) || 0) + addPoints;
+                    panaMap.set(row.pana, existing);
+                }
+            }
+        }
+
+        const panas = Array.from(panaMap.values()).sort((a, b) => Number(a.pana) - Number(b.pana));
+        if (panas.length === 0) {
             showWarning('No panna matches for selected digit(s).');
             setGeneratedRows([]);
-            setGeneratedDigit('');
             return;
         }
-        setGeneratedDigit(String(digitInput || '').trim());
+
+        const now = Date.now();
         setGeneratedRows(
-            result.data.map((row, idx) => ({
-                id: `${row.pana}-${Date.now()}-${idx}`,
+            panas.map((row, idx) => ({
+                id: `${row.pana}-${now}-${idx}`,
                 pana: row.pana,
                 points: String(row.points),
             }))
@@ -92,10 +123,6 @@ const DpCommonBid = ({ market, title }) => {
     };
 
     const openReview = () => {
-        if (!/^[0-9]$/.test(generatedDigit)) {
-            showWarning('Please generate first using a valid digit (0-9).');
-            return;
-        }
         const items = rowsWithPoints.map((row) => ({
             id: row.id,
             number: row.pana,
@@ -201,11 +228,32 @@ const DpCommonBid = ({ market, title }) => {
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
                         <div>
-                            <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Enter Digit</label>
+                            <div className="block text-[11px] sm:text-xs font-semibold text-gray-500 mb-2">Choose</div>
+                            <div className="grid grid-cols-5 gap-2">
+                                {Array.from({ length: 10 }, (_, i) => i).map((d) => {
+                                    const selected = selectedDigits.includes(String(d));
+                                    return (
+                                        <button
+                                            key={d}
+                                            type="button"
+                                            onClick={() => toggleDigit(d)}
+                                            aria-pressed={selected}
+                                            className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base transition-all active:scale-[0.98] border ${
+                                                selected
+                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                            }`}
+                                        >
+                                            {d}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5 mt-3">Enter Digit</label>
                             <input
                                 type="text"
-                                value={digitInput}
-                                onChange={(e) => setDigitInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 1))}
+                                value={selectedDigits.join(',')}
+                                readOnly
                                 placeholder="e.g. 2"
                                 className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
                             />
