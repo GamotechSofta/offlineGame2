@@ -4,6 +4,7 @@ import BidReviewModal from './BidReviewModal';
 import { placeBet, updateUserBalance } from '../../../api/bets';
 
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
+const QUICK_POINT_OPTIONS = [10, 20, 30, 40, 50];
 
 const validatePana = (n) => {
     if (!n) return false;
@@ -272,6 +273,14 @@ const DoublePanaBulkBid = ({ market, title }) => {
                             });
                             setGroupBulk((prev) => ({ ...prev, [groupKey]: '' }));
                         };
+                        const clearGroup = () => {
+                            setSpecialInputs((prev) => {
+                                const next = { ...prev };
+                                for (const num of list) next[num] = '';
+                                return next;
+                            });
+                            setGroupBulk((prev) => ({ ...prev, [groupKey]: '' }));
+                        };
 
                         return (
                             <div key={groupKey} className="space-y-3">
@@ -309,6 +318,26 @@ const DoublePanaBulkBid = ({ market, title }) => {
                                     >
                                         Apply
                                     </button>
+                                    <button
+                                        type="button"
+                                        onClick={clearGroup}
+                                        className="h-9 px-3 rounded-md font-bold text-xs border-2 border-gray-300 text-gray-600 bg-white hover:bg-gray-100 transition-colors"
+                                        title="Clear this group"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    {QUICK_POINT_OPTIONS.map((pts) => (
+                                        <button
+                                            key={`${groupKey}-${pts}`}
+                                            type="button"
+                                            onClick={() => applyGroup(String(pts))}
+                                            className="h-7 px-2.5 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
+                                        >
+                                            Rs.{pts}
+                                        </button>
+                                    ))}
                                 </div>
 
                                 {/* Two-column layout: tighten + left align only on desktop */}

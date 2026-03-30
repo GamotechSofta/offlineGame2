@@ -6,7 +6,7 @@ import { placeBet, updateUserBalance } from '../../../api/bets';
 import { useAuth } from '../../../context/AuthContext';
 
 const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-const GRID_GAP = 10;
+const GRID_GAP = 8;
 const SCROLL_H_PAD = 24; // BidLayout contentInner padding 12 * 2
 
 export default function SingleDigitBulkBid({ market, title }) {
@@ -115,8 +115,8 @@ export default function SingleDigitBulkBid({ market, title }) {
 
   const { width: screenWidth } = useWindowDimensions();
   const contentWidth = screenWidth - SCROLL_H_PAD;
-  const digitSize = Math.floor((contentWidth - GRID_GAP * 2) / 3);
-  const zeroBtnSize = Math.min(digitSize * 1.2, 96);
+  const digitSize = Math.min(Math.floor((contentWidth - GRID_GAP * 2) / 3), 76);
+  const zeroBtnSize = digitSize;
 
   return (
     <BidLayout
@@ -297,25 +297,25 @@ const styles = StyleSheet.create({
   },
   digitBtn: {
     backgroundColor: '#1B3150',
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  digitBtnText: { fontSize: 24, fontWeight: '700', color: '#fff' },
+  digitBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   digitBadge: {
     position: 'absolute',
-    top: 6,
-    right: 8,
-    fontSize: 11,
+    top: 5,
+    right: 6,
+    fontSize: 10,
     fontWeight: '700',
     color: '#fff',
   },
-  zeroRow: { alignItems: 'center', marginTop: 14 },
+  zeroRow: { alignItems: 'center', marginTop: 10 },
   digitBtnZero: {
     backgroundColor: '#1B3150',
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

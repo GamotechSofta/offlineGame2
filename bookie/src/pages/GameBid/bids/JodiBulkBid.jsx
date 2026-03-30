@@ -5,6 +5,7 @@ import { useBetCart } from '../BetCartContext';
 
 const DIGITS = Array.from({ length: 10 }, (_, i) => String(i));
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
+const QUICK_POINT_OPTIONS = [10, 20, 30, 40, 50];
 
 const getNextCell = (row, col, direction) => {
     let r = DIGITS.indexOf(String(row));
@@ -136,6 +137,22 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
         setColBulk((prev) => ({ ...prev, [c]: '' }));
     };
 
+    const applyAllQuickPoints = (pts) => {
+        const p = Number(pts);
+        if (!p || p <= 0) { showWarning('Please enter points.'); return; }
+        setCells((prev) => {
+            const next = { ...prev };
+            for (const r of DIGITS) {
+                for (const c of DIGITS) {
+                    const key = `${r}${c}`;
+                    const cur = Number(next[key] || 0) || 0;
+                    next[key] = String(cur + p);
+                }
+            }
+            return next;
+        });
+    };
+
     const clearLocal = () => {
         setCells(() => {
             const init = {};
@@ -190,6 +207,18 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
                     const labelCl = compact ? 'text-[8px] leading-none text-gray-400 select-none' : 'text-[9px] md:text-[10px] leading-none text-gray-400 mb-0.5 select-none';
                     return (
                         <div className={`overflow-hidden w-full rounded-2xl bg-gray-50/80 ${compact ? 'p-2' : 'p-4 sm:p-5'} ${(embedInSingleScroll || fitSingleScreen) ? 'shadow-none' : 'shadow-md'}`}>
+                            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                                {QUICK_POINT_OPTIONS.map((pts) => (
+                                    <button
+                                        key={`jodi-quick-${pts}`}
+                                        type="button"
+                                        onClick={() => applyAllQuickPoints(pts)}
+                                        className="h-7 px-2.5 rounded font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
+                                    >
+                                        Rs.{pts}
+                                    </button>
+                                ))}
+                            </div>
                             <div className="overflow-x-auto overflow-y-hidden scrollbar-hidden">
                                 <div
                                     className={`grid w-full min-w-0 ${compact ? 'gap-1' : 'gap-2'}`}

@@ -4,6 +4,7 @@ import BidReviewModal from './BidReviewModal';
 import { placeBet, updateUserBalance } from '../../../api/bets';
 
 const DIGITS = Array.from({ length: 10 }, (_, i) => String(i));
+const QUICK_POINT_OPTIONS = [10, 20, 30, 40, 50];
 
 const sanitizePoints = (v) => (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
 
@@ -254,6 +255,25 @@ const JodiBulkBid = ({ market, title }) => {
         setColBulk((prev) => ({ ...prev, [c]: '' }));
     };
 
+    const applyAllQuickPoints = (pts) => {
+        const p = Number(pts);
+        if (!p || p <= 0) {
+            showWarning('Please enter points.');
+            return;
+        }
+        setCells((prev) => {
+            const next = { ...prev };
+            for (const r of DIGITS) {
+                for (const c of DIGITS) {
+                    const key = `${r}${c}`;
+                    const cur = Number(next[key] || 0) || 0;
+                    next[key] = String(cur + p);
+                }
+            }
+            return next;
+        });
+    };
+
     const clearAll = () => {
         setIsReviewOpen(false);
         setCells(() => {
@@ -360,6 +380,18 @@ const JodiBulkBid = ({ market, title }) => {
                         >
                             Clear
                         </button>
+                    </div>
+                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                        {QUICK_POINT_OPTIONS.map((pts) => (
+                            <button
+                                key={`jodi-quick-${pts}`}
+                                type="button"
+                                onClick={() => applyAllQuickPoints(pts)}
+                                className="h-7 px-2.5 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
+                            >
+                                Rs.{pts}
+                            </button>
+                        ))}
                     </div>
                     {!isDesktop && (
                         <div className="mb-2 flex items-center justify-between gap-2">
