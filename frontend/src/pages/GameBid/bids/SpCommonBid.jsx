@@ -216,15 +216,15 @@ const SpCommonBid = ({ market, title }) => {
             dateSessionControlClassName="!min-h-[36px] !h-[36px] !py-1.5 !text-[11px] sm:!text-xs"
             extraHeader={
                 <div className="pr-12 pl-1 pb-0 flex justify-end">
-                    <div className="inline-flex items-center gap-2">
+                    <div className="inline-flex items-center gap-2 md:gap-4">
                         <div className="text-center">
-                            <div className="text-[10px] text-gray-500">Count</div>
-                            <div className="text-xs font-bold text-[#1B3150]">{bidsCount}</div>
+                            <div className="text-[10px] md:text-xs text-gray-500">Count</div>
+                            <div className="text-xs md:text-base font-bold text-[#1B3150]">{bidsCount}</div>
                         </div>
-                        <div className="w-px h-6 bg-gray-200" />
+                        <div className="w-px h-6 md:h-8 bg-gray-200" />
                         <div className="text-center">
-                            <div className="text-[10px] text-gray-500">Bet Amount</div>
-                            <div className="text-xs font-bold text-[#1B3150]">{totalPoints}</div>
+                            <div className="text-[10px] md:text-xs text-gray-500">Bet Amount</div>
+                            <div className="text-xs md:text-base font-bold text-[#1B3150]">{totalPoints}</div>
                         </div>
                     </div>
                 </div>
