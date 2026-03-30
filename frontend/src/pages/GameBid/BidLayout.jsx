@@ -31,6 +31,7 @@ const BidLayout = ({
     session = 'OPEN',
     setSession = () => {},
     sessionRightSlot = null,
+    showSessionOnMobile = false,
     // Optional: override allowed session options for this page (e.g. ['OPEN'])
     sessionOptionsOverride = null,
     // Optional: lock session dropdown (prevents selecting OPEN/CLOSE)
@@ -224,8 +225,8 @@ const BidLayout = ({
                         />
                     </div>
 
-                    {/* Session Select - hidden on mobile, each bid screen has its own session control */}
-                    <div className="relative flex-1 min-w-0 hidden md:block">
+                    {/* Session Select */}
+                    <div className={`relative flex-1 min-w-0 ${showSessionOnMobile ? '' : 'hidden md:block'}`}>
                         <select
                             value={session}
                             onChange={(e) => setSession(e.target.value)}
