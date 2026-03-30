@@ -241,7 +241,7 @@ const SpCommonBid = ({ market, title }) => {
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
                         <div>
                             <div>
-                                <div className="block text-[11px] sm:text-xs font-semibold text-gray-500 mb-2">Choose</div>
+                                <div className="block text-[11px] sm:text-xs font-semibold text-gray-500 mb-2">Select Digits</div>
                                 <div className="grid grid-cols-5 gap-2">
                                     {Array.from({ length: 10 }, (_, i) => i).map((d) => {
                                         const selected = selectedDigits.includes(String(d));
@@ -291,6 +291,28 @@ const SpCommonBid = ({ market, title }) => {
                             >
                                 Clear
                             </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label className="shrink-0 w-24 text-xs sm:text-sm font-semibold text-gray-600">Quick Points</label>
+                            <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                                {[10, 20, 30, 40, 50].map((pts) => {
+                                    const selected = String(pointsInput || '') === String(pts);
+                                    return (
+                                        <button
+                                            key={pts}
+                                            type="button"
+                                            onClick={() => setPointsInput(String(pts))}
+                                            className={`min-h-[34px] h-9 rounded-md text-xs sm:text-sm font-semibold border transition-all active:scale-[0.98] ${
+                                                selected
+                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                            }`}
+                                        >
+                                            {pts}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
                         <div className="flex gap-3">
                             <button
