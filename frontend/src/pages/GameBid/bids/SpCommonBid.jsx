@@ -18,8 +18,7 @@ const SpCommonBid = ({ market, title }) => {
         } catch (e) {}
         return new Date().toISOString().split('T')[0];
     });
-    const [digitInput, setDigitInput] = useState('');
-    const [generatedDigit, setGeneratedDigit] = useState('');
+    const [selectedDigits, setSelectedDigits] = useState([]);
     const [pointsInput, setPointsInput] = useState('');
     const [generatedRows, setGeneratedRows] = useState([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -38,6 +37,16 @@ const SpCommonBid = ({ market, title }) => {
         showWarning._t = window.setTimeout(() => setWarning(''), 2200);
     };
 
+    const toggleDigit = (d) => {
+        const digit = String(d);
+        setSelectedDigits((prev) => {
+            if (prev.includes(digit)) {
+                return prev.filter((x) => x !== digit);
+            }
+            return [...prev, digit].sort((a, b) => Number(a) - Number(b));
+        });
+    };
+
     const isRunning = market?.status === 'running';
     useEffect(() => {
         if (isRunning) setSession('CLOSE');
@@ -54,28 +63,50 @@ const SpCommonBid = ({ market, title }) => {
     );
 
     const clearLocal = () => {
-        setDigitInput('');
-        setGeneratedDigit('');
+        setSelectedDigits([]);
         setPointsInput('');
         setGeneratedRows([]);
     };
 
     const handleGenerate = () => {
-        const result = generateSPCommon({ digit: digitInput, points: Number(pointsInput) });
-        if (!result.success) {
-            showWarning(result.message);
+        const pts = Number(pointsInput);
+        if (!selectedDigits.length) {
+            showWarning('Please select at least one digit (0-9).');
             return;
         }
-        if (result.data.length === 0) {
+
+        const panaMap = new Map();
+
+        for (const digit of selectedDigits) {
+            const result = generateSPCommon({ digit, points: pts });
+            if (!result.success) {
+                showWarning(result.message);
+                return;
+            }
+
+            for (const row of result.data) {
+                const existing = panaMap.get(row.pana);
+                const addPoints = Number(row.points) || 0;
+                if (!existing) {
+                    panaMap.set(row.pana, { pana: row.pana, points: addPoints });
+                } else {
+                    existing.points = (Number(existing.points) || 0) + addPoints;
+                    panaMap.set(row.pana, existing);
+                }
+            }
+        }
+
+        const panas = Array.from(panaMap.values()).sort((a, b) => Number(a.pana) - Number(b.pana));
+        if (panas.length === 0) {
             showWarning('No panna matches for selected digit(s).');
             setGeneratedRows([]);
-            setGeneratedDigit('');
             return;
         }
-        setGeneratedDigit(String(digitInput || '').trim());
+
+        const now = Date.now();
         setGeneratedRows(
-            result.data.map((row, idx) => ({
-                id: `${row.pana}-${Date.now()}-${idx}`,
+            panas.map((row, idx) => ({
+                id: `${row.pana}-${now}-${idx}`,
                 pana: row.pana,
                 points: String(row.points),
             }))
@@ -92,10 +123,6 @@ const SpCommonBid = ({ market, title }) => {
     };
 
     const openReview = () => {
-        if (!/^[0-9]$/.test(generatedDigit)) {
-            showWarning('Please generate first using a valid digit (0-9).');
-            return;
-        }
         const items = rowsWithPoints.map((row) => ({
             id: row.id,
             number: row.pana,
@@ -192,16 +219,37 @@ const SpCommonBid = ({ market, title }) => {
                     </div>
                 )}
 
-                <div className="mb-3 text-gray-600 text-xs">Enter a single digit (0-9), points and click Generate.</div>
-
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
                         <div>
-                            <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Enter Digit</label>
+                            <div>
+                                <div className="block text-[11px] sm:text-xs font-semibold text-gray-500 mb-2">Choose</div>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {Array.from({ length: 10 }, (_, i) => i).map((d) => {
+                                        const selected = selectedDigits.includes(String(d));
+                                        return (
+                                            <button
+                                                key={d}
+                                                type="button"
+                                                onClick={() => toggleDigit(d)}
+                                                aria-pressed={selected}
+                                                className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base transition-all active:scale-[0.98] border ${
+                                                    selected
+                                                        ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                                                        : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                                }`}
+                                            >
+                                                {d}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5 mt-3">Enter Digit</label>
                             <input
                                 type="text"
-                                value={digitInput}
-                                onChange={(e) => setDigitInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 1))}
+                                value={selectedDigits.join(',')}
+                                readOnly
                                 placeholder="e.g. 2"
                                 className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
                             />
@@ -217,13 +265,25 @@ const SpCommonBid = ({ market, title }) => {
                                 className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
                             />
                         </div>
-                        <button
-                            type="button"
-                            onClick={handleGenerate}
-                            className="w-full min-h-[48px] py-3.5 rounded-lg bg-[#1B3150] text-white font-bold text-base"
-                        >
-                            GENERATE
-                        </button>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={handleGenerate}
+                                className="flex-1 min-h-[48px] py-3.5 rounded-lg bg-[#1B3150] text-white font-bold text-base"
+                            >
+                                GENERATE
+                            </button>
+                            <button
+                                type="button"
+                                onClick={openReview}
+                                disabled={!bidsCount || !bettingAllowed}
+                                className={`flex-1 bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${
+                                    !bidsCount || !bettingAllowed ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                            >
+                                Submit Bet {bidsCount > 0 && `(${bidsCount})`}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="w-full md:w-1/2 flex-1 min-w-0 rounded-lg border border-gray-200 overflow-hidden flex flex-col min-h-[200px] sm:min-h-[260px] bg-white">
@@ -283,16 +343,6 @@ const SpCommonBid = ({ market, title }) => {
                         className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all"
                     >
                         Clear
-                    </button>
-                    <button
-                        type="button"
-                        onClick={openReview}
-                        disabled={!bidsCount || !bettingAllowed}
-                        className={`w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[52px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${
-                            !bidsCount || !bettingAllowed ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                    >
-                        Add to Cart {bidsCount > 0 && `(${bidsCount})`}
                     </button>
                 </div>
             </div>
