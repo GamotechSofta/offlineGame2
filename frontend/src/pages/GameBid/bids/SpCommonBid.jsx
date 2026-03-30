@@ -211,11 +211,11 @@ const SpCommonBid = ({ market, title }) => {
             setSelectedDate={handleDateChange}
             hideFooter
             walletBalance={walletBefore}
-            contentPaddingClass="pb-24"
+            contentPaddingClass="pb-10"
             dateSessionGridClassName="!pb-1"
             dateSessionControlClassName="!min-h-[36px] !h-[36px] !py-1.5 !text-[11px] sm:!text-xs"
         >
-            <div className="p-3 sm:p-4 pb-24 md:pb-6 sm:pb-8 min-h-0">
+            <div className="p-3 sm:p-4 pb-2 min-h-0">
                 {warning && (
                     <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-green-200 text-green-600 rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md backdrop-blur-sm">
                         {warning}
@@ -315,7 +315,7 @@ const SpCommonBid = ({ market, title }) => {
                             <div className="text-center">Point</div>
                             <div className="text-center">Delete</div>
                         </div>
-                        <div className="max-h-[240px] sm:max-h-[280px] overflow-y-auto flex-1 bg-white">
+                        <div className="max-h-[520px] sm:max-h-[560px] overflow-y-auto flex-1 bg-white">
                             {generatedRows.length === 0 ? (
                                 <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
                             ) : (
@@ -348,7 +348,6 @@ const SpCommonBid = ({ market, title }) => {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-2 mt-4" />
             </div>
 
             <BidReviewModal
