@@ -218,8 +218,23 @@ const DpCommonBid = ({ market, title }) => {
             contentPaddingClass="pb-10"
             dateSessionGridClassName="!pb-1"
             dateSessionControlClassName="!min-h-[36px] !h-[36px] !py-1.5 !text-[11px] sm:!text-xs"
+            extraHeader={
+                <div className="pr-15 pl-1 pb-0 flex justify-end">
+                    <div className="inline-flex items-center gap-2">
+                        <div className="text-center">
+                            <div className="text-[10px] text-gray-500">Count</div>
+                            <div className="text-xs font-bold text-[#1B3150]">{bidsCount}</div>
+                        </div>
+                        <div className="w-px h-6 bg-gray-200" />
+                        <div className="text-center">
+                            <div className="text-[10px] text-gray-500">Bet Amount</div>
+                            <div className="text-xs font-bold text-[#1B3150]">{totalPoints}</div>
+                        </div>
+                    </div>
+                </div>
+            }
         >
-            <div className="p-3 sm:p-4 pb-2 min-h-0">
+            <div className="px-3 sm:px-4 pt-0 pb-2 min-h-0">
                 {warning && (
                     <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-green-200 text-green-600 rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md backdrop-blur-sm">
                         {warning}
@@ -273,12 +288,19 @@ const DpCommonBid = ({ market, title }) => {
                                 placeholder="Points"
                                 className="flex-1 min-w-0 min-h-[40px] h-10 sm:h-11 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
                             />
+                            <button
+                                type="button"
+                                onClick={clearLocal}
+                                className="min-h-[40px] h-10 px-4 rounded-md text-[11px] sm:text-xs font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
+                            >
+                                Clear
+                            </button>
                         </div>
                         <div className="flex gap-3">
                             <button
                                 type="button"
                                 onClick={handleGenerate}
-                                className="flex-1 min-h-[48px] py-3.5 rounded-lg bg-[#1B3150] text-white font-bold text-base"
+                                className="flex-1 min-h-[40px] h-10 py-2.5 rounded-lg bg-[#1B3150] text-white font-semibold text-sm sm:text-base"
                             >
                                 GENERATE
                             </button>
@@ -286,29 +308,11 @@ const DpCommonBid = ({ market, title }) => {
                                 type="button"
                                 onClick={openReview}
                                 disabled={!bidsCount || !bettingAllowed}
-                                className={`flex-1 bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${
+                                className={`flex-1 bg-[#1B3150] text-white font-bold py-2.5 min-h-[40px] h-10 rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${
                                     !bidsCount || !bettingAllowed ? 'opacity-50 cursor-not-allowed' : ''
                                 }`}
                             >
                                 Submit Bet {bidsCount > 0 && `(${bidsCount})`}
-                            </button>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <div className="text-center">
-                                <div className="text-[10px] text-gray-500">Count</div>
-                                <div className="text-xs font-bold text-[#1B3150]">{bidsCount}</div>
-                            </div>
-                            <div className="w-px h-6 bg-gray-200" />
-                            <div className="text-center">
-                                <div className="text-[10px] text-gray-500">Bet Amount</div>
-                                <div className="text-xs font-bold text-[#1B3150]">{totalPoints}</div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={clearLocal}
-                                className="min-h-[40px] h-10 px-4 rounded-full text-xs sm:text-sm font-bold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all ml-auto"
-                            >
-                                Clear
                             </button>
                         </div>
                     </div>
@@ -371,3 +375,6 @@ const DpCommonBid = ({ market, title }) => {
 };
 
 export default DpCommonBid;
+
+
+

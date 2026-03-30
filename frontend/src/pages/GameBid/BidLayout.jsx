@@ -180,8 +180,6 @@ const BidLayout = ({
                 </div>
             )}
 
-            {extraHeader}
-
             {showDateSession && (
                 <div
                     className={`pb-4 pt-2 flex flex-row flex-wrap gap-2 sm:gap-3 overflow-hidden ${dateSessionGridClassName}`}
@@ -251,6 +249,7 @@ const BidLayout = ({
                     {sessionRightSlot}
                 </div>
             )}
+            {extraHeader}
 
             <div
                 ref={contentRef}
