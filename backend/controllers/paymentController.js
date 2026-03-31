@@ -470,6 +470,45 @@ export const approvePayment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Payment is not pending' });
         }
 
+        // Bookie can only process their own players' payment requests.
+        if (
+            admin.role === 'bookie' &&
+            String(payment.userId?.referredBy || '') !== String(admin._id)
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only process payments for your own players',
+            });
+        }
+
+        let updatedBookieBalance = null;
+        let deductedBookieId = null;
+
+        // Deduct from the owner bookie when payment management is enabled for that bookie.
+        // This keeps behavior correct even if approval comes via different admin route.
+        if (payment.type === 'deposit') {
+            const ownerBookieId = payment.userId?.referredBy;
+            if (ownerBookieId) {
+                const ownerBookie = await Admin.findById(ownerBookieId).select('role canManagePayments');
+                if (ownerBookie && ownerBookie.role === 'bookie' && ownerBookie.canManagePayments) {
+                    const updatedBookie = await Admin.findOneAndUpdate(
+                        { _id: ownerBookie._id, balance: { $gte: payment.amount } },
+                        { $inc: { balance: -payment.amount } },
+                        { new: true }
+                    ).select('balance');
+
+                    if (!updatedBookie) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Insufficient bookie balance to approve this add-fund request',
+                        });
+                    }
+                    deductedBookieId = String(ownerBookie._id);
+                    updatedBookieBalance = Number(updatedBookie.balance || 0);
+                }
+            }
+        }
+
         // For withdrawals, check balance again
         if (payment.type === 'withdrawal') {
             const wallet = await Wallet.findOne({ userId: payment.userId._id });
@@ -508,7 +547,13 @@ export const approvePayment = async (req, res) => {
             targetType: 'payment',
             targetId: id,
             details: `${payment.type === 'deposit' ? 'Deposit' : 'Withdrawal'} ₹${payment.amount} approved for "${payment.userId?.username}"`,
-            meta: { paymentId: id, type: payment.type, amount: payment.amount },
+            meta: {
+                paymentId: id,
+                type: payment.type,
+                amount: payment.amount,
+                bookieDeducted: deductedBookieId !== null,
+                deductedBookieId,
+            },
             ip: getClientIp(req),
         });
 
@@ -516,6 +561,7 @@ export const approvePayment = async (req, res) => {
             success: true,
             message: `${payment.type === 'deposit' ? 'Deposit' : 'Withdrawal'} approved successfully`,
             data: payment,
+            ...(updatedBookieBalance !== null ? { bookieBalance: updatedBookieBalance } : {}),
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

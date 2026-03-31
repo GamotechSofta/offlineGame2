@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { FaEye, FaTimes, FaCheck, FaTimesCircle } from 'react-icons/fa';
 
 const Payments = () => {
     const { t } = useLanguage();
+    const { updateBookie } = useAuth();
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({ status: '', type: '' });
@@ -59,8 +61,12 @@ const Payments = () => {
             });
             const data = await response.json();
             if (data.success) {
+                if (data.bookieBalance != null) {
+                    updateBookie({ balance: Number(data.bookieBalance) });
+                }
                 setActionModal({ show: false, payment: null, action: '' });
                 setAdminRemarks('');
+                fetchProfile();
                 fetchPayments();
             } else {
                 alert(data.message || 'Failed to approve payment');
