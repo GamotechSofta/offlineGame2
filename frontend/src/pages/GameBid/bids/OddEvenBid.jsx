@@ -219,36 +219,56 @@ const OddEvenBid = ({ market, title }) => {
             <button onClick={handleAddBid} className="w-full bg-[#1B3150] text-white font-bold h-10 rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98] text-xs">
                 Add
             </button>
-            <div className="overflow-hidden rounded-xl border-2 border-gray-300 bg-white">
-                <div className="grid grid-cols-4 bg-gray-100 text-[#1B3150] text-xs font-bold">
-                    <div className="px-3 py-2">Ank</div>
-                    <div className="px-3 py-2 text-center">Point</div>
-                    <div className="px-3 py-2 text-center">Type</div>
-                    <div className="px-3 py-2 text-center">Delete</div>
+            <div>
+                <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-[#1B3150] font-bold text-xs sm:text-sm mb-2 px-1">
+                    <div>Ank</div>
+                    <div>Point</div>
+                    <div>Type</div>
+                    <div>Delete</div>
                 </div>
-                {bids.length ? (
-                    bids.map((b) => (
-                        <div key={b.id} className="grid grid-cols-4 border-t border-gray-200 text-sm">
-                            <div className="px-3 py-2 font-semibold text-gray-800">{b.number}</div>
-                            <div className="px-3 py-2 text-center text-gray-700">{b.points}</div>
-                            <div className="px-3 py-2 text-center text-gray-700">{b.type}</div>
-                            <div className="px-3 py-2 text-center">
-                                <button
-                                    type="button"
-                                    onClick={() => handleDeleteBid(b.id)}
-                                    className="inline-flex items-center justify-center text-red-500 hover:text-red-600"
-                                    aria-label="Delete"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
+                <div className="h-px bg-[#1B3150] w-full mb-2" />
+                <div className="space-y-2">
+                    {bids.length ? (
+                        bids.map((b) => (
+                            <div
+                                key={b.id}
+                                className="grid grid-cols-4 gap-1 sm:gap-2 text-center items-center py-2.5 px-2 bg-gray-50 rounded-lg border-2 border-gray-300 text-sm"
+                            >
+                                <div className="font-bold text-gray-800">{b.number}</div>
+                                <div className="px-0.5 min-w-0">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={b.points}
+                                        onChange={(e) =>
+                                            setBids((prev) =>
+                                                prev.map((row) =>
+                                                    row.id === b.id ? { ...row, points: e.target.value.replace(/\D/g, '').slice(0, 6) } : row
+                                                )
+                                            )
+                                        }
+                                        className="w-full h-8 rounded-lg border border-gray-300 text-center font-bold text-[#1B3150] text-sm focus:outline-none focus:border-[#1B3150]"
+                                    />
+                                </div>
+                                <div className="text-sm text-gray-600">{b.type}</div>
+                                <div className="flex justify-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteBid(b.id)}
+                                        className="p-2 text-red-500 hover:text-red-600 active:scale-95"
+                                        aria-label="Delete"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))
-                ) : (
-                    <div className="px-3 py-4 text-center text-sm text-gray-400">No bids added yet.</div>
-                )}
+                        ))
+                    ) : (
+                        <div className="px-3 py-4 text-center text-sm text-gray-400">No bids added yet.</div>
+                    )}
+                </div>
             </div>
 
             <button
