@@ -182,12 +182,12 @@ const BidLayout = ({
 
             {showDateSession && (
                 <div
-                    className={`pb-4 pt-2 flex flex-row flex-wrap gap-2 sm:gap-3 overflow-hidden ${dateSessionGridClassName}`}
+                    className={`pt-1 pb-2 gap-1.5 md:pt-2 md:pb-4 md:gap-3 flex flex-row flex-wrap overflow-hidden ${dateSessionGridClassName}`}
                     style={{ paddingLeft: 'max(0.75rem, env(safe-area-inset-left))', paddingRight: 'max(0.75rem, env(safe-area-inset-right))' }}
                 >
                     {/* Date Input Button */}
                     <div className="relative flex-1 min-w-0 shrink overflow-hidden">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                        <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none z-10">
                             <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
@@ -215,7 +215,7 @@ const BidLayout = ({
                                 e.preventDefault();
                                 return false;
                             }}
-                            className={`w-full pl-9 sm:pl-10 pr-3 py-2.5 min-h-[44px] h-[44px] bg-white border-2 border-gray-300 text-gray-800 rounded-full text-xs sm:text-sm font-bold text-center focus:outline-none focus:border-[#1B3150] cursor-pointer truncate ${dateSessionControlClassName}`}
+                            className={`w-full pl-8 pr-2.5 py-1.5 min-h-[40px] h-[40px] sm:pl-10 sm:pr-3 sm:py-2.5 sm:min-h-[44px] sm:h-[44px] bg-white border-2 border-gray-300 text-gray-800 rounded-full text-xs sm:text-sm font-bold text-center focus:outline-none focus:border-[#1B3150] cursor-pointer truncate ${dateSessionControlClassName}`}
                             style={{
                                 colorScheme: 'light',
                             }}
@@ -229,7 +229,7 @@ const BidLayout = ({
                             value={session}
                             onChange={(e) => setSession(e.target.value)}
                             disabled={lockSessionSelect || (isToday && isRunning)}
-                            className={`w-full appearance-none bg-white border-2 border-gray-300 text-gray-800 font-bold text-xs sm:text-sm py-2.5 min-h-[44px] h-[44px] px-4 pr-8 rounded-full text-center focus:outline-none focus:border-[#1B3150] ${(lockSessionSelect || (isToday && isRunning)) ? 'opacity-60 cursor-not-allowed bg-gray-100' : ''} ${dateSessionControlClassName}`}
+                            className={`w-full appearance-none bg-white border-2 border-gray-300 text-gray-800 font-bold text-xs sm:text-sm py-1.5 min-h-[40px] h-[40px] px-3 pr-7 sm:py-2.5 sm:min-h-[44px] sm:h-[44px] sm:px-4 sm:pr-8 rounded-full text-center focus:outline-none focus:border-[#1B3150] ${(lockSessionSelect || (isToday && isRunning)) ? 'opacity-60 cursor-not-allowed bg-gray-100' : ''} ${dateSessionControlClassName}`}
                         >
                             {sessionOptions.map((opt) => (
                                 <option key={opt} value={opt}>
@@ -238,7 +238,7 @@ const BidLayout = ({
                             ))}
                         </select>
                         {!hideSessionSelectCaret && (
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 sm:px-4 text-gray-500">
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>

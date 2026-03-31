@@ -383,13 +383,20 @@ const EasyModeBid = ({
             ? 'w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]'
             : 'w-full bg-gray-400 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md opacity-50 cursor-not-allowed';
 
+    const quickPointValues = [10, 20, 30, 40, 50];
+    const handleQuickPointClick = (pts) => {
+        const current = Number(inputPoints || 0) || 0;
+        const next = String(current + pts).replace(/\D/g, '').slice(0, 6);
+        setInputPoints(next);
+    };
+
     const modeHeader = showModeTabs ? (
-        <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2 md:space-y-3">
+            <div className="grid grid-cols-2 gap-2 md:gap-3">
                 <button
                     type="button"
                     onClick={() => setActiveTab('easy')}
-                    className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
+                    className={`min-h-[40px] py-2 md:min-h-[44px] md:py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
                         activeTab === 'easy'
                             ? 'bg-[#1B3150] text-white border-[#1B3150]'
                             : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
@@ -400,7 +407,7 @@ const EasyModeBid = ({
                 <button
                     type="button"
                     onClick={() => setActiveTab('special')}
-                    className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
+                    className={`min-h-[40px] py-2 md:min-h-[44px] md:py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
                         activeTab === 'special'
                             ? 'bg-[#1B3150] text-white border-[#1B3150]'
                             : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
@@ -408,6 +415,16 @@ const EasyModeBid = ({
                 >
                     SPECIAL MODE
                 </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center">
+                    <div className="text-[11px] text-gray-600 font-medium">Count</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{bids.length}</div>
+                </div>
+                <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center">
+                    <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
+                </div>
             </div>
         </div>
     ) : null;
@@ -461,17 +478,31 @@ const EasyModeBid = ({
         </>
     ) : null;
 
+    const resetSpecialInputs = () => {
+        if (specialModeType === 'jodi') {
+            setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+        } else if (isPanaSumMode && validPanasForSumMode.length > 0) {
+            setSpecialInputs(Object.fromEntries(validPanasForSumMode.map((n) => [n, ''])));
+        }
+    };
+
+    /** Clear form: bids list, inputs, and special-mode point fields (does not reset schedule date). */
+    const handleFormClear = () => {
+        setBids([]);
+        setInputNumber('');
+        setInputPoints('');
+        setMatchingPanas([]);
+        setSelectedSum(null);
+        resetSpecialInputs();
+    };
+
     const clearAll = () => {
         setBids([]);
         setInputNumber('');
         setInputPoints('');
         setMatchingPanas([]);
         setSelectedSum(null);
-        if (specialModeType === 'jodi') {
-            setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
-        } else if (specialModeType === 'doublePana' && validDoublePanas.length > 0) {
-            setSpecialInputs(Object.fromEntries(validDoublePanas.map((n) => [n, ''])));
-        }
+        resetSpecialInputs();
         // Reset scheduled date to today after bet is placed
         const today = new Date().toISOString().split('T')[0];
         setSelectedDate(today);
@@ -533,12 +564,13 @@ const EasyModeBid = ({
                 setIsReviewOpen(true);
             }}
             showDateSession={true}
+            showSessionOnMobile={true}
             extraHeader={null}
             selectedDate={selectedDate}
             setSelectedDate={handleDateChange}
         >
-            <div className="px-3 sm:px-4 py-4 sm:py-2 md:max-w-7xl md:mx-auto">
-                {showModeTabs && !desktopSplit && <div className="mb-4">{modeHeader}</div>}
+            <div className="px-3 sm:px-4 py-2 sm:py-2 md:py-2 md:max-w-7xl md:mx-auto">
+                {showModeTabs && !desktopSplit && <div className="mb-2 md:mb-4">{modeHeader}</div>}
                 {warning && (
                     <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border-2 border-gray-300 text-[#1B3150] rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md">
                         {warning}
@@ -603,29 +635,49 @@ const EasyModeBid = ({
 
                                         <div className="flex flex-col gap-3 mb-4">
                                             <div className="flex flex-row items-center gap-2">
-                                                <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
-                                                <div className="flex-1 min-w-0 bg-white border-2 border-gray-300 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-gray-800">
-                                                    {session}
+                                                <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Enter Points</label>
+                                                <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
+                                                    <input
+                                                        ref={pointsInputRef}
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        value={inputPoints}
+                                                        onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                        placeholder="Points"
+                                                        className="no-spinner w-full bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleFormClear}
+                                                        className="px-4 min-h-[40px] rounded-xl border-2 border-gray-300 bg-white text-[#1B3150] text-sm font-medium hover:border-[#1B3150] active:scale-95"
+                                                    >
+                                                        Clear
+                                                    </button>
                                                 </div>
                                             </div>
                                             <div className="flex flex-row items-center gap-2">
-                                                <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Enter Points:</label>
-                                                <input
-                                                    ref={pointsInputRef}
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    value={inputPoints}
-                                                    onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                                    placeholder="Point"
-                                                    className="no-spinner flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
-                                                />
+                                                <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Quick Points</label>
+                                                <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                                                    {quickPointValues.map((pts) => (
+                                                        <button
+                                                            key={pts}
+                                                            type="button"
+                                                            onClick={() => handleQuickPointClick(pts)}
+                                                            className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-sm font-medium text-[#1B3150] hover:border-[#1B3150] active:scale-95"
+                                                        >
+                                                            {pts}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Select Sum Keypad with Submit Button */}
+                                        {/* Select Sum Keypad (Single Pana styled like Single Digit Bulk) */}
                                         <div className="flex gap-4 mb-4">
-                                            <div className="flex-1 bg-white border-2 border-gray-300 rounded-xl p-2">
-                                                <h3 className="text-sm font-bold text-[#1B3150] mb-3 text-center">Select Sum</h3>
+                                            <div className={`flex-1 rounded-xl ${(specialModeType === 'singlePana' || specialModeType === 'doublePana') ? 'p-0 bg-transparent border-0' : 'bg-white border-2 border-gray-300 p-2'}`}>
+                                                {!(specialModeType === 'singlePana' || specialModeType === 'doublePana') && (
+                                                    <h3 className="text-sm font-bold text-[#1B3150] mb-3 text-center">Select Sum</h3>
+                                                )}
                                                 <div className="grid grid-cols-5 sm:grid-cols-5 gap-1.5 sm:gap-2 md:gap-3">
                                                     {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                                                         const totalPointsForSum = pointsBySum[num] || 0;
@@ -647,10 +699,10 @@ const EasyModeBid = ({
                                                                     e.stopPropagation();
                                                                     handleKeypadClick(num);
                                                                 }}
-                                                                className={`relative aspect-square min-h-[40px] sm:min-h-[44px] md:min-h-[48px] text-gray-800 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base flex items-center justify-center transition-all active:scale-90 shadow-lg select-none bg-white border-2 border-gray-300 ${
-                                                                    hasPoints 
-                                                                        ? 'cursor-pointer hover:border-gray-400 hover:bg-gray-100 active:bg-gray-200' 
-                                                                        : 'cursor-not-allowed opacity-50'
+                                                                className={`relative aspect-square min-h-[40px] sm:min-h-[44px] md:min-h-[48px] rounded-lg sm:rounded-xl font-bold text-sm sm:text-base flex items-center justify-center transition-all active:scale-90 shadow-lg select-none ${
+                                                                    (specialModeType === 'singlePana' || specialModeType === 'doublePana')
+                                                                        ? `text-white bg-[#1B3150] border border-white/10 ${hasPoints ? 'cursor-pointer hover:border-[#d4af37]/50' : 'cursor-not-allowed opacity-50'}`
+                                                                        : `text-gray-800 bg-white border-2 border-gray-300 ${hasPoints ? 'cursor-pointer hover:border-gray-400 hover:bg-gray-100 active:bg-gray-200' : 'cursor-not-allowed opacity-50'}`
                                                                 }`}
                                                                 style={{ 
                                                                     touchAction: 'manipulation',
@@ -670,28 +722,30 @@ const EasyModeBid = ({
                                                     })}
                                                 </div>
                                             </div>
-                                            <div className="flex items-center">
-                                                <button
-                                                    type="button"
-                                                    disabled={
-                                                        (specialModeType === 'jodi' || specialModeType === 'doublePana')
-                                                            ? bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0)
-                                                            : !bids.length
-                                                    }
-                                                    onClick={(specialModeType === 'jodi' || specialModeType === 'doublePana') ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
-                                                    className={`py-3 px-6 bg-[#1B3150] text-white font-bold rounded-xl shadow-md hover:bg-[#152842] transition-all active:scale-[0.98] ${
-                                                        (specialModeType === 'jodi' || specialModeType === 'doublePana')
-                                                            ? (bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0))
-                                                                ? 'opacity-50 cursor-not-allowed'
-                                                                : ''
-                                                            : !bids.length
-                                                                ? 'opacity-50 cursor-not-allowed'
-                                                                : ''
-                                                    }`}
-                                                >
-                                                    Submit Bet
-                                                </button>
-                                            </div>
+                                            {!(specialModeType === 'singlePana' || specialModeType === 'doublePana') && (
+                                                <div className="flex items-center">
+                                                    <button
+                                                        type="button"
+                                                        disabled={
+                                                            (specialModeType === 'jodi' || specialModeType === 'doublePana')
+                                                                ? bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0)
+                                                                : !bids.length
+                                                        }
+                                                        onClick={(specialModeType === 'jodi' || specialModeType === 'doublePana') ? handleSubmitFromSpecial : () => { setReviewRows(bids); setIsReviewOpen(true); }}
+                                                        className={`py-3 px-6 bg-[#1B3150] text-white font-bold rounded-xl shadow-md hover:bg-[#152842] transition-all active:scale-[0.98] ${
+                                                            (specialModeType === 'jodi' || specialModeType === 'doublePana')
+                                                                ? (bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0))
+                                                                    ? 'opacity-50 cursor-not-allowed'
+                                                                    : ''
+                                                                : !bids.length
+                                                                    ? 'opacity-50 cursor-not-allowed'
+                                                                    : ''
+                                                        }`}
+                                                    >
+                                                        Submit Bet
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Mobile: keep list below on small screens */}
@@ -746,41 +800,59 @@ const EasyModeBid = ({
 
                 <div className="flex flex-col gap-3 mb-4">
                     <div className="flex flex-row items-center gap-2">
-                        <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
-                                        <div className="flex-1 min-w-0 bg-white border-2 border-gray-300 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-gray-800">
-                                            {session}
-                                        </div>
-                    </div>
-                    <div className="flex flex-row items-center gap-2">
-                        <label className="text-gray-700 text-sm font-medium shrink-0 w-32">{label}:</label>
+                        <label className="text-gray-700 text-sm font-medium shrink-0 w-28">{label}:</label>
                         <input
                                             type={maxLength === 1 || maxLength === 2 ? 'text' : 'number'}
                             inputMode="numeric"
                             value={inputNumber}
                             onChange={handleNumberInputChange}
-                            placeholder={labelKey}
+                            placeholder={maxLength === 1 ? 'e.g. 2' : labelKey}
                             maxLength={maxLength}
-                            className={`flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${
+                            className={`flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:outline-none ${
                                 isNumberInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'
                             }`}
                         />
                     </div>
                     <div className="flex flex-row items-center gap-2">
-                        <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Enter Points:</label>
-                                        <input
-                                            ref={pointsInputRef}
-                                            type="text"
-                                            inputMode="numeric"
-                                            value={inputPoints}
-                                            onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                            placeholder="Point"
-                                            className="no-spinner flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
-                                        />
+                        <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Enter Points</label>
+                        <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
+                            <input
+                                ref={pointsInputRef}
+                                type="text"
+                                inputMode="numeric"
+                                value={inputPoints}
+                                onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder="Points"
+                                className="no-spinner w-full bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleFormClear}
+                                className="px-4 min-h-[40px] rounded-xl border-2 border-gray-300 bg-white text-[#1B3150] text-sm font-medium hover:border-[#1B3150] active:scale-95"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex flex-row items-center gap-2">
+                        <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Quick Points</label>
+                        <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                            {quickPointValues.map((pts) => (
+                                <button
+                                    key={pts}
+                                    type="button"
+                                    onClick={() => handleQuickPointClick(pts)}
+                                    className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-sm font-medium text-[#1B3150] hover:border-[#1B3150] active:scale-95"
+                                >
+                                    {pts}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
                                 {showInlineSubmit ? (
-                                    <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6 md:grid-cols-1">
+                                    <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6 md:grid-cols-2">
                                         <button
                                             type="button"
                                             onClick={handleAddBid}

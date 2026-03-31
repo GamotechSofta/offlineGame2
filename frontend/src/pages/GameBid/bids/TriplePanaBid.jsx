@@ -78,6 +78,56 @@ const TriplePanaBid = ({ market, title }) => {
     }, []);
 
     const totalPoints = bids.reduce((sum, b) => sum + Number(b.points || 0), 0);
+
+    const mergeBids = (prev, incoming) => {
+        const map = new Map();
+        for (const b of prev || []) {
+            const num = (b?.number ?? '').toString().trim();
+            const type = (b?.type ?? '').toString().trim();
+            const key = `${num}__${type}`;
+            map.set(key, { ...b, number: num, type, points: String(Number(b?.points || 0) || 0) });
+        }
+        for (const b of incoming || []) {
+            const num = (b?.number ?? '').toString().trim();
+            const type = (b?.type ?? '').toString().trim();
+            const key = `${num}__${type}`;
+            const pts = Number(b?.points || 0) || 0;
+            const existing = map.get(key);
+            if (existing) {
+                existing.points = String((Number(existing.points || 0) || 0) + pts);
+            } else {
+                map.set(key, {
+                    id: b?.id ?? `${Date.now()}-${Math.random()}`,
+                    number: num,
+                    points: String(pts),
+                    type,
+                });
+            }
+        }
+        return Array.from(map.values());
+    };
+
+    const quickPointValues = [10, 20, 30, 40, 50];
+    const handleQuickPointClick = (pts) => {
+        const current = Number(inputPoints || 0) || 0;
+        const next = String(current + pts).replace(/\D/g, '').slice(0, 6);
+        setInputPoints(next);
+    };
+
+    const handleFormClearEasy = () => {
+        setBids([]);
+        setInputNumber('');
+        setInputPoints('');
+        setSpecialInputs(Object.fromEntries(tripleNumbers.map((n) => [n, ''])));
+    };
+
+    const handleDeleteBid = (id) => setBids((prev) => prev.filter((b) => b.id !== id));
+
+    const submitBtnClass = (enabled) =>
+        enabled
+            ? 'w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]'
+            : 'w-full bg-gray-400 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md opacity-50 cursor-not-allowed';
+
     const todayDate = new Date()
         .toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
         .replace(/\//g, '-');
@@ -149,10 +199,14 @@ const TriplePanaBid = ({ market, title }) => {
             return;
         }
 
-        const next = [...bids, { id: Date.now(), number: n, points: String(pts), type: session }];
-        setBids(next);
+        const bid = { id: Date.now() + Math.random(), number: n, points: String(pts), type: session };
+        setBids((prev) => mergeBids(prev, [bid]));
         setInputNumber('');
         setInputPoints('');
+    };
+
+    const handleSubmitReview = () => {
+        if (!bids.length) return;
         setIsReviewOpen(true);
     };
 
@@ -169,7 +223,6 @@ const TriplePanaBid = ({ market, title }) => {
         const next = [...bids, ...toAdd];
         setBids(next);
         setSpecialInputs(Object.fromEntries(tripleNumbers.map((n) => [n, ''])));
-        setIsReviewOpen(true);
     };
 
     const handleNumberInputChange = (e) => {
@@ -203,30 +256,82 @@ const TriplePanaBid = ({ market, title }) => {
     const isPanaInvalid = !!inputNumber && inputNumber.length === 3 && !isValidTriplePana(inputNumber);
 
     const modeTabs = (
-        <div className="grid grid-cols-2 gap-3">
-            <button
-                type="button"
-                onClick={() => setActiveTab('easy')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
-                    activeTab === 'easy'
-                        ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                }`}
-            >
-                EASY MODE
-            </button>
-            <button
-                type="button"
-                onClick={() => setActiveTab('special')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
-                    activeTab === 'special'
-                        ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                }`}
-            >
-                SPECIAL MODE
-            </button>
+        <div className="space-y-2 md:space-y-3">
+            <div className="grid grid-cols-2 gap-2 md:gap-3">
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('easy')}
+                    className={`min-h-[40px] py-2 md:min-h-[44px] md:py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
+                        activeTab === 'easy'
+                            ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                    }`}
+                >
+                    EASY MODE
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('special')}
+                    className={`min-h-[40px] py-2 md:min-h-[44px] md:py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
+                        activeTab === 'special'
+                            ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                    }`}
+                >
+                    SPECIAL MODE
+                </button>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 md:gap-2 px-1">
+                <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                    <div className="text-[11px] text-gray-600 font-medium">Count</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{bids.length}</div>
+                </div>
+                <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                    <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
+                </div>
+            </div>
         </div>
+    );
+
+    const easyBidsList = (
+        <>
+            <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-[#1B3150] font-bold text-xs sm:text-sm mb-2 px-1">
+                <div>Pana</div>
+                <div>Point</div>
+                <div>Type</div>
+                <div>Delete</div>
+            </div>
+            <div className="h-px bg-[#1B3150] w-full mb-2" />
+            <div className="space-y-2">
+                {bids.map((bid) => (
+                    <div
+                        key={bid.id}
+                        className="grid grid-cols-4 gap-1 sm:gap-2 text-center items-center py-2.5 px-2 bg-gray-50 rounded-lg border-2 border-gray-300 text-sm"
+                    >
+                        <div className="font-bold text-gray-800">{bid.number}</div>
+                        <div className="font-bold text-[#1B3150]">{bid.points}</div>
+                        <div className="text-sm text-gray-600">{bid.type}</div>
+                        <div className="flex justify-center">
+                            <button
+                                type="button"
+                                onClick={() => handleDeleteBid(bid.id)}
+                                className="p-2 text-red-500 hover:text-red-600 active:scale-95"
+                                aria-label="Delete"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path
+                                        fillRule="evenodd"
+                                        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                        clipRule="evenodd"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </>
     );
 
     const dateSessionRow = (
@@ -276,6 +381,7 @@ const TriplePanaBid = ({ market, title }) => {
             bidsCount={bids.length}
             totalPoints={totalPoints}
             showDateSession={true}
+            showSessionOnMobile
             selectedDate={selectedDate}
             setSelectedDate={handleDateChange}
             extraHeader={null}
@@ -284,62 +390,95 @@ const TriplePanaBid = ({ market, title }) => {
             hideFooter
             walletBalance={walletBefore}
         >
-            <div className="px-3 sm:px-4 py-4 sm:py-2 md:max-w-3xl md:mx-auto md:items-start">
+            <div className="px-3 sm:px-4 py-2 sm:py-2 md:max-w-7xl md:mx-auto md:items-start">
                 <div className="space-y-4">
                     {warning && (
                         <div className="bg-red-50 border-2 border-red-300 text-red-600 rounded-xl px-4 py-3 text-sm">
                             {warning}
                         </div>
                     )}
-                    {modeTabs}
-                    {dateSessionRow}
-
                     {activeTab === 'easy' ? (
                         <>
-                            <div className="flex flex-col gap-3">
-                                <div className="flex flex-row items-center gap-2">
-                                    <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
-                                    <div className="flex-1 min-w-0 bg-white border-2 border-gray-300 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-gray-800">
-                                        {session}
+                            <div className="md:grid md:grid-cols-2 md:gap-6 md:items-start">
+                                <div>
+                                    {modeTabs}
+                                    <div className="flex flex-col gap-3 mt-2 mb-4 px-1">
+                                        <div className="flex flex-row items-center gap-2">
+                                            <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Enter Pana:</label>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={inputNumber}
+                                                onChange={handleNumberInputChange}
+                                                placeholder="Pana"
+                                                maxLength={3}
+                                                className={`flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:outline-none ${
+                                                    isPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'
+                                                }`}
+                                            />
+                                        </div>
+                                        <div className="flex flex-row items-center gap-2">
+                                            <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Enter Points</label>
+                                            <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
+                                                <input
+                                                    ref={pointsInputRef}
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={inputPoints}
+                                                    onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                    placeholder="Points"
+                                                    className="no-spinner w-full bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleFormClearEasy}
+                                                    className="px-4 min-h-[40px] rounded-xl border-2 border-gray-300 bg-white text-[#1B3150] text-sm font-medium hover:border-[#1B3150] active:scale-95"
+                                                >
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-row items-center gap-2">
+                                            <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Quick Points</label>
+                                            <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                                                {quickPointValues.map((pts) => (
+                                                    <button
+                                                        key={pts}
+                                                        type="button"
+                                                        onClick={() => handleQuickPointClick(pts)}
+                                                        className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-sm font-medium text-[#1B3150] hover:border-[#1B3150] active:scale-95"
+                                                    >
+                                                        {pts}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
+                                    <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6 md:grid-cols-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleAddBid}
+                                            className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]"
+                                        >
+                                            Add to List
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={!bids.length}
+                                            onClick={handleSubmitReview}
+                                            className={submitBtnClass(!!bids.length)}
+                                        >
+                                            Submit Bet
+                                        </button>
+                                    </div>
+                                    <div className="md:hidden">{easyBidsList}</div>
                                 </div>
-                                <div className="flex flex-row items-center gap-2">
-                                    <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Enter Pana:</label>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={inputNumber}
-                                        onChange={handleNumberInputChange}
-                                        placeholder="Pana"
-                                        maxLength={3}
-                                        className={`flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${
-                                            isPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'
-                                        }`}
-                                    />
-                                </div>
-                                <div className="flex flex-row items-center gap-2">
-                                    <label className="text-gray-700 text-sm font-medium shrink-0 w-32">Enter Points:</label>
-                                    <input
-                                        ref={pointsInputRef}
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={inputPoints}
-                                        onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                        placeholder="Point"
-                                        className="no-spinner flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
-                                    />
-                                </div>
+                                <div className="hidden md:block">{easyBidsList}</div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={handleAddBid}
-                                className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]"
-                            >
-                                Add
-                            </button>
                         </>
                     ) : (
                         <>
+                            {modeTabs}
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
                                 {tripleNumbers.map((num) => (
                                     <div key={num} className="flex items-center gap-2">
@@ -362,13 +501,23 @@ const TriplePanaBid = ({ market, title }) => {
                                     </div>
                                 ))}
                             </div>
-                            <button
-                                type="button"
-                                onClick={handleAddSpecialModeBids}
-                                className="w-full bg-[#1B3150] text-white font-bold py-3 rounded-md shadow-md hover:bg-[#152842] transition-all"
-                            >
-                                Add to List
-                            </button>
+                            <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6 md:grid-cols-2">
+                                <button
+                                    type="button"
+                                    onClick={handleAddSpecialModeBids}
+                                    className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]"
+                                >
+                                    Add to List
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={!bids.length}
+                                    onClick={handleSubmitReview}
+                                    className={submitBtnClass(!!bids.length)}
+                                >
+                                    Submit Bet
+                                </button>
+                            </div>
                         </>
                     )}
                 </div>
