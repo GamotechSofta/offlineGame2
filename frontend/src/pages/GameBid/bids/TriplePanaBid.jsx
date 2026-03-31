@@ -10,7 +10,7 @@ const isValidTriplePana = (n) => {
 };
 
 const TriplePanaBid = ({ market, title }) => {
-    const [activeTab, setActiveTab] = useState('easy'); // easy | special
+    const [activeTab, setActiveTab] = useState('special'); // special only
     const [session, setSession] = useState(() => (market?.status === 'running' ? 'CLOSE' : 'OPEN'));
     const [bids, setBids] = useState([]);
     const [inputNumber, setInputNumber] = useState('');
@@ -255,30 +255,6 @@ const TriplePanaBid = ({ market, title }) => {
 
     const modeTabs = (
         <div className="space-y-2 md:space-y-3">
-            <div className="grid grid-cols-2 gap-2 md:gap-3">
-                <button
-                    type="button"
-                    onClick={() => setActiveTab('easy')}
-                    className={`min-h-[40px] py-2 md:min-h-[44px] md:py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
-                        activeTab === 'easy'
-                            ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                            : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                    }`}
-                >
-                    EASY MODE
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setActiveTab('special')}
-                    className={`min-h-[40px] py-2 md:min-h-[44px] md:py-3 rounded-lg font-bold text-sm shadow-sm border-2 active:scale-[0.98] transition-colors ${
-                        activeTab === 'special'
-                            ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                            : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                    }`}
-                >
-                    SPECIAL MODE
-                </button>
-            </div>
             <div className="grid grid-cols-2 gap-1.5 md:gap-2 px-1">
                 <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
                     <div className="text-[11px] text-gray-600 font-medium">Count</div>
