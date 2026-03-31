@@ -225,6 +225,7 @@ const DoublePanaBulkBid = ({ market, title }) => {
             totalPoints={totalPoints}
             session={session}
             setSession={setSession}
+            showSessionOnMobile
             selectedDate={selectedDate}
             setSelectedDate={handleDateChange}
             sessionRightSlot={
@@ -254,7 +255,7 @@ const DoublePanaBulkBid = ({ market, title }) => {
                 )}
 
                 {/* Same UI as SinglePanaBulkBid */}
-                <div className="space-y-5 md:space-y-0 md:grid md:grid-cols-4 md:gap-x-5 md:gap-y-10 md:items-start">
+                <div className="space-y-7 md:space-y-0 md:grid md:grid-cols-4 md:gap-x-5 md:gap-y-10 md:items-start">
                     {Array.from({ length: 10 }, (_, d) => String(d)).map((groupKey) => {
                         const list = panasBySumDigit[groupKey] || [];
                         if (!list.length) return null;
@@ -283,7 +284,7 @@ const DoublePanaBulkBid = ({ market, title }) => {
                         };
 
                         return (
-                            <div key={groupKey} className="space-y-3">
+                            <div key={groupKey} className="space-y-3 pb-1">
                                 {/* Group header: same "box + input" style */}
                                 <div className="flex items-center gap-2">
                                     <div className="w-10 h-9 bg-[#1B3150] border-2 border-gray-300 text-white flex items-center justify-center rounded-l-md font-bold text-xs shrink-0">
@@ -327,7 +328,9 @@ const DoublePanaBulkBid = ({ market, title }) => {
                                         Clear
                                     </button>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-1.5">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[11px] font-semibold text-gray-700 shrink-0">Quick Points :</span>
+                                    <div className="flex flex-wrap items-center gap-2.5">
                                     {QUICK_POINT_OPTIONS.map((pts) => (
                                         <button
                                             key={`${groupKey}-${pts}`}
@@ -335,9 +338,10 @@ const DoublePanaBulkBid = ({ market, title }) => {
                                             onClick={() => applyGroup(String(pts))}
                                             className="h-7 px-2.5 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
                                         >
-                                            Rs.{pts}
+                                            {pts}
                                         </button>
                                     ))}
+                                    </div>
                                 </div>
 
                                 {/* Two-column layout: tighten + left align only on desktop */}
