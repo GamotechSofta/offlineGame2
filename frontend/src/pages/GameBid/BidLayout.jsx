@@ -94,6 +94,10 @@ const BidLayout = ({
         }
         setInternalDate(newDate);
     };
+    useEffect(() => {
+        // Lock all bid screens to today's date only.
+        if (currentDate !== minDate) setCurrentDate(minDate);
+    }, [currentDate, minDate]);
 
     const marketStatus = market?.status;
     const isRunning = marketStatus === 'running'; // "CLOSED IS RUNNING"
@@ -226,32 +230,14 @@ const BidLayout = ({
                         </div>
                         <input
                             ref={dateInputRef}
-                            type="date"
-                            value={currentDate}
-                            min={minDate}
-                            max="2099-12-31"
-                            onChange={(e) => {
-                                const selected = e.target.value;
-                                // Ensure selected date is not in the past
-                                if (selected >= minDate) {
-                                    setCurrentDate(selected);
-                                }
-                            }}
-                            onKeyDown={(e) => {
-                                // Prevent manual typing - only allow calendar selection
-                                e.preventDefault();
-                                return false;
-                            }}
-                            onPaste={(e) => {
-                                // Prevent pasting dates
-                                e.preventDefault();
-                                return false;
-                            }}
+                            type="text"
+                            value={todayDate}
+                            readOnly
                             className={`w-full pl-8 pr-2.5 py-1.5 min-h-[40px] h-[40px] sm:pl-10 sm:pr-3 sm:py-2.5 sm:min-h-[44px] sm:h-[44px] bg-white border-2 border-gray-300 text-gray-800 rounded-full text-xs sm:text-sm font-bold text-center focus:outline-none focus:border-[#1B3150] cursor-pointer truncate ${dateSessionControlClassName}`}
                             style={{
                                 colorScheme: 'light',
                             }}
-                            title="Select date for scheduling your bet"
+                            title="Current date"
                         />
                     </div>
 
