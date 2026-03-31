@@ -385,9 +385,7 @@ const EasyModeBid = ({
 
     const quickPointValues = [10, 20, 30, 40, 50];
     const handleQuickPointClick = (pts) => {
-        const current = Number(inputPoints || 0) || 0;
-        const next = String(current + pts).replace(/\D/g, '').slice(0, 6);
-        setInputPoints(next);
+        setInputPoints(String(pts));
     };
 
     const modeHeader = showModeTabs ? (

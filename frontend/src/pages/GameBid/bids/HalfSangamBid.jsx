@@ -302,8 +302,7 @@ function HalfSangamEasyForm({
     const pointsInputRef = useRef(null);
 
     const handleQuickPointClick = (pts) => {
-        const current = Number(points || 0) || 0;
-        setPoints(String(current + pts).replace(/\D/g, '').slice(0, 6));
+        setPoints(String(pts));
     };
 
     const handleFlip = () => {

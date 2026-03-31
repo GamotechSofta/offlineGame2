@@ -9,6 +9,7 @@ const SingleDigitBulkBid = ({ market, title }) => {
     const [bids, setBids] = useState([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
     const [warning, setWarning] = useState('');
+    const quickPointValues = [10, 20, 30, 40, 50];
     const [selectedDate, setSelectedDate] = useState(() => {
         try {
             const savedDate = localStorage.getItem('betSelectedDate');
@@ -45,6 +46,13 @@ const SingleDigitBulkBid = ({ market, title }) => {
     useEffect(() => {
         if (isRunning) setSession('CLOSE');
     }, [isRunning]);
+
+    const hasInputPoints = Number(inputPoints) > 0;
+    const handleQuickPointClick = (pts) => {
+        // Do not accumulate on repeated taps; set exact quick value.
+        setInputPoints(String(pts));
+    };
+    const handleClearPoints = () => setInputPoints('');
 
     const handleDigitClick = (num) => {
         const pts = Number(inputPoints);
@@ -161,7 +169,71 @@ const SingleDigitBulkBid = ({ market, title }) => {
         clearAll();
     };
 
-    const extraHeader = null;
+    const submitBtnClass = (enabled) =>
+        enabled
+            ? 'w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]'
+            : 'w-full bg-gray-400 text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md opacity-50 cursor-not-allowed';
+
+    const mobileModeHeader = (
+        <div className="grid grid-cols-2 gap-1.5 md:gap-2 px-1">
+            <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                <div className="text-[11px] text-gray-600 font-medium">Count</div>
+                <div className="text-base font-bold text-[#1B3150] leading-tight">{bulkBidsCount}</div>
+            </div>
+            <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
+                <div className="text-base font-bold text-[#1B3150] leading-tight">{bulkTotalPoints}</div>
+            </div>
+        </div>
+    );
+
+    const mobileBidsList = (
+        <>
+            <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-[#1B3150] font-bold text-xs sm:text-sm mb-2 px-1">
+                <div>Pana</div>
+                <div>Point</div>
+                <div>Type</div>
+                <div>Delete</div>
+            </div>
+            <div className="h-px bg-[#1B3150] w-full mb-2" />
+            <div className="space-y-2">
+                {rows.map((bid) => (
+                    <div
+                        key={bid.id}
+                        className="grid grid-cols-4 gap-1 sm:gap-2 text-center items-center py-2.5 px-2 bg-gray-50 rounded-lg border-2 border-gray-300 text-sm"
+                    >
+                        <div className="font-bold text-gray-800">{bid.number}</div>
+                        <div className="px-0.5 min-w-0">
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={bid.points}
+                                onChange={(e) => updateRowPoints(bid.id, e.target.value)}
+                                className="w-full h-8 rounded-lg border border-gray-300 text-center font-bold text-[#1B3150] text-sm focus:outline-none focus:border-[#1B3150]"
+                            />
+                        </div>
+                        <div className="text-sm text-gray-600">{bid.type}</div>
+                        <div className="flex justify-center">
+                            <button
+                                type="button"
+                                onClick={() => removeRow(bid.id)}
+                                className="p-2 text-red-500 hover:text-red-600 active:scale-95"
+                                aria-label="Delete"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path
+                                        fillRule="evenodd"
+                                        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                        clipRule="evenodd"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </>
+    );
 
     return (
         <BidLayout
@@ -170,10 +242,9 @@ const SingleDigitBulkBid = ({ market, title }) => {
             bidsCount={bulkBidsCount}
             totalPoints={bulkTotalPoints}
             showDateSession={true}
-            dateSessionGridClassName="hidden md:flex"
+            showSessionOnMobile
             selectedDate={selectedDate}
             setSelectedDate={handleDateChange}
-            extraHeader={extraHeader}
             session={session}
             setSession={setSession}
             onSubmit={() => setIsReviewOpen(true)}
@@ -183,23 +254,80 @@ const SingleDigitBulkBid = ({ market, title }) => {
             contentPaddingClass="pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-32"
             walletBalance={walletBefore}
         >
-            <div className="px-3 py-2 w-full max-w-full overflow-x-hidden">
+            <div className="px-3 sm:px-4 py-2 w-full max-w-full overflow-x-hidden">
                 {warning && (
-                    <div className="mb-4 bg-red-500/10 border border-red-500/30 text-red-200 rounded-xl px-4 py-3 text-sm">
+                    <div className="mb-3 bg-red-50 border-2 border-red-300 text-red-600 rounded-xl px-4 py-3 text-sm md:mb-4">
                         {warning}
                     </div>
                 )}
-                <div className="mb-3 grid grid-cols-2 gap-2 md:hidden">
-                    <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center">
-                        <div className="text-[11px] text-gray-600 font-medium">Count</div>
-                        <div className="text-base font-bold text-[#1B3150] leading-tight">{bulkBidsCount}</div>
+
+                {/* Mobile: match Single Pana special layout (screenshot) */}
+                <div className="md:hidden space-y-3">
+                    {mobileModeHeader}
+                    <div className="flex flex-col gap-3 px-1">
+                        <div className="flex flex-row items-center gap-2">
+                            <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Enter Points</label>
+                            <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={inputPoints}
+                                    onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    placeholder="Points"
+                                    className="no-spinner w-full bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleClearPoints}
+                                    className="px-4 min-h-[40px] rounded-xl border-2 border-gray-300 bg-white text-[#1B3150] text-sm font-medium hover:border-[#1B3150] active:scale-95"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex flex-row items-center gap-2">
+                            <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Quick Points</label>
+                            <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                                {quickPointValues.map((pts) => (
+                                    <button
+                                        key={pts}
+                                        type="button"
+                                        onClick={() => handleQuickPointClick(pts)}
+                                        className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-sm font-medium text-[#1B3150] hover:border-[#1B3150] active:scale-95"
+                                    >
+                                        {pts}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
-                    <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center">
-                        <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
-                        <div className="text-base font-bold text-[#1B3150] leading-tight">{bulkTotalPoints}</div>
+                    <div className="grid grid-cols-5 gap-2 w-full px-1">
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                            <button
+                                key={num}
+                                type="button"
+                                disabled={!hasInputPoints}
+                                onClick={() => hasInputPoints && handleDigitClick(num)}
+                                className={`relative aspect-square min-h-[44px] sm:min-h-[48px] rounded-lg sm:rounded-xl font-bold text-sm sm:text-base flex items-center justify-center transition-all active:scale-90 shadow-lg select-none border border-white/10 ${
+                                    hasInputPoints
+                                        ? 'text-white bg-[#1B3150] cursor-pointer hover:border-[#d4af37]/50'
+                                        : 'text-white bg-[#1B3150] opacity-50 cursor-not-allowed'
+                                }`}
+                                style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+                            >
+                                {num}
+                                {pointsByDigit[num] > 0 && (
+                                    <span className="absolute top-0.5 right-0.5 bg-[#1B3150] text-white text-[8px] sm:text-[9px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-3.5 sm:h-4 px-0.5 flex items-center justify-center shadow-md">
+                                        {pointsByDigit[num] > 999 ? '999+' : pointsByDigit[num]}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
                     </div>
+                    <div className="mt-2 px-1">{mobileBidsList}</div>
                 </div>
-                <div className="flex flex-col md:grid md:grid-cols-2 md:gap-6 md:items-start gap-0 w-full">
+
+                <div className="hidden md:grid md:grid-cols-2 md:gap-6 md:items-start w-full">
                     <div className="w-full min-w-0 md:flex md:justify-start md:items-center">
                         <div className="flex flex-col gap-2 mb-1 md:mb-0 w-full md:max-w-sm">
                             <div className="flex flex-row items-center gap-2">
@@ -231,41 +359,58 @@ const SingleDigitBulkBid = ({ market, title }) => {
                             </div>
                             <div className="flex flex-row items-center gap-2">
                                 <label className="text-gray-600 text-xs font-medium shrink-0 w-20">Enter Points:</label>
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={inputPoints}
-                                    onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                    placeholder="Point"
-                                    className="no-spinner flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-500 rounded-full py-2 min-h-[36px] px-4 text-center text-xs focus:ring-2 focus:ring-gray-400 focus:border-gray-400 focus:outline-none"
-                                />
+                                <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={inputPoints}
+                                        onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        placeholder="Point"
+                                        className="no-spinner w-full bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-500 rounded-full py-2 min-h-[36px] px-4 text-center text-xs focus:ring-2 focus:ring-gray-400 focus:border-gray-400 focus:outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleClearPoints}
+                                        className="px-3 min-h-[36px] rounded-full border-2 border-gray-300 bg-white text-[#1B3150] text-xs font-medium hover:border-[#1B3150] active:scale-95"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
                             </div>
-                    {/* Mobile: 2 rows (5 columns). Keep 0 in the center by ordering */}
-                    <div className="md:hidden grid grid-cols-5 gap-2 w-full max-w-[260px] mx-auto">
-                        {[1, 2, 3, 4, 5, 6, 7, 0, 8, 9].map((num) => (
-                            <button
-                                key={num}
-                                type="button"
-                                onClick={() => handleDigitClick(num)}
-                                className="relative aspect-square min-h-[40px] bg-[#1B3150] border border-white/10 hover:border-[#d4af37]/50 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md"
-                            >
-                                {num}
-                                {pointsByDigit[num] > 0 && <span className="absolute top-0.5 right-1 text-[10px] font-bold text-white">{pointsByDigit[num]}</span>}
-                            </button>
-                        ))}
-                    </div>
+                            <div className="flex flex-row items-center gap-2">
+                                <label className="text-gray-600 text-xs font-medium shrink-0 w-20">Quick Points:</label>
+                                <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                                    {quickPointValues.map((pts) => (
+                                        <button
+                                            key={pts}
+                                            type="button"
+                                            onClick={() => handleQuickPointClick(pts)}
+                                            className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-xs font-bold text-[#1B3150] hover:border-[#1B3150] active:scale-[0.98]"
+                                        >
+                                            {pts}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
                     {/* Desktop: 2 rows (5 columns) */}
                     <div className="hidden md:grid grid-cols-5 gap-2 w-full max-w-[360px] mx-auto">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                             <button
                                 key={num}
                                 type="button"
-                                onClick={() => handleDigitClick(num)}
-                                className="relative aspect-square min-h-[40px] bg-[#1B3150] border border-white/10 hover:border-[#d4af37]/50 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md"
+                                disabled={!hasInputPoints}
+                                onClick={() => hasInputPoints && handleDigitClick(num)}
+                                className={`relative aspect-square min-h-[40px] bg-[#1B3150] border border-white/10 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-90 shadow-md select-none ${
+                                    hasInputPoints ? 'hover:border-[#d4af37]/50 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                                }`}
                             >
                                 {num}
-                                {pointsByDigit[num] > 0 && <span className="absolute top-0.5 right-1 text-[10px] font-bold text-white">{pointsByDigit[num]}</span>}
+                                {pointsByDigit[num] > 0 && (
+                                    <span className="absolute top-0.5 right-1 text-[10px] font-bold text-white">
+                                        {pointsByDigit[num] > 999 ? '999+' : pointsByDigit[num]}
+                                    </span>
+                                )}
                             </button>
                         ))}
                     </div>
