@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
-import { getRatesCurrent } from '../api/bets';
+import { getRatesCurrent, getBetHistory } from '../api/bets';
 import ResultDatePicker from '../components/ResultDatePicker';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
@@ -275,14 +275,12 @@ const Bids = () => {
     setActiveTitle(item.title);
   };
 
-  const desktopBetHistory = useMemo(() => {
+  const desktopUserId = useMemo(() => {
     const u = safeParse(localStorage.getItem('user') || 'null', null);
-    const uid = u?._id || u?.id || u?.userId || u?.userid || u?.user_id || u?.uid || null;
-    const all = safeParse(localStorage.getItem('betHistory') || '[]', []);
-    const list = Array.isArray(all) ? all : [];
-    const onlyMine = uid ? list.filter((x) => x?.userId === uid) : [];
-    return { uid, items: onlyMine };
+    return u?._id || u?.id || u?.userId || u?.userid || u?.user_id || u?.uid || null;
   }, []);
+  const [apiBets, setApiBets] = useState([]);
+  const [betsLoading, setBetsLoading] = useState(true);
 
   const [markets, setMarkets] = useState([]);
   const [ratesMap, setRatesMap] = useState(null);
@@ -365,6 +363,23 @@ const Bids = () => {
     return () => { alive = false; };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+    const fetchBets = async () => {
+      const result = await getBetHistory();
+      if (!alive) return;
+      if (result?.success && Array.isArray(result?.data)) setApiBets(result.data);
+      else setApiBets([]);
+      setBetsLoading(false);
+    };
+    fetchBets();
+    const id = setInterval(fetchBets, 30000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+
   const marketByName = useMemo(() => {
     const map = new Map();
     for (const m of markets || []) {
@@ -391,46 +406,47 @@ const Bids = () => {
     };
   }, [resultsDate, todayKey]);
 
-  const desktopBetHistoryFlat = useMemo(() => {
-    const out = [];
-    for (const x of desktopBetHistory.items || []) {
-      const rows = Array.isArray(x?.rows) ? x.rows : [];
-      if (!rows.length) {
-        out.push({ x, r: null, idx: 0 });
-        continue;
-      }
-      rows.forEach((r, idx) => out.push({ x, r, idx }));
-    }
-    return out;
-  }, [desktopBetHistory.items]);
-
   const desktopRows = useMemo(() => {
-    return (desktopBetHistoryFlat || []).map(({ x, r, idx }) => {
-      const betValue = r?.number != null ? renderBetNumber(r.number) : '-';
-      const gameType = (x?.labelKey || 'Bet').toString();
-      const points = Number(r?.points || 0) || 0;
-      const session = (r?.type || x?.session || '').toString().trim().toUpperCase();
-      const market = (x?.marketTitle || '').toString().trim() || 'MARKET';
+    return (apiBets || []).map((b, idx) => {
+      const points = Number(b?.amount || 0) || 0;
+      const session = (b?.betOn || '').toString().trim().toUpperCase();
+      const market = (b?.marketId?.marketName || '').toString().trim() || 'MARKET';
       const marketKey = normalizeMarketName(market);
       const m = marketByName.get(marketKey);
       const verdict = evaluateBet({
         market: m,
-        betNumberRaw: r?.number,
+        betNumberRaw: b?.betNumber,
         amount: points,
         session,
         ratesMap,
       });
       const statusLabel = verdict.state === 'won' ? 'Win' : verdict.state === 'lost' ? 'Loose' : 'Pending';
-      return { x, r, idx, betValue, gameType, points, session, market, marketKey, verdict, statusLabel };
+      return {
+        x: {
+          id: b?._id || `bet-${idx}`,
+          createdAt: b?.createdAt,
+          labelKey: labelForType(b?.betType || 'Bet'),
+        },
+        r: { id: b?._id, number: b?.betNumber },
+        idx,
+        betValue: b?.betNumber != null ? renderBetNumber(b.betNumber) : '-',
+        gameType: labelForType(b?.betType || 'Bet'),
+        points,
+        session,
+        market,
+        marketKey,
+        verdict,
+        statusLabel,
+      };
     });
-  }, [desktopBetHistoryFlat, marketByName, ratesMap]);
+  }, [apiBets, marketByName, ratesMap]);
 
   const marketOptions = useMemo(() => {
     const fromApi = (markets || [])
       .map((m) => (m?.marketName || '').toString().trim())
       .filter(Boolean);
-    const fromHistory = (desktopBetHistory.items || [])
-      .map((x) => (x?.marketTitle || '').toString().trim())
+    const fromHistory = (desktopRows || [])
+      .map((x) => (x?.market || '').toString().trim())
       .filter(Boolean);
     const uniqAll = Array.from(new Set([...fromApi, ...fromHistory]));
     const uniq =
@@ -441,7 +457,7 @@ const Bids = () => {
         : uniqAll;
     uniq.sort((a, b) => a.localeCompare(b));
     return uniq.map((label) => ({ label, key: normalizeMarketName(label) }));
-  }, [markets, desktopBetHistory.items, isAnyHistoryPanel, historyScope]);
+  }, [markets, desktopRows, isAnyHistoryPanel, historyScope]);
 
   const filteredDesktopRows = useMemo(() => {
     const effectiveSelectedMarkets = isAnyHistoryPanel
@@ -640,11 +656,15 @@ const Bids = () => {
             {isAnyHistoryPanel ? (
               <div className={isAnyHistoryPanel ? 'mt-0' : 'mt-6'}>
                 <div className="max-h-[calc(100vh-220px)] overflow-y-auto hide-scrollbar">
-                  {desktopBetHistory.uid && filteredDesktopRows.length === 0 ? (
+                  {betsLoading ? (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-gray-600 text-sm">
+                      Loading bets...
+                    </div>
+                  ) : desktopUserId && filteredDesktopRows.length === 0 ? (
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-gray-600 text-sm">
                       No bets found.
                     </div>
-                  ) : !desktopBetHistory.uid ? (
+                  ) : !desktopUserId ? (
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-gray-600 text-sm">
                       Please login to see your bet history.
                     </div>

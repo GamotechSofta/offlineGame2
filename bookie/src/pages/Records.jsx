@@ -28,6 +28,9 @@ const Records = () => {
     const [loading, setLoading] = useState(true);
     const [records, setRecords] = useState([]);
     const [betByFilter, setBetByFilter] = useState('all'); // all | player | bookie
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
+    const [tableAnchorEl, setTableAnchorEl] = useState(null);
 
     useEffect(() => {
         fetchRecords();
@@ -36,11 +39,8 @@ const Records = () => {
     const fetchRecords = async () => {
         try {
             setLoading(true);
-            const [betsRes, paymentsRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/bets/history`, { headers: getBookieAuthHeaders() }),
-                fetch(`${API_BASE_URL}/payments`, { headers: getBookieAuthHeaders() }),
-            ]);
-            const [betsData, paymentsData] = await Promise.all([betsRes.json(), paymentsRes.json()]);
+            const betsRes = await fetch(`${API_BASE_URL}/bets/history`, { headers: getBookieAuthHeaders() });
+            const betsData = await betsRes.json();
 
             const betRecords = (betsData?.success ? betsData.data || [] : []).map((b) => ({
                 id: `bet-${b._id}`,
@@ -56,21 +56,7 @@ const Records = () => {
                 source: b.placedByBookie ? (b.placedByBookieId?.username || 'Bookie') : 'Player',
             }));
 
-            const paymentRecords = (paymentsData?.success ? paymentsData.data || [] : []).map((p) => ({
-                id: `payment-${p._id}`,
-                recordType: 'payment',
-                createdAt: p.createdAt,
-                playerName: p.userId?.username || '—',
-                marketName: '—',
-                description: `${String(p.type || '').toUpperCase()}${p.method ? ` • ${p.method}` : ''}`.trim(),
-                amount: Number(p.amount) || 0,
-                flow: p.type === 'deposit' ? 'credit' : 'debit',
-                status: p.status || 'pending',
-                betPlacedBy: null,
-                source: 'Payment',
-            }));
-
-            const combined = [...betRecords, ...paymentRecords].sort((a, b) => {
+            const combined = [...betRecords].sort((a, b) => {
                 const at = new Date(a.createdAt).getTime() || 0;
                 const bt = new Date(b.createdAt).getTime() || 0;
                 return bt - at;
@@ -90,6 +76,29 @@ const Records = () => {
         }
         return list;
     }, [records, betByFilter]);
+
+    const totalPages = useMemo(() => {
+        const total = Math.ceil(filteredRecords.length / pageSize);
+        return total > 0 ? total : 1;
+    }, [filteredRecords.length, pageSize]);
+
+    const paginatedRecords = useMemo(() => {
+        const startIndex = (currentPage - 1) * pageSize;
+        return filteredRecords.slice(startIndex, startIndex + pageSize);
+    }, [filteredRecords, currentPage, pageSize]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [betByFilter, pageSize]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) setCurrentPage(totalPages);
+    }, [currentPage, totalPages]);
+
+    useEffect(() => {
+        if (!tableAnchorEl) return;
+        tableAnchorEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [currentPage, tableAnchorEl]);
 
     return (
         <Layout title="Bets History">
@@ -124,6 +133,19 @@ const Records = () => {
                 >
                     Bets by Bookie
                 </button>
+                <div className="ml-auto flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Rows:</span>
+                    <select
+                        value={pageSize}
+                        onChange={(e) => setPageSize(Number(e.target.value))}
+                        className="px-2 py-1.5 rounded-lg text-sm font-semibold border bg-gray-100 text-gray-700 border-gray-200"
+                    >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                    </select>
+                </div>
             </div>
 
             {loading ? (
@@ -133,7 +155,7 @@ const Records = () => {
                     <p className="text-gray-500">No records found.</p>
                 </div>
             ) : (
-                <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
+                <div ref={setTableAnchorEl} className="bg-white rounded-lg overflow-hidden border border-gray-200">
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-gray-100">
@@ -150,7 +172,7 @@ const Records = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                                {filteredRecords.map((r) => (
+                                {paginatedRecords.map((r) => (
                                     <tr key={r.id} className="hover:bg-gray-50">
                                         <td className="px-4 py-3 text-sm">
                                             <span className={`px-2 py-1 rounded text-xs font-semibold ${r.recordType === 'bet' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
@@ -185,6 +207,40 @@ const Records = () => {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                    <div className="border-t border-gray-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-gray-600">
+                            Showing{' '}
+                            <span className="font-semibold text-gray-800">
+                                {filteredRecords.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+                            </span>{' '}
+                            to{' '}
+                            <span className="font-semibold text-gray-800">
+                                {Math.min(currentPage * pageSize, filteredRecords.length)}
+                            </span>{' '}
+                            of <span className="font-semibold text-gray-800">{filteredRecords.length}</span> records
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1.5 rounded-lg text-sm font-semibold border bg-gray-100 text-gray-700 border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-sm font-semibold text-gray-700">
+                                Page {currentPage} / {totalPages}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1.5 rounded-lg text-sm font-semibold border bg-gray-100 text-gray-700 border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Next
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

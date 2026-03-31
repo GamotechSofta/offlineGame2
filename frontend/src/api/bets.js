@@ -179,3 +179,33 @@ export async function getMyWalletTransactions(limit = 200) {
   }
   return data;
 }
+
+/**
+ * Fetch bet history for current authenticated player.
+ * Uses backend DB source so history is device-independent.
+ */
+export async function getBetHistory(params = {}) {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user?.id && !user?._id) {
+      return { success: false, message: 'Please log in', data: [] };
+    }
+
+    const q = new URLSearchParams();
+    if (params.startDate) q.append('startDate', params.startDate);
+    if (params.endDate) q.append('endDate', params.endDate);
+    const url = `${API_BASE_URL}/bets/my-history${q.toString() ? `?${q}` : ''}`;
+
+    const response = await fetchWithAuth(url, { headers: getAuthHeaders() });
+    if (response.status === 401) {
+      return { success: false, message: 'Session expired. Please log in again.', data: [] };
+    }
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, message: data?.message || 'Failed to fetch bet history', data: [] };
+    }
+    return { success: true, data: Array.isArray(data?.data) ? data.data : [] };
+  } catch (error) {
+    return { success: false, message: error?.message || 'Network error', data: [] };
+  }
+}

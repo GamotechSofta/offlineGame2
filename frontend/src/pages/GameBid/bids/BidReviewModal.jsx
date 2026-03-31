@@ -78,33 +78,6 @@ const BidReviewModal = ({
       const fn = onSubmit?.();
       if (fn && typeof fn.then === 'function') await fn;
 
-      // Persist bet history (only after successful submit)
-      try {
-        const u = JSON.parse(localStorage.getItem('user') || 'null');
-        const userId =
-          u?._id || u?.id || u?.userId || u?.userid || u?.user_id || u?.uid || null;
-
-        const entry = {
-          id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
-          userId,
-          marketTitle: marketTitle || '',
-          dateText: dateText || '',
-          labelKey,
-          rows: Array.isArray(rows) ? rows : [],
-          totalBets: Number(totalBids) || 0,
-          totalAmount: Number(totalAmount) || 0,
-          session: (rows?.[0]?.type || '').toString(),
-          createdAt: new Date().toISOString(),
-        };
-
-        const raw = localStorage.getItem('betHistory');
-        const prev = raw ? JSON.parse(raw) : [];
-        const next = Array.isArray(prev) ? [entry, ...prev] : [entry];
-        localStorage.setItem('betHistory', JSON.stringify(next.slice(0, 200)));
-      } catch (e) {
-        // ignore storage errors
-      }
-
       setStage('success');
     } catch (e) {
       setSubmitError(e?.message || 'Failed to place bet');

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, fetchWithAuth, getAuthHeaders } from '../config/api';
 import { getRatesCurrent } from '../api/bets';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
@@ -56,6 +56,19 @@ const inferBetKind = (betNumberRaw) => {
   if (/^\d{2}$/.test(s)) return 'jodi';
   if (/^\d{3}$/.test(s)) return 'panna';
   return 'unknown';
+};
+
+const BET_TYPE_LABELS = {
+  single: 'Single Digit',
+  jodi: 'Jodi',
+  panna: 'Panna',
+  'sp-motor': 'SP Motor',
+  'dp-motor': 'DP Motor',
+  'half-sangam': 'Half Sangam',
+  'full-sangam': 'Full Sangam',
+  'odd-even': 'Odd Even',
+  'sp-common': 'SP Common',
+  'dp-common': 'DP Common',
 };
 
 // Backend defaults (must match backend/models/rate/rate.js) – used when API rates not loaded
@@ -146,7 +159,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
   const [page, setPage] = useState(1);
   const [markets, setMarkets] = useState([]);
   const [ratesMap, setRatesMap] = useState(null);
-  const [localVersion, setLocalVersion] = useState(0);
+  const [myBets, setMyBets] = useState([]);
 
   // Scope behavior:
   // - default (null/empty): MAIN markets only (exclude starline/startline)
@@ -163,15 +176,62 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
     return true;
   };
 
-  const { userId, bets } = useMemo(() => {
+  const userId = useMemo(() => {
     const u = safeParse(localStorage.getItem('user') || 'null', null);
-    const uid = u?._id || u?.id || u?.userId || u?.userid || u?.user_id || u?.uid || null;
-    const all = safeParse(localStorage.getItem('betHistory') || '[]', []);
-    const list = Array.isArray(all) ? all : [];
-    const onlyMine = uid ? list.filter((x) => x?.userId === uid) : list;
-    const scoped = onlyMine.filter((x) => inScope(x?.marketTitle));
-    return { userId: uid, bets: scoped };
-  }, [localVersion, scope]);
+    return u?._id || u?.id || u?.userId || u?.userid || u?.user_id || u?.uid || null;
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const fetchMyBets = async () => {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/bets/my-history`, { headers: getAuthHeaders() });
+        if (res.status === 401) return;
+        const data = await res.json();
+        if (!alive) return;
+        if (data?.success && Array.isArray(data?.data)) {
+          setMyBets(data.data);
+        } else {
+          setMyBets([]);
+        }
+      } catch {
+        if (alive) setMyBets([]);
+      }
+    };
+    fetchMyBets();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const bets = useMemo(() => {
+    return (myBets || [])
+      .map((b) => {
+        const session = String(b?.betOn || '').trim().toUpperCase();
+        const marketTitle = (b?.marketId?.marketName || '').toString().trim() || 'MARKET';
+        const typeKey = String(b?.betType || '').toLowerCase();
+        const settledState =
+          b?.status === 'won' ? 'won' : b?.status === 'lost' ? 'lost' : '';
+        return {
+          id: b?._id || `${marketTitle}-${b?.createdAt || ''}-${Math.random()}`,
+          marketTitle,
+          createdAt: b?.createdAt,
+          session,
+          labelKey: BET_TYPE_LABELS[typeKey] || String(b?.betType || 'Bet'),
+          rows: [
+            {
+              id: b?._id || `${marketTitle}-${b?.createdAt || ''}`,
+              number: b?.betNumber,
+              points: Number(b?.amount) || 0,
+              type: session,
+              settledState,
+              settledPayout: Number(b?.payout) || 0,
+            },
+          ],
+        };
+      })
+      .filter((x) => inScope(x?.marketTitle));
+  }, [myBets, scope]);
 
   const flat = useMemo(() => {
     const out = [];
@@ -265,62 +325,6 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
       return { x, r, idx, points, session, marketTitle, computedVerdict: computed, verdict: finalVerdict };
     });
   }, [flat, marketByName, ratesMap]);
-
-  // Persist settled verdicts so refresh always shows same message
-  const toPersist = useMemo(() => {
-    return (enriched || [])
-      .filter((row) => {
-        const r = row?.r;
-        if (!r?.id) return false;
-        if (r?.settledState) return false;
-        return row?.computedVerdict?.state === 'won' || row?.computedVerdict?.state === 'lost';
-      })
-      .map((row) => ({
-        entryId: row.x?.id,
-        rowId: row.r?.id,
-        state: row.computedVerdict.state,
-        payout: Number(row.computedVerdict.payout || 0) || 0,
-      }))
-      .filter((x) => x.entryId && x.rowId);
-  }, [enriched]);
-
-  useEffect(() => {
-    if (!toPersist.length) return;
-    try {
-      const raw = localStorage.getItem('betHistory');
-      const prev = raw ? safeParse(raw, []) : [];
-      if (!Array.isArray(prev) || prev.length === 0) return;
-
-      let changed = false;
-      const next = prev.map((entry) => {
-        const entryId = entry?.id;
-        const matches = toPersist.filter((u) => u.entryId === entryId);
-        if (!matches.length) return entry;
-
-        const rows = Array.isArray(entry?.rows) ? entry.rows : [];
-        const newRows = rows.map((r) => {
-          const m = matches.find((u) => u.rowId === r?.id);
-          if (!m) return r;
-          if (r?.settledState) return r;
-          changed = true;
-          return {
-            ...r,
-            settledState: m.state,
-            settledPayout: m.payout,
-            settledAt: new Date().toISOString(),
-          };
-        });
-        return changed ? { ...entry, rows: newRows } : entry;
-      });
-
-      if (changed) {
-        localStorage.setItem('betHistory', JSON.stringify(next));
-        setLocalVersion((v) => v + 1);
-      }
-    } catch {
-      // ignore
-    }
-  }, [toPersist]);
 
   const filtered = useMemo(() => {
     return (enriched || []).filter((row) => {
