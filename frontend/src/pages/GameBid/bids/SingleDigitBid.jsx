@@ -189,7 +189,7 @@ const SingleDigitBid = ({ market, title }) => {
                             />
                         </div>
                     </div>
-                    <button onClick={handleAddBid} className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]">Add</button>
+                    <button onClick={handleAddBid} className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]">Submit Bet</button>
                 </>
             ) : (
                 <>
@@ -201,7 +201,7 @@ const SingleDigitBid = ({ market, title }) => {
                             </div>
                         ))}
                     </div>
-                    <button onClick={handleAddSpecialModeBids} className="w-full bg-[#1B3150] text-white font-bold py-3 rounded-md shadow-md hover:bg-[#152842] transition-all">Add to List</button>
+                    <button onClick={handleAddSpecialModeBids} className="w-full bg-[#1B3150] text-white font-bold py-3 rounded-md shadow-md hover:bg-[#152842] transition-all">Submit Bet</button>
                 </>
             )}
 
