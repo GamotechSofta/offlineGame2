@@ -66,7 +66,7 @@ const JodiBulkBid = ({ market, title }) => {
         return window.innerWidth >= 768;
     });
     const [columnStart, setColumnStart] = useState(0);
-    const MOBILE_VISIBLE_COLS = 5;
+    const MOBILE_VISIBLE_COLS = 10;
 
     useEffect(() => {
         const onResize = () => setIsDesktop(window.innerWidth >= 768);
@@ -84,11 +84,9 @@ const JodiBulkBid = ({ market, title }) => {
         }
     }, [isDesktop]);
 
-    const visibleDigits = isDesktop
-        ? DIGITS
-        : DIGITS.slice(columnStart, columnStart + MOBILE_VISIBLE_COLS);
-    const canSlideLeft = !isDesktop && columnStart > 0;
-    const canSlideRight = !isDesktop && columnStart + MOBILE_VISIBLE_COLS < DIGITS.length;
+    const visibleDigits = DIGITS;
+    const canSlideLeft = false;
+    const canSlideRight = false;
 
     // Auto-apply row/column Pts after typing (no Enter or blur needed)
     const rowApplyTimersRef = useRef({});
@@ -364,24 +362,16 @@ const JodiBulkBid = ({ market, title }) => {
             hideFooter
             contentPaddingClass="pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-6"
         >
-            <div className="px-2 sm:px-4 md:px-4 py-1 md:py-1 w-full">
+            <div className="px-2 sm:px-4 md:px-1 py-1 md:py-1 w-full">
                 {warning && (
                     <div className="mb-3 bg-red-50 border-2 border-red-300 text-red-600 rounded-xl px-4 py-3 text-sm">
                         {warning}
                     </div>
                 )}
 
-                <div className="bg-white border-2 border-gray-300 rounded-2xl p-2 sm:p-3 md:p-3 overflow-hidden w-full">
-                    <div className="flex justify-end mb-2">
-                        <button
-                            type="button"
-                            onClick={clearAll}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold border-2 border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 active:scale-[0.98] transition-all"
-                        >
-                            Clear
-                        </button>
-                    </div>
+                <div className="bg-transparent border-0 rounded-none p-0 md:bg-white md:border-2 md:border-gray-300 md:rounded-2xl md:p-3 overflow-hidden w-full pt-5">
                     <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                        <span className="mr-1 text-xs sm:text-sm font-semibold text-gray-700">Quick Points</span>
                         {QUICK_POINT_OPTIONS.map((pts) => (
                             <button
                                 key={`jodi-quick-${pts}`}
@@ -389,47 +379,24 @@ const JodiBulkBid = ({ market, title }) => {
                                 onClick={() => applyAllQuickPoints(pts)}
                                 className="h-7 px-2.5 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
                             >
-                                Rs.{pts}
+                                    {pts}
                             </button>
                         ))}
+                        <button
+                            type="button"
+                            onClick={clearAll}
+                            className="ml-auto px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 active:scale-[0.98] transition-all"
+                        >
+                            Clear
+                        </button>
                     </div>
-                    {!isDesktop && (
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setColumnStart((prev) => Math.max(0, prev - 1))}
-                                disabled={!canSlideLeft}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
-                                    canSlideLeft
-                                        ? 'bg-white border-gray-300 text-[#1B3150]'
-                                        : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-                                }`}
-                            >
-                                ← Prev
-                            </button>
-                            <span className="text-[11px] text-gray-500 font-semibold">
-                                Jodi Columns {visibleDigits[0]} - {visibleDigits[visibleDigits.length - 1]}
-                            </span>
-                            <button
-                                type="button"
-                                onClick={() => setColumnStart((prev) => Math.min(DIGITS.length - MOBILE_VISIBLE_COLS, prev + 1))}
-                                disabled={!canSlideRight}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
-                                    canSlideRight
-                                        ? 'bg-white border-gray-300 text-[#1B3150]'
-                                        : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-                                }`}
-                            >
-                                Next →
-                            </button>
-                        </div>
-                    )}
+                    {/* Mobile now shows full 0-9 columns at once; no next/prev controls. */}
                     <div className="overflow-x-hidden scrollbar-hidden">
                         <div
                             className="grid w-full gap-[2px] sm:gap-1 md:gap-1"
                             style={{
                                 gridTemplateColumns:
-                                    `clamp(34px, 10vw, 80px) clamp(6px, 1vw, 18px) repeat(${visibleDigits.length}, minmax(18px, 1fr))`
+                                    `clamp(40px, 12vw, 80px) clamp(6px, 1vw, 18px) repeat(${visibleDigits.length}, minmax(24px, 1fr))`
                             }}
                         >
                             {/* Header digits */}
