@@ -162,6 +162,17 @@ const BidOptions = () => {
       ),
     },
     {
+      id: 9.5,
+      title: 'Triple Pana Bulk',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714392/Untitled_1080_x_1080_px_1080_x_1080_px_9_ugcdef.svg"
+          alt="Triple Pana Bulk"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
+    {
       id: 10,
       title: 'Full Sangam',
       icon: (
@@ -263,6 +274,35 @@ const BidOptions = () => {
       })
     : visibleOptionsBase;
 
+  // Keep Bid Options in a stable, business-defined order.
+  const optionDisplayOrder = [
+    'Single Digit',
+    'Single Digit Bulk',
+    'Jodi',
+    'Jodi Bulk',
+    'Single Pana',
+    'Single Pana Bulk',
+    'Double Pana',
+    'Double Pana Bulk',
+    'Triple Pana',
+    'Triple Pana Bulk',
+    'Half Sangam',
+    'Full Sangam',
+    'SP Common',
+    'DP Common',
+    'SP Motor',
+    'DP Motor',
+    'SP DP Motor',
+    'Odd Even',
+  ];
+  const orderedVisibleOptions = [...visibleOptions].sort((a, b) => {
+    const ia = optionDisplayOrder.indexOf(a.title);
+    const ib = optionDisplayOrder.indexOf(b.title);
+    const safeA = ia === -1 ? Number.MAX_SAFE_INTEGER : ia;
+    const safeB = ib === -1 ? Number.MAX_SAFE_INTEGER : ib;
+    return safeA - safeB;
+  });
+
   return (
     <div className="min-h-screen bg-white flex flex-col items-center">
       {/* Header */}
@@ -291,7 +331,7 @@ const BidOptions = () => {
 
       {/* Grid Content */}
       <div className="w-full max-w-md lg:max-w-none px-3 sm:px-4 pt-3 sm:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
-        {visibleOptions.map((option) => (
+        {orderedVisibleOptions.map((option) => (
           <div
             key={option.id}
             onClick={() => navigate('/game-bid', {
