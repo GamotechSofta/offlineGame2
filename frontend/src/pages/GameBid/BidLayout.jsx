@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useBettingWindow } from './BettingWindowContext';
 
@@ -56,7 +56,9 @@ const BidLayout = ({
     const dateInputRef = React.useRef(null);
     const { allowed: bettingAllowed, closeOnly: bettingCloseOnly, message: bettingMessage } = useBettingWindow();
     const todayDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
-    const wallet = Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage();
+    const [wallet, setWallet] = useState(() =>
+        Number.isFinite(Number(walletBalance)) ? Number(walletBalance) : getWalletFromStorage()
+    );
     
     // Get minimum date (today) for date picker - calculate once
     const minDate = React.useMemo(() => {
@@ -143,6 +145,36 @@ const BidLayout = ({
         }, 0);
         return () => clearTimeout(timer);
     }, [location.pathname]);
+
+    useEffect(() => {
+        const syncFromStorage = () => {
+            const propWallet = Number(walletBalance);
+            if (Number.isFinite(propWallet)) {
+                setWallet(propWallet);
+                return;
+            }
+            setWallet(getWalletFromStorage());
+        };
+
+        const onBalanceUpdated = (e) => {
+            const next = Number(e?.detail?.balance);
+            if (Number.isFinite(next)) {
+                setWallet(next);
+            } else {
+                syncFromStorage();
+            }
+        };
+
+        syncFromStorage();
+        window.addEventListener('balanceUpdated', onBalanceUpdated);
+        window.addEventListener('userLogin', syncFromStorage);
+        window.addEventListener('storage', syncFromStorage);
+        return () => {
+            window.removeEventListener('balanceUpdated', onBalanceUpdated);
+            window.removeEventListener('userLogin', syncFromStorage);
+            window.removeEventListener('storage', syncFromStorage);
+        };
+    }, [walletBalance]);
 
     return (
         <div className="min-h-screen min-h-ios-screen bg-[#E8ECEF] font-sans w-full max-w-full overflow-x-hidden">
