@@ -133,16 +133,30 @@ const OddEvenBid = ({ market, title }) => {
     };
 
     const dateRowStats = (
-        <div className="flex items-center gap-2 shrink-0">
-            <div className="rounded-full border-2 border-gray-300 bg-white h-[44px] px-3 flex items-center gap-1.5">
-                <span className="text-[10px] text-gray-500 uppercase leading-none">Bets</span>
-                <span className="text-sm font-bold text-[#1B3150]">{bids.length}</span>
+        <>
+            <div className="w-full basis-full min-w-0 shrink-0 md:hidden px-3 py-1">
+                <div className="grid grid-cols-2 gap-1.5">
+                    <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 text-center">
+                        <div className="text-[11px] text-gray-600 font-medium">Count</div>
+                        <div className="text-base font-bold text-[#1B3150] leading-tight">{bids.length}</div>
+                    </div>
+                    <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 text-center">
+                        <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
+                        <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
+                    </div>
+                </div>
             </div>
-            <div className="rounded-full border-2 border-gray-300 bg-white h-[44px] px-3 flex items-center gap-1.5">
-                <span className="text-[10px] text-gray-500 uppercase leading-none">Points</span>
-                <span className="text-sm font-bold text-[#1B3150]">{totalPoints}</span>
+            <div className="hidden md:flex items-center gap-2 shrink-0">
+                <div className="rounded-full border-2 border-gray-300 bg-white h-[44px] px-3 flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-500 uppercase leading-none">Bets</span>
+                    <span className="text-sm font-bold text-[#1B3150]">{bids.length}</span>
+                </div>
+                <div className="rounded-full border-2 border-gray-300 bg-white h-[44px] px-3 flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-500 uppercase leading-none">Points</span>
+                    <span className="text-sm font-bold text-[#1B3150]">{totalPoints}</span>
+                </div>
             </div>
-        </div>
+        </>
     );
 
     const leftColumn = (
