@@ -293,18 +293,18 @@ const SinglePanaBulkBid = ({ market, title }) => {
                                         Clear
                                     </button>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 w-full">
                                     <span className="text-[11px] font-semibold text-gray-700 shrink-0 leading-tight flex flex-col">
                                         <span>Quick</span>
                                         <span>Points :</span>
                                     </span>
-                                    <div className="flex flex-wrap items-center gap-2.5">
+                                    <div className="grid grid-cols-5 gap-2 flex-1">
                                     {QUICK_POINT_OPTIONS.map((pts) => (
                                         <button
                                             key={`${groupKey}-${pts}`}
                                             type="button"
                                             onClick={() => applyGroup(String(pts))}
-                                            className="h-7 px-2.5 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
+                                            className="h-7 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
                                         >
                                             {pts}
                                         </button>
