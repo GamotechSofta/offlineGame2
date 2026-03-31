@@ -216,9 +216,26 @@ const OddEvenBid = ({ market, title }) => {
                     </div>
                 </div>
             </div>
-            <button onClick={handleAddBid} className="w-full bg-[#1B3150] text-white font-bold h-10 rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98] text-xs">
-                Add
-            </button>
+            <div className="flex gap-3">
+                <button
+                    onClick={handleAddBid}
+                    className="flex-1 bg-[#1B3150] text-white font-bold h-10 rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98] text-xs"
+                >
+                    Add
+                </button>
+                <button
+                    type="button"
+                    onClick={handleOpenSubmit}
+                    disabled={!bids.length}
+                    className={`flex-1 font-bold h-10 rounded-lg shadow-md transition-all text-xs ${
+                        bids.length
+                            ? 'bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98]'
+                            : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                    }`}
+                >
+                    Submit
+                </button>
+            </div>
             <div>
                 <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-[#1B3150] font-bold text-xs sm:text-sm mb-2 px-1">
                     <div>Ank</div>
@@ -271,18 +288,6 @@ const OddEvenBid = ({ market, title }) => {
                 </div>
             </div>
 
-            <button
-                type="button"
-                onClick={handleOpenSubmit}
-                disabled={!bids.length}
-                className={`hidden md:block w-full mt-3 rounded-xl font-bold text-sm py-2.5 transition-colors ${
-                    bids.length
-                        ? 'bg-gradient-to-r bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98]'
-                        : 'bg-gradient-to-r bg-gray-400 text-white opacity-50 cursor-not-allowed'
-                }`}
-            >
-                Submit
-            </button>
         </div>
     );
 
@@ -305,21 +310,6 @@ const OddEvenBid = ({ market, title }) => {
         >
             <div className="px-3 sm:px-4 py-4 sm:py-2 md:max-w-3xl md:mx-auto md:items-start">
                 {leftColumn}
-            </div>
-
-            <div className="fixed left-0 right-0 bottom-[88px] z-20 px-3 sm:px-4 md:hidden">
-                <button
-                    type="button"
-                    onClick={handleOpenSubmit}
-                    disabled={!bids.length}
-                    className={`w-full rounded-xl font-bold text-sm py-3 transition-colors ${
-                        bids.length
-                            ? 'bg-gradient-to-r bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98]'
-                            : 'bg-gradient-to-r bg-gray-400 text-white opacity-50 cursor-not-allowed'
-                    }`}
-                >
-                    Submit
-                </button>
             </div>
 
             <BidReviewModal
