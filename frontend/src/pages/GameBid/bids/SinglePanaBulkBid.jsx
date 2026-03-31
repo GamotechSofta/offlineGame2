@@ -294,7 +294,10 @@ const SinglePanaBulkBid = ({ market, title }) => {
                                     </button>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[11px] font-semibold text-gray-700 shrink-0">Quick Points :</span>
+                                    <span className="text-[11px] font-semibold text-gray-700 shrink-0 leading-tight flex flex-col">
+                                        <span>Quick</span>
+                                        <span>Points :</span>
+                                    </span>
                                     <div className="flex flex-wrap items-center gap-2.5">
                                     {QUICK_POINT_OPTIONS.map((pts) => (
                                         <button
