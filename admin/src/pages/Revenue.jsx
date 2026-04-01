@@ -73,6 +73,7 @@ const formatNumber = (n) => {
 
 const Revenue = () => {
     const navigate = useNavigate();
+    const todayTopLabel = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState(() => {
@@ -139,10 +140,22 @@ const Revenue = () => {
 
                 {/* Date filters */}
                 <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-5">
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2">
                         <FaCalendarAlt className="w-4 h-4 text-orange-500 shrink-0" />
                         <span className="text-sm font-medium text-gray-600">Period</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={fetchRevenue}
+                            disabled={loading}
+                            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 bg-orange-500 hover:bg-amber-400 text-gray-800 font-semibold rounded-lg transition-colors disabled:opacity-50 text-xs sm:text-sm"
+                        >
+                            <FaSyncAlt className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
                     </div>
+                    <p className="text-orange-500 text-sm font-medium mb-3">{todayTopLabel}</p>
                     <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                         {PRESETS.map((p) => (
                             <button
@@ -173,15 +186,6 @@ const Revenue = () => {
                             onChange={(e) => { setDateRange((r) => ({ ...r, endDate: e.target.value })); setActivePreset(''); }}
                             className="px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-xs sm:text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent w-[130px] sm:w-auto"
                         />
-                        <button
-                            type="button"
-                            onClick={fetchRevenue}
-                            disabled={loading}
-                            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 bg-orange-500 hover:bg-amber-400 text-gray-800 font-semibold rounded-lg transition-colors disabled:opacity-50 text-xs sm:text-sm"
-                        >
-                            <FaSyncAlt className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </button>
                     </div>
                 </div>
 
@@ -352,9 +356,9 @@ const Revenue = () => {
                             </div>
 
                             {/* Mobile Cards (hidden on desktop) */}
-                            <div className="md:hidden divide-y divide-gray-700/40">
+                            <div className="md:hidden space-y-3 p-3">
                                 {sortedBookies.map((b) => (
-                                    <div key={b.bookieId} className="p-3 sm:p-4">
+                                    <div key={b.bookieId} className="p-3 rounded-xl border border-gray-200 bg-white">
                                         {/* Bookie header */}
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-2 min-w-0">
@@ -370,26 +374,26 @@ const Revenue = () => {
                                         </div>
                                         {/* Stats grid */}
                                         <div className="grid grid-cols-2 gap-2">
-                                            <div className="bg-gray-100/30 rounded-lg px-2.5 py-2">
+                                            <div className="bg-gray-100/40 rounded-lg px-2.5 py-2">
                                                 <p className="text-[10px] text-gray-500 uppercase">Bets</p>
                                                 <p className="text-xs font-semibold text-gray-800 truncate">{formatCurrency(b.totalBetAmount)}</p>
                                             </div>
-                                            <div className="bg-gray-100/30 rounded-lg px-2.5 py-2">
+                                            <div className="bg-gray-100/40 rounded-lg px-2.5 py-2">
                                                 <p className="text-[10px] text-gray-500 uppercase">Payouts</p>
                                                 <p className="text-xs font-semibold text-red-500 truncate">{formatCurrency(b.totalPayouts)}</p>
                                             </div>
-                                            <div className="bg-gray-100/30 rounded-lg px-2.5 py-2">
+                                            <div className="bg-gray-100/40 rounded-lg px-2.5 py-2">
                                                 <p className="text-[10px] text-gray-500 uppercase">Bookie Share</p>
                                                 <p className="text-xs font-semibold text-orange-400 truncate">{formatCurrency(b.bookieShare)}</p>
                                             </div>
-                                            <div className="bg-gray-100/30 rounded-lg px-2.5 py-2">
+                                            <div className="bg-gray-100/40 rounded-lg px-2.5 py-2">
                                                 <p className="text-[10px] text-gray-500 uppercase">Admin Profit</p>
                                                 <p className={`text-xs font-semibold truncate ${b.adminProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                                     {formatCurrency(b.adminProfit)}
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 mt-2 text-[11px] text-gray-500">
+                                        <div className="flex items-center justify-between mt-2 text-[11px] text-gray-500">
                                             <span>{formatNumber(b.totalUsers)} users</span>
                                             <span>Pool: {formatCurrency(b.adminPool)}</span>
                                         </div>
@@ -398,7 +402,7 @@ const Revenue = () => {
 
                                 {/* Direct Users - mobile */}
                                 {direct && direct.totalBetAmount > 0 && (
-                                    <div className="p-3 sm:p-4 bg-blue-500/5">
+                                    <div className="p-3 rounded-xl border border-blue-200 bg-blue-500/5">
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-blue-400" />
@@ -426,7 +430,7 @@ const Revenue = () => {
                                 )}
 
                                 {/* Totals - mobile */}
-                                <div className="p-3 sm:p-4 bg-gray-100/20">
+                                <div className="p-3 rounded-xl border border-gray-200 bg-gray-100/20">
                                     <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-2">Total Summary</p>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div className="bg-gray-100/40 rounded-lg px-2.5 py-2">

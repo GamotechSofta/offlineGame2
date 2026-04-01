@@ -45,12 +45,18 @@ const AddResult = () => {
     const [marketsPendingResultList, setMarketsPendingResultList] = useState([]);
     const [isDirectEditMode, setIsDirectEditMode] = useState(() => !!(preselectedFromNav?._id));
     const [activeTab, setActiveTab] = useState('regular');
+    const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
 
     const mainPendingList = useMemo(
         () => (marketsPendingResultList || []).filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline'),
         [marketsPendingResultList]
     );
+    const filteredMarkets = useMemo(() => {
+        const q = (searchQuery || '').trim().toLowerCase();
+        if (!q) return markets || [];
+        return (markets || []).filter((m) => String(m?.marketName || '').toLowerCase().includes(q));
+    }, [markets, searchQuery]);
     const mainPendingCount = mainPendingList.length;
 
     const fetchMarketsPendingResult = async () => {
@@ -330,7 +336,7 @@ const AddResult = () => {
                 </h1>
 
                 {/* Top tabs: Regular | Starline | King Bazaar */}
-                <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 mb-4 sm:mb-6">
                     {ADD_RESULT_TABS.map((tab) => {
                         const isActive = activeTab === tab.id;
                         const Icon = tab.icon;
@@ -350,6 +356,15 @@ const AddResult = () => {
                             </button>
                         );
                     })}
+                    {activeTab === 'regular' && !isDirectEditMode && (
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search market..."
+                            className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm"
+                        />
+                    )}
                 </div>
 
 
@@ -360,13 +375,13 @@ const AddResult = () => {
                     <div className="flex-1 min-w-0 w-full">
                         {loading ? (
                             <div className="text-center py-8 sm:py-12 text-gray-400 text-xs sm:text-sm md:text-base rounded-xl border border-gray-200 bg-white">Loading markets...</div>
-                        ) : markets.length === 0 ? (
+                        ) : filteredMarkets.length === 0 ? (
                             <div className="text-center py-8 sm:py-12 text-gray-400 text-xs sm:text-sm md:text-base rounded-xl border border-gray-200 bg-white">No markets found.</div>
                         ) : (
                             <div className="rounded-lg sm:rounded-xl border border-gray-200 bg-white shadow-lg">
                                 {/* Mobile: card list (no horizontal scroll) */}
                                 <div className="md:hidden divide-y divide-gray-200">
-                                    {markets.map((market) => {
+                                    {filteredMarkets.map((market) => {
                                         const hasOpen = market.openingNumber && /^\d{3}$/.test(market.openingNumber);
                                         const hasClose = market.closingNumber && /^\d{3}$/.test(market.closingNumber);
                                         const isClosed = hasOpen && hasClose;
@@ -422,7 +437,7 @@ const AddResult = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {markets.map((market) => {
+                                        {filteredMarkets.map((market) => {
                                             const hasOpen = market.openingNumber && /^\d{3}$/.test(market.openingNumber);
                                             const hasClose = market.closingNumber && /^\d{3}$/.test(market.closingNumber);
                                             const isClosed = hasOpen && hasClose;

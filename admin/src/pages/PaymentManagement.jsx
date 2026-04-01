@@ -29,6 +29,7 @@ const PaymentManagement = () => {
 
     // Detail modal for viewing full payment details
     const [detailModal, setDetailModal] = useState({ show: false, payment: null });
+    const [expandedPaymentId, setExpandedPaymentId] = useState(null);
 
     useEffect(() => {
         fetchPayments();
@@ -308,7 +309,7 @@ const PaymentManagement = () => {
                 </div>
             )}
 
-            {/* Payments Table */}
+            {/* Payments List/Table */}
             {loading ? (
                 <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
                     <div className="animate-spin rounded-full h-12 w-12 border-2 border-amber-500 border-t-transparent mx-auto mb-4"></div>
@@ -316,6 +317,114 @@ const PaymentManagement = () => {
                     <p className="text-gray-500 text-sm mt-1">Please wait</p>
                 </div>
             ) : (
+                <>
+                {/* Mobile: expandable payment cards */}
+                <div className="md:hidden space-y-3">
+                    {payments.length === 0 ? (
+                        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+                            <FaWallet className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                            <p className="text-gray-400 font-medium mb-1">No payments found</p>
+                            <p className="text-gray-500 text-sm">
+                                {hasActiveFilters
+                                    ? 'Try clearing filters or change your filter criteria.'
+                                    : 'Payments will appear here when players request deposits or withdrawals.'}
+                            </p>
+                        </div>
+                    ) : (
+                        payments.map((payment) => {
+                            const isExpanded = expandedPaymentId === payment._id;
+                            return (
+                                <div key={payment._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                    <button
+                                        type="button"
+                                        onClick={() => setExpandedPaymentId(isExpanded ? null : payment._id)}
+                                        className="w-full p-3 text-left"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-gray-800 truncate">{payment.userId?.username || 'Unknown'}</p>
+                                                <p className="text-xs text-gray-500 truncate">{formatDate(payment.createdAt)}</p>
+                                                <div className="mt-1 flex items-center gap-2">
+                                                    <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium border ${getTypeBadge(payment.type)}`}>
+                                                        {payment.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
+                                                    </span>
+                                                    <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium border ${getStatusBadge(payment.status)}`}>
+                                                        {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <p className={`font-semibold ${payment.type === 'deposit' ? 'text-green-600' : 'text-purple-600'}`}>
+                                                    {payment.type === 'deposit' ? '+' : '-'} ₹{payment.amount?.toLocaleString()}
+                                                </p>
+                                                <p className="text-xs text-gray-500">{isExpanded ? 'Hide' : 'View'} details</p>
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    {isExpanded && (
+                                        <div className="px-3 pb-3 pt-1 border-t border-gray-200 space-y-2 text-xs">
+                                            <p className="text-gray-500">Ref: <span className="text-gray-800 font-mono">#{payment._id.slice(-6).toUpperCase()}</span></p>
+                                            {payment.type === 'deposit' ? (
+                                                <>
+                                                    {payment.upiTransactionId && (
+                                                        <p className="text-gray-500">UTR: <span className="text-gray-800 font-mono">{payment.upiTransactionId}</span></p>
+                                                    )}
+                                                    {payment.screenshotUrl && (
+                                                        <button
+                                                            onClick={() => {
+                                                                const screenshotUrl = payment.screenshotUrl.startsWith('http')
+                                                                    ? payment.screenshotUrl
+                                                                    : `${API_BASE_URL}${payment.screenshotUrl}`;
+                                                                setImageModal({ show: true, url: screenshotUrl });
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-600/20 border border-blue-500/40 rounded text-xs text-blue-600"
+                                                        >
+                                                            <FaImage className="w-3.5 h-3.5" /> Screenshot
+                                                        </button>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <p className="text-gray-500 truncate">
+                                                    {payment.bankDetailId?.accountHolderName || 'No bank details'}
+                                                </p>
+                                            )}
+                                            <div className="flex flex-wrap gap-2 pt-1">
+                                                <button
+                                                    onClick={() => setDetailModal({ show: true, payment })}
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600/20 border border-blue-500/40 rounded-lg text-xs font-medium text-blue-600"
+                                                >
+                                                    <FaEye className="w-3.5 h-3.5 shrink-0" /> View
+                                                </button>
+                                                {payment.status === 'pending' ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => openActionModal(payment, 'approve')}
+                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-green-600 rounded-lg text-xs font-medium text-white"
+                                                        >
+                                                            <FaCheck className="w-3.5 h-3.5 shrink-0" /> Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => openActionModal(payment, 'reject')}
+                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 rounded-lg text-xs font-medium text-white"
+                                                        >
+                                                            <FaTimes className="w-3.5 h-3.5 shrink-0" /> Reject
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-gray-500 italic self-center">Processed</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Desktop: table */}
+                <div className="hidden md:block">
                 <div className="overflow-x-auto -mx-4 sm:mx-0 rounded-xl border border-gray-200 overflow-hidden">
                     <div className="bg-white min-w-[1080px]">
                         <table className="w-full text-sm table-fixed">
@@ -494,13 +603,15 @@ const PaymentManagement = () => {
                         </table>
                     </div>
                 </div>
+                </div>
+                </>
             )}
 
             {/* Action Modal */}
             {actionModal.show && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl max-w-md w-full p-6 border border-gray-200 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-white rounded-xl w-full max-w-[min(92vw,560px)] p-4 sm:p-5 border border-gray-200 shadow-2xl">
+                        <div className="flex items-center gap-3 mb-3">
                             {actionModal.action === 'approve' ? (
                                 <div className="w-10 h-10 rounded-full bg-green-600/20 flex items-center justify-center">
                                     <FaCheck className="w-5 h-5 text-green-600" />
@@ -511,23 +622,23 @@ const PaymentManagement = () => {
                                 </div>
                             )}
                             <div>
-                                <h3 className="text-xl font-bold text-gray-800">
+                                <h3 className="text-lg sm:text-xl font-bold text-gray-800">
                                     {actionModal.action === 'approve' ? 'Approve' : 'Reject'} {actionModal.payment?.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
                                 </h3>
-                                <p className="text-sm text-gray-400 mt-0.5">
+                                <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
                                     {actionModal.action === 'approve' ? 'Credit will be added to player wallet' : 'Request will be declined'}
                                 </p>
                             </div>
                         </div>
                         
-                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                            <div className="flex justify-between items-center mb-2">
+                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                            <div className="flex justify-between items-center mb-1.5">
                                 <span className="text-gray-400">Amount</span>
-                                <span className="text-xl font-bold text-gray-800">
+                                <span className="text-lg font-bold text-gray-800">
                                     ₹{actionModal.payment?.amount?.toLocaleString()}
                                 </span>
                             </div>
-                            <div className="flex justify-between items-center mb-2">
+                            <div className="flex justify-between items-center mb-1.5">
                                 <span className="text-gray-400">Player</span>
                                 <span className="text-gray-800">
                                     {actionModal.payment?.userId?.username || 'Unknown'}
@@ -547,14 +658,14 @@ const PaymentManagement = () => {
 
                         {/* Show screenshot for deposits */}
                         {actionModal.payment?.type === 'deposit' && actionModal.payment?.screenshotUrl && (
-                            <div className="mb-4">
-                                <p className="text-gray-600 text-sm mb-2 font-medium">Payment Screenshot:</p>
+                            <div className="mb-3">
+                                <p className="text-gray-600 text-xs sm:text-sm mb-1.5 font-medium">Payment Screenshot:</p>
                                 <img
                                     src={actionModal.payment.screenshotUrl.startsWith('http') 
                                         ? actionModal.payment.screenshotUrl 
                                         : `${API_BASE_URL}${actionModal.payment.screenshotUrl}`}
                                     alt="Payment proof"
-                                    className="w-full max-h-48 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                                    className="w-full max-h-28 sm:max-h-32 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
                                     onClick={() => {
                                         const screenshotUrl = actionModal.payment.screenshotUrl.startsWith('http') 
                                             ? actionModal.payment.screenshotUrl 
@@ -570,8 +681,8 @@ const PaymentManagement = () => {
 
                         {/* Show bank details for withdrawals */}
                         {actionModal.payment?.type === 'withdrawal' && actionModal.payment?.bankDetailId && (
-                            <div className="mb-4 bg-gray-50 rounded-lg p-3">
-                                <p className="text-gray-400 text-sm mb-2">Withdraw to:</p>
+                            <div className="mb-3 bg-gray-50 rounded-lg p-3">
+                                <p className="text-gray-400 text-xs sm:text-sm mb-1.5">Withdraw to:</p>
                                 <p className="text-gray-800 font-medium">{actionModal.payment.bankDetailId.accountHolderName}</p>
                                 {actionModal.payment.bankDetailId.bankName && (
                                     <p className="text-gray-400 text-sm">
@@ -587,28 +698,28 @@ const PaymentManagement = () => {
                             </div>
                         )}
 
-                        <div className="mb-4">
-                            <label className="block text-gray-400 text-sm mb-2">
+                        <div className="mb-3">
+                            <label className="block text-gray-400 text-xs sm:text-sm mb-1.5">
                                 Admin Remarks {actionModal.action === 'reject' && <span className="text-red-500">*</span>}
                             </label>
                             <textarea
                                 value={adminRemarks}
                                 onChange={(e) => setAdminRemarks(e.target.value)}
                                 placeholder={actionModal.action === 'approve' ? 'Optional remarks...' : 'Reason for rejection...'}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 resize-none focus:outline-none focus:border-blue-500"
-                                rows={3}
+                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 resize-none focus:outline-none focus:border-blue-500"
+                                rows={2}
                             />
                         </div>
 
                         {actionModal.action === 'approve' && hasSecretDeclarePassword && (
-                            <div className="mb-4">
-                                <label className="block text-gray-400 text-sm mb-2">Secret declare password *</label>
+                            <div className="mb-3">
+                                <label className="block text-gray-400 text-xs sm:text-sm mb-1.5">Secret declare password *</label>
                                 <input
                                     type="password"
                                     placeholder="Secret declare password"
                                     value={secretPassword}
                                     onChange={(e) => { setSecretPassword(e.target.value); setActionPasswordError(''); }}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:border-blue-500"
+                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:border-blue-500"
                                 />
                                 {actionPasswordError && (
                                     <p className="text-red-500 text-sm mt-2">{actionPasswordError}</p>
@@ -616,10 +727,10 @@ const PaymentManagement = () => {
                             </div>
                         )}
 
-                        <div className="flex gap-3">
+                        <div className="flex gap-2.5">
                             <button
                                 onClick={closeActionModal}
-                                className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-800 transition-colors"
+                                className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-800 transition-colors text-sm"
                             >
                                 Cancel
                             </button>
@@ -630,10 +741,10 @@ const PaymentManagement = () => {
                                     (actionModal.action === 'reject' && !adminRemarks.trim()) ||
                                     (actionModal.action === 'approve' && hasSecretDeclarePassword && !secretPassword.trim())
                                 }
-                                className={`flex-1 px-4 py-2 rounded-lg text-gray-800 font-medium transition-colors disabled:opacity-50 ${
+                                className={`flex-1 px-4 py-2.5 rounded-lg text-white font-medium transition-colors disabled:opacity-50 text-sm ${
                                     actionModal.action === 'approve'
-                                        ? 'bg-green-600 hover:bg-green-700'
-                                        : 'bg-red-600 hover:bg-red-700'
+                                        ? 'bg-emerald-600 hover:bg-emerald-700'
+                                        : 'bg-rose-600 hover:bg-rose-700'
                                 }`}
                             >
                                 {processing ? 'Processing...' : (actionModal.action === 'approve' ? 'Approve' : 'Reject')}
@@ -670,7 +781,7 @@ const PaymentManagement = () => {
             {/* Detail Modal */}
             {detailModal.show && detailModal.payment && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl max-w-lg w-full p-6 border border-gray-200 max-h-[90vh] overflow-y-auto shadow-2xl">
+                    <div className="bg-white rounded-xl w-full max-w-[min(94vw,720px)] p-4 sm:p-6 border border-gray-200 max-h-[92vh] overflow-y-auto shadow-2xl">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${detailModal.payment.type === 'deposit' ? 'bg-green-600/20' : 'bg-purple-600/20'}`}>

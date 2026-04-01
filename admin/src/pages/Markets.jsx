@@ -22,9 +22,16 @@ const Markets = () => {
     const [formDefaultType, setFormDefaultType] = useState('main');
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('regular');
+    const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
 
     const mainMarkets = markets || [];
+    const filteredMainMarkets = (mainMarkets || []).filter((m) => {
+        const q = (searchQuery || '').trim().toLowerCase();
+        if (!q) return true;
+        const name = String(m?.marketName || '').toLowerCase();
+        return name.includes(q);
+    });
 
 
     const fetchMarkets = async () => {
@@ -117,8 +124,17 @@ const Markets = () => {
                                     + Add Market
                                 </button>
                             </div>
+                            <div className="mb-4">
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search market..."
+                                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                />
+                            </div>
                             <MarketList
-                                markets={mainMarkets}
+                                markets={filteredMainMarkets}
                                 onEdit={handleEdit}
                                 onDelete={fetchMarkets}
                                 apiBaseUrl={API_BASE_URL}

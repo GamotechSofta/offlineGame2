@@ -106,6 +106,7 @@ const RELATED_LINKS = [
 
 const Reports = () => {
     const navigate = useNavigate();
+    const todayTopLabel = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     const [report, setReport] = useState(null);
     const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState(() => {
@@ -170,14 +171,26 @@ const Reports = () => {
                             Reports
                         </h1>
                         <p className="text-gray-400 text-sm mt-1">Financial and betting summary for the selected period</p>
+                        <p className="text-orange-500 text-sm font-medium mt-1">{todayTopLabel}</p>
                     </div>
                 </div>
 
                 {/* Date range & filters */}
                 <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <div className="flex items-center gap-2">
                         <FaCalendarAlt className="w-5 h-5 text-orange-500 shrink-0" />
                         <span className="text-sm font-medium text-gray-600">Period</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={fetchReport}
+                            disabled={loading}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-amber-400 text-gray-800 font-semibold rounded-lg transition-colors disabled:opacity-50"
+                        >
+                            <FaSyncAlt className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
                     </div>
                     <div className="flex flex-wrap gap-2 mb-4">
                         {PRESETS.map((p) => (
@@ -215,16 +228,6 @@ const Reports = () => {
                             }}
                             className="px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                         />
-                        <button
-                            type="button"
-                            onClick={fetchReport}
-                            disabled={loading}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-amber-400 text-gray-800 font-semibold rounded-lg transition-colors disabled:opacity-50"
-                        >
-                            <FaSyncAlt className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </button>
-                        <span className="text-gray-500 text-sm">{formatRangeLabel(dateRange.startDate, dateRange.endDate)}</span>
                     </div>
                 </div>
 

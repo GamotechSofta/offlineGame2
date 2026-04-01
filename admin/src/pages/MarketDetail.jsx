@@ -829,7 +829,7 @@ const MarketAnalytics = ({ bets, rates, market }) => {
             {/* Single Digit Analytics */}
             <div>
                 <h4 className="text-base font-semibold text-gray-700 mb-3">Single Digit (0-9)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {/* Most Profitable */}
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                         <h5 className="font-semibold text-green-700 mb-2 text-sm">✅ Most Profitable</h5>
@@ -896,7 +896,7 @@ const MarketAnalytics = ({ bets, rates, market }) => {
             {sessionName === 'Closing' && analytics.jodi.mostProfitable.length > 0 && (
                 <div>
                     <h4 className="text-base font-semibold text-gray-700 mb-3">Jodi (00-99)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {/* Most Profitable */}
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                             <h5 className="font-semibold text-green-700 mb-2 text-sm">✅ Most Profitable</h5>
@@ -952,7 +952,7 @@ const MarketAnalytics = ({ bets, rates, market }) => {
             {analytics.panna.mostProfitable.length > 0 && (
                 <div>
                     <h4 className="text-base font-semibold text-gray-700 mb-3">Panna (000-999)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {/* Most Profitable */}
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                             <h5 className="font-semibold text-green-700 mb-2 text-sm">✅ Most Profitable</h5>
@@ -1380,7 +1380,7 @@ const MarketDetail = () => {
                             <div>
                                 <p className="text-xs text-gray-400 uppercase tracking-wider">Timeline</p>
                                 <p className="font-mono text-gray-800 text-sm sm:text-base">{timeline}</p>
-                                <p className="text-xs text-gray-500">Opens 12:00 AM, closes at closing time</p>
+                                <p className="text-xs text-gray-500">Opens 12:00 AM · closes at closing time</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -1391,10 +1391,8 @@ const MarketDetail = () => {
                                 <p className="text-xs text-gray-400 uppercase tracking-wider">Result</p>
                                 <p className="font-mono text-orange-500 text-lg font-bold">{resultDisplay}</p>
                                 <p className="text-xs text-gray-500">
-                                    Open: {hasOpen ? market.openingNumber : '—'} · Close: {hasClose ? market.closingNumber : '—'}
-                                </p>
-                                <p className="text-[10px] text-orange-500/90 mt-0.5">
-                                    Viewing totals: <strong>{effectiveView === 'open' ? 'Open' : 'Closed'}</strong> bets
+                                    Open: {hasOpen ? market.openingNumber : '—'} · Close: {hasClose ? market.closingNumber : '—'} ·
+                                    {' '}Viewing totals: <strong>{effectiveView === 'open' ? 'Open' : 'Closed'}</strong> bets
                                 </p>
                                 {(resultOnPatti?.open || resultOnPatti?.close) && (
                                     <div className="mt-3 pt-3 border-t border-gray-200 space-y-2 text-[11px]">
@@ -1906,19 +1904,20 @@ const MarketDetail = () => {
                     )}
                 </SectionCard>
 
-                <div className="mt-8 pt-4 border-t border-gray-200 flex flex-wrap items-center gap-3">
+                <div className="mt-8 pt-4 border-t border-gray-200 flex items-center gap-2 sm:gap-3 flex-nowrap">
                     <Link
                         to="/markets"
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold border border-gray-200 transition-colors"
+                        className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold border border-gray-200 transition-colors shrink-0 whitespace-nowrap text-xs sm:text-sm"
                     >
                         <FaArrowLeft /> Back to Markets
                     </Link>
                     <Link
                         to="/add-result"
                         state={{ preselectedMarket: market }}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold border border-amber-400 transition-colors"
+                        className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold border border-amber-400 transition-colors min-w-0 flex-1 text-xs sm:text-sm"
                     >
-                        <FaEdit /> Add Result for {market?.marketName || 'Market'}
+                        <FaEdit className="shrink-0" />
+                        <span className="truncate">Add Result for {market?.marketName || 'Market'}</span>
                     </Link>
                 </div>
             </div>
