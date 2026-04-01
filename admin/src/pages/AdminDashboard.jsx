@@ -286,20 +286,22 @@ const AdminDashboard = () => {
                             Dashboard Overview
                         </h1>
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleRefresh}
-                        disabled={refreshing}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 transition-all disabled:opacity-60 text-sm font-medium"
-                    >
-                        <FaSyncAlt className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                        Refresh
-                    </button>
                 </div>
 
                 {/* Date Filter */}
                 <div className="bg-white rounded-xl p-4 border border-gray-200">
-                    <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Date Range</p>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Date Range</p>
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={refreshing}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-orange-500/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-500 transition-all disabled:opacity-60 text-xs font-medium"
+                        >
+                            <FaSyncAlt className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2">
                         {PRESETS.map((p) => {
                             const isActive = !customMode && datePreset === p.id;
