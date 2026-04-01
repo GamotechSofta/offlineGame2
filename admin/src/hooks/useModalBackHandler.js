@@ -5,15 +5,14 @@ import { useCallback, useEffect, useRef } from 'react';
  * closes the modal first instead of navigating away.
  */
 const useModalBackHandler = (isOpen, onClose) => {
-    const stateRef = useRef({
-        pushed: false,
-        isOpen: false,
-        onClose,
-    });
+    const stateRef = useRef({ pushed: false, isOpen: false });
+    const onCloseRef = useRef(onClose);
 
     useEffect(() => {
-        stateRef.current.onClose = onClose;
+        onCloseRef.current = onClose;
+    }, [onClose]);
 
+    useEffect(() => {
         // Track close transitions and clear push flag.
         if (!isOpen && stateRef.current.isOpen) {
             stateRef.current.isOpen = false;
@@ -32,12 +31,12 @@ const useModalBackHandler = (isOpen, onClose) => {
         const onPopState = () => {
             stateRef.current.pushed = false;
             stateRef.current.isOpen = false;
-            stateRef.current.onClose?.();
+            onCloseRef.current?.();
         };
 
         window.addEventListener('popstate', onPopState);
         return () => window.removeEventListener('popstate', onPopState);
-    }, [isOpen, onClose]);
+    }, [isOpen]);
 
     return useCallback(() => {
         if (stateRef.current.isOpen && stateRef.current.pushed) {
@@ -46,7 +45,7 @@ const useModalBackHandler = (isOpen, onClose) => {
             window.history.back();
             return;
         }
-        stateRef.current.onClose?.();
+        onCloseRef.current?.();
     }, []);
 };
 

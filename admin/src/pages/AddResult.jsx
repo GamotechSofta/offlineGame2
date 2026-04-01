@@ -48,7 +48,6 @@ const AddResult = () => {
     const [activeTab, setActiveTab] = useState('regular');
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
-    const closePanelWithBack = useModalBackHandler(Boolean(selectedMarket) && !isDirectEditMode, closePanel);
 
     const mainPendingList = useMemo(
         () => (marketsPendingResultList || []).filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline'),
@@ -140,6 +139,7 @@ const AddResult = () => {
         setPreview(null);
         setPreviewClose(null);
     };
+    const closePanelWithBack = useModalBackHandler(Boolean(selectedMarket) && !isDirectEditMode, closePanel);
 
     const getMarketId = () => {
         if (!selectedMarket) return null;
