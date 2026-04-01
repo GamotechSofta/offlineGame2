@@ -20,6 +20,7 @@ import BetHistory from '../pages/BetHistory';
 import MarketResultHistory from '../pages/MarketResultHistory';
 import TopWinners from '../pages/TopWinners';
 import RouletteGame from '../pages/RouletteGame';
+import GameRate from '../pages/GameRate';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -177,6 +178,7 @@ const AppRoutes = () => {
           <Route path="/market-result-history" element={<MarketResultHistory />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/top-winners" element={<TopWinners />} />
+          <Route path="/game-rate" element={<GameRate />} />
           <Route path="/roulette" element={<RouletteGame />} />
           <Route path="/games/roulette" element={<RouletteGame />} />
         </Routes>

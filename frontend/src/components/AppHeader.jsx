@@ -14,7 +14,7 @@ const AppHeader = () => {
     { label: 'Bank', path: '/funds?tab=bank-detail' },
     { label: 'Funds', path: '/funds' },
     { label: 'Download App', path: null, isDownload: true },
-    { label: 'Game Rate', path: '/support' },
+    { label: 'Game Rate', path: '/game-rate' },
     { label: 'Help Desk', path: '/support' },
     { label: 'Logout', path: '/login' }
   ];
