@@ -193,17 +193,6 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
                                             />
                                             <span className="text-gray-700">Main / Daily Market</span>
                                         </label>
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="marketType"
-                                                value="startline"
-                                                checked={formData.marketType === 'startline'}
-                                                onChange={() => setFormData((p) => ({ ...p, marketType: 'startline' }))}
-                                                className="text-orange-500 focus:ring-orange-500"
-                                            />
-                                            <span className="text-gray-700">Startline</span>
-                                        </label>
                                     </div>
                                 </div>
 

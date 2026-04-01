@@ -81,37 +81,14 @@ const Markets = () => {
 
     return (
         <AdminLayout onLogout={handleLogout} title="Markets">
-            <div className="min-w-0">
+            <div className="min-w-0 px-1 sm:px-0">
                 {error && (
                     <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm sm:text-base">
                         {error}
                     </div>
                 )}
 
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-6 truncate">Markets Management</h1>
-
-                {/* Top tabs: Regular | Starline | King Bazaar */}
-                <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
-                    {TABS.map((tab) => {
-                        const isActive = activeTab === tab.id;
-                        const Icon = tab.icon;
-                        return (
-                            <button
-                                key={tab.id}
-                                type="button"
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`inline-flex items-center gap-2 px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base transition-all ${
-                                    isActive
-                                        ? 'bg-orange-500 text-gray-800 shadow-lg shadow-orange-500/20'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800 border border-gray-200'
-                                }`}
-                            >
-                                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
+                <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-6 truncate">Markets Management</h1>
 
                 {showForm && (
                     <MarketForm
@@ -131,14 +108,11 @@ const Markets = () => {
                         </div>
                     ) : (
                         <section>
-                            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                                <h2 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
-                                    <span className="inline-block w-1 h-6 sm:h-7 bg-gray-500 rounded-full" />
-                                    Main / Daily Markets
-                                </h2>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-4">
+                                <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-2" />
                                 <button
                                     onClick={handleCreate}
-                                    className="w-full sm:w-auto px-4 py-3 sm:py-2.5 bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold rounded-xl transition-colors text-sm sm:text-base touch-manipulation"
+                                    className="w-full sm:w-auto px-4 py-2.5 sm:py-2.5 bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold rounded-xl transition-colors text-sm sm:text-base touch-manipulation"
                                 >
                                     + Add Market
                                 </button>

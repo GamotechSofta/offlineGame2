@@ -80,7 +80,7 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
 
     return (
         <>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 lg:gap-6">
             {markets.map((market) => {
                 const status = getMarketStatus(market);
                 const resultDisplay = market.displayResult || '***-**-***';
@@ -88,7 +88,7 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
                 return (
                     <div
                         key={market._id}
-                        className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 lg:p-6 hover:border-orange-300 hover:shadow-md transition-all min-w-0 overflow-hidden"
+                        className="bg-white rounded-xl border border-gray-200 p-3 sm:p-5 lg:p-6 hover:border-orange-300 hover:shadow-md transition-all min-w-0 overflow-hidden"
                     >
                         {/* Top row: status (left) + result (right) */}
                         <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
@@ -102,10 +102,10 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
                         </div>
 
                         {/* Market Info */}
-                        <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 mb-2 truncate" title={market.marketName}>
+                        <h3 className="text-sm sm:text-lg lg:text-xl font-bold text-gray-800 mb-2 truncate" title={market.marketName}>
                             {market.marketName}
                         </h3>
-                        <div className="space-y-1.5 sm:space-y-2 mb-4 text-xs sm:text-sm text-gray-500 min-w-0">
+                        <div className="space-y-1 sm:space-y-2 mb-3 sm:mb-4 text-[11px] sm:text-sm text-gray-500 min-w-0">
                             <p className="truncate"><span className="font-semibold text-gray-600">Opening:</span> {market.startingTime}</p>
                             <p className="truncate"><span className="font-semibold text-gray-600">Closing:</span> {market.closingTime}</p>
                             {market.betClosureTime != null && market.betClosureTime !== '' && (
@@ -117,24 +117,24 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                            <button
-                                onClick={() => navigate(`/markets/${market._id}`)}
-                                className="px-2 sm:px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs sm:text-sm font-semibold min-h-[40px] sm:min-h-0"
-                            >
-                                View
-                            </button>
+                        <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                             <button
                                 onClick={() => onEdit(market)}
-                                className="px-2 sm:px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg text-xs sm:text-sm font-semibold min-h-[40px] sm:min-h-0"
+                                className="px-2 sm:px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg text-[11px] sm:text-sm font-semibold min-h-[36px] sm:min-h-0"
                             >
                                 Edit
                             </button>
                             <button
                                 onClick={() => handleDelete(market._id)}
-                                className="px-2 sm:px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs sm:text-sm font-semibold min-h-[40px] sm:min-h-0"
+                                className="px-2 sm:px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-[11px] sm:text-sm font-semibold min-h-[36px] sm:min-h-0"
                             >
                                 Delete
+                            </button>
+                            <button
+                                onClick={() => navigate(`/markets/${market._id}`)}
+                                className="col-span-2 px-2 sm:px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-[11px] sm:text-sm font-semibold min-h-[36px] sm:min-h-0"
+                            >
+                                View
                             </button>
                         </div>
                     </div>
