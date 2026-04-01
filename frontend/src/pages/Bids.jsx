@@ -62,6 +62,30 @@ const inferBetKind = (betNumberRaw) => {
   return 'unknown';
 };
 
+const labelForType = (typeRaw) => {
+  const t = (typeRaw ?? '').toString().trim().toLowerCase();
+  if (!t) return 'Bet';
+  const map = {
+    single: 'Single Digit',
+    digit: 'Single Digit',
+    jodi: 'Jodi',
+    panna: 'Pana',
+    singlepatti: 'Single Patti',
+    single_patti: 'Single Patti',
+    doublepatti: 'Double Patti',
+    double_patti: 'Double Patti',
+    triplepatti: 'Triple Patti',
+    triple_patti: 'Triple Patti',
+    'half-sangam': 'Half Sangam',
+    halfsangam: 'Half Sangam',
+    'full-sangam': 'Full Sangam',
+    fullsangam: 'Full Sangam',
+    oddeven: 'Odd Even',
+    'odd-even': 'Odd Even',
+  };
+  return map[t] || typeRaw || 'Bet';
+};
+
 // Backend defaults (must match backend/models/rate/rate.js) – used when API rates not loaded
 const DEFAULT_RATES = { single: 10, jodi: 100, singlePatti: 150, doublePatti: 300, triplePatti: 1000, halfSangam: 5000, fullSangam: 10000 };
 
