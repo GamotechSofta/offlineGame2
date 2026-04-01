@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowDown, FaArrowUp, FaClock, FaFilter, FaEye, FaCheck, FaTimes, FaImage, FaWallet } from 'react-icons/fa';
@@ -26,6 +26,7 @@ const PaymentManagement = () => {
 
     // Image preview modal
     const [imageModal, setImageModal] = useState({ show: false, url: '' });
+    const imageModalHistoryPushedRef = useRef(false);
 
     // Detail modal for viewing full payment details
     const [detailModal, setDetailModal] = useState({ show: false, payment: null });
@@ -140,6 +141,36 @@ const PaymentManagement = () => {
         clearAdminSession();
         navigate('/');
     };
+
+    const closeImageModal = () => {
+        if (imageModal.show && imageModalHistoryPushedRef.current) {
+            imageModalHistoryPushedRef.current = false;
+            window.history.back();
+            return;
+        }
+        setImageModal({ show: false, url: '' });
+    };
+
+    useEffect(() => {
+        if (!imageModal.show) {
+            imageModalHistoryPushedRef.current = false;
+            return undefined;
+        }
+
+        // Add a history entry so mobile hardware back closes screenshot first.
+        window.history.pushState({ paymentImageModal: true }, '');
+        imageModalHistoryPushedRef.current = true;
+
+        const onPopState = () => {
+            imageModalHistoryPushedRef.current = false;
+            setImageModal({ show: false, url: '' });
+        };
+
+        window.addEventListener('popstate', onPopState);
+        return () => {
+            window.removeEventListener('popstate', onPopState);
+        };
+    }, [imageModal.show]);
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -758,11 +789,11 @@ const PaymentManagement = () => {
             {imageModal.show && (
                 <div 
                     className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
-                    onClick={() => setImageModal({ show: false, url: '' })}
+                    onClick={closeImageModal}
                 >
                     <div className="relative max-w-4xl max-h-[90vh]">
                         <button
-                            onClick={() => setImageModal({ show: false, url: '' })}
+                            onClick={closeImageModal}
                             className="absolute -top-10 right-0 text-gray-800 hover:text-gray-600"
                         >
                             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
