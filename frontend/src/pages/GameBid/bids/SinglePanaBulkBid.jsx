@@ -184,8 +184,8 @@ const SinglePanaBulkBid = ({ market, title }) => {
         <BidLayout
             market={market}
             title={title}
-            bidsCount={reviewRows.length}
-            totalPoints={totalPoints}
+            bidsCount={specialCount}
+            totalPoints={selectedTotalPoints}
             session={session}
             setSession={setSession}
             showSessionOnMobile
@@ -216,6 +216,17 @@ const SinglePanaBulkBid = ({ market, title }) => {
                         {warning}
                     </div>
                 )}
+
+                <div className="grid grid-cols-2 gap-1.5 md:gap-2 px-1 mb-3">
+                    <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                        <div className="text-[11px] text-gray-600 font-medium">Count</div>
+                        <div className="text-base font-bold text-[#1B3150] leading-tight">{specialCount}</div>
+                    </div>
+                    <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                        <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
+                        <div className="text-base font-bold text-[#1B3150] leading-tight">{selectedTotalPoints}</div>
+                    </div>
+                </div>
 
                 {/* Same visual style as Jodi Special Mode: flat grid + small cells */}
                 <div className="space-y-7 md:space-y-0 md:grid md:grid-cols-4 md:gap-x-5 md:gap-y-10 md:items-start">

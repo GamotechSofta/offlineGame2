@@ -169,6 +169,18 @@ const TriplePanaBulkBid = ({ market, title }) => {
 
     const handleDeleteBid = (id) => setBids((prev) => prev.filter((b) => b.id !== id));
     const totalPoints = bids.reduce((sum, b) => sum + Number(b.points || 0), 0);
+    const { displayCount, displayBetAmount } = useMemo(() => {
+        if (bids.length > 0) {
+            return { displayCount: bids.length, displayBetAmount: totalPoints };
+        }
+        const pts = Number(inputPoints) || 0;
+        const n = (inputNumber ?? '').toString().trim();
+        const easyOk = isValidTriplePana(n) && pts > 0;
+        return {
+            displayCount: easyOk ? 1 : 0,
+            displayBetAmount: easyOk ? pts : 0,
+        };
+    }, [bids, totalPoints, inputNumber, inputPoints]);
     const isPanaInvalid = !!inputNumber && inputNumber.length === 3 && !isValidTriplePana(inputNumber);
     const dateText = new Date().toLocaleDateString('en-GB');
     const marketTitle = market?.gameName || market?.marketName || title;
@@ -210,8 +222,8 @@ const TriplePanaBulkBid = ({ market, title }) => {
         <BidLayout
             market={market}
             title={title}
-            bidsCount={bids.length}
-            totalPoints={totalPoints}
+            bidsCount={displayCount}
+            totalPoints={displayBetAmount}
             showDateSession={true}
             showSessionOnMobile
             selectedDate={selectedDate}
@@ -232,11 +244,11 @@ const TriplePanaBulkBid = ({ market, title }) => {
                     <div className="grid grid-cols-2 gap-1.5 md:gap-2 px-1">
                         <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
                             <div className="text-[11px] text-gray-600 font-medium">Count</div>
-                            <div className="text-base font-bold text-[#1B3150] leading-tight">{bids.length}</div>
+                            <div className="text-base font-bold text-[#1B3150] leading-tight">{displayCount}</div>
                         </div>
                         <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
                             <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
-                            <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
+                            <div className="text-base font-bold text-[#1B3150] leading-tight">{displayBetAmount}</div>
                         </div>
                     </div>
 

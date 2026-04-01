@@ -78,6 +78,24 @@ const TriplePanaBid = ({ market, title }) => {
     }, []);
 
     const totalPoints = bids.reduce((sum, b) => sum + Number(b.points || 0), 0);
+    const { displayCount, displayBetAmount } = useMemo(() => {
+        if (bids.length > 0) {
+            return { displayCount: bids.length, displayBetAmount: totalPoints };
+        }
+        if (activeTab === 'special') {
+            const vals = Object.values(specialInputs);
+            const count = vals.filter((v) => Number(v) > 0).length;
+            const amount = vals.reduce((s, v) => s + (Number(v) || 0), 0);
+            return { displayCount: count, displayBetAmount: amount };
+        }
+        const pts = Number(inputPoints) || 0;
+        const n = (inputNumber ?? '').toString().trim();
+        const easyOk = isValidTriplePana(n) && pts > 0;
+        return {
+            displayCount: easyOk ? 1 : 0,
+            displayBetAmount: easyOk ? pts : 0,
+        };
+    }, [bids, totalPoints, activeTab, specialInputs, inputNumber, inputPoints]);
 
     const mergeBids = (prev, incoming) => {
         const map = new Map();
@@ -181,46 +199,40 @@ const TriplePanaBid = ({ market, title }) => {
         clearAll();
     };
 
-    const handleAddBid = () => {
+    const handleSubmitReviewEasy = () => {
+        let next = bids;
         const pts = Number(inputPoints);
-        if (!pts || pts <= 0) {
-            showWarning('Please enter points.');
-            return;
-        }
         const n = inputNumber?.toString().trim() || '';
-        if (!n) {
-            showWarning('Please enter triple pana (000-999).');
-            return;
+        if (isValidTriplePana(n) && pts > 0) {
+            const bid = { id: Date.now() + Math.random(), number: n, points: String(pts), type: session };
+            next = mergeBids(bids, [bid]);
+            setBids(next);
+            setInputNumber('');
+            setInputPoints('');
         }
-        if (!isValidTriplePana(n)) {
-            showWarning('Invalid triple pana. Use 000, 111, 222 ... 999.');
-            return;
+        if (next.length > 0) {
+            setIsReviewOpen(true);
+        } else {
+            showWarning('Please enter a valid triple pana (000–999) and points.');
         }
-
-        const bid = { id: Date.now() + Math.random(), number: n, points: String(pts), type: session };
-        setBids((prev) => mergeBids(prev, [bid]));
-        setInputNumber('');
-        setInputPoints('');
     };
 
-    const handleSubmitReview = () => {
-        if (!bids.length) return;
-        setIsReviewOpen(true);
-    };
-
-    const handleAddSpecialModeBids = () => {
+    const handleSubmitReviewSpecial = () => {
         const toAdd = Object.entries(specialInputs)
             .filter(([, pts]) => Number(pts) > 0)
             .map(([num, pts]) => ({ id: Date.now() + Number(num[0]), number: num, points: String(pts), type: session }));
 
-        if (!toAdd.length) {
-            showWarning('Please enter points for at least one triple pana (000-999).');
-            return;
+        let next = bids;
+        if (toAdd.length > 0) {
+            next = [...bids, ...toAdd];
+            setBids(next);
+            setSpecialInputs(Object.fromEntries(tripleNumbers.map((num) => [num, ''])));
         }
-
-        const next = [...bids, ...toAdd];
-        setBids(next);
-        setSpecialInputs(Object.fromEntries(tripleNumbers.map((n) => [n, ''])));
+        if (next.length > 0) {
+            setIsReviewOpen(true);
+        } else {
+            showWarning('Please enter points for at least one triple pana (000-999).');
+        }
     };
 
     const handleNumberInputChange = (e) => {
@@ -258,11 +270,11 @@ const TriplePanaBid = ({ market, title }) => {
             <div className="grid grid-cols-2 gap-1.5 md:gap-2 px-1">
                 <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
                     <div className="text-[11px] text-gray-600 font-medium">Count</div>
-                    <div className="text-base font-bold text-[#1B3150] leading-tight">{bids.length}</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{displayCount}</div>
                 </div>
                 <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
                     <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
-                    <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{displayBetAmount}</div>
                 </div>
             </div>
         </div>
@@ -352,8 +364,8 @@ const TriplePanaBid = ({ market, title }) => {
         <BidLayout
             market={market}
             title={title}
-            bidsCount={bids.length}
-            totalPoints={totalPoints}
+            bidsCount={displayCount}
+            totalPoints={displayBetAmount}
             showDateSession={true}
             showSessionOnMobile
             selectedDate={selectedDate}
@@ -428,19 +440,19 @@ const TriplePanaBid = ({ market, title }) => {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6 md:grid-cols-2">
+                                    <div className="mb-5 sm:mb-6">
                                         <button
                                             type="button"
-                                            onClick={handleAddBid}
-                                            className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]"
-                                        >
-                                            Add to List
-                                        </button>
-                                        <button
-                                            type="button"
-                                            disabled={!bids.length}
-                                            onClick={handleSubmitReview}
-                                            className={submitBtnClass(!!bids.length)}
+                                            onClick={handleSubmitReviewEasy}
+                                            disabled={
+                                                !bids.length &&
+                                                !(isValidTriplePana((inputNumber ?? '').toString().trim()) && Number(inputPoints) > 0)
+                                            }
+                                            className={submitBtnClass(
+                                                !!bids.length ||
+                                                    (isValidTriplePana((inputNumber ?? '').toString().trim()) &&
+                                                        Number(inputPoints) > 0)
+                                            )}
                                         >
                                             Submit Bet
                                         </button>
@@ -475,19 +487,14 @@ const TriplePanaBid = ({ market, title }) => {
                                     </div>
                                 ))}
                             </div>
-                            <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6 md:grid-cols-2">
+                            <div className="mb-5 sm:mb-6">
                                 <button
                                     type="button"
-                                    onClick={handleAddSpecialModeBids}
-                                    className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]"
-                                >
-                                    Add to List
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={!bids.length}
-                                    onClick={handleSubmitReview}
-                                    className={submitBtnClass(!!bids.length)}
+                                    onClick={handleSubmitReviewSpecial}
+                                    disabled={!bids.length && !Object.values(specialInputs).some((v) => Number(v) > 0)}
+                                    className={submitBtnClass(
+                                        !!bids.length || Object.values(specialInputs).some((v) => Number(v) > 0)
+                                    )}
                                 >
                                     Submit Bet
                                 </button>

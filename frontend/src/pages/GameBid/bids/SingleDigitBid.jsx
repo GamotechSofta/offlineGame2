@@ -114,6 +114,24 @@ const SingleDigitBid = ({ market, title }) => {
     };
 
     const totalPoints = bids.reduce((sum, b) => sum + Number(b.points), 0);
+    const { displayCount, displayBetAmount } = useMemo(() => {
+        if (bids.length > 0) {
+            return { displayCount: bids.length, displayBetAmount: totalPoints };
+        }
+        if (activeTab === 'special') {
+            const vals = Object.values(specialModeInputs);
+            const count = vals.filter((v) => Number(v) > 0).length;
+            const amount = vals.reduce((s, v) => s + (Number(v) || 0), 0);
+            return { displayCount: count, displayBetAmount: amount };
+        }
+        const pts = Number(inputPoints) || 0;
+        const digit = (inputNumber ?? '').toString().trim();
+        const easyOk = /^[0-9]$/.test(digit) && pts > 0;
+        return {
+            displayCount: easyOk ? 1 : 0,
+            displayBetAmount: easyOk ? pts : 0,
+        };
+    }, [bids, totalPoints, activeTab, specialModeInputs, inputNumber, inputPoints]);
     const dateText = new Date().toLocaleDateString('en-GB');
     const marketTitle = market?.gameName || market?.marketName || title;
     const isRunning = market?.status === 'running'; // "CLOSED IS RUNNING"
@@ -165,6 +183,16 @@ const SingleDigitBid = ({ market, title }) => {
                 </div>
             )}
             {modeTabs}
+            <div className="grid grid-cols-2 gap-1.5 md:gap-2 px-1">
+                <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                    <div className="text-[11px] text-gray-600 font-medium">Count</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{displayCount}</div>
+                </div>
+                <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                    <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{displayBetAmount}</div>
+                </div>
+            </div>
             {activeTab === 'easy' ? (
                 <>
                     <div className="flex flex-col gap-3">
