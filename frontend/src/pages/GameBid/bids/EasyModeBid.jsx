@@ -21,6 +21,7 @@ const EasyModeBid = ({
     apiBetType = null, // when set, used in payload instead of derived betType (e.g. 'sp-common')
 }) => {
     const [activeTab, setActiveTab] = useState('easy'); // easy | special
+    const [jodiSpecialQuickSelected, setJodiSpecialQuickSelected] = useState(null);
     const lockSessionToOpen = specialModeType === 'jodi';
     const [session, setSession] = useState(() => (lockSessionToOpen ? 'OPEN' : (market?.status === 'running' ? 'CLOSE' : 'OPEN')));
     const [bids, setBids] = useState([]);
@@ -72,6 +73,10 @@ const EasyModeBid = ({
         }
         if (isRunning) setSession('CLOSE');
     }, [isRunning, lockSessionToOpen, session]);
+
+    useEffect(() => {
+        if (activeTab === 'easy') setJodiSpecialQuickSelected(null);
+    }, [activeTab]);
 
     const jodiNumbers = useMemo(
         () => Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0')),
@@ -184,7 +189,7 @@ const EasyModeBid = ({
         }
         setBids((prev) => mergeBids(prev, toAdd));
         if (specialModeType === 'jodi') {
-            setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+            resetSpecialInputs();
         } else if (isPanaSumMode && validPanasForSumMode.length > 0) {
             setSpecialInputs(Object.fromEntries(validPanasForSumMode.map((n) => [n, ''])));
         }
@@ -217,6 +222,7 @@ const EasyModeBid = ({
         });
         if (specialModeType === 'jodi') {
             setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+            setJodiSpecialQuickSelected(null);
         } else if (isPanaSumMode && validPanasForSumMode.length > 0) {
             setSpecialInputs(Object.fromEntries(validPanasForSumMode.map((n) => [n, ''])));
         }
@@ -344,6 +350,31 @@ const EasyModeBid = ({
     };
 
     const totalPoints = bids.reduce((sum, b) => sum + Number(b.points), 0);
+    const specialLiveStats = useMemo(() => {
+        const isSpecialTab = showModeTabs && activeTab === 'special';
+        const canTrackSpecial =
+            specialModeType === 'jodi' || specialModeType === 'doublePana' || specialModeType === 'singlePana';
+        if (!isSpecialTab || !canTrackSpecial) return { count: bids.length, total: totalPoints };
+
+        const map = new Map();
+        for (const b of bids) {
+            const num = String(b?.number ?? '').trim();
+            const type = String(b?.type ?? session).trim() || session;
+            if (!num) continue;
+            map.set(`${num}__${type}`, { points: Number(b?.points || 0) || 0 });
+        }
+        for (const [num, pts] of Object.entries(specialInputs || {})) {
+            const p = Number(pts || 0);
+            if (!num || p <= 0) continue;
+            const key = `${String(num).trim()}__${session}`;
+            const cur = map.get(key);
+            if (cur) cur.points += p;
+            else map.set(key, { points: p });
+        }
+        let total = 0;
+        for (const item of map.values()) total += Number(item.points || 0);
+        return { count: map.size, total };
+    }, [showModeTabs, activeTab, specialModeType, bids, totalPoints, specialInputs, session]);
     const labelKey = label?.split(' ').pop() || 'Number';
     const dateText = new Date().toLocaleDateString('en-GB'); // dd/mm/yyyy
     const marketTitle = market?.gameName || market?.marketName || title;
@@ -417,13 +448,48 @@ const EasyModeBid = ({
             <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center">
                     <div className="text-[11px] text-gray-600 font-medium">Count</div>
-                    <div className="text-base font-bold text-[#1B3150] leading-tight">{bids.length}</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{specialLiveStats.count}</div>
                 </div>
                 <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center">
                     <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
-                    <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
+                    <div className="text-base font-bold text-[#1B3150] leading-tight">{specialLiveStats.total}</div>
                 </div>
             </div>
+            {specialModeType === 'jodi' && activeTab === 'special' && (
+                <div className="flex flex-row items-center gap-2">
+                    <label className="text-gray-700 text-xs sm:text-sm font-medium shrink-0 w-24 sm:w-28">Quick Points</label>
+                    <div className="flex-1 min-w-0 grid grid-cols-5 gap-1.5 sm:gap-2">
+                        {quickPointValues.map((pts) => (
+                            <button
+                                key={pts}
+                                type="button"
+                                onClick={() => {
+                                    const val = String(pts);
+                                    setJodiSpecialQuickSelected(val);
+                                    setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, val])));
+                                }}
+                                className={`py-2 min-h-[36px] rounded-lg border-2 text-xs sm:text-sm font-medium transition-colors active:scale-95 ${
+                                    jodiSpecialQuickSelected === String(pts)
+                                        ? 'border-[#1B3150] bg-[#1B3150] text-white'
+                                        : 'border-gray-300 bg-white text-[#1B3150] hover:border-[#1B3150]'
+                                }`}
+                            >
+                                {pts}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+                            setJodiSpecialQuickSelected(null);
+                        }}
+                        className="px-3 sm:px-4 py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-xs sm:text-sm font-medium text-[#1B3150] hover:border-[#1B3150] active:scale-95"
+                    >
+                        Clear
+                    </button>
+                </div>
+            )}
         </div>
     ) : null;
 
@@ -479,6 +545,7 @@ const EasyModeBid = ({
     const resetSpecialInputs = () => {
         if (specialModeType === 'jodi') {
             setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+            setJodiSpecialQuickSelected(null);
         } else if (isPanaSumMode && validPanasForSumMode.length > 0) {
             setSpecialInputs(Object.fromEntries(validPanasForSumMode.map((n) => [n, ''])));
         }
@@ -492,6 +559,7 @@ const EasyModeBid = ({
         setMatchingPanas([]);
         setSelectedSum(null);
         resetSpecialInputs();
+        setJodiSpecialQuickSelected(null);
     };
 
     const clearAll = () => {
@@ -501,6 +569,7 @@ const EasyModeBid = ({
         setMatchingPanas([]);
         setSelectedSum(null);
         resetSpecialInputs();
+        setJodiSpecialQuickSelected(null);
         // Reset scheduled date to today after bet is placed
         const today = new Date().toISOString().split('T')[0];
         setSelectedDate(today);
@@ -548,8 +617,8 @@ const EasyModeBid = ({
         <BidLayout
             market={market}
             title={title}
-            bidsCount={bids.length}
-            totalPoints={totalPoints}
+            bidsCount={specialLiveStats.count}
+            totalPoints={specialLiveStats.total}
             session={session}
             setSession={setSession}
             sessionOptionsOverride={lockSessionToOpen ? ['OPEN'] : null}
@@ -595,10 +664,13 @@ const EasyModeBid = ({
                                                 placeholder="Pts"
                                                 value={specialInputs[num] || ''}
                                                 onChange={(e) =>
-                                                    setSpecialInputs((p) => ({
-                                                        ...p,
-                                                        [num]: e.target.value.replace(/\D/g, '').slice(0, 6),
-                                                    }))
+                                                    {
+                                                        const nextVal = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                                        setSpecialInputs((p) => ({ ...p, [num]: nextVal }));
+                                                        if (jodiSpecialQuickSelected != null && nextVal !== String(jodiSpecialQuickSelected)) {
+                                                            setJodiSpecialQuickSelected(null);
+                                                        }
+                                                    }
                                                 }
                                                 className="w-full h-9 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-[#1B3150] px-2 text-xs font-semibold"
                                             />

@@ -20,6 +20,7 @@ const EasyModeBid = ({
     const { market } = usePlayerBet();
     const { addToCart } = useBetCart();
     const [activeTab, setActiveTab] = useState('easy');
+    const [jodiSpecialQuickSelected, setJodiSpecialQuickSelected] = useState(null);
     const lockSessionToOpen = specialModeType === 'jodi';
     const [session, setSession] = useState(() => (lockSessionToOpen ? 'OPEN' : (isPastOpeningTime(market) ? 'CLOSE' : 'OPEN')));
     const [inputNumber, setInputNumber] = useState('');
@@ -60,6 +61,10 @@ const EasyModeBid = ({
         if (isRunning) setSession('CLOSE');
     }, [isRunning, lockSessionToOpen, session]);
 
+    useEffect(() => {
+        if (activeTab === 'easy') setJodiSpecialQuickSelected(null);
+    }, [activeTab]);
+
     const jodiNumbers = useMemo(() => Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0')), []);
     const jodiPtsRefs = useRef({});
     const isPanaSumMode = specialModeType === 'doublePana' || specialModeType === 'singlePana';
@@ -99,6 +104,7 @@ const EasyModeBid = ({
             const count = addToCart(toAdd, gameType, title, betType);
             if (count > 0) showWarning(`Added ${count} bet(s) to cart ✓`);
             setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+            setJodiSpecialQuickSelected(null);
         } else if (isPanaSumMode && validPanasForSumMode.length > 0) {
             // For pana sum mode, add any pending bids + any filled special inputs
             const fromInputs = Object.entries(specialInputs)
@@ -206,16 +212,58 @@ const EasyModeBid = ({
         return sumMap;
     }, [pendingBids, isPanaSumMode, validPanasForSumMode]);
 
+    const quickPointValues = [10, 20, 30, 40, 50];
+    const handleQuickPointClick = (pts) => {
+        setInputPoints(String(pts));
+    };
+
     const modeHeader = showModeTabs ? (
-        <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setActiveTab('easy')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border active:scale-[0.98] transition-colors ${activeTab === 'easy' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-400 border-gray-200 hover:border-[#1B3150]/50'}`}>
-                EASY MODE
-            </button>
-            <button type="button" onClick={() => setActiveTab('special')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border active:scale-[0.98] transition-colors ${activeTab === 'special' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-400 border-gray-200 hover:border-[#1B3150]/50'}`}>
-                SPECIAL MODE
-            </button>
+        <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+                <button type="button" onClick={() => setActiveTab('easy')}
+                    className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border active:scale-[0.98] transition-colors ${activeTab === 'easy' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-400 border-gray-200 hover:border-[#1B3150]/50'}`}>
+                    EASY MODE
+                </button>
+                <button type="button" onClick={() => setActiveTab('special')}
+                    className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border active:scale-[0.98] transition-colors ${activeTab === 'special' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-400 border-gray-200 hover:border-[#1B3150]/50'}`}>
+                    SPECIAL MODE
+                </button>
+            </div>
+            {specialModeType === 'jodi' && activeTab === 'special' && (
+                <div className="flex flex-row items-center gap-2">
+                    <label className="text-gray-400 text-sm font-medium shrink-0 w-28">Quick Points</label>
+                    <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                        {quickPointValues.map((pts) => (
+                            <button
+                                key={pts}
+                                type="button"
+                                onClick={() => {
+                                    const val = String(pts);
+                                    setJodiSpecialQuickSelected(val);
+                                    setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, val])));
+                                }}
+                                className={`py-2 min-h-[36px] rounded-lg border text-sm font-medium transition-colors active:scale-95 ${
+                                    jodiSpecialQuickSelected === String(pts)
+                                        ? 'border-[#1B3150] bg-[#1B3150] text-white'
+                                        : 'border-gray-200 bg-gray-100 text-[#1B3150] hover:border-[#1B3150]/60'
+                                }`}
+                            >
+                                {pts}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, ''])));
+                            setJodiSpecialQuickSelected(null);
+                        }}
+                        className="px-4 py-2 min-h-[36px] rounded-lg border border-gray-200 bg-gray-100 text-sm font-medium text-[#1B3150] hover:border-[#1B3150]/60 active:scale-95"
+                    >
+                        Clear
+                    </button>
+                </div>
+            )}
         </div>
     ) : null;
 
@@ -264,7 +312,13 @@ const EasyModeBid = ({
                                                 min="0"
                                                 placeholder="Pts"
                                                 value={specialInputs[num] || ''}
-                                                onChange={(e) => setSpecialInputs((p) => ({ ...p, [num]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                                                onChange={(e) => {
+                                                    const nextVal = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                                    setSpecialInputs((p) => ({ ...p, [num]: nextVal }));
+                                                    if (jodiSpecialQuickSelected != null && nextVal !== String(jodiSpecialQuickSelected)) {
+                                                        setJodiSpecialQuickSelected(null);
+                                                    }
+                                                }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'ArrowRight' && idx < jodiNumbers.length - 1) { e.preventDefault(); jodiPtsRefs.current[idx + 1]?.focus?.(); }
                                                     else if (e.key === 'ArrowLeft' && idx > 0) { e.preventDefault(); jodiPtsRefs.current[idx - 1]?.focus?.(); }
@@ -362,6 +416,23 @@ const EasyModeBid = ({
                                     onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                     placeholder="Point" className="no-spinner flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none" />
                             </div>
+                            {specialModeType === 'jodi' && (
+                                <div className="flex flex-row items-center gap-2">
+                                    <label className="text-gray-400 text-sm font-medium shrink-0 w-28">Quick Points</label>
+                                    <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                                        {quickPointValues.map((pts) => (
+                                            <button
+                                                key={pts}
+                                                type="button"
+                                                onClick={() => handleQuickPointClick(pts)}
+                                                className="py-2 min-h-[36px] rounded-lg border border-gray-200 bg-gray-100 text-sm font-medium text-[#1B3150] hover:border-[#1B3150]/60 active:scale-95"
+                                            >
+                                                {pts}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <button type="button" onClick={handleAddToCart} className={addToCartBtnClass}>
                             Add to Cart

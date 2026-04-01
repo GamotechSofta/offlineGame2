@@ -9,6 +9,7 @@ import { placeBet, updateUserBalance } from '../../../api/bets';
 import { useAuth } from '../../../context/AuthContext';
 
 const JODI_NUMBERS = Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0'));
+const QUICK_POINT_VALUES = [10, 20, 30, 40, 50];
 const validateJodi = (n) => n && /^[0-9]{2}$/.test(String(n).trim());
 
 export default function JodiBid({ market, title }) {
@@ -24,10 +25,15 @@ export default function JodiBid({ market, title }) {
   const [reviewRows, setReviewRows] = useState([]);
   const [warning, setWarning] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [jodiSpecialQuickSelected, setJodiSpecialQuickSelected] = useState(null);
 
   useEffect(() => {
     setSession('OPEN');
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'easy') setJodiSpecialQuickSelected(null);
+  }, [activeTab]);
 
   const showWarning = (msg) => {
     setWarning(msg);
@@ -89,6 +95,7 @@ export default function JodiBid({ market, title }) {
       return Array.from(map.values());
     });
     setSpecialInputs(Object.fromEntries(JODI_NUMBERS.map((n) => [n, ''])));
+    setJodiSpecialQuickSelected(null);
   };
 
   const handleSubmitFromSpecial = () => {
@@ -119,11 +126,32 @@ export default function JodiBid({ market, title }) {
       : list;
     setList(merged);
     setSpecialInputs(Object.fromEntries(JODI_NUMBERS.map((n) => [n, ''])));
+    setJodiSpecialQuickSelected(null);
     setReviewRows(merged);
     setIsReviewOpen(true);
   };
 
   const totalPoints = useMemo(() => list.reduce((sum, b) => sum + Number(b.points || 0), 0), [list]);
+  const liveSpecialStats = useMemo(() => {
+    if (activeTab !== 'special') return { count: list.length, total: totalPoints };
+    const map = new Map();
+    for (const b of list) {
+      const num = String(b?.number ?? '').trim();
+      if (!num) continue;
+      map.set(`${num}__OPEN`, { points: Number(b?.points || 0) || 0 });
+    }
+    for (const [num, pts] of Object.entries(specialInputs || {})) {
+      const p = Number(pts || 0);
+      if (!num || p <= 0) continue;
+      const key = `${String(num).trim()}__OPEN`;
+      const cur = map.get(key);
+      if (cur) cur.points += p;
+      else map.set(key, { points: p });
+    }
+    let total = 0;
+    for (const item of map.values()) total += Number(item.points || 0);
+    return { count: map.size, total };
+  }, [activeTab, list, totalPoints, specialInputs]);
   const specialHasPoints = useMemo(
     () => Object.values(specialInputs).some((v) => Number(v) > 0),
     [specialInputs]
@@ -142,6 +170,7 @@ export default function JodiBid({ market, title }) {
     setInputJodi('');
     setInputPoints('');
     setSpecialInputs(Object.fromEntries(JODI_NUMBERS.map((n) => [n, ''])));
+    setJodiSpecialQuickSelected(null);
     setSelectedDate(new Date().toISOString().split('T')[0]);
   };
 
@@ -206,8 +235,8 @@ export default function JodiBid({ market, title }) {
     <BidLayout
       market={market}
       title={title}
-      bidsCount={list.length}
-      totalPoints={totalPoints}
+      bidsCount={liveSpecialStats.count}
+      totalPoints={liveSpecialStats.total}
       showDateSession
       session={session}
       setSession={() => {}}
@@ -243,6 +272,44 @@ export default function JodiBid({ market, title }) {
           </TouchableOpacity>
         </View>
 
+        {activeTab === 'special' ? (
+          <View style={styles.quickRow}>
+            <Text style={styles.quickLabel}>Quick Points</Text>
+            <View style={styles.quickBtns}>
+              {QUICK_POINT_VALUES.map((pts) => (
+                <TouchableOpacity
+                  key={pts}
+                  onPress={() => {
+                    const val = String(pts);
+                    setJodiSpecialQuickSelected(val);
+                    setSpecialInputs(Object.fromEntries(JODI_NUMBERS.map((n) => [n, val])));
+                  }}
+                  style={[
+                    styles.quickBtn,
+                    jodiSpecialQuickSelected === String(pts) && styles.quickBtnActive,
+                  ]}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[
+                    styles.quickBtnText,
+                    jodiSpecialQuickSelected === String(pts) && styles.quickBtnTextActive,
+                  ]}>{pts}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                onPress={() => {
+                  setSpecialInputs(Object.fromEntries(JODI_NUMBERS.map((n) => [n, ''])));
+                  setJodiSpecialQuickSelected(null);
+                }}
+                style={styles.quickClearBtn}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.quickClearBtnText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
         {activeTab === 'easy' ? (
           <>
             <View style={styles.formCard}>
@@ -273,6 +340,21 @@ export default function JodiBid({ market, title }) {
                   placeholderTextColor="#9ca3af"
                   keyboardType="number-pad"
                 />
+              </View>
+              <View style={styles.quickRow}>
+                <Text style={styles.quickLabel}>Quick Points</Text>
+                <View style={styles.quickBtns}>
+                  {QUICK_POINT_VALUES.map((pts) => (
+                    <TouchableOpacity
+                      key={pts}
+                      onPress={() => setInputPoints(String(pts))}
+                      style={styles.quickBtn}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.quickBtnText}>{pts}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
               <View style={styles.actionRow}>
                 <TouchableOpacity onPress={handleAddToList} style={styles.addBtn} activeOpacity={0.9}>
@@ -333,7 +415,13 @@ export default function JodiBid({ market, title }) {
                     style={styles.specialPtsInput}
                     value={specialInputs[num] || ''}
                     onChangeText={(v) =>
-                      setSpecialInputs((p) => ({ ...p, [num]: (v ?? '').replace(/\D/g, '').slice(0, 6) }))
+                      {
+                        const nextVal = (v ?? '').replace(/\D/g, '').slice(0, 6);
+                        setSpecialInputs((p) => ({ ...p, [num]: nextVal }));
+                        if (jodiSpecialQuickSelected != null && nextVal !== String(jodiSpecialQuickSelected)) {
+                          setJodiSpecialQuickSelected(null);
+                        }
+                      }
                     }
                     placeholder="Pts"
                     placeholderTextColor="#9ca3af"
@@ -401,6 +489,39 @@ const styles = StyleSheet.create({
   modeBtnActive: { backgroundColor: '#1B3150', borderColor: '#1B3150' },
   modeBtnText: { fontSize: 14, fontWeight: '700', color: '#6b7280' },
   modeBtnTextActive: { color: '#fff' },
+  quickRow: { marginBottom: 16 },
+  quickLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  quickBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' },
+  quickBtn: {
+    flex: 1,
+    minWidth: 56,
+    maxWidth: '20%',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickBtnActive: {
+    backgroundColor: '#1B3150',
+    borderColor: '#1B3150',
+  },
+  quickBtnText: { fontSize: 14, fontWeight: '700', color: '#1B3150' },
+  quickBtnTextActive: { color: '#fff' },
+  quickClearBtn: {
+    minWidth: 64,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickClearBtnText: { fontSize: 13, fontWeight: '700', color: '#1B3150' },
   formCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
