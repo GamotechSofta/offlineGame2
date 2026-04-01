@@ -522,10 +522,20 @@ const Bids = () => {
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(row.statusLabel)) return false;
       return true;
     });
-    return [...rows].sort((a, b) => {
+    const byTime = (a, b) => {
       const ta = new Date(a.x?.createdAt || 0).getTime();
       const tb = new Date(b.x?.createdAt || 0).getTime();
       return tb - ta;
+    };
+    const winSortRank = (state) => (state === 'won' ? 0 : state === 'lost' ? 1 : 2);
+    const list = [...rows];
+    if (selectedStatuses.length === 0) {
+      return list.sort(byTime);
+    }
+    return list.sort((a, b) => {
+      const d = winSortRank(a.verdict.state) - winSortRank(b.verdict.state);
+      if (d !== 0) return d;
+      return byTime(a, b);
     });
   }, [desktopRows, selectedMarkets, selectedSessions, selectedStatuses, isAnyHistoryPanel, historyScope]);
 
@@ -568,28 +578,59 @@ const Bids = () => {
             <h1 className="text-xl sm:text-2xl font-bold">My Bets</h1>
           </div>
 
-          <div className="hidden md:flex items-center justify-between gap-4 px-1">
-            <div className="text-2xl font-extrabold text-gray-900">{rightPanelTitle}</div>
-            {isGameResultsPanel ? (
-              <div className="w-[320px]">
-                <ResultDatePicker
-                  value={resultsDate}
-                  onChange={setResultsDate}
-                  maxDate={new Date()}
-                  label="Select Date"
-                  buttonClassName="px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-800 font-bold text-sm shadow-sm hover:border-gray-400 transition-colors"
-                />
+          <div className="hidden md:flex flex-col items-stretch gap-3 px-1 min-w-0">
+            <div className="flex items-center justify-between gap-4 min-w-0">
+              <div className="text-2xl font-extrabold text-gray-900 truncate min-w-0">{rightPanelTitle}</div>
+              {isGameResultsPanel ? (
+                <div className="w-[320px] shrink-0">
+                  <ResultDatePicker
+                    value={resultsDate}
+                    onChange={setResultsDate}
+                    maxDate={new Date()}
+                    label="Select Date"
+                    buttonClassName="px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-800 font-bold text-sm shadow-sm hover:border-gray-400 transition-colors"
+                  />
+                </div>
+              ) : isAnyHistoryPanel ? (
+                <button
+                  type="button"
+                  onClick={() => setIsDesktopFilterOpen(true)}
+                  className="shrink-0 px-4 py-2 rounded-lg border-2 border-[#1B3150] text-[#1B3150] font-bold text-sm shadow-sm hover:bg-[#1B3150]/5 transition-colors"
+                  aria-label="More filters"
+                  title="Open / Close, markets, Pending"
+                >
+                  Filter By
+                </button>
+              ) : null}
+            </div>
+            {isAnyHistoryPanel ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 mr-1">Result</span>
+                {[
+                  { key: 'all', label: 'All', statuses: [] },
+                  { key: 'win', label: 'Win', statuses: ['Win'] },
+                  { key: 'lost', label: 'Lost', statuses: ['Lost'] },
+                ].map(({ key, label, statuses }) => {
+                  const isAll = key === 'all';
+                  const active = isAll
+                    ? selectedStatuses.length === 0
+                    : selectedStatuses.length === 1 && selectedStatuses[0] === statuses[0];
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedStatuses(statuses)}
+                      className={`min-h-[40px] px-4 rounded-xl text-sm font-bold border-2 transition-colors ${
+                        active
+                          ? 'bg-[#1B3150] border-[#1B3150] text-white shadow-sm'
+                          : 'bg-white border-gray-300 text-[#1B3150] hover:border-[#1B3150]/40 hover:bg-gray-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
-            ) : isAnyHistoryPanel ? (
-              <button
-                type="button"
-                onClick={() => setIsDesktopFilterOpen(true)}
-                className="px-4 py-2 rounded-lg border-2 border-[#1B3150] text-[#1B3150] font-bold text-sm shadow-sm hover:bg-[#1B3150]/5 transition-colors"
-                aria-label="Filter By"
-                title="Filter By"
-              >
-                Filter By
-              </button>
             ) : null}
           </div>
         </div>

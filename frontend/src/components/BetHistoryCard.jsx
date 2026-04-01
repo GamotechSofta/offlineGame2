@@ -71,10 +71,10 @@ const BetHistoryCard = ({
 
   return (
     <div
-      className={`rounded-xl border-2 bg-white p-3 sm:p-3.5 text-gray-800 transition-[box-shadow,border-color] duration-200 relative ${
+      className={`rounded-xl border-2 p-3 sm:p-3.5 text-gray-800 transition-[box-shadow,border-color,background-color] duration-200 relative ${
         isWin
-          ? 'border-green-500/60 shadow-[0_0_0_1px_rgba(34,197,94,0.12),0_0_14px_rgba(34,197,94,0.22),0_2px_10px_rgba(22,163,74,0.1)] hover:border-green-500/80 hover:shadow-[0_0_0_1px_rgba(34,197,94,0.18),0_0_18px_rgba(34,197,94,0.28),0_3px_12px_rgba(22,163,74,0.12)]'
-          : 'border-gray-200 shadow-sm hover:border-[#1B3150]/25'
+          ? 'bg-green-50 border-green-600/45 shadow-[0_1px_6px_rgba(22,163,74,0.07)] hover:bg-green-100/80 hover:border-green-600/55 hover:shadow-[0_1px_8px_rgba(22,163,74,0.1)]'
+          : 'bg-white border-gray-200 shadow-sm hover:border-[#1B3150]/25'
       }`}
     >
       <div className="flex items-center justify-between gap-2 mb-2">
