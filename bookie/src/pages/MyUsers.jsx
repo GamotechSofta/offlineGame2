@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
-import { FaUserPlus, FaSearch, FaGamepad, FaWallet, FaEye } from 'react-icons/fa';
+import { FaUserPlus, FaSearch, FaGamepad } from 'react-icons/fa';
 import { useLanguage } from '../context/LanguageContext';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
@@ -19,6 +19,7 @@ const MyUsers = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [sortBy, setSortBy] = useState('created_desc');
     const [, setTick] = useState(0);
 
     const fetchData = async (showLoader = true) => {
@@ -63,9 +64,27 @@ const MyUsers = () => {
         })
         : users;
 
+    const sortedUsers = [...filteredUsers].sort((a, b) => {
+        if (sortBy === 'name_asc') {
+            return String(a?.username || '').localeCompare(String(b?.username || ''), undefined, { sensitivity: 'base' });
+        }
+        if (sortBy === 'balance_desc') {
+            return (Number(b?.walletBalance ?? 0) || 0) - (Number(a?.walletBalance ?? 0) || 0);
+        }
+        if (sortBy === 'balance_asc') {
+            return (Number(a?.walletBalance ?? 0) || 0) - (Number(b?.walletBalance ?? 0) || 0);
+        }
+        if (sortBy === 'created_asc') {
+            return new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime();
+        }
+        // default: newest first
+        return new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime();
+    });
+
     const activeCount = users.filter((u) => u.isActive !== false).length;
     const suspendedCount = users.filter((u) => u.isActive === false).length;
     const onlineCount = users.filter((u) => computeIsOnline(u)).length;
+    const totalPlayersBalance = users.reduce((sum, u) => sum + (Number(u?.walletBalance ?? 0) || 0), 0);
 
     return (
         <Layout title={t('myPlayers')}>
@@ -83,10 +102,14 @@ const MyUsers = () => {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div className="bg-white rounded-xl p-4 border border-gray-200">
                     <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{t('totalPlayersLabel')}</p>
                     <p className="text-2xl font-bold text-gray-800 font-mono">{users.length}</p>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-gray-200">
+                    <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Total Balance</p>
+                    <p className="text-2xl font-bold text-[#1B3150] font-mono">₹{totalPlayersBalance.toLocaleString('en-IN')}</p>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-gray-200">
                     <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{t('activeLabel')}</p>
@@ -104,24 +127,37 @@ const MyUsers = () => {
 
             {/* Search */}
             <div className="mb-4 sm:mb-6">
-                <div className="relative max-w-md">
-                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <input
-                        type="text"
-                        placeholder={t('searchPlayers')}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className={`w-full pl-10 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
-                    />
-                    {searchQuery && (
-                        <button
-                            type="button"
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-800 text-sm"
-                        >
-                            ✕
-                        </button>
-                    )}
+                <div className="flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="relative max-w-md w-full">
+                        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <input
+                            type="text"
+                            placeholder={t('searchPlayers')}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className={`w-full pl-10 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-800 text-sm"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="w-full md:w-auto px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
+                    >
+                        <option value="created_desc">Sort: Newest</option>
+                        <option value="created_asc">Sort: Oldest</option>
+                        <option value="name_asc">Sort: Name (A-Z)</option>
+                        <option value="balance_desc">Sort: Balance (High-Low)</option>
+                        <option value="balance_asc">Sort: Balance (Low-High)</option>
+                    </select>
                 </div>
             </div>
 
@@ -160,7 +196,7 @@ const MyUsers = () => {
                             </button>
                         </div>
                     </div>
-                ) : filteredUsers.length === 0 ? (
+                ) : sortedUsers.length === 0 ? (
                     <div className="p-8 text-center text-gray-400">
                         {t('noData')}
                     </div>
@@ -175,8 +211,6 @@ const MyUsers = () => {
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('username')}</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('phone')}</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('balance')}</th>
-                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('toGive')}</th>
-                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('toTake')}</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('status')}</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Account</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Created</th>
@@ -184,7 +218,7 @@ const MyUsers = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {filteredUsers.map((item, index) => {
+                                    {sortedUsers.map((item, index) => {
                                         const isOnline = computeIsOnline(item);
                                         return (
                                             <tr key={item._id} className="hover:bg-gray-50">
@@ -196,16 +230,6 @@ const MyUsers = () => {
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3">
                                                     <span className="font-mono font-medium text-green-600 text-xs sm:text-sm">
                                                         ₹{Number(item.walletBalance ?? 0).toLocaleString('en-IN')}
-                                                    </span>
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-2 sm:py-3">
-                                                    <span className="font-mono font-medium text-blue-600 text-xs sm:text-sm">
-                                                        ₹{Number(item.toGive ?? 0).toLocaleString('en-IN')}
-                                                    </span>
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-2 sm:py-3">
-                                                    <span className="font-mono font-medium text-red-600 text-xs sm:text-sm">
-                                                        ₹{Number(item.toTake ?? 0).toLocaleString('en-IN')}
                                                     </span>
                                                 </td>
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3">
@@ -242,7 +266,7 @@ const MyUsers = () => {
                                                             className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors"
                                                             title={t('viewDetails')}
                                                         >
-                                                            <FaEye className="w-3 h-3" />
+                                                            Details
                                                         </button>
                                                         <button
                                                             type="button"
@@ -250,7 +274,7 @@ const MyUsers = () => {
                                                             className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors"
                                                             title="Place bet for this player"
                                                         >
-                                                            <FaGamepad className="w-3 h-3" />
+                                                            Bet
                                                         </button>
                                                     </div>
                                                 </td>
@@ -267,8 +291,8 @@ const MyUsers = () => {
             {/* Results Count */}
             {!loading && users.length > 0 && (
                 <p className="mt-4 text-gray-400 text-sm">
-                    Showing {filteredUsers.length} player{filteredUsers.length !== 1 ? 's' : ''}
-                    {searchQuery && filteredUsers.length !== users.length && (
+                    Showing {sortedUsers.length} player{sortedUsers.length !== 1 ? 's' : ''}
+                    {searchQuery && sortedUsers.length !== users.length && (
                         <span> (filtered from {users.length})</span>
                     )}
                 </p>

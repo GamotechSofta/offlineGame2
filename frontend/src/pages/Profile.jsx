@@ -112,6 +112,7 @@ const Profile = () => {
   const [user, setUser] = useState(() => readUserFromStorage());
   const [toast, setToast] = useState('');
   const [copiedField, setCopiedField] = useState('');
+  const [quickStats, setQuickStats] = useState({ totalBets: 0, monthBets: 0 });
 
   const initialForm = useMemo(() => {
     const u = user || {};
@@ -156,6 +157,33 @@ const Profile = () => {
       navigate('/login');
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    let alive = true;
+    const loadQuickStats = async () => {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/bets/my-history`, { headers: getAuthHeaders() });
+        if (res.status === 401) return;
+        const data = await res.json();
+        if (!alive) return;
+        const rows = Array.isArray(data?.data) ? data.data : [];
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const monthBets = rows.filter((r) => {
+          const dt = r?.createdAt ? new Date(r.createdAt) : null;
+          return dt && !Number.isNaN(dt.getTime()) && dt.getFullYear() === y && dt.getMonth() === m;
+        }).length;
+        setQuickStats({ totalBets: rows.length, monthBets });
+      } catch {
+        if (alive) setQuickStats({ totalBets: 0, monthBets: 0 });
+      }
+    };
+    loadQuickStats();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const avatarInitial = (form.username || 'U').charAt(0).toUpperCase();
 
@@ -510,22 +538,14 @@ const Profile = () => {
                   <span className="text-green-600 text-xs font-bold">Active</span>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => navigate('/passbook')}
-                className="rounded-2xl bg-white border-2 border-gray-300 p-5 text-center hover:border-gray-400 transition-colors active:scale-[0.98] shadow-sm"
-              >
-                <p className="text-gray-600 text-[10px] font-semibold uppercase tracking-wider mb-2">Passbook</p>
-                <p className="text-gray-800 text-sm font-bold">View Transactions</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/bet-history')}
-                className="rounded-2xl bg-white border-2 border-gray-300 p-5 text-center hover:border-gray-400 transition-colors active:scale-[0.98] shadow-sm"
-              >
-                <p className="text-gray-600 text-[10px] font-semibold uppercase tracking-wider mb-2">Bet History</p>
-                <p className="text-gray-800 text-sm font-bold">View All Bets</p>
-              </button>
+              <div className="rounded-2xl bg-white border-2 border-gray-300 p-5 text-center hover:border-gray-400 transition-colors shadow-sm">
+                <p className="text-gray-600 text-[10px] font-semibold uppercase tracking-wider mb-2">Total Bets</p>
+                <p className="text-gray-800 text-lg font-bold">{quickStats.totalBets}</p>
+              </div>
+              <div className="rounded-2xl bg-white border-2 border-gray-300 p-5 text-center hover:border-gray-400 transition-colors shadow-sm">
+                <p className="text-gray-600 text-[10px] font-semibold uppercase tracking-wider mb-2">This Month</p>
+                <p className="text-gray-800 text-lg font-bold">{quickStats.monthBets}</p>
+              </div>
             </div>
           </div>
         </div>

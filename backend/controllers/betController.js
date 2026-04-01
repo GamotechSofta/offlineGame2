@@ -566,7 +566,7 @@ export const getMyBetHistory = async (req, res) => {
 
 export const getBetHistory = async (req, res) => {
     try {
-        const { userId, marketId, status, startDate, endDate } = req.query;
+        const { userId, marketId, status, startDate, endDate, placedBy } = req.query;
         const query = {};
 
         const bookieUserIds = await getBookieUserIds(req.admin);
@@ -581,6 +581,15 @@ export const getBetHistory = async (req, res) => {
         }
         if (marketId) query.marketId = marketId;
         if (status) query.status = status;
+        const placedByKey = String(placedBy || '').trim().toLowerCase();
+        if (placedByKey === 'bookie') {
+            query.placedByBookie = true;
+        } else if (placedByKey === 'user' || placedByKey === 'player') {
+            query.$or = [
+                { placedByBookie: false },
+                { placedByBookie: { $exists: false } }
+            ];
+        }
         if (startDate || endDate) {
             query.createdAt = {};
             if (startDate) {

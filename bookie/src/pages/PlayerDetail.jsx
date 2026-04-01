@@ -98,9 +98,15 @@ const PlayerDetail = () => {
 
     // Bet filter
     const [betFilter, setBetFilter] = useState('all'); // all, pending, won, lost
+    const [betSessionFilter, setBetSessionFilter] = useState('all'); // all, open, close
+    const [betTypeFilter, setBetTypeFilter] = useState('all'); // all or betType key
+    const [betSearch, setBetSearch] = useState(''); // number/type/market search
+    const [betMarketFilter, setBetMarketFilter] = useState('all'); // all or marketId
 
     // Market filter for fund history
     const [marketFilter, setMarketFilter] = useState('all'); // all or marketId
+    const [walletTypeFilter, setWalletTypeFilter] = useState('all'); // all, credit, debit
+    const [walletSearch, setWalletSearch] = useState('');
     const [markets, setMarkets] = useState([]);
 
     // Fund modal
@@ -204,6 +210,8 @@ const PlayerDetail = () => {
             const params = new URLSearchParams({ userId });
             if (dateFrom) params.append('startDate', dateFrom);
             if (dateFrom && dateTo) params.append('endDate', dateTo);
+            if (activeTab === 'bets_by_bookie') params.append('placedBy', 'bookie');
+            if (activeTab === 'bets_by_user') params.append('placedBy', 'user');
             const res = await fetch(`${API_BASE_URL}/bets/history?${params}`, { headers: getBookieAuthHeaders() });
             const data = await res.json();
             setBets(data.success ? data.data || [] : []);
@@ -231,7 +239,7 @@ const PlayerDetail = () => {
         try {
             const res = await fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}&includeBet=1`, { headers: getBookieAuthHeaders() });
             const data = await res.json();
-            setWalletTx(data.success ? (data.data || []).reverse() : []);
+            setWalletTx(data.success ? (data.data || []) : []);
         } catch (err) {
             setWalletTx([]);
         } finally {
@@ -244,7 +252,7 @@ const PlayerDetail = () => {
         try {
             const [betsRes, txRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/bets/history?userId=${userId}&startDate=${dateFrom}&endDate=${dateTo}`, { headers: getBookieAuthHeaders() }),
-                fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}`, { headers: getBookieAuthHeaders() }),
+                fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}&includeBet=1`, { headers: getBookieAuthHeaders() }),
             ]);
             const betsData = await betsRes.json();
             const txData = await txRes.json();
@@ -271,14 +279,50 @@ const PlayerDetail = () => {
                 return d >= start && d <= end;
             });
 
-            const totalDeposits = filteredTx.filter(t => t.type === 'credit' && (t.description?.toLowerCase().includes('deposit') || t.description?.toLowerCase().includes('add fund'))).reduce((sum, t) => sum + (t.amount || 0), 0);
-            const totalWithdrawals = filteredTx.filter(t => t.type === 'debit' && (t.description?.toLowerCase().includes('withdraw') || t.description?.toLowerCase().includes('withdrawal'))).reduce((sum, t) => sum + (t.amount || 0), 0);
-            const totalOtherCredits = filteredTx.filter(t => t.type === 'credit' && !t.description?.toLowerCase().includes('deposit') && !t.description?.toLowerCase().includes('add fund')).reduce((sum, t) => sum + (t.amount || 0), 0);
-            const totalOtherDebits = filteredTx.filter(t => t.type === 'debit' && !t.description?.toLowerCase().includes('withdraw') && !t.description?.toLowerCase().includes('withdrawal')).reduce((sum, t) => sum + (t.amount || 0), 0);
+            const getDesc = (t) => String(t?.description || '').toLowerCase();
+            const isDeposit = (t) => {
+                const d = getDesc(t);
+                return d.includes('deposit') || d.includes('add fund');
+            };
+            const isWithdrawal = (t) => {
+                const d = getDesc(t);
+                return d.includes('withdraw');
+            };
+            const isBetCredit = (t) => {
+                const d = getDesc(t);
+                return d.includes('win') || d.includes('bet win');
+            };
+            const isBetDebit = (t) => {
+                const d = getDesc(t);
+                return d.includes('bet') || d.includes('stake');
+            };
+
+            const totalDeposits = filteredTx
+                .filter((t) => t.type === 'credit' && isDeposit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalWithdrawals = filteredTx
+                .filter((t) => t.type === 'debit' && isWithdrawal(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalBetCredits = filteredTx
+                .filter((t) => t.type === 'credit' && !isDeposit(t) && isBetCredit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalBetDebits = filteredTx
+                .filter((t) => t.type === 'debit' && !isWithdrawal(t) && isBetDebit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalOtherCredits = filteredTx
+                .filter((t) => t.type === 'credit' && !isDeposit(t) && !isBetCredit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalOtherDebits = filteredTx
+                .filter((t) => t.type === 'debit' && !isWithdrawal(t) && !isBetDebit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
 
             // Calculate net amounts
-            const totalCredits = totalWinAmount + totalDeposits + totalOtherCredits;
-            const totalDebits = totalBetAmount + totalWithdrawals + totalOtherDebits;
+            const totalCredits = filteredTx
+                .filter((t) => t.type === 'credit')
+                .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+            const totalDebits = filteredTx
+                .filter((t) => t.type === 'debit')
+                .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
             const netAmount = totalCredits - totalDebits;
 
             // Create summary statement
@@ -295,8 +339,11 @@ const PlayerDetail = () => {
                 wallet: {
                     deposits: totalDeposits,
                     withdrawals: totalWithdrawals,
+                    betCredits: totalBetCredits,
+                    betDebits: totalBetDebits,
                     otherCredits: totalOtherCredits,
                     otherDebits: totalOtherDebits,
+                    count: filteredTx.length,
                 },
                 totals: {
                     totalCredits,
@@ -489,30 +536,49 @@ const PlayerDetail = () => {
         totalPayout: bets.filter((b) => b.status === 'won').reduce((s, b) => s + (b.payout || 0), 0),
     };
 
-    const activeBetSource =
-        activeTab === 'bets_by_user'
-            ? 'user'
-            : activeTab === 'bets_by_bookie'
-                ? 'bookie'
-                : 'all';
+    const sourceFilteredBets = [...(bets || [])].sort((a, b) => {
+        const ta = new Date(a?.createdAt || 0).getTime();
+        const tb = new Date(b?.createdAt || 0).getTime();
+        return tb - ta;
+    });
 
-    const sourceFilteredBets =
-        activeBetSource === 'user'
-            ? bets.filter((b) => !b.placedByBookie)
-            : activeBetSource === 'bookie'
-                ? bets.filter((b) => !!b.placedByBookie)
-                : bets;
+    const marketFilteredBets =
+        betMarketFilter === 'all'
+            ? sourceFilteredBets
+            : sourceFilteredBets.filter((b) => {
+                const mid = b?.marketId?._id || b?.marketId?.id || b?.marketId;
+                return String(mid || '') === String(betMarketFilter);
+            });
+
+    const advancedFilteredBets = marketFilteredBets.filter((b) => {
+        if (betSessionFilter !== 'all') {
+            const sess = String(b?.betOn || '').trim().toLowerCase();
+            if (sess !== betSessionFilter) return false;
+        }
+        if (betTypeFilter !== 'all') {
+            const typeKey = String(b?.betType || '').trim().toLowerCase();
+            if (typeKey !== betTypeFilter) return false;
+        }
+        const q = betSearch.trim().toLowerCase();
+        if (q) {
+            const num = String(b?.betNumber || '').toLowerCase();
+            const typeLabel = String(getBetTypeLabel(b?.betType, t, b?.betNumber) || '').toLowerCase();
+            const marketName = String(b?.marketId?.marketName || '').toLowerCase();
+            if (!num.includes(q) && !typeLabel.includes(q) && !marketName.includes(q)) return false;
+        }
+        return true;
+    });
 
     const displayedBetStats = {
-        total: sourceFilteredBets.length,
-        won: sourceFilteredBets.filter((b) => b.status === 'won').length,
-        lost: sourceFilteredBets.filter((b) => b.status === 'lost').length,
-        pending: sourceFilteredBets.filter((b) => b.status === 'pending').length,
-        totalAmount: sourceFilteredBets.reduce((s, b) => s + (b.amount || 0), 0),
-        totalPayout: sourceFilteredBets.filter((b) => b.status === 'won').reduce((s, b) => s + (b.payout || 0), 0),
+        total: advancedFilteredBets.length,
+        won: advancedFilteredBets.filter((b) => b.status === 'won').length,
+        lost: advancedFilteredBets.filter((b) => b.status === 'lost').length,
+        pending: advancedFilteredBets.filter((b) => b.status === 'pending').length,
+        totalAmount: advancedFilteredBets.reduce((s, b) => s + (b.amount || 0), 0),
+        totalPayout: advancedFilteredBets.filter((b) => b.status === 'won').reduce((s, b) => s + (b.payout || 0), 0),
     };
 
-    const filteredBets = betFilter === 'all' ? sourceFilteredBets : sourceFilteredBets.filter((b) => b.status === betFilter);
+    const filteredBets = betFilter === 'all' ? advancedFilteredBets : advancedFilteredBets.filter((b) => b.status === betFilter);
 
     // Print bet history
     const handlePrintBets = () => {
@@ -596,24 +662,24 @@ const PlayerDetail = () => {
 
     return (
         <Layout title="Player">
-            <div className="min-w-0 max-w-full space-y-5">
+            <div className="min-w-0 max-w-full space-y-4 sm:space-y-5">
                 {/* Breadcrumb */}
                 <div>
                     <Link to="/my-users" className="text-gray-400 hover:text-[#1B3150] text-sm inline-flex items-center gap-1 mb-1">
                         <FaArrowLeft className="w-3 h-3" /> My Players
                     </Link>
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-                        {player.username} <span className="text-gray-400 font-normal text-base">({player.phone || player.email || '—'})</span>
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800 break-words">
+                        {player.username} <span className="text-gray-400 font-normal text-sm sm:text-base break-all">({player.phone || player.email || '—'})</span>
                     </h1>
                 </div>
 
                 {/* ========== PLAYER INFO CARD + QUICK ACTIONS ========== */}
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div className="p-4 sm:p-5">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-start gap-4 sm:gap-5">
                             {/* Player details */}
-                            <div className="flex-1 min-w-[200px]">
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                            <div className="min-w-0">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 sm:gap-x-6 gap-y-3 text-sm">
                                     <div>
                                         <p className="text-gray-400 text-xs uppercase tracking-wider">Name</p>
                                         <p className="text-gray-800 font-medium">{player.username}</p>
@@ -624,7 +690,7 @@ const PlayerDetail = () => {
                                     </div>
                                     <div>
                                         <p className="text-gray-400 text-xs uppercase tracking-wider">Email</p>
-                                        <p className="text-gray-800 truncate">{player.email || '—'}</p>
+                                        <p className="text-gray-800 break-all">{player.email || '—'}</p>
                                     </div>
                                     <div>
                                         <p className="text-gray-400 text-xs uppercase tracking-wider">Status</p>
@@ -644,7 +710,7 @@ const PlayerDetail = () => {
                             </div>
 
                             {/* Wallet balance and To Give/Take cards */}
-                            <div className="flex flex-col gap-3 min-w-[180px]">
+                            <div className="flex flex-col gap-3 w-full lg:w-[260px]">
                                 <div className="bg-gradient-to-br from-[#1B3150] to-[#152842] text-white rounded-xl p-4 text-center shadow-lg">
                                     <p className="text-white/80 text-xs uppercase tracking-wider mb-1">Wallet Balance</p>
                                     <p className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(player.walletBalance ?? 0)}</p>
@@ -664,7 +730,8 @@ const PlayerDetail = () => {
                     </div>
 
                     {/* Quick action buttons */}
-                    <div className="border-t border-gray-100 px-4 sm:px-5 py-3 flex flex-wrap gap-2">
+                    <div className="border-t border-gray-100 px-4 sm:px-5 py-3">
+                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
                         <button onClick={() => openFundModal('add')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-semibold transition-colors">
                             <FaPlusCircle className="w-3.5 h-3.5" /> Add Funds
                         </button>
@@ -680,9 +747,10 @@ const PlayerDetail = () => {
                         <button onClick={() => navigate(`/games?playerId=${userId}`)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white text-xs sm:text-sm font-semibold transition-colors">
                             <FaGamepad className="w-3.5 h-3.5" /> Place Bet
                         </button>
-                        <button onClick={() => { fetchPlayer(); if (activeTab === 'bets_by_user' || activeTab === 'bets_by_bookie') fetchBets(); if (activeTab === 'wallet') fetchWalletTx(); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs sm:text-sm font-semibold transition-colors ml-auto">
+                        <button onClick={() => { fetchPlayer(); if (activeTab === 'bets_by_user' || activeTab === 'bets_by_bookie') fetchBets(); if (activeTab === 'wallet') fetchWalletTx(); }} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs sm:text-sm font-semibold transition-colors">
                             <FaSyncAlt className="w-3 h-3" /> Refresh
                         </button>
+                        </div>
                     </div>
                 </div>
 
@@ -699,7 +767,7 @@ const PlayerDetail = () => {
                             {dateFrom && dateTo ? formatDateRange(dateFrom, dateTo) : 'Select Date'}
                         </button>
                         {calendarOpen && (
-                            <div className="absolute left-0 top-full mt-2 py-3 rounded-xl bg-white border border-gray-200 shadow-xl z-50 flex flex-col sm:flex-row gap-4 max-w-[100vw]">
+                            <div className="absolute left-0 right-0 sm:right-auto top-full mt-2 py-3 rounded-xl bg-white border border-gray-200 shadow-xl z-50 flex flex-col sm:flex-row gap-4 w-[min(96vw,640px)] sm:w-auto max-w-[100vw]">
                                 <div className="min-w-0 sm:min-w-[200px] py-1">
                                     {DATE_PRESETS.map((p) => (
                                         <button key={p.id} type="button" onClick={() => handlePresetSelect(p.id)}
@@ -830,10 +898,68 @@ const PlayerDetail = () => {
                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                         }`}
                                     >
-                                        {f} {f !== 'all' && `(${sourceFilteredBets.filter((b) => b.status === f).length})`}
-                                        {f === 'all' && `(${sourceFilteredBets.length})`}
+                                        {f} {f !== 'all' && `(${advancedFilteredBets.filter((b) => b.status === f).length})`}
+                                        {f === 'all' && `(${advancedFilteredBets.length})`}
                                     </button>
                                 ))}
+                                <select
+                                    value={betMarketFilter}
+                                    onChange={(e) => setBetMarketFilter(e.target.value)}
+                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                >
+                                    <option value="all">All Markets</option>
+                                    {markets.map((m) => (
+                                        <option key={m._id || m.id} value={m._id || m.id}>
+                                            {m.marketName}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={betSessionFilter}
+                                    onChange={(e) => setBetSessionFilter(e.target.value)}
+                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                >
+                                    <option value="all">All Sessions</option>
+                                    <option value="open">OPEN</option>
+                                    <option value="close">CLOSE</option>
+                                </select>
+                                <select
+                                    value={betTypeFilter}
+                                    onChange={(e) => setBetTypeFilter(e.target.value)}
+                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                >
+                                    <option value="all">All Types</option>
+                                    <option value="single">Single Digit</option>
+                                    <option value="jodi">Jodi</option>
+                                    <option value="panna">Panna</option>
+                                    <option value="odd-even">Odd Even</option>
+                                    <option value="half-sangam">Half Sangam</option>
+                                    <option value="full-sangam">Full Sangam</option>
+                                    <option value="sp-common">SP Common</option>
+                                    <option value="dp-common">DP Common</option>
+                                    <option value="sp-motor">SP Motor</option>
+                                    <option value="dp-motor">DP Motor</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    value={betSearch}
+                                    onChange={(e) => setBetSearch(e.target.value)}
+                                    placeholder="Search number / market / type"
+                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] min-w-[180px]"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setBetFilter('all');
+                                        setBetMarketFilter('all');
+                                        setBetSessionFilter('all');
+                                        setBetTypeFilter('all');
+                                        setBetSearch('');
+                                    }}
+                                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors"
+                                >
+                                    Clear
+                                </button>
                                 <button onClick={handlePrintBets} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors">
                                     <FaPrint className="w-3 h-3" /> Print
                                 </button>
@@ -897,42 +1023,123 @@ const PlayerDetail = () => {
                     {/* ---- FUND HISTORY ---- */}
                     {activeTab === 'wallet' && (
                         <>
-                            {/* Market Filter */}
-                            <div className="mb-4 flex items-center gap-3">
-                                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                            {/* Fund filters */}
+                            <div className="mb-4 bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                                <div className="mb-2 text-sm font-medium text-gray-700 flex items-center gap-2">
                                     <FaFilter className="w-4 h-4" />
-                                    Filter by Market:
-                                </label>
-                                <select
-                                    value={marketFilter}
-                                    onChange={(e) => setMarketFilter(e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
-                                >
-                                    <option value="all">All Markets</option>
-                                    {markets.map((m) => (
-                                        <option key={m._id || m.id} value={m._id || m.id}>
-                                            {m.marketName}
-                                        </option>
-                                    ))}
-                                </select>
+                                    Fund History Filters
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">Market</label>
+                                        <select
+                                            value={marketFilter}
+                                            onChange={(e) => setMarketFilter(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                        >
+                                            <option value="all">All Markets</option>
+                                            {markets.map((m) => (
+                                                <option key={m._id || m.id} value={m._id || m.id}>
+                                                    {m.marketName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                                        <select
+                                            value={walletTypeFilter}
+                                            onChange={(e) => setWalletTypeFilter(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="credit">Credit</option>
+                                            <option value="debit">Debit</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">From Date</label>
+                                        <input
+                                            type="date"
+                                            value={dateFrom}
+                                            onChange={(e) => setDateFrom(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">To Date</label>
+                                        <input
+                                            type="date"
+                                            value={dateTo}
+                                            onChange={(e) => setDateTo(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+                                    <input
+                                        type="text"
+                                        value={walletSearch}
+                                        onChange={(e) => setWalletSearch(e.target.value)}
+                                        placeholder="Search by description..."
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setMarketFilter('all');
+                                            setWalletTypeFilter('all');
+                                            setWalletSearch('');
+                                        }}
+                                        className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium"
+                                    >
+                                        Clear Filters
+                                    </button>
+                                </div>
                             </div>
 
                             {loadingTab ? (
                                 <div className="p-8 text-center text-gray-400">Loading...</div>
                             ) : (() => {
-                                // Filter transactions by market
-                                const filteredTx = marketFilter === 'all' 
-                                    ? walletTx 
-                                    : walletTx.filter((t) => {
-                                        // Only filter bet-related transactions
-                                        if (t.bet && t.bet.marketId) {
-                                            const txMarketId = String(t.bet.marketId);
-                                            const filterMarketId = String(marketFilter);
-                                            return txMarketId === filterMarketId;
-                                        }
-                                        // Non-bet transactions are shown when "All Markets" is selected
+                                // Filter transactions by date, market, type and search
+                                const filteredTx = (walletTx || []).filter((t) => {
+                                    const txDate = t?.createdAt ? new Date(t.createdAt) : null;
+                                    if (!txDate || Number.isNaN(txDate.getTime())) return false;
+
+                                    if (dateFrom) {
+                                        const from = new Date(dateFrom);
+                                        from.setHours(0, 0, 0, 0);
+                                        if (txDate < from) return false;
+                                    }
+                                    if (dateTo) {
+                                        const to = new Date(dateTo);
+                                        to.setHours(23, 59, 59, 999);
+                                        if (txDate > to) return false;
+                                    }
+
+                                    if (marketFilter !== 'all') {
+                                        const txMarketId = t?.bet?.marketId ? String(t.bet.marketId) : '';
+                                        if (!txMarketId || txMarketId !== String(marketFilter)) return false;
+                                    }
+
+                                    if (walletTypeFilter !== 'all' && String(t?.type || '') !== walletTypeFilter) {
                                         return false;
-                                    });
+                                    }
+
+                                    const q = walletSearch.trim().toLowerCase();
+                                    if (q) {
+                                        const desc = String(t?.description || '').toLowerCase();
+                                        const marketName = String(t?.bet?.marketName || '').toLowerCase();
+                                        if (!desc.includes(q) && !marketName.includes(q)) return false;
+                                    }
+
+                                    return true;
+                                }).sort((a, b) => {
+                                    const ta = new Date(a?.createdAt || 0).getTime();
+                                    const tb = new Date(b?.createdAt || 0).getTime();
+                                    return tb - ta;
+                                });
+
                                 const totalCredited = filteredTx
                                     .filter((t) => t.type === 'credit')
                                     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
@@ -989,6 +1196,28 @@ const PlayerDetail = () => {
                     {/* ---- STATEMENT ---- */}
                     {activeTab === 'statement' && (
                         <>
+                            <style>{`
+                                @media print {
+                                    body * {
+                                        visibility: hidden !important;
+                                    }
+                                    #statement-slip, #statement-slip * {
+                                        visibility: visible !important;
+                                    }
+                                    #statement-slip {
+                                        position: absolute !important;
+                                        left: 0 !important;
+                                        top: 0 !important;
+                                        width: 100% !important;
+                                        max-width: 100% !important;
+                                        padding: 12px !important;
+                                        background: #fff !important;
+                                    }
+                                    .print\\:hidden {
+                                        display: none !important;
+                                    }
+                                }
+                            `}</style>
                             {loadingTab ? (
                                 <div className="p-8 text-center text-gray-400">Loading...</div>
                             ) : statementData.length === 0 ? (
@@ -1067,6 +1296,10 @@ const PlayerDetail = () => {
                                                 <h3 className="text-lg font-bold text-gray-800 mb-3">WALLET TRANSACTIONS</h3>
                                                 <div className="space-y-2 text-sm">
                                                     <div className="flex justify-between">
+                                                        <span className="text-gray-600">Transaction Count</span>
+                                                        <span className="font-mono font-semibold text-gray-800">{summary.wallet.count}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
                                                         <span className="text-gray-600">Total Deposits</span>
                                                         <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.wallet.deposits)}</span>
                                                     </div>
@@ -1074,6 +1307,18 @@ const PlayerDetail = () => {
                                                         <span className="text-gray-600">Total Withdrawals</span>
                                                         <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.wallet.withdrawals)}</span>
                                                     </div>
+                                                    {summary.wallet.betCredits > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Bet Credits (Wins)</span>
+                                                            <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.wallet.betCredits)}</span>
+                                                        </div>
+                                                    )}
+                                                    {summary.wallet.betDebits > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Bet Debits (Stakes)</span>
+                                                            <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.wallet.betDebits)}</span>
+                                                        </div>
+                                                    )}
                                                     {summary.wallet.otherCredits > 0 && (
                                                         <div className="flex justify-between">
                                                             <span className="text-gray-600">Other Credits</span>
