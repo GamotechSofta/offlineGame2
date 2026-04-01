@@ -766,12 +766,6 @@ const EasyModeBid = ({
                                                                     e.stopPropagation();
                                                                     handleKeypadClick(num);
                                                                 }}
-                                                                onTouchStart={(e) => {
-                                                                    if (!hasPoints) return;
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    handleKeypadClick(num);
-                                                                }}
                                                                 className={`relative aspect-square min-h-[40px] sm:min-h-[44px] md:min-h-[48px] rounded-lg sm:rounded-xl font-bold text-sm sm:text-base flex items-center justify-center transition-all active:scale-90 shadow-lg select-none ${
                                                                     (specialModeType === 'singlePana' || specialModeType === 'doublePana')
                                                                         ? `text-white bg-[#1B3150] border border-white/10 ${hasPoints ? 'cursor-pointer hover:border-[#d4af37]/50' : 'cursor-not-allowed opacity-50'}`

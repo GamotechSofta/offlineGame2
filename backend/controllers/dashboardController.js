@@ -9,6 +9,8 @@ import HelpDesk from '../models/helpDesk/helpDesk.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingClosed } from '../utils/marketTiming.js';
 
+const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
+
 /** Parse from/to query (YYYY-MM-DD). Returns { start, end } in UTC-like range for DB. 
  * If fromStr and toStr are not provided, returns null to indicate "all time" */
 function getDateRange(fromStr, toStr) {
@@ -52,17 +54,23 @@ export const getDashboardStats = async (req, res) => {
         const walletMatch = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
         const helpDeskFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
 
-        const { from, to } = req.query;
+        const { from, to, marketId } = req.query;
         const { start: rangeStart, end: rangeEnd } = getDateRange(from, to);
         // If rangeStart is null, don't apply date filter (show all data)
         const dateMatch = (rangeStart === null || rangeEnd === null) 
             ? {} 
             : { createdAt: { $gte: rangeStart, $lte: rangeEnd } };
 
-        const revenueMatch = { ...dateMatch, ...betFilter, status: { $ne: 'cancelled' } };
-        const payoutMatch = { status: 'won', ...dateMatch, ...betFilter };
-        const betCountMatch = { ...dateMatch, ...betFilter, status: { $ne: 'cancelled' } };
-        const lossMatch = { status: 'lost', ...betFilter };
+        const selectedMarketId =
+            typeof marketId === 'string' && OBJECT_ID_RE.test(marketId.trim())
+                ? marketId.trim()
+                : null;
+        const marketMatch = selectedMarketId ? { marketId: selectedMarketId } : {};
+
+        const revenueMatch = { ...dateMatch, ...betFilter, ...marketMatch, status: { $ne: 'cancelled' } };
+        const payoutMatch = { status: 'won', ...dateMatch, ...betFilter, ...marketMatch };
+        const betCountMatch = { ...dateMatch, ...betFilter, ...marketMatch, status: { $ne: 'cancelled' } };
+        const lossMatch = { status: 'lost', ...betFilter, ...marketMatch };
         const isSuperAdmin = bookieUserIds === null && req.admin?.role === 'super_admin';
 
         // Run all independent DB queries in parallel for faster dashboard load
@@ -108,10 +116,10 @@ export const getDashboardStats = async (req, res) => {
             Bet.aggregate([{ $match: revenueMatch }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
             Bet.aggregate([{ $match: payoutMatch }, { $group: { _id: null, total: { $sum: '$payout' } } }]),
             Bet.countDocuments(betCountMatch),
-            Bet.countDocuments({ status: 'won', ...dateMatch, ...betFilter }),
-            Bet.countDocuments({ status: 'lost', ...dateMatch, ...betFilter }),
-            Bet.countDocuments({ status: 'pending', ...betFilter }),
-            Bet.aggregate([{ $match: { status: 'pending', ...betFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+            Bet.countDocuments({ status: 'won', ...dateMatch, ...betFilter, ...marketMatch }),
+            Bet.countDocuments({ status: 'lost', ...dateMatch, ...betFilter, ...marketMatch }),
+            Bet.countDocuments({ status: 'pending', ...betFilter, ...marketMatch }),
+            Bet.aggregate([{ $match: { status: 'pending', ...betFilter, ...marketMatch } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
             Payment.aggregate([{ $match: { type: 'deposit', status: { $in: ['approved', 'completed'] }, ...dateMatch, ...paymentFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
             Payment.aggregate([{ $match: { type: 'withdrawal', status: { $in: ['approved', 'completed'] }, ...dateMatch, ...paymentFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
             Payment.countDocuments(paymentFilter),
@@ -132,11 +140,15 @@ export const getDashboardStats = async (req, res) => {
 
         const now = new Date();
         const currentTime = now.getHours() * 60 + now.getMinutes();
+        const scopedMarkets = selectedMarketId
+            ? allMarketsForOpen.filter((m) => String(m?._id) === selectedMarketId)
+            : allMarketsForOpen;
+
         let openMarkets = 0;
         let openMainMarkets = 0;
         let openStarlineMarkets = 0;
         const marketsPendingResultList = [];
-        for (const m of allMarketsForOpen) {
+        for (const m of scopedMarkets) {
             const startTime = parseTimeToMinutes(m.startingTime);
             const endTime = parseTimeToMinutes(m.closingTime);
             if (startTime && endTime && currentTime >= startTime && currentTime <= endTime) {
@@ -155,6 +167,13 @@ export const getDashboardStats = async (req, res) => {
             }
         }
         const marketsPendingResult = marketsPendingResultList.length;
+        const scopedTotalMarkets = selectedMarketId ? scopedMarkets.length : totalMarkets;
+        const scopedMainMarkets = selectedMarketId
+            ? scopedMarkets.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline').length
+            : mainMarkets;
+        const scopedStarlineMarkets = selectedMarketId
+            ? scopedMarkets.filter((m) => (m.marketType || '').toString().toLowerCase() === 'startline').length
+            : starlineMarkets;
 
         let toGiveFromWallet = 0;
         let toReceiveFromWallet = 0;
@@ -183,6 +202,7 @@ export const getDashboardStats = async (req, res) => {
         res.status(200).json({
             success: true,
             data: {
+                selectedMarketId,
                 dateRange: { 
                     from: rangeStart ? rangeStart.toISOString() : null, 
                     to: rangeEnd ? rangeEnd.toISOString() : null 
@@ -195,10 +215,10 @@ export const getDashboardStats = async (req, res) => {
                     newThisMonth: newUsersInRange,
                 },
                 markets: {
-                    total: totalMarkets,
+                    total: scopedTotalMarkets,
                     open: openMarkets,
-                    main: mainMarkets,
-                    starline: starlineMarkets,
+                    main: scopedMainMarkets,
+                    starline: scopedStarlineMarkets,
                     openMain: openMainMarkets,
                     openStarline: openStarlineMarkets,
                 },

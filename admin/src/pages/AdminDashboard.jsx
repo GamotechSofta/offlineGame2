@@ -128,6 +128,8 @@ const AdminDashboard = () => {
     const [customOpen, setCustomOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [adminRole, setAdminRole] = useState('');
+    const [marketOptions, setMarketOptions] = useState([]);
+    const [selectedMarketId, setSelectedMarketId] = useState('');
 
     const getFromTo = () => {
         if (customMode && customFrom && customTo) return { from: customFrom, to: customTo };
@@ -146,7 +148,25 @@ const AdminDashboard = () => {
             setAdminRole(parsed.role || '');
         } catch (_) {}
         fetchDashboardStats();
+        fetchMarketOptions();
     }, [navigate]);
+
+    const fetchMarketOptions = async () => {
+        try {
+            const response = await fetchWithAuth(`${API_BASE_URL}/markets/get-markets`);
+            if (response.status === 401) return;
+            const data = await response.json();
+            if (data?.success && Array.isArray(data?.data)) {
+                const options = data.data
+                    .map((m) => ({ id: m?._id, name: (m?.marketName || m?.gameName || '').toString().trim() }))
+                    .filter((m) => m.id && m.name)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                setMarketOptions(options);
+            }
+        } catch (_) {
+            // keep empty on error
+        }
+    };
 
     const fetchDashboardStats = async (rangeOverride, options = {}) => {
         const isRefresh = options.refresh === true;
@@ -157,6 +177,8 @@ const AdminDashboard = () => {
             const { from, to } = rangeOverride || getFromTo();
             const params = new URLSearchParams();
             if (from && to) { params.set('from', from); params.set('to', to); }
+            const marketId = options.marketIdOverride !== undefined ? options.marketIdOverride : selectedMarketId;
+            if (marketId) params.set('marketId', marketId);
             if (isRefresh) params.set('_', String(Date.now()));
             const query = params.toString();
             const url = `${API_BASE_URL}/dashboard/stats${query ? `?${query}` : ''}`;
@@ -249,6 +271,7 @@ const AdminDashboard = () => {
     }
 
     const displayLabel = customMode && customFrom && customTo ? formatRangeLabel(customFrom, customTo) : (PRESETS.find((p) => p.id === datePreset)?.label || 'Today');
+    const selectedMarketName = marketOptions.find((m) => m.id === selectedMarketId)?.name || 'All Markets';
 
     return (
         <AdminLayout onLogout={handleLogout} title="Dashboard">
@@ -315,6 +338,27 @@ const AdminDashboard = () => {
                         )}
                     </div>
                     <p className="text-xs text-gray-500 mt-2">Showing data for: <span className="text-orange-500 font-medium">{displayLabel}</span></p>
+                    <div className="mt-3">
+                        <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Market</p>
+                        <select
+                            value={selectedMarketId}
+                            onChange={(e) => {
+                                const nextMarketId = e.target.value;
+                                setSelectedMarketId(nextMarketId);
+                                const range = customMode && customFrom && customTo
+                                    ? { from: customFrom, to: customTo }
+                                    : getFromTo();
+                                fetchDashboardStats(range, { marketIdOverride: nextMarketId });
+                            }}
+                            className="w-full sm:w-auto min-w-[260px] px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800"
+                        >
+                            <option value="">All Markets</option>
+                            {marketOptions.map((m) => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-2">Selected market: <span className="text-orange-500 font-medium">{selectedMarketName}</span></p>
+                    </div>
                 </div>
             </div>
 
