@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash, FaWallet, FaPrint } from 'react-icons/fa';
+import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -276,6 +277,14 @@ const PlayerDetail = () => {
     const [secretPassword, setSecretPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [pendingAction, setPendingAction] = useState(null);
+    const closeWalletModal = useModalBackHandler(walletModalOpen, () => setWalletModalOpen(false));
+    const closePlayerPasswordModal = useModalBackHandler(playerPasswordModalOpen, () => setPlayerPasswordModalOpen(false));
+    const closeSecretModal = useModalBackHandler(showPasswordModal, () => {
+        setShowPasswordModal(false);
+        setPendingAction(null);
+        setSecretPassword('');
+        setPasswordError('');
+    });
 
     useEffect(() => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
@@ -947,7 +956,7 @@ const PlayerDetail = () => {
                     <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                             <h3 className="text-base sm:text-lg font-semibold text-orange-500">Edit Wallet</h3>
-                            <button type="button" onClick={() => setWalletModalOpen(false)} className="text-gray-400 hover:text-gray-800 p-1">×</button>
+                            <button type="button" onClick={closeWalletModal} className="text-gray-400 hover:text-gray-800 p-1">×</button>
                         </div>
                         <div className="p-4 space-y-4">
                             <div className="rounded-lg bg-gray-50 px-3 py-2">
@@ -986,7 +995,7 @@ const PlayerDetail = () => {
                     <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm">
                         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                             <h3 className="text-base font-bold text-gray-800">Set Player Password</h3>
-                            <button type="button" onClick={() => setPlayerPasswordModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
+                            <button type="button" onClick={closePlayerPasswordModal} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
                         </div>
                         <div className="p-4 space-y-4">
                             {playerPasswordError && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">{playerPasswordError}</div>}
@@ -1042,7 +1051,7 @@ const PlayerDetail = () => {
                             <h3 className="text-lg font-semibold text-orange-500">
                                 {pendingAction === 'suspend' ? 'Confirm Suspend/Unsuspend' : 'Confirm Delete'}
                             </h3>
-                            <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="text-gray-400 hover:text-gray-800 p-1">×</button>
+                            <button type="button" onClick={closeSecretModal} className="text-gray-400 hover:text-gray-800 p-1">×</button>
                         </div>
                         <form onSubmit={handlePasswordSubmit} className="p-4 space-y-4">
                             <p className="text-gray-600 text-sm">
@@ -1060,7 +1069,7 @@ const PlayerDetail = () => {
                                 <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-600 text-sm px-3 py-2">{passwordError}</div>
                             )}
                             <div className="flex gap-2 justify-end">
-                                <button type="button" onClick={() => { setShowPasswordModal(false); setPendingAction(null); setSecretPassword(''); setPasswordError(''); }} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-500 text-gray-800 font-semibold">Cancel</button>
+                                <button type="button" onClick={closeSecretModal} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-500 text-gray-800 font-semibold">Cancel</button>
                                 <button type="submit" disabled={togglingStatus || deletingPlayer} className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-gray-800 font-semibold disabled:opacity-50">
                                     {togglingStatus || deletingPlayer ? <span className="animate-spin">⏳</span> : 'Confirm'}
                                 </button>

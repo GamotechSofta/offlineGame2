@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../lib/auth';
+import useModalBackHandler from '../hooks/useModalBackHandler';
 
 // Parse "HH:MM" or "H:MM" (24h) to { hour12, minute, ampm }
 const from24Hour = (timeStr) => {
@@ -48,6 +49,9 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
     const [close12, setClose12] = useState({ hour12: '12', minute: '00', ampm: 'PM' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const closeModal = useModalBackHandler(true, () => {
+        onClose?.();
+    });
 
     useEffect(() => {
         if (market) {
@@ -148,7 +152,7 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
                             {market ? 'Edit Market' : 'Create New Market'}
                         </h2>
                         <button
-                            onClick={onClose}
+                            onClick={closeModal}
                             className="text-gray-400 hover:text-gray-600 text-2xl"
                         >
                             ×
@@ -313,7 +317,7 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
                         <div className="flex flex-row gap-2 sm:gap-2.5 pt-2.5">
                             <button
                                 type="button"
-                                onClick={onClose}
+                                onClick={closeModal}
                                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 sm:py-2 px-4 rounded-lg transition-colors"
                             >
                                 Cancel

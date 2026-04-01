@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
+import useModalBackHandler from '../hooks/useModalBackHandler';
 import { FaExclamationTriangle, FaChartBar } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -47,6 +48,7 @@ const AddResult = () => {
     const [activeTab, setActiveTab] = useState('regular');
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
+    const closePanelWithBack = useModalBackHandler(Boolean(selectedMarket) && !isDirectEditMode, closePanel);
 
     const mainPendingList = useMemo(
         () => (marketsPendingResultList || []).filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline'),
@@ -501,7 +503,7 @@ const AddResult = () => {
                                     ? 'w-full xl:w-[380px] xl:max-w-[400px] xl:shrink-0'
                                     : 'fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-3 sm:p-4'
                             }
-                            onClick={isDirectEditMode ? undefined : closePanel}
+                            onClick={isDirectEditMode ? undefined : closePanelWithBack}
                         >
                         <div
                             className={`bg-white rounded-xl border border-gray-200 shadow-xl p-4 sm:p-5 md:p-6 ${isDirectEditMode ? 'w-full max-w-lg mx-auto' : 'w-full max-w-lg max-h-[92vh] overflow-y-auto'}`}
@@ -669,7 +671,7 @@ const AddResult = () => {
                             {isDirectEditMode ? (
                                 <button
                                     type="button"
-                                    onClick={closePanel}
+                                    onClick={isDirectEditMode ? closePanel : closePanelWithBack}
                                     className="mt-3 sm:mt-4 w-full px-4 py-2.5 sm:py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg border border-gray-200 transition-colors text-sm sm:text-base"
                                 >
                                     Close
@@ -677,7 +679,7 @@ const AddResult = () => {
                             ) : (
                                 <button
                                     type="button"
-                                    onClick={closePanel}
+                                    onClick={isDirectEditMode ? closePanel : closePanelWithBack}
                                     className="mt-3 sm:mt-4 w-full px-4 py-2.5 sm:py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg border border-gray-200 transition-colors text-sm sm:text-base"
                                 >
                                     Close

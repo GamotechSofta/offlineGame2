@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
+import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -20,6 +21,11 @@ const DeclareConfirm = () => {
     const [secretPassword, setSecretPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
+    const closePasswordModal = useModalBackHandler(showPasswordModal, () => {
+        setShowPasswordModal(false);
+        setSecretPassword('');
+        setPasswordError('');
+    });
 
     useEffect(() => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
@@ -244,7 +250,7 @@ const DeclareConfirm = () => {
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => { setShowPasswordModal(false); setSecretPassword(''); setPasswordError(''); }}
+                                                onClick={closePasswordModal}
                                                 disabled={declaring}
                                                 className="px-4 py-3 min-h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg border border-gray-200 touch-manipulation"
                                             >
