@@ -253,8 +253,8 @@ const PaymentManagement = () => {
                         </span>
                     )}
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1 sm:max-w-[180px]">
+                <div className="flex items-end gap-3">
+                    <div className="flex-1">
                         <label className="block text-xs text-gray-500 mb-1">Status</label>
                         <select
                             value={filters.status}
@@ -268,7 +268,7 @@ const PaymentManagement = () => {
                             <option value="completed">Completed</option>
                         </select>
                     </div>
-                    <div className="flex-1 sm:max-w-[180px]">
+                    <div className="flex-1">
                         <label className="block text-xs text-gray-500 mb-1">Type</label>
                         <select
                             value={filters.type}
