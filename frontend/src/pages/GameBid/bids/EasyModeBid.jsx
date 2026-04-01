@@ -818,6 +818,23 @@ const EasyModeBid = ({
                                         {/* Mobile: keep list below on small screens */}
                                         {desktopSplit && <div className="md:hidden mt-4">{bidsList}</div>}
                                         {!desktopSplit && bidsList}
+
+                                        {/* Mobile: sticky submit for Single/Double Pana special mode */}
+                                        {showInlineSubmit && (specialModeType === 'singlePana' || specialModeType === 'doublePana') && (
+                                            <>
+                                                <div className="md:hidden fixed left-0 right-0 bottom-[88px] z-20 px-3 mb-3">
+                                                    <button
+                                                        type="button"
+                                                        disabled={!bids.length}
+                                                        onClick={handleSubmitFromSpecial}
+                                                        className={submitBtnClass(!!bids.length)}
+                                                    >
+                                                        Submit Bet
+                                                    </button>
+                                                </div>
+                                                <div className="md:hidden h-16" aria-hidden="true" />
+                                            </>
+                                        )}
                                     </div>
 
                                     {/* Desktop: list on right side */}
