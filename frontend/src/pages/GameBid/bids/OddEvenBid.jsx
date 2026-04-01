@@ -32,6 +32,7 @@ const OddEvenBid = ({ market, title }) => {
         } catch (e) {}
         setSelectedDate(newDate);
     };
+    const quickPointValues = [10, 20, 30, 40, 50];
 
     const showWarning = (msg) => {
         setWarning(msg);
@@ -76,7 +77,6 @@ const OddEvenBid = ({ market, title }) => {
     const dateText = new Date().toLocaleDateString('en-GB');
     const marketTitle = market?.gameName || market?.marketName || title;
     const isRunning = market?.status === 'running';
-    const sessionOptions = isRunning ? ['CLOSE'] : ['OPEN', 'CLOSE'];
 
     useEffect(() => {
         if (isRunning) setSession('CLOSE');
@@ -193,27 +193,28 @@ const OddEvenBid = ({ market, title }) => {
                         onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
                         className="w-full h-10 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full focus:outline-none focus:border-[#1B3150] px-4 text-sm font-semibold text-center min-w-0"
                     />
-                    <div className="relative shrink-0">
-                        <select
-                            value={session}
-                            onChange={(e) => setSession(e.target.value)}
-                            disabled={isRunning}
-                            className={`h-10 rounded-full border-2 border-gray-300 bg-white text-[#1B3150] font-bold text-[10px] sm:text-xs px-3 pr-7 focus:outline-none focus:border-[#1B3150] appearance-none ${
-                                isRunning ? 'opacity-60 cursor-not-allowed bg-gray-100' : ''
-                            }`}
+                    <button
+                        type="button"
+                        onClick={clearAll}
+                        className="h-10 px-4 rounded-lg border-2 border-gray-300 bg-white text-[#1B3150] text-sm font-semibold hover:border-[#1B3150] active:scale-95 shrink-0"
+                    >
+                        Clear
+                    </button>
+                </div>
+            </div>
+            <div className="flex items-center gap-3">
+                <label className="text-gray-700 text-sm font-medium shrink-0">Quick Points</label>
+                <div className="grid grid-cols-5 gap-2 flex-1 min-w-0">
+                    {quickPointValues.map((pts) => (
+                        <button
+                            key={pts}
+                            type="button"
+                            onClick={() => setInputPoints(String(pts))}
+                            className="h-10 rounded-lg border-2 border-gray-300 bg-white text-[#1B3150] text-sm font-semibold hover:border-[#1B3150] active:scale-95"
                         >
-                            {sessionOptions.map((opt) => (
-                                <option key={opt} value={opt}>
-                                    {opt}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-gray-500">
-                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
-                    </div>
+                            {pts}
+                        </button>
+                    ))}
                 </div>
             </div>
             <div className="flex gap-3">
@@ -298,6 +299,7 @@ const OddEvenBid = ({ market, title }) => {
             bidsCount={bids.length}
             totalPoints={totalPoints}
             showDateSession={true}
+            showSessionOnMobile={true}
             extraHeader={null}
             session={session}
             setSession={setSession}
