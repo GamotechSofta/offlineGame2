@@ -264,8 +264,7 @@ const JodiBulkBid = ({ market, title }) => {
             for (const r of DIGITS) {
                 for (const c of DIGITS) {
                     const key = `${r}${c}`;
-                    const cur = Number(next[key] || 0) || 0;
-                    next[key] = String(cur + p);
+                    next[key] = String(p);
                 }
             }
             return next;
@@ -368,27 +367,42 @@ const JodiBulkBid = ({ market, title }) => {
                         {warning}
                     </div>
                 )}
+                <div className="grid grid-cols-2 gap-1.5 md:gap-2 px-1 mb-3">
+                    <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                        <div className="text-[11px] text-gray-600 font-medium">Count</div>
+                        <div className="text-base font-bold text-[#1B3150] leading-tight">{rows.length}</div>
+                    </div>
+                    <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                        <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
+                        <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
+                    </div>
+                </div>
 
                 <div className="bg-transparent border-0 rounded-none p-0 md:bg-white md:border-2 md:border-gray-300 md:rounded-2xl md:p-3 overflow-hidden w-full pt-5">
-                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                        <span className="mr-1 text-xs sm:text-sm font-semibold text-gray-700">Quick Points</span>
-                        {QUICK_POINT_OPTIONS.map((pts) => (
-                            <button
-                                key={`jodi-quick-${pts}`}
-                                type="button"
-                                onClick={() => applyAllQuickPoints(pts)}
-                                className="h-7 px-2.5 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
-                            >
+                    <div className="mb-2">
+                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hidden whitespace-nowrap">
+                            <span className="mr-1 text-xs sm:text-sm font-semibold text-gray-700 shrink-0 leading-tight flex flex-col">
+                                <span>Quick</span>
+                                <span>Points</span>
+                            </span>
+                            {QUICK_POINT_OPTIONS.map((pts) => (
+                                <button
+                                    key={`jodi-quick-${pts}`}
+                                    type="button"
+                                    onClick={() => applyAllQuickPoints(pts)}
+                                    className="h-7 px-2.5 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors shrink-0"
+                                >
                                     {pts}
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={clearAll}
+                                className="ml-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 active:scale-[0.98] transition-all shrink-0"
+                            >
+                                Clear
                             </button>
-                        ))}
-                        <button
-                            type="button"
-                            onClick={clearAll}
-                            className="ml-auto px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 active:scale-[0.98] transition-all"
-                        >
-                            Clear
-                        </button>
+                        </div>
                     </div>
                     {/* Mobile now shows full 0-9 columns at once; no next/prev controls. */}
                     <div className="overflow-x-hidden scrollbar-hidden">
