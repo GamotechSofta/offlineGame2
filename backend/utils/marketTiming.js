@@ -1,8 +1,9 @@
 /**
  * Get market time boundaries in ms (IST). Used by isBettingAllowed and isBettingAllowedForSession.
- * @returns {{ openAt: number, lastBetAt: number, closeAt: number, startStr: string, closureSec: number } | null }}
+ * betClosureTime (seconds) is subtracted from BOTH opening and closing deadlines.
+ * @returns {{ openAt: number, closeAt: number, lastOpenBetAt: number, lastCloseBetAt: number, startStr: string, closureSec: number } | null }}
  */
-function getMarketTimeBounds(market, now = new Date()) {
+function getMarketTimeBounds(market, _now = new Date()) {
     const closeStr = (market?.closingTime || '').toString().trim();
     const betClosureSec = Number(market?.betClosureTime);
     const closureSec = Number.isFinite(betClosureSec) && betClosureSec >= 0 ? betClosureSec : 0;
@@ -27,15 +28,16 @@ function getMarketTimeBounds(market, now = new Date()) {
         }).format(baseDate);
         closeAt = parseISTDateTime(`${nextDayStr}T${normalizeTimeStr(closeStr)}+05:30`);
     }
-    const lastBetAt = closeAt - closureSec * 1000;
-    return { openAt, lastBetAt, closeAt, startStr, closureSec };
+    const closureMs = closureSec * 1000;
+    const lastOpenBetAt = openAt - closureMs;
+    const lastCloseBetAt = closeAt - closureMs;
+    return { openAt, closeAt, lastOpenBetAt, lastCloseBetAt, startStr, closureSec };
 }
 
 /**
  * Check if a specific session (open/close) can accept bets at the given time.
- * - Open bets: allowed only until opening time (e.g. 2pm). After opening time, no open bets.
- * - Close bets: allowed until closing time (e.g. 3pm), independent of opening time.
- *   Close bets can be placed anytime until closing time, not only after opening.
+ * - Open bets: allowed until (opening time − betClosureTime), inclusive; not after opening time.
+ * - Close bets: allowed until (closing time − betClosureTime), inclusive; independent of opening time.
  *
  * @param {Object} market - { startingTime, closingTime, betClosureTime }
  * @param {Date} [now]
@@ -47,12 +49,12 @@ export function isBettingAllowedForSession(market, now = new Date(), betOn = 'op
     if (!bounds) {
         return { allowed: false, message: 'Market timing not configured.' };
     }
-    const { openAt, lastBetAt, startStr, closureSec } = bounds;
+    const { openAt, lastOpenBetAt, lastCloseBetAt, startStr, closureSec } = bounds;
     const nowMs = now.getTime();
 
     if (betOn === 'close') {
         // Close bets: allowed until closing time only (independent of opening time)
-        if (nowMs > lastBetAt) {
+        if (nowMs > lastCloseBetAt) {
             return {
                 allowed: false,
                 message: `Betting closed. Closing time has passed. You can place close bets until ${closureSec > 0 ? 'the set closure time.' : 'closing time.'}`,
@@ -61,7 +63,7 @@ export function isBettingAllowedForSession(market, now = new Date(), betOn = 'op
         return { allowed: true };
     }
 
-    // Open bets: allowed only until opening time
+    // Open bets: until opening time, minus betClosureTime (no open bets in the last N seconds before opening)
     if (nowMs >= openAt) {
         const startTimeDisplay = startStr || '12:00 AM (midnight)';
         return {
@@ -69,7 +71,17 @@ export function isBettingAllowedForSession(market, now = new Date(), betOn = 'op
             message: `Betting closed. Opening time (${startTimeDisplay}) has passed. You can place open bets until the opening time. For close bets, select Close session.`,
         };
     }
-    if (nowMs > lastBetAt) {
+    if (nowMs > lastOpenBetAt) {
+        const startTimeDisplay = startStr || '12:00 AM (midnight)';
+        return {
+            allowed: false,
+            message:
+                closureSec > 0
+                    ? `Betting closed for Open session. Open bets stop ${closureSec}s before opening time (${startTimeDisplay}). Select Close session or try earlier.`
+                    : `Betting closed for Open session. Select Close session.`,
+        };
+    }
+    if (nowMs > lastCloseBetAt) {
         return {
             allowed: false,
             message: `Betting closed. Closing time has passed. You can place bets until ${closureSec > 0 ? 'the set closure time.' : 'closing time.'}`,
@@ -85,24 +97,25 @@ export function isBettingAllowedForSession(market, now = new Date(), betOn = 'op
  *
  * @param {Object} market - { startingTime, closingTime, betClosureTime }
  * @param {Date} [now] - current time (default: new Date())
- * @returns {{ allowed: boolean, message?: string }}
+ * @returns {{ allowed: boolean, closeOnly?: boolean, message?: string }}
  */
 export function isBettingAllowed(market, now = new Date()) {
     const bounds = getMarketTimeBounds(market, now);
     if (!bounds) {
         return { allowed: false, message: 'Market timing not configured.' };
     }
-    const { openAt, lastBetAt, startStr, closureSec } = bounds;
+    const { openAt, lastOpenBetAt, lastCloseBetAt } = bounds;
     const nowMs = now.getTime();
 
-    if (nowMs > lastBetAt) {
+    if (nowMs > lastCloseBetAt) {
         return {
             allowed: false,
-            message: `Betting closed. Closing time has passed. You can place bets until ${closureSec > 0 ? 'the set closure time.' : 'closing time.'}`,
+            message: `Betting closed. Closing time has passed. You can place bets until ${bounds.closureSec > 0 ? 'the set closure time.' : 'closing time.'}`,
         };
     }
-    if (nowMs >= openAt) {
-        return { allowed: true };
+    const canPlaceOpen = nowMs < openAt && nowMs <= lastOpenBetAt;
+    if (!canPlaceOpen) {
+        return { allowed: true, closeOnly: true };
     }
     return { allowed: true };
 }

@@ -137,6 +137,15 @@ const Dashboard = () => {
     const [customMode, setCustomMode] = useState(false);
     const [customOpen, setCustomOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [markets, setMarkets] = useState([]);
+    const [selectedMarketId, setSelectedMarketId] = useState('all');
+    const [topWalletPlayers, setTopWalletPlayers] = useState([]);
+    const [marketReport, setMarketReport] = useState({
+        totalBetAmount: 0,
+        totalPayout: 0,
+        pendingAmount: 0,
+        netProfit: 0,
+    });
 
     const PRESETS = getPresets(t);
 
@@ -165,7 +174,47 @@ const Dashboard = () => {
     useEffect(() => {
         fetchDashboardStats();
         refreshBookieProfile();
+        fetchMarkets();
     }, []);
+
+    const fetchMarkets = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/markets/get-markets?marketType=main`, {
+                headers: getBookieAuthHeaders(),
+            });
+            const data = await res.json();
+            if (data?.success) setMarkets(Array.isArray(data.data) ? data.data : []);
+        } catch (_) {
+            setMarkets([]);
+        }
+    };
+
+    const fetchMarketReport = async (rangeOverride, marketIdOverride) => {
+        try {
+            const { from, to } = rangeOverride || getFromTo();
+            const marketId = marketIdOverride ?? selectedMarketId;
+            const params = new URLSearchParams();
+            if (from) params.set('startDate', from);
+            if (to) params.set('endDate', to);
+            if (marketId && marketId !== 'all') params.set('marketId', marketId);
+            const res = await fetch(`${API_BASE_URL}/bets/history?${params.toString()}`, {
+                headers: getBookieAuthHeaders(),
+            });
+            const data = await res.json();
+            const rows = data?.success && Array.isArray(data?.data) ? data.data : [];
+            const totalBetAmount = rows.reduce((s, b) => s + (Number(b?.amount) || 0), 0);
+            const totalPayout = rows
+                .filter((b) => String(b?.status || '').toLowerCase() === 'won')
+                .reduce((s, b) => s + (Number(b?.payout) || 0), 0);
+            const pendingAmount = rows
+                .filter((b) => String(b?.status || '').toLowerCase() === 'pending')
+                .reduce((s, b) => s + (Number(b?.amount) || 0), 0);
+            const netProfit = totalBetAmount - totalPayout;
+            setMarketReport({ totalBetAmount, totalPayout, pendingAmount, netProfit });
+        } catch (_) {
+            setMarketReport({ totalBetAmount: 0, totalPayout: 0, pendingAmount: 0, netProfit: 0 });
+        }
+    };
 
     const fetchDashboardStats = async (rangeOverride, options = {}) => {
         const isRefresh = options.refresh === true;
@@ -183,13 +232,28 @@ const Dashboard = () => {
             if (isRefresh) params.set('_', String(Date.now()));
             const query = params.toString();
             const url = `${API_BASE_URL}/dashboard/stats${query ? `?${query}` : ''}`;
-            const response = await fetch(url, {
-                headers: getBookieAuthHeaders(),
-                cache: isRefresh ? 'no-store' : 'default',
-            });
-            const data = await response.json();
-            if (data.success) setStats(data.data);
-            else setError(data.message || 'Failed to fetch dashboard stats');
+            const headers = getBookieAuthHeaders();
+            const [statsRes, usersRes] = await Promise.all([
+                fetch(url, {
+                    headers,
+                    cache: isRefresh ? 'no-store' : 'default',
+                }),
+                fetch(`${API_BASE_URL}/users`, {
+                    headers,
+                    cache: isRefresh ? 'no-store' : 'default',
+                }),
+            ]);
+            const [statsData, usersData] = await Promise.all([statsRes.json(), usersRes.json()]);
+            if (statsData.success) {
+                setStats(statsData.data);
+                const allUsers = usersData?.success && Array.isArray(usersData?.data) ? usersData.data : [];
+                const topPlayers = [...allUsers]
+                    .sort((a, b) => (Number(b?.walletBalance ?? 0) || 0) - (Number(a?.walletBalance ?? 0) || 0))
+                    .slice(0, 3);
+                setTopWalletPlayers(topPlayers);
+                await fetchMarketReport(rangeOverride);
+            }
+            else setError(statsData.message || 'Failed to fetch dashboard stats');
         } catch (err) {
             setError(t('error') + ': Network error. Please check if the server is running.');
         } finally {
@@ -223,6 +287,9 @@ const Dashboard = () => {
     const pendingWithdrawals = stats?.payments?.pendingWithdrawals ?? 0;
     const helpDeskOpen = stats?.helpDesk?.open || 0;
     const hasActionRequired = pendingPayments > 0 || helpDeskOpen > 0;
+    const toReceived = Number(stats?.toTake || 0);
+    const toGive = Number(stats?.toGive || 0);
+    const computedTotalProfit = (Number(marketReport.netProfit) || 0) + (toReceived - toGive);
 
     if (loading) {
         return (
@@ -352,31 +419,54 @@ const Dashboard = () => {
                 </div>
             )}
 
-            {/* Primary KPIs - Related Financial Metrics */}
+            {/* Market Wise Report */}
+            <div className="mb-4 bg-white rounded-xl p-4 border border-gray-200">
+                <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider">Market Wise Report</p>
+                    <select
+                        value={selectedMarketId}
+                        onChange={(e) => {
+                            const mid = e.target.value;
+                            setSelectedMarketId(mid);
+                            fetchMarketReport(undefined, mid);
+                        }}
+                        className="px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/30"
+                    >
+                        <option value="all">All Markets</option>
+                        {markets.map((m) => (
+                            <option key={m._id || m.id} value={m._id || m.id}>
+                                {m.marketName}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* Primary KPIs - Market Report */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetAmount')}</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(stats?.revenue?.total || 0)}</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(marketReport.totalBetAmount || 0)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('totalBetAmountDescription')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toReceived')}</p>
-                    <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(stats?.toTake || 0)}</p>
+                    <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(toReceived)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('moneyToTakeFromPlayers')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toGive')}</p>
-                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.toGive || 0)}</p>
+                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(toGive)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('moneyToGiveToPlayers')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-[#1B3150]/5 to-transparent rounded-xl p-5 border border-[#1B3150]/20">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('pending')}</p>
-                    <p className="text-2xl font-bold text-[#1B3150] font-mono">{formatCurrency(stats?.pending || 0)}</p>
+                    <p className="text-2xl font-bold text-[#1B3150] font-mono">{formatCurrency(marketReport.pendingAmount || 0)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('pendingBetsAmount')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalProfit')}</p>
-                    <p className="text-2xl font-bold text-purple-600 font-mono">{formatCurrency(stats?.totalProfit || 0)}</p>
+                    <p className="text-2xl font-bold text-purple-600 font-mono">{formatCurrency(computedTotalProfit)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('totalProfitDescription')}</p>
                 </div>
             </div>
@@ -416,22 +506,19 @@ const Dashboard = () => {
                 </SectionCard>
 
                 {/* Wallet */}
-                <SectionCard title={t('walletBalance')} description={t('allPlayersCombined')} icon={FaWallet} linkTo="/wallet" linkLabel={t('wallet')} t={t}>
-                    <StatRow label={t('totalBalance')} value={formatCurrency(stats?.wallet?.totalBalance)} colorClass="text-green-600" />
-                    <StatRow label={t('toGiveWallet')} value={formatCurrency(stats?.wallet?.toGive)} colorClass="text-blue-600" />
-                    <StatRow label={t('toReceiveWallet')} value={formatCurrency(stats?.wallet?.toReceive)} colorClass="text-red-600" />
-                </SectionCard>
-
-                {/* To Give & To Take */}
-                <SectionCard title={`${t('toGive')} & ${t('toTake')}`} description={t('separateTracking')} icon={FaMoneyBillWave} linkTo="/my-users" linkLabel={t('myPlayers')} t={t}>
-                    <StatRow label={t('toGive')} value={formatCurrency(stats?.toGive || 0)} colorClass="text-blue-600" />
-                    <StatRow label={t('toTake')} value={formatCurrency(stats?.toTake || 0)} colorClass="text-red-600" />
-                </SectionCard>
-
-                {/* Advance & Loss */}
-                <SectionCard title={t('advanceAndLoss')} description={t('allTimeTotals')} icon={FaMoneyBillWave} linkTo="/reports" linkLabel={t('report')} t={t}>
-                    <StatRow label={t('totalAdvance')} value={formatCurrency(stats?.advance)} colorClass="text-purple-600" />
-                    <StatRow label={t('totalLoss')} value={formatCurrency(stats?.loss)} colorClass="text-red-600" />
+                <SectionCard title={t('walletBalance')} description="Top 3 players with highest wallet balance" icon={FaWallet} linkTo="/my-users" linkLabel={t('allPlayers')} t={t}>
+                    {topWalletPlayers.length > 0 ? (
+                        topWalletPlayers.map((player, idx) => (
+                            <StatRow
+                                key={player?._id || `${player?.username || 'player'}-${idx}`}
+                                label={`#${idx + 1} ${player?.username || player?.phone || 'Player'}`}
+                                value={formatCurrency(Number(player?.walletBalance ?? 0) || 0)}
+                                colorClass={idx === 0 ? 'text-green-600' : idx === 1 ? 'text-blue-600' : 'text-purple-600'}
+                            />
+                        ))
+                    ) : (
+                        <p className="text-sm text-gray-500 py-2">No players found.</p>
+                    )}
                 </SectionCard>
 
                 {/* Help Desk */}
