@@ -363,8 +363,54 @@ const AddResult = () => {
                         ) : markets.length === 0 ? (
                             <div className="text-center py-8 sm:py-12 text-gray-400 text-xs sm:text-sm md:text-base rounded-xl border border-gray-200 bg-white">No markets found.</div>
                         ) : (
-                            <div className="overflow-x-auto -mx-2 sm:mx-0 rounded-lg sm:rounded-xl border border-gray-200 bg-white shadow-lg overscroll-x-contain touch-pan-x">
-                                <table className="w-full border-collapse text-[11px] sm:text-xs md:text-sm lg:text-base min-w-[380px] sm:min-w-[520px]">
+                            <div className="rounded-lg sm:rounded-xl border border-gray-200 bg-white shadow-lg">
+                                {/* Mobile: card list (no horizontal scroll) */}
+                                <div className="md:hidden divide-y divide-gray-200">
+                                    {markets.map((market) => {
+                                        const hasOpen = market.openingNumber && /^\d{3}$/.test(market.openingNumber);
+                                        const hasClose = market.closingNumber && /^\d{3}$/.test(market.closingNumber);
+                                        const isClosed = hasOpen && hasClose;
+                                        const isPendingResult = mainPendingList.some((m) => String(m._id) === String(market._id) || m.marketName === market.marketName);
+                                        const timeline = `${formatTime(market.startingTime)} - ${formatTime(market.closingTime)}`;
+                                        const resultDisplay = market.displayResult || '***-**-***';
+                                        return (
+                                            <div key={market._id} className={`p-3 ${isPendingResult ? 'bg-orange-500/5' : ''}`}>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="font-semibold text-gray-800 truncate">{market.marketName}</div>
+                                                    {isClosed && (
+                                                        <span className="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-600 text-gray-800">Closed</span>
+                                                    )}
+                                                </div>
+                                                <div className="mt-1 text-xs text-gray-600">{timeline}</div>
+                                                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                                                    <div className="rounded bg-gray-50 p-2">
+                                                        <div className="text-gray-500">Result</div>
+                                                        <div className="font-mono text-orange-500">{resultDisplay}</div>
+                                                    </div>
+                                                    <div className="rounded bg-gray-50 p-2">
+                                                        <div className="text-gray-500">Open</div>
+                                                        <div className="font-mono text-orange-500">{hasOpen ? market.openingNumber : '—'}</div>
+                                                    </div>
+                                                    <div className="rounded bg-gray-50 p-2">
+                                                        <div className="text-gray-500">Close</div>
+                                                        <div className="font-mono text-orange-500">{hasClose ? market.closingNumber : '—'}</div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openPanelForEdit(market)}
+                                                    className="mt-3 w-full px-3 py-2 bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold rounded-lg transition-colors text-sm"
+                                                >
+                                                    Edit Result
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Desktop/tablet: table */}
+                                <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full border-collapse text-[11px] sm:text-xs md:text-sm lg:text-base">
                                     <thead>
                                         <tr className="border-b border-gray-200">
                                             <th className="text-left py-2 sm:py-3 px-1.5 sm:px-3 md:px-4 font-semibold text-orange-500 bg-white whitespace-nowrap">Market</th>
@@ -424,14 +470,28 @@ const AddResult = () => {
                                         })}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         )}
                     </div>
                     )}
 
-                    {/* Right: Edit Result panel - only for regular markets on Regular tab */}
+                    {/* Edit Result panel:
+                        - direct mode: inline card
+                        - list mode (Edit Result click): popup modal */}
                     {selectedMarket && (
-                        <div className={`bg-white rounded-xl border border-gray-200 shadow-xl p-4 sm:p-5 md:p-6 ${isDirectEditMode ? 'w-full max-w-lg mx-auto' : 'w-full xl:w-[380px] xl:max-w-[400px] xl:shrink-0'}`}>
+                        <div
+                            className={
+                                isDirectEditMode
+                                    ? 'w-full xl:w-[380px] xl:max-w-[400px] xl:shrink-0'
+                                    : 'fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-3 sm:p-4'
+                            }
+                            onClick={isDirectEditMode ? undefined : closePanel}
+                        >
+                        <div
+                            className={`bg-white rounded-xl border border-gray-200 shadow-xl p-4 sm:p-5 md:p-6 ${isDirectEditMode ? 'w-full max-w-lg mx-auto' : 'w-full max-w-lg max-h-[92vh] overflow-y-auto'}`}
+                            onClick={isDirectEditMode ? undefined : (e) => e.stopPropagation()}
+                        >
                             <h2 className="text-lg sm:text-xl font-bold text-orange-500 mb-1 border-b border-gray-200 pb-2 truncate" title={selectedMarket.marketName}>
                                 {selectedMarket.marketName}
                             </h2>
@@ -608,6 +668,7 @@ const AddResult = () => {
                                     Close
                                 </button>
                             )}
+                        </div>
                         </div>
                     )}
                 </div>

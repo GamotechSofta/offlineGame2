@@ -210,9 +210,8 @@ const AllUsers = () => {
     const filteredList = q
         ? list.filter((item) => {
             const username = (item.username || '').toLowerCase();
-            const email = (item.email || '').toLowerCase();
             const phone = (item.phone || '').toString();
-            return username.includes(q) || email.includes(q) || phone.includes(q);
+            return username.includes(q) || phone.includes(q);
         })
         : list;
 
@@ -277,7 +276,7 @@ const AllUsers = () => {
                     <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                     <input
                         type="text"
-                        placeholder="Search by name, email or phone..."
+                        placeholder="Search by name or phone..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className={`w-full pl-10 py-2.5 bg-gray-100/80 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all text-sm sm:text-base ${searchQuery ? 'pr-10' : 'pr-4'}`}
@@ -327,7 +326,6 @@ const AllUsers = () => {
                                     <tr>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider w-10">#</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Username</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Email</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider hidden lg:table-cell">Phone</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider hidden lg:table-cell">Created</th>
@@ -343,7 +341,6 @@ const AllUsers = () => {
                                                 <tr className="hover:bg-gray-100/30 transition-colors">
                                                     <td className="px-4 py-3 text-gray-400">{index + 1}</td>
                                                     <td className="px-4 py-3 font-medium text-gray-800">{bookie.username}</td>
-                                                    <td className="px-4 py-3 text-gray-600 truncate max-w-[140px] lg:max-w-[180px]">{bookie.email || '—'}</td>
                                                     <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">{bookie.phone || '—'}</td>
                                                     <td className="px-4 py-3">
                                                         <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${
@@ -383,7 +380,7 @@ const AllUsers = () => {
                                                 </tr>
                                                 {isExpanded && (
                                                     <tr>
-                                                        <td colSpan="7" className="px-0 py-0 bg-gray-50/30">
+                                                        <td colSpan="6" className="px-0 py-0 bg-gray-50/30">
                                                             <div className="px-6 py-4 sm:py-5 border-l-4 border-orange-500 ml-4 sm:ml-6">
                                                                 <p className="text-orange-500 font-semibold mb-3 text-sm">
                                                                     Players under <span className="text-gray-800">{bookie.username}</span>
@@ -397,7 +394,6 @@ const AllUsers = () => {
                                                                                 <tr>
                                                                                     <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase w-10">#</th>
                                                                                     <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Name</th>
-                                                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
                                                                                     <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase hidden lg:table-cell">Phone</th>
                                                                                     <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
                                                                                     <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Wallet</th>
@@ -413,7 +409,6 @@ const AllUsers = () => {
                                                                                         <td className="px-4 py-2.5 font-medium">
                                                                                             <Link to={`/all-users/${u._id}`} className="text-orange-500 hover:text-orange-600 hover:underline">{u.username}</Link>
                                                                                         </td>
-                                                                                        <td className="px-4 py-2.5 text-gray-600 truncate max-w-[120px] lg:max-w-[160px]">{u.email || '—'}</td>
                                                                                         <td className="px-4 py-2.5 text-gray-600 hidden lg:table-cell">{u.phone || '—'}</td>
                                                                                         <td className="px-4 py-2.5">
                                                                                             {(() => {
@@ -470,11 +465,11 @@ const AllUsers = () => {
                                 const bookieUsers = getUsersForBookie(bookie._id);
                                 const isExpanded = expandedBookieId === bookie._id;
                                 return (
-                                    <div key={bookie._id} className="p-4 hover:bg-gray-100/20 transition-colors">
-                                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                                    <div key={bookie._id} className="p-3 sm:p-4 hover:bg-gray-100/20 transition-colors">
+                                        <div className="flex flex-col gap-2 mb-2">
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <span className="text-gray-400 text-sm shrink-0">{index + 1}.</span>
-                                                <span className="font-semibold text-gray-800 truncate">{bookie.username}</span>
+                                                <span className="font-semibold text-gray-800 truncate flex-1 min-w-0">{bookie.username}</span>
                                                 <span className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-medium ${
                                                     bookie.status === 'active'
                                                         ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
@@ -483,12 +478,12 @@ const AllUsers = () => {
                                                     {bookie.status === 'active' ? 'Active' : 'Suspended'}
                                                 </span>
                                             </div>
-                                            <div className="flex flex-wrap gap-2 shrink-0">
+                                            <div className="grid grid-cols-2 gap-2 w-full">
                                                 <button
                                                     type="button"
                                                     onClick={() => handleToggleBookieStatus(bookie._id)}
                                                     disabled={togglingId === bookie._id}
-                                                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50 ${
+                                                    className={`inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 ${
                                                         bookie.status === 'active'
                                                             ? 'bg-rose-600 hover:bg-rose-500 text-white'
                                                             : 'bg-emerald-600 hover:bg-emerald-500 text-white'
@@ -499,14 +494,13 @@ const AllUsers = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => setExpandedBookieId(isExpanded ? null : bookie._id)}
-                                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500/90 hover:bg-orange-500 text-gray-800"
+                                                    className="px-3 py-2 rounded-lg text-xs font-semibold bg-orange-500/90 hover:bg-orange-500 text-gray-800"
                                                 >
                                                     {isExpanded ? 'Hide' : 'View'} Players
                                                 </button>
                                             </div>
                                         </div>
                                         <div className="text-xs text-gray-400 space-y-0.5">
-                                            {bookie.email && <p className="truncate">📧 {bookie.email}</p>}
                                             {bookie.phone && <p>📱 {bookie.phone}</p>}
                                             <p>{bookie.createdAt ? new Date(bookie.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}</p>
                                         </div>
@@ -518,8 +512,8 @@ const AllUsers = () => {
                                                 ) : (
                                                     bookieUsers.map((u, i) => (
                                                         <div key={u._id} className="p-3 rounded-lg bg-white border border-gray-200">
-                                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                                                                <Link to={`/all-users/${u._id}`} className="font-medium text-orange-500 hover:text-orange-600 hover:underline text-sm">{u.username}</Link>
+                                                            <div className="flex flex-col gap-2 mb-1.5">
+                                                                <Link to={`/all-users/${u._id}`} className="font-medium text-orange-500 hover:text-orange-600 hover:underline text-sm truncate">{u.username}</Link>
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border ${computeIsOnline(u) ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
                                                                         <span className={`w-1.5 h-1.5 rounded-full ${computeIsOnline(u) ? 'bg-emerald-500' : 'bg-slate-500'}`} />
@@ -530,14 +524,13 @@ const AllUsers = () => {
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                            <p className="text-gray-400 text-xs truncate mb-2">{u.email || '—'}</p>
-                                                            <div className="flex items-center justify-between text-xs">
+                                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
                                                                 <span className="text-green-600 font-mono">₹{Number(u.walletBalance ?? 0).toLocaleString('en-IN')}</span>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleTogglePlayerStatus(u._id)}
                                                                     disabled={togglingId === u._id}
-                                                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold disabled:opacity-50 ${
+                                                                    className={`inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-semibold disabled:opacity-50 ${
                                                                         u.isActive !== false ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
                                                                     }`}
                                                                 >
@@ -571,10 +564,9 @@ const AllUsers = () => {
                                 <tr>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase w-8">#</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Name</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Email</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Phone</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Role</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Wallet</th>
+                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Role</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Account</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Created</th>
@@ -592,23 +584,22 @@ const AllUsers = () => {
                                                 <span className="text-gray-800 truncate block max-w-[120px]">{item.username}</span>
                                             )}
                                         </td>
-                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600 truncate max-w-[140px]">{item.email || '—'}</td>
                                         <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{item.phone || '—'}</td>
-                                        <td className="px-2 sm:px-3 py-2 sm:py-3">
-                                            {(activeTab === 'super_admins') ? (
-                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700">Super Admin</span>
-                                            ) : (
-                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700 capitalize">
-                                                    {item.role === 'user' ? 'Player' : (item.role || 'Player')}
-                                                </span>
-                                            )}
-                                        </td>
                                         <td className="px-2 sm:px-3 py-2 sm:py-3">
                                             {(activeTab === 'super_admins') ? (
                                                 <span className="text-gray-400">—</span>
                                             ) : (
                                                 <span className="font-mono font-medium text-green-600 text-xs sm:text-sm">
                                                     ₹{Number(item.walletBalance ?? 0).toLocaleString('en-IN')}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3">
+                                            {(activeTab === 'super_admins') ? (
+                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700">Super Admin</span>
+                                            ) : (
+                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700 capitalize">
+                                                    {item.role === 'user' ? 'Player' : (item.role || 'Player')}
                                                 </span>
                                             )}
                                         </td>

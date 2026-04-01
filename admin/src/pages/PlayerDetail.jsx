@@ -7,7 +7,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const TABS = [
-    { id: 'statement', label: 'Account Statement' },
     { id: 'wallet', label: 'Wallet Statement' },
     { id: 'bets', label: 'Bet History' },
     { id: 'profile', label: 'Profile' },
@@ -74,7 +73,7 @@ const PlayerDetail = () => {
     const { userId } = useParams();
     const navigate = useNavigate();
     const [player, setPlayer] = useState(null);
-    const [activeTab, setActiveTab] = useState('statement');
+    const [activeTab, setActiveTab] = useState('wallet');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [statementFrom, setStatementFrom] = useState('');
@@ -886,7 +885,7 @@ const PlayerDetail = () => {
                                 {walletTx.map((t) => (
                                     <div key={t._id} className="p-4 hover:bg-gray-100/20 flex flex-wrap items-center justify-between gap-3">
                                         <div className="min-w-0 flex-1">
-                                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium mr-2 ${t.type === 'credit' ? 'bg-green-900/50 text-green-600' : 'bg-red-50 text-red-500'}`}>{t.type}</span>
+                                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium mr-2 border ${t.type === 'credit' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-rose-100 text-rose-700 border-rose-300'}`}>{t.type}</span>
                                             <span className="text-gray-600 text-sm break-words">{t.description || '—'}</span>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
@@ -945,22 +944,22 @@ const PlayerDetail = () => {
             {/* Edit Wallet Modal */}
             {walletModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-orange-500">Edit Wallet</h3>
+                            <h3 className="text-base sm:text-lg font-semibold text-orange-500">Edit Wallet</h3>
                             <button type="button" onClick={() => setWalletModalOpen(false)} className="text-gray-400 hover:text-gray-800 p-1">×</button>
                         </div>
                         <div className="p-4 space-y-4">
                             <div className="rounded-lg bg-gray-50 px-3 py-2">
                                 <p className="text-gray-400 text-xs uppercase tracking-wider">Current Balance</p>
-                                <p className="text-green-600 font-mono font-bold text-xl">{formatCurrency(player?.walletBalance ?? 0)}</p>
+                                <p className="text-green-600 font-mono font-bold text-lg sm:text-xl break-all">{formatCurrency(player?.walletBalance ?? 0)}</p>
                             </div>
                             {walletActionError && (
                                 <div className="rounded-lg bg-red-900/30 border border-red-600/50 text-red-600 text-sm px-3 py-2">{walletActionError}</div>
                             )}
                             <div>
                                 <p className="text-gray-400 text-sm mb-2">Add (Credit) or Deduct (Debit)</p>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                     <input
                                         type="number"
                                         min="0"
@@ -968,10 +967,12 @@ const PlayerDetail = () => {
                                         placeholder="Amount"
                                         value={walletAdjustAmount}
                                         onChange={(e) => setWalletAdjustAmount(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                                        className="flex-1 px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400"
+                                        className="w-full sm:flex-1 px-3 py-2.5 rounded-lg bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400"
                                     />
-                                    <button type="button" onClick={() => handleWalletAdjust('credit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-gray-800 font-semibold disabled:opacity-50">Add</button>
-                                    <button type="button" onClick={() => handleWalletAdjust('debit')} disabled={walletActionLoading} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-gray-800 font-semibold disabled:opacity-50">Deduct</button>
+                                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                                        <button type="button" onClick={() => handleWalletAdjust('credit')} disabled={walletActionLoading} className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold disabled:opacity-50">Add</button>
+                                        <button type="button" onClick={() => handleWalletAdjust('debit')} disabled={walletActionLoading} className="px-4 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold disabled:opacity-50">Deduct</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
