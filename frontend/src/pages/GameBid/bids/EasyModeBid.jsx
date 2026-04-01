@@ -677,9 +677,9 @@ const EasyModeBid = ({
                                         </div>
                                     ))}
                                 </div>
-                                {/* Mobile: Submit button for special mode */}
+                                {/* Mobile: sticky Submit button for special mode */}
                                 {showInlineSubmit && (
-                                    <div className="md:hidden mt-4">
+                                    <div className="md:hidden fixed left-0 right-0 bottom-[88px] z-20 px-3">
                                         {(() => {
                                             const enabled = bids.length > 0 || Object.values(specialInputs).some((v) => Number(v) > 0);
                                             const disabled = bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0);
@@ -695,6 +695,9 @@ const EasyModeBid = ({
                                             );
                                         })()}
                                     </div>
+                                )}
+                                {showInlineSubmit && (
+                                    <div className="md:hidden h-15" aria-hidden="true" />
                                 )}
                             </>
                         ) : (specialModeType === 'doublePana' || specialModeType === 'singlePana') && validPanasForSumMode.length > 0 ? (
