@@ -543,8 +543,8 @@ const PlayerDetail = () => {
                             disabled={togglingStatus || deletingPlayer}
                             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                 player.isActive !== false
-                                    ? 'bg-red-600 hover:bg-red-500 text-gray-800'
-                                    : 'bg-green-600 hover:bg-green-500 text-gray-800'
+                                    ? 'bg-rose-600 hover:bg-rose-500 text-white'
+                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                             }`}
                         >
                             {togglingStatus ? (
@@ -558,7 +558,7 @@ const PlayerDetail = () => {
                         <button
                             type="button"
                             onClick={() => { setWalletModalOpen(true); setWalletActionError(''); setWalletAdjustAmount(''); setWalletSetBalance(''); }}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-green-700 hover:bg-green-600 text-gray-800 transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white transition-colors"
                             title="Edit wallet"
                         >
                             <FaWallet className="w-4 h-4" /> Edit Wallet
@@ -641,7 +641,7 @@ const PlayerDetail = () => {
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Status</p>
-                            <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${player.isActive !== false ? 'bg-green-900/50 text-green-600 border border-green-700' : 'bg-red-50 text-red-500 border border-red-200'}`}>
+                            <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium border ${player.isActive !== false ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-rose-100 text-rose-700 border-rose-300'}`}>
                                 {player.isActive !== false ? 'ALLOW' : 'SUSPENDED'}
                             </span>
                         </div>

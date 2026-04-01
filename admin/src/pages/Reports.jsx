@@ -20,6 +20,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010
 import { getAuthHeaders, clearAdminSession } from '../lib/auth';
 
 const PRESETS = [
+    { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
     { id: 'today', label: 'Today', getRange: () => {
         const d = new Date();
         const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
@@ -84,6 +85,7 @@ const formatNumber = (n) => {
 };
 
 const formatRangeLabel = (from, to) => {
+    if (!from && !to) return 'All Time';
     if (!from || !to) return 'Select dates';
     if (from === to) {
         const d = new Date(from + 'T12:00:00');

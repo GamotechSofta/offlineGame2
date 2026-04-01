@@ -19,6 +19,7 @@ import { getAuthHeaders, clearAdminSession } from '../lib/auth';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
 const PRESETS = [
+    { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
     { id: 'today', label: 'Today', getRange: () => {
         const d = new Date();
         const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
