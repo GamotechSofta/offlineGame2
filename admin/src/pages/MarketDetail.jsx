@@ -21,6 +21,65 @@ const formatTime = (timeStr) => {
 
 const formatNum = (n) => (n != null && Number.isFinite(n) ? Number(n).toLocaleString('en-IN') : '0');
 
+/** Merge two single-digit stat blocks (open + close sessions). */
+const mergeSingleDigitBlocks = (a = {}, b = {}) => {
+    const digits = {};
+    const take = (src) => {
+        const dg = (src && src.digits) || {};
+        for (const k of Object.keys(dg)) {
+            if (!digits[k]) digits[k] = { amount: 0, count: 0 };
+            digits[k].amount += Number(dg[k]?.amount || 0);
+            digits[k].count += Number(dg[k]?.count || 0);
+        }
+    };
+    take(a);
+    take(b);
+    let totalAmount = 0;
+    let totalBets = 0;
+    Object.values(digits).forEach((x) => {
+        totalAmount += x.amount;
+        totalBets += x.count;
+    });
+    return { digits, totalAmount, totalBets };
+};
+
+/** Merge two { items: { key: { amount, count } } } stat blocks; recomputes totals. */
+const mergeItemsBlocks = (a = {}, b = {}) => {
+    const items = {};
+    const take = (src) => {
+        const it = (src && src.items) || {};
+        for (const k of Object.keys(it)) {
+            if (!items[k]) items[k] = { amount: 0, count: 0 };
+            items[k].amount += Number(it[k]?.amount || 0);
+            items[k].count += Number(it[k]?.count || 0);
+        }
+    };
+    take(a);
+    take(b);
+    let totalAmount = 0;
+    let totalBets = 0;
+    Object.values(items).forEach((x) => {
+        totalAmount += x.amount;
+        totalBets += x.count;
+    });
+    return { items, totalAmount, totalBets };
+};
+
+/** Combined open + close session aggregates for “All bets” view. */
+const mergeSessionStatsForView = (open, close) => {
+    const o = open || {};
+    const c = close || {};
+    return {
+        singleDigit: mergeSingleDigitBlocks(o.singleDigit, c.singleDigit),
+        jodi: mergeItemsBlocks(o.jodi, c.jodi),
+        singlePatti: mergeItemsBlocks(o.singlePatti, c.singlePatti),
+        doublePatti: mergeItemsBlocks(o.doublePatti, c.doublePatti),
+        triplePatti: mergeItemsBlocks(o.triplePatti, c.triplePatti),
+        halfSangam: mergeItemsBlocks(o.halfSangam, c.halfSangam),
+        fullSangam: mergeItemsBlocks(o.fullSangam, c.fullSangam),
+    };
+};
+
 /** Display label for bet type (super admin panel) */
 const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common', 'dp-common': 'DP Common' }[String(t || '').toLowerCase()] || (t ? String(t).toUpperCase() : 'N/A'));
 
@@ -1040,7 +1099,7 @@ const MarketDetail = () => {
     const [allBets, setAllBets] = useState(null);
     const [loadingBets, setLoadingBets] = useState(false);
     const [rates, setRates] = useState(null);
-    /** 'open' | 'closed' – view only open bets or only closed bets */
+    /** 'open' | 'closed' | 'all' – open only, close only, or combined */
     const [statusView, setStatusView] = useState('open');
     const initialStatusSetForMarketId = React.useRef(null);
 
@@ -1193,13 +1252,26 @@ const MarketDetail = () => {
     // Session-aware view stats (new API returns bySession.open/close; fallback to overall stats).
     const statsOpen = data?.bySession?.open || data;
     const statsClose = data?.bySession?.close || data;
-    const viewStats = statusView === 'open' ? statsOpen : statsClose;
-    const effectiveView = statusView; // Alias for clarity in JSX
+    const splitSessions =
+        data?.bySession != null && data.bySession.open != null && data.bySession.close != null;
+    const viewStats =
+        statusView === 'open'
+            ? statsOpen
+            : statusView === 'closed'
+              ? statsClose
+              : splitSessions
+                ? mergeSessionStatsForView(data.bySession.open, data.bySession.close)
+                : data;
 
     const viewSinglePattiItems = viewStats?.singlePatti?.items || {};
     const viewDoublePattiItems = viewStats?.doublePatti?.items || {};
 
-    const sessionBetsForView = statusView === 'open' ? allBets?.open : allBets?.close;
+    const sessionBetsForView =
+        statusView === 'open'
+            ? allBets?.open || []
+            : statusView === 'closed'
+              ? allBets?.close || []
+              : [...(allBets?.open || []), ...(allBets?.close || [])];
 
     // View-dependent: SP/DP Common merged into the same per-patti rows as the user chart (3-digit on that patti; legacy 1-digit spread).
     const singlePattiByAnkForView = useMemo(
@@ -1303,18 +1375,27 @@ const MarketDetail = () => {
         (halfSangam?.totalBets ?? 0) +
         (fullSangam?.totalBets ?? 0);
 
-    // Section data by view (Open/Closed): show session-specific bets in all sections
+    // Section data by view (Open/Closed/All): show session-specific or merged bets in all sections
     const singleDigitDisplay = viewStats?.singleDigit || { digits: {}, totalAmount: 0, totalBets: 0 };
-    // Jodi + Full Sangam should show in both views, but are always "close" category.
-    // Do NOT include them in Open totals (openTotalAmount/openTotalBets remain unchanged).
-    const jodiDisplay = statsClose?.jodi || { items: {}, totalAmount: 0, totalBets: 0 };
+    const jodiDisplay =
+        statusView === 'all' && splitSessions
+            ? mergeItemsBlocks(data.bySession.open?.jodi, data.bySession.close?.jodi)
+            : statsClose?.jodi || { items: {}, totalAmount: 0, totalBets: 0 };
     const triplePattiDisplay = viewStats?.triplePatti || { items: {}, totalAmount: 0, totalBets: 0 };
-    // Half Sangam is calculated only for "Closed bets only" view.
-    // Prefer close-session aggregate; fallback to open aggregate for legacy data.
-    const halfSangamDisplay = effectiveView === 'closed'
-        ? (statsClose?.halfSangam?.totalBets ? statsClose.halfSangam : (statsOpen?.halfSangam || { items: {}, totalAmount: 0, totalBets: 0 }))
-        : { items: {}, totalAmount: 0, totalBets: 0 };
-    const fullSangamDisplay = statsClose?.fullSangam || { items: {}, totalAmount: 0, totalBets: 0 };
+    const halfSangamDisplay =
+        statusView === 'open'
+            ? { items: {}, totalAmount: 0, totalBets: 0 }
+            : statusView === 'closed'
+              ? (statsClose?.halfSangam?.totalBets
+                  ? statsClose.halfSangam
+                  : statsOpen?.halfSangam || { items: {}, totalAmount: 0, totalBets: 0 })
+              : splitSessions
+                ? mergeItemsBlocks(data.bySession.open?.halfSangam, data.bySession.close?.halfSangam)
+                : data?.halfSangam || { items: {}, totalAmount: 0, totalBets: 0 };
+    const fullSangamDisplay =
+        statusView === 'all' && splitSessions
+            ? mergeItemsBlocks(data.bySession.open?.fullSangam, data.bySession.close?.fullSangam)
+            : statsClose?.fullSangam || { items: {}, totalAmount: 0, totalBets: 0 };
 
     // Open view: exclude Half Sangam from totals.
     const openTotalAmount =
@@ -1344,14 +1425,42 @@ const MarketDetail = () => {
         (triplePattiDisplay?.totalBets ?? 0) +
         (halfSangamDisplay?.totalBets ?? 0) +
         (fullSangamDisplay?.totalBets ?? 0);
-    const displayAmount = statusView === 'open' ? openTotalAmount : closedTotalAmount;
-    const displayBets = statusView === 'open' ? openTotalBets : closedTotalBets;
+    const allViewTotalAmount =
+        (singleDigitDisplay?.totalAmount ?? 0) +
+        (jodiDisplay?.totalAmount ?? 0) +
+        (singlePattiTotalsForView?.totalAmount ?? 0) +
+        (doublePattiTotalsForView?.totalAmount ?? 0) +
+        (triplePattiDisplay?.totalAmount ?? 0) +
+        (halfSangamDisplay?.totalAmount ?? 0) +
+        (fullSangamDisplay?.totalAmount ?? 0);
+    const allViewTotalBets =
+        (singleDigitDisplay?.totalBets ?? 0) +
+        (jodiDisplay?.totalBets ?? 0) +
+        (singlePattiTotalsForView?.totalBets ?? 0) +
+        (doublePattiTotalsForView?.totalBets ?? 0) +
+        (triplePattiDisplay?.totalBets ?? 0) +
+        (halfSangamDisplay?.totalBets ?? 0) +
+        (fullSangamDisplay?.totalBets ?? 0);
+    const displayAmount =
+        statusView === 'open' ? openTotalAmount : statusView === 'closed' ? closedTotalAmount : allViewTotalAmount;
+    const displayBets =
+        statusView === 'open' ? openTotalBets : statusView === 'closed' ? closedTotalBets : allViewTotalBets;
 
     const handleStatusViewChange = (e) => {
         const v = e.target.value;
         if (v === 'open') setStatusView('open');
         else if (v === 'closed') setStatusView('closed');
+        else if (v === 'all') setStatusView('all');
     };
+
+    const viewTotalsLabel =
+        statusView === 'open' ? 'Open' : statusView === 'closed' ? 'Closed' : 'All (open + close)';
+    const viewTotalsSubLabel =
+        statusView === 'open'
+            ? 'Open bets only'
+            : statusView === 'closed'
+              ? 'Closed bets only'
+              : 'All bets (open + close sessions)';
 
     return (
         <AdminLayout onLogout={handleLogout} title="Market Detail">
@@ -1392,7 +1501,7 @@ const MarketDetail = () => {
                                 <p className="font-mono text-orange-500 text-lg font-bold">{resultDisplay}</p>
                                 <p className="text-xs text-gray-500">
                                     Open: {hasOpen ? market.openingNumber : '—'} · Close: {hasClose ? market.closingNumber : '—'} ·
-                                    {' '}Viewing totals: <strong>{effectiveView === 'open' ? 'Open' : 'Closed'}</strong> bets
+                                    {' '}Viewing totals: <strong>{viewTotalsLabel}</strong> bets
                                 </p>
                                 {(resultOnPatti?.open || resultOnPatti?.close) && (
                                     <div className="mt-3 pt-3 border-t border-gray-200 space-y-2 text-[11px]">
@@ -1443,7 +1552,7 @@ const MarketDetail = () => {
                                 <p className="text-xs text-gray-400 uppercase tracking-wider">Total Bet Amount</p>
                                 <p className="font-mono text-lg font-semibold text-gray-800">₹{formatNum(displayAmount)}</p>
                                 <p className="text-xs text-gray-500">{formatNum(displayBets)} bets</p>
-                                <p className="text-[10px] text-gray-500">({effectiveView === 'open' ? 'Open bets only' : 'Closed bets only'})</p>
+                                <p className="text-[10px] text-gray-500">({viewTotalsSubLabel})</p>
                             </div>
                         </div>
                         {(
@@ -1453,11 +1562,12 @@ const MarketDetail = () => {
                                 <select
                                     value={statusView}
                                     onChange={handleStatusViewChange}
-                                    aria-label="View open bets or closed bets"
-                                    className="w-full sm:w-auto min-w-[140px] rounded-lg border border-gray-200 bg-gray-100 text-gray-800 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none cursor-pointer"
+                                    aria-label="View open, closed, or all bets"
+                                    className="w-full sm:w-auto min-w-[200px] rounded-lg border border-gray-200 bg-gray-100 text-gray-800 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none cursor-pointer"
                                 >
                                     <option value="open">Open bets only</option>
                                     <option value="closed">Closed bets only</option>
+                                    <option value="all">All bets (open + close)</option>
                                 </select>
                             </div>
                         </div>
@@ -1743,7 +1853,7 @@ const MarketDetail = () => {
                         totalBets={triplePattiDisplay.totalBets}
                     />
 
-                    {effectiveView === 'closed' && (
+                    {(statusView === 'closed' || statusView === 'all') && (
                         <HalfSangamSection
                             items={halfSangamDisplay.items}
                             totalAmount={halfSangamDisplay.totalAmount}
