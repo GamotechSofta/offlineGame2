@@ -31,6 +31,8 @@ const PaymentManagement = () => {
     // Detail modal for viewing full payment details
     const [detailModal, setDetailModal] = useState({ show: false, payment: null });
     const [expandedPaymentId, setExpandedPaymentId] = useState(null);
+    const actionModalHistoryPushedRef = useRef(false);
+    const detailModalHistoryPushedRef = useRef(false);
 
     useEffect(() => {
         fetchPayments();
@@ -87,10 +89,24 @@ const PaymentManagement = () => {
     };
 
     const closeActionModal = () => {
+        if (actionModal.show && actionModalHistoryPushedRef.current) {
+            actionModalHistoryPushedRef.current = false;
+            window.history.back();
+            return;
+        }
         setActionModal({ show: false, payment: null, action: '' });
         setAdminRemarks('');
         setSecretPassword('');
         setActionPasswordError('');
+    };
+
+    const closeDetailModal = () => {
+        if (detailModal.show && detailModalHistoryPushedRef.current) {
+            detailModalHistoryPushedRef.current = false;
+            window.history.back();
+            return;
+        }
+        setDetailModal({ show: false, payment: null });
     };
 
     const handleAction = async () => {
@@ -150,6 +166,43 @@ const PaymentManagement = () => {
         }
         setImageModal({ show: false, url: '' });
     };
+
+    useEffect(() => {
+        if (!actionModal.show) {
+            actionModalHistoryPushedRef.current = false;
+            return undefined;
+        }
+        window.history.pushState({ paymentActionModal: true }, '');
+        actionModalHistoryPushedRef.current = true;
+
+        const onPopState = () => {
+            actionModalHistoryPushedRef.current = false;
+            setActionModal({ show: false, payment: null, action: '' });
+            setAdminRemarks('');
+            setSecretPassword('');
+            setActionPasswordError('');
+        };
+
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [actionModal.show]);
+
+    useEffect(() => {
+        if (!detailModal.show) {
+            detailModalHistoryPushedRef.current = false;
+            return undefined;
+        }
+        window.history.pushState({ paymentDetailModal: true }, '');
+        detailModalHistoryPushedRef.current = true;
+
+        const onPopState = () => {
+            detailModalHistoryPushedRef.current = false;
+            setDetailModal({ show: false, payment: null });
+        };
+
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [detailModal.show]);
 
     useEffect(() => {
         if (!imageModal.show) {
@@ -832,7 +885,7 @@ const PaymentManagement = () => {
                                 </div>
                             </div>
                             <button
-                                onClick={() => setDetailModal({ show: false, payment: null })}
+                                onClick={closeDetailModal}
                                 className="text-gray-400 hover:text-gray-800"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1013,7 +1066,7 @@ const PaymentManagement = () => {
                         {/* Action Buttons */}
                         <div className="flex gap-3">
                             <button
-                                onClick={() => setDetailModal({ show: false, payment: null })}
+                                onClick={closeDetailModal}
                                 className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-800 transition-colors"
                             >
                                 Close
