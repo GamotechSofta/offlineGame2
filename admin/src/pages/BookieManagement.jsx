@@ -385,34 +385,34 @@ const BookieManagement = () => {
                             <table className="w-full min-w-[640px] text-sm sm:text-base">
                                 <thead className="bg-gray-100">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             #
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Name
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Email
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Phone
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Commission
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Balance
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Payment Management
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Status
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Created At
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                             Actions
                                         </th>
                                     </tr>
@@ -420,10 +420,10 @@ const BookieManagement = () => {
                                 <tbody className="divide-y divide-gray-100">
                                     {bookies.map((bookie, index) => (
                                         <tr key={bookie._id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                                            <td className="px-3 py-3 whitespace-nowrap text-gray-600">
                                                 {index + 1}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-3 whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-medium text-gray-800">{bookie.username}</span>
                                                     <button
@@ -435,24 +435,24 @@ const BookieManagement = () => {
                                                     </button>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                                            <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap text-gray-600">
                                                 {bookie.email || '-'}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                                            <td className="px-3 py-3 whitespace-nowrap text-gray-600">
                                                 {bookie.phone || '-'}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-3 whitespace-nowrap">
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200">
                                                     <FaPercent className="w-2.5 h-2.5" />
                                                     {bookie.commissionPercentage ?? 0}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-3 whitespace-nowrap">
                                                 <span className="font-semibold text-green-600">
                                                     ₹{(bookie.balance ?? 0).toLocaleString('en-IN')}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-3 whitespace-nowrap">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                                                     bookie.canManagePayments 
                                                         ? 'bg-green-100 text-green-700 border border-green-200' 
@@ -461,7 +461,7 @@ const BookieManagement = () => {
                                                     {bookie.canManagePayments ? 'Enabled' : 'Disabled'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-3 whitespace-nowrap">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                                                     bookie.status === 'active' 
                                                         ? 'bg-green-100 text-green-700 border border-green-200' 
@@ -470,14 +470,14 @@ const BookieManagement = () => {
                                                     {bookie.status === 'active' ? 'Active' : 'Suspended'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                                            <td className="px-3 py-3 whitespace-nowrap text-gray-600">
                                                 {new Date(bookie.createdAt).toLocaleDateString('en-IN', {
                                                     day: '2-digit',
                                                     month: 'short',
                                                     year: 'numeric',
                                                 })}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-3 py-3 whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => handleToggleStatus(bookie)}

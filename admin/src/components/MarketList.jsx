@@ -80,23 +80,31 @@ const MarketList = ({ markets, onEdit, onDelete, apiBaseUrl, getAuthHeaders }) =
 
     return (
         <>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
             {markets.map((market) => {
                 const status = getMarketStatus(market);
+                const resultDisplay = market.displayResult || '***-**-***';
 
                 return (
                     <div
                         key={market._id}
                         className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 lg:p-6 hover:border-orange-300 hover:shadow-md transition-all min-w-0 overflow-hidden"
                     >
-                        {/* Status Badge */}
-                        <div className={`${status.color} text-white text-[10px] sm:text-xs font-semibold px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full inline-block mb-3 sm:mb-4`}>
-                            {status.status === 'open' && 'OPEN'}
-                            {status.status === 'closed' && 'CLOSED'}
+                        {/* Top row: status (left) + result (right) */}
+                        <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
+                            <div className={`${status.color} text-white text-[10px] sm:text-xs font-semibold px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full shrink-0`}>
+                                {status.status === 'open' && 'OPEN'}
+                                {status.status === 'closed' && 'CLOSED'}
+                            </div>
+                            <div className="text-orange-500 font-mono font-semibold text-xs sm:text-sm text-right leading-tight px-2 py-0.5 rounded-md bg-orange-50 border border-orange-100">
+                                {resultDisplay}
+                            </div>
                         </div>
 
                         {/* Market Info */}
-                        <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 mb-2 truncate" title={market.marketName}>{market.marketName}</h3>
+                        <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 mb-2 truncate" title={market.marketName}>
+                            {market.marketName}
+                        </h3>
                         <div className="space-y-1.5 sm:space-y-2 mb-4 text-xs sm:text-sm text-gray-500 min-w-0">
                             <p className="truncate"><span className="font-semibold text-gray-600">Opening:</span> {market.startingTime}</p>
                             <p className="truncate"><span className="font-semibold text-gray-600">Closing:</span> {market.closingTime}</p>
