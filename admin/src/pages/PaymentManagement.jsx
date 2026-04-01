@@ -263,15 +263,12 @@ const PaymentManagement = () => {
                     <FaWallet className="text-orange-500" />
                     Payment Management
                 </h1>
-                <p className="mt-2 text-gray-400 text-sm sm:text-base max-w-2xl">
-                    Review and process player deposit & withdrawal requests. Click on stats below to quickly filter by type.
-                </p>
             </div>
 
             {/* Quick Stats – clickable for quick filter */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 mb-6">
                 <div
-                    className={`rounded-xl p-5 border-2 transition-all cursor-pointer ${
+                    className={`order-2 sm:order-1 rounded-xl p-2.5 sm:p-5 border-2 transition-all cursor-pointer ${
                         filters.status === 'pending' && filters.type === 'deposit'
                             ? 'border-amber-500 bg-orange-500/10'
                             : 'border-gray-200 bg-white hover:border-gray-200'
@@ -281,15 +278,15 @@ const PaymentManagement = () => {
                 >
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Pending Deposits</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-orange-500 mt-1">{pendingCounts.deposits}</p>
-                            <p className="text-xs text-gray-500 mt-1">Click to filter</p>
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide sm:tracking-wider leading-tight">Pending Deposits</p>
+                            <p className="text-lg sm:text-3xl font-bold text-orange-500 mt-0">{pendingCounts.deposits}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 mt-0 leading-tight">Click to filter</p>
                         </div>
-                        <FaArrowDown className="w-10 h-10 text-orange-500/50" />
+                        <FaArrowDown className="w-6 h-6 sm:w-10 sm:h-10 text-orange-500/50 shrink-0" />
                     </div>
                 </div>
                 <div
-                    className={`rounded-xl p-5 border-2 transition-all cursor-pointer ${
+                    className={`order-3 sm:order-2 rounded-xl p-2.5 sm:p-5 border-2 transition-all cursor-pointer ${
                         filters.status === 'pending' && filters.type === 'withdrawal'
                             ? 'border-amber-500 bg-orange-500/10'
                             : 'border-gray-200 bg-white hover:border-gray-200'
@@ -299,51 +296,51 @@ const PaymentManagement = () => {
                 >
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Pending Withdrawals</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-orange-500 mt-1">{pendingCounts.withdrawals}</p>
-                            <p className="text-xs text-gray-500 mt-1">Click to filter</p>
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide sm:tracking-wider leading-tight">Pending Withdrawals</p>
+                            <p className="text-lg sm:text-3xl font-bold text-orange-500 mt-0">{pendingCounts.withdrawals}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 mt-0 leading-tight">Click to filter</p>
                         </div>
-                        <FaArrowUp className="w-10 h-10 text-purple-500/50" />
+                        <FaArrowUp className="w-6 h-6 sm:w-10 sm:h-10 text-purple-500/50 shrink-0" />
                     </div>
                 </div>
                 <div
-                    className={`rounded-xl p-5 border-2 transition-all cursor-pointer ${
+                    className={`order-1 sm:order-3 rounded-xl p-2.5 sm:p-5 border-2 transition-all cursor-pointer ${
                         !hasActiveFilters || (filters.status === '' && filters.type === '')
                             ? 'border-blue-500 bg-blue-500/10'
                             : 'border-gray-200 bg-white hover:border-gray-200'
-                    }`}
+                    } col-span-2 sm:col-span-1`}
                     onClick={() => setFilters({ status: '', type: '' })}
                     title="Click to view all payments"
                 >
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Pending</p>
-                            <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1">{pendingCounts.total}</p>
-                            <p className="text-xs text-gray-500 mt-1">{pendingRequireAction ? 'Requires action' : 'All clear'}</p>
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide sm:tracking-wider leading-tight">Total Pending</p>
+                            <p className="text-lg sm:text-3xl font-bold text-blue-600 mt-0">{pendingCounts.total}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 mt-0 leading-tight">{pendingRequireAction ? 'Requires action' : 'All clear'}</p>
                         </div>
-                        <FaClock className="w-10 h-10 text-blue-500/50" />
+                        <FaClock className="w-6 h-6 sm:w-10 sm:h-10 text-blue-500/50 shrink-0" />
                     </div>
                 </div>
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-xl p-4 sm:p-5 mb-6 border border-gray-200">
+            <div className="bg-white rounded-xl p-3 sm:p-5 mb-6 border border-gray-200">
                 <div className="flex items-center gap-2 mb-3">
                     <FaFilter className="text-gray-500 w-4 h-4" />
-                    <span className="text-sm font-medium text-gray-400">Filter Payments</span>
+                    <span className="text-xs sm:text-sm font-medium text-gray-400">Filter Payments</span>
                     {hasActiveFilters && (
-                        <span className="ml-2 px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-500 text-xs">
+                        <span className="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-500 text-[10px] sm:text-xs">
                             Filters active
                         </span>
                     )}
                 </div>
-                <div className="flex items-end gap-3">
-                    <div className="flex-1">
-                        <label className="block text-xs text-gray-500 mb-1">Status</label>
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 items-end">
+                    <div>
+                        <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Status</label>
                         <select
                             value={filters.status}
                             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:ring-2 focus:ring-amber-500/50"
+                            className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-800 focus:ring-2 focus:ring-amber-500/50"
                         >
                             <option value="">All Status</option>
                             <option value="pending">Pending</option>
@@ -352,12 +349,12 @@ const PaymentManagement = () => {
                             <option value="completed">Completed</option>
                         </select>
                     </div>
-                    <div className="flex-1">
-                        <label className="block text-xs text-gray-500 mb-1">Type</label>
+                    <div>
+                        <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Type</label>
                         <select
                             value={filters.type}
                             onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:ring-2 focus:ring-amber-500/50"
+                            className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-800 focus:ring-2 focus:ring-amber-500/50"
                         >
                             <option value="">All Types</option>
                             <option value="deposit">Deposit</option>
@@ -367,7 +364,7 @@ const PaymentManagement = () => {
                     <div className="flex items-end">
                         <button
                             onClick={() => setFilters({ status: '', type: '' })}
-                            className="px-4 py-2.5 bg-gray-200 hover:bg-gray-500 rounded-lg text-gray-800 text-sm font-medium transition-colors"
+                            className="w-full px-2.5 sm:px-3 py-2 bg-gray-200 hover:bg-gray-500 rounded-lg text-gray-800 text-[11px] sm:text-sm font-medium transition-colors"
                         >
                             Clear Filters
                         </button>
@@ -509,21 +506,21 @@ const PaymentManagement = () => {
 
                 {/* Desktop: table */}
                 <div className="hidden md:block">
-                <div className="overflow-x-auto -mx-4 sm:mx-0 rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="bg-white min-w-[1080px]">
+                <div className="-mx-4 sm:mx-0 rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="bg-white min-w-0">
                         <table className="w-full text-sm table-fixed">
                             <thead className="bg-gray-50/80">
                                 <tr>
-                                    <th className="w-[90px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Ref ID</th>
-                                    <th className="w-[180px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Player</th>
-                                    <th className="w-[100px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Type</th>
-                                    <th className="w-[110px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Amount</th>
-                                    <th className="w-[200px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                    <th className="w-[78px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Ref ID</th>
+                                    <th className="w-[150px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Player</th>
+                                    <th className="w-[86px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Type</th>
+                                    <th className="w-[96px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Amount</th>
+                                    <th className="w-[170px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
                                         Payment Info
                                     </th>
-                                    <th className="w-[120px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                                    <th className="w-[170px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</th>
-                                    <th className="w-[180px] px-4 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                    <th className="w-[104px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                                    <th className="w-[132px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Date</th>
+                                    <th className="w-[164px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
                                         <span className="block">Actions</span>
                                         <span className="block font-normal normal-case text-gray-500 mt-0.5">View / Approve / Reject</span>
                                     </th>
@@ -555,10 +552,10 @@ const PaymentManagement = () => {
                                 ) : (
                                     payments.map((payment) => (
                                         <tr key={payment._id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-4 text-xs text-gray-400 whitespace-nowrap">
+                                            <td className="px-2.5 py-3 text-xs text-gray-400 whitespace-nowrap">
                                                 #{payment._id.slice(-6).toUpperCase()}
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="px-2.5 py-3">
                                                 <div className="truncate">
                                                     <p className="font-medium text-gray-800 truncate">
                                                         {payment.userId?.username || 'Unknown'}
@@ -568,17 +565,17 @@ const PaymentManagement = () => {
                                                     </p>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 whitespace-nowrap">
-                                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getTypeBadge(payment.type)}`}>
+                                            <td className="px-2.5 py-3 whitespace-nowrap">
+                                                <span className={`inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium border ${getTypeBadge(payment.type)}`}>
                                                     {payment.type === 'deposit' ? '↓ Deposit' : '↑ Withdraw'}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-4 whitespace-nowrap">
+                                            <td className="px-2.5 py-3 whitespace-nowrap">
                                                 <span className={`font-semibold ${payment.type === 'deposit' ? 'text-green-600' : 'text-purple-600'}`}>
                                                     {payment.type === 'deposit' ? '+' : '-'} ₹{payment.amount?.toLocaleString()}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="px-2.5 py-3">
                                                 {payment.type === 'deposit' ? (
                                                     <div className="space-y-1.5">
                                                         {payment.upiTransactionId && (
@@ -631,7 +628,7 @@ const PaymentManagement = () => {
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="px-2.5 py-3">
                                                 <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusBadge(payment.status)}`}>
                                                     {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
                                                 </span>
@@ -641,15 +638,15 @@ const PaymentManagement = () => {
                                                     </p>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-4 text-xs text-gray-400">
-                                                <p className="whitespace-nowrap">{formatDate(payment.createdAt)}</p>
+                                            <td className="px-2.5 py-3 text-xs text-gray-400">
+                                                <p className="block">{formatDate(payment.createdAt)}</p>
                                                 {payment.processedAt && payment.status !== 'pending' && (
-                                                    <p className="text-gray-500 whitespace-nowrap text-[10px] mt-0.5">
+                                                    <p className="block text-gray-500 text-[10px] mt-0.5">
                                                         Done: {formatDate(payment.processedAt)}
                                                     </p>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="px-2.5 py-3">
                                                 <div className="flex flex-wrap gap-2">
                                                     <button
                                                         onClick={() => setDetailModal({ show: true, payment })}
@@ -910,7 +907,7 @@ const PaymentManagement = () => {
                             </div>
                             <div className="flex justify-between items-center mb-3">
                                 <span className="text-gray-400">Type</span>
-                                <span className={`px-2 py-1 rounded text-xs ${
+                                <span className={`px-1.5 py-0.5 rounded text-[11px] ${
                                     detailModal.payment.type === 'deposit' 
                                         ? 'bg-green-600/30 text-green-600' 
                                         : 'bg-purple-600/30 text-purple-600'
