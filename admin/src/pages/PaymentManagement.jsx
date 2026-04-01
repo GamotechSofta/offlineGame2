@@ -561,7 +561,7 @@ const PaymentManagement = () => {
                                                         {payment.userId?.username || 'Unknown'}
                                                     </p>
                                                     <p className="text-xs text-gray-500 truncate">
-                                                        {payment.userId?.email || payment.userId?.phone || ''}
+                                                        {payment.userId?.phone || '—'}
                                                     </p>
                                                 </div>
                                             </td>

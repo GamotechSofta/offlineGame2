@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth, getAuthHeaders } from '../config/api';
 import { getRatesCurrent } from '../api/bets';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
+import BetHistoryCard from '../components/BetHistoryCard';
 
 const safeParse = (raw, fallback) => {
   try {
@@ -17,11 +18,21 @@ const formatTxnTime = (iso) => {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '-';
     const date = d.toLocaleDateString('en-GB').replace(/\//g, '-');
-    const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const time = d
+      .toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+      .replace(/\s/g, ' ')
+      .toLowerCase();
     return `${date} ${time}`;
   } catch {
     return '-';
   }
+};
+
+const shortGameLabel = (label) => {
+  const s = String(label || '').trim();
+  if (!s) return 'Bet';
+  if (s === 'Single Digit') return 'Digit';
+  return s;
 };
 
 const renderBetNumber = (val) => {
@@ -154,9 +165,8 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
   const navigate = useNavigate();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedSessions, setSelectedSessions] = useState([]); // ['OPEN','CLOSE']
-  const [selectedStatuses, setSelectedStatuses] = useState([]); // ['Win','Loose','Pending']
+  const [selectedStatuses, setSelectedStatuses] = useState([]); // ['Win','Lost','Pending']
   const [selectedMarkets, setSelectedMarkets] = useState([]); // normalized market keys
-  const [page, setPage] = useState(1);
   const [markets, setMarkets] = useState([]);
   const [ratesMap, setRatesMap] = useState(null);
   const [myBets, setMyBets] = useState([]);
@@ -181,42 +191,72 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
     return u?._id || u?.id || u?.userId || u?.userid || u?.user_id || u?.uid || null;
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    const fetchMyBets = async () => {
-      try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/bets/my-history`, { headers: getAuthHeaders() });
-        if (res.status === 401) return;
-        const data = await res.json();
-        if (!alive) return;
-        if (data?.success && Array.isArray(data?.data)) {
-          setMyBets(data.data);
-        } else {
-          setMyBets([]);
-        }
-      } catch {
-        if (alive) setMyBets([]);
-      }
-    };
-    fetchMyBets();
-    return () => {
-      alive = false;
-    };
+  const fetchMarketsOnce = useCallback(async (background = false) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
+      const data = await res.json();
+      const apply = () => {
+        if (data?.success && Array.isArray(data?.data)) setMarkets(data.data);
+      };
+      if (background) startTransition(apply);
+      else apply();
+    } catch {
+      // ignore
+    }
   }, []);
+
+  const fetchMyBetsOnce = useCallback(async (background = false) => {
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/bets/my-history`, { headers: getAuthHeaders() });
+      if (res.status === 401) return;
+      const data = await res.json();
+      const apply = () => {
+        if (data?.success && Array.isArray(data?.data)) setMyBets(data.data);
+        else setMyBets([]);
+      };
+      if (background) startTransition(apply);
+      else apply();
+    } catch {
+      const apply = () => setMyBets([]);
+      if (background) startTransition(apply);
+      else apply();
+    }
+  }, []);
+
+  const refreshBetHistoryData = useCallback(async (background = false) => {
+    await fetchMarketsOnce(background);
+    await fetchMyBetsOnce(background);
+  }, [fetchMarketsOnce, fetchMyBetsOnce]);
+
+  useEffect(() => {
+    void refreshBetHistoryData(false);
+    const id = setInterval(() => {
+      void refreshBetHistoryData(true);
+    }, 15000);
+    return () => clearInterval(id);
+  }, [refreshBetHistoryData]);
 
   const bets = useMemo(() => {
     return (myBets || [])
-      .map((b) => {
+      .map((b, idx) => {
         const session = String(b?.betOn || '').trim().toUpperCase();
         const marketTitle = (b?.marketId?.marketName || '').toString().trim() || 'MARKET';
         const typeKey = String(b?.betType || '').toLowerCase();
         const settledState =
           b?.status === 'won' ? 'won' : b?.status === 'lost' ? 'lost' : '';
+        const pop = b?.marketId && typeof b.marketId === 'object' ? b.marketId : null;
+        const marketFromBet = pop
+          ? {
+              openingNumber: pop.openingNumber,
+              closingNumber: pop.closingNumber,
+            }
+          : null;
         return {
-          id: b?._id || `${marketTitle}-${b?.createdAt || ''}-${Math.random()}`,
+          id: b?._id || `${marketTitle}-${b?.createdAt || ''}-i${idx}`,
           marketTitle,
           createdAt: b?.createdAt,
           session,
+          marketFromBet,
           labelKey: BET_TYPE_LABELS[typeKey] || String(b?.betType || 'Bet'),
           rows: [
             {
@@ -246,32 +286,9 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
     return out;
   }, [bets]);
 
-  const fetchMarkets = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
-      const data = await res.json();
-      if (data?.success && Array.isArray(data?.data)) {
-        setMarkets(data.data);
-      }
-    } catch {
-      // ignore
-    }
-  };
-
-  useEffect(() => {
-    let alive = true;
-    const wrapped = async () => {
-      await fetchMarkets();
-    };
-    wrapped();
-    const id = setInterval(wrapped, 30000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, []);
-
-  useRefreshOnMarketReset(fetchMarkets);
+  useRefreshOnMarketReset(() => {
+    void refreshBetHistoryData(true);
+  });
   useEffect(() => {
     let alive = true;
     getRatesCurrent().then((result) => {
@@ -306,9 +323,15 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
       const points = Number(r?.points || 0) || 0;
       const session = (r?.type || x?.session || '').toString().trim().toUpperCase();
       const marketTitle = (x?.marketTitle || '').toString().trim() || 'MARKET';
-      const m = marketByName.get(normalizeMarketName(marketTitle));
+      const key = normalizeMarketName(marketTitle);
+      const fromList = marketByName.get(key);
+      const fromBet = x?.marketFromBet;
+      const mergedMarket = {
+        openingNumber: fromList?.openingNumber ?? fromBet?.openingNumber,
+        closingNumber: fromList?.closingNumber ?? fromBet?.closingNumber,
+      };
       const computed = evaluateBet({
-        market: m,
+        market: mergedMarket,
         betNumberRaw: r?.number,
         amount: points,
         session,
@@ -337,40 +360,32 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
 
       if (selectedStatuses.length > 0) {
         const st =
-          row.verdict.state === 'won' ? 'Win' : row.verdict.state === 'lost' ? 'Loose' : 'Pending';
+          row.verdict.state === 'won' ? 'Win' : row.verdict.state === 'lost' ? 'Lost' : 'Pending';
         if (!selectedStatuses.includes(st)) return false;
       }
       return true;
     });
   }, [enriched, selectedMarkets, selectedSessions, selectedStatuses]);
 
-  // Reset to page 1 when filters/data change
-  useEffect(() => {
-    setPage(1);
-  }, [selectedSessions, selectedStatuses, selectedMarkets, enriched.length]);
+  /** All (no status filter): newest first by time only. Win/Lost/Pending filters: Win block on top, then Lost, Pending; then by time. */
+  const winSortRank = (state) => (state === 'won' ? 0 : state === 'lost' ? 1 : 2);
 
-  // 12 cards per page on desktop (md+), 10 on mobile
-  const [pageSize, setPageSize] = useState(() => (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches ? 12 : 10));
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)');
-    const update = () => setPageSize(mq.matches ? 12 : 10);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-
-  const totalPages = useMemo(() => {
-    const n = Math.ceil((filtered?.length || 0) / pageSize);
-    return n > 0 ? n : 1;
-  }, [filtered, pageSize]);
-
-  const currentPage = Math.min(Math.max(1, page), totalPages);
-  const paged = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return (filtered || []).slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
-
-  const hasPagination = (filtered?.length || 0) > pageSize;
+  const sortedFiltered = useMemo(() => {
+    const byTime = (a, b) => {
+      const ta = new Date(a.x?.createdAt || 0).getTime();
+      const tb = new Date(b.x?.createdAt || 0).getTime();
+      return tb - ta;
+    };
+    const list = [...filtered];
+    if (selectedStatuses.length === 0) {
+      return list.sort(byTime);
+    }
+    return list.sort((a, b) => {
+      const d = winSortRank(a.verdict.state) - winSortRank(b.verdict.state);
+      if (d !== 0) return d;
+      return byTime(a, b);
+    });
+  }, [filtered, selectedStatuses]);
 
   // Draft state for modal
   const [draftSessions, setDraftSessions] = useState([]);
@@ -388,110 +403,98 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
     setArr((prev) => (prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]));
   };
 
-  const scrollToTop = () => {
-    try {
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      if (document.documentElement) document.documentElement.scrollTop = 0;
-      if (document.body) document.body.scrollTop = 0;
-      setTimeout(() => {
-        const scrollableElements = document.querySelectorAll(
-          '[class*="overflow-y-auto"], [class*="overflow-y-scroll"], [class*="overflow-auto"]'
-        );
-        scrollableElements.forEach((el) => {
-          if (el && typeof el.scrollTop === 'number') el.scrollTop = 0;
-        });
-      }, 10);
-    } catch (_) {}
-  };
-
   return (
-    <div className={`min-h-screen bg-white text-gray-800 px-3 sm:px-4 pt-3 ${hasPagination ? 'pb-[calc(100px+env(safe-area-inset-bottom,0px))]' : 'pb-[calc(7rem+env(safe-area-inset-bottom,0px))]'}`}>
-      <div className="w-full max-w-3xl md:max-w-6xl mx-auto">
+    <div className="min-h-screen bg-white text-gray-800 px-3 sm:px-4 pt-3 pb-[calc(7rem+env(safe-area-inset-bottom,0px))]">
+      <div className="w-full max-w-7xl mx-auto">
         {/* Header row */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="flex flex-col gap-3 mb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="w-10 h-10 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center text-gray-700 hover:bg-gray-200 active:scale-95 transition"
+                aria-label="Back"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h1 className="text-xl sm:text-2xl font-bold truncate text-[#1B3150]">{pageTitle}</h1>
+            </div>
+
             <button
               type="button"
-              onClick={() => navigate(-1)}
-              className="w-10 h-10 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center text-gray-700 hover:bg-gray-200 active:scale-95 transition"
-              aria-label="Back"
+              onClick={() => setIsFilterOpen(true)}
+              className="shrink-0 flex items-center gap-2 rounded-lg border-2 border-[#1B3150] px-3 py-2 text-[#1B3150] hover:bg-[#1B3150]/5 transition-colors"
+              aria-label="More filters"
+              title="Open / Close, markets, Pending"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              <span className="text-sm font-semibold">Filter By</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18l-7 8v6l-4 2v-8L3 4z" />
               </svg>
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold truncate text-gray-800">{pageTitle}</h1>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen(true)}
-            className="shrink-0 flex items-center gap-2 text-[#1B3150] hover:text-[#152842] transition-colors"
-            aria-label="Filter"
-            title="Filter"
-          >
-            <span className="text-sm font-semibold">Filter By</span>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18l-7 8v6l-4 2v-8L3 4z" />
-            </svg>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 mr-1">Result</span>
+            {[
+              { key: 'all', label: 'All', statuses: [] },
+              { key: 'win', label: 'Win', statuses: ['Win'] },
+              { key: 'lost', label: 'Lost', statuses: ['Lost'] },
+            ].map(({ key, label, statuses }) => {
+              const isAll = key === 'all';
+              const active = isAll
+                ? selectedStatuses.length === 0
+                : selectedStatuses.length === 1 && selectedStatuses[0] === statuses[0];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSelectedStatuses(statuses)}
+                  className={`min-h-[40px] px-4 rounded-xl text-sm font-bold border-2 transition-colors ${
+                    active
+                      ? 'bg-[#1B3150] border-[#1B3150] text-white shadow-sm'
+                      : 'bg-white border-gray-300 text-[#1B3150] hover:border-[#1B3150]/40 hover:bg-gray-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Cards: 1 column on mobile, 3 per row on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {filtered.length === 0 ? (
-            <div className="rounded-2xl border-2 border-gray-300 bg-white p-6 text-center text-gray-600 shadow-sm md:col-span-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+          {sortedFiltered.length === 0 ? (
+            <div className="rounded-xl border-2 border-gray-200 bg-gray-50 p-6 text-center text-gray-600 col-span-2 lg:col-span-3 xl:col-span-4">
               {userId ? 'No bets found.' : 'Please login to see your bet history.'}
             </div>
-          ) : paged.map(({ x, r, idx, points, session, marketTitle, verdict }) => {
-            const betValue = r?.number != null ? renderBetNumber(r.number) : '-';
-            const gameType = (x?.labelKey || 'Bet').toString();
+          ) : (
+            sortedFiltered.map(({ x, r, idx, points, session, marketTitle, verdict }, i) => {
+              const betValue = r?.number != null ? renderBetNumber(r.number) : '-';
+              const statusLabel =
+                verdict.state === 'won' ? 'Win' : verdict.state === 'lost' ? 'Lost' : 'Pending';
+              const betId = r?.id ?? x.id;
 
-            return (
-            <div key={`${x.id}-${r?.id ?? idx}`} className="rounded-2xl overflow-hidden border-2 border-gray-300 bg-white shadow-sm">
-              <div className="bg-gray-50 px-4 py-3 text-center border-b border-gray-300">
-                <div className="text-[#1B3150] font-extrabold tracking-wide">
-                  {marketTitle.toUpperCase()} {session ? `(${session})` : ''}
-                </div>
-              </div>
-
-              <div className="px-4 py-4">
-                <div className="grid grid-cols-3 text-center text-[#1B3150] font-bold">
-                  <div>Game Type</div>
-                  <div>{(x?.labelKey || 'Bet').toString()}</div>
-                  <div>Points</div>
-                </div>
-                <div className="mt-3 grid grid-cols-3 text-center text-gray-800">
-                  <div className="font-semibold">{gameType}</div>
-                  <div className="font-extrabold">{betValue}</div>
-                  <div className="font-extrabold">{points}</div>
-                </div>
-              </div>
-
-              <div className="h-px bg-gray-300" />
-
-              <div className="px-4 py-3 text-center text-gray-600">
-                Transaction: <span className="font-semibold">{formatTxnTime(x?.createdAt)}</span>
-              </div>
-
-              <div className="h-px bg-gray-300" />
-
-              {verdict.state === 'won' ? (
-                <div className="px-4 py-3 text-center font-semibold text-green-600">
-                  Congratulations, You Won {verdict.payout ? `₹${Number(verdict.payout || 0).toLocaleString('en-IN')}` : ''}
-                </div>
-              ) : verdict.state === 'lost' ? (
-                <div className="px-4 py-3 text-center font-semibold text-red-500">
-                  Better Luck Next time
-                </div>
-              ) : (
-                <div className="px-4 py-3 text-center font-semibold text-green-600">
-                  Bet Placed
-                </div>
-              )}
-            </div>
-            );
-          })}
+              return (
+                <BetHistoryCard
+                  key={`${x.id}-${r?.id ?? idx}`}
+                  index={i + 1}
+                  betId={betId}
+                  session={session}
+                  marketTitle={marketTitle.toUpperCase()}
+                  gameLabel={shortGameLabel(x?.labelKey)}
+                  betValue={betValue}
+                  betAmount={points}
+                  winPayout={verdict.payout}
+                  statusLabel={statusLabel}
+                  timeFormatted={formatTxnTime(x?.createdAt)}
+                />
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -538,7 +541,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
 
                 <div className="text-lg font-bold text-[#1B3150] mb-3">By Winning Status</div>
                 <div className="flex items-center justify-around gap-3 pb-4">
-                  {['Win', 'Loose', 'Pending'].map((s) => (
+                  {['Win', 'Lost', 'Pending'].map((s) => (
                     <label key={s} className="flex items-center gap-3 text-base sm:text-lg text-gray-700">
                       <input
                         type="checkbox"
@@ -597,51 +600,6 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Bottom pagination (UI only) */}
-      {hasPagination ? (
-        <div
-          className="fixed left-0 right-0 z-20 px-3 sm:px-4 pointer-events-none"
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
-        >
-          <div className="mx-auto w-full max-w-[520px] pointer-events-auto">
-            <div className="bg-white rounded-full border-2 border-gray-300 px-4 py-2 flex items-center justify-between shadow-md">
-              <button
-                type="button"
-                onClick={() => {
-                  setPage((p) => Math.max(1, p - 1));
-                  scrollToTop();
-                }}
-                disabled={currentPage <= 1}
-                className="flex items-center gap-1 text-gray-700 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:text-[#1B3150]"
-              >
-                <span className="text-lg leading-none">‹</span>
-                <span>PREV</span>
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="w-8 h-8 rounded-full bg-[#1B3150] text-white flex items-center justify-center font-bold text-sm border-2 border-[#1B3150]"
-                >
-                  {currentPage}
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setPage((p) => Math.min(totalPages, p + 1));
-                  scrollToTop();
-                }}
-                disabled={currentPage >= totalPages}
-                className="flex items-center gap-1 text-gray-700 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:text-[#1B3150]"
-              >
-                <span>NEXT</span>
-                <span className="text-lg leading-none">›</span>
-              </button>
             </div>
           </div>
         </div>

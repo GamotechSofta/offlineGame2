@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { startTransition, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
 import { getRatesCurrent, getBetHistory } from '../api/bets';
 import ResultDatePicker from '../components/ResultDatePicker';
+import BetHistoryCard from '../components/BetHistoryCard';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
 const safeParse = (raw, fallback) => {
@@ -18,7 +19,10 @@ const formatTxnTime = (iso) => {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '-';
     const date = d.toLocaleDateString('en-GB').replace(/\//g, '-');
-    const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const time = d
+      .toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+      .replace(/\s/g, ' ')
+      .toLowerCase();
     return `${date} ${time}`;
   } catch {
     return '-';
@@ -84,6 +88,13 @@ const labelForType = (typeRaw) => {
     'odd-even': 'Odd Even',
   };
   return map[t] || typeRaw || 'Bet';
+};
+
+const shortGameLabel = (label) => {
+  const s = String(label || '').trim();
+  if (!s) return 'Bet';
+  if (s === 'Single Digit') return 'Digit';
+  return s;
 };
 
 // Backend defaults (must match backend/models/rate/rate.js) – used when API rates not loaded
@@ -258,7 +269,7 @@ const Bids = () => {
   // Desktop Bet History filters (desktop panel inside My Bets)
   const [isDesktopFilterOpen, setIsDesktopFilterOpen] = useState(false);
   const [selectedSessions, setSelectedSessions] = useState([]); // ['OPEN','CLOSE']
-  const [selectedStatuses, setSelectedStatuses] = useState([]); // ['Win','Loose','Pending']
+  const [selectedStatuses, setSelectedStatuses] = useState([]); // ['Win','Lost','Pending']
   const [selectedMarkets, setSelectedMarkets] = useState([]); // normalized market keys
   const [draftSessions, setDraftSessions] = useState([]);
   const [draftStatuses, setDraftStatuses] = useState([]);
@@ -327,13 +338,15 @@ const Bids = () => {
   const [resultsDate, setResultsDate] = useState(() => new Date());
   const [resultsRows, setResultsRows] = useState([]);
 
-  const fetchMarkets = async () => {
+  const fetchMarkets = async (background = false) => {
     try {
       const res = await fetch(`${API_BASE_URL}/markets/get-markets`);
       const data = await res.json();
-      if (data?.success && Array.isArray(data?.data)) {
-        setMarkets(data.data);
-      }
+      const apply = () => {
+        if (data?.success && Array.isArray(data?.data)) setMarkets(data.data);
+      };
+      if (background) startTransition(apply);
+      else apply();
     } catch {
       // ignore
     }
@@ -361,21 +374,13 @@ const Bids = () => {
   };
 
   const refetchAll = async () => {
-    await Promise.all([fetchMarkets(), fetchHistory()]);
+    await Promise.all([fetchMarkets(true), fetchHistory()]);
+    const result = await getBetHistory();
+    const apply = () => {
+      if (result?.success && Array.isArray(result?.data)) setApiBets(result.data);
+    };
+    startTransition(apply);
   };
-
-  useEffect(() => {
-    let alive = true;
-    const run = async () => {
-      await fetchMarkets();
-    };
-    run();
-    const id = setInterval(run, 30000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, []);
 
   useRefreshOnMarketReset(refetchAll);
   useEffect(() => {
@@ -389,15 +394,21 @@ const Bids = () => {
 
   useEffect(() => {
     let alive = true;
-    const fetchBets = async () => {
+    const refreshMarketsAndBets = async (background = false) => {
+      await fetchMarkets(background);
+      if (!alive) return;
       const result = await getBetHistory();
       if (!alive) return;
-      if (result?.success && Array.isArray(result?.data)) setApiBets(result.data);
-      else setApiBets([]);
-      setBetsLoading(false);
+      const apply = () => {
+        if (result?.success && Array.isArray(result?.data)) setApiBets(result.data);
+        else setApiBets([]);
+        setBetsLoading(false);
+      };
+      if (background) startTransition(apply);
+      else apply();
     };
-    fetchBets();
-    const id = setInterval(fetchBets, 30000);
+    refreshMarketsAndBets(false);
+    const id = setInterval(() => refreshMarketsAndBets(true), 15000);
     return () => {
       alive = false;
       clearInterval(id);
@@ -436,15 +447,26 @@ const Bids = () => {
       const session = (b?.betOn || '').toString().trim().toUpperCase();
       const market = (b?.marketId?.marketName || '').toString().trim() || 'MARKET';
       const marketKey = normalizeMarketName(market);
-      const m = marketByName.get(marketKey);
-      const verdict = evaluateBet({
-        market: m,
+      const fromList = marketByName.get(marketKey);
+      const fromBet = typeof b?.marketId === 'object' && b.marketId ? b.marketId : null;
+      const mergedMarket = {
+        openingNumber: fromList?.openingNumber ?? fromBet?.openingNumber,
+        closingNumber: fromList?.closingNumber ?? fromBet?.closingNumber,
+      };
+      const computed = evaluateBet({
+        market: mergedMarket,
         betNumberRaw: b?.betNumber,
         amount: points,
         session,
         ratesMap,
       });
-      const statusLabel = verdict.state === 'won' ? 'Win' : verdict.state === 'lost' ? 'Loose' : 'Pending';
+      const storedState = b?.status === 'won' ? 'won' : b?.status === 'lost' ? 'lost' : '';
+      const storedPayout = Number(b?.payout) || 0;
+      const verdict =
+        storedState === 'won' || storedState === 'lost'
+          ? { ...computed, state: storedState, payout: storedPayout }
+          : computed;
+      const statusLabel = verdict.state === 'won' ? 'Win' : verdict.state === 'lost' ? 'Lost' : 'Pending';
       return {
         x: {
           id: b?._id || `bet-${idx}`,
@@ -489,7 +511,7 @@ const Bids = () => {
           ? (selectedMarkets || []).filter((k) => isStarlineMarketName(k))
           : (selectedMarkets || []).filter((k) => !isStarlineMarketName(k)))
       : selectedMarkets;
-    return (desktopRows || []).filter((row) => {
+    const rows = (desktopRows || []).filter((row) => {
       if (isAnyHistoryPanel) {
         const isStar = isStarlineMarketName(row.market);
         if (historyScope === 'starline' && !isStar) return false;
@@ -499,6 +521,11 @@ const Bids = () => {
       if (effectiveSelectedMarkets.length > 0 && !effectiveSelectedMarkets.includes(row.marketKey)) return false;
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(row.statusLabel)) return false;
       return true;
+    });
+    return [...rows].sort((a, b) => {
+      const ta = new Date(a.x?.createdAt || 0).getTime();
+      const tb = new Date(b.x?.createdAt || 0).getTime();
+      return tb - ta;
     });
   }, [desktopRows, selectedMarkets, selectedSessions, selectedStatuses, isAnyHistoryPanel, historyScope]);
 
@@ -557,7 +584,7 @@ const Bids = () => {
               <button
                 type="button"
                 onClick={() => setIsDesktopFilterOpen(true)}
-                className="px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-600 font-bold text-sm shadow-sm hover:border-gray-400 transition-colors"
+                className="px-4 py-2 rounded-lg border-2 border-[#1B3150] text-[#1B3150] font-bold text-sm shadow-sm hover:bg-[#1B3150]/5 transition-colors"
                 aria-label="Filter By"
                 title="Filter By"
               >
@@ -693,60 +720,24 @@ const Bids = () => {
                       Please login to see your bet history.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {filteredDesktopRows.map(({ x, r, idx, betValue, gameType, points, session, market, verdict }) => {
-
-                        return (
-                          <div
+                    <div className="rounded-2xl bg-gray-50 border-2 border-gray-200 p-3 sm:p-4">
+                      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+                        {filteredDesktopRows.map(({ x, r, idx, betValue, gameType, points, session, market, verdict, statusLabel }, i) => (
+                          <BetHistoryCard
                             key={`${x.id}-${r?.id ?? idx}`}
-                            className="rounded-2xl overflow-hidden border border-gray-200 bg-white"
-                          >
-                            <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-200">
-                              <div className="text-[#1B3150] font-extrabold tracking-wide truncate">
-                                {market.toUpperCase()}
-                              </div>
-                              {session ? (
-                                <div className="text-xs font-bold text-[#1B3150] border border-gray-300 rounded-full px-3 py-1 bg-white">
-                                  {session}
-                                </div>
-                              ) : null}
-                            </div>
-
-                            <div className="px-4 py-4">
-                              <div className="grid grid-cols-3 text-center text-gray-600 font-bold text-sm">
-                                <div>Game Type</div>
-                                <div>{(x?.labelKey || 'Bet').toString()}</div>
-                                <div>Points</div>
-                              </div>
-                              <div className="mt-3 grid grid-cols-3 text-center text-gray-800 text-sm">
-                                <div className="font-semibold">{gameType}</div>
-                                <div className="font-extrabold">{betValue}</div>
-                                <div className="font-extrabold">{points}</div>
-                              </div>
-                            </div>
-
-                            <div className="h-px bg-gray-200" />
-                            <div className="px-4 py-3 text-center text-gray-600 text-sm">
-                              Transaction: <span className="font-semibold">{formatTxnTime(x?.createdAt)}</span>
-                            </div>
-
-                            <div className="h-px bg-gray-200" />
-                            {verdict.state === 'won' ? (
-                              <div className="px-4 py-3 text-center font-semibold text-green-600">
-                                Congratulations, You Won {verdict.payout ? `₹${Number(verdict.payout || 0).toLocaleString('en-IN')}` : ''}
-                              </div>
-                            ) : verdict.state === 'lost' ? (
-                              <div className="px-4 py-3 text-center font-semibold text-red-500">
-                                Better Luck Next time
-                              </div>
-                            ) : (
-                              <div className="px-4 py-3 text-center font-semibold text-gray-500">
-                                Bet Placed
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                            index={i + 1}
+                            betId={r?.id ?? x.id}
+                            session={session}
+                            marketTitle={market.toUpperCase()}
+                            gameLabel={shortGameLabel(gameType)}
+                            betValue={betValue}
+                            betAmount={points}
+                            winPayout={verdict.payout}
+                            statusLabel={statusLabel}
+                            timeFormatted={formatTxnTime(x?.createdAt)}
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -825,7 +816,7 @@ const Bids = () => {
 
                 <div className="text-lg font-bold text-gray-600 mb-3">By Winning Status</div>
                 <div className="flex items-center justify-around gap-3 pb-4">
-                  {['Win', 'Loose', 'Pending'].map((s) => (
+                  {['Win', 'Lost', 'Pending'].map((s) => (
                     <label key={s} className="flex items-center gap-3 text-base sm:text-lg">
                       <input
                         type="checkbox"
