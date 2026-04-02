@@ -15,6 +15,7 @@ import {
     FaCoins,
     FaCog,
     FaMoneyBillWave,
+    FaLifeRing,
     FaDice,
 } from 'react-icons/fa';
 
@@ -23,6 +24,16 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
     const location = useLocation();
     const navRef = useRef(null);
     const savedScrollTop = useRef(0);
+
+    // Hide Help Desk issues from non-super-admin users.
+    let adminRole = '';
+    try {
+        const adminRaw = localStorage.getItem('admin');
+        const parsed = adminRaw ? JSON.parse(adminRaw) : null;
+        adminRole = parsed?.role || '';
+    } catch (_) {
+        adminRole = '';
+    }
 
     const menuItems = [
         { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
@@ -39,6 +50,10 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/logs', label: 'Logs', icon: FaClipboardList },
         { path: '/settings', label: 'Settings', icon: FaCog },
     ];
+
+    if (adminRole === 'super_admin') {
+        menuItems.splice(10, 0, { path: '/help-desk', label: 'Help Desk Issues', icon: FaLifeRing });
+    }
 
     const isActive = (path) => {
         if (path === '/all-users' || path === '/markets') {

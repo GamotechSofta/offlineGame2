@@ -229,13 +229,14 @@ const AdminDashboard = () => {
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
     const pendingWithdrawals = stats?.payments?.pendingWithdrawals ?? 0;
     const helpDeskOpen = stats?.helpDesk?.open || 0;
+    const isSuperAdmin = adminRole === 'super_admin';
     const marketsPendingResultList = stats?.marketsPendingResultList || [];
     const starlinePendingList = marketsPendingResultList.filter((m) => (m.marketType || '').toString().toLowerCase() === 'startline');
     const mainPendingList = marketsPendingResultList.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline');
     const starlinePendingCount = starlinePendingList.length;
     const mainPendingCount = mainPendingList.length;
     const marketsPendingResult = marketsPendingResultList.length;
-    const hasActionRequired = pendingPayments > 0 || helpDeskOpen > 0 || marketsPendingResult > 0;
+    const hasActionRequired = pendingPayments > 0 || (isSuperAdmin && helpDeskOpen > 0) || marketsPendingResult > 0;
 
     if (loading) {
         return (
@@ -377,7 +378,7 @@ const AdminDashboard = () => {
                                 {pendingPayments} Pending Payment{pendingPayments !== 1 ? 's' : ''} →
                             </Link>
                         )}
-                        {helpDeskOpen > 0 && (
+                        {isSuperAdmin && helpDeskOpen > 0 && (
                             <Link to="/help-desk" className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-medium text-sm">
                                 {helpDeskOpen} Open Ticket{helpDeskOpen !== 1 ? 's' : ''} →
                             </Link>
@@ -488,11 +489,13 @@ const AdminDashboard = () => {
                 )}
 
                 {/* Help Desk */}
-                <SectionCard title="Help Desk" description="Support tickets" icon={FaLifeRing} linkTo="/help-desk" linkLabel="Help Desk">
-                    <StatRow label="Total Tickets" value={stats?.helpDesk?.total ?? 0} />
-                    <StatRow label="Open" value={stats?.helpDesk?.open ?? 0} colorClass="text-orange-500" />
-                    <StatRow label="In Progress" value={stats?.helpDesk?.inProgress ?? 0} colorClass="text-blue-600" />
-                </SectionCard>
+                {isSuperAdmin && (
+                    <SectionCard title="Help Desk" description="Support tickets" icon={FaLifeRing} linkTo="/help-desk" linkLabel="Help Desk">
+                        <StatRow label="Total Tickets" value={stats?.helpDesk?.total ?? 0} />
+                        <StatRow label="Open" value={stats?.helpDesk?.open ?? 0} colorClass="text-orange-500" />
+                        <StatRow label="In Progress" value={stats?.helpDesk?.inProgress ?? 0} colorClass="text-blue-600" />
+                    </SectionCard>
+                )}
             </div>
 
             {/* Revenue Timeline (period summary) */}
