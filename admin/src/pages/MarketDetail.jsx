@@ -716,12 +716,16 @@ function renderPattiChips(matches, mode, keyPrefix) {
                             <span className="text-orange-600 font-semibold">{row.openingPanna}</span>
                             <span className="text-gray-500">·</span>
                             <span>{row.profitPercent}%</span>
+                            <span className="text-gray-500">·</span>
+                            <span className="text-orange-600 font-semibold">₹{formatNum(row.profit)}</span>
                         </>
                     ) : (
                         <>
                             <span className="text-orange-600 font-semibold">{row.closingPanna}</span>
                             <span className="text-gray-500">·</span>
                             <span>{row.profitPercent}%</span>
+                            <span className="text-gray-500">·</span>
+                            <span className="text-orange-600 font-semibold">₹{formatNum(row.profit)}</span>
                         </>
                     )}
                 </span>
@@ -731,7 +735,7 @@ function renderPattiChips(matches, mode, keyPrefix) {
 }
 
 /** 3-digit pannas whose declare preview has house profit ≈ target % (same rules as declare preview). */
-const ProfitTargetFinder = ({ marketId, hasOpenDeclared }) => {
+const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => {
     const [targetPct, setTargetPct] = useState('60');
     const [tolerance, setTolerance] = useState('10');
     const [mode, setMode] = useState('open');
@@ -746,20 +750,17 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared }) => {
         if (!hasOpenDeclared && mode === 'close') setMode('open');
     }, [hasOpenDeclared, mode]);
 
+    const bucketsMode = hasCloseDeclared ? 'close' : 'open';
+
     useEffect(() => {
         if (!marketId) return;
-        if (mode === 'close' && !hasOpenDeclared) {
-            setBucketsData(null);
-            setBucketsErr('');
-            return;
-        }
         let cancelled = false;
         (async () => {
             setBucketsLoading(true);
             setBucketsErr('');
             setBucketsData(null);
             try {
-                const q = new URLSearchParams({ mode });
+                const q = new URLSearchParams({ mode: bucketsMode });
                 const res = await fetchWithAuth(`${API_BASE_URL}/markets/scan-profit-buckets/${marketId}?${q}`);
                 if (res.status === 401) return;
                 const json = await res.json();
@@ -778,7 +779,7 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared }) => {
         return () => {
             cancelled = true;
         };
-    }, [marketId, mode, hasOpenDeclared]);
+    }, [marketId, bucketsMode]);
 
     const runScan = async () => {
         if (!marketId) return;
@@ -917,10 +918,13 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared }) => {
             )}
 
             <div className="mt-8 pt-6 border-t border-gray-200">
-                <h3 className="text-sm font-bold text-gray-800 mb-1">Played patti by profit % (10% – 100%)</h3>
+                <h3 className="text-sm font-bold text-gray-800 mb-1">Played patti by profit % (0% – 100%)</h3>
+                <p className="text-xs text-gray-500 mb-2">
+                    Showing {hasCloseDeclared ? 'close' : 'open'} calculation
+                    {hasCloseDeclared ? ' (result declared)' : ' (before result declaration)'}.
+                </p>
                 <p className="text-xs text-gray-500 mb-3">
-                    Each row is 10%–100%. Pannas sit in their nearest band (e.g. 54% → ~50%). If a band has no exact nearest
-                    matches, we still show the closest pannas so every row has data (lighter chips, tooltip “closest to this band”).
+                    Each row is a fixed range bucket: 10% = 0–10, 20% = 11–20, ... 100% = 91–100.
                 </p>
                 {bucketsLoading && (
                     <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
@@ -944,12 +948,7 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared }) => {
                                 {bucketsData.buckets.map((bucket) => (
                                     <tr key={bucket.targetPct} className="align-top hover:bg-gray-50/80">
                                         <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
-                                            ~{bucket.targetPct}%
-                                            {bucket.nearestFill && (
-                                                <span className="block text-[10px] font-normal text-gray-500 font-sans">
-                                                    closest matches
-                                                </span>
-                                            )}
+                                            {bucket.targetPct === 10 ? 0 : bucket.targetPct - 9}-{bucket.targetPct}%
                                         </td>
                                         <td className="px-3 py-2 text-gray-800">
                                             {bucket.matches.length === 0 ? (
@@ -1704,7 +1703,7 @@ const MarketDetail = () => {
                     />
                 </div>
 
-                <ProfitTargetFinder marketId={marketId} hasOpenDeclared={!!hasOpen} />
+                <ProfitTargetFinder marketId={marketId} hasOpenDeclared={!!hasOpen} hasCloseDeclared={!!hasClose} />
 
                 {/* Detailed Bet Analysis Section */}
                 <SectionCard title="Detailed Bet Analysis" className="mt-8">

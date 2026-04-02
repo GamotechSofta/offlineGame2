@@ -1263,7 +1263,24 @@ function nearestProfitBucketTen(pct) {
     return b;
 }
 
+/** Profit range bucket: 0-10 -> 10, 11-20 -> 20, ..., 91-100 -> 100 */
+function profitRangeBucketTen(pct) {
+    const p = Number(pct);
+    if (!Number.isFinite(p) || p < 0) return null;
+    let b = Math.ceil(p / 10) * 10;
+    if (b < 10) b = 10;
+    if (b > 100) b = 100;
+    return b;
+}
+
 const BUCKET_NEAREST_FILL_MAX = 20;
+
+/** All 3-digit pannas from 000 to 999 */
+function allThreeDigitPannas() {
+    const arr = [];
+    for (let i = 0; i <= 999; i += 1) arr.push(String(i).padStart(3, '0'));
+    return arr;
+}
 
 /** If a band has no nearest-10 matches, fill with played pannas closest to that band’s % (so 10–100 rows always have data when any panna exists). */
 function fillEmptyBucketsWithNearest(allRows, bucketMap) {
@@ -1301,14 +1318,15 @@ export async function scanProfitBucketsOpen(marketId, options = {}) {
 
     const allOpenBets = await Bet.find(matchFilterAll).lean();
     const rates = await getRatesMap();
-    const candidates = collectOpenBetPannaCandidates(allOpenBets);
-    const toScan = candidates.size > 0 ? [...candidates].sort() : [];
+    // Show all numbers even if nobody placed bets on that specific patti.
+    const toScan = allThreeDigitPannas();
 
     const allRows = [];
     for (const open3 of toScan) {
         const { totalBetAmount, profit } = computeOpenPreviewFromBets(allOpenBets, open3, rates);
-        if (totalBetAmount <= 0) continue;
-        const pct = (profit / totalBetAmount) * 100;
+        const pct = totalBetAmount > 0 ? (profit / totalBetAmount) * 100 : 0;
+        // This table is "profit % (0% - 100%)": hide only loss rows.
+        if (!Number.isFinite(pct) || pct < 0) continue;
         const profitPercent = Math.round(pct * 100) / 100;
         allRows.push({
             openingPanna: open3,
@@ -1320,11 +1338,13 @@ export async function scanProfitBucketsOpen(marketId, options = {}) {
 
     const bucketMap = new Map(PROFIT_BUCKET_TARGETS.map((t) => [t, []]));
     for (const row of allRows) {
-        const b = nearestProfitBucketTen(row.profitPercent);
+        const b = profitRangeBucketTen(row.profitPercent);
+        if (!b) continue;
         const arr = bucketMap.get(b);
         if (arr) arr.push({ ...row });
     }
     if (allRows.length > 0) {
+        // Keep all 0-100 rows populated even when exact range rows are missing.
         fillEmptyBucketsWithNearest(allRows, bucketMap);
     }
     for (const t of PROFIT_BUCKET_TARGETS) {
@@ -1338,9 +1358,9 @@ export async function scanProfitBucketsOpen(marketId, options = {}) {
     return {
         success: true,
         mode: 'open',
-        onlyPlayedPannas: true,
-        betPannaCount: candidates.size,
-        grouping: 'nearest10PlusFill',
+        onlyPlayedPannas: false,
+        betPannaCount: toScan.length,
+        grouping: 'range10',
         buckets,
     };
 }
@@ -1381,14 +1401,15 @@ export async function scanProfitBucketsClose(marketId, options = {}) {
 
     const allBetsToday = await Bet.find(matchFilterAll).lean();
     const rates = await getRatesMap();
-    const candidates = collectCloseBetPannaCandidates(allBetsToday, open3);
-    const toScan = candidates.size > 0 ? [...candidates].sort() : [];
+    // Show all numbers even if nobody placed bets on that specific patti.
+    const toScan = allThreeDigitPannas();
 
     const allRows = [];
     for (const close3 of toScan) {
         const { totalBetAmount, profit } = computeClosePreviewFromBets(allBetsToday, open3, close3, rates);
-        if (totalBetAmount <= 0) continue;
-        const pct = (profit / totalBetAmount) * 100;
+        const pct = totalBetAmount > 0 ? (profit / totalBetAmount) * 100 : 0;
+        // This table is "profit % (0% - 100%)": hide only loss rows.
+        if (!Number.isFinite(pct) || pct < 0) continue;
         const profitPercent = Math.round(pct * 100) / 100;
         allRows.push({
             openPanna: open3,
@@ -1401,11 +1422,13 @@ export async function scanProfitBucketsClose(marketId, options = {}) {
 
     const bucketMap = new Map(PROFIT_BUCKET_TARGETS.map((t) => [t, []]));
     for (const row of allRows) {
-        const b = nearestProfitBucketTen(row.profitPercent);
+        const b = profitRangeBucketTen(row.profitPercent);
+        if (!b) continue;
         const arr = bucketMap.get(b);
         if (arr) arr.push({ ...row });
     }
     if (allRows.length > 0) {
+        // Keep all 0-100 rows populated even when exact range rows are missing.
         fillEmptyBucketsWithNearest(allRows, bucketMap);
     }
     for (const t of PROFIT_BUCKET_TARGETS) {
@@ -1420,9 +1443,9 @@ export async function scanProfitBucketsClose(marketId, options = {}) {
         success: true,
         mode: 'close',
         openPanna: open3,
-        onlyPlayedPannas: true,
-        betPannaCount: candidates.size,
-        grouping: 'nearest10PlusFill',
+        onlyPlayedPannas: false,
+        betPannaCount: toScan.length,
+        grouping: 'range10',
         buckets,
     };
 }
