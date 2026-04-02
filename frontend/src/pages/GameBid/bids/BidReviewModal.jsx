@@ -35,6 +35,25 @@ const renderBetNumber = (val) => {
   return s || '-';
 };
 
+const readLatestWalletBalance = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    const u = JSON.parse(raw);
+    const val =
+      u?.wallet ??
+      u?.balance ??
+      u?.points ??
+      u?.walletAmount ??
+      u?.wallet_amount ??
+      u?.amount;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+};
+
 const BidReviewModal = ({
   open,
   onClose,
@@ -62,7 +81,8 @@ const BidReviewModal = ({
   // Keep showing success popup even if parent sets open=false after submit.
   if (!open && stage !== 'success') return null;
 
-  const before = Number(walletBefore) || 0;
+  const latestWallet = readLatestWalletBalance();
+  const before = latestWallet != null ? latestWallet : (Number(walletBefore) || 0);
   const amount = Number(totalAmount) || 0;
   const after = before - amount;
   const insufficientBalance = after < 0;
