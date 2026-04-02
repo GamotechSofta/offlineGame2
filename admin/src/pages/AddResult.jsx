@@ -326,7 +326,7 @@ const AddResult = () => {
                         <p className="text-orange-700 text-xs sm:text-sm break-words">
                             {mainPendingCount} market{mainPendingCount !== 1 ? 's' : ''} need{mainPendingCount === 1 ? 's' : ''} result declaration: {mainPendingList.map((m) => m.marketName).join(', ')}
                         </p>
-                        <p className="text-amber-200/70 text-[11px] sm:text-xs mt-2">
+                        <p className="text-red text-[11px] sm:text-xs mt-2">
                             Betting has closed for these markets. Declare the result below to settle bets.
                         </p>
                     </div>
