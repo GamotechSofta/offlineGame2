@@ -15,6 +15,7 @@ const JodiBulkBid = ({ market, title }) => {
     const [session, setSession] = useState('OPEN');
     const [isReviewOpen, setIsReviewOpen] = useState(false);
     const [warning, setWarning] = useState('');
+    const [selectedQuickPoint, setSelectedQuickPoint] = useState(null);
     const [selectedDate, setSelectedDate] = useState(() => {
         try {
             const savedDate = localStorage.getItem('betSelectedDate');
@@ -253,20 +254,36 @@ const JodiBulkBid = ({ market, title }) => {
         setColBulk((prev) => ({ ...prev, [c]: '' }));
     };
 
-    const applyAllQuickPoints = (pts) => {
-        const p = Number(pts);
-        if (!p || p <= 0) {
-            showWarning('Please enter points.');
-            return;
-        }
+    const applyQuickPointToCell = (key) => {
+        const p = Number(selectedQuickPoint);
+        if (!p || p <= 0) return;
+        setCells((prev) => {
+            const current = String(prev[key] || '');
+            const pointStr = String(p);
+            // Toggle behavior: click once to apply, click again to clear.
+            const nextValue = current === pointStr ? '' : pointStr;
+            return { ...prev, [key]: nextValue };
+        });
+    };
+
+    const applyQuickPointToRow = (r) => {
+        const p = Number(selectedQuickPoint);
+        if (!p || p <= 0) return;
+        const pointStr = String(p);
         setCells((prev) => {
             const next = { ...prev };
-            for (const r of DIGITS) {
-                for (const c of DIGITS) {
-                    const key = `${r}${c}`;
-                    next[key] = String(p);
-                }
-            }
+            for (const c of DIGITS) next[`${r}${c}`] = pointStr;
+            return next;
+        });
+    };
+
+    const applyQuickPointToCol = (c) => {
+        const p = Number(selectedQuickPoint);
+        if (!p || p <= 0) return;
+        const pointStr = String(p);
+        setCells((prev) => {
+            const next = { ...prev };
+            for (const r of DIGITS) next[`${r}${c}`] = pointStr;
             return next;
         });
     };
@@ -280,6 +297,7 @@ const JodiBulkBid = ({ market, title }) => {
         });
         setRowBulk(Object.fromEntries(DIGITS.map((d) => [d, ''])));
         setColBulk(Object.fromEntries(DIGITS.map((d) => [d, ''])));
+        setSelectedQuickPoint(null);
         // Reset scheduled date to today after bet is placed
         const today = new Date().toISOString().split('T')[0];
         setSelectedDate(today);
@@ -389,8 +407,12 @@ const JodiBulkBid = ({ market, title }) => {
                                 <button
                                     key={`jodi-quick-${pts}`}
                                     type="button"
-                                    onClick={() => applyAllQuickPoints(pts)}
-                                    className="h-7 px-2.5 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors shrink-0"
+                                    onClick={() => setSelectedQuickPoint((prev) => (prev === pts ? null : pts))}
+                                    className={`h-7 px-2.5 rounded-md font-semibold text-[11px] border transition-colors shrink-0 ${
+                                        selectedQuickPoint === pts
+                                            ? 'border-[#1B3150] bg-[#1B3150] text-white'
+                                            : 'border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100'
+                                    }`}
                                 >
                                     {pts}
                                 </button>
@@ -443,6 +465,11 @@ const JodiBulkBid = ({ market, title }) => {
                                     placeholder="Pts"
                                     value={colBulk[c]}
                                     onChange={(e) => setColBulk((p) => ({ ...p, [c]: sanitizePoints(e.target.value) }))}
+                                    onPointerDown={(e) => {
+                                        if (!selectedQuickPoint) return;
+                                        e.preventDefault();
+                                        applyQuickPointToCol(c);
+                                    }}
                                     onBlur={() => {
                                         if (colBulk[c]) applyCol(c, colBulk[c]);
                                     }}
@@ -467,6 +494,11 @@ const JodiBulkBid = ({ market, title }) => {
                                             placeholder="Pts"
                                             value={rowBulk[r]}
                                             onChange={(e) => setRowBulk((p) => ({ ...p, [r]: sanitizePoints(e.target.value) }))}
+                                            onPointerDown={(e) => {
+                                                if (!selectedQuickPoint) return;
+                                                e.preventDefault();
+                                                applyQuickPointToRow(r);
+                                            }}
                                             onBlur={() => {
                                                 if (rowBulk[r]) applyRow(r, rowBulk[r]);
                                             }}
@@ -498,6 +530,11 @@ const JodiBulkBid = ({ market, title }) => {
                                                             [key]: sanitizePoints(e.target.value),
                                                         }))
                                                     }
+                                                    onPointerDown={(e) => {
+                                                        if (!selectedQuickPoint) return;
+                                                        e.preventDefault();
+                                                        applyQuickPointToCell(key);
+                                                    }}
                                                     onKeyDown={(e) => handleCellKeyDown(e, r, c)}
                                                     className="no-spinner h-6 md:h-7 w-full bg-white border-2 border-gray-300 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
                                                 />
