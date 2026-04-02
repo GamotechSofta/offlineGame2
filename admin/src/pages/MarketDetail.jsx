@@ -1347,15 +1347,15 @@ const MarketDetail = () => {
                                             <div className="rounded bg-gray-100/40 border border-gray-200 p-2 space-y-1">
                                                 <p className="text-gray-500 font-medium mb-1">Open</p>
                                                 <div className="flex justify-between items-center gap-2">
-                                                    <span className="text-gray-400 shrink-0">Total Bet Amount on Patti</span>
+                                                    <span className="text-gray-400 shrink-0">Total Bet Amount on Patti (open) + single Digit (open)</span>
                                                     <span className="font-mono text-orange-500">₹{formatNum(resultOnPatti.open.totalBetAmountOnPatti)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center gap-2">
-                                                    <span className="text-gray-400 shrink-0">Total Win Amount on Patti</span>
+                                                    <span className="text-gray-400 shrink-0">Total Win Amount on Patti (open) + single Digit (open)</span>
                                                     <span className="font-mono text-orange-500">₹{formatNum(resultOnPatti.open.totalWinAmountOnPatti)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center gap-2">
-                                                    <span className="text-gray-400 shrink-0">Total Players Bet on Patti</span>
+                                                    <span className="text-gray-400 shrink-0">total no of players Won</span>
                                                     <span className="font-mono text-orange-500">{formatNum(resultOnPatti.open.totalPlayersBetOnPatti)}</span>
                                                 </div>
                                             </div>
@@ -1364,15 +1364,15 @@ const MarketDetail = () => {
                                             <div className="rounded bg-gray-100/40 border border-gray-200 p-2 space-y-1">
                                                 <p className="text-gray-500 font-medium mb-1">Close</p>
                                                 <div className="flex justify-between items-center gap-2">
-                                                    <span className="text-gray-400 shrink-0">Total Bet Amount on Patti</span>
+                                                    <span className="text-gray-400 shrink-0">Total Bet Amount on Patti (close) + single Digit (close)</span>
                                                     <span className="font-mono text-orange-500">₹{formatNum(resultOnPatti.close.totalBetAmountOnPatti)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center gap-2">
-                                                    <span className="text-gray-400 shrink-0">Total Win Amount on Patti</span>
+                                                    <span className="text-gray-400 shrink-0">Total Win Amount on Patti (close) + single Digit (close)</span>
                                                     <span className="font-mono text-orange-500">₹{formatNum(resultOnPatti.close.totalWinAmountOnPatti)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center gap-2">
-                                                    <span className="text-gray-400 shrink-0">Total Players Bet on Patti</span>
+                                                    <span className="text-gray-400 shrink-0">total no of players Won</span>
                                                     <span className="font-mono text-orange-500">{formatNum(resultOnPatti.close.totalPlayersBetOnPatti)}</span>
                                                 </div>
                                             </div>
