@@ -733,6 +733,46 @@ export async function previewDeclareOpen(marketId, openingNumber, options = {}) 
     }
     totalBetAmountHalfSangam = Math.round(totalBetAmountHalfSangam * 100) / 100;
 
+    // Jodi percentage based on the same "Open Digit" rule used in this codebase:
+    // digitFromPatti("123") -> "6" (because 1+2+3=6).
+    // Then compute what % of today's Jodi bets (by bet count) start with that digit (betNumber first digit).
+    const derivedSingleDigit = open3 ? digitFromPatti(open3) : null;
+
+    let jodiPercentage = 0;
+    let jodiStartDigit = derivedSingleDigit;
+
+    try {
+        const matchFilterJodi = {
+            marketId: oid,
+            betType: 'jodi',
+            createdAt: { $gte: todayIST.start, $lte: todayIST.end },
+        };
+        if (hasBookieFilter) matchFilterJodi.userId = { $in: bookieUserIds };
+
+        const jodiBets = await Bet.find(matchFilterJodi).lean();
+
+        if (derivedSingleDigit != null) {
+            let totalJodiBets = 0;
+            let startDigitJodiBets = 0;
+
+            for (const bet of jodiBets) {
+                const num = (bet.betNumber || '')
+                    .toString()
+                    .trim()
+                    .replace(/\D/g, '');
+                if (!/^[0-9]{2}$/.test(num)) continue;
+
+                totalJodiBets += 1;
+                if (num[0] === String(derivedSingleDigit)) startDigitJodiBets += 1;
+            }
+
+            jodiPercentage = totalJodiBets ? (startDigitJodiBets / totalJodiBets) * 100 : 0;
+            jodiPercentage = Math.round(jodiPercentage * 100) / 100; // 2 decimals
+        }
+    } catch (_) {
+        // Keep percentage at default 0 if jodi query fails.
+    }
+
     return {
         totalBetAmount,
         noOfPlayers,
@@ -743,6 +783,8 @@ export async function previewDeclareOpen(marketId, openingNumber, options = {}) 
         totalPlayersInMarket: allMarketUserIds.size,
         totalBetAmountHalfSangam,
         totalBetsHalfSangam: halfSangamBets.length,
+        jodiPercentage,
+        jodiStartDigit,
     };
 }
 

@@ -176,6 +176,8 @@ const AddResult = () => {
                     profit: safeNum(previewData.data.profit),
                     totalBetAmountHalfSangam: safeNum(previewData.data.totalBetAmountHalfSangam),
                     totalBetsHalfSangam: safeNum(previewData.data.totalBetsHalfSangam),
+                    jodiPercentage: safeNum(previewData.data.jodiPercentage),
+                    jodiStartDigit: previewData.data.jodiStartDigit,
                 });
             } else {
                 setPreview({
@@ -185,6 +187,8 @@ const AddResult = () => {
                     noOfPlayers: 0,
                     totalPlayersBetOnPatti: 0,
                     profit: 0,
+                    jodiPercentage: 0,
+                    jodiStartDigit: null,
                 });
             }
         } catch (err) {
@@ -573,6 +577,15 @@ const AddResult = () => {
                                         <div className="flex justify-between items-center gap-2">
                                             <span className="text-gray-400 text-xs sm:text-sm shrink-0">Total Profit</span>
                                             <span className="font-mono text-orange-500 bg-gray-100 px-2 py-1 rounded text-xs sm:text-sm truncate">{formatNum(preview.profit)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center gap-2">
+                                            <span className="text-gray-400 text-xs sm:text-sm shrink-0">
+                                                jodi percentage
+                                                {preview.jodiStartDigit != null ? ` (start ${preview.jodiStartDigit})` : ''}
+                                            </span>
+                                            <span className="font-mono text-gray-800 bg-gray-100 px-2 py-1 rounded text-xs sm:text-sm truncate">
+                                                {formatNum(preview.jodiPercentage)}%
+                                            </span>
                                         </div>
                                     </div>
                                 )}
