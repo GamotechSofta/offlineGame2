@@ -18,6 +18,8 @@ import {
     declareCloseResult,
     clearResult,
     getWinningBetsPreview,
+    scanProfitOutcomes,
+    scanProfitBuckets,
 } from '../../controllers/marketController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
@@ -32,6 +34,8 @@ router.get('/result-history', getMarketResultHistory);
 router.get('/get-market-stats/:id', verifyAdmin, getMarketStats);
 router.get('/get-single-patti-summary/:id', verifyAdmin, getSinglePattiSummary);
 router.get('/get-market-bets/:id', verifyAdmin, getMarketBets);
+router.get('/scan-profit-outcomes/:id', verifyAdmin, scanProfitOutcomes);
+router.get('/scan-profit-buckets/:id', verifyAdmin, scanProfitBuckets);
 
 // Super admin: declare result (preview, declare open, declare close)
 router.get('/preview-declare-open/:id', verifySuperAdmin, previewDeclareOpenResult);

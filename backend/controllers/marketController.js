@@ -7,7 +7,18 @@ import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isSinglePatti, buildSinglePattiFirstDigitSummary } from '../utils/singlePattiUtils.js';
 import { isSpCommon } from '../config/spCommonList.js';
-import { previewDeclareOpen, previewDeclareClose, settleOpening, settleClosing, getWinningBetsForOpen, getWinningBetsForClose } from '../utils/settleBets.js';
+import {
+    previewDeclareOpen,
+    previewDeclareClose,
+    settleOpening,
+    settleClosing,
+    getWinningBetsForOpen,
+    getWinningBetsForClose,
+    scanProfitOutcomesOpen,
+    scanProfitOutcomesClose,
+    scanProfitBucketsOpen,
+    scanProfitBucketsClose,
+} from '../utils/settleBets.js';
 import { ensureResultsResetForNewDay } from '../utils/resultReset.js';
 import { getRatesMap } from '../models/rate/rate.js';
 import bcrypt from 'bcryptjs';
@@ -443,6 +454,69 @@ export const previewDeclareOpenResult = async (req, res) => {
             success: true,
             data: stats,
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * GET /markets/scan-profit-outcomes/:id?mode=open|close&targetPct=60&tolerance=2
+ * Lists candidate panna results whose declare preview gives ~targetPct% house profit on the relevant pool.
+ */
+export const scanProfitOutcomes = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const mode = (req.query.mode || 'open').toString().toLowerCase();
+        const targetPct = Number(req.query.targetPct);
+        const tolerance = Number(req.query.tolerance);
+        if (!Number.isFinite(targetPct) || targetPct < 0 || targetPct > 100) {
+            return res.status(400).json({
+                success: false,
+                message: 'Query targetPct is required and must be between 0 and 100 (house profit % on pool).',
+            });
+        }
+        const market = await Market.findById(id);
+        if (!market) {
+            return res.status(404).json({ success: false, message: 'Market not found' });
+        }
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        const opts = { bookieUserIds: bookieUserIds ?? undefined };
+        const tol = Number.isFinite(tolerance) ? tolerance : 2;
+        const data =
+            mode === 'close'
+                ? await scanProfitOutcomesClose(id, targetPct, tol, opts)
+                : await scanProfitOutcomesOpen(id, targetPct, tol, opts);
+        if (!data.success) {
+            const code = data.message === 'Market not found' ? 404 : 400;
+            return res.status(code).json({ success: false, message: data.message || 'Scan failed', data });
+        }
+        res.status(200).json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * GET /markets/scan-profit-buckets/:id?mode=open|close
+ * Played pannas grouped by nearest 10% house profit (10% … 100%).
+ */
+export const scanProfitBuckets = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const mode = (req.query.mode || 'open').toString().toLowerCase();
+        const market = await Market.findById(id);
+        if (!market) {
+            return res.status(404).json({ success: false, message: 'Market not found' });
+        }
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        const opts = { bookieUserIds: bookieUserIds ?? undefined };
+        const data =
+            mode === 'close' ? await scanProfitBucketsClose(id, opts) : await scanProfitBucketsOpen(id, opts);
+        if (!data.success) {
+            const code = data.message === 'Market not found' ? 404 : 400;
+            return res.status(code).json({ success: false, message: data.message || 'Scan failed', data });
+        }
+        res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

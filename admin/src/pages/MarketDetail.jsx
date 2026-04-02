@@ -681,411 +681,294 @@ const FullSangamSection = ({ items = {}, totalAmount = 0, totalBets = 0 }) => {
     );
 };
 
-// Helper function to get panna type and rate
-const getPannaType = (panna) => {
-    if (!panna || panna.length !== 3) return null;
-    const a = panna[0], b = panna[1], c = panna[2];
-    if (a === b && b === c) return 'triplePatti';
-    if (a === b || b === c || a === c) return 'doublePatti';
-    return 'singlePatti';
-};
+/** Shared chip style for “Patti (actual profit %)” in Find pannas + bucket chart */
+const PROFIT_PATTI_CHIP_CLASS =
+    'inline-flex items-center gap-1 rounded-md bg-orange-50 border border-orange-100 px-2 py-0.5 font-mono text-xs text-gray-800';
 
-// Helper function to analyze bets for a specific session
-const analyzeBets = (betsList, rates, sessionType) => {
-    const singleRate = rates.single || 10;
-    const jodiRate = rates.jodi || 100;
-    const singlePattiRate = rates.singlePatti || 150;
-    const doublePattiRate = rates.doublePatti || 300;
-    const triplePattiRate = rates.triplePatti || 1000;
+/** Nearest 10% band label (10–100), same idea as bucket rows */
+function nearestTenPercentBand(pct) {
+    const p = Number(pct);
+    if (!Number.isFinite(p)) return 10;
+    let b = Math.round(p / 10) * 10;
+    return Math.min(100, Math.max(10, b));
+}
 
-    // Analyze Single Digits
-    const singleDigitAnalysis = DIGITS.map((digit) => {
-        const betsOnDigit = betsList.filter(
-            (b) => b.betType === 'single' && b.betNumber === digit
-        );
-        const totalBetAmount = betsOnDigit.reduce((sum, b) => sum + (b.amount || 0), 0);
-        const potentialPayout = totalBetAmount * singleRate;
-        const netProfit = totalBetAmount - potentialPayout;
-        const uniquePlayers = new Set(betsOnDigit.map((b) => b.userId?._id || b.userId)).size;
-
-        return {
-            number: digit,
-            type: 'single',
-            totalBetAmount,
-            potentialPayout,
-            netProfit,
-            betCount: betsOnDigit.length,
-            playerCount: uniquePlayers,
-        };
-    });
-
-    // Analyze Jodi (only for close session, as jodi is settled at close)
-    const jodiAnalysis = [];
-    if (sessionType === 'close') {
-        for (let d1 = 0; d1 <= 9; d1++) {
-            for (let d2 = 0; d2 <= 9; d2++) {
-                const jodi = `${d1}${d2}`;
-                const betsOnJodi = betsList.filter(
-                    (b) => b.betType === 'jodi' && b.betNumber === jodi
-                );
-                const totalBetAmount = betsOnJodi.reduce((sum, b) => sum + (b.amount || 0), 0);
-                const potentialPayout = totalBetAmount * jodiRate;
-                const netProfit = totalBetAmount - potentialPayout;
-                const uniquePlayers = new Set(betsOnJodi.map((b) => b.userId?._id || b.userId)).size;
-
-                if (totalBetAmount > 0) {
-                    jodiAnalysis.push({
-                        number: jodi,
-                        type: 'jodi',
-                        totalBetAmount,
-                        potentialPayout,
-                        netProfit,
-                        betCount: betsOnJodi.length,
-                        playerCount: uniquePlayers,
-                    });
-                }
-            }
-        }
+function renderPattiChips(matches, mode, keyPrefix) {
+    if (!matches?.length) {
+        return <span className="text-gray-400">—</span>;
     }
-
-    // Analyze Panna
-    const pannaAnalysis = [];
-    const pannaMap = new Map();
-    
-    betsList.forEach((bet) => {
-        const t = bet.betType;
-        const raw3 = String(bet.betNumber || '').replace(/\D/g, '').slice(0, 3);
-        if (raw3.length < 3) return;
-        const panna = raw3.padStart(3, '0');
-        if (
-            (t === 'panna' || t === 'sp-motor' || t === 'dp-motor') ||
-            (t === 'sp-common' && /^[0-9]{3}$/.test(panna)) ||
-            (t === 'dp-common' && /^[0-9]{3}$/.test(panna))
-        ) {
-            if (!pannaMap.has(panna)) {
-                pannaMap.set(panna, []);
-            }
-            pannaMap.get(panna).push(bet);
-        }
-    });
-
-    pannaMap.forEach((betList, panna) => {
-        const totalBetAmount = betList.reduce((sum, b) => sum + (b.amount || 0), 0);
-        const pannaType = getPannaType(panna);
-        const rate = pannaType === 'triplePatti' ? triplePattiRate :
-                     pannaType === 'doublePatti' ? doublePattiRate : singlePattiRate;
-        const potentialPayout = totalBetAmount * rate;
-        const netProfit = totalBetAmount - potentialPayout;
-        const uniquePlayers = new Set(betList.map((b) => b.userId?._id || b.userId)).size;
-
-        pannaAnalysis.push({
-            number: panna,
-            type: 'panna',
-            pannaType,
-            totalBetAmount,
-            potentialPayout,
-            netProfit,
-            betCount: betList.length,
-            playerCount: uniquePlayers,
-        });
-    });
-
-    const dpCommonMap = new Map();
-    betsList.forEach((bet) => {
-        const num = String(bet?.betNumber ?? '').trim();
-        if (bet.betType === 'dp-common' && /^[0-9]$/.test(num)) {
-            if (!dpCommonMap.has(num)) dpCommonMap.set(num, []);
-            dpCommonMap.get(num).push(bet);
-        }
-    });
-    dpCommonMap.forEach((betList, digit) => {
-        const totalBetAmount = betList.reduce((sum, b) => sum + (b.amount || 0), 0);
-        const potentialPayout = totalBetAmount * doublePattiRate;
-        const netProfit = totalBetAmount - potentialPayout;
-        const uniquePlayers = new Set(betList.map((b) => b.userId?._id || b.userId)).size;
-        pannaAnalysis.push({
-            number: `DP·${digit}`,
-            type: 'dp-common',
-            pannaType: 'doublePatti',
-            totalBetAmount,
-            potentialPayout,
-            netProfit,
-            betCount: betList.length,
-            playerCount: uniquePlayers,
-        });
-    });
-
-    // Sort by net profit (most profitable first)
-    const mostProfitableSingle = [...singleDigitAnalysis]
-        .sort((a, b) => b.netProfit - a.netProfit)
-        .slice(0, 5);
-    const mostProfitableJodi = [...jodiAnalysis]
-        .sort((a, b) => b.netProfit - a.netProfit)
-        .slice(0, 5);
-    const mostProfitablePanna = [...pannaAnalysis]
-        .sort((a, b) => b.netProfit - a.netProfit)
-        .slice(0, 5);
-
-    // Sort by risk (most risky = highest payout)
-    const mostRiskySingle = [...singleDigitAnalysis]
-        .sort((a, b) => b.potentialPayout - a.potentialPayout)
-        .slice(0, 5);
-    const mostRiskyJodi = [...jodiAnalysis]
-        .sort((a, b) => b.potentialPayout - a.potentialPayout)
-        .slice(0, 5);
-    const mostRiskyPanna = [...pannaAnalysis]
-        .sort((a, b) => b.potentialPayout - a.potentialPayout)
-        .slice(0, 5);
-
-    // Most popular (most players)
-    const mostPopularSingle = [...singleDigitAnalysis]
-        .sort((a, b) => b.playerCount - a.playerCount)
-        .slice(0, 5);
-    const mostPopularJodi = [...jodiAnalysis]
-        .sort((a, b) => b.playerCount - a.playerCount)
-        .slice(0, 5);
-    const mostPopularPanna = [...pannaAnalysis]
-        .sort((a, b) => b.playerCount - a.playerCount)
-        .slice(0, 5);
-
-    return {
-        singleDigit: {
-            mostProfitable: mostProfitableSingle,
-            mostRisky: mostRiskySingle,
-            mostPopular: mostPopularSingle,
-        },
-        jodi: {
-            mostProfitable: mostProfitableJodi,
-            mostRisky: mostRiskyJodi,
-            mostPopular: mostPopularJodi,
-        },
-        panna: {
-            mostProfitable: mostProfitablePanna,
-            mostRisky: mostRiskyPanna,
-            mostPopular: mostPopularPanna,
-        },
-    };
-};
-
-// Market Analytics Component
-const MarketAnalytics = ({ bets, rates, market }) => {
-    const analyticsOpen = useMemo(() => {
-        return analyzeBets(bets.open || [], rates, 'open');
-    }, [bets.open, rates]);
-
-    const analyticsClose = useMemo(() => {
-        return analyzeBets(bets.close || [], rates, 'close');
-    }, [bets.close, rates]);
-
-    // Helper component to render analytics for a session
-    const renderAnalytics = (analytics, sessionName, sessionColor) => (
-        <div className="space-y-6">
-            <div className="flex items-center gap-2 mb-4">
-                <span className={`w-2 h-2 rounded-full ${sessionColor}`}></span>
-                <h3 className="text-lg font-bold text-orange-600">{sessionName} Analytics</h3>
-            </div>
-
-            {/* Single Digit Analytics */}
-            <div>
-                <h4 className="text-base font-semibold text-gray-700 mb-3">Single Digit (0-9)</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {/* Most Profitable */}
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <h5 className="font-semibold text-green-700 mb-2 text-sm">✅ Most Profitable</h5>
-                        <div className="space-y-2">
-                            {analytics.singleDigit.mostProfitable.length > 0 ? (
-                                analytics.singleDigit.mostProfitable.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
-                                        <div className="text-right">
-                                            <div className="text-green-600 font-semibold">+₹{formatNum(item.netProfit)}</div>
-                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-xs text-gray-400 text-center py-2">No bets</div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Most Risky */}
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <h5 className="font-semibold text-red-700 mb-2 text-sm">⚠️ Most Risky</h5>
-                        <div className="space-y-2">
-                            {analytics.singleDigit.mostRisky.length > 0 ? (
-                                analytics.singleDigit.mostRisky.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
-                                        <div className="text-right">
-                                            <div className="text-red-600 font-semibold">-₹{formatNum(item.potentialPayout)}</div>
-                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-xs text-gray-400 text-center py-2">No bets</div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Most Popular */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h5 className="font-semibold text-blue-700 mb-2 text-sm">👥 Most Popular</h5>
-                        <div className="space-y-2">
-                            {analytics.singleDigit.mostPopular.length > 0 ? (
-                                analytics.singleDigit.mostPopular.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
-                                        <div className="text-right">
-                                            <div className="text-blue-600 font-semibold">{item.playerCount} players</div>
-                                            <div className="text-xs text-gray-500">₹{formatNum(item.totalBetAmount)}</div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-xs text-gray-400 text-center py-2">No bets</div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Jodi Analytics - Only for close session */}
-            {sessionName === 'Closing' && analytics.jodi.mostProfitable.length > 0 && (
-                <div>
-                    <h4 className="text-base font-semibold text-gray-700 mb-3">Jodi (00-99)</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {/* Most Profitable */}
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <h5 className="font-semibold text-green-700 mb-2 text-sm">✅ Most Profitable</h5>
-                            <div className="space-y-2">
-                                {analytics.jodi.mostProfitable.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
-                                        <div className="text-right">
-                                            <div className="text-green-600 font-semibold">+₹{formatNum(item.netProfit)}</div>
-                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Most Risky */}
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                            <h5 className="font-semibold text-red-700 mb-2 text-sm">⚠️ Most Risky</h5>
-                            <div className="space-y-2">
-                                {analytics.jodi.mostRisky.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
-                                        <div className="text-right">
-                                            <div className="text-red-600 font-semibold">-₹{formatNum(item.potentialPayout)}</div>
-                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Most Popular */}
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <h5 className="font-semibold text-blue-700 mb-2 text-sm">👥 Most Popular</h5>
-                            <div className="space-y-2">
-                                {analytics.jodi.mostPopular.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                        <span className="font-mono font-bold text-gray-800">{item.number}</span>
-                                        <div className="text-right">
-                                            <div className="text-blue-600 font-semibold">{item.playerCount} players</div>
-                                            <div className="text-xs text-gray-500">₹{formatNum(item.totalBetAmount)}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Panna Analytics */}
-            {analytics.panna.mostProfitable.length > 0 && (
-                <div>
-                    <h4 className="text-base font-semibold text-gray-700 mb-3">Panna (000-999)</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {/* Most Profitable */}
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <h5 className="font-semibold text-green-700 mb-2 text-sm">✅ Most Profitable</h5>
-                            <div className="space-y-2">
-                                {analytics.panna.mostProfitable.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                        <div>
-                                            <span className="font-mono font-bold text-gray-800">{item.number}</span>
-                                            <span className="text-xs text-gray-500 ml-1">({item.pannaType})</span>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-green-600 font-semibold">+₹{formatNum(item.netProfit)}</div>
-                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Most Risky */}
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                            <h5 className="font-semibold text-red-700 mb-2 text-sm">⚠️ Most Risky</h5>
-                            <div className="space-y-2">
-                                {analytics.panna.mostRisky.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                        <div>
-                                            <span className="font-mono font-bold text-gray-800">{item.number}</span>
-                                            <span className="text-xs text-gray-500 ml-1">({item.pannaType})</span>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-red-600 font-semibold">-₹{formatNum(item.potentialPayout)}</div>
-                                            <div className="text-xs text-gray-500">{item.playerCount} players</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Most Popular */}
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <h5 className="font-semibold text-blue-700 mb-2 text-sm">👥 Most Popular</h5>
-                            <div className="space-y-2">
-                                {analytics.panna.mostPopular.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                        <div>
-                                            <span className="font-mono font-bold text-gray-800">{item.number}</span>
-                                            <span className="text-xs text-gray-500 ml-1">({item.pannaType})</span>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-blue-600 font-semibold">{item.playerCount} players</div>
-                                            <div className="text-xs text-gray-500">₹{formatNum(item.totalBetAmount)}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+    return (
+        <div className="flex flex-wrap gap-1.5">
+            {matches.map((row, i) => (
+                <span
+                    key={`${keyPrefix}-${i}`}
+                    className={
+                        row.nearestBandFill
+                            ? `${PROFIT_PATTI_CHIP_CLASS} bg-gray-50 border-gray-200`
+                            : PROFIT_PATTI_CHIP_CLASS
+                    }
+                    title={`Pool ₹${formatNum(row.totalBetAmount)} · House profit ₹${formatNum(row.profit)}${
+                        row.nearestBandFill ? ' · closest to this band' : ''
+                    }`}
+                >
+                    {mode === 'open' ? (
+                        <>
+                            <span className="text-orange-600 font-semibold">{row.openingPanna}</span>
+                            <span className="text-gray-500">·</span>
+                            <span>{row.profitPercent}%</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="text-orange-600 font-semibold">{row.closingPanna}</span>
+                            <span className="text-gray-500">·</span>
+                            <span>{row.profitPercent}%</span>
+                        </>
+                    )}
+                </span>
+            ))}
         </div>
     );
+}
+
+/** 3-digit pannas whose declare preview has house profit ≈ target % (same rules as declare preview). */
+const ProfitTargetFinder = ({ marketId, hasOpenDeclared }) => {
+    const [targetPct, setTargetPct] = useState('60');
+    const [tolerance, setTolerance] = useState('10');
+    const [mode, setMode] = useState('open');
+    const [loading, setLoading] = useState(false);
+    const [scanErr, setScanErr] = useState('');
+    const [scanData, setScanData] = useState(null);
+    const [bucketsData, setBucketsData] = useState(null);
+    const [bucketsLoading, setBucketsLoading] = useState(false);
+    const [bucketsErr, setBucketsErr] = useState('');
+
+    useEffect(() => {
+        if (!hasOpenDeclared && mode === 'close') setMode('open');
+    }, [hasOpenDeclared, mode]);
+
+    useEffect(() => {
+        if (!marketId) return;
+        if (mode === 'close' && !hasOpenDeclared) {
+            setBucketsData(null);
+            setBucketsErr('');
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            setBucketsLoading(true);
+            setBucketsErr('');
+            setBucketsData(null);
+            try {
+                const q = new URLSearchParams({ mode });
+                const res = await fetchWithAuth(`${API_BASE_URL}/markets/scan-profit-buckets/${marketId}?${q}`);
+                if (res.status === 401) return;
+                const json = await res.json();
+                if (cancelled) return;
+                if (!json.success) {
+                    setBucketsErr(json.message || 'Could not load profit buckets');
+                    return;
+                }
+                setBucketsData(json.data);
+            } catch (e) {
+                if (!cancelled) setBucketsErr('Network error loading buckets.');
+            } finally {
+                if (!cancelled) setBucketsLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [marketId, mode, hasOpenDeclared]);
+
+    const runScan = async () => {
+        if (!marketId) return;
+        const tp = Number(targetPct);
+        const tol = Number(tolerance);
+        if (!Number.isFinite(tp) || tp < 0 || tp > 100) {
+            setScanErr('Enter target profit % between 0 and 100.');
+            return;
+        }
+        setLoading(true);
+        setScanErr('');
+        setScanData(null);
+        try {
+            const q = new URLSearchParams({
+                mode,
+                targetPct: String(tp),
+                tolerance: Number.isFinite(tol) ? String(tol) : '10',
+            });
+            const res = await fetchWithAuth(`${API_BASE_URL}/markets/scan-profit-outcomes/${marketId}?${q}`);
+            if (res.status === 401) return;
+            const json = await res.json();
+            if (!json.success) {
+                setScanErr(json.message || 'Scan failed');
+                return;
+            }
+            setScanData(json.data);
+        } catch (e) {
+            setScanErr('Network error. Try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <div className="space-y-8">
-            {/* Opening Analytics */}
-            <div className="border-b border-gray-200 pb-6">
-                {renderAnalytics(analyticsOpen, 'Opening', 'bg-green-500')}
+        <SectionCard title="Target house profit %" className="mt-8">
+            <p className="text-sm text-gray-600 mb-4">
+                Enter target house profit % (e.g. 60). We only check 3-digit pannas that players actually played (panna / patti
+                tickets). Result numbers are only those played numbers whose declare preview hits your
+                target. Tolerance 0 means exact match on the same two-decimal % as the table below (e.g. 9.58).
+            </p>
+            <div className="flex flex-wrap items-end gap-3 mb-4">
+                <label className="flex flex-col gap-1 text-xs text-gray-600">
+                    Target profit %
+                    <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        value={targetPct}
+                        onChange={(e) => setTargetPct(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 w-28 text-gray-900"
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-gray-600">
+                    Tolerance ±% (0 = exact)
+                    <input
+                        type="number"
+                        min={0}
+                        max={50}
+                        step={0.1}
+                        value={tolerance}
+                        onChange={(e) => setTolerance(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 w-28 text-gray-900"
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-gray-600">
+                    Session
+                    <select
+                        value={mode}
+                        onChange={(e) => setMode(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-white min-w-[140px]"
+                    >
+                        <option value="open">Opening declare</option>
+                        <option value="close" disabled={!hasOpenDeclared}>
+                            Closing declare
+                        </option>
+                    </select>
+                </label>
+                <button
+                    type="button"
+                    onClick={runScan}
+                    disabled={loading}
+                    className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-gray-900 font-semibold text-sm"
+                >
+                    {loading ? 'Scanning…' : 'Find pannas'}
+                </button>
             </div>
+            {!hasOpenDeclared && (
+                <p className="text-gray-500 text-xs mb-3">Closing scan is available after the opening panna is declared.</p>
+            )}
+            {scanErr && <p className="text-red-600 text-sm mb-3">{scanErr}</p>}
+            {scanData && (
+                <div className="mt-2">
+                    <p className="text-sm text-gray-700 mb-2">
+                        {scanData.mode === 'open' ? 'Opening' : 'Closing'} · target {scanData.targetPct}%
+                        {Number(scanData.tolerance) === 0 ? ' (exact)' : ` ± ${scanData.tolerance}%`} · played pannas checked:{' '}
+                        <span className="font-semibold">{scanData.betPannaCount ?? '—'}</span> ·{' '}
+                        <span className="font-semibold">{scanData.count}</span> match{scanData.count === 1 ? '' : 'es'}
+                        {scanData.mode === 'close' && scanData.openPanna ? ` (open ${scanData.openPanna})` : ''}
+                    </p>
+                    {scanData.count === 0 ? (
+                        <p className="text-gray-500 text-sm">
+                            {(scanData.betPannaCount ?? 0) === 0
+                                ? 'No 3-digit panna/patti bets in this session — only numbers players played as panna (or close panna / full sangam leg) are checked.'
+                                : 'None of those played pannas hit this profit % at current rates; try a small tolerance or a different target.'}
+                        </p>
+                    ) : (
+                        <div className="overflow-x-auto rounded-lg border border-gray-200 max-h-[420px] overflow-y-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-700 w-28 whitespace-nowrap">
+                                            Target band
+                                        </th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    <tr className="align-top hover:bg-gray-50/80">
+                                        <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
+                                            ~{nearestTenPercentBand(scanData.targetPct)}%
+                                            <span className="block text-[10px] font-normal text-gray-500 normal-case">
+                                                Search: {scanData.targetPct}%
+                                                {Number(scanData.tolerance) === 0 ? ' exact' : ` ±${scanData.tolerance}%`}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-gray-800">
+                                            {renderPattiChips(scanData.matches, scanData.mode, 'scan')}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
 
-            {/* Closing Analytics */}
-            <div>
-                {renderAnalytics(analyticsClose, 'Closing', 'bg-red-500')}
+            <div className="mt-8 pt-6 border-t border-gray-200">
+                <h3 className="text-sm font-bold text-gray-800 mb-1">Played patti by profit % (10% – 100%)</h3>
+                <p className="text-xs text-gray-500 mb-3">
+                    Each row is 10%–100%. Pannas sit in their nearest band (e.g. 54% → ~50%). If a band has no exact nearest
+                    matches, we still show the closest pannas so every row has data (lighter chips, tooltip “closest to this band”).
+                </p>
+                {bucketsLoading && (
+                    <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-orange-500" />
+                        Loading bucket table…
+                    </div>
+                )}
+                {bucketsErr && <p className="text-red-600 text-sm mb-2">{bucketsErr}</p>}
+                {!bucketsLoading && bucketsData && (
+                    <div className="overflow-x-auto rounded-lg border border-gray-200">
+                        <table className="w-full text-sm">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-3 py-2 text-left font-semibold text-gray-700 w-24 whitespace-nowrap">
+                                        Target band
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {bucketsData.buckets.map((bucket) => (
+                                    <tr key={bucket.targetPct} className="align-top hover:bg-gray-50/80">
+                                        <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
+                                            ~{bucket.targetPct}%
+                                            {bucket.nearestFill && (
+                                                <span className="block text-[10px] font-normal text-gray-500 font-sans">
+                                                    closest matches
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2 text-gray-800">
+                                            {bucket.matches.length === 0 ? (
+                                                <span className="text-gray-400">—</span>
+                                            ) : (
+                                                renderPattiChips(bucket.matches, bucketsData.mode, `bucket-${bucket.targetPct}`)
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+                {!bucketsLoading && bucketsData && (bucketsData.betPannaCount ?? 0) === 0 && (
+                    <p className="text-gray-500 text-xs mt-2">No played 3-digit pannas in this session — table will fill when panna/patti bets exist.</p>
+                )}
             </div>
-        </div>
+        </SectionCard>
     );
 };
 
@@ -1098,7 +981,6 @@ const MarketDetail = () => {
     const [singlePattiSummary, setSinglePattiSummary] = useState(null);
     const [allBets, setAllBets] = useState(null);
     const [loadingBets, setLoadingBets] = useState(false);
-    const [rates, setRates] = useState(null);
     /** 'open' | 'closed' | 'all' – open only, close only, or combined */
     const [statusView, setStatusView] = useState('open');
     const initialStatusSetForMarketId = React.useRef(null);
@@ -1161,54 +1043,9 @@ const MarketDetail = () => {
         }
     };
 
-    const fetchRates = async () => {
-        try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/rates`);
-            if (res.status === 401) return;
-            const json = await res.json();
-            if (json.success && json.data) {
-                const ratesMap = {};
-                // Handle both array and object formats
-                if (Array.isArray(json.data)) {
-                    json.data.forEach((rate) => {
-                        ratesMap[rate.gameType] = rate.rate;
-                    });
-                } else {
-                    // If it's already an object
-                    Object.assign(ratesMap, json.data);
-                }
-                setRates(ratesMap);
-            } else {
-                // Use defaults if API fails
-                setRates({
-                    single: 10,
-                    jodi: 100,
-                    singlePatti: 150,
-                    doublePatti: 300,
-                    triplePatti: 1000,
-                    halfSangam: 5000,
-                    fullSangam: 10000,
-                });
-            }
-        } catch (err) {
-            console.error('Failed to fetch rates:', err);
-            // Use defaults if API fails
-            setRates({
-                single: 10,
-                jodi: 100,
-                singlePatti: 150,
-                doublePatti: 300,
-                triplePatti: 1000,
-                halfSangam: 5000,
-                fullSangam: 10000,
-            });
-        }
-    };
-
     useEffect(() => {
         if (data?.market) {
             fetchAllBets();
-            fetchRates();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [marketId, data]);
@@ -1867,12 +1704,7 @@ const MarketDetail = () => {
                     />
                 </div>
 
-                {/* Market Analytics & Suggestions */}
-                {!loadingBets && allBets && rates && (
-                    <SectionCard title="📊 Market Analytics & Suggestions" className="mt-8">
-                        <MarketAnalytics bets={allBets} rates={rates} market={market} />
-                    </SectionCard>
-                )}
+                <ProfitTargetFinder marketId={marketId} hasOpenDeclared={!!hasOpen} />
 
                 {/* Detailed Bet Analysis Section */}
                 <SectionCard title="Detailed Bet Analysis" className="mt-8">
