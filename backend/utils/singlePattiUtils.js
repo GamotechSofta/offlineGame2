@@ -42,8 +42,8 @@ export function buildSinglePattiFirstDigitSummary(bets) {
         const num = (bet.betNumber || '').toString().trim();
         const amount = Number(bet.amount) || 0;
 
-        // Only Single Patti: in schema = panna or sp-motor; must be valid 3-digit all-unique (excludes double/triple patti)
-        if ((type !== 'panna' && type !== 'sp-motor' && type !== 'dp-motor') || num.length !== 3 || !/^\d{3}$/.test(num)) continue;
+        // Only Single Patti from panna-like motor bet types; must be 3-digit all-unique (excludes double/triple patti).
+        if ((type !== 'panna' && type !== 'sp-motor' && type !== 'dp-motor' && type !== 't-motor') || num.length !== 3 || !/^\d{3}$/.test(num)) continue;
         if (!isSinglePatti(num)) continue;
 
         const firstDigit = parseInt(num[0], 10);

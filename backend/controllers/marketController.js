@@ -896,7 +896,7 @@ export const getMarketStats = async (req, res) => {
                 return;
             }
 
-            if ((type === 'panna' || type === 'sp-motor' || type === 'dp-motor') && /^[0-9]{3}$/.test(num)) {
+            if ((type === 'panna' || type === 'sp-motor' || type === 'dp-motor' || type === 't-motor') && /^[0-9]{3}$/.test(num)) {
                 const a = num[0], b_ = num[1], c = num[2];
                 const allSame = a === b_ && b_ === c;
                 const twoSame = a === b_ || b_ === c || a === c;
@@ -1056,7 +1056,7 @@ export const getMarketStats = async (req, res) => {
                     totalBetAmountOnOpenPatti += amount;
                     totalWinAmountOnOpenPatti += amount * singleRate;
                     playersOnOpenPatti.add(b.userId.toString());
-                } else if (betType === 'panna' || betType === 'sp-motor' || betType === 'dp-motor') {
+                } else if (betType === 'panna' || betType === 'sp-motor' || betType === 'dp-motor' || betType === 't-motor') {
                     const panna3 = norm3(num);
                     if (panna3.length === 3 && panna3 === open3) {
                         totalBetAmountOnOpenPatti += amount;
@@ -1091,7 +1091,7 @@ export const getMarketStats = async (req, res) => {
             for (const b of bets) {
                 const betType = (b?.betType || '').toString().trim().toLowerCase();
                 const isCloseSession = (b?.betOn || '').toString().toLowerCase() === 'close';
-                const isCloseSettleType = betType === 'jodi' || betType === 'full-sangam' || (betType === 'single' && isCloseSession) || ((betType === 'panna' || betType === 'sp-motor' || betType === 'dp-motor') && isCloseSession);
+                const isCloseSettleType = betType === 'jodi' || betType === 'full-sangam' || (betType === 'single' && isCloseSession) || ((betType === 'panna' || betType === 'sp-motor' || betType === 'dp-motor' || betType === 't-motor') && isCloseSession);
                 if (!isCloseSettleType) continue;
                 const num = (b.betNumber || '').toString().trim();
                 const amount = Number(b.amount) || 0;
@@ -1099,7 +1099,7 @@ export const getMarketStats = async (req, res) => {
                     totalBetAmountOnClosePatti += amount;
                     totalWinAmountOnClosePatti += amount * singleRate;
                     playersOnClosePatti.add(b.userId.toString());
-                } else if ((betType === 'panna' || betType === 'sp-motor' || betType === 'dp-motor') && isCloseSession) {
+                } else if ((betType === 'panna' || betType === 'sp-motor' || betType === 'dp-motor' || betType === 't-motor') && isCloseSession) {
                     const panna3 = norm3(num);
                     if (panna3.length === 3 && panna3 === close3) {
                         totalBetAmountOnClosePatti += amount;

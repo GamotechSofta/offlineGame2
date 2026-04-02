@@ -27,10 +27,10 @@ function toObjectId(id) {
     }
 }
 
-/** True if bet type is panna, sp-motor, or dp-motor (all settle as 3-digit panna). sp-common / dp-common: 3-digit = exact panna, else legacy digit (0-9). */
+/** True if bet type is panna, sp-motor, dp-motor, or t-motor (all settle as 3-digit panna). sp-common / dp-common: 3-digit = exact panna, else legacy digit (0-9). */
 function isPannaLike(type) {
     const t = (type || '').toLowerCase();
-    return t === 'panna' || t === 'sp-motor' || t === 'dp-motor';
+    return t === 'panna' || t === 'sp-motor' || t === 'dp-motor' || t === 't-motor';
 }
 
 /**

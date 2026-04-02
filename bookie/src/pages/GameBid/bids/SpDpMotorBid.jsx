@@ -30,7 +30,13 @@ function generateDoublePanaCombinations(digitStr) {
   return unique.filter((s) => isValidDoublePana(s));
 }
 
+function generateTriplePanaCombinations(digitStr) {
+  const digits = [...new Set(digitStr.replace(/\D/g, '').split('').sort())];
+  return digits.map((d) => `${d}${d}${d}`);
+}
+
 const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false }) => {
+  const isSpDpTMotor = String(title || '').toLowerCase().includes('sp dp t motor');
   const { market } = usePlayerBet();
   const { addToCart } = useBetCart();
   const [session, setSession] = useState(() => (isPastOpeningTime(market) ? 'CLOSE' : 'OPEN'));
@@ -65,7 +71,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
   const handleGenerate = () => {
     const digits = sanitizeMotorDigitsUnique(digitInput);
     if (digits.length < 2) {
-      showWarning('Enter at least 3 digits for SP and 2 digits for DP.');
+      showWarning(`Enter at least 3 digits for SP and 2 digits for DP${isSpDpTMotor ? ', and selected digits for T' : ''}.`);
       return;
     }
     const rawPoints = sanitizePoints(pointsInput);
@@ -76,8 +82,9 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
     }
     const singleCombos = generateSpMotorSinglePanas(digits);
     const doubleCombos = generateDoublePanaCombinations(digits);
-    if (!singleCombos.length && !doubleCombos.length) {
-      showWarning('Could not generate SP/DP combinations from these digits.');
+    const tripleCombos = isSpDpTMotor ? generateTriplePanaCombinations(digits) : [];
+    if (!singleCombos.length && !doubleCombos.length && !tripleCombos.length) {
+      showWarning(`Could not generate ${isSpDpTMotor ? 'SP/DP/T' : 'SP/DP'} combinations from these digits.`);
       return;
     }
     const now = Date.now();
@@ -92,6 +99,12 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
         id: `dp-${pana}-${now}-${idx}-${Math.random().toString(36).slice(2)}`,
         pana,
         kind: 'DP',
+        points: String(pts),
+      })),
+      ...tripleCombos.map((pana, idx) => ({
+        id: `tp-${pana}-${now}-${idx}-${Math.random().toString(36).slice(2)}`,
+        pana,
+        kind: 'TP',
         points: String(pts),
       })),
     ];
@@ -143,9 +156,12 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
     }
     const spItems = rowsWithPoints.filter((c) => c.kind === 'SP').map((c) => ({ number: c.pana, points: c.points, type: session }));
     const dpItems = rowsWithPoints.filter((c) => c.kind === 'DP').map((c) => ({ number: c.pana, points: c.points, type: session }));
+    const tpItems = rowsWithPoints.filter((c) => c.kind === 'TP').map((c) => ({ number: c.pana, points: c.points, type: session }));
     let count = 0;
     if (spItems.length) count += addToCart(spItems, gameType, title, 'sp-motor');
     if (dpItems.length) count += addToCart(dpItems, gameType, title, 'dp-motor');
+    // Keep triple bets as panna for backward compatibility with older backend betType validators.
+    if (tpItems.length) count += addToCart(tpItems, gameType, title, 'panna');
     if (count > 0) {
       showWarning(`Added ${count} bet(s) to cart ✓`);
       setCombinations([]);
@@ -269,7 +285,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
                     className="grid grid-cols-[72px_56px_1fr_48px] gap-2 items-center py-2.5 px-2 sm:px-3 border-b border-gray-200 min-h-[44px]"
                   >
                     <div className="text-center font-bold text-gray-800 text-sm sm:text-base">{c.pana}</div>
-                    <div className="text-center font-semibold text-gray-700 text-xs sm:text-sm">{c.kind === 'DP' ? 'DP' : 'SP'}</div>
+                    <div className="text-center font-semibold text-gray-700 text-xs sm:text-sm">{c.kind === 'DP' ? 'DP' : (c.kind === 'TP' ? 'TP' : 'SP')}</div>
                     <div className="px-1 sm:px-2 min-w-0">
                       <input
                         type="text"

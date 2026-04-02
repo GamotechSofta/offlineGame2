@@ -37,6 +37,7 @@ const BID_COMPONENTS = {
   'sp motor': SpMotorBid,
   'dp motor': DpMotorBid,
   'sp dp motor': SpDpMotorBid,
+  'sp dp t motor': SpDpMotorBid,
 };
 
 export default function GameBidScreen() {

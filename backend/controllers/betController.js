@@ -117,6 +117,12 @@ export const placeBet = async (req, res) => {
                     message: 'DP Motor betNumber must be a valid double pana (3 digits, two consecutive same, e.g. 112, 220).',
                 });
             }
+            if (betType === 't-motor' && !/^(\d)\1\1$/.test(betNumber)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'T Motor betNumber must be a valid triple pana (e.g. 000, 111, 999).',
+                });
+            }
             if (betType === 'odd-even') {
                 const oe = betNumber.toLowerCase();
                 if (oe !== 'odd' && oe !== 'even') {
@@ -256,6 +262,7 @@ export const placeBet = async (req, res) => {
             if (s === 'panna') return 'Panna';
             if (s === 'sp-motor') return 'SP Motor';
             if (s === 'dp-motor') return 'DP Motor';
+            if (s === 't-motor') return 'T Motor';
             if (s === 'half-sangam') return 'Half Sangam';
             if (s === 'full-sangam') return 'Full Sangam';
             if (s === 'odd-even') return 'Odd Even';
@@ -399,6 +406,12 @@ export const placeBetForPlayer = async (req, res) => {
                 return res.status(400).json({
                     success: false,
                     message: 'DP Motor betNumber must be a valid double pana (3 digits, two consecutive same, e.g. 112, 220).',
+                });
+            }
+            if (betType === 't-motor' && !/^(\d)\1\1$/.test(betNumber)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'T Motor betNumber must be a valid triple pana (e.g. 000, 111, 999).',
                 });
             }
             if (betType === 'odd-even') {

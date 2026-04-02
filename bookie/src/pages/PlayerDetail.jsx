@@ -59,6 +59,7 @@ const getBetTypeLabel = (betType, t, betNumber) => {
     if (key === 'panna') return getPannaSubLabel(betNumber, t);
     if (key === 'sp-motor') return 'SP Motor';
     if (key === 'dp-motor') return 'DP Motor';
+    if (key === 't-motor') return 'T Motor';
     const labels = {
         'single': t('singleDigit'),
         'jodi': t('jodiBulk'),
@@ -939,6 +940,7 @@ const PlayerDetail = () => {
                                     <option value="dp-common">DP Common</option>
                                     <option value="sp-motor">SP Motor</option>
                                     <option value="dp-motor">DP Motor</option>
+                                    <option value="t-motor">T Motor</option>
                                 </select>
                                 <input
                                     type="text"

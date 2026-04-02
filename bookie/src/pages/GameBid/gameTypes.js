@@ -24,6 +24,7 @@ export const GAME_TYPE_ORDER = [
     'sp-motor',
     'dp-motor',
     'sp-dp-motor',
+    'sp-dp-t-motor',
 ];
 
 export const CLOSE_SESSION_HIDDEN_GAME_TYPES = ['jodi', 'full-sangam', 'half-sangam'];
@@ -46,4 +47,5 @@ export const BID_COMPONENTS = {
     'sp-motor': { component: SpMotorBid, title: 'SP Motor', betType: 'sp-motor' },
     'dp-motor': { component: DpMotorBid, title: 'DP Motor', betType: 'dp-motor' },
     'sp-dp-motor': { component: SpDpMotorBid, title: 'SP DP Motor', betType: 'sp-motor' },
+    'sp-dp-t-motor': { component: SpDpMotorBid, title: 'SP DP T Motor', betType: 'sp-motor' },
 };

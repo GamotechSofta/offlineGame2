@@ -39,6 +39,7 @@ const BID_COMPONENTS = {
     'dp common': DpCommonBid,
     'dp motor': DpMotorBid,
     'sp dp motor': SpDpMotorBid,
+    'sp dp t motor': SpDpMotorBid,
 };
 
 const GameBid = () => {

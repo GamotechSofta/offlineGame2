@@ -8,6 +8,7 @@ export const BET_TYPES = [
     'panna',
     'sp-motor',
     'dp-motor',
+    't-motor',
     'half-sangam',
     'full-sangam',
     'odd-even',

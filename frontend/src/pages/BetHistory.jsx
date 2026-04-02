@@ -75,6 +75,7 @@ const BET_TYPE_LABELS = {
   panna: 'Panna',
   'sp-motor': 'SP Motor',
   'dp-motor': 'DP Motor',
+  't-motor': 'T Motor',
   'half-sangam': 'Half Sangam',
   'full-sangam': 'Full Sangam',
   'odd-even': 'Odd Even',

@@ -227,6 +227,17 @@ const BidOptions = () => {
         />
       ),
     },
+    {
+      id: 15,
+      title: 'SP DP T Motor',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
+          alt="SP DP T Motor"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
   ];
 
   if (!market) {
@@ -255,6 +266,7 @@ const BidOptions = () => {
           'SP Motor',
           'DP Motor',
           'SP DP Motor',
+          'SP DP T Motor',
         ]);
         return allowed.has(t);
       })
@@ -293,6 +305,7 @@ const BidOptions = () => {
     'SP Motor',
     'DP Motor',
     'SP DP Motor',
+    'SP DP T Motor',
     'Odd Even',
   ];
   const orderedVisibleOptions = [...visibleOptions].sort((a, b) => {

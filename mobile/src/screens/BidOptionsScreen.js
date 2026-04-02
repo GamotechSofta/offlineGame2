@@ -127,6 +127,13 @@ const OPTIONS = [
       'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
     letter: 'M',
   },
+  {
+    id: 15,
+    title: 'SP DP T Motor',
+    icon:
+      'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
+    letter: 'M',
+  },
 ];
 
 function isStarline(market) {
@@ -163,7 +170,7 @@ export default function BidOptionsScreen() {
   if (isStarline(market)) {
     const allowed = new Set([
       'Single Digit', 'Single Digit Bulk', 'Odd Even', 'SP Common', 'DP Common', 'Single Pana', 'Single Pana Bulk',
-      'Double Pana', 'Double Pana Bulk', 'Triple Pana', 'Half Sangam', 'SP Motor', 'DP Motor', 'SP DP Motor',
+      'Double Pana', 'Double Pana Bulk', 'Triple Pana', 'Half Sangam', 'SP Motor', 'DP Motor', 'SP DP Motor', 'SP DP T Motor',
     ]);
     visibleOptions = OPTIONS.filter((opt) => allowed.has(opt.title));
   }

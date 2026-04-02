@@ -132,6 +132,7 @@ const BetsByUser = () => {
         if (key === 'panna') return getPannaSubLabel(betNumber);
         if (key === 'sp-motor') return 'SP Motor';
         if (key === 'dp-motor') return 'DP Motor';
+        if (key === 't-motor') return 'T Motor';
         const labels = {
             'single': t('singleDigit'),
             'jodi': t('jodiBulk'),

@@ -44,7 +44,13 @@ function generateDoublePanaCombinations(digitStr) {
   return unique.filter(validateDoublePana);
 }
 
+function generateTriplePanaCombinations(digitStr) {
+  const digits = [...new Set(digitStr.replace(/\D/g, '').split('').sort())];
+  return digits.map((d) => `${d}${d}${d}`);
+}
+
 export default function SpDpMotorBid({ market, title }) {
+  const isSpDpTMotor = String(title || '').toLowerCase().includes('sp dp t motor');
   const [session, setSession] = useState(() =>
     market?.status === 'running' ? 'CLOSE' : 'OPEN'
   );
@@ -72,7 +78,7 @@ export default function SpDpMotorBid({ market, title }) {
   const handleGenerate = () => {
     const digits = sanitizeMotorDigitsUnique(digitInput);
     if (digits.length < 2) {
-      showWarning('Enter at least 3 digits for SP and 2 digits for DP.');
+      showWarning(`Enter at least 3 digits for SP and 2 digits for DP${isSpDpTMotor ? ', and selected digits for T' : ''}.`);
       return;
     }
     const rawPoints = sanitizePoints(pointsInput);
@@ -84,9 +90,10 @@ export default function SpDpMotorBid({ market, title }) {
 
     const singleCombos = generateSpMotorSinglePanas(digits);
     const doubleCombos = generateDoublePanaCombinations(digits);
+    const tripleCombos = isSpDpTMotor ? generateTriplePanaCombinations(digits) : [];
 
-    if (!singleCombos.length && !doubleCombos.length) {
-      showWarning('Could not generate SP/DP combinations from these digits.');
+    if (!singleCombos.length && !doubleCombos.length && !tripleCombos.length) {
+      showWarning(`Could not generate ${isSpDpTMotor ? 'SP/DP/T' : 'SP/DP'} combinations from these digits.`);
       return;
     }
 
@@ -102,6 +109,12 @@ export default function SpDpMotorBid({ market, title }) {
         id: `dp-${pana}-${now}-${idx}-${Math.random().toString(36).slice(2)}`,
         pana,
         kind: 'DP',
+        points: String(pts),
+      })),
+      ...tripleCombos.map((pana, idx) => ({
+        id: `tp-${pana}-${now}-${idx}-${Math.random().toString(36).slice(2)}`,
+        pana,
+        kind: 'TP',
         points: String(pts),
       })),
     ];
@@ -157,7 +170,8 @@ export default function SpDpMotorBid({ market, title }) {
     const marketId = market?._id || market?.id;
     if (!marketId) throw new Error('Market not found');
     const payload = reviewRows.map((r) => ({
-      betType: r.kind === 'DP' ? 'dp-motor' : 'sp-motor',
+      // Keep triple bets as panna for backward compatibility with older backend betType validators.
+      betType: r.kind === 'DP' ? 'dp-motor' : (r.kind === 'TP' ? 'panna' : 'sp-motor'),
       betNumber: String(r.number),
       amount: Number(r.points) || 0,
       betOn: String(r?.type || session).toUpperCase() === 'CLOSE' ? 'close' : 'open',

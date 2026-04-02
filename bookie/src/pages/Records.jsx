@@ -20,6 +20,10 @@ const formatBetDetails = (bet) => {
         if (betOn === 'close') return `CLOSE DP MOTOR ${betNumber}`;
         return `OPEN DP MOTOR ${betNumber}`;
     }
+    if (betType === 't-motor' && betNumber) {
+        if (betOn === 'close') return `CLOSE T MOTOR ${betNumber}`;
+        return `OPEN T MOTOR ${betNumber}`;
+    }
 
     return `${String(bet?.betType || '').toUpperCase()} ${betNumber}`.trim();
 };

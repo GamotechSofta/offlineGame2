@@ -10,7 +10,7 @@ const formatNum = (num) => {
     return Number(num).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 };
 
-const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common', 'dp-common': 'DP Common' }[String(t || '').toLowerCase()] || (t ? String(t).toUpperCase() : 'N/A'));
+const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 't-motor': 'T Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common', 'dp-common': 'DP Common' }[String(t || '').toLowerCase()] || (t ? String(t).toUpperCase() : 'N/A'));
 
 const BetHistory = () => {
     const navigate = useNavigate();
