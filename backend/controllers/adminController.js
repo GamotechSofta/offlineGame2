@@ -705,7 +705,7 @@ export const setSecretDeclarePassword = async (req, res) => {
 };
 
 /**
- * GET SP Common list – valid Single Patti pool for declare UI / validation.
+ * GET SP Common list – chart list for SP Common bets (reference / UI); declare accepts any 3-digit patti.
  */
 export const getSpCommonList = async (req, res) => {
     try {
@@ -716,8 +716,7 @@ export const getSpCommonList = async (req, res) => {
 };
 
 /**
- * GET DP Common list – valid 3-digit Double Patti numbers for open/close declaration.
- * Used by admin declare UI to validate or suggest values.
+ * GET DP Common list – chart list for DP Common bets (reference / UI); declare accepts any 3-digit patti.
  */
 export const getDpCommonList = async (req, res) => {
     try {

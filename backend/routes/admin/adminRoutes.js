@@ -27,9 +27,9 @@ router.post('/create', createAdmin); // For initial admin setup
 router.get('/me/secret-declare-password-status', verifySuperAdmin, getSecretDeclarePasswordStatus);
 router.patch('/me/secret-declare-password', verifySuperAdmin, setSecretDeclarePassword);
 
-// SP Common list for declare UI (open/close must be from this list)
+// SP Common list (SP Common game chart / reference)
 router.get('/config/sp-common-list', verifyAdmin, getSpCommonList);
-// DP Common list for declare UI (open/close must be from this list)
+// DP Common list (DP Common game chart / reference)
 router.get('/config/dp-common-list', verifyAdmin, getDpCommonList);
 
 // Super Admin management routes (Super Admin only)
