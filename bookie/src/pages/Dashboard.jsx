@@ -286,7 +286,8 @@ const Dashboard = () => {
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
     const pendingWithdrawals = stats?.payments?.pendingWithdrawals ?? 0;
     const helpDeskOpen = stats?.helpDesk?.open || 0;
-    const hasActionRequired = pendingPayments > 0 || helpDeskOpen > 0;
+    // Help Desk open tickets should not trigger the "Action Required" banner on bookie dashboard.
+    const hasActionRequired = pendingPayments > 0;
     const toReceived = Number(stats?.toTake || 0);
     const toGive = Number(stats?.toGive || 0);
     const computedTotalProfit = (Number(marketReport.netProfit) || 0) + (toReceived - toGive);
@@ -410,11 +411,10 @@ const Dashboard = () => {
                                 {pendingPayments} {pendingPayments !== 1 ? t('pendingPayments') : t('pendingPayment')} →
                             </Link>
                         )}
-                        {helpDeskOpen > 0 && (
-                            <Link to="/help-desk" className="px-4 py-2 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white font-medium text-sm">
-                                {helpDeskOpen} {helpDeskOpen !== 1 ? t('openTickets') : t('openTicket')} →
-                            </Link>
-                        )}
+                        {/*
+                          Help Desk is handled via the super-admin Help Desk tab.
+                          Bookie dashboard should not show help desk warnings here.
+                        */}
                     </div>
                 </div>
             )}
@@ -521,12 +521,7 @@ const Dashboard = () => {
                     )}
                 </SectionCard>
 
-                {/* Help Desk */}
-                <SectionCard title={t('helpDesk')} description={t('helpDeskTickets')} icon={FaLifeRing} linkTo="/help-desk" linkLabel={t('helpDesk')} t={t}>
-                    <StatRow label={t('totalTickets')} value={stats?.helpDesk?.total ?? 0} />
-                    <StatRow label={t('open')} value={stats?.helpDesk?.open ?? 0} colorClass="text-[#1B3150]" />
-                    <StatRow label={t('inProgress')} value={stats?.helpDesk?.inProgress ?? 0} colorClass="text-blue-600" />
-                </SectionCard>
+                {/* Help Desk (super admin only) */}
             </div>
 
             {/* Revenue Summary */}

@@ -12,10 +12,10 @@ const shortBetId = (id) => {
 
 const statusTone = (label) => {
   const u = String(label || '').toLowerCase();
-  if (u === 'pending') return 'text-[#f3b61b] font-semibold';
-  if (u === 'win') return 'text-green-600 font-semibold';
-  if (u === 'loose' || u === 'lose' || u === 'lost') return 'text-red-600 font-semibold';
-  return 'text-gray-800';
+  if (u === 'pending') return 'text-amber-700 border-amber-400 bg-amber-50';
+  if (u === 'win') return 'text-green-700 border-green-500 bg-green-50';
+  if (u === 'loose' || u === 'lose' || u === 'lost') return 'text-red-700 border-red-500 bg-red-50';
+  return 'text-gray-700 border-gray-300 bg-gray-50';
 };
 
 const fmtRupee = (n) => {
@@ -46,6 +46,12 @@ const BetHistoryCard = ({
   const statusLower = String(statusLabel || '').toLowerCase();
   const isWin = statusLower === 'win';
   const isLost = statusLower === 'lost' || statusLower === 'lose' || statusLower === 'loose';
+  const sessionTone =
+    sess === 'OPEN'
+      ? { color: '#166534', borderColor: '#22c55e', backgroundColor: '#dcfce7' } // green
+      : sess === 'CLOSE'
+        ? { color: '#991b1b', borderColor: '#ef4444', backgroundColor: '#fee2e2' } // red
+        : { color: NAVY, borderColor: GOLD, backgroundColor: `${GOLD}18` };
   const [showCopiedPopup, setShowCopiedPopup] = useState(false);
   const copyPopupTimerRef = useRef(null);
 
@@ -85,7 +91,7 @@ const BetHistoryCard = ({
         <span className="text-[11px] sm:text-xs text-gray-500 font-medium">#{index}</span>
         <span
           className="text-[10px] sm:text-[11px] font-bold rounded-md px-2 py-0.5 uppercase tracking-wide border-2"
-          style={{ color: NAVY, borderColor: GOLD, backgroundColor: `${GOLD}18` }}
+          style={sessionTone}
         >
           {sess}
         </span>
@@ -146,7 +152,12 @@ const BetHistoryCard = ({
         </div>
         <div className="flex justify-between gap-3">
           <span className="text-gray-500 shrink-0">Status</span>
-          <span className={`text-right font-semibold ${statusTone(statusLabel)}`}>{statusLabel}</span>
+          <span
+            className={`text-right font-semibold text-[11px] sm:text-xs px-2 py-0.5 rounded-md border ${statusTone(statusLabel)}`}
+            title={statusLabel}
+          >
+            {statusLabel}
+          </span>
         </div>
         <div className="flex justify-between gap-3">
           <span className="text-gray-500 shrink-0">Time</span>

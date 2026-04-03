@@ -51,7 +51,7 @@ const AddFund = () => {
         setSuccess('');
 
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        if (!user.id) {
+        if (!(user.id || user._id)) {
             setError('Please login to add funds');
             return;
         }

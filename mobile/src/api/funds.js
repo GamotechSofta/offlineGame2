@@ -3,7 +3,7 @@ import { getUserCache } from '../config/storage';
 
 function requireUser() {
   const user = getUserCache();
-  if (!user?.id && !user?._id) return null;
+  if (!user?.token) return null;
   return user;
 }
 

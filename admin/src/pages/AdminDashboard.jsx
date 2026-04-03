@@ -236,7 +236,8 @@ const AdminDashboard = () => {
     const starlinePendingCount = starlinePendingList.length;
     const mainPendingCount = mainPendingList.length;
     const marketsPendingResult = marketsPendingResultList.length;
-    const hasActionRequired = pendingPayments > 0 || (isSuperAdmin && helpDeskOpen > 0) || marketsPendingResult > 0;
+    // Help Desk open tickets should not trigger the "Action Required" banner.
+    const hasActionRequired = pendingPayments > 0 || marketsPendingResult > 0;
 
     if (loading) {
         return (
@@ -378,11 +379,7 @@ const AdminDashboard = () => {
                                 {pendingPayments} Pending Payment{pendingPayments !== 1 ? 's' : ''} →
                             </Link>
                         )}
-                        {isSuperAdmin && helpDeskOpen > 0 && (
-                            <Link to="/help-desk" className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-medium text-sm">
-                                {helpDeskOpen} Open Ticket{helpDeskOpen !== 1 ? 's' : ''} →
-                            </Link>
-                        )}
+                        {/* Help Desk tickets are shown only inside the Help Desk section-card (super admin). */}
                         {starlinePendingCount > 0 && (
                             <Link to="/markets" state={{ marketType: 'starline' }} className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-medium text-sm">
                                 {starlinePendingCount} Starline slot{starlinePendingCount !== 1 ? 's' : ''} result pending →
