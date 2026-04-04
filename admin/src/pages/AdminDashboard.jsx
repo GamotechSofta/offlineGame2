@@ -153,12 +153,15 @@ const AdminDashboard = () => {
 
     const fetchMarketOptions = async () => {
         try {
-            const response = await fetchWithAuth(`${API_BASE_URL}/markets/get-markets`);
+            const response = await fetchWithAuth(`${API_BASE_URL}/markets/list-for-dashboard`);
             if (response.status === 401) return;
             const data = await response.json();
             if (data?.success && Array.isArray(data?.data)) {
                 const options = data.data
-                    .map((m) => ({ id: m?._id, name: (m?.marketName || m?.gameName || '').toString().trim() }))
+                    .map((m) => ({
+                        id: m?._id != null ? String(m._id) : '',
+                        name: (m?.displayLabel || m?.marketName || m?.gameName || '').toString().trim(),
+                    }))
                     .filter((m) => m.id && m.name)
                     .sort((a, b) => a.name.localeCompare(b.name));
                 setMarketOptions(options);
@@ -517,6 +520,46 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {isSuperAdmin && !selectedMarketId && (
+                <div className="bg-white rounded-xl p-5 border border-gray-200 mb-6">
+                    <h3 className="text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                        <FaChartBar className="w-4 h-4 text-orange-500" />
+                        Market-wise stats (selected period)
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-3">
+                        Bet volume, revenue, and payouts by market. Use the Market filter above to focus summary cards on one market.
+                    </p>
+                    {!stats?.marketWise?.length ? (
+                        <p className="text-sm text-gray-500">No bets in this period.</p>
+                    ) : (
+                        <div className="overflow-x-auto -mx-1">
+                            <table className="min-w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-gray-500 border-b border-gray-200">
+                                        <th className="py-2 px-1 sm:px-2 font-medium">Market</th>
+                                        <th className="py-2 px-1 sm:px-2 font-medium text-right">Bets</th>
+                                        <th className="py-2 px-1 sm:px-2 font-medium text-right">Revenue</th>
+                                        <th className="py-2 px-1 sm:px-2 font-medium text-right">Payouts</th>
+                                        <th className="py-2 px-1 sm:px-2 font-medium text-right">Net</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {stats.marketWise.map((row) => (
+                                        <tr key={row.marketId} className="border-b border-gray-100 last:border-0">
+                                            <td className="py-2 px-1 sm:px-2 font-medium text-gray-800">{row.marketName}</td>
+                                            <td className="py-2 px-1 sm:px-2 text-right font-mono tabular-nums">{row.bets}</td>
+                                            <td className="py-2 px-1 sm:px-2 text-right font-mono tabular-nums text-green-600">{formatCurrency(row.revenue)}</td>
+                                            <td className="py-2 px-1 sm:px-2 text-right font-mono tabular-nums text-red-500">{formatCurrency(row.payouts)}</td>
+                                            <td className="py-2 px-1 sm:px-2 text-right font-mono tabular-nums text-blue-600">{formatCurrency(row.netProfit)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Quick Links */}
             <div className="bg-white rounded-xl p-5 border border-gray-200">

@@ -65,18 +65,18 @@ const OPTIONS = [
     letter: 'S',
   },
   {
-    id: 6.55,
-    title: 'CP (Common Pana)',
-    icon:
-      'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
-    letter: 'C',
-  },
-  {
     id: 6.6,
     title: 'DP Common',
     icon:
       'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
     letter: 'D',
+  },
+  {
+    id: 6.55,
+    title: 'CP (Common Pana)',
+    icon:
+      'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
+    letter: 'C',
   },
   {
     id: 7,
@@ -141,6 +141,13 @@ const OPTIONS = [
       'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
     letter: 'M',
   },
+  {
+    id: 6.65,
+    title: 'Chart Game',
+    icon:
+      'https://res.cloudinary.com/dzd47mpdo/image/upload/f_png/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg',
+    letter: 'H',
+  },
 ];
 
 function isStarline(market) {
@@ -176,7 +183,7 @@ export default function BidOptionsScreen() {
   let visibleOptions = OPTIONS;
   if (isStarline(market)) {
     const allowed = new Set([
-      'Single Digit', 'Single Digit Bulk', 'Odd Even', 'SP Common', 'CP (Common Pana)', 'DP Common', 'Single Pana', 'Single Pana Bulk',
+      'Single Digit', 'Single Digit Bulk', 'Odd Even', 'SP Common', 'CP (Common Pana)', 'DP Common', 'Chart Game', 'Single Pana', 'Single Pana Bulk',
       'Double Pana', 'Double Pana Bulk', 'Triple Pana', 'Half Sangam', 'SP Motor', 'DP Motor', 'SP DP Motor', 'SP DP T Motor',
     ]);
     visibleOptions = OPTIONS.filter((opt) => allowed.has(opt.title));

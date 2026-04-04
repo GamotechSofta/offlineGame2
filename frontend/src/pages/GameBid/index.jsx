@@ -20,6 +20,7 @@ import OddEvenBid from './bids/OddEvenBid';
 import SpCommonBid from './bids/SpCommonBid';
 import CpCommonBid from './bids/CpCommonBid';
 import DpCommonBid from './bids/DpCommonBid';
+import ChartBid from './bids/ChartBid';
 
 const BID_COMPONENTS = {
     'single digit': SingleDigitBid,
@@ -39,6 +40,8 @@ const BID_COMPONENTS = {
     'sp common': SpCommonBid,
     'cp (common pana)': CpCommonBid,
     'dp common': DpCommonBid,
+    chart: ChartBid,
+    'chart game': ChartBid,
     'dp motor': DpMotorBid,
     'sp dp motor': SpDpMotorBid,
     'sp dp t motor': SpDpMotorBid,

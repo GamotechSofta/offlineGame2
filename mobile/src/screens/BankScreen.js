@@ -33,6 +33,7 @@ const humanBetType = (betType) => {
   if (t === 'panna') return 'Panna';
   if (t === 'half-sangam') return 'Half Sangam';
   if (t === 'full-sangam') return 'Full Sangam';
+  if (t === 'chart') return 'Chart Game';
   return '-';
 };
 

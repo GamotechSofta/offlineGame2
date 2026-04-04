@@ -162,6 +162,28 @@ export const getMarkets = async (req, res) => {
 };
 
 /**
+ * Admin dashboard: all markets (main + startline) for date-range stats filter.
+ * Public get-markets omits startline for the player home list.
+ */
+export const getMarketsListForDashboard = async (req, res) => {
+    try {
+        await ensureResultsResetForNewDay(Market);
+        const markets = await Market.find().sort({ startingTime: 1 }).select('marketName marketNameHi marketType starlineGroup startingTime').lean();
+        const data = (markets || []).map((m) => ({
+            ...m,
+            _id: m._id,
+            displayLabel:
+                (m.marketType || '').toString().toLowerCase() === 'startline' && m.starlineGroup
+                    ? `${m.marketName} (${m.starlineGroup})`
+                    : m.marketName,
+        }));
+        res.status(200).json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
  * Get a single market by ID.
  * Ensures result reset at midnight IST so today's market shows cleared results after midnight.
  */

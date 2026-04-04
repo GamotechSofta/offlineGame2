@@ -2,6 +2,7 @@ import express from 'express';
 import {
     createMarket,
     getMarkets,
+    getMarketsListForDashboard,
     getMarketById,
     getMarketResultHistory,
     getMarketStats,
@@ -27,6 +28,7 @@ const router = express.Router();
 
 // Public routes
 router.get('/get-markets', getMarkets);
+router.get('/list-for-dashboard', verifyAdmin, getMarketsListForDashboard);
 router.get('/get-market/:id', getMarketById);
 router.get('/result-history', getMarketResultHistory);
 

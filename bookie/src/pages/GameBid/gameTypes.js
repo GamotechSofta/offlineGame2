@@ -2,6 +2,7 @@ import SingleDigitBid from './bids/SingleDigitBid';
 import OddEvenBid from './bids/OddEvenBid';
 import SpCommonBid from './bids/SpCommonBid';
 import CpCommonBid from './bids/CpCommonBid';
+import ChartBid from './bids/ChartBid';
 import JodiBulkBid from './bids/JodiBulkBid';
 import SinglePanaBulkBid from './bids/SinglePanaBulkBid';
 import DoublePanaBulkBid from './bids/DoublePanaBulkBid';
@@ -27,6 +28,7 @@ export const GAME_TYPE_ORDER = [
     'dp-motor',
     'sp-dp-motor',
     'sp-dp-t-motor',
+    'chart',
 ];
 
 export const CLOSE_SESSION_HIDDEN_GAME_TYPES = ['jodi', 'full-sangam', 'half-sangam'];
@@ -41,6 +43,7 @@ export const BID_COMPONENTS = {
     'odd-even': { component: OddEvenBid, title: 'Odd Even', betType: 'odd-even' },
     'sp-common': { component: SpCommonBid, title: 'SP Common', betType: 'sp-common' },
     'cp-common': { component: CpCommonBid, title: 'CP (Common Pana)', betType: 'cp-common' },
+    chart: { component: ChartBid, title: 'Chart Game', betType: 'panna' },
     'jodi': { component: JodiBulkBid, title: 'Jodi Bulk', betType: 'jodi' },
     'single-pana-bulk': { component: SinglePanaBulkBid, title: 'Single Pana Bulk', betType: 'panna' },
     'double-pana-bulk': { component: DoublePanaBulkBid, title: 'Double Pana Bulk', betType: 'panna' },

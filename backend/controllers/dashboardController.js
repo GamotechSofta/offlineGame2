@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Bet from '../models/bet/bet.js';
 import Payment from '../models/payment/payment.js';
 import User from '../models/user/user.js';
@@ -65,12 +66,15 @@ export const getDashboardStats = async (req, res) => {
             typeof marketId === 'string' && OBJECT_ID_RE.test(marketId.trim())
                 ? marketId.trim()
                 : null;
-        const marketMatch = selectedMarketId ? { marketId: selectedMarketId } : {};
+        // Aggregation pipelines do not cast string → ObjectId; use explicit ObjectId or $match fails silently.
+        const marketMatch = selectedMarketId
+            ? { marketId: new mongoose.Types.ObjectId(selectedMarketId) }
+            : {};
 
         const revenueMatch = { ...dateMatch, ...betFilter, ...marketMatch, status: { $ne: 'cancelled' } };
         const payoutMatch = { status: 'won', ...dateMatch, ...betFilter, ...marketMatch };
         const betCountMatch = { ...dateMatch, ...betFilter, ...marketMatch, status: { $ne: 'cancelled' } };
-        const lossMatch = { status: 'lost', ...betFilter, ...marketMatch };
+        const lossMatch = { status: 'lost', ...dateMatch, ...betFilter, ...marketMatch };
         const isSuperAdmin = bookieUserIds === null && req.admin?.role === 'super_admin';
 
         // Run all independent DB queries in parallel for faster dashboard load
@@ -168,6 +172,42 @@ export const getDashboardStats = async (req, res) => {
         }
         const marketsPendingResult = marketsPendingResultList.length;
         const scopedTotalMarkets = selectedMarketId ? scopedMarkets.length : totalMarkets;
+
+        let marketWise = null;
+        if (isSuperAdmin && !selectedMarketId) {
+            const breakdown = await Bet.aggregate([
+                {
+                    $match: {
+                        ...dateMatch,
+                        ...betFilter,
+                        status: { $ne: 'cancelled' },
+                    },
+                },
+                {
+                    $group: {
+                        _id: '$marketId',
+                        revenue: { $sum: '$amount' },
+                        bets: { $sum: 1 },
+                        payouts: {
+                            $sum: {
+                                $cond: [{ $eq: ['$status', 'won'] }, { $ifNull: ['$payout', 0] }, 0],
+                            },
+                        },
+                    },
+                },
+                { $sort: { revenue: -1 } },
+            ]);
+            const nameById = new Map((allMarketsForOpen || []).map((m) => [String(m._id), m.marketName]));
+            marketWise = breakdown.map((row) => ({
+                marketId: String(row._id),
+                marketName: nameById.get(String(row._id)) || 'Unknown',
+                bets: row.bets,
+                revenue: row.revenue,
+                payouts: row.payouts,
+                netProfit: row.revenue - row.payouts,
+            }));
+        }
+
         const scopedMainMarkets = selectedMarketId
             ? scopedMarkets.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline').length
             : mainMarkets;
@@ -267,6 +307,7 @@ export const getDashboardStats = async (req, res) => {
                 bookies,
                 marketsPendingResult,
                 marketsPendingResultList,
+                marketWise,
             },
         });
     } catch (error) {

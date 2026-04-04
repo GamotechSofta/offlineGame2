@@ -8,6 +8,7 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingAllowed, isBettingAllowedForSession } from '../utils/marketTiming.js';
 import { BET_TYPES as VALID_BET_TYPES } from '../models/bet/betTypeConstants.js';
+import { parseChartBet } from '../utils/chartBet.js';
 import { isSpCommon } from '../config/spCommonList.js';
 import { isValidDoublePana } from '../utils/doublePanaValidate.js';
 const THREE_DIGITS = /^\d{3}$/;
@@ -164,6 +165,15 @@ export const placeBet = async (req, res) => {
                     });
                 }
             }
+            if (betType === 'chart') {
+                const parsed = parseChartBet(betNumber);
+                if (!parsed) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Chart: use format NNCHT:D (e.g. 20CHT:5) with chart 20–70CHT and digit 0–9.',
+                    });
+                }
+            }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {
                 return res.status(400).json({
@@ -173,7 +183,10 @@ export const placeBet = async (req, res) => {
                 });
             }
             totalAmount += amount;
-            const storedBetNumber = betType === 'odd-even' ? String(betNumber).toLowerCase() : betNumber;
+            let storedBetNumber = betType === 'odd-even' ? String(betNumber).toLowerCase() : betNumber;
+            if (betType === 'chart') {
+                storedBetNumber = parseChartBet(betNumber).normalized;
+            }
             sanitized.push({ betType, betNumber: storedBetNumber, amount, betOn });
         }
 
@@ -279,6 +292,7 @@ export const placeBet = async (req, res) => {
             if (s === 'sp-common') return 'SP Common';
             if (s === 'cp-common') return 'CP (Common Pana)';
             if (s === 'dp-common') return 'DP Common';
+            if (s === 'chart') return 'Chart Game';
             return 'Bet';
         };
 
@@ -466,6 +480,15 @@ export const placeBetForPlayer = async (req, res) => {
                     });
                 }
             }
+            if (betType === 'chart') {
+                const parsed = parseChartBet(betNumber);
+                if (!parsed) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Chart: use format NNCHT:D (e.g. 20CHT:5) with chart 20–70CHT and digit 0–9.',
+                    });
+                }
+            }
             const timing = isBettingAllowedForSession(market, now, betOn);
             if (!timing.allowed) {
                 return res.status(400).json({
@@ -475,7 +498,10 @@ export const placeBetForPlayer = async (req, res) => {
                 });
             }
             totalAmount += amount;
-            const storedBetNumber = betType === 'odd-even' ? String(betNumber).toLowerCase() : betNumber;
+            let storedBetNumber = betType === 'odd-even' ? String(betNumber).toLowerCase() : betNumber;
+            if (betType === 'chart') {
+                storedBetNumber = parseChartBet(betNumber).normalized;
+            }
             sanitized.push({ betType, betNumber: storedBetNumber, amount, betOn });
         }
 
@@ -590,8 +616,7 @@ export const getMyBetHistory = async (req, res) => {
         }
         const bets = await Bet.find(query)
             .populate({ path: 'marketId', select: 'marketName gameName openingNumber closingNumber closingTime', model: Market })
-            .sort({ createdAt: -1 })
-            .limit(500);
+            .sort({ createdAt: -1 });
         res.status(200).json({ success: true, data: bets });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -642,8 +667,7 @@ export const getBetHistory = async (req, res) => {
             .populate('userId', 'username email phone')
             .populate({ path: 'marketId', select: 'marketName', model: Market })
             .populate('placedByBookieId', 'username')
-            .sort({ createdAt: -1 })
-            .limit(1000);
+            .sort({ createdAt: -1 });
 
         res.status(200).json({ success: true, data: bets });
     } catch (error) {
@@ -696,8 +720,7 @@ export const getBetsByUser = async (req, res) => {
         const bets = await Bet.find(query)
             .populate('userId', 'username phone email')
             .populate({ path: 'marketId', select: 'marketName gameName', model: Market })
-            .sort({ createdAt: -1 })
-            .limit(1000);
+            .sort({ createdAt: -1 });
 
         res.status(200).json({ success: true, data: bets });
     } catch (error) {
@@ -754,7 +777,6 @@ export const getBetSessions = async (req, res) => {
             .populate('userId', 'username phone email')
             .populate({ path: 'marketId', select: 'marketName', model: Market })
             .sort({ createdAt: -1 })
-            .limit(5000)
             .lean();
 
         // Group bets by userId, marketId, and createdAt (within 5 seconds)

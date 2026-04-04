@@ -19,6 +19,7 @@ import OddEvenBid from '../components/GameBid/bids/OddEvenBid';
 import SpCommonBid from '../components/GameBid/bids/SpCommonBid';
 import CpCommonBid from '../components/GameBid/bids/CpCommonBid';
 import DpCommonBid from '../components/GameBid/bids/DpCommonBid';
+import ChartBid from '../components/GameBid/bids/ChartBid';
 
 const BID_COMPONENTS = {
   'single digit': SingleDigitBid,
@@ -27,6 +28,8 @@ const BID_COMPONENTS = {
   'sp common': SpCommonBid,
   'cp (common pana)': CpCommonBid,
   'dp common': DpCommonBid,
+  chart: ChartBid,
+  'chart game': ChartBid,
   'jodi': JodiBid,
   'jodi bulk': JodiBulkBid,
   'single pana': SinglePanaBid,

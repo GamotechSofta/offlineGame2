@@ -7,7 +7,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const formatNum = (n) => (n != null && Number.isFinite(n) ? Number(n).toLocaleString('en-IN') : '0');
-const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 't-motor': 'T Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common', 'cp-common': 'CP (Common Pana)', 'dp-common': 'DP Common' }[String(t || '').toLowerCase()] || (t ? String(t) : '—'));
+const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 't-motor': 'T Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common', 'cp-common': 'CP (Common Pana)', 'dp-common': 'DP Common', chart: 'Chart Game' }[String(t || '').toLowerCase()] || (t ? String(t) : '—'));
 
 const DeclareConfirm = () => {
     const navigate = useNavigate();

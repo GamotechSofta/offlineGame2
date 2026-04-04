@@ -102,7 +102,7 @@ export default function BidReviewModal({
                 </View>
                 {rows.map((r) => (
                   <View key={r.id} style={styles.row}>
-                    <Text style={styles.rowText} numberOfLines={1}>{String(r.number)}</Text>
+                    <Text style={styles.rowText} numberOfLines={2}>{String(r.displayNumber ?? r.number)}</Text>
                     <Text style={[styles.rowText, styles.rowPoints]}>{r.points}</Text>
                     <Text style={styles.rowText}>{String(r.type || '').toUpperCase()}</Text>
                   </View>

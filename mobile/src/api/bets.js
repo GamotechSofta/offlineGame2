@@ -204,7 +204,7 @@ export async function getBetHistory(params = {}) {
 
     const is404 = response.status === 404 || (text && /Cannot GET|Not Found|404/i.test(text));
     if (is404) {
-      const walletRes = await getMyWalletTransactions(500);
+      const walletRes = await getMyWalletTransactions(1000);
       if (walletRes?.success && Array.isArray(walletRes?.data)) {
         const betsFromWallet = walletRes.data
           .filter((t) => t.type === 'debit' && t.bet && (t.bet.betNumber || t.bet.betType))

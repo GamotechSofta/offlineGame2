@@ -33,6 +33,7 @@ const GAME_TYPES_LIST = [
     { id: 'dp-motor', title: 'DP Motor', icon: 'DP', color: 'bg-[#152842]' },
     { id: 'sp-dp-motor', title: 'SP DP Motor', icon: 'SP/DP', color: 'bg-teal-600' },
     { id: 'sp-dp-t-motor', title: 'SP DP T Motor', icon: 'SP/DP/T', color: 'bg-teal-700' },
+    { id: 'chart', title: 'Chart Game', icon: 'CHT', color: 'bg-sky-600' },
 ];
 
 /**

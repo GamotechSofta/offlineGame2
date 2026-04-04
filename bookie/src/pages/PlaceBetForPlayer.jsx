@@ -10,6 +10,7 @@ const GAME_META = {
     'odd-even':     { label: 'Odd Even', betType: 'odd-even', digits: 0, placeholder: 'odd or even', pattern: /^(odd|even)$/i, help: 'Enter odd or even' },
     'sp-common':   { label: 'SP Common', betType: 'sp-common', digits: 1, placeholder: 'Digit 0-9', pattern: /^[0-9]$/, help: 'Result digit from SP panels (0-9). Win when digit-sum last digit matches.' },
     'cp-common':   { label: 'CP (Common Pana)', betType: 'cp-common', digits: 3, placeholder: '3-digit panna', pattern: /^\d{3}$/, help: 'Valid 3-digit single or double panna from chart (CP game generates from 1–2 digits).' },
+    chart:         { label: 'Chart Game', betType: 'panna', digits: 3, placeholder: '3-digit panna', pattern: /^\d{3}$/, help: 'Chart Game screen expands chart+digit into panas; manual entry is any 3-digit panna.' },
     'jodi':         { label: 'Jodi', betType: 'jodi', digits: 2, placeholder: 'Enter 2 digits (00-99)', pattern: /^\d{2}$/, help: 'Enter a two-digit number from 00 to 99' },
     'single-pana':  { label: 'Single Pana', betType: 'panna', digits: 3, placeholder: 'Enter 3 digits (all different)', pattern: /^\d{3}$/, help: 'Enter 3 digits where all are different, e.g. 123' },
     'double-pana':  { label: 'Double Pana', betType: 'panna', digits: 3, placeholder: 'Enter 3 digits (two same)', pattern: /^\d{3}$/, help: 'Enter 3 digits where two are same, e.g. 112' },

@@ -199,6 +199,7 @@ const labelForType = (betType) => {
   if (s === 'panna') return 'Panna';
   if (s === 'half-sangam' || s === 'half-sangam-open' || s === 'half-sangam-close') return 'Half Sangam';
   if (s === 'full-sangam') return 'Full Sangam';
+  if (s === 'chart') return 'Chart Game';
   return betType || 'Bet';
 };
 

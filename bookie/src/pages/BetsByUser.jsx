@@ -141,6 +141,7 @@ const BetsByUser = () => {
             'odd-even': 'Odd Even',
             'sp-common': 'SP Common',
             'cp-common': 'CP (Common Pana)',
+            chart: 'Chart Game',
         };
         return labels[key] || betType;
     };

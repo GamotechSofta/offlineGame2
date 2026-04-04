@@ -118,23 +118,23 @@ const BidOptions = () => {
       ),
     },
     {
-      id: 6.55,
-      title: 'CP (Common Pana)',
-      icon: (
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
-          alt="CP (Common Pana)"
-          className="w-full h-full object-contain"
-        />
-      ),
-    },
-    {
       id: 6.6,
       title: 'DP Common',
       icon: (
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769713943/Untitled_1080_x_1080_px_1080_x_1080_px_6_uccv7o.svg"
           alt="DP Common"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
+    {
+      id: 6.55,
+      title: 'CP (Common Pana)',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
+          alt="CP (Common Pana)"
           className="w-full h-full object-contain"
         />
       ),
@@ -249,6 +249,17 @@ const BidOptions = () => {
         />
       ),
     },
+    {
+      id: 6.65,
+      title: 'Chart Game',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
+          alt="Chart Game"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
   ];
 
   if (!market) {
@@ -269,6 +280,7 @@ const BidOptions = () => {
           'SP Common',
           'CP (Common Pana)',
           'DP Common',
+          'Chart Game',
           'Single Pana',
           'Single Pana Bulk',
           'Double Pana',
@@ -313,13 +325,14 @@ const BidOptions = () => {
     'Half Sangam',
     'Full Sangam',
     'SP Common',
-    'CP (Common Pana)',
     'DP Common',
+    'CP (Common Pana)',
     'SP Motor',
     'DP Motor',
     'SP DP Motor',
     'SP DP T Motor',
     'Odd Even',
+    'Chart Game',
   ];
   const orderedVisibleOptions = [...visibleOptions].sort((a, b) => {
     const ia = optionDisplayOrder.indexOf(a.title);

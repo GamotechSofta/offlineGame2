@@ -61,6 +61,7 @@ const getBetTypeLabel = (type, betNumber = '') => {
         'odd-even': 'Odd Even',
         'sp-common': 'SP Common',
         'cp-common': 'CP (Common Pana)',
+        chart: 'Chart Game',
     };
 
     if (type === 'sp-motor') return 'SP Motor';

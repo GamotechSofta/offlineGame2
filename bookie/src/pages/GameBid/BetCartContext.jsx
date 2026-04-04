@@ -20,7 +20,7 @@ export const BetCartProvider = ({ children }) => {
                 id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                 gameType,
                 gameTypeLabel: gameLabel,
-                betType,
+                betType: item.betType != null && item.betType !== '' ? item.betType : betType,
                 number: String(item.number ?? '').trim(),
                 points: Number(item.points) || 0,
                 session: (item.type || item.session || 'OPEN').toUpperCase(),

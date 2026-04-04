@@ -68,6 +68,7 @@ const getBetTypeLabel = (betType, t, betNumber) => {
         'odd-even': 'Odd Even',
         'sp-common': 'SP Common',
         'cp-common': 'CP (Common Pana)',
+        chart: 'Chart Game',
     };
     return labels[key] || betType;
 };
@@ -939,6 +940,7 @@ const PlayerDetail = () => {
                                     <option value="full-sangam">Full Sangam</option>
                                     <option value="sp-common">SP Common</option>
                                     <option value="cp-common">CP (Common Pana)</option>
+                                    <option value="chart">Chart Game</option>
                                     <option value="dp-common">DP Common</option>
                                     <option value="sp-motor">SP Motor</option>
                                     <option value="dp-motor">DP Motor</option>

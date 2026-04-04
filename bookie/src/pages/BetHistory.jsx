@@ -18,6 +18,7 @@ const getBetTypeLabel = (betType, t, betNumber) => {
     if (!betType) return '—';
     const key = String(betType).trim().toLowerCase();
     if (key === 'panna') return getPannaSubLabel(betNumber, t);
+    if (key === 'chart') return 'Chart Game';
     if (key === 'sp-motor') return 'SP Motor';
     if (key === 'dp-motor') return 'DP Motor';
     if (key === 't-motor') return 'T Motor';

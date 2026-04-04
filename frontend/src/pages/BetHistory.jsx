@@ -82,6 +82,7 @@ const BET_TYPE_LABELS = {
   'sp-common': 'SP Common',
   'cp-common': 'CP (Common Pana)',
   'dp-common': 'DP Common',
+  chart: 'Chart Game',
 };
 
 // Backend defaults (must match backend/models/rate/rate.js) – used when API rates not loaded

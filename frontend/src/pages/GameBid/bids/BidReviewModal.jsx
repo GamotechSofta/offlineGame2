@@ -185,7 +185,7 @@ const BidReviewModal = ({
                   {rows.map((r) => (
                     <div key={r.id} className="bg-gray-50 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-300">
                       <div className="grid grid-cols-3 text-center text-gray-800 font-semibold text-[12px] sm:text-base">
-                        <div className="truncate">{renderBetNumber(r.number)}</div>
+                        <div className="truncate">{renderBetNumber(r.displayNumber ?? r.number)}</div>
                         <div className="truncate text-[#1B3150]">{r.points}</div>
                         <div className="truncate font-medium text-gray-600 uppercase">{r.type}</div>
                       </div>

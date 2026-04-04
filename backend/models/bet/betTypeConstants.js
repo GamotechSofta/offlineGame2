@@ -15,4 +15,5 @@ export const BET_TYPES = [
     'sp-common',
     'cp-common',
     'dp-common',
+    'chart',
 ];
