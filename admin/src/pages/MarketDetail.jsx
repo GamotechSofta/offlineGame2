@@ -81,7 +81,7 @@ const mergeSessionStatsForView = (open, close) => {
 };
 
 /** Display label for bet type (super admin panel) */
-const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 't-motor': 'T Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common', 'dp-common': 'DP Common' }[String(t || '').toLowerCase()] || (t ? String(t).toUpperCase() : 'N/A'));
+const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 't-motor': 'T Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common', 'cp-common': 'CP (Common Pana)', 'dp-common': 'DP Common' }[String(t || '').toLowerCase()] || (t ? String(t).toUpperCase() : 'N/A'));
 
 /** Card container matching AddResult/UpdateRate style */
 const SectionCard = ({ title, children, className = '' }) => (
@@ -276,11 +276,12 @@ const cloneDoublePattiByAnk = (byAnk) => {
     return o;
 };
 
-/** SP Common: 3-digit → that patti row; legacy 1-digit → every chart patti containing the digit (amount only on rows). */
+/** SP / CP Common: 3-digit → that patti row; legacy 1-digit → every chart patti containing the digit (amount only on rows). */
 const mergeSinglePattiWithSpCommonBets = (baseByAnk, bets = []) => {
     const merged = cloneSinglePattiByAnk(baseByAnk);
     for (const bet of bets) {
-        if (String(bet?.betType || '').toLowerCase() !== 'sp-common') continue;
+        const bt = String(bet?.betType || '').toLowerCase();
+        if (bt !== 'sp-common' && bt !== 'cp-common') continue;
         const amt = Number(bet?.amount) || 0;
         if (!amt) continue;
         const raw = String(bet?.betNumber || '').trim();
@@ -322,7 +323,8 @@ const mergeSinglePattiWithSpCommonBets = (baseByAnk, bets = []) => {
 const mergeDoublePattiWithDpCommonBets = (baseByAnk, bets = []) => {
     const merged = cloneDoublePattiByAnk(baseByAnk);
     for (const bet of bets) {
-        if (String(bet?.betType || '').toLowerCase() !== 'dp-common') continue;
+        const bt = String(bet?.betType || '').toLowerCase();
+        if (bt !== 'dp-common' && bt !== 'cp-common') continue;
         const amt = Number(bet?.amount) || 0;
         if (!amt) continue;
         const raw = String(bet?.betNumber || '').trim();
@@ -1523,7 +1525,7 @@ const MarketDetail = () => {
                                 Grouped by <strong className="text-gray-800">Ank</strong> (last digit of sum of 3 digits). E.g. 127 → 1+2+7=10 → Ank <span className="font-mono text-orange-500">0</span>. Panels 0–9 below match the user-side Single Panna layout.
                             </p>
                             <p className="text-gray-500 text-xs">
-                                SP Common amounts appear on each matching patti row (new bets store 3-digit panna; older digit-only bets are spread across pattis that contain that digit).
+                                SP Common and CP (Common Pana) <strong className="text-gray-800">single</strong> panna amounts appear on each matching row (CP double panas are shown under Double Patti). 3-digit lines or legacy digit-only spread as before.
                             </p>
                         </div>
                         {/* Summary by Ank (0–9), same order as user panels */}
@@ -1605,7 +1607,7 @@ const MarketDetail = () => {
                                 Grouped by <strong className="text-gray-800">Ank</strong> (last digit of sum of 3 digits). Double Patti = 3-digit with <strong className="text-gray-800">exactly two same digits</strong> (e.g. 112, 121, 233). Panels 0–9 match the user Double Pana layout.
                             </p>
                             <p className="text-gray-500 text-xs">
-                                DP Common amounts appear on each matching patti row (3-digit panna per line, or legacy digit spread like SP Common).
+                                DP Common and CP (Common Pana) double-panna amounts appear on each matching patti row (3-digit panna per line, or legacy digit spread for DP Common).
                             </p>
                         </div>
                         {(() => {

@@ -118,6 +118,17 @@ const BidOptions = () => {
       ),
     },
     {
+      id: 6.55,
+      title: 'CP (Common Pana)',
+      icon: (
+        <img
+          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
+          alt="CP (Common Pana)"
+          className="w-full h-full object-contain"
+        />
+      ),
+    },
+    {
       id: 6.6,
       title: 'DP Common',
       icon: (
@@ -256,6 +267,7 @@ const BidOptions = () => {
           'Single Digit Bulk',
           'Odd Even',
           'SP Common',
+          'CP (Common Pana)',
           'DP Common',
           'Single Pana',
           'Single Pana Bulk',
@@ -301,6 +313,7 @@ const BidOptions = () => {
     'Half Sangam',
     'Full Sangam',
     'SP Common',
+    'CP (Common Pana)',
     'DP Common',
     'SP Motor',
     'DP Motor',

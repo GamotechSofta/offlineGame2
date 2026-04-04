@@ -6,8 +6,6 @@ import MarketResult from '../models/marketResult/marketResult.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isSinglePatti, buildSinglePattiFirstDigitSummary } from '../utils/singlePattiUtils.js';
-
-import { isSpCommon } from '../config/spCommonList.js';
 import {
     previewDeclareOpen,
     previewDeclareClose,
@@ -20,9 +18,6 @@ import {
     scanProfitBucketsOpen,
     scanProfitBucketsClose,
 } from '../utils/settleBets.js';
-
-// import { previewDeclareOpen, previewDeclareClose, settleOpening, settleClosing, getWinningBetsForOpen, getWinningBetsForClose } from '../utils/settleBets.js';
-
 import { ensureResultsResetForNewDay } from '../utils/resultReset.js';
 import { getRatesMap } from '../models/rate/rate.js';
 import bcrypt from 'bcryptjs';

@@ -18,6 +18,7 @@ import DpMotorBid from './bids/DpMotorBid';
 import SpDpMotorBid from './bids/SpDpMotorBid';
 import OddEvenBid from './bids/OddEvenBid';
 import SpCommonBid from './bids/SpCommonBid';
+import CpCommonBid from './bids/CpCommonBid';
 import DpCommonBid from './bids/DpCommonBid';
 
 const BID_COMPONENTS = {
@@ -36,6 +37,7 @@ const BID_COMPONENTS = {
     'half sangam': HalfSangamBid,
     'sp motor': SpMotorBid,
     'sp common': SpCommonBid,
+    'cp (common pana)': CpCommonBid,
     'dp common': DpCommonBid,
     'dp motor': DpMotorBid,
     'sp dp motor': SpDpMotorBid,

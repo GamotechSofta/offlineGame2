@@ -13,5 +13,6 @@ export const BET_TYPES = [
     'full-sangam',
     'odd-even',
     'sp-common',
+    'cp-common',
     'dp-common',
 ];

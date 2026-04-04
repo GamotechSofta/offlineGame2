@@ -80,6 +80,7 @@ const BET_TYPE_LABELS = {
   'full-sangam': 'Full Sangam',
   'odd-even': 'Odd Even',
   'sp-common': 'SP Common',
+  'cp-common': 'CP (Common Pana)',
   'dp-common': 'DP Common',
 };
 

@@ -143,6 +143,16 @@ export const placeBet = async (req, res) => {
                     });
                 }
             }
+            if (betType === 'cp-common') {
+                const sn = String(betNumber || '').trim();
+                if (!(/^[0-9]{3}$/.test(sn) && (isSpCommon(sn) || isValidDoublePana(sn)))) {
+                    return res.status(400).json({
+                        success: false,
+                        message:
+                            'CP (Common Pana): each bet must be a valid 3-digit single or double panna from the chart.',
+                    });
+                }
+            }
             if (betType === 'dp-common') {
                 const dn = String(betNumber || '').trim();
                 const ok1 = /^[0-9]$/.test(dn);
@@ -267,6 +277,7 @@ export const placeBet = async (req, res) => {
             if (s === 'full-sangam') return 'Full Sangam';
             if (s === 'odd-even') return 'Odd Even';
             if (s === 'sp-common') return 'SP Common';
+            if (s === 'cp-common') return 'CP (Common Pana)';
             if (s === 'dp-common') return 'DP Common';
             return 'Bet';
         };
@@ -431,6 +442,16 @@ export const placeBetForPlayer = async (req, res) => {
                     return res.status(400).json({
                         success: false,
                         message: 'SP Common: use a single digit (0-9) or a valid 3-digit SP Common panna.',
+                    });
+                }
+            }
+            if (betType === 'cp-common') {
+                const sn = String(betNumber || '').trim();
+                if (!(/^[0-9]{3}$/.test(sn) && (isSpCommon(sn) || isValidDoublePana(sn)))) {
+                    return res.status(400).json({
+                        success: false,
+                        message:
+                            'CP (Common Pana): each bet must be a valid 3-digit single or double panna from the chart.',
                     });
                 }
             }
