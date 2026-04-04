@@ -802,23 +802,83 @@ function renderPattiChips(matches, mode, keyPrefix, options = {}) {
     );
 }
 
+function renderProfitBucketsTable(bucketsData, tableKey) {
+    if (!bucketsData) return null;
+    return (
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700 w-24 whitespace-nowrap">
+                            Target band
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {(bucketsData.lossBucket?.count ?? 0) > 0 && (
+                        <tr className="align-top bg-red-50/80 hover:bg-red-50/90">
+                            <td className="px-3 py-2 font-semibold text-red-800 whitespace-nowrap">
+                                Loss (house profit below 0%)
+                                <span className="block text-[11px] font-normal text-red-700 normal-case mt-0.5">
+                                    {bucketsData.lossBucket.count} panna outcome
+                                    {bucketsData.lossBucket.count === 1 ? '' : 's'}
+                                    {bucketsData.lossBucket.minHouseProfitPct != null &&
+                                        bucketsData.lossBucket.maxHouseProfitPct != null && (
+                                            <>
+                                                {' '}
+                                                · house profit % from {bucketsData.lossBucket.minHouseProfitPct}% to{' '}
+                                                {bucketsData.lossBucket.maxHouseProfitPct}%
+                                            </>
+                                        )}
+                                </span>
+                            </td>
+                            <td className="px-3 py-2 text-gray-900">
+                                {renderPattiChips(
+                                    bucketsData.lossBucket.matches,
+                                    bucketsData.mode,
+                                    `bucket-loss-${tableKey}`,
+                                    { variant: 'loss' }
+                                )}
+                            </td>
+                        </tr>
+                    )}
+                    {bucketsData.buckets.map((bucket) => (
+                        <tr key={`${tableKey}-${bucket.targetPct}`} className="align-top hover:bg-gray-50/80">
+                            <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
+                                {profitBandLabel(bucket.targetPct)}
+                            </td>
+                            <td className="px-3 py-2 text-gray-800">
+                                {bucket.matches.length === 0 ? (
+                                    <span className="text-gray-400">—</span>
+                                ) : (
+                                    renderPattiChips(
+                                        bucket.matches,
+                                        bucketsData.mode,
+                                        `bucket-${tableKey}-${bucket.targetPct}`
+                                    )
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 /** 3-digit pannas whose declare preview has house profit ≈ target % (same rules as declare preview). */
-const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => {
+const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
     const [targetPct, setTargetPct] = useState('60');
     const [tolerance, setTolerance] = useState('10');
-    const [mode, setMode] = useState('open');
     const [loading, setLoading] = useState(false);
     const [scanErr, setScanErr] = useState('');
     const [scanData, setScanData] = useState(null);
-    const [bucketsData, setBucketsData] = useState(null);
+    const [bucketsOpen, setBucketsOpen] = useState(null);
+    const [bucketsClose, setBucketsClose] = useState(null);
     const [bucketsLoading, setBucketsLoading] = useState(false);
     const [bucketsErr, setBucketsErr] = useState('');
-
-    useEffect(() => {
-        if (!hasOpenDeclared && mode === 'close') setMode('open');
-    }, [hasOpenDeclared, mode]);
-
-    const bucketsMode = hasCloseDeclared ? 'close' : 'open';
+    const [bucketsCloseErr, setBucketsCloseErr] = useState('');
 
     useEffect(() => {
         if (!marketId) return;
@@ -826,18 +886,60 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
         (async () => {
             setBucketsLoading(true);
             setBucketsErr('');
-            setBucketsData(null);
-            try {
-                const q = new URLSearchParams({ mode: bucketsMode });
+            setBucketsCloseErr('');
+            setBucketsOpen(null);
+            setBucketsClose(null);
+
+            if (statusView === 'closed' && !hasOpenDeclared) {
+                setBucketsErr('Declare opening panna first to preview close-session house profit.');
+                setBucketsLoading(false);
+                return;
+            }
+
+            const fetchBuckets = async (mode) => {
+                const q = new URLSearchParams({ mode });
                 const res = await fetchWithAuth(`${API_BASE_URL}/markets/scan-profit-buckets/${marketId}?${q}`);
-                if (res.status === 401) return;
+                if (res.status === 401) return { ok: false, message: 'Unauthorized' };
                 const json = await res.json();
-                if (cancelled) return;
-                if (!json.success) {
-                    setBucketsErr(json.message || 'Could not load profit buckets');
-                    return;
+                if (!json.success) return { ok: false, message: json.message || 'Could not load profit buckets' };
+                return { ok: true, data: json.data };
+            };
+
+            try {
+                if (statusView === 'open') {
+                    const r = await fetchBuckets('open');
+                    if (cancelled) return;
+                    if (!r.ok) {
+                        setBucketsErr(r.message);
+                        return;
+                    }
+                    setBucketsOpen(r.data);
+                } else if (statusView === 'closed') {
+                    const r = await fetchBuckets('close');
+                    if (cancelled) return;
+                    if (!r.ok) {
+                        setBucketsErr(r.message);
+                        return;
+                    }
+                    setBucketsClose(r.data);
+                } else {
+                    const rOpen = await fetchBuckets('open');
+                    if (cancelled) return;
+                    if (!rOpen.ok) {
+                        setBucketsErr(rOpen.message);
+                    } else {
+                        setBucketsOpen(rOpen.data);
+                    }
+                    if (hasOpenDeclared) {
+                        const rClose = await fetchBuckets('close');
+                        if (cancelled) return;
+                        if (!rClose.ok) {
+                            setBucketsCloseErr(rClose.message || 'Close-session buckets failed.');
+                        } else {
+                            setBucketsClose(rClose.data);
+                        }
+                    }
                 }
-                setBucketsData(json.data);
             } catch (e) {
                 if (!cancelled) setBucketsErr('Network error loading buckets.');
             } finally {
@@ -847,7 +949,12 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
         return () => {
             cancelled = true;
         };
-    }, [marketId, bucketsMode]);
+    }, [marketId, statusView, hasOpenDeclared]);
+
+    useEffect(() => {
+        setScanData(null);
+        setScanErr('');
+    }, [statusView]);
 
     const runScan = async () => {
         if (!marketId) return;
@@ -857,23 +964,53 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
             setScanErr('Enter target profit % between 0 and 100.');
             return;
         }
+        if (statusView === 'closed' && !hasOpenDeclared) {
+            setScanErr('Declare opening panna first to scan close-session outcomes.');
+            return;
+        }
         setLoading(true);
         setScanErr('');
         setScanData(null);
         try {
-            const q = new URLSearchParams({
-                mode,
-                targetPct: String(tp),
-                tolerance: Number.isFinite(tol) ? String(tol) : '10',
-            });
-            const res = await fetchWithAuth(`${API_BASE_URL}/markets/scan-profit-outcomes/${marketId}?${q}`);
-            if (res.status === 401) return;
-            const json = await res.json();
-            if (!json.success) {
-                setScanErr(json.message || 'Scan failed');
-                return;
+            const tolStr = Number.isFinite(tol) ? String(tol) : '10';
+            const baseQ = { targetPct: String(tp), tolerance: tolStr };
+
+            if (statusView === 'all' && hasOpenDeclared) {
+                const [resOpen, resClose] = await Promise.all([
+                    fetchWithAuth(
+                        `${API_BASE_URL}/markets/scan-profit-outcomes/${marketId}?${new URLSearchParams({ ...baseQ, mode: 'open' })}`
+                    ),
+                    fetchWithAuth(
+                        `${API_BASE_URL}/markets/scan-profit-outcomes/${marketId}?${new URLSearchParams({ ...baseQ, mode: 'close' })}`
+                    ),
+                ]);
+                if (resOpen.status === 401 || resClose.status === 401) return;
+                const jsonOpen = await resOpen.json();
+                const jsonClose = await resClose.json();
+                setScanData({
+                    variant: 'dual',
+                    targetPct: tp,
+                    tolerance: tol,
+                    open: jsonOpen.success ? jsonOpen.data : null,
+                    openErr: jsonOpen.success ? null : jsonOpen.message || 'Open scan failed',
+                    close: jsonClose.success ? jsonClose.data : null,
+                    closeErr: jsonClose.success ? null : jsonClose.message || 'Close scan failed',
+                });
+                if (!jsonOpen.success && !jsonClose.success) {
+                    setScanErr('Both open and close scans failed.');
+                }
+            } else {
+                const mode = statusView === 'closed' ? 'close' : 'open';
+                const q = new URLSearchParams({ ...baseQ, mode });
+                const res = await fetchWithAuth(`${API_BASE_URL}/markets/scan-profit-outcomes/${marketId}?${q}`);
+                if (res.status === 401) return;
+                const json = await res.json();
+                if (!json.success) {
+                    setScanErr(json.message || 'Scan failed');
+                    return;
+                }
+                setScanData({ variant: 'single', ...json.data });
             }
-            setScanData(json.data);
         } catch (e) {
             setScanErr('Network error. Try again.');
         } finally {
@@ -886,7 +1023,8 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
             <p className="text-sm text-gray-600 mb-4">
                 Enter target house profit % (e.g. 60). We only check 3-digit pannas that players actually played (panna / patti
                 tickets). Result numbers are only those played numbers whose declare preview hits your
-                target. Tolerance 0 means exact match on the same two-decimal % as the table below (e.g. 9.58).
+                target. Tolerance 0 means exact match on the same two-decimal % as the table below (e.g. 9.58). Which session is
+                scanned matches the page <span className="font-semibold">View</span> (open / closed / all).
             </p>
             <div className="flex flex-wrap items-end gap-3 mb-4">
                 <label className="flex flex-col gap-1 text-xs text-gray-600">
@@ -913,19 +1051,6 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
                         className="border border-gray-300 rounded-lg px-3 py-2 w-28 text-gray-900"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-gray-600">
-                    Session
-                    <select
-                        value={mode}
-                        onChange={(e) => setMode(e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-white min-w-[140px]"
-                    >
-                        <option value="open">Opening declare</option>
-                        <option value="close" disabled={!hasOpenDeclared}>
-                            Closing declare
-                        </option>
-                    </select>
-                </label>
                 <button
                     type="button"
                     onClick={runScan}
@@ -935,11 +1060,19 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
                     {loading ? 'Scanning…' : 'Find pannas'}
                 </button>
             </div>
-            {!hasOpenDeclared && (
-                <p className="text-gray-500 text-xs mb-3">Closing scan is available after the opening panna is declared.</p>
-            )}
+            <p className="text-gray-500 text-xs mb-3">
+                View:{' '}
+                <span className="font-semibold text-gray-700">
+                    {statusView === 'open' ? 'Open bets only' : statusView === 'closed' ? 'Closed bets only' : 'All bets (open + close)'}
+                </span>
+                {statusView === 'all' && hasOpenDeclared
+                    ? ' — Find pannas runs both opening and closing declare scans.'
+                    : statusView === 'closed' && !hasOpenDeclared
+                      ? ' — Declare open panna first for close-session tools.'
+                      : ''}
+            </p>
             {scanErr && <p className="text-red-600 text-sm mb-3">{scanErr}</p>}
-            {scanData && (
+            {scanData?.variant === 'single' && (
                 <div className="mt-2">
                     <p className="text-sm text-gray-700 mb-2">
                         {scanData.mode === 'open' ? 'Opening' : 'Closing'} · target {scanData.targetPct}%
@@ -984,12 +1117,102 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
                     )}
                 </div>
             )}
+            {scanData?.variant === 'dual' && (
+                <div className="mt-2 space-y-6">
+                    <p className="text-sm text-gray-700 mb-2">
+                        Target {scanData.targetPct}%
+                        {Number(scanData.tolerance) === 0 ? ' (exact)' : ` ± ${scanData.tolerance}%`} · dual scan (open + close
+                        sessions).
+                    </p>
+                    <div>
+                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Opening declare (open bets)</h4>
+                        {scanData.openErr ? (
+                            <p className="text-red-600 text-sm">{scanData.openErr}</p>
+                        ) : scanData.open?.count === 0 ? (
+                            <p className="text-gray-500 text-sm">
+                                {(scanData.open?.betPannaCount ?? 0) === 0
+                                    ? 'No matching played open-session pannas.'
+                                    : 'No open-session pannas in this target band.'}
+                            </p>
+                        ) : (
+                            <div className="overflow-x-auto rounded-lg border border-gray-200 max-h-[360px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left font-semibold text-gray-700 w-28 whitespace-nowrap">
+                                                Target band
+                                            </th>
+                                            <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        <tr className="align-top hover:bg-gray-50/80">
+                                            <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
+                                                ~{nearestTenPercentBand(scanData.targetPct)}%
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-800">
+                                                {renderPattiChips(scanData.open.matches, scanData.open.mode, 'scan-open')}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Closing declare (close bets)</h4>
+                        {scanData.closeErr ? (
+                            <p className="text-red-600 text-sm">{scanData.closeErr}</p>
+                        ) : scanData.close?.count === 0 ? (
+                            <p className="text-gray-500 text-sm">
+                                {(scanData.close?.betPannaCount ?? 0) === 0
+                                    ? 'No matching played close-session pannas.'
+                                    : 'No close-session pannas in this target band.'}
+                            </p>
+                        ) : (
+                            <div className="overflow-x-auto rounded-lg border border-gray-200 max-h-[360px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left font-semibold text-gray-700 w-28 whitespace-nowrap">
+                                                Target band
+                                            </th>
+                                            <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        <tr className="align-top hover:bg-gray-50/80">
+                                            <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
+                                                ~{nearestTenPercentBand(scanData.targetPct)}%
+                                                {scanData.close?.openPanna ? (
+                                                    <span className="block text-[10px] font-normal text-gray-500 normal-case">
+                                                        Open {scanData.close.openPanna}
+                                                    </span>
+                                                ) : null}
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-800">
+                                                {renderPattiChips(scanData.close.matches, scanData.close.mode, 'scan-close')}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="text-sm font-bold text-gray-800 mb-1">Played patti by house profit %</h3>
                 <p className="text-xs text-gray-500 mb-2">
-                    Showing {hasCloseDeclared ? 'close' : 'open'} calculation
-                    {hasCloseDeclared ? ' (result declared)' : ' (before result declaration)'}.
+                    Same as <span className="font-semibold">View</span> above:{' '}
+                    {statusView === 'open'
+                        ? 'open-session bets only (opening declare preview).'
+                        : statusView === 'closed'
+                          ? 'close-session settlement preview (opening panna fixed).'
+                          : hasOpenDeclared
+                            ? 'open-session table and close-session table below.'
+                            : 'open-session table only until opening panna is declared.'}
                 </p>
                 <p className="text-xs text-gray-500 mb-3">
                     Rows are fixed house-profit % bands: 0–10, 11–20, … 91–100. Within each band, pattis are sorted by actual
@@ -1003,61 +1226,27 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
                     </div>
                 )}
                 {bucketsErr && <p className="text-red-600 text-sm mb-2">{bucketsErr}</p>}
-                {!bucketsLoading && bucketsData && (
-                    <div className="overflow-x-auto rounded-lg border border-gray-200">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-3 py-2 text-left font-semibold text-gray-700 w-24 whitespace-nowrap">
-                                        Target band
-                                    </th>
-                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {(bucketsData.lossBucket?.count ?? 0) > 0 && (
-                                    <tr className="align-top bg-red-50/80 hover:bg-red-50/90">
-                                        <td className="px-3 py-2 font-semibold text-red-800 whitespace-nowrap">
-                                            Loss (house profit below 0%)
-                                            <span className="block text-[11px] font-normal text-red-700 normal-case mt-0.5">
-                                                {bucketsData.lossBucket.count} panna outcome
-                                                {bucketsData.lossBucket.count === 1 ? '' : 's'}
-                                                {bucketsData.lossBucket.minHouseProfitPct != null &&
-                                                    bucketsData.lossBucket.maxHouseProfitPct != null && (
-                                                        <>
-                                                            {' '}
-                                                            · house profit % from {bucketsData.lossBucket.minHouseProfitPct}% to{' '}
-                                                            {bucketsData.lossBucket.maxHouseProfitPct}%
-                                                        </>
-                                                    )}
-                                            </span>
-                                        </td>
-                                        <td className="px-3 py-2 text-gray-900">
-                                            {renderPattiChips(
-                                                bucketsData.lossBucket.matches,
-                                                bucketsData.mode,
-                                                'bucket-loss',
-                                                { variant: 'loss' }
-                                            )}
-                                        </td>
-                                    </tr>
-                                )}
-                                {bucketsData.buckets.map((bucket) => (
-                                    <tr key={bucket.targetPct} className="align-top hover:bg-gray-50/80">
-                                        <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
-                                            {profitBandLabel(bucket.targetPct)}
-                                        </td>
-                                        <td className="px-3 py-2 text-gray-800">
-                                            {bucket.matches.length === 0 ? (
-                                                <span className="text-gray-400">—</span>
-                                            ) : (
-                                                renderPattiChips(bucket.matches, bucketsData.mode, `bucket-${bucket.targetPct}`)
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                {bucketsCloseErr && <p className="text-amber-700 text-sm mb-2">{bucketsCloseErr}</p>}
+                {!bucketsLoading && statusView === 'open' && bucketsOpen && renderProfitBucketsTable(bucketsOpen, 'open')}
+                {!bucketsLoading && statusView === 'closed' && bucketsClose && renderProfitBucketsTable(bucketsClose, 'close')}
+                {!bucketsLoading && statusView === 'all' && (
+                    <div className="space-y-6">
+                        {bucketsOpen && (
+                            <div>
+                                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
+                                    Open bets (opening declare)
+                                </h4>
+                                {renderProfitBucketsTable(bucketsOpen, 'all-open')}
+                            </div>
+                        )}
+                        {hasOpenDeclared && bucketsClose && (
+                            <div>
+                                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
+                                    Close bets (closing declare)
+                                </h4>
+                                {renderProfitBucketsTable(bucketsClose, 'all-close')}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -1797,7 +1986,7 @@ const MarketDetail = () => {
                     />
                 </div>
 
-                <ProfitTargetFinder marketId={marketId} hasOpenDeclared={!!hasOpen} hasCloseDeclared={!!hasClose} />
+                <ProfitTargetFinder marketId={marketId} hasOpenDeclared={!!hasOpen} statusView={statusView} />
 
                 {/* Detailed Bet Analysis Section */}
                 <SectionCard title="Detailed Bet Analysis" className="mt-8">
