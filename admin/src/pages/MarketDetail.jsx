@@ -687,6 +687,17 @@ const FullSangamSection = ({ items = {}, totalAmount = 0, totalBets = 0 }) => {
 const PROFIT_PATTI_CHIP_CLASS =
     'inline-flex items-center gap-1 rounded-md bg-orange-50 border border-orange-100 px-2 py-0.5 font-mono text-xs text-gray-800';
 
+const PROFIT_LOSS_CHIP_CLASS =
+    'inline-flex items-center gap-1 rounded-md bg-red-50 border border-red-100 px-2 py-0.5 font-mono text-xs text-gray-900';
+
+/** Admin bucket row label: 0–10%, 11–20%, … 91–100% */
+function profitBandLabel(targetPct) {
+    const t = Number(targetPct);
+    if (t === 10) return '0–10%';
+    if (!Number.isFinite(t)) return '—';
+    return `${t - 9}–${t}%`;
+}
+
 /** Nearest 10% band label (10–100), same idea as bucket rows */
 function nearestTenPercentBand(pct) {
     const p = Number(pct);
@@ -695,43 +706,98 @@ function nearestTenPercentBand(pct) {
     return Math.min(100, Math.max(10, b));
 }
 
-function renderPattiChips(matches, mode, keyPrefix) {
+/** Same single / double / triple rules as backend settlement (`getPannaType`). */
+function pannaChartKind(threeDigit) {
+    const s = String(threeDigit ?? '').trim();
+    if (!/^\d{3}$/.test(s)) return 'single';
+    const a = s[0],
+        b = s[1],
+        c = s[2];
+    if (a === b && b === c) return 'triple';
+    if (a === b || b === c || a === c) return 'double';
+    return 'single';
+}
+
+function renderPattiChips(matches, mode, keyPrefix, options = {}) {
+    const { variant } = options;
+    const isLoss = variant === 'loss';
     if (!matches?.length) {
         return <span className="text-gray-400">—</span>;
     }
+    const pannaForRow = (row) => (mode === 'open' ? row.openingPanna : row.closingPanna);
+    const grouped = { single: [], double: [], triple: [] };
+    for (const row of matches) {
+        grouped[pannaChartKind(pannaForRow(row))].push(row);
+    }
+    const sortInGroup = (rows) => {
+        rows.sort((a, b) =>
+            isLoss ? a.profitPercent - b.profitPercent : b.profitPercent - a.profitPercent
+        );
+    };
+    sortInGroup(grouped.single);
+    sortInGroup(grouped.double);
+    sortInGroup(grouped.triple);
+    const sections = [
+        { kind: 'single', label: 'Single patti' },
+        { kind: 'double', label: 'Double patti' },
+        { kind: 'triple', label: 'Triple patti' },
+    ];
     return (
-        <div className="flex flex-wrap gap-1.5">
-            {matches.map((row, i) => (
-                <span
-                    key={`${keyPrefix}-${i}`}
-                    className={
-                        row.nearestBandFill
-                            ? `${PROFIT_PATTI_CHIP_CLASS} bg-gray-50 border-gray-200`
-                            : PROFIT_PATTI_CHIP_CLASS
-                    }
-                    title={`Pool ₹${formatNum(row.totalBetAmount)} · House profit ₹${formatNum(row.profit)}${
-                        row.nearestBandFill ? ' · closest to this band' : ''
-                    }`}
-                >
-                    {mode === 'open' ? (
-                        <>
-                            <span className="text-orange-600 font-semibold">{row.openingPanna}</span>
-                            <span className="text-gray-500">·</span>
-                            <span>{row.profitPercent}%</span>
-                            <span className="text-gray-500">·</span>
-                            <span className="text-orange-600 font-semibold">₹{formatNum(row.profit)}</span>
-                        </>
-                    ) : (
-                        <>
-                            <span className="text-orange-600 font-semibold">{row.closingPanna}</span>
-                            <span className="text-gray-500">·</span>
-                            <span>{row.profitPercent}%</span>
-                            <span className="text-gray-500">·</span>
-                            <span className="text-orange-600 font-semibold">₹{formatNum(row.profit)}</span>
-                        </>
-                    )}
-                </span>
-            ))}
+        <div className="flex flex-col gap-2">
+            {sections.map(({ kind, label }) => {
+                const rows = grouped[kind];
+                if (!rows.length) return null;
+                return (
+                    <div key={`${keyPrefix}-${kind}`}>
+                        <div
+                            className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${
+                                isLoss ? 'text-red-700' : 'text-gray-500'
+                            }`}
+                        >
+                            {label}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                            {rows.map((row, i) => {
+                                const baseChip = isLoss
+                                    ? PROFIT_LOSS_CHIP_CLASS
+                                    : row.nearestBandFill
+                                      ? `${PROFIT_PATTI_CHIP_CLASS} bg-gray-50 border-gray-200`
+                                      : PROFIT_PATTI_CHIP_CLASS;
+                                const pctClass = isLoss ? 'text-red-700 font-semibold' : '';
+                                const pannaClass = isLoss ? 'text-red-800 font-semibold' : 'text-orange-600 font-semibold';
+                                const moneyClass = isLoss ? 'text-red-700 font-semibold' : 'text-orange-600 font-semibold';
+                                return (
+                                    <span
+                                        key={`${keyPrefix}-${kind}-${i}`}
+                                        className={baseChip}
+                                        title={`Pool ₹${formatNum(row.totalBetAmount)} · House profit ₹${formatNum(row.profit)}${
+                                            !isLoss && row.nearestBandFill ? ' · closest to this band' : ''
+                                        }`}
+                                    >
+                                        {mode === 'open' ? (
+                                            <>
+                                                <span className={pannaClass}>{row.openingPanna}</span>
+                                                <span className="text-gray-500">·</span>
+                                                <span className={pctClass}>{row.profitPercent}%</span>
+                                                <span className="text-gray-500">·</span>
+                                                <span className={moneyClass}>₹{formatNum(row.profit)}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className={pannaClass}>{row.closingPanna}</span>
+                                                <span className="text-gray-500">·</span>
+                                                <span className={pctClass}>{row.profitPercent}%</span>
+                                                <span className="text-gray-500">·</span>
+                                                <span className={moneyClass}>₹{formatNum(row.profit)}</span>
+                                            </>
+                                        )}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 }
@@ -920,13 +986,15 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
             )}
 
             <div className="mt-8 pt-6 border-t border-gray-200">
-                <h3 className="text-sm font-bold text-gray-800 mb-1">Played patti by profit % (0% – 100%)</h3>
+                <h3 className="text-sm font-bold text-gray-800 mb-1">Played patti by house profit %</h3>
                 <p className="text-xs text-gray-500 mb-2">
                     Showing {hasCloseDeclared ? 'close' : 'open'} calculation
                     {hasCloseDeclared ? ' (result declared)' : ' (before result declaration)'}.
                 </p>
                 <p className="text-xs text-gray-500 mb-3">
-                    Each row is a fixed range bucket: 10% = 0–10, 20% = 11–20, ... 100% = 91–100.
+                    Rows are fixed house-profit % bands: 0–10, 11–20, … 91–100. Within each band, pattis are sorted by actual
+                    profit % (highest first). If the house would lose on some chart outcomes, they appear in the red Loss section
+                    above 0–10%, with count and % range. Only chart pannas are included (SP single list, valid double, triple).
                 </p>
                 {bucketsLoading && (
                     <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
@@ -947,10 +1015,37 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
+                                {(bucketsData.lossBucket?.count ?? 0) > 0 && (
+                                    <tr className="align-top bg-red-50/80 hover:bg-red-50/90">
+                                        <td className="px-3 py-2 font-semibold text-red-800 whitespace-nowrap">
+                                            Loss (house profit below 0%)
+                                            <span className="block text-[11px] font-normal text-red-700 normal-case mt-0.5">
+                                                {bucketsData.lossBucket.count} panna outcome
+                                                {bucketsData.lossBucket.count === 1 ? '' : 's'}
+                                                {bucketsData.lossBucket.minHouseProfitPct != null &&
+                                                    bucketsData.lossBucket.maxHouseProfitPct != null && (
+                                                        <>
+                                                            {' '}
+                                                            · house profit % from {bucketsData.lossBucket.minHouseProfitPct}% to{' '}
+                                                            {bucketsData.lossBucket.maxHouseProfitPct}%
+                                                        </>
+                                                    )}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-gray-900">
+                                            {renderPattiChips(
+                                                bucketsData.lossBucket.matches,
+                                                bucketsData.mode,
+                                                'bucket-loss',
+                                                { variant: 'loss' }
+                                            )}
+                                        </td>
+                                    </tr>
+                                )}
                                 {bucketsData.buckets.map((bucket) => (
                                     <tr key={bucket.targetPct} className="align-top hover:bg-gray-50/80">
                                         <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
-                                            {bucket.targetPct === 10 ? 0 : bucket.targetPct - 9}-{bucket.targetPct}%
+                                            {profitBandLabel(bucket.targetPct)}
                                         </td>
                                         <td className="px-3 py-2 text-gray-800">
                                             {bucket.matches.length === 0 ? (
@@ -964,9 +1059,6 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, hasCloseDeclared }) => 
                             </tbody>
                         </table>
                     </div>
-                )}
-                {!bucketsLoading && bucketsData && (bucketsData.betPannaCount ?? 0) === 0 && (
-                    <p className="text-gray-500 text-xs mt-2">No played 3-digit pannas in this session — table will fill when panna/patti bets exist.</p>
                 )}
             </div>
         </SectionCard>

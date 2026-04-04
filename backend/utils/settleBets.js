@@ -5,7 +5,7 @@ import User from '../models/user/user.js';
 import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getRatesMap, DEFAULT_RATES } from '../models/rate/rate.js';
-import { isSpCommon } from '../config/spCommonList.js';
+import { isSpCommon, SP_COMMON_LIST } from '../config/spCommonList.js';
 import { isValidDoublePana } from './doublePanaValidate.js';
 
 /** Normalize betNumber to 3-digit panna string or null. */
@@ -1303,55 +1303,48 @@ export async function scanProfitOutcomesClose(marketId, targetPct, tolerance = 2
 /** House profit % tiers shown in admin (10% … 100%). */
 export const PROFIT_BUCKET_TARGETS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
-/** Map actual profit % to nearest 10% label (10–100). */
-function nearestProfitBucketTen(pct) {
-    const p = Number(pct);
-    if (!Number.isFinite(p)) return 10;
-    let b = Math.round(p / 10) * 10;
-    if (b < 10) b = 10;
-    if (b > 100) b = 100;
-    return b;
-}
-
-/** Profit range bucket: 0-10 -> 10, 11-20 -> 20, ..., 91-100 -> 100 */
-function profitRangeBucketTen(pct) {
+/**
+ * Map non-negative house profit % to admin band key 10|20|…|100.
+ * Bands: 0–10 → 10, (10–20] → 20, …, (90–100] → 100; values above 100% clamp to 100.
+ */
+function profitRangeBucketTarget(pct) {
     const p = Number(pct);
     if (!Number.isFinite(p) || p < 0) return null;
-    let b = Math.ceil(p / 10) * 10;
-    if (b < 10) b = 10;
-    if (b > 100) b = 100;
-    return b;
+    const x = Math.min(100, p);
+    if (x <= 10) return 10;
+    if (x <= 20) return 20;
+    if (x <= 30) return 30;
+    if (x <= 40) return 40;
+    if (x <= 50) return 50;
+    if (x <= 60) return 60;
+    if (x <= 70) return 70;
+    if (x <= 80) return 80;
+    if (x <= 90) return 90;
+    return 100;
 }
 
-const BUCKET_NEAREST_FILL_MAX = 20;
+let chartThreeDigitPannasCache = null;
 
-/** All 3-digit pannas from 000 to 999 */
-function allThreeDigitPannas() {
-    const arr = [];
-    for (let i = 0; i <= 999; i += 1) arr.push(String(i).padStart(3, '0'));
-    return arr;
-}
-
-/** If a band has no nearest-10 matches, fill with played pannas closest to that band’s % (so 10–100 rows always have data when any panna exists). */
-function fillEmptyBucketsWithNearest(allRows, bucketMap) {
-    for (const T of PROFIT_BUCKET_TARGETS) {
-        const arr = bucketMap.get(T);
-        if (arr.length > 0) continue;
-        const ranked = [...allRows]
-            .map((row) => ({
-                row,
-                d: Math.abs(Number(row.profitPercent) - T),
-            }))
-            .sort((a, b) => a.d - b.d || b.row.profitPercent - a.row.profitPercent)
-            .slice(0, BUCKET_NEAREST_FILL_MAX);
-        for (const { row } of ranked) {
-            arr.push({ ...row, nearestBandFill: true });
-        }
+/**
+ * Chart pool only: SP (single) list + valid double pana + triple (000,111,…,999).
+ * Matches user-facing Single / Double / Triple patti boards — not arbitrary 000–999.
+ */
+function allChartThreeDigitPannas() {
+    if (chartThreeDigitPannasCache) return chartThreeDigitPannasCache;
+    const set = new Set(SP_COMMON_LIST);
+    for (let i = 0; i <= 999; i += 1) {
+        const str = String(i).padStart(3, '0');
+        if (isValidDoublePana(str)) set.add(str);
     }
+    for (const d of '0123456789') {
+        set.add(d + d + d);
+    }
+    chartThreeDigitPannasCache = [...set].sort();
+    return chartThreeDigitPannasCache;
 }
 
 /**
- * All played open pannas with preview profit %, grouped under nearest 10% tier (10 … 100).
+ * Open declare preview: chart pannas grouped by house profit % band (0–10 … 91–100). Negative house profit in `lossBucket`.
  */
 export async function scanProfitBucketsOpen(marketId, options = {}) {
     const oid = toObjectId(marketId);
@@ -1368,55 +1361,64 @@ export async function scanProfitBucketsOpen(marketId, options = {}) {
 
     const allOpenBets = await Bet.find(matchFilterAll).lean();
     const rates = await getRatesMap();
-    // Show all numbers even if nobody placed bets on that specific patti.
-    const toScan = allThreeDigitPannas();
+    const toScan = allChartThreeDigitPannas();
 
-    const allRows = [];
+    const lossRows = [];
+    const profitRows = [];
     for (const open3 of toScan) {
         const { totalBetAmount, profit } = computeOpenPreviewFromBets(allOpenBets, open3, rates);
-        const pct = totalBetAmount > 0 ? (profit / totalBetAmount) * 100 : 0;
-        // This table is "profit % (0% - 100%)": hide only loss rows.
-        if (!Number.isFinite(pct) || pct < 0) continue;
+        if (totalBetAmount <= 0) continue;
+        const pct = (profit / totalBetAmount) * 100;
+        if (!Number.isFinite(pct)) continue;
         const profitPercent = Math.round(pct * 100) / 100;
-        allRows.push({
+        const row = {
             openingPanna: open3,
             profit,
             totalBetAmount,
             profitPercent,
-        });
+        };
+        if (profitPercent < 0) {
+            lossRows.push(row);
+        } else {
+            profitRows.push(row);
+        }
     }
 
     const bucketMap = new Map(PROFIT_BUCKET_TARGETS.map((t) => [t, []]));
-    for (const row of allRows) {
-        const b = profitRangeBucketTen(row.profitPercent);
+    for (const row of profitRows) {
+        const b = profitRangeBucketTarget(row.profitPercent);
         if (!b) continue;
         const arr = bucketMap.get(b);
-        if (arr) arr.push({ ...row });
-    }
-    if (allRows.length > 0) {
-        // Keep all 0-100 rows populated even when exact range rows are missing.
-        fillEmptyBucketsWithNearest(allRows, bucketMap);
+        if (arr) arr.push(row);
     }
     for (const t of PROFIT_BUCKET_TARGETS) {
         bucketMap.get(t).sort((a, b) => b.profitPercent - a.profitPercent);
     }
+    lossRows.sort((a, b) => a.profitPercent - b.profitPercent);
     const buckets = PROFIT_BUCKET_TARGETS.map((targetPct) => ({
         targetPct,
         matches: bucketMap.get(targetPct) || [],
-        nearestFill: (bucketMap.get(targetPct) || []).some((m) => m.nearestBandFill),
     }));
+    const lossBucket = {
+        count: lossRows.length,
+        matches: lossRows,
+        minHouseProfitPct: lossRows.length ? lossRows[0].profitPercent : null,
+        maxHouseProfitPct: lossRows.length ? lossRows[lossRows.length - 1].profitPercent : null,
+    };
     return {
         success: true,
         mode: 'open',
         onlyPlayedPannas: false,
         betPannaCount: toScan.length,
         grouping: 'range10',
+        pannaPool: 'chartSingleDoubleTriple',
+        lossBucket,
         buckets,
     };
 }
 
 /**
- * All played close pannas with preview profit %, grouped under nearest 10% tier (open must be declared).
+ * Close declare preview: chart pannas grouped by house profit % band; losses in `lossBucket`.
  */
 export async function scanProfitBucketsClose(marketId, options = {}) {
     const oid = toObjectId(marketId);
@@ -1451,44 +1453,51 @@ export async function scanProfitBucketsClose(marketId, options = {}) {
 
     const allBetsToday = await Bet.find(matchFilterAll).lean();
     const rates = await getRatesMap();
-    // Show all numbers even if nobody placed bets on that specific patti.
-    const toScan = allThreeDigitPannas();
+    const toScan = allChartThreeDigitPannas();
 
-    const allRows = [];
+    const lossRows = [];
+    const profitRows = [];
     for (const close3 of toScan) {
         const { totalBetAmount, profit } = computeClosePreviewFromBets(allBetsToday, open3, close3, rates);
-        const pct = totalBetAmount > 0 ? (profit / totalBetAmount) * 100 : 0;
-        // This table is "profit % (0% - 100%)": hide only loss rows.
-        if (!Number.isFinite(pct) || pct < 0) continue;
+        if (totalBetAmount <= 0) continue;
+        const pct = (profit / totalBetAmount) * 100;
+        if (!Number.isFinite(pct)) continue;
         const profitPercent = Math.round(pct * 100) / 100;
-        allRows.push({
+        const row = {
             openPanna: open3,
             closingPanna: close3,
             profit,
             totalBetAmount,
             profitPercent,
-        });
+        };
+        if (profitPercent < 0) {
+            lossRows.push(row);
+        } else {
+            profitRows.push(row);
+        }
     }
 
     const bucketMap = new Map(PROFIT_BUCKET_TARGETS.map((t) => [t, []]));
-    for (const row of allRows) {
-        const b = profitRangeBucketTen(row.profitPercent);
+    for (const row of profitRows) {
+        const b = profitRangeBucketTarget(row.profitPercent);
         if (!b) continue;
         const arr = bucketMap.get(b);
-        if (arr) arr.push({ ...row });
-    }
-    if (allRows.length > 0) {
-        // Keep all 0-100 rows populated even when exact range rows are missing.
-        fillEmptyBucketsWithNearest(allRows, bucketMap);
+        if (arr) arr.push(row);
     }
     for (const t of PROFIT_BUCKET_TARGETS) {
         bucketMap.get(t).sort((a, b) => b.profitPercent - a.profitPercent);
     }
+    lossRows.sort((a, b) => a.profitPercent - b.profitPercent);
     const buckets = PROFIT_BUCKET_TARGETS.map((targetPct) => ({
         targetPct,
         matches: bucketMap.get(targetPct) || [],
-        nearestFill: (bucketMap.get(targetPct) || []).some((m) => m.nearestBandFill),
     }));
+    const lossBucket = {
+        count: lossRows.length,
+        matches: lossRows,
+        minHouseProfitPct: lossRows.length ? lossRows[0].profitPercent : null,
+        maxHouseProfitPct: lossRows.length ? lossRows[lossRows.length - 1].profitPercent : null,
+    };
     return {
         success: true,
         mode: 'close',
@@ -1496,6 +1505,8 @@ export async function scanProfitBucketsClose(marketId, options = {}) {
         onlyPlayedPannas: false,
         betPannaCount: toScan.length,
         grouping: 'range10',
+        pannaPool: 'chartSingleDoubleTriple',
+        lossBucket,
         buckets,
     };
 }
