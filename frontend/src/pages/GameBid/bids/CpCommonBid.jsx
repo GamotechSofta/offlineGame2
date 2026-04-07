@@ -19,6 +19,8 @@ const CpCommonBid = ({ market, title }) => {
         return new Date().toISOString().split('T')[0];
     });
     const [selectedDigits, setSelectedDigits] = useState([]);
+    const [includeSp, setIncludeSp] = useState(true);
+    const [includeDp, setIncludeDp] = useState(true);
     const [pointsInput, setPointsInput] = useState('');
     const [generatedRows, setGeneratedRows] = useState([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -69,6 +71,8 @@ const CpCommonBid = ({ market, title }) => {
         setSelectedDigits([]);
         setPointsInput('');
         setGeneratedRows([]);
+        setIncludeSp(true);
+        setIncludeDp(true);
     };
 
     const handleGenerate = () => {
@@ -78,7 +82,16 @@ const CpCommonBid = ({ market, title }) => {
             showWarning('Please select at least one digit (0-9), at most two.');
             return;
         }
-        const result = generateCPCommon({ digitsInput, points: pts });
+        if (!includeSp && !includeDp) {
+            showWarning('Select SP, DP or both to generate pannas.');
+            return;
+        }
+        const result = generateCPCommon({
+            digitsInput,
+            points: pts,
+            includeSingles: includeSp,
+            includeDoubles: includeDp,
+        });
         if (!result.success) {
             showWarning(result.message);
             return;
@@ -235,7 +248,33 @@ const CpCommonBid = ({ market, title }) => {
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
                         <div>
-                            <div className="block text-[11px] sm:text-xs font-semibold text-gray-500 mb-2">Select Digits</div>
+                            <div className="mb-2">
+                                <div className="flex items-center justify-between mb-1">
+                                    <div className="block text-[11px] sm:text-xs font-semibold text-gray-500">
+                                        Select Digits
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <label className="inline-flex items-center gap-2 text-[12px] sm:text-sm font-semibold text-gray-800">
+                                        <input
+                                            type="checkbox"
+                                            className="h-5 w-5 sm:h-6 sm:w-6 rounded border-2 border-gray-500 text-[#1B3150] focus:ring-[#1B3150]"
+                                            checked={includeSp}
+                                            onChange={(e) => setIncludeSp(e.target.checked)}
+                                        />
+                                        <span>SP</span>
+                                        </label>
+                                        <label className="inline-flex items-center gap-2 text-[12px] sm:text-sm font-semibold text-gray-800">
+                                            <input
+                                                type="checkbox"
+                                                className="h-5 w-5 sm:h-6 sm:w-6 rounded border-2 border-gray-500 text-[#1B3150] focus:ring-[#1B3150]"
+                                                checked={includeDp}
+                                                onChange={(e) => setIncludeDp(e.target.checked)}
+                                            />
+                                            <span>DP</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                             <div className="grid grid-cols-5 gap-2">
                                 {Array.from({ length: 10 }, (_, i) => i).map((d) => {
                                     const selected = selectedDigits.includes(String(d));

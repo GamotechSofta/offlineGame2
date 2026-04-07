@@ -23,9 +23,10 @@ const isValidSinglePanaFromList = (pana) => {
 };
 
 /**
- * CP (Common Pana): 1–2 digits. Lists chart single panas + chart double panas that contain every entered digit.
+ * CP (Common Pana): 1–2 digits. Lists chart single panas and/or chart double panas that contain every entered digit.
+ * includeSingles / includeDoubles let the caller control SP / DP / both.
  */
-export const generateCPCommon = ({ digitsInput, points }) => {
+export const generateCPCommon = ({ digitsInput, points, includeSingles = true, includeDoubles = true }) => {
     const safePoints = Number(points);
     if (!Number.isFinite(safePoints) || safePoints <= 0) {
         return { success: false, message: 'Points must be greater than 0.', data: [] };
@@ -41,13 +42,17 @@ export const generateCPCommon = ({ digitsInput, points }) => {
 
     const required = [...raw];
 
-    const singles = VALID_SINGLE_PANA_LIST.filter((pana) => isValidSinglePanaFromList(pana)).filter((pana) =>
-        required.every((ch) => pana.includes(ch))
-    );
+    const singles = includeSingles
+        ? VALID_SINGLE_PANA_LIST.filter((pana) => isValidSinglePanaFromList(pana)).filter((pana) =>
+              required.every((ch) => pana.includes(ch))
+          )
+        : [];
 
-    const doubles = VALID_DOUBLE_PANA_LIST.filter((pana) => VALID_DOUBLE_PANAS.has(pana)).filter((pana) =>
-        required.every((ch) => pana.includes(ch))
-    );
+    const doubles = includeDoubles
+        ? VALID_DOUBLE_PANA_LIST.filter((pana) => VALID_DOUBLE_PANAS.has(pana)).filter((pana) =>
+              required.every((ch) => pana.includes(ch))
+          )
+        : [];
 
     const byPana = new Map();
     for (const pana of singles) {
