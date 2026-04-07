@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import User from '../models/user/user.js';
 import Admin from '../models/admin/admin.js';
+import Payment from '../models/payment/payment.js';
 import bcrypt from 'bcryptjs';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
@@ -28,6 +29,7 @@ const addOnlineStatus = (users) => {
 
 export const userLogin = async (req, res) => {
     try {
+        const isProduction = process.env.NODE_ENV === 'production';
         const { username, phone, password, deviceId } = req.body;
 
         // Support both username and phone for login (admin-created players use phone + password)
@@ -110,6 +112,15 @@ export const userLogin = async (req, res) => {
         const balance = wallet ? wallet.balance : 0;
 
         const token = signUserToken(user);
+        // Also store auth token as httpOnly cookie so direct URL-bar API checks can work in browser.
+        res.cookie('userToken', token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            ...(isProduction ? {} : { domain: 'localhost' }),
+            path: '/',
+        });
         const data = {
             id: user._id,
             username: user.username,
@@ -152,6 +163,205 @@ export const userHeartbeat = async (req, res) => {
         res.status(200).json({ success: true, message: 'Heartbeat updated' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const getCurrentUserProfile = async (userId) => {
+    const user = await User.findById(userId).select('username phone isActive').lean();
+    if (!user) return { error: { status: 404, message: 'User not found' } };
+    if (!user.isActive) return { error: { status: 403, message: 'Account suspended', code: 'ACCOUNT_SUSPENDED' } };
+
+    const wallet = await Wallet.findOne({ userId }).select('balance').lean();
+    return {
+        user: {
+            username: user.username || '',
+            phone: user.phone || '',
+            balance: Number(wallet?.balance || 0),
+        },
+    };
+};
+
+export const getMyBalance = async (req, res) => {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Authentication required', code: 'AUTH_REQUIRED' });
+        }
+
+        const result = await getCurrentUserProfile(userId);
+        if (result.error) {
+            return res.status(result.error.status).json({
+                success: false,
+                message: result.error.message,
+                ...(result.error.code ? { code: result.error.code } : {}),
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                playerId: String(userId),
+                balance: result.user.balance,
+                currency: 'INR',
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getMyUsername = async (req, res) => {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Authentication required', code: 'AUTH_REQUIRED' });
+        }
+
+        const result = await getCurrentUserProfile(userId);
+        if (result.error) {
+            return res.status(result.error.status).json({
+                success: false,
+                message: result.error.message,
+                ...(result.error.code ? { code: result.error.code } : {}),
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: { username: result.user.username },
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getMyPhone = async (req, res) => {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Authentication required', code: 'AUTH_REQUIRED' });
+        }
+
+        const result = await getCurrentUserProfile(userId);
+        if (result.error) {
+            return res.status(result.error.status).json({
+                success: false,
+                message: result.error.message,
+                ...(result.error.code ? { code: result.error.code } : {}),
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: { phone: result.user.phone },
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const toCreditDebitItem = (payment, userId) => ({
+    playerId: String(userId),
+    amount: Number(payment.amount || 0),
+    transactionId: payment.upiTransactionId || payment.transactionId || String(payment._id),
+});
+
+const getMyCreditDebitEntries = async (userId, type) => {
+    const payments = await Payment.find({ userId, type })
+        .select('_id amount upiTransactionId transactionId status createdAt')
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
+
+    return payments.map((payment) => toCreditDebitItem(payment, userId));
+};
+
+export const getMyProfile = async (req, res) => {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Authentication required', code: 'AUTH_REQUIRED' });
+        }
+
+        const result = await getCurrentUserProfile(userId);
+        if (result.error) {
+            return res.status(result.error.status).json({
+                success: false,
+                message: result.error.message,
+                ...(result.error.code ? { code: result.error.code } : {}),
+            });
+        }
+
+        const credit = await getMyCreditDebitEntries(userId, 'deposit');
+        const debit = await getMyCreditDebitEntries(userId, 'withdrawal');
+        return res.status(200).json({
+            success: true,
+            data: {
+                id: userId,
+                username: result.user.username,
+                balance: result.user.balance,
+                phone: result.user.phone,
+                credit,
+                debit,
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getMyCredit = async (req, res) => {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Authentication required', code: 'AUTH_REQUIRED' });
+        }
+
+        const result = await getCurrentUserProfile(userId);
+        if (result.error) {
+            return res.status(result.error.status).json({
+                success: false,
+                message: result.error.message,
+                ...(result.error.code ? { code: result.error.code } : {}),
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: await getMyCreditDebitEntries(userId, 'deposit'),
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getMyDebit = async (req, res) => {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Authentication required', code: 'AUTH_REQUIRED' });
+        }
+
+        const result = await getCurrentUserProfile(userId);
+        if (result.error) {
+            return res.status(result.error.status).json({
+                success: false,
+                message: result.error.message,
+                ...(result.error.code ? { code: result.error.code } : {}),
+            });
+        }
+
+        const debitEntries = await getMyCreditDebitEntries(userId, 'withdrawal');
+        return res.status(200).json({
+            success: true,
+            data: {
+                playerId: String(userId),
+                balance: result.user.balance,
+                transactionId: debitEntries[0]?.transactionId || '',
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 

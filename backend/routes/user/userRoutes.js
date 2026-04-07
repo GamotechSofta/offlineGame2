@@ -1,5 +1,23 @@
 import express from 'express';
-import { createUser, userLogin, userSignup, userHeartbeat, getUsers, getSingleUser, togglePlayerStatus, deletePlayer, clearLoginDevices, updatePlayerToGiveToTake, updatePlayerPassword } from '../../controllers/userController.js';
+import {
+    createUser,
+    userLogin,
+    userSignup,
+    userHeartbeat,
+    getMyProfile,
+    getMyBalance,
+    getMyUsername,
+    getMyPhone,
+    getMyCredit,
+    getMyDebit,
+    getUsers,
+    getSingleUser,
+    togglePlayerStatus,
+    deletePlayer,
+    clearLoginDevices,
+    updatePlayerToGiveToTake,
+    updatePlayerPassword
+} from '../../controllers/userController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 import { verifyUser } from '../../middleware/userAuth.js';
 
@@ -11,6 +29,12 @@ router.post('/signup', userSignup);
 
 // Player auth required
 router.post('/heartbeat', verifyUser, userHeartbeat);
+router.get('/me', verifyUser, getMyProfile);
+router.get('/me/balance', verifyUser, getMyBalance);
+router.get('/me/username', verifyUser, getMyUsername);
+router.get('/me/phone', verifyUser, getMyPhone);
+router.get('/me/credit', verifyUser, getMyCredit);
+router.get('/me/debit', verifyUser, getMyDebit);
 
 // Admin/Bookie routes
 router.get('/', verifyAdmin, getUsers);

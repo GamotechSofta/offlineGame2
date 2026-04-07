@@ -476,7 +476,7 @@ const JodiBulkBid = ({ market, title }) => {
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && colBulk[c]) applyCol(c, colBulk[c]);
                                     }}
-                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-white border-2 border-gray-300 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-900 placeholder:opacity-500 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
+                                    className="no-spinner w-full min-w-0 h-6 md:h-7 bg-[#1B3150] border-2 border-[#1B3150] text-white font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-400 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
                                 />
                             ))}
 
@@ -505,7 +505,7 @@ const JodiBulkBid = ({ market, title }) => {
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && rowBulk[r]) applyRow(r, rowBulk[r]);
                                             }}
-                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
+                                            className="no-spinner h-6 md:h-7 flex-1 min-w-0 bg-[#1B3150] border-2 border-[#1B3150] text-white font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-400 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
                                         />
                                     </div>
                                     <div className="h-6 md:h-7" />
@@ -536,7 +536,7 @@ const JodiBulkBid = ({ market, title }) => {
                                                         applyQuickPointToCell(key);
                                                     }}
                                                     onKeyDown={(e) => handleCellKeyDown(e, r, c)}
-                                                    className="no-spinner h-6 md:h-7 w-full bg-white border-2 border-gray-300 text-gray-800 font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-600 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
+                                                    className="no-spinner h-6 md:h-7 w-full bg-[#1B3150] border-2 border-[#1B3150] text-white font-bold rounded text-[9px] md:text-xs text-center placeholder:text-gray-400 placeholder:opacity-100 placeholder:font-normal focus:outline-none focus:border-[#1B3150]"
                                                 />
                                             </div>
                                         );

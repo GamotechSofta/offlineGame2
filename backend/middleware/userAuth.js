@@ -8,14 +8,12 @@ import { verifyUserToken } from '../utils/userJwt.js';
 export const verifyUser = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({
-                success: false,
-                message: 'Authentication required. Please log in.',
-                code: 'AUTH_REQUIRED',
-            });
-        }
-        const token = authHeader.slice(7).trim();
+        const bearerToken = authHeader && authHeader.startsWith('Bearer ')
+            ? authHeader.slice(7).trim()
+            : '';
+        const cookieToken = req.cookies?.userToken ? String(req.cookies.userToken).trim() : '';
+        const token = bearerToken || cookieToken;
+
         if (!token) {
             return res.status(401).json({
                 success: false,
