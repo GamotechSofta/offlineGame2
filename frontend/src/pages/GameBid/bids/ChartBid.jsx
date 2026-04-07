@@ -259,7 +259,7 @@ const ChartBid = ({ market, title }) => {
                 </>
             }
         >
-            <div className="px-3 sm:px-4 pt-0 pb-2 min-h-0">
+            <div className="px-3 sm:px-4 pt-2 pb-2 min-h-0">
                 {warning && (
                     <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-green-200 text-green-600 rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md backdrop-blur-sm">
                         {warning}
@@ -268,25 +268,6 @@ const ChartBid = ({ market, title }) => {
 
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <label className="shrink-0 w-20 sm:w-24 text-xs sm:text-sm font-semibold text-gray-600">Points</label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                value={pointsInput}
-                                onChange={(e) => setPointsInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 6))}
-                                placeholder="Points"
-                                className="flex-1 min-w-[100px] min-h-[40px] h-10 sm:h-11 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
-                            />
-                            <button
-                                type="button"
-                                onClick={clearPointsOnly}
-                                className="min-h-[40px] h-10 px-4 rounded-md text-[11px] sm:text-xs font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
-                            >
-                                Clear
-                            </button>
-                        </div>
-
                         <div className="flex items-center gap-2">
                             <label className="shrink-0 w-20 sm:w-24 text-xs sm:text-sm font-semibold text-gray-600">Quick Points</label>
                             <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
@@ -308,6 +289,25 @@ const ChartBid = ({ market, title }) => {
                                     );
                                 })}
                             </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <label className="shrink-0 w-20 sm:w-24 text-xs sm:text-sm font-semibold text-gray-600">Points</label>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={pointsInput}
+                                onChange={(e) => setPointsInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 6))}
+                                placeholder="Points"
+                                className="flex-1 min-w-[100px] min-h-[40px] h-10 sm:h-11 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
+                            />
+                            <button
+                                type="button"
+                                onClick={clearPointsOnly}
+                                className="min-h-[40px] h-10 px-4 rounded-md text-[11px] sm:text-xs font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
+                            >
+                                Clear
+                            </button>
                         </div>
 
                         <div>
