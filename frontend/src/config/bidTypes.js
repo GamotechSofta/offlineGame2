@@ -15,7 +15,7 @@ export const BID_TYPES = {
   },
   SINGLE_DIGIT_BULK: {
     key: 'single',
-    label: 'Single Digit Bulk',
+    label: 'Single Digit',
     digitCount: 1,
     validRange: [0, 9],
     regex: /^[0-9]$/,

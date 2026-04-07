@@ -41,17 +41,6 @@ const BidOptions = () => {
       ),
     },
     {
-      id: 2,
-      title: 'Single Digit Bulk',
-      icon: (
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769756244/Untitled_90_x_160_px_1080_x_1080_px_1_yinraf.svg"
-          alt="Single Digit"
-          className="w-full h-full object-contain"
-        />
-      ),
-    },
-    {
       id: 2.5,
       title: 'Odd Even',
       icon: (
@@ -130,11 +119,11 @@ const BidOptions = () => {
     },
     {
       id: 6.55,
-      title: 'CP (Common Pana)',
+      title: 'CP',
       icon: (
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714254/Untitled_1080_x_1080_px_1080_x_1080_px_8_jdbxyd.svg"
-          alt="CP (Common Pana)"
+          alt="CP"
           className="w-full h-full object-contain"
         />
       ),
@@ -168,17 +157,6 @@ const BidOptions = () => {
         <img
           src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714392/Untitled_1080_x_1080_px_1080_x_1080_px_9_ugcdef.svg"
           alt="Triple Pana"
-          className="w-full h-full object-contain"
-        />
-      ),
-    },
-    {
-      id: 9.5,
-      title: 'Triple Pana Bulk',
-      icon: (
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769714392/Untitled_1080_x_1080_px_1080_x_1080_px_9_ugcdef.svg"
-          alt="Triple Pana Bulk"
           className="w-full h-full object-contain"
         />
       ),
@@ -275,10 +253,9 @@ const BidOptions = () => {
         const t = (opt.title || '').toString().trim();
         const allowed = new Set([
           'Single Digit',
-          'Single Digit Bulk',
           'Odd Even',
           'SP Common',
-          'CP (Common Pana)',
+          'CP',
           'DP Common',
           'Chart Game',
           'Single Pana',
@@ -313,7 +290,6 @@ const BidOptions = () => {
   // Keep Bid Options in a stable, business-defined order.
   const optionDisplayOrder = [
     'Single Digit',
-    'Single Digit Bulk',
     'Jodi',
     'Jodi Bulk',
     'Single Pana',
@@ -321,12 +297,11 @@ const BidOptions = () => {
     'Double Pana',
     'Double Pana Bulk',
     'Triple Pana',
-    'Triple Pana Bulk',
     'Half Sangam',
     'Full Sangam',
     'SP Common',
     'DP Common',
-    'CP (Common Pana)',
+    'CP',
     'SP Motor',
     'DP Motor',
     'SP DP Motor',

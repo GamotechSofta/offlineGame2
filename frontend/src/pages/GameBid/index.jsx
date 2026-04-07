@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BettingWindowProvider } from './BettingWindowContext';
-import SingleDigitBid from './bids/SingleDigitBid';
 import SingleDigitBulkBid from './bids/SingleDigitBulkBid';
 import JodiBid from './bids/JodiBid';
 import JodiBulkBid from './bids/JodiBulkBid';
@@ -10,7 +9,6 @@ import SinglePanaBulkBid from './bids/SinglePanaBulkBid';
 import DoublePanaBid from './bids/DoublePanaBid';
 import DoublePanaBulkBid from './bids/DoublePanaBulkBid';
 import TriplePanaBid from './bids/TriplePanaBid';
-import TriplePanaBulkBid from './bids/TriplePanaBulkBid';
 import FullSangamBid from './bids/FullSangamBid';
 import HalfSangamBid from './bids/HalfSangamBid';
 import SpMotorBid from './bids/SpMotorBid';
@@ -23,8 +21,8 @@ import DpCommonBid from './bids/DpCommonBid';
 import ChartBid from './bids/ChartBid';
 
 const BID_COMPONENTS = {
-    'single digit': SingleDigitBid,
     'odd even': OddEvenBid,
+    'single digit': SingleDigitBulkBid,
     'single digit bulk': SingleDigitBulkBid,
     'jodi': JodiBid,
     'jodi bulk': JodiBulkBid,
@@ -33,11 +31,13 @@ const BID_COMPONENTS = {
     'double pana': DoublePanaBid,
     'double pana bulk': DoublePanaBulkBid,
     'triple pana': TriplePanaBid,
-    'triple pana bulk': TriplePanaBulkBid,
+    // Triple Pana Bulk option removed from UI; keep safety routing to normal Triple Pana.
+    'triple pana bulk': TriplePanaBid,
     'full sangam': FullSangamBid,
     'half sangam': HalfSangamBid,
     'sp motor': SpMotorBid,
     'sp common': SpCommonBid,
+    'cp': CpCommonBid,
     'cp (common pana)': CpCommonBid,
     'dp common': DpCommonBid,
     chart: ChartBid,
@@ -60,7 +60,7 @@ const GameBid = () => {
 
     const title = betType || location.state?.title || 'Select Bet Type';
     const key = title.toLowerCase().trim();
-    const BidComponent = BID_COMPONENTS[key] || SingleDigitBid;
+    const BidComponent = BID_COMPONENTS[key] || SingleDigitBulkBid;
 
     return (
         <BettingWindowProvider market={market}>
