@@ -1,4 +1,4 @@
-import { VALID_SINGLE_PANAS, VALID_DOUBLE_PANAS } from './panaRules';
+import { VALID_SINGLE_PANAS, VALID_DOUBLE_PANAS, isValidTriplePana } from './panaRules';
 
 const VALID_SINGLE_PANA_LIST = Array.from(VALID_SINGLE_PANAS);
 const VALID_SINGLE_PANA_SET = new Set(VALID_SINGLE_PANA_LIST);
@@ -23,10 +23,16 @@ const isValidSinglePanaFromList = (pana) => {
 };
 
 /**
- * CP (Common Pana): 1–2 digits. Lists chart single panas and/or chart double panas that contain every entered digit.
- * includeSingles / includeDoubles let the caller control SP / DP / both.
+ * CP (Common Pana): 1–2 digits. Lists chart single / double / (optionally) triple panas
+ * that contain every entered digit. Flags control SP / DP / T / combinations.
  */
-export const generateCPCommon = ({ digitsInput, points, includeSingles = true, includeDoubles = true }) => {
+export const generateCPCommon = ({
+    digitsInput,
+    points,
+    includeSingles = true,
+    includeDoubles = true,
+    includeTriples = false,
+}) => {
     const safePoints = Number(points);
     if (!Number.isFinite(safePoints) || safePoints <= 0) {
         return { success: false, message: 'Points must be greater than 0.', data: [] };
@@ -62,6 +68,15 @@ export const generateCPCommon = ({ digitsInput, points, includeSingles = true, i
         if (!byPana.has(pana)) byPana.set(pana, safePoints);
     }
 
+    if (includeTriples) {
+        for (let d = 0; d <= 9; d += 1) {
+            const pana = `${d}${d}${d}`;
+            if (!isValidTriplePana(pana)) continue;
+            if (!required.every((ch) => pana.includes(ch))) continue;
+            if (!byPana.has(pana)) byPana.set(pana, safePoints);
+        }
+    }
+
     const results = [...byPana.entries()]
         .sort((a, b) => Number(a[0]) - Number(b[0]))
         .map(([pana, pts]) => ({ pana, points: pts }));
@@ -69,7 +84,7 @@ export const generateCPCommon = ({ digitsInput, points, includeSingles = true, i
     if (results.length === 0) {
         return {
             success: false,
-            message: 'No chart single or double panna contains those digits together.',
+            message: 'No chart panna (single / double / triple) contains those digits together for current filters.',
             data: [],
         };
     }

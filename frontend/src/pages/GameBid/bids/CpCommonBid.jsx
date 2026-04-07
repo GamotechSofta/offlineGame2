@@ -19,8 +19,9 @@ const CpCommonBid = ({ market, title }) => {
         return new Date().toISOString().split('T')[0];
     });
     const [selectedDigits, setSelectedDigits] = useState([]);
-    const [includeSp, setIncludeSp] = useState(true);
-    const [includeDp, setIncludeDp] = useState(true);
+    const [includeSp, setIncludeSp] = useState(false);
+    const [includeDp, setIncludeDp] = useState(false);
+    const [includeTriple, setIncludeTriple] = useState(false);
     const [pointsInput, setPointsInput] = useState('');
     const [generatedRows, setGeneratedRows] = useState([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -71,8 +72,9 @@ const CpCommonBid = ({ market, title }) => {
         setSelectedDigits([]);
         setPointsInput('');
         setGeneratedRows([]);
-        setIncludeSp(true);
-        setIncludeDp(true);
+        setIncludeSp(false);
+        setIncludeDp(false);
+        setIncludeTriple(false);
     };
 
     const handleGenerate = () => {
@@ -82,15 +84,18 @@ const CpCommonBid = ({ market, title }) => {
             showWarning('Please select at least one digit (0-9), at most two.');
             return;
         }
-        if (!includeSp && !includeDp) {
-            showWarning('Select SP, DP or both to generate pannas.');
+        if (!includeSp && !includeDp && !includeTriple) {
+            showWarning('Select SP, DP, SPDPT or any combination to generate pannas.');
             return;
         }
+        const useSingles = includeSp || includeTriple;
+        const useDoubles = includeDp || includeTriple;
         const result = generateCPCommon({
             digitsInput,
             points: pts,
-            includeSingles: includeSp,
-            includeDoubles: includeDp,
+            includeSingles: useSingles,
+            includeDoubles: useDoubles,
+            includeTriples: includeTriple,
         });
         if (!result.success) {
             showWarning(result.message);
@@ -249,11 +254,11 @@ const CpCommonBid = ({ market, title }) => {
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
                         <div>
                             <div className="mb-2">
-                                <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center justify-between mb-1 gap-3">
                                     <div className="block text-[11px] sm:text-xs font-semibold text-gray-500">
                                         Select Digits
                                     </div>
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2 sm:gap-3">
                                         <label className="inline-flex items-center gap-2 text-[12px] sm:text-sm font-semibold text-gray-800">
                                         <input
                                             type="checkbox"
@@ -271,6 +276,15 @@ const CpCommonBid = ({ market, title }) => {
                                                 onChange={(e) => setIncludeDp(e.target.checked)}
                                             />
                                             <span>DP</span>
+                                        </label>
+                                        <label className="inline-flex items-center gap-2 text-[12px] sm:text-sm font-semibold text-gray-800">
+                                            <input
+                                                type="checkbox"
+                                                className="h-5 w-5 sm:h-6 sm:w-6 rounded border-2 border-gray-500 text-[#1B3150] focus:ring-[#1B3150]"
+                                                checked={includeTriple}
+                                                onChange={(e) => setIncludeTriple(e.target.checked)}
+                                            />
+                                            <span>SPDPT</span>
                                         </label>
                                     </div>
                                 </div>
