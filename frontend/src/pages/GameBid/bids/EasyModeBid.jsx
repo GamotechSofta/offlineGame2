@@ -168,7 +168,13 @@ const EasyModeBid = ({
         setInputPoints('');
     };
 
+    const lastAutoAddKeyRef = useRef('');
+
     const handleDeleteBid = (id) => setBids((prev) => prev.filter((b) => b.id !== id));
+    const handleUpdateBidPoint = (id, value) => {
+        const clean = (value ?? '').toString().replace(/\D/g, '').slice(0, 6);
+        setBids((prev) => prev.map((b) => (b.id === id ? { ...b, points: clean } : b)));
+    };
 
     const handleAddSpecialToList = () => {
         if (specialModeType !== 'jodi' && specialModeType !== 'doublePana' && specialModeType !== 'singlePana') return;
@@ -376,6 +382,20 @@ const EasyModeBid = ({
         return { count: map.size, total };
     }, [showModeTabs, activeTab, specialModeType, bids, totalPoints, specialInputs, session]);
     const labelKey = label?.split(' ').pop() || 'Number';
+
+    // Auto-add when number + points are valid (no Add-to-List button).
+    useEffect(() => {
+        const pts = Number(inputPoints);
+        const n = inputNumber?.toString().trim() || '';
+        if (!Number.isFinite(pts) || pts <= 0) return;
+        if (!n) return;
+        if (maxLength === 2 && n.length !== 2) return;
+        if (!isValid(n)) return;
+        const key = `${n}|${pts}|${session}|${maxLength}|${labelKey}`;
+        if (lastAutoAddKeyRef.current === key) return;
+        lastAutoAddKeyRef.current = key;
+        handleAddBid();
+    }, [inputNumber, inputPoints, session, maxLength, labelKey]);
     const dateText = new Date().toLocaleDateString('en-GB'); // dd/mm/yyyy
     const marketTitle = market?.gameName || market?.marketName || title;
     const showInvalidNumberStyle = maxLength === 3; // Pana inputs
@@ -518,7 +538,15 @@ const EasyModeBid = ({
                                 bid.number
                             )}
                         </div>
-                        <div className="font-bold text-[#1B3150]">{bid.points}</div>
+                        <div className="px-0.5 min-w-0">
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={bid.points}
+                                onChange={(e) => handleUpdateBidPoint(bid.id, e.target.value)}
+                                className="w-full h-8 rounded-lg border border-gray-300 text-center font-bold text-[#1B3150] text-sm focus:outline-none focus:border-[#1B3150]"
+                            />
+                        </div>
                         <div className="text-sm text-gray-600">{bid.type}</div>
                         <div className="flex justify-center">
                             <button
@@ -883,85 +911,127 @@ const EasyModeBid = ({
                                 {showModeTabs && desktopSplit && <div className="mb-4">{modeHeader}</div>}
 
                 <div className="flex flex-col gap-3 mb-4">
-                    <div className="flex flex-row items-center gap-2">
-                        <label className="text-gray-700 text-sm font-medium shrink-0 w-28">{label}:</label>
-                        <input
-                                            type={maxLength === 1 || maxLength === 2 ? 'text' : 'number'}
-                            inputMode="numeric"
-                            value={inputNumber}
-                            onChange={handleNumberInputChange}
-                            placeholder={maxLength === 1 ? 'e.g. 2' : labelKey}
-                            maxLength={maxLength}
-                            className={`flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:outline-none ${
-                                isNumberInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'
-                            }`}
-                        />
-                    </div>
-                    <div className="flex flex-row items-center gap-2">
-                        <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Enter Points</label>
-                        <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
-                            <input
-                                ref={pointsInputRef}
-                                type="text"
-                                inputMode="numeric"
-                                value={inputPoints}
-                                onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                placeholder="Points"
-                                className="no-spinner w-full bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleFormClear}
-                                className="px-4 min-h-[40px] rounded-xl border-2 border-gray-300 bg-white text-[#1B3150] text-sm font-medium hover:border-[#1B3150] active:scale-95"
-                            >
-                                Clear
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex flex-row items-center gap-2">
-                        <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Quick Points</label>
-                        <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
-                            {quickPointValues.map((pts) => (
-                                <button
-                                    key={pts}
-                                    type="button"
-                                    onClick={() => handleQuickPointClick(pts)}
-                                    className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-sm font-medium text-[#1B3150] hover:border-[#1B3150] active:scale-95"
-                                >
-                                    {pts}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                                {showInlineSubmit ? (
-                                    <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6 md:grid-cols-2">
+                    {(specialModeType === 'singlePana' || specialModeType === 'doublePana' || specialModeType === 'jodi') ? (
+                        <>
+                            <div className="flex flex-row items-center gap-2">
+                                <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Quick Points</label>
+                                <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                                    {quickPointValues.map((pts) => (
                                         <button
+                                            key={pts}
                                             type="button"
-                                            onClick={handleAddBid}
-                                            className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]"
+                                            onClick={() => handleQuickPointClick(pts)}
+                                            className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-sm font-medium text-[#1B3150] hover:border-[#1B3150] active:scale-95"
                                         >
-                                            Add to List
+                                            {pts}
                                         </button>
-                                        <button
-                                            type="button"
-                                            disabled={!bids.length}
-                                            onClick={() => { setReviewRows(bids); setIsReviewOpen(true); }}
-                                            className={submitBtnClass(!!bids.length)}
-                                        >
-                                            Submit Bet
-                                        </button>
-                                    </div>
-                                ) : (
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex flex-row items-center gap-2">
+                                <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Enter Points</label>
+                                <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
+                                    <input
+                                        ref={pointsInputRef}
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={inputPoints}
+                                        onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        placeholder="Points"
+                                        className="no-spinner w-full bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
+                                    />
                                     <button
                                         type="button"
-                                        onClick={handleAddBid}
-                                        className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98] mb-5 sm:mb-6"
+                                        onClick={handleFormClear}
+                                        className="px-4 min-h-[40px] rounded-xl border-2 border-gray-300 bg-white text-[#1B3150] text-sm font-medium hover:border-[#1B3150] active:scale-95"
                                     >
-                                        Add to List
+                                        Clear
                                     </button>
-                                )}
+                                </div>
+                            </div>
+                            <div className="flex flex-row items-center gap-2">
+                                <label className="text-gray-700 text-sm font-medium shrink-0 w-28">{label}:</label>
+                                <input
+                                                    type={maxLength === 1 || maxLength === 2 ? 'text' : 'number'}
+                                    inputMode="numeric"
+                                    value={inputNumber}
+                                    onChange={handleNumberInputChange}
+                                    placeholder={maxLength === 1 ? 'e.g. 2' : labelKey}
+                                    maxLength={maxLength}
+                                    className={`flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:outline-none ${
+                                        isNumberInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'
+                                    }`}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex flex-row items-center gap-2">
+                                <label className="text-gray-700 text-sm font-medium shrink-0 w-28">{label}:</label>
+                                <input
+                                                    type={maxLength === 1 || maxLength === 2 ? 'text' : 'number'}
+                                    inputMode="numeric"
+                                    value={inputNumber}
+                                    onChange={handleNumberInputChange}
+                                    placeholder={maxLength === 1 ? 'e.g. 2' : labelKey}
+                                    maxLength={maxLength}
+                                    className={`flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:outline-none ${
+                                        isNumberInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'
+                                    }`}
+                                />
+                            </div>
+                            <div className="flex flex-row items-center gap-2">
+                                <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Enter Points</label>
+                                <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
+                                    <input
+                                        ref={pointsInputRef}
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={inputPoints}
+                                        onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        placeholder="Points"
+                                        className="no-spinner w-full bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-xl py-2.5 min-h-[40px] px-4 text-left text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleFormClear}
+                                        className="px-4 min-h-[40px] rounded-xl border-2 border-gray-300 bg-white text-[#1B3150] text-sm font-medium hover:border-[#1B3150] active:scale-95"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    {!(specialModeType === 'singlePana' || specialModeType === 'doublePana' || specialModeType === 'jodi') && (
+                        <div className="flex flex-row items-center gap-2">
+                            <label className="text-gray-700 text-sm font-medium shrink-0 w-28">Quick Points</label>
+                            <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                                {quickPointValues.map((pts) => (
+                                    <button
+                                        key={pts}
+                                        type="button"
+                                        onClick={() => handleQuickPointClick(pts)}
+                                        className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-sm font-medium text-[#1B3150] hover:border-[#1B3150] active:scale-95"
+                                    >
+                                        {pts}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                                <div className="grid grid-cols-1 gap-3 mb-5 sm:mb-6 md:grid-cols-1">
+                                    <button
+                                        type="button"
+                                        disabled={!bids.length}
+                                        onClick={() => { setReviewRows(bids); setIsReviewOpen(true); }}
+                                        className={submitBtnClass(!!bids.length)}
+                                    >
+                                        Submit Bet
+                                    </button>
+                                </div>
 
                                 {/* Mobile: keep list below on small screens */}
                                 {desktopSplit && <div className="md:hidden">{bidsList}</div>}

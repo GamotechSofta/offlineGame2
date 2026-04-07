@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
 import { useBettingWindow } from '../BettingWindowContext';
@@ -98,24 +98,35 @@ const SpDpMotorBid = ({ market, title }) => {
     });
   };
 
-  const handleGenerate = () => {
+  const lastAutoWarnKeyRef = useRef('');
+
+  // Auto-generate combinations when digits + points are ready (no Generate button).
+  useEffect(() => {
     const digits = sanitizeMotorDigitsUnique(digitInput);
-    if (digits.length < 2) {
-      showWarning(`Enter at least 3 digits for SP and 2 digits for DP${isSpDpTMotor ? ', and selected digits for T' : ''}.`);
+    const rawPoints = sanitizePoints(pointsInput);
+    const pts = parseInt(rawPoints, 10);
+    const hasPoints = Number.isFinite(pts) && pts >= 1;
+
+    if (digits.length < 2 || !hasPoints) {
+      setCombinations([]);
       return;
     }
-    const defaultPoints = sanitizePoints(pointsInput) || '10';
-    const pts = Math.max(1, parseInt(defaultPoints, 10));
 
-    const singleCombos = generateSpMotorSinglePanas(digits);
+    const singleCombos = digits.length >= 3 ? generateSpMotorSinglePanas(digits) : [];
     const doubleCombos = generateDoublePanaCombinations(digits);
     const tripleCombos = isSpDpTMotor ? generateTriplePanaCombinations(digits) : [];
 
+    const warnKey = `${digits}|${pts}|${isSpDpTMotor ? 't' : 'n'}|${sortMode}`;
     if (!singleCombos.length && !doubleCombos.length && !tripleCombos.length) {
-      showWarning(`Could not generate ${isSpDpTMotor ? 'SP/DP/T' : 'SP/DP'} combinations from these digits.`);
+      setCombinations([]);
+      if (lastAutoWarnKeyRef.current !== warnKey) {
+        lastAutoWarnKeyRef.current = warnKey;
+        showWarning(`Could not generate ${isSpDpTMotor ? 'SP/DP/T' : 'SP/DP'} combinations from these digits.`);
+      }
       return;
     }
 
+    lastAutoWarnKeyRef.current = '';
     const now = Date.now();
     const all = [
       ...singleCombos.map((pana, idx) => ({
@@ -137,9 +148,8 @@ const SpDpMotorBid = ({ market, title }) => {
         points: String(pts),
       })),
     ];
-
     setCombinations(all);
-  };
+  }, [digitInput, pointsInput, isSpDpTMotor, sortMode]);
 
   const updatePoint = (id, value) => {
     setCombinations((prev) =>
@@ -189,7 +199,7 @@ const SpDpMotorBid = ({ market, title }) => {
 
   const openReview = () => {
     if (!rowsWithPoints.length) {
-      showWarning('Add at least one combination with points, or generate and then submit.');
+      showWarning('Add at least one combination with points, then submit.');
       return;
     }
     setReviewRows(
@@ -400,13 +410,6 @@ const SpDpMotorBid = ({ market, title }) => {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={handleGenerate}
-                className="flex-1 min-h-[40px] h-10 py-2.5 rounded-lg bg-[#1B3150] text-white font-semibold text-sm sm:text-base"
-              >
-                GENERATE
-              </button>
-              <button
-                type="button"
                 onClick={openReview}
                 disabled={!bidsCount || !bettingAllowed}
                 className={`flex-1 bg-[#1B3150] text-white font-semibold text-sm sm:text-base py-2.5 min-h-[40px] h-10 rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${
@@ -428,7 +431,9 @@ const SpDpMotorBid = ({ market, title }) => {
             <div className="h-px bg-[#1B3150] w-full mb-2" />
             <div className="max-h-[520px] sm:max-h-[560px] overflow-y-auto space-y-2 pr-0.5">
               {sortedCombinations.length === 0 ? (
-                <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
+                <div className="py-6 text-center text-gray-400 text-sm">
+                  Select digits and enter points to generate
+                </div>
               ) : (
                 sortedCombinations.map((c) => (
                   <div

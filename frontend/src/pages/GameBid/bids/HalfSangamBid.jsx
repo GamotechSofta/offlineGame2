@@ -338,6 +338,24 @@ function HalfSangamEasyForm({
         setPanaInvalid(false);
     };
 
+    const lastAutoAddKeyRef = useRef('');
+
+    // Auto-add when inputs are valid and points entered (no Add-to-List button).
+    useEffect(() => {
+        const pts = Number(points);
+        if (!Number.isFinite(pts) || pts <= 0) return;
+        const pana = flipped ? second : first;
+        const ank = flipped ? first : second;
+        if (!isValidAnyPana(pana)) return;
+        const ankStr = (ank ?? '').toString().trim();
+        if (!/^[0-9]$/.test(ankStr)) return;
+        const numberKey = flipped ? `${ankStr}-${pana}` : `${pana}-${ankStr}`;
+        const key = `${numberKey}|${session}|${pts}`;
+        if (lastAutoAddKeyRef.current === key) return;
+        lastAutoAddKeyRef.current = key;
+        handleAdd();
+    }, [first, second, points, flipped, session]);
+
     const handleFirstChange = (v) => {
         if (flipped) {
             setFirst(sanitizeDigits(v, 1));
@@ -458,14 +476,7 @@ function HalfSangamEasyForm({
                     ))}
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6">
-                <button
-                    type="button"
-                    onClick={handleAdd}
-                    className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]"
-                >
-                    Add to List
-                </button>
+            <div className="grid grid-cols-1 gap-3 mb-5 sm:mb-6">
                 <button type="button" disabled={!bidsLength} onClick={onSubmitClick} className={submitBtnClass(!!bidsLength)}>
                     Submit Bet
                 </button>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
 import { useBettingWindow } from '../BettingWindowContext';
@@ -106,8 +106,24 @@ const ChartBid = ({ market, title }) => {
             }
             return out;
         });
+        // Force fresh selection for next add.
+        setSelectedChart('');
+        setSelectedDigit('');
         setPointsInput('');
     };
+
+    const lastAutoAddKeyRef = useRef('');
+
+    // Auto-add to list when chart + digit + points are ready (no Add-to-list button).
+    useEffect(() => {
+        const pts = Number(pointsInput);
+        const hasPoints = Number.isFinite(pts) && pts > 0;
+        if (!selectedChart || selectedDigit === '' || selectedDigit == null || !hasPoints) return;
+        const key = `${selectedChart}|${selectedDigit}|${pts}`;
+        if (lastAutoAddKeyRef.current === key) return;
+        lastAutoAddKeyRef.current = key;
+        handleAddRow();
+    }, [selectedChart, selectedDigit, pointsInput]);
 
     const updatePoint = (id, value) => {
         const clean = (value ?? '').toString().replace(/\D/g, '').slice(0, 6);
@@ -252,6 +268,48 @@ const ChartBid = ({ market, title }) => {
 
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <label className="shrink-0 w-20 sm:w-24 text-xs sm:text-sm font-semibold text-gray-600">Points</label>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={pointsInput}
+                                onChange={(e) => setPointsInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 6))}
+                                placeholder="Points"
+                                className="flex-1 min-w-[100px] min-h-[40px] h-10 sm:h-11 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
+                            />
+                            <button
+                                type="button"
+                                onClick={clearPointsOnly}
+                                className="min-h-[40px] h-10 px-4 rounded-md text-[11px] sm:text-xs font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
+                            >
+                                Clear
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <label className="shrink-0 w-20 sm:w-24 text-xs sm:text-sm font-semibold text-gray-600">Quick Points</label>
+                            <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
+                                {QUICK_POINTS.map((pts) => {
+                                    const selected = String(pointsInput || '') === String(pts);
+                                    return (
+                                        <button
+                                            key={pts}
+                                            type="button"
+                                            onClick={() => setPointsInput(String(pts))}
+                                            className={`min-h-[34px] h-9 rounded-md text-xs sm:text-sm font-semibold border transition-all active:scale-[0.98] ${
+                                                selected
+                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                            }`}
+                                        >
+                                            {pts}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                         <div>
                             <div className="block text-[11px] sm:text-xs font-semibold text-gray-500 mb-2">Select Chart</div>
                             <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
@@ -301,66 +359,14 @@ const ChartBid = ({ market, title }) => {
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
-                            <label className="shrink-0 w-20 sm:w-24 text-xs sm:text-sm font-semibold text-gray-600">Points</label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                value={pointsInput}
-                                onChange={(e) => setPointsInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 6))}
-                                placeholder="Points"
-                                className="flex-1 min-w-[100px] min-h-[40px] h-10 sm:h-11 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
-                            />
-                            <button
-                                type="button"
-                                onClick={clearPointsOnly}
-                                className="min-h-[40px] h-10 px-4 rounded-md text-[11px] sm:text-xs font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
-                            >
-                                Clear
-                            </button>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <label className="shrink-0 w-20 sm:w-24 text-xs sm:text-sm font-semibold text-gray-600">Quick Points</label>
-                            <div className="flex-1 min-w-0 grid grid-cols-5 gap-2">
-                                {QUICK_POINTS.map((pts) => {
-                                    const selected = String(pointsInput || '') === String(pts);
-                                    return (
-                                        <button
-                                            key={pts}
-                                            type="button"
-                                            onClick={() => setPointsInput(String(pts))}
-                                            className={`min-h-[34px] h-9 rounded-md text-xs sm:text-sm font-semibold border transition-all active:scale-[0.98] ${
-                                                selected
-                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
-                                            }`}
-                                        >
-                                            {pts}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                onClick={handleAddRow}
-                                className="flex-1 min-h-[40px] h-10 py-2.5 rounded-lg bg-[#1B3150] text-white font-semibold text-sm sm:text-base"
-                            >
-                                Add to list
-                            </button>
+                        <div className="grid grid-cols-2 gap-3">
                             <button
                                 type="button"
                                 onClick={clearForm}
-                                className="min-h-[40px] h-10 px-4 rounded-lg border-2 border-gray-300 text-gray-700 font-semibold text-sm"
+                                className="w-full min-h-[40px] h-10 px-4 rounded-lg border-2 border-gray-300 text-gray-700 font-semibold text-sm"
                             >
                                 Reset
                             </button>
-                        </div>
-
-                        <div className="flex gap-3">
                             <button
                                 type="button"
                                 onClick={openReview}

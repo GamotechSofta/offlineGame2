@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
 import { placeBet, updateUserBalance } from '../../../api/bets';
@@ -137,6 +137,19 @@ const FullSangamBid = ({ market, title }) => {
         setOpenPanaInvalid(false);
         setClosePanaInvalid(false);
     };
+
+    const lastAutoAddKeyRef = useRef('');
+
+    // Auto-add when open pana + close pana + points are valid (no Add-to-List button).
+    useEffect(() => {
+        const pts = Number(points);
+        if (!Number.isFinite(pts) || pts <= 0) return;
+        if (!isValidAnyPana(openPana) || !isValidAnyPana(closePana)) return;
+        const key = `${openPana}-${closePana}|${pts}`;
+        if (lastAutoAddKeyRef.current === key) return;
+        lastAutoAddKeyRef.current = key;
+        handleAdd();
+    }, [openPana, closePana, points]);
 
     const handleDelete = (id) => setBids((prev) => prev.filter((b) => b.id !== id));
     const openReview = () => {
@@ -281,14 +294,7 @@ const FullSangamBid = ({ market, title }) => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3 mb-5 sm:mb-6 px-1">
-                                <button
-                                    type="button"
-                                    onClick={handleAdd}
-                                    className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]"
-                                >
-                                    Add to List
-                                </button>
+                            <div className="grid grid-cols-1 gap-3 mb-5 sm:mb-6 px-1">
                                 <button type="button" onClick={openReview} disabled={!bids.length} className={submitBtnClass(!!bids.length)}>
                                     Submit Bet
                                 </button>

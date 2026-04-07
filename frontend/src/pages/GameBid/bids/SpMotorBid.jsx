@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
 import { useBettingWindow } from '../BettingWindowContext';
@@ -57,23 +57,32 @@ const SpMotorBid = ({ market, title }) => {
     });
   };
 
-  const handleGenerate = () => {
+  const lastAutoWarnKeyRef = useRef('');
+
+  // Auto-generate combinations when digits + points are ready (no Generate button).
+  useEffect(() => {
     const digits = sanitizeMotorDigitsUnique(digitInput);
-    if (digits.length < 3) {
-      showWarning('Enter at least 3 digits to generate combinations.');
-      return;
-    }
     const rawPoints = sanitizePoints(pointsInput);
     const pts = parseInt(rawPoints, 10);
-    if (!Number.isFinite(pts) || pts < 1) {
-      showWarning('Please enter points.');
+    const hasPoints = Number.isFinite(pts) && pts >= 1;
+
+    if (digits.length < 3 || !hasPoints) {
+      setCombinations([]);
       return;
     }
+
     const combos = generateSpMotorSinglePanas(digits);
+    const warnKey = `${digits}|${pts}`;
     if (!combos.length) {
-      showWarning('Could not generate combinations.');
+      setCombinations([]);
+      if (lastAutoWarnKeyRef.current !== warnKey) {
+        lastAutoWarnKeyRef.current = warnKey;
+        showWarning('Could not generate combinations.');
+      }
       return;
     }
+
+    lastAutoWarnKeyRef.current = '';
     setCombinations(
       combos.map((pana) => ({
         id: `${pana}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -81,7 +90,7 @@ const SpMotorBid = ({ market, title }) => {
         points: String(pts),
       }))
     );
-  };
+  }, [digitInput, pointsInput]);
 
   const updatePoint = (id, value) => {
     setCombinations((prev) =>
@@ -113,7 +122,7 @@ const SpMotorBid = ({ market, title }) => {
 
   const openReview = () => {
     if (!rowsWithPoints.length) {
-      showWarning('Add at least one combination with points, or generate and then submit.');
+      showWarning('Add at least one combination with points, then submit.');
       return;
     }
     setReviewRows(
@@ -316,13 +325,6 @@ const SpMotorBid = ({ market, title }) => {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={handleGenerate}
-                className="flex-1 min-h-[40px] h-10 py-2.5 rounded-lg bg-[#1B3150] text-white font-semibold text-sm sm:text-base"
-              >
-                GENERATE
-              </button>
-              <button
-                type="button"
                 onClick={openReview}
                 disabled={!bidsCount || !bettingAllowed}
                 className={`flex-1 bg-[#1B3150] text-white font-semibold text-sm sm:text-base py-2.5 min-h-[40px] h-10 rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${
@@ -344,7 +346,9 @@ const SpMotorBid = ({ market, title }) => {
             <div className="h-px bg-[#1B3150] w-full mb-2" />
             <div className="max-h-[520px] sm:max-h-[560px] overflow-y-auto space-y-2 pr-0.5">
               {combinations.length === 0 ? (
-                <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
+                <div className="py-6 text-center text-gray-400 text-sm">
+                  Select digits and enter points to generate
+                </div>
               ) : (
                 combinations.map((c) => (
                   <div

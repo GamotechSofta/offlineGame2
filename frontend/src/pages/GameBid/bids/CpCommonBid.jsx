@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
 import { useBettingWindow } from '../BettingWindowContext';
@@ -77,17 +77,21 @@ const CpCommonBid = ({ market, title }) => {
         setIncludeTriple(false);
     };
 
-    const handleGenerate = () => {
-        const pts = Number(pointsInput);
+    const lastAutoWarnKeyRef = useRef('');
+
+    // Auto-generate rows when inputs are ready (no Generate/Add-to-list button).
+    useEffect(() => {
         const digitsInput = selectedDigits.join('');
-        if (!digitsInput) {
-            showWarning('Please select at least one digit (0-9), at most two.');
+        const pts = Number(pointsInput);
+        const hasDigits = digitsInput.length >= 1 && digitsInput.length <= 2;
+        const hasPoints = Number.isFinite(pts) && pts > 0;
+        const hasAnyFilter = includeSp || includeDp || includeTriple;
+
+        if (!hasDigits || !hasPoints || !hasAnyFilter) {
+            setGeneratedRows([]);
             return;
         }
-        if (!includeSp && !includeDp && !includeTriple) {
-            showWarning('Select SP, DP, SPDPT or any combination to generate pannas.');
-            return;
-        }
+
         const useSingles = includeSp || includeTriple;
         const useDoubles = includeDp || includeTriple;
         const result = generateCPCommon({
@@ -97,11 +101,18 @@ const CpCommonBid = ({ market, title }) => {
             includeDoubles: useDoubles,
             includeTriples: includeTriple,
         });
+
+        const warnKey = `${digitsInput}|${pts}|${useSingles ? 1 : 0}|${useDoubles ? 1 : 0}|${includeTriple ? 1 : 0}`;
         if (!result.success) {
-            showWarning(result.message);
+            setGeneratedRows([]);
+            if (lastAutoWarnKeyRef.current !== warnKey) {
+                lastAutoWarnKeyRef.current = warnKey;
+                showWarning(result.message);
+            }
             return;
         }
 
+        lastAutoWarnKeyRef.current = '';
         const now = Date.now();
         setGeneratedRows(
             result.data.map((row, idx) => ({
@@ -110,7 +121,7 @@ const CpCommonBid = ({ market, title }) => {
                 points: String(row.points),
             }))
         );
-    };
+    }, [selectedDigits, pointsInput, includeSp, includeDp, includeTriple]);
 
     const updatePoint = (id, value) => {
         const clean = (value ?? '').toString().replace(/\D/g, '').slice(0, 6);
@@ -363,13 +374,6 @@ const CpCommonBid = ({ market, title }) => {
                         <div className="flex gap-3">
                             <button
                                 type="button"
-                                onClick={handleGenerate}
-                                className="flex-1 min-h-[40px] h-10 py-2.5 rounded-lg bg-[#1B3150] text-white font-semibold text-sm sm:text-base"
-                            >
-                                GENERATE
-                            </button>
-                            <button
-                                type="button"
                                 onClick={openReview}
                                 disabled={!bidsCount || !bettingAllowed}
                                 className={`flex-1 bg-[#1B3150] text-white font-semibold text-sm sm:text-base py-2.5 min-h-[40px] h-10 rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${
@@ -391,7 +395,9 @@ const CpCommonBid = ({ market, title }) => {
                         <div className="h-px bg-[#1B3150] w-full mb-2" />
                         <div className="max-h-[520px] sm:max-h-[560px] overflow-y-auto space-y-2 pr-0.5">
                             {generatedRows.length === 0 ? (
-                                <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
+                                <div className="py-6 text-center text-gray-400 text-sm">
+                                    Select digits, choose SP/DP/SPDPT and enter points to generate
+                                </div>
                             ) : (
                                 generatedRows.map((row) => (
                                     <div key={row.id} className="grid grid-cols-4 gap-1 sm:gap-2 text-center items-center py-2.5 px-2 bg-gray-50 rounded-lg border-2 border-gray-300 text-sm">

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BidLayout from '../BidLayout';
 import BidReviewModal from './BidReviewModal';
 import { useBettingWindow } from '../BettingWindowContext';
@@ -58,24 +58,31 @@ const DPCommon = ({ market, title }) => {
         setGeneratedRows([]);
     };
 
-    const handleGenerate = () => {
+    const lastAutoWarnKeyRef = useRef('');
+
+    // Auto-generate rows when digit + points are ready (no Generate button).
+    useEffect(() => {
         const digitCheck = validateDigit(digitInput);
-        if (!digitCheck.valid) {
-            showWarning(digitCheck.message || 'Invalid digit.');
-            return;
-        }
         const pts = Number(pointsInput);
-        if (!Number.isFinite(pts) || pts <= 0) {
-            showWarning('Points must be greater than 0.');
+        const hasPoints = Number.isFinite(pts) && pts > 0;
+
+        if (!digitCheck.valid || !hasPoints) {
+            setGeneratedRows([]);
             return;
         }
 
         const result = generateDPCommon({ digit: digitInput, points: pts });
+        const warnKey = `${digitInput}|${pts}`;
         if (!result.success) {
-            showWarning(result.message);
+            setGeneratedRows([]);
+            if (lastAutoWarnKeyRef.current !== warnKey) {
+                lastAutoWarnKeyRef.current = warnKey;
+                showWarning(result.message);
+            }
             return;
         }
 
+        lastAutoWarnKeyRef.current = '';
         setGeneratedRows((prev) => {
             const byPana = new Map(prev.map((r) => [r.pana, r]));
             for (const row of result.data) {
@@ -85,11 +92,14 @@ const DPCommon = ({ market, title }) => {
                         pana: row.pana,
                         points: String(row.points),
                     });
+                } else {
+                    // Always sync points with current input for this mode.
+                    byPana.set(row.pana, { ...byPana.get(row.pana), points: String(row.points) });
                 }
             }
             return Array.from(byPana.values()).sort((a, b) => Number(a.pana) - Number(b.pana));
         });
-    };
+    }, [digitInput, pointsInput]);
 
     const updatePoint = (id, value) => {
         const clean = (value ?? '').toString().replace(/\D/g, '').slice(0, 6);
@@ -198,7 +208,8 @@ const DPCommon = ({ market, title }) => {
                 )}
 
                 <div className="mb-3 text-gray-600 text-xs">
-                    Enter a single digit (0-9), points and click Generate. Double Patti only (e.g. 112, 200, 344).
+                    Enter a single digit (0-9) and points — panna list will generate automatically. Double Patti only (e.g. 112,
+                    200, 344).
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
@@ -228,10 +239,10 @@ const DPCommon = ({ market, title }) => {
                         </div>
                         <button
                             type="button"
-                            onClick={handleGenerate}
-                            className="w-full min-h-[48px] py-3.5 rounded-lg bg-[#1B3150] text-white font-bold text-base"
+                            onClick={clearLocal}
+                            className="w-full min-h-[48px] py-3.5 rounded-lg border-2 border-[#1B3150]/30 text-[#1B3150] bg-white font-bold text-base hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all"
                         >
-                            GENERATE
+                            Clear
                         </button>
                     </div>
 
@@ -243,7 +254,7 @@ const DPCommon = ({ market, title }) => {
                         </div>
                         <div className="max-h-[240px] sm:max-h-[280px] overflow-y-auto flex-1 bg-white">
                             {generatedRows.length === 0 ? (
-                                <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
+                                <div className="py-6 text-center text-gray-400 text-sm">Enter digit and points to generate</div>
                             ) : (
                                 generatedRows.map((row) => (
                                     <div
