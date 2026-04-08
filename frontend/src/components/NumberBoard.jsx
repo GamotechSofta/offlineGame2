@@ -29,6 +29,7 @@ const NumberBoard = ({
               }`}
             >
               <span className="text-[#d4a5b0] font-semibold">{colPointDisplay?.[i] || ''}</span>
+              {activeTarget?.type === 'col' && activeTarget?.index === i ? <span className="blink-caret ml-[2px]">|</span> : null}
             </button>
           ))}
         </div>
@@ -49,6 +50,7 @@ const NumberBoard = ({
                 }`}
               >
                 <span className="text-[#d4a5b0] font-semibold">{rowPointDisplay?.[row] || ''}</span>
+                {activeTarget?.type === 'row' && activeTarget?.index === row ? <span className="blink-caret ml-[2px]">|</span> : null}
               </button>
               <div className="grid grid-cols-10 gap-[8px]">
                 {rowNums.map((num) => {

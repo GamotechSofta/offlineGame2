@@ -18,6 +18,7 @@ const BoardCell = ({ quizNo, num, value, selected, targetSelected, onClick }) =>
         }`}
       >
         {selected ? value : ''}
+        {!selected && targetSelected ? <span className="blink-caret">|</span> : null}
       </div>
       <div className="text-[#111] font-semibold tracking-tight text-[clamp(9px,0.88vw,11px)] leading-none">
         Q{formatQuizNumber(quizNo)}-{formatQuizNumber(num)}

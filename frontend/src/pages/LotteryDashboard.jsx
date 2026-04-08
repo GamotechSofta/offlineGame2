@@ -14,6 +14,8 @@ import { applyFilterNumbers, formatTimer, getCellKey, getTotals } from '../utils
 const LotteryDashboard = () => {
   const colApplyTimersRef = useRef({});
   const rowApplyTimersRef = useRef({});
+  const autoApplyTimerRef = useRef(null);
+  const appliedAmountByTargetRef = useRef({});
   const [clockNow, setClockNow] = useState('07:59:44');
   const [activeQuiz, setActiveQuiz] = useState(1);
   const [selectedQuizzes, setSelectedQuizzes] = useState([1]);
@@ -56,21 +58,41 @@ const LotteryDashboard = () => {
     setAmountDraft(String(safeAmount));
   };
 
+  const getTargetKey = (target) => {
+    if (!target) return '';
+    return `${activeQuiz}-${target.type}-${target.index}`;
+  };
+
   const handleSelectTarget = (target) => {
-    // Selecting a new target resets old pending value as requested.
+    const currentKey = getTargetKey(pendingTarget);
+    const nextKey = getTargetKey(target);
+    // Reset keypad only when switching to a different target.
+    if (currentKey !== nextKey) {
+      setEnteredAmount(0);
+      setAmountDraft('');
+      if (autoApplyTimerRef.current) {
+        clearTimeout(autoApplyTimerRef.current);
+        autoApplyTimerRef.current = null;
+      }
+    }
     setPendingTarget(target);
-    setEnteredAmount(0);
-    setAmountDraft('');
   };
 
   const applyAmountToTarget = (amount, target) => {
     const safeAmount = Number(amount || 0);
     if (safeAmount <= 0 || !target) return;
+    const targetKey = getTargetKey(target);
+    const prevApplied = Number(appliedAmountByTargetRef.current[targetKey] || 0);
+    const deltaAmount = safeAmount - prevApplied;
+    if (deltaAmount <= 0) {
+      appliedAmountByTargetRef.current[targetKey] = safeAmount;
+      return;
+    }
     setSelectedMap((prev) => {
       const next = { ...prev };
       if (target.type === 'cell') {
         const key = getCellKey(activeQuiz, target.index);
-        next[key] = Number(next[key] || 0) + safeAmount;
+        next[key] = Number(next[key] || 0) + deltaAmount;
       } else if (target.type === 'row') {
         setRowPointDisplay((prev) => {
           const next = [...prev];
@@ -80,7 +102,7 @@ const LotteryDashboard = () => {
         for (let col = 0; col < 10; col += 1) {
           const num = target.index * 10 + col;
           const key = getCellKey(activeQuiz, num);
-          next[key] = Number(next[key] || 0) + safeAmount;
+          next[key] = Number(next[key] || 0) + deltaAmount;
         }
       } else if (target.type === 'col') {
         setColPointDisplay((prev) => {
@@ -91,15 +113,27 @@ const LotteryDashboard = () => {
         for (let row = 0; row < 10; row += 1) {
           const num = row * 10 + target.index;
           const key = getCellKey(activeQuiz, num);
-          next[key] = Number(next[key] || 0) + safeAmount;
+          next[key] = Number(next[key] || 0) + deltaAmount;
         }
       }
       return next;
     });
-    setPendingTarget(null);
-    setEnteredAmount(0);
-    setAmountDraft('');
+    appliedAmountByTargetRef.current[targetKey] = safeAmount;
   };
+
+  useEffect(() => {
+    if (!pendingTarget) return;
+    const amount = Number(amountDraft || 0);
+    if (amount <= 0) return;
+    if (autoApplyTimerRef.current) clearTimeout(autoApplyTimerRef.current);
+    autoApplyTimerRef.current = setTimeout(() => {
+      applyAmountToTarget(amount, pendingTarget);
+      autoApplyTimerRef.current = null;
+    }, 450);
+    return () => {
+      if (autoApplyTimerRef.current) clearTimeout(autoApplyTimerRef.current);
+    };
+  }, [amountDraft, pendingTarget]);
 
   const applyFilter = (filterType) => {
     const amount = Number(amountDraft || enteredAmount || 0);
@@ -122,12 +156,20 @@ const LotteryDashboard = () => {
       return next;
     });
     setSelectedMap({});
+    setPendingTarget(null);
+    setAmountDraft('');
+    setEnteredAmount(0);
+    appliedAmountByTargetRef.current = {};
     setRowPointDisplay(Array.from({ length: 10 }, () => ''));
     setColPointDisplay(Array.from({ length: 10 }, () => ''));
   };
 
   const handleReset = () => {
     setSelectedMap({});
+    setPendingTarget(null);
+    setAmountDraft('');
+    setEnteredAmount(0);
+    appliedAmountByTargetRef.current = {};
     setRowPointDisplay(Array.from({ length: 10 }, () => ''));
     setColPointDisplay(Array.from({ length: 10 }, () => ''));
   };
@@ -141,9 +183,6 @@ const LotteryDashboard = () => {
     if (key === 'X') return setAmountDraft((prev) => prev.slice(0, -1));
     const nextValue = (amountDraft === '0' ? key : `${amountDraft}${key}`).slice(0, 4);
     setAmountDraft(nextValue);
-    if (pendingTarget) {
-      applyAmountToTarget(Number(key), pendingTarget);
-    }
   };
 
   useEffect(() => {
