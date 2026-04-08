@@ -7,9 +7,14 @@ import NumberBoard from '../components/NumberBoard';
 import SummaryPanel from '../components/SummaryPanel';
 import ControlPanel from '../components/ControlPanel';
 import ResultModal from '../components/ResultModal';
-import { RESULT_HISTORY } from '../data/mockData';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getTotals } from '../utils/boardHelpers';
+
+const RESULT_HISTORY = [
+  { draw: 'GM26032818006025', quiz: 'Quiz01', result: 'Q01-42', sale: 180, at: '2026-04-08 07:59:44' },
+  { draw: 'GM26032818006024', quiz: 'Quiz04', result: 'Q04-18', sale: 180, at: '2026-04-07 20:09:27' },
+  { draw: 'GM26032818006023', quiz: 'Quiz07', result: 'Q07-59', sale: 120, at: '2026-04-07 19:45:27' },
+];
 
 const LotteryDashboard = () => {
   const BASE_WIDTH = 1536;
@@ -27,6 +32,7 @@ const LotteryDashboard = () => {
   const [selectedQuizzes, setSelectedQuizzes] = useState([1]);
   const [multi, setMulti] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [enteredAmount, setEnteredAmount] = useState(2);
   const [amountDraft, setAmountDraft] = useState('2');
   const [pendingTarget, setPendingTarget] = useState(null);
@@ -46,6 +52,31 @@ const LotteryDashboard = () => {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  useEffect(() => {
+    const checkMobilePortrait = () => {
+      const isMobile = window.innerWidth <= 900;
+      const isPortrait = window.innerHeight > window.innerWidth;
+      setShowRotatePrompt(isMobile && isPortrait);
+    };
+    checkMobilePortrait();
+    window.addEventListener('resize', checkMobilePortrait);
+    window.addEventListener('orientationchange', checkMobilePortrait);
+    return () => {
+      window.removeEventListener('resize', checkMobilePortrait);
+      window.removeEventListener('orientationchange', checkMobilePortrait);
+    };
+  }, []);
+
+  const handleRotateLandscape = async () => {
+    try {
+      if (window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('landscape');
+      }
+    } catch (_) {
+      // On many mobile browsers this requires user/system support.
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -311,6 +342,24 @@ const LotteryDashboard = () => {
       </div>
 
       <ResultModal open={showResults} onClose={() => setShowResults(false)} rows={RESULT_HISTORY} />
+      {showRotatePrompt && (
+        <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[#111] border border-[#3b3b3b] text-white p-4 text-center">
+            <h3 className="text-lg font-semibold mb-2">Rotate Screen</h3>
+            <p className="text-sm text-gray-300 mb-4">
+              Lottery game works best in landscape mode.
+              Please rotate your phone horizontally.
+            </p>
+            <button
+              type="button"
+              onClick={handleRotateLandscape}
+              className="w-full h-10 bg-[#ef3f34] border border-[#d4372f] font-semibold"
+            >
+              Rotate to Landscape
+            </button>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 };
