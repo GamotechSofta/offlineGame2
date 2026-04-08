@@ -9,12 +9,7 @@ import ControlPanel from '../components/ControlPanel';
 import ResultModal from '../components/ResultModal';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getTotals } from '../utils/boardHelpers';
-
-const RESULT_HISTORY = [
-  { draw: 'GM26032818006025', quiz: 'Quiz01', result: 'Q01-42', sale: 180, at: '2026-04-08 07:59:44' },
-  { draw: 'GM26032818006024', quiz: 'Quiz04', result: 'Q04-18', sale: 180, at: '2026-04-07 20:09:27' },
-  { draw: 'GM26032818006023', quiz: 'Quiz07', result: 'Q07-59', sale: 120, at: '2026-04-07 19:45:27' },
-];
+import { RESULT_HISTORY } from '../data/mockData';
 
 const LotteryDashboard = () => {
   const BASE_WIDTH = 1536;
