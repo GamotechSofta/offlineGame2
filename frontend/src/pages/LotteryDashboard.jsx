@@ -21,9 +21,10 @@ const LotteryDashboard = () => {
   const [showResults, setShowResults] = useState(false);
   const [enteredAmount, setEnteredAmount] = useState(2);
   const [amountDraft, setAmountDraft] = useState('2');
+  const [pendingTarget, setPendingTarget] = useState(null);
   const [selectedMap, setSelectedMap] = useState({});
-  const [columnDrafts, setColumnDrafts] = useState(() => Array.from({ length: 10 }, () => ''));
-  const [rowDrafts, setRowDrafts] = useState(() => Array.from({ length: 10 }, () => ''));
+  const [rowPointDisplay, setRowPointDisplay] = useState(() => Array.from({ length: 10 }, () => ''));
+  const [colPointDisplay, setColPointDisplay] = useState(() => Array.from({ length: 10 }, () => ''));
   const [timerSeconds, setTimerSeconds] = useState(DEFAULT_TIMER_SECONDS);
 
   useEffect(() => {
@@ -55,23 +56,60 @@ const LotteryDashboard = () => {
     setAmountDraft(String(safeAmount));
   };
 
-  const handleCellClick = (num) => {
-    const key = getCellKey(activeQuiz, num);
+  const handleSelectTarget = (target) => {
+    // Selecting a new target resets old pending value as requested.
+    setPendingTarget(target);
+    setEnteredAmount(0);
+    setAmountDraft('');
+  };
+
+  const applyAmountToTarget = (amount, target) => {
+    const safeAmount = Number(amount || 0);
+    if (safeAmount <= 0 || !target) return;
     setSelectedMap((prev) => {
       const next = { ...prev };
-      if (next[key]) delete next[key];
-      else next[key] = enteredAmount;
+      if (target.type === 'cell') {
+        const key = getCellKey(activeQuiz, target.index);
+        next[key] = Number(next[key] || 0) + safeAmount;
+      } else if (target.type === 'row') {
+        setRowPointDisplay((prev) => {
+          const next = [...prev];
+          next[target.index] = String(safeAmount);
+          return next;
+        });
+        for (let col = 0; col < 10; col += 1) {
+          const num = target.index * 10 + col;
+          const key = getCellKey(activeQuiz, num);
+          next[key] = Number(next[key] || 0) + safeAmount;
+        }
+      } else if (target.type === 'col') {
+        setColPointDisplay((prev) => {
+          const next = [...prev];
+          next[target.index] = String(safeAmount);
+          return next;
+        });
+        for (let row = 0; row < 10; row += 1) {
+          const num = row * 10 + target.index;
+          const key = getCellKey(activeQuiz, num);
+          next[key] = Number(next[key] || 0) + safeAmount;
+        }
+      }
       return next;
     });
+    setPendingTarget(null);
+    setEnteredAmount(0);
+    setAmountDraft('');
   };
 
   const applyFilter = (filterType) => {
+    const amount = Number(amountDraft || enteredAmount || 0);
+    if (amount <= 0) return;
     const normalized = filterType || FILTER_TYPES.ALL;
     const nums = applyFilterNumbers(normalized);
     setSelectedMap((prev) => {
       const next = { ...prev };
       nums.forEach((n) => {
-        next[getCellKey(activeQuiz, n)] = enteredAmount;
+        next[getCellKey(activeQuiz, n)] = amount;
       });
       return next;
     });
@@ -84,9 +122,15 @@ const LotteryDashboard = () => {
       return next;
     });
     setSelectedMap({});
+    setRowPointDisplay(Array.from({ length: 10 }, () => ''));
+    setColPointDisplay(Array.from({ length: 10 }, () => ''));
   };
 
-  const handleReset = () => setSelectedMap({});
+  const handleReset = () => {
+    setSelectedMap({});
+    setRowPointDisplay(Array.from({ length: 10 }, () => ''));
+    setColPointDisplay(Array.from({ length: 10 }, () => ''));
+  };
   const handleMultiToggle = (checked) => {
     setMulti(checked);
     if (!checked) setSelectedQuizzes([activeQuiz]);
@@ -95,61 +139,11 @@ const LotteryDashboard = () => {
   const handleKeypad = (key) => {
     if (key === 'C') return setAmountDraft('');
     if (key === 'X') return setAmountDraft((prev) => prev.slice(0, -1));
-    setAmountDraft((prev) => (prev === '0' ? key : `${prev}${key}`).slice(0, 4));
-  };
-
-  const handleColumnDraftChange = (colIndex, value) => {
-    const cleaned = value.replace(/\D/g, '').slice(0, 4);
-    setColumnDrafts((prev) => {
-      const next = [...prev];
-      next[colIndex] = cleaned;
-      return next;
-    });
-  };
-
-  const handleRowDraftChange = (rowIndex, value) => {
-    const cleaned = value.replace(/\D/g, '').slice(0, 4);
-    setRowDrafts((prev) => {
-      const next = [...prev];
-      next[rowIndex] = cleaned;
-      return next;
-    });
-  };
-
-  const applyColumnPoints = (colIndex) => {
-    if (colApplyTimersRef.current[colIndex]) {
-      clearTimeout(colApplyTimersRef.current[colIndex]);
-      colApplyTimersRef.current[colIndex] = null;
+    const nextValue = (amountDraft === '0' ? key : `${amountDraft}${key}`).slice(0, 4);
+    setAmountDraft(nextValue);
+    if (pendingTarget) {
+      applyAmountToTarget(Number(key), pendingTarget);
     }
-    const amount = Number(columnDrafts[colIndex] || 0);
-    if (amount <= 0) return;
-    setSelectedMap((prev) => {
-      const next = { ...prev };
-      for (let row = 0; row < 10; row += 1) {
-        const num = row * 10 + colIndex;
-        const key = getCellKey(activeQuiz, num);
-        next[key] = Number(next[key] || 0) + amount;
-      }
-      return next;
-    });
-  };
-
-  const applyRowPoints = (rowIndex) => {
-    if (rowApplyTimersRef.current[rowIndex]) {
-      clearTimeout(rowApplyTimersRef.current[rowIndex]);
-      rowApplyTimersRef.current[rowIndex] = null;
-    }
-    const amount = Number(rowDrafts[rowIndex] || 0);
-    if (amount <= 0) return;
-    setSelectedMap((prev) => {
-      const next = { ...prev };
-      for (let col = 0; col < 10; col += 1) {
-        const num = rowIndex * 10 + col;
-        const key = getCellKey(activeQuiz, num);
-        next[key] = Number(next[key] || 0) + amount;
-      }
-      return next;
-    });
   };
 
   useEffect(() => {
@@ -177,13 +171,10 @@ const LotteryDashboard = () => {
           <NumberBoard
             activeQuiz={activeQuiz}
             selectedMap={selectedMap}
-            onCellClick={handleCellClick}
-            columnDrafts={columnDrafts}
-            rowDrafts={rowDrafts}
-            onColumnDraftChange={handleColumnDraftChange}
-            onRowDraftChange={handleRowDraftChange}
-            onApplyColumn={applyColumnPoints}
-            onApplyRow={applyRowPoints}
+            activeTarget={pendingTarget}
+            rowPointDisplay={rowPointDisplay}
+            colPointDisplay={colPointDisplay}
+            onSelectTarget={handleSelectTarget}
           />
           <SummaryPanel count={totals.count} totalAmount={totals.totalAmount} />
           <ControlPanel
@@ -195,7 +186,13 @@ const LotteryDashboard = () => {
             onIncrease={() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1)}
             onDecrease={() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1))}
             onKeypad={handleKeypad}
-            onEnterAmount={() => setAmountFromNumber(amountDraft)}
+            onEnterAmount={() => {
+              if (pendingTarget) {
+                applyAmountToTarget(Number(amountDraft || enteredAmount || 0), pendingTarget);
+              } else {
+                setAmountFromNumber(amountDraft);
+              }
+            }}
           />
         </div>
       </div>

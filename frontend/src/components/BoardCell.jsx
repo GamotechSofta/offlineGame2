@@ -1,7 +1,7 @@
 import React from 'react';
 import { formatQuizNumber } from '../utils/boardHelpers';
 
-const BoardCell = ({ quizNo, num, value, selected, onClick }) => {
+const BoardCell = ({ quizNo, num, value, selected, targetSelected, onClick }) => {
   return (
     <button
       type="button"
@@ -10,7 +10,11 @@ const BoardCell = ({ quizNo, num, value, selected, onClick }) => {
     >
       <div
         className={`h-[clamp(15px,2.2vh,24px)] border-[2px] mb-[3px] text-[clamp(10px,0.95vw,12px)] font-semibold leading-[1] ${
-          selected ? 'border-[#4aba4f] bg-[#efffe8] text-[#d4a5b0]' : 'border-[#1f1f1f] bg-[#fbfbfb] text-transparent'
+          selected
+            ? 'border-[#4aba4f] bg-[#efffe8] text-[#d4a5b0]'
+            : targetSelected
+              ? 'border-[#4aba4f] bg-[#f7fff4] text-transparent'
+              : 'border-[#1f1f1f] bg-[#fbfbfb] text-transparent'
         }`}
       >
         {selected ? value : ''}
