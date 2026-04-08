@@ -19,10 +19,10 @@ const NumberBoard = ({
   };
 
   return (
-    <div className="h-full bg-[#d7d7d7] px-[6px] pt-[8px] pb-[12px] border-r border-[#8a8a8a]">
-      <div className="grid grid-cols-[112px_1fr] gap-[8px]">
-        <div className="text-[#3799d5] text-[28px] leading-none font-bold pl-1 pt-[4px]">BLOCK</div>
-        <div className="grid grid-cols-10 gap-[8px]">
+    <div className="h-full bg-[#d7d7d7] px-[6px] pt-[10px] pb-[10px] border-r border-[#8a8a8a] flex flex-col">
+      <div className="grid grid-cols-[120px_1fr] gap-[8px]">
+        <div className="text-[#3799d5] text-[32px] leading-none font-bold pl-1 pt-[4px]">BLOCK</div>
+        <div className="grid grid-cols-10 gap-[9px]">
           {Array.from({ length: 10 }, (_, i) => {
             const hasVisibleInCol = Array.from({ length: 10 }, (_, row) => row * 10 + i).some((n) => isVisible(n));
             return (
@@ -31,7 +31,7 @@ const NumberBoard = ({
                 type="button"
                 disabled={!hasVisibleInCol}
                 onClick={() => onSelectTarget({ type: 'col', index: i })}
-                className={`h-[24px] border-[2px] text-center text-[11px] leading-none ${
+                className={`h-[28px] border-[2px] text-center text-[11px] leading-none ${
                   !hasVisibleInCol
                     ? 'border-[#bdbdbd] bg-[#e9e9e9] opacity-50 cursor-not-allowed'
                     : activeTarget?.type === 'col' && activeTarget?.index === i
@@ -47,15 +47,15 @@ const NumberBoard = ({
         </div>
       </div>
 
-      <div className="mt-[8px] space-y-[10px]">
+      <div className="mt-[10px] flex-1 flex flex-col justify-between">
         {Array.from({ length: 10 }, (_, row) => {
           const rowNums = numbers.slice(row * 10, row * 10 + 10);
           return (
-            <div key={row} className="grid grid-cols-[112px_1fr] gap-[8px]">
+            <div key={row} className="grid grid-cols-[120px_1fr] gap-[8px]">
               <button
                 type="button"
                 onClick={() => onSelectTarget({ type: 'row', index: row })}
-                className={`h-[24px] border-[2px] mt-[4px] text-center text-[12px] leading-none ${
+                className={`h-[28px] border-[2px] mt-[4px] text-center text-[12px] leading-none ${
                   activeTarget?.type === 'row' && activeTarget?.index === row
                     ? 'border-[#4aba4f] bg-[#efffe8]'
                     : 'border-[#3ea1de] bg-white'
@@ -64,7 +64,7 @@ const NumberBoard = ({
                 <span className="text-[#d4a5b0] font-semibold">{rowPointDisplay?.[row] || ''}</span>
                 {activeTarget?.type === 'row' && activeTarget?.index === row ? <span className="blink-caret ml-[2px]">|</span> : null}
               </button>
-              <div className="grid grid-cols-10 gap-[8px]">
+              <div className="grid grid-cols-10 gap-[9px]">
                 {rowNums.map((num) => {
                   const visible = isVisible(num);
                   const key = getCellKey(activeQuiz, num);

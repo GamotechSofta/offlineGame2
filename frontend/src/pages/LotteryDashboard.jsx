@@ -330,8 +330,13 @@ const LotteryDashboard = () => {
                 onEnterAmount={() => {
                   if (pendingTarget) {
                     applyAmountToTarget(Number(amountDraft || enteredAmount || 0), pendingTarget);
+                    appliedAmountByTargetRef.current = {};
+                    setPendingTarget(null);
+                    setAmountDraft('');
+                    setEnteredAmount(0);
                   } else {
-                    setAmountFromNumber(amountDraft);
+                    setAmountDraft('');
+                    setEnteredAmount(0);
                   }
                 }}
               />
@@ -344,6 +349,9 @@ const LotteryDashboard = () => {
       {showRotatePrompt && (
         <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[#111] border border-[#3b3b3b] text-white p-4 text-center">
+            <div className="phone-rotate-wrap" aria-hidden>
+              <div className="phone-rotate-icon" />
+            </div>
             <h3 className="text-lg font-semibold mb-2">Rotate Screen</h3>
             <p className="text-sm text-gray-300 mb-4">
               Lottery game works best in landscape mode.

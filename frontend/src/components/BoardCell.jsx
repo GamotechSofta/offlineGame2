@@ -6,10 +6,10 @@ const BoardCell = ({ quizNo, num, value, selected, targetSelected, onClick }) =>
     <button
       type="button"
       onClick={onClick}
-      className="h-[clamp(38px,5.4vh,50px)] rounded-none px-[1px] pt-[1px] pb-0 bg-transparent"
+      className="h-[clamp(44px,6.2vh,58px)] rounded-none px-[1px] pt-[1px] pb-0 bg-transparent"
     >
       <div
-        className={`h-[24px] border-[2px] mb-[3px] text-[clamp(10px,0.95vw,12px)] font-semibold flex items-center justify-center ${
+        className={`h-[28px] border-[2px] mb-[3px] text-[clamp(10px,0.95vw,12px)] font-semibold flex items-center justify-center ${
           selected
             ? 'border-[#4aba4f] bg-[#efffe8] text-[#d4a5b0]'
             : targetSelected

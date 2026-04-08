@@ -21,8 +21,8 @@ const QuizSelector = ({
   return (
     <div className="bg-[#efefef] text-black border-b border-[#5f5f5f]">
       {QUIZ_GROUPS.map((group) => (
-        <div key={group.setName} className="grid grid-cols-[78px_1fr_128px]">
-          <div className="bg-[#e95757] text-white text-center h-10 leading-[40px] text-[11px] font-semibold border border-[#d1d1d1]">{group.setName}</div>
+        <div key={group.setName} className="grid grid-cols-[86px_1fr_136px]">
+          <div className="bg-[#e95757] text-white text-center h-11 leading-[44px] text-[11px] font-semibold border border-[#d1d1d1]">{group.setName}</div>
           <div className="grid grid-cols-10">
             {Array.from({ length: group.end - group.start + 1 }, (_, idx) => group.start + idx).map((quizNo) => {
               const isActive = multi ? selectedQuizzes.includes(quizNo) : activeQuiz === quizNo;
@@ -31,14 +31,14 @@ const QuizSelector = ({
                   key={quizNo}
                   type="button"
                   onClick={() => onToggleQuiz(quizNo)}
-                  className={`h-10 border text-[11px] font-medium rounded-none ${getSetColors(group.setName, isActive)}`}
+                  className={`h-11 border text-[11px] font-medium rounded-none ${getSetColors(group.setName, isActive)}`}
                 >
                   {quizLabel(quizNo)}
                 </button>
               );
             })}
           </div>
-          <div className="border border-[#8f8f8f] bg-[#efefef] flex items-center justify-center gap-2 text-[11px]">
+          <div className="border border-[#8f8f8f] bg-[#efefef] flex items-center justify-center gap-2 text-[11px] h-11">
             {group.setName === 'Set A' && (
               <>
                 <label className="flex items-center gap-1">
