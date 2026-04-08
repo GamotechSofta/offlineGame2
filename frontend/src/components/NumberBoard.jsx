@@ -31,7 +31,7 @@ const NumberBoard = ({
                 type="button"
                 disabled={!hasVisibleInCol}
                 onClick={() => onSelectTarget({ type: 'col', index: i })}
-                className={`h-[18px] border-[2px] text-center text-[11px] leading-none ${
+                className={`h-[24px] border-[2px] text-center text-[11px] leading-none ${
                   !hasVisibleInCol
                     ? 'border-[#bdbdbd] bg-[#e9e9e9] opacity-50 cursor-not-allowed'
                     : activeTarget?.type === 'col' && activeTarget?.index === i

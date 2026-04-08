@@ -12,10 +12,16 @@ import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getTotals } from '../utils/boardHelpers';
 
 const LotteryDashboard = () => {
+  const BASE_WIDTH = 1536;
+  const BASE_HEIGHT = 864;
   const colApplyTimersRef = useRef({});
   const rowApplyTimersRef = useRef({});
   const autoApplyTimerRef = useRef(null);
   const appliedAmountByTargetRef = useRef({});
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : BASE_WIDTH,
+    height: typeof window !== 'undefined' ? window.innerHeight : BASE_HEIGHT,
+  }));
   const [clockNow, setClockNow] = useState('07:59:44');
   const [activeQuiz, setActiveQuiz] = useState(1);
   const [selectedQuizzes, setSelectedQuizzes] = useState([1]);
@@ -30,6 +36,16 @@ const LotteryDashboard = () => {
   const [colPointDisplay, setColPointDisplay] = useState(() => Array.from({ length: 10 }, () => ''));
   const [timerSeconds, setTimerSeconds] = useState(DEFAULT_TIMER_SECONDS);
   const ALL_QUIZZES = useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), []);
+  const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
+  const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
+
+  useEffect(() => {
+    const onResize = () => {
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -230,48 +246,67 @@ const LotteryDashboard = () => {
 
   return (
     <AppLayout>
-      <div className="h-full flex flex-col overflow-hidden">
-        <TopHeader now={clockNow} />
-        <QuizSelector
-          activeQuiz={activeQuiz}
-          selectedQuizzes={selectedQuizzes}
-          multi={multi}
-          onToggleQuiz={handleQuizToggle}
-          onToggleMulti={handleMultiToggle}
-          onToggleAll={handleAllToggle}
-          onOpenResult={() => setShowResults(true)}
-        />
-        <StatusStrip />
-
-        <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_140px_200px] xl:grid-cols-[minmax(0,1fr)_148px_210px] overflow-hidden">
-          <NumberBoard
-            activeQuiz={activeQuiz}
-            selectedMap={selectedMap}
-            activeTarget={pendingTarget}
-            activeFilter={activeFilter}
-            rowPointDisplay={rowPointDisplay}
-            colPointDisplay={colPointDisplay}
-            onSelectTarget={handleSelectTarget}
-          />
-          <SummaryPanel count={totals.count} totalAmount={totals.totalAmount} />
-          <ControlPanel
-            timerText={formatTimer(timerSeconds)}
-            amountDraft={amountDraft || '0'}
-            onAdvanceDraw={handleAdvanceDraw}
-            onResetAll={handleReset}
-            onApplyFilter={applyFilter}
-            activeFilter={activeFilter}
-            onIncrease={() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1)}
-            onDecrease={() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1))}
-            onKeypad={handleKeypad}
-            onEnterAmount={() => {
-              if (pendingTarget) {
-                applyAmountToTarget(Number(amountDraft || enteredAmount || 0), pendingTarget);
-              } else {
-                setAmountFromNumber(amountDraft);
-              }
+      <div className="w-full h-full relative overflow-hidden bg-[#111]">
+        <div className="absolute inset-0 border border-[#4c4c4c] pointer-events-none" />
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            width: `${viewport.width}px`,
+            height: `${viewport.height}px`,
+          }}
+        >
+          <div
+            className="absolute top-0 left-0 bg-[#111] border border-[#4c4c4c] flex flex-col overflow-hidden"
+            style={{
+              width: `${BASE_WIDTH}px`,
+              height: `${BASE_HEIGHT}px`,
+              transform: `scale(${dashboardScaleX}, ${dashboardScaleY})`,
+              transformOrigin: 'top left',
             }}
-          />
+          >
+            <TopHeader now={clockNow} />
+            <QuizSelector
+              activeQuiz={activeQuiz}
+              selectedQuizzes={selectedQuizzes}
+              multi={multi}
+              onToggleQuiz={handleQuizToggle}
+              onToggleMulti={handleMultiToggle}
+              onToggleAll={handleAllToggle}
+              onOpenResult={() => setShowResults(true)}
+            />
+            <StatusStrip />
+
+            <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_148px_210px] overflow-hidden">
+              <NumberBoard
+                activeQuiz={activeQuiz}
+                selectedMap={selectedMap}
+                activeTarget={pendingTarget}
+                activeFilter={activeFilter}
+                rowPointDisplay={rowPointDisplay}
+                colPointDisplay={colPointDisplay}
+                onSelectTarget={handleSelectTarget}
+              />
+              <SummaryPanel count={totals.count} totalAmount={totals.totalAmount} />
+              <ControlPanel
+                timerText={formatTimer(timerSeconds)}
+                amountDraft={amountDraft || '0'}
+                onAdvanceDraw={handleAdvanceDraw}
+                onResetAll={handleReset}
+                onApplyFilter={applyFilter}
+                activeFilter={activeFilter}
+                onIncrease={() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1)}
+                onDecrease={() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1))}
+                onKeypad={handleKeypad}
+                onEnterAmount={() => {
+                  if (pendingTarget) {
+                    applyAmountToTarget(Number(amountDraft || enteredAmount || 0), pendingTarget);
+                  } else {
+                    setAmountFromNumber(amountDraft);
+                  }
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
