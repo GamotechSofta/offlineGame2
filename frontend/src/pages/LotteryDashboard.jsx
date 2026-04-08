@@ -7,9 +7,9 @@ import NumberBoard from '../components/NumberBoard';
 import SummaryPanel from '../components/SummaryPanel';
 import ControlPanel from '../components/ControlPanel';
 import ResultModal from '../components/ResultModal';
+import { RESULT_HISTORY } from '../data/mockData';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getTotals } from '../utils/boardHelpers';
-import { RESULT_HISTORY } from '../data/mockData';
 
 const LotteryDashboard = () => {
   const BASE_WIDTH = 1536;
@@ -65,6 +65,10 @@ const LotteryDashboard = () => {
 
   const handleRotateLandscape = async () => {
     try {
+      const root = document.documentElement;
+      if (root.requestFullscreen && !document.fullscreenElement) {
+        await root.requestFullscreen();
+      }
       if (window.screen?.orientation?.lock) {
         await window.screen.orientation.lock('landscape');
       }
@@ -350,7 +354,7 @@ const LotteryDashboard = () => {
               onClick={handleRotateLandscape}
               className="w-full h-10 bg-[#ef3f34] border border-[#d4372f] font-semibold"
             >
-              Rotate to Landscape
+              Rotate + Full Screen
             </button>
           </div>
         </div>

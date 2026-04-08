@@ -1,57 +1,11 @@
-// Mock data for the lottery application
-
 export const QUIZ_GROUPS = [
-  {
-    setName: 'Set A',
-    start: 1,
-    end: 10
-  },
-  {
-    setName: 'Set B', 
-    start: 11,
-    end: 20
-  },
-  {
-    setName: 'Set C',
-    start: 21,
-    end: 30
-  }
+  { setName: 'Set A', start: 1, end: 10 },
+  { setName: 'Set B', start: 11, end: 20 },
+  { setName: 'Set C', start: 21, end: 30 },
 ];
 
 export const RESULT_HISTORY = [
-  {
-    id: 1,
-    quizNumber: 1,
-    result: [2, 15, 28, 33, 47, 59],
-    timestamp: '2024-01-15 14:30:00',
-    prize: 'First Prize'
-  },
-  {
-    id: 2,
-    quizNumber: 2,
-    result: [8, 12, 23, 36, 41, 55],
-    timestamp: '2024-01-15 15:00:00',
-    prize: 'Second Prize'
-  },
-  {
-    id: 3,
-    quizNumber: 3,
-    result: [5, 18, 27, 32, 46, 58],
-    timestamp: '2024-01-15 15:30:00',
-    prize: 'Third Prize'
-  },
-  {
-    id: 4,
-    quizNumber: 4,
-    result: [1, 14, 29, 34, 49, 57],
-    timestamp: '2024-01-15 16:00:00',
-    prize: 'Consolation'
-  },
-  {
-    id: 5,
-    quizNumber: 5,
-    result: [7, 16, 25, 38, 43, 56],
-    timestamp: '2024-01-15 16:30:00',
-    prize: 'First Prize'
-  }
+  { draw: 'GM26032818006025', quiz: 'Quiz01', result: 'Q01-42', sale: 180, at: '2026-04-08 07:59:44' },
+  { draw: 'GM26032818006024', quiz: 'Quiz04', result: 'Q04-18', sale: 180, at: '2026-04-07 20:09:27' },
+  { draw: 'GM26032818006023', quiz: 'Quiz07', result: 'Q07-59', sale: 120, at: '2026-04-07 19:45:27' },
 ];
