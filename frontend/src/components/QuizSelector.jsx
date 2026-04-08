@@ -2,7 +2,22 @@ import React from 'react';
 import { QUIZ_GROUPS } from '../data/mockData';
 import { formatQuizNumber, quizLabel } from '../utils/boardHelpers';
 
-const QuizSelector = ({ activeQuiz, selectedQuizzes, multi, onToggleQuiz, onToggleMulti, onOpenResult }) => {
+const QuizSelector = ({
+  activeQuiz,
+  selectedQuizzes,
+  multi,
+  onToggleQuiz,
+  onToggleMulti,
+  onToggleAll,
+  onOpenResult,
+}) => {
+  const allChecked = selectedQuizzes.length === 30;
+  const getSetColors = (setName, isActive) => {
+    if (!isActive) return 'bg-white border-[#8f8f8f]';
+    if (setName === 'Set A') return 'bg-[#f4a7c8] border-[#bf6f95]';
+    if (setName === 'Set B') return 'bg-[#a9c9ff] border-[#6e94d1]';
+    return 'bg-[#b8e6b8] border-[#77b077]';
+  };
   return (
     <div className="bg-[#efefef] text-black border-b border-[#5f5f5f]">
       {QUIZ_GROUPS.map((group) => (
@@ -16,7 +31,7 @@ const QuizSelector = ({ activeQuiz, selectedQuizzes, multi, onToggleQuiz, onTogg
                   key={quizNo}
                   type="button"
                   onClick={() => onToggleQuiz(quizNo)}
-                  className={`h-10 border border-[#8f8f8f] text-[11px] font-medium rounded-none ${isActive ? 'bg-[#f08ec7]' : 'bg-[#f3f3f3]'}`}
+                  className={`h-10 border text-[11px] font-medium rounded-none ${getSetColors(group.setName, isActive)}`}
                 >
                   {quizLabel(quizNo)}
                 </button>
@@ -27,7 +42,7 @@ const QuizSelector = ({ activeQuiz, selectedQuizzes, multi, onToggleQuiz, onTogg
             {group.setName === 'Set A' && (
               <>
                 <label className="flex items-center gap-1">
-                  <input type="checkbox" readOnly className="w-3 h-3" />
+                  <input type="checkbox" checked={allChecked} onChange={(e) => onToggleAll(e.target.checked)} className="w-3 h-3" />
                   All
                 </label>
                 <label className="flex items-center gap-1">

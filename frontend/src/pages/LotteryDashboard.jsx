@@ -9,7 +9,7 @@ import ControlPanel from '../components/ControlPanel';
 import ResultModal from '../components/ResultModal';
 import { RESULT_HISTORY } from '../data/mockData';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
-import { applyFilterNumbers, formatTimer, getCellKey, getTotals } from '../utils/boardHelpers';
+import { formatTimer, getCellKey, getTotals } from '../utils/boardHelpers';
 
 const LotteryDashboard = () => {
   const colApplyTimersRef = useRef({});
@@ -24,10 +24,12 @@ const LotteryDashboard = () => {
   const [enteredAmount, setEnteredAmount] = useState(2);
   const [amountDraft, setAmountDraft] = useState('2');
   const [pendingTarget, setPendingTarget] = useState(null);
+  const [activeFilter, setActiveFilter] = useState(FILTER_TYPES.ALL);
   const [selectedMap, setSelectedMap] = useState({});
   const [rowPointDisplay, setRowPointDisplay] = useState(() => Array.from({ length: 10 }, () => ''));
   const [colPointDisplay, setColPointDisplay] = useState(() => Array.from({ length: 10 }, () => ''));
   const [timerSeconds, setTimerSeconds] = useState(DEFAULT_TIMER_SECONDS);
+  const ALL_QUIZZES = useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -43,6 +45,7 @@ const LotteryDashboard = () => {
     setActiveQuiz(quizNo);
     if (!multi) {
       setSelectedQuizzes([quizNo]);
+      appliedAmountByTargetRef.current = {};
       return;
     }
     setSelectedQuizzes((prev) => {
@@ -50,6 +53,17 @@ const LotteryDashboard = () => {
       if (prev.length === 1) return prev;
       return prev.filter((q) => q !== quizNo);
     });
+    appliedAmountByTargetRef.current = {};
+  };
+
+  const handleAllToggle = (checked) => {
+    appliedAmountByTargetRef.current = {};
+    if (checked) {
+      setMulti(true);
+      setSelectedQuizzes(ALL_QUIZZES);
+      return;
+    }
+    setSelectedQuizzes([activeQuiz]);
   };
 
   const setAmountFromNumber = (num) => {
@@ -60,7 +74,14 @@ const LotteryDashboard = () => {
 
   const getTargetKey = (target) => {
     if (!target) return '';
-    return `${activeQuiz}-${target.type}-${target.index}`;
+    const quizzesKey = (multi ? [...selectedQuizzes].sort((a, b) => a - b) : [activeQuiz]).join(',');
+    return `${quizzesKey}-${target.type}-${target.index}`;
+  };
+
+  const isNumberVisible = (num) => {
+    if (activeFilter === FILTER_TYPES.EVEN) return num % 2 === 0;
+    if (activeFilter === FILTER_TYPES.ODD) return num % 2 !== 0;
+    return true;
   };
 
   const handleSelectTarget = (target) => {
@@ -81,6 +102,11 @@ const LotteryDashboard = () => {
   const applyAmountToTarget = (amount, target) => {
     const safeAmount = Number(amount || 0);
     if (safeAmount <= 0 || !target) return;
+    if (target.type === 'cell' && !isNumberVisible(target.index)) return;
+    if (target.type === 'col') {
+      const hasVisibleInColumn = Array.from({ length: 10 }, (_, row) => row * 10 + target.index).some((n) => isNumberVisible(n));
+      if (!hasVisibleInColumn) return;
+    }
     const targetKey = getTargetKey(target);
     const prevApplied = Number(appliedAmountByTargetRef.current[targetKey] || 0);
     const deltaAmount = safeAmount - prevApplied;
@@ -90,9 +116,12 @@ const LotteryDashboard = () => {
     }
     setSelectedMap((prev) => {
       const next = { ...prev };
+      const quizzesToApply = multi ? selectedQuizzes : [activeQuiz];
       if (target.type === 'cell') {
-        const key = getCellKey(activeQuiz, target.index);
-        next[key] = Number(next[key] || 0) + deltaAmount;
+        quizzesToApply.forEach((quizNo) => {
+          const key = getCellKey(quizNo, target.index);
+          next[key] = Number(next[key] || 0) + deltaAmount;
+        });
       } else if (target.type === 'row') {
         setRowPointDisplay((prev) => {
           const next = [...prev];
@@ -101,10 +130,15 @@ const LotteryDashboard = () => {
         });
         for (let col = 0; col < 10; col += 1) {
           const num = target.index * 10 + col;
-          const key = getCellKey(activeQuiz, num);
-          next[key] = Number(next[key] || 0) + deltaAmount;
+          if (!isNumberVisible(num)) continue;
+          quizzesToApply.forEach((quizNo) => {
+            const key = getCellKey(quizNo, num);
+            next[key] = Number(next[key] || 0) + deltaAmount;
+          });
         }
       } else if (target.type === 'col') {
+        const hasVisibleInColumn = Array.from({ length: 10 }, (_, row) => row * 10 + target.index).some((n) => isNumberVisible(n));
+        if (!hasVisibleInColumn) return next;
         setColPointDisplay((prev) => {
           const next = [...prev];
           next[target.index] = String(safeAmount);
@@ -112,8 +146,11 @@ const LotteryDashboard = () => {
         });
         for (let row = 0; row < 10; row += 1) {
           const num = row * 10 + target.index;
-          const key = getCellKey(activeQuiz, num);
-          next[key] = Number(next[key] || 0) + deltaAmount;
+          if (!isNumberVisible(num)) continue;
+          quizzesToApply.forEach((quizNo) => {
+            const key = getCellKey(quizNo, num);
+            next[key] = Number(next[key] || 0) + deltaAmount;
+          });
         }
       }
       return next;
@@ -136,17 +173,7 @@ const LotteryDashboard = () => {
   }, [amountDraft, pendingTarget]);
 
   const applyFilter = (filterType) => {
-    const amount = Number(amountDraft || enteredAmount || 0);
-    if (amount <= 0) return;
-    const normalized = filterType || FILTER_TYPES.ALL;
-    const nums = applyFilterNumbers(normalized);
-    setSelectedMap((prev) => {
-      const next = { ...prev };
-      nums.forEach((n) => {
-        next[getCellKey(activeQuiz, n)] = amount;
-      });
-      return next;
-    });
+    setActiveFilter(filterType || FILTER_TYPES.ALL);
   };
 
   const handleAdvanceDraw = () => {
@@ -192,6 +219,15 @@ const LotteryDashboard = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!pendingTarget) return;
+    if (pendingTarget.type !== 'cell') return;
+    if (isNumberVisible(pendingTarget.index)) return;
+    setPendingTarget(null);
+    setAmountDraft('');
+    setEnteredAmount(0);
+  }, [activeFilter, pendingTarget]);
+
   return (
     <AppLayout>
       <div className="h-full flex flex-col overflow-hidden">
@@ -202,6 +238,7 @@ const LotteryDashboard = () => {
           multi={multi}
           onToggleQuiz={handleQuizToggle}
           onToggleMulti={handleMultiToggle}
+          onToggleAll={handleAllToggle}
           onOpenResult={() => setShowResults(true)}
         />
         <StatusStrip />
@@ -211,6 +248,7 @@ const LotteryDashboard = () => {
             activeQuiz={activeQuiz}
             selectedMap={selectedMap}
             activeTarget={pendingTarget}
+            activeFilter={activeFilter}
             rowPointDisplay={rowPointDisplay}
             colPointDisplay={colPointDisplay}
             onSelectTarget={handleSelectTarget}
@@ -222,6 +260,7 @@ const LotteryDashboard = () => {
             onAdvanceDraw={handleAdvanceDraw}
             onResetAll={handleReset}
             onApplyFilter={applyFilter}
+            activeFilter={activeFilter}
             onIncrease={() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1)}
             onDecrease={() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1))}
             onKeypad={handleKeypad}

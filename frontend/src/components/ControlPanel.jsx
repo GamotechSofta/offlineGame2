@@ -9,6 +9,7 @@ const ControlPanel = ({
   onAdvanceDraw,
   onResetAll,
   onApplyFilter,
+  activeFilter,
   onIncrease,
   onDecrease,
   onKeypad,
@@ -27,9 +28,18 @@ const ControlPanel = ({
 
       <div className="mt-2 text-[11px]">Family <input type="checkbox" className="ml-1 align-middle" /></div>
       <div className="mt-1 bg-black text-white px-2 h-6 flex items-center gap-2 text-[11px] border border-[#5d5d5d]">
-        <label className="inline-flex items-center gap-1"><input type="checkbox" className="w-3 h-3" onChange={(e) => e.target.checked && onApplyFilter('all')} /> All</label>
-        <label className="inline-flex items-center gap-1"><input type="checkbox" className="w-3 h-3" onChange={(e) => e.target.checked && onApplyFilter('even')} /> Even</label>
-        <label className="inline-flex items-center gap-1"><input type="checkbox" className="w-3 h-3" onChange={(e) => e.target.checked && onApplyFilter('odd')} /> Odd</label>
+        <label className="inline-flex items-center gap-1">
+          <input type="checkbox" className="w-3 h-3" checked={activeFilter === 'all'} onChange={() => onApplyFilter('all')} />
+          All
+        </label>
+        <label className="inline-flex items-center gap-1">
+          <input type="checkbox" className="w-3 h-3" checked={activeFilter === 'even'} onChange={() => onApplyFilter('even')} />
+          Even
+        </label>
+        <label className="inline-flex items-center gap-1">
+          <input type="checkbox" className="w-3 h-3" checked={activeFilter === 'odd'} onChange={() => onApplyFilter('odd')} />
+          Odd
+        </label>
       </div>
 
       <div className="mt-2">
