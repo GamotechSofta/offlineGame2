@@ -99,6 +99,21 @@
   transition: opacity 0.3s ease;
 }
 
+.status-marquee-track {
+  display: inline-block;
+  min-width: max-content;
+  animation: status-marquee 14s linear infinite;
+}
+
+@keyframes status-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 .scrollbar-hidden {
   scrollbar-width: none;
   -ms-overflow-style: none;

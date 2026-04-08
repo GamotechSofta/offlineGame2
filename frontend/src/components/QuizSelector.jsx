@@ -38,25 +38,32 @@ const QuizSelector = ({
               );
             })}
           </div>
-          <div className="border border-[#8f8f8f] bg-[#efefef] flex items-center justify-center gap-2 text-[11px] h-11">
+          <div className="border border-[#8f8f8f] bg-[#efefef] flex items-center justify-stretch text-[11px] h-11 p-0">
             {group.setName === 'Set A' && (
-              <>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={allChecked} onChange={(e) => onToggleAll(e.target.checked)} className="w-3 h-3" />
-                  All
-                </label>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={multi} onChange={(e) => onToggleMulti(e.target.checked)} className="w-3 h-3" />
-                  Multi
-                </label>
-              </>
+              <label
+                className="w-full h-full flex items-center gap-2 px-3 bg-[#eb4f4f] text-white border border-[#c94343] text-[12px] font-semibold"
+              >
+                <input type="checkbox" checked={allChecked} onChange={(e) => onToggleAll(e.target.checked)} className="w-4 h-4 accent-white" />
+                All
+              </label>
             )}
             {group.setName === 'Set B' && (
-              <button type="button" onClick={onOpenResult} className="bg-[#249ceb] text-white w-[94px] h-7 text-[11px] border border-[#1c87cd]">
+              <label
+                className="w-full h-full flex items-center gap-2 px-3 bg-[#eb4f4f] text-white border border-[#c94343] text-[12px] font-semibold"
+              >
+                <input type="checkbox" checked={multi} onChange={(e) => onToggleMulti(e.target.checked)} className="w-4 h-4 accent-white" />
+                Multi
+              </label>
+            )}
+            {group.setName === 'Set C' && (
+              <button
+                type="button"
+                onClick={onOpenResult}
+                className="w-full h-full bg-[#2d9de8] text-white text-[12px] font-semibold border border-[#1c87cd]"
+              >
                 Last Result
               </button>
             )}
-            {group.setName === 'Set C' && <span className="text-[11px] text-[#666]">{formatQuizNumber(activeQuiz)}</span>}
           </div>
         </div>
       ))}

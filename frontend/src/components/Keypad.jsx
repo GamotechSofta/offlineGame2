@@ -4,13 +4,17 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'C', 'X'];
 
 const Keypad = ({ onKey }) => {
   return (
-    <div className="grid grid-cols-4 gap-[4px]">
+    <div className="grid grid-cols-4 gap-[5px]">
       {KEYS.map((k) => (
         <button
           key={k}
           type="button"
           onClick={() => onKey(k)}
-          className={`h-12 border border-[#7e7e7e] text-[18px] leading-none font-semibold rounded-none ${k === 'C' || k === 'X' ? 'bg-[#f04438] text-white' : 'bg-[#f3f3f3] text-black'}`}
+          className={`h-[54px] border text-[22px] leading-none font-semibold rounded-[2px] shadow-sm active:scale-[0.98] transition ${
+            k === 'C' || k === 'X'
+              ? 'border-[#d63f35] bg-[#f04438] text-white hover:bg-[#e83d32]'
+              : 'border-[#8a8a8a] bg-[#f4f4f4] text-black hover:bg-[#ececec]'
+          }`}
         >
           {k}
         </button>
