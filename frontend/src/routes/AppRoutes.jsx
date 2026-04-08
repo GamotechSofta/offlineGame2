@@ -21,6 +21,7 @@ import MarketResultHistory from '../pages/MarketResultHistory';
 import TopWinners from '../pages/TopWinners';
 import RouletteGame from '../pages/RouletteGame';
 import GameRate from '../pages/GameRate';
+import LotteryDashboard from '../pages/LotteryDashboard';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -109,7 +110,11 @@ const Layout = ({ children }) => {
   }
 
   // Roulette game: full-screen, no header or navbar
-  if (location.pathname === '/roulette' || location.pathname === '/games/roulette') {
+  if (
+    location.pathname === '/roulette' ||
+    location.pathname === '/games/roulette' ||
+    location.pathname === '/lottery'
+  ) {
     return <>{children}</>;
   }
 
@@ -181,6 +186,7 @@ const AppRoutes = () => {
           <Route path="/game-rate" element={<GameRate />} />
           <Route path="/roulette" element={<RouletteGame />} />
           <Route path="/games/roulette" element={<RouletteGame />} />
+          <Route path="/lottery" element={<LotteryDashboard />} />
         </Routes>
       </Layout>
     </Router>
