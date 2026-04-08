@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { formatQuizNumber } from '../utils/boardHelpers';
 
-const BoardCell = ({ quizNo, num, value, selected, targetSelected, onClick }) => {
+const BoardCell = ({ quizNo, num, value, selected, targetSelected, onSelectTarget }) => {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onSelectTarget({ type: 'cell', index: num })}
       className="h-[clamp(50px,7.1vh,68px)] rounded-none px-[1px] pt-[1px] pb-0 bg-transparent"
     >
       <div
@@ -27,4 +27,4 @@ const BoardCell = ({ quizNo, num, value, selected, targetSelected, onClick }) =>
   );
 };
 
-export default BoardCell;
+export default memo(BoardCell);

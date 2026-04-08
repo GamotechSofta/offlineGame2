@@ -43,7 +43,12 @@ const QuizSelector = ({
               <label
                 className="w-full h-full flex items-center gap-2 px-3 bg-[#eb4f4f] text-white border border-[#c94343] text-[15px] font-semibold"
               >
-                <input type="checkbox" checked={allChecked} onChange={(e) => onToggleAll(e.target.checked)} className="w-4 h-4 accent-white" />
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  onChange={(e) => onToggleAll(e.target.checked)}
+                  className="w-5 h-5 accent-slate-900 bg-white border border-[#d9d9d9] rounded-[2px] shrink-0"
+                />
                 All
               </label>
             )}
@@ -51,7 +56,12 @@ const QuizSelector = ({
               <label
                 className="w-full h-full flex items-center gap-2 px-3 bg-[#eb4f4f] text-white border border-[#c94343] text-[15px] font-semibold"
               >
-                <input type="checkbox" checked={multi} onChange={(e) => onToggleMulti(e.target.checked)} className="w-4 h-4 accent-white" />
+                <input
+                  type="checkbox"
+                  checked={multi}
+                  onChange={(e) => onToggleMulti(e.target.checked)}
+                  className="w-5 h-5 accent-slate-900 bg-white border border-[#d9d9d9] rounded-[2px] shrink-0"
+                />
                 Multi
               </label>
             )}

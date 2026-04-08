@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import BoardCell from './BoardCell';
 import { getBoardNumbers, getCellKey } from '../utils/boardHelpers';
 
@@ -81,7 +81,7 @@ const NumberBoard = ({
                     value={value}
                     selected={Boolean(value)}
                     targetSelected={isTargetSelected}
-                    onClick={() => onSelectTarget({ type: 'cell', index: num })}
+                    onSelectTarget={onSelectTarget}
                   />
                 );
               })}
@@ -93,4 +93,4 @@ const NumberBoard = ({
   );
 };
 
-export default NumberBoard;
+export default memo(NumberBoard);

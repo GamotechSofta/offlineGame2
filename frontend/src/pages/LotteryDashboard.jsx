@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppLayout from '../components/AppLayout';
 import TopHeader from '../components/TopHeader';
 import QuizSelector from '../components/QuizSelector';
@@ -63,7 +63,7 @@ const LotteryDashboard = () => {
     };
   }, []);
 
-  const handleRotateLandscape = async () => {
+  const handleRotateLandscape = useCallback(async () => {
     try {
       const root = document.documentElement;
       if (root.requestFullscreen && !document.fullscreenElement) {
@@ -75,7 +75,7 @@ const LotteryDashboard = () => {
     } catch (_) {
       // On many mobile browsers this requires user/system support.
     }
-  };
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -87,7 +87,7 @@ const LotteryDashboard = () => {
 
   const totals = useMemo(() => getTotals(selectedMap), [selectedMap]);
 
-  const handleQuizToggle = (quizNo) => {
+  const handleQuizToggle = useCallback((quizNo) => {
     setActiveQuiz(quizNo);
     if (!multi) {
       setSelectedQuizzes([quizNo]);
@@ -100,9 +100,9 @@ const LotteryDashboard = () => {
       return prev.filter((q) => q !== quizNo);
     });
     appliedAmountByTargetRef.current = {};
-  };
+  }, [multi]);
 
-  const handleAllToggle = (checked) => {
+  const handleAllToggle = useCallback((checked) => {
     appliedAmountByTargetRef.current = {};
     if (checked) {
       setMulti(true);
@@ -110,27 +110,27 @@ const LotteryDashboard = () => {
       return;
     }
     setSelectedQuizzes([activeQuiz]);
-  };
+  }, [ALL_QUIZZES, activeQuiz]);
 
-  const setAmountFromNumber = (num) => {
+  const setAmountFromNumber = useCallback((num) => {
     const safeAmount = Math.max(1, Number(num) || 1);
     setEnteredAmount(safeAmount);
     setAmountDraft(String(safeAmount));
-  };
+  }, []);
 
-  const getTargetKey = (target) => {
+  const getTargetKey = useCallback((target) => {
     if (!target) return '';
     const quizzesKey = (multi ? [...selectedQuizzes].sort((a, b) => a - b) : [activeQuiz]).join(',');
     return `${quizzesKey}-${target.type}-${target.index}`;
-  };
+  }, [activeQuiz, multi, selectedQuizzes]);
 
-  const isNumberVisible = (num) => {
+  const isNumberVisible = useCallback((num) => {
     if (activeFilter === FILTER_TYPES.EVEN) return num % 2 === 0;
     if (activeFilter === FILTER_TYPES.ODD) return num % 2 !== 0;
     return true;
-  };
+  }, [activeFilter]);
 
-  const handleSelectTarget = (target) => {
+  const handleSelectTarget = useCallback((target) => {
     const currentKey = getTargetKey(pendingTarget);
     const nextKey = getTargetKey(target);
     // Reset keypad only when switching to a different target.
@@ -143,9 +143,9 @@ const LotteryDashboard = () => {
       }
     }
     setPendingTarget(target);
-  };
+  }, [getTargetKey, pendingTarget]);
 
-  const applyAmountToTarget = (amount, target) => {
+  const applyAmountToTarget = useCallback((amount, target) => {
     const safeAmount = Number(amount || 0);
     if (safeAmount <= 0 || !target) return;
     if (target.type === 'cell' && !isNumberVisible(target.index)) return;
@@ -202,7 +202,7 @@ const LotteryDashboard = () => {
       return next;
     });
     appliedAmountByTargetRef.current[targetKey] = safeAmount;
-  };
+  }, [activeQuiz, getTargetKey, isNumberVisible, multi, selectedQuizzes]);
 
   useEffect(() => {
     if (!pendingTarget) return;
@@ -212,17 +212,17 @@ const LotteryDashboard = () => {
     autoApplyTimerRef.current = setTimeout(() => {
       applyAmountToTarget(amount, pendingTarget);
       autoApplyTimerRef.current = null;
-    }, 450);
+    }, 180);
     return () => {
       if (autoApplyTimerRef.current) clearTimeout(autoApplyTimerRef.current);
     };
-  }, [amountDraft, pendingTarget]);
+  }, [amountDraft, applyAmountToTarget, pendingTarget]);
 
-  const applyFilter = (filterType) => {
+  const applyFilter = useCallback((filterType) => {
     setActiveFilter(filterType || FILTER_TYPES.ALL);
-  };
+  }, []);
 
-  const handleAdvanceDraw = () => {
+  const handleAdvanceDraw = useCallback(() => {
     setActiveQuiz((prev) => {
       const next = prev >= 30 ? 1 : prev + 1;
       setSelectedQuizzes([next]);
@@ -235,9 +235,9 @@ const LotteryDashboard = () => {
     appliedAmountByTargetRef.current = {};
     setRowPointDisplay(Array.from({ length: 10 }, () => ''));
     setColPointDisplay(Array.from({ length: 10 }, () => ''));
-  };
+  }, []);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setSelectedMap({});
     setPendingTarget(null);
     setAmountDraft('');
@@ -245,18 +245,34 @@ const LotteryDashboard = () => {
     appliedAmountByTargetRef.current = {};
     setRowPointDisplay(Array.from({ length: 10 }, () => ''));
     setColPointDisplay(Array.from({ length: 10 }, () => ''));
-  };
-  const handleMultiToggle = (checked) => {
+  }, []);
+  const handleMultiToggle = useCallback((checked) => {
     setMulti(checked);
     if (!checked) setSelectedQuizzes([activeQuiz]);
-  };
+  }, [activeQuiz]);
 
-  const handleKeypad = (key) => {
+  const handleKeypad = useCallback((key) => {
     if (key === 'C') return setAmountDraft('');
     if (key === 'X') return setAmountDraft((prev) => prev.slice(0, -1));
     const nextValue = (amountDraft === '0' ? key : `${amountDraft}${key}`).slice(0, 4);
     setAmountDraft(nextValue);
-  };
+  }, [amountDraft]);
+
+  const openResults = useCallback(() => setShowResults(true), []);
+  const handleIncrease = useCallback(() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1), [amountDraft, enteredAmount, setAmountFromNumber]);
+  const handleDecrease = useCallback(() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1)), [amountDraft, enteredAmount, setAmountFromNumber]);
+  const handleEnterAmount = useCallback(() => {
+    if (pendingTarget) {
+      applyAmountToTarget(Number(amountDraft || enteredAmount || 0), pendingTarget);
+      appliedAmountByTargetRef.current = {};
+      setPendingTarget(null);
+      setAmountDraft('');
+      setEnteredAmount(0);
+    } else {
+      setAmountDraft('');
+      setEnteredAmount(0);
+    }
+  }, [amountDraft, applyAmountToTarget, enteredAmount, pendingTarget]);
 
   useEffect(() => {
     return () => {
@@ -302,7 +318,7 @@ const LotteryDashboard = () => {
               onToggleQuiz={handleQuizToggle}
               onToggleMulti={handleMultiToggle}
               onToggleAll={handleAllToggle}
-              onOpenResult={() => setShowResults(true)}
+              onOpenResult={openResults}
             />
             <StatusStrip />
 
@@ -324,21 +340,10 @@ const LotteryDashboard = () => {
                 onResetAll={handleReset}
                 onApplyFilter={applyFilter}
                 activeFilter={activeFilter}
-                onIncrease={() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1)}
-                onDecrease={() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1))}
+                onIncrease={handleIncrease}
+                onDecrease={handleDecrease}
                 onKeypad={handleKeypad}
-                onEnterAmount={() => {
-                  if (pendingTarget) {
-                    applyAmountToTarget(Number(amountDraft || enteredAmount || 0), pendingTarget);
-                    appliedAmountByTargetRef.current = {};
-                    setPendingTarget(null);
-                    setAmountDraft('');
-                    setEnteredAmount(0);
-                  } else {
-                    setAmountDraft('');
-                    setEnteredAmount(0);
-                  }
-                }}
+                onEnterAmount={handleEnterAmount}
               />
             </div>
           </div>
