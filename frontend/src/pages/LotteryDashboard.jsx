@@ -276,8 +276,8 @@ const LotteryDashboard = () => {
 
   return (
     <AppLayout>
-      <div className="w-full h-full relative overflow-hidden bg-[#111]">
-        <div className="absolute inset-0 border border-[#4c4c4c] pointer-events-none" />
+      <div className="w-full h-full relative overflow-hidden bg-[#111] rounded-[14px] sm:rounded-none">
+        <div className="absolute inset-0 border border-[#4c4c4c] pointer-events-none rounded-[14px] sm:rounded-none" />
         <div
           className="absolute inset-0 overflow-hidden"
           style={{
