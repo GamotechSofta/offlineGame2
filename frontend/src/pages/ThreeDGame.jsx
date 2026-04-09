@@ -20,6 +20,7 @@ const TAB_BUTTONS = ['Result', 'Account', 'Quiz', 'Ticket List', 'Cancel', 'Pass
 const PANEL_OPTIONS = ['A', 'B', 'C'];
 const DIGIT_OPTIONS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const VALID_MODES = new Set(['single', 'str', 'box', 'sp', 'fp', 'bp', 'ap', 'duplicates', 'dp', 'triples', 'tp']);
+const LPICK_OPTIONS = ['single', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'duplicates', 'triples'];
 const BASE_WIDTH = 1536;
 const BASE_HEIGHT = 864;
 
@@ -44,8 +45,9 @@ const ThreeDGame = () => {
   const [selectedDigits, setSelectedDigits] = useState([]);
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
-  const [lPickType, setLPickType] = useState('Box');
+  const [lPickType, setLPickType] = useState('box');
   const [qty, setQty] = useState('');
+  const [allowDuplicates, setAllowDuplicates] = useState(false);
   const [validationMsg, setValidationMsg] = useState('');
   const [toast, setToast] = useState('');
   const [buySummary, setBuySummary] = useState(null);
@@ -62,10 +64,25 @@ const ThreeDGame = () => {
 
   const isResultFresh = useMemo(() => Date.now() - resultUpdatedAt < 1400, [resultUpdatedAt, now]);
   const canAddBet = useMemo(
-    () => /^\d{3}$/.test((inputNumber || rangeFrom).trim()) && Number(points) > 0 && selectedModes.length > 0,
-    [inputNumber, rangeFrom, points, selectedModes],
+    () => {
+      const singleValid = /^\d{1,3}$/.test((inputNumber || '').trim());
+      const fromVal = Number(rangeFrom);
+      const toVal = Number(rangeTo);
+      const hasAnyRangeInput = Boolean(rangeFrom || rangeTo);
+      const rangeValid = /^\d{1,3}$/.test(rangeFrom) && /^\d{1,3}$/.test(rangeTo) && fromVal <= toVal && (toVal - fromVal + 1) <= 1000;
+      const qtyValid = Number.isInteger(Number(qty)) && Number(qty) > 0 && Number(qty) <= 1000;
+      if (hasAnyRangeInput) {
+        return Number(points) > 0 && selectedModes.length > 0 && rangeValid;
+      }
+      return Number(points) > 0 && selectedModes.length > 0 && (singleValid || qtyValid);
+    },
+    [inputNumber, points, qty, rangeFrom, rangeTo, selectedModes],
   );
   const totalPoints = useMemo(() => bets.reduce((sum, bet) => sum + Number(bet.points || 0), 0), [bets]);
+  const getDisplayBetNumber = useCallback(
+    (bet) => (String(bet?.mode || '').toLowerCase() === 'fp' ? String(bet?.number || '').slice(0, 2) : bet?.number),
+    [],
+  );
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
 
@@ -144,7 +161,6 @@ const ThreeDGame = () => {
   const handleDigitInput = useCallback((digit) => {
     setInputNumber((prev) => {
       const next = (prev + digit).slice(0, 3);
-      setRangeFrom(next);
       return next;
     });
     if (validationMsg) setValidationMsg('');
@@ -192,9 +208,7 @@ const ThreeDGame = () => {
     return true;
   }, []);
 
-  const addBet = useCallback(() => {
-    const cleanNum = (inputNumber || rangeFrom).trim();
-    const pts = Number(points);
+  const getNormalizedSelectedModes = useCallback(() => {
     const normalizedModes = selectedModes
       .map((m) => String(m || '').toLowerCase().trim())
       .filter(Boolean)
@@ -202,75 +216,198 @@ const ThreeDGame = () => {
       .map((m) => (m === 'dp' ? 'duplicates' : m))
       .map((m) => (m === 'tp' ? 'triples' : m))
       .filter((m) => VALID_MODES.has(m));
-    const uniqueModes = Array.from(new Set(normalizedModes));
-    const normalizedPanels = selectedPanels.length ? selectedPanels : ['A', 'B', 'C'];
+    return Array.from(new Set(normalizedModes));
+  }, [selectedModes]);
 
-    console.debug('[3D addBet] input snapshot', {
-      inputNumber,
-      rangeFrom,
-      cleanNum,
-      points,
-      selectedRate,
-      selectedModes,
-      normalizedModes: uniqueModes,
-      selectedPanels,
-      normalizedPanels,
-      canAddBet,
-    });
+  const toThreeDigit = useCallback((n) => String(n).replace(/\D/g, '').slice(-3).padStart(3, '0'), []);
 
-    if (!/^\d{3}$/.test(cleanNum)) {
-      setValidationMsg('Please enter exactly 3 digits.');
-      console.debug('[3D addBet] validation failed: number');
-      return;
+  const generateRangeNumbers = useCallback((fromStr, toStr) => {
+    const from = Number(fromStr);
+    const to = Number(toStr);
+    if (!Number.isInteger(from) || !Number.isInteger(to)) return { ok: false, error: 'Range values must be numeric.' };
+    if (from < 0 || to > 999) return { ok: false, error: 'Range must be between 000 and 999.' };
+    if (from >= to) return { ok: false, error: 'Invalid range: From must be less than To.' };
+    const count = to - from + 1;
+    if (count > 999) return { ok: false, error: 'Range limit exceeded (max 999 numbers).' };
+    const nums = Array.from({ length: count }, (_, i) => toThreeDigit(from + i));
+    return { ok: true, nums };
+  }, [toThreeDigit]);
+
+  const getUniquePermutations = useCallback((numStr) => {
+    const chars = numStr.split('');
+    const seen = new Set();
+    const out = [];
+    const permute = (arr, l) => {
+      if (l === arr.length - 1) {
+        const s = arr.join('');
+        if (!seen.has(s)) {
+          seen.add(s);
+          out.push(s);
+        }
+        return;
+      }
+      for (let i = l; i < arr.length; i += 1) {
+        [arr[l], arr[i]] = [arr[i], arr[l]];
+        permute(arr, l + 1);
+        [arr[l], arr[i]] = [arr[i], arr[l]];
+      }
+    };
+    permute([...chars], 0);
+    return out;
+  }, []);
+
+  const generateLuckyPickNumbers = useCallback((qtyNum, typeRaw) => {
+    const type = String(typeRaw || 'single').toLowerCase();
+    if (!Number.isInteger(qtyNum) || qtyNum <= 0) return { ok: false, error: 'Qty must be greater than 0.' };
+    if (qtyNum > 500) return { ok: false, error: 'Qty limit exceeded (max 500).' };
+
+    const outSet = new Set();
+    let attempts = 0;
+    const maxAttempts = qtyNum * 50;
+    while (outSet.size < qtyNum) {
+      attempts += 1;
+      if (attempts > maxAttempts) break;
+      const base = toThreeDigit(Math.floor(Math.random() * 1000));
+      if (type === 'box') {
+        const perms = getUniquePermutations(base);
+        // For box, pick one canonical representative to keep list compact.
+        outSet.add(perms.sort()[0]);
+      } else {
+        const modeValidation = validateBetForMode(base, type);
+        if (modeValidation.valid) outSet.add(base);
+      }
     }
+    if (outSet.size < qtyNum) {
+      return { ok: false, error: `Could not generate ${qtyNum} unique numbers for selected L-Pick type.` };
+    }
+    return { ok: true, nums: Array.from(outSet) };
+  }, [getUniquePermutations, toThreeDigit]);
+
+  const addNumbersToBetState = useCallback((numbers, betTypes, pts, rateValue) => {
+    const normalizedTypes = Array.isArray(betTypes) ? betTypes : [betTypes];
+    const existing = new Set(bets.map((b) => `${b.number}|${b.mode}`));
+    const created = [];
+    const skipped = [];
+    numbers.forEach((num, idx) => {
+      normalizedTypes.forEach((betType, tIdx) => {
+        const modeValidation = validateBetForMode(num, betType);
+        if (!modeValidation.valid) {
+          skipped.push(`${num}:${betType}`);
+          return;
+        }
+        const key = `${num}|${betType}`;
+        if (!allowDuplicates && existing.has(key)) {
+          skipped.push(`${num}:${betType}`);
+          return;
+        }
+        existing.add(key);
+        created.push({
+          id: `${Date.now()}-${idx}-${tIdx}-${num}`,
+          number: num,
+          mode: betType,
+          points: pts,
+          basePoints: pts,
+          rate: rateValue,
+          outcome: null,
+          justAdded: true,
+          panels: (selectedPanels.length ? selectedPanels : ['A', 'B', 'C']).join(','),
+        });
+      });
+    });
+    if (created.length) {
+      setBets((prev) => [...prev, ...created]);
+    }
+    return { createdCount: created.length, skippedCount: skipped.length };
+  }, [allowDuplicates, bets, selectedPanels]);
+
+  const addBet = useCallback(() => {
+    const cleanNum = (inputNumber || '').trim();
+    const pts = Number(points);
+    const selectedBetTypes = getNormalizedSelectedModes();
+
+    console.debug('[3D addBet] snapshot', { inputNumber, rangeFrom, rangeTo, qty, lPickType, points, selectedModes, selectedPanels, selectedRate });
+
     if (!Number.isFinite(pts) || pts <= 0) {
       setValidationMsg('Points must be greater than 0.');
-      console.debug('[3D addBet] validation failed: points');
       return;
     }
-    if (!uniqueModes.length) {
+    if (!selectedBetTypes.length) {
       setValidationMsg('Please select at least one mode.');
-      console.debug('[3D addBet] validation failed: modes');
       return;
     }
-    const validModes = [];
-    let firstInvalidReason = '';
-    uniqueModes.forEach((mode) => {
-      const modeValidation = validateBetForMode(cleanNum, mode);
-      if (modeValidation.valid) {
-        validModes.push(mode);
-      } else if (!firstInvalidReason) {
-        firstInvalidReason = modeValidation.reason;
+    if ((rangeFrom && !rangeTo) || (!rangeFrom && rangeTo)) {
+      setValidationMsg('Please enter complete range (FROM and TO).');
+      return;
+    }
+
+    // Priority: Range -> Lucky Pick -> Single number.
+    if (rangeFrom && rangeTo) {
+      const r = generateRangeNumbers(rangeFrom, rangeTo);
+      if (!r.ok) {
+        setValidationMsg(r.error);
+        return;
       }
-    });
-    if (!validModes.length) {
-      setValidationMsg(firstInvalidReason || 'No valid mode selected for this number.');
-      console.debug('[3D addBet] validation failed: no valid mode', { firstInvalidReason });
+      const result = addNumbersToBetState(r.nums, selectedBetTypes, pts, selectedRate);
+      if (!result.createdCount) {
+        setValidationMsg('No valid numbers/modes generated from selected range.');
+        return;
+      }
+      setValidationMsg(result.skippedCount ? `${result.skippedCount} duplicate numbers skipped.` : '');
+      setToast('Range numbers added');
+      setRangeFrom('');
+      setRangeTo('');
       return;
     }
-    const nowId = Date.now();
-    const newBets = validModes.map((mode, idx) => ({
-      id: `${nowId}-${idx}`,
-      number: cleanNum,
-      mode,
-      points: pts,
-      basePoints: pts,
-      rate: selectedRate,
-      outcome: null,
-      justAdded: true,
-      panels: normalizedPanels.join(','),
-    }));
-    console.debug('[3D addBet] creating bets', newBets);
-    setBets((prev) => {
-      const next = [...prev, ...newBets];
-      console.debug('[3D addBet] updated bets count', next.length, next);
-      return next;
-    });
+
+    if (qty) {
+      const lType = String(lPickType || 'single').toLowerCase();
+      const r = generateLuckyPickNumbers(Number(qty), lType);
+      if (!r.ok) {
+        setValidationMsg(r.error);
+        return;
+      }
+      const result = addNumbersToBetState(r.nums, [lType], pts, selectedRate);
+      setValidationMsg(result.skippedCount ? `${result.skippedCount} duplicate numbers skipped.` : '');
+      setToast('Lucky pick numbers added');
+      setQty('');
+      return;
+    }
+
+    if (!/^\d{1,3}$/.test(cleanNum)) {
+      setValidationMsg('Please enter a valid number (000-999).');
+      return;
+    }
+    const singleNum = toThreeDigit(cleanNum);
+    const atLeastOneValidMode = selectedBetTypes.some((t) => validateBetForMode(singleNum, t).valid);
+    if (!atLeastOneValidMode) {
+      const firstReason = validateBetForMode(singleNum, selectedBetTypes[0]).reason || 'Selected mode is not valid for this number.';
+      setValidationMsg(firstReason);
+      return;
+    }
+    const result = addNumbersToBetState([singleNum], selectedBetTypes, pts, selectedRate);
+    if (!result.createdCount) {
+      setValidationMsg('Duplicate entry blocked.');
+      return;
+    }
     setInputNumber('');
     setRangeFrom('');
-    setValidationMsg(firstInvalidReason ? `Added valid modes only. ${firstInvalidReason}` : '');
+    setValidationMsg('');
     setToast('Bet Added Successfully');
-  }, [inputNumber, rangeFrom, points, selectedModes, selectedRate, selectedPanels, canAddBet]);
+  }, [
+    inputNumber,
+    points,
+    selectedModes,
+    rangeFrom,
+    rangeTo,
+    qty,
+    lPickType,
+    selectedRate,
+    getNormalizedSelectedModes,
+    generateRangeNumbers,
+    generateLuckyPickNumbers,
+    addNumbersToBetState,
+    toThreeDigit,
+  ]);
 
   const handleBuy = useCallback(() => {
     if (!bets.length) {
@@ -285,6 +422,24 @@ const ThreeDGame = () => {
     setValidationMsg('');
     setBuySummary({ totalBets: updatedBets.length, matched, totalWinPoints, totalLossPoints });
   }, [bets, results, totalPoints]);
+
+  const handleClearAll = useCallback(() => {
+    setBets([]);
+    setInputNumber('');
+    setPoints('10');
+    setSelectedModes(['single']);
+    setSelectedRate(10);
+    setSelectedPanels(['A', 'B', 'C']);
+    setSelectedDigits([]);
+    setRangeFrom('');
+    setRangeTo('');
+    setLPickType('box');
+    setQty('');
+    setAllowDuplicates(false);
+    setValidationMsg('');
+    setToast('');
+    setBuySummary(null);
+  }, []);
 
   const handleAdvance = useCallback(() => {
     if (!window.confirm('Are you sure to generate next result?')) return;
@@ -453,8 +608,18 @@ const ThreeDGame = () => {
 
             <div className="bg-white border border-[#d9d9d9] rounded-lg p-3 space-y-3">
               <div className="flex items-center gap-3">
-                <button type="button" disabled={!canAddBet} onClick={addBet} className={`h-12 px-10 rounded-full border text-[17px] font-semibold ${canAddBet ? 'bg-white border-[#2e59c6] text-[#2e59c6]' : 'bg-[#f0f2f7] border-[#c6cede] text-[#8d96ac]'}`}>
-                  ADD NUMBER
+                <input
+                  value={inputNumber}
+                  onChange={(e) => {
+                    const next = e.target.value.replace(/\D/g, '').slice(0, 3);
+                    setInputNumber(next);
+                    if (validationMsg) setValidationMsg('');
+                  }}
+                  placeholder="ADD NUMBER"
+                  className="h-12 w-[190px] px-4 border-2 border-[#2e59c6] rounded-full text-center text-[18px] font-semibold tracking-[1px]"
+                />
+                <button type="button" disabled={!canAddBet} onClick={addBet} className={`h-12 px-6 rounded-full border text-[17px] font-semibold ${canAddBet ? 'bg-white border-[#2e59c6] text-[#2e59c6]' : 'bg-[#f0f2f7] border-[#c6cede] text-[#8d96ac]'}`}>
+                  ADD
                 </button>
                 <span className="font-semibold text-[18px] text-[#1d2b4d]">Range:</span>
                 <input
@@ -462,7 +627,6 @@ const ThreeDGame = () => {
                   onChange={(e) => {
                     const next = e.target.value.replace(/\D/g, '').slice(0, 3);
                     setRangeFrom(next);
-                    setInputNumber(next);
                     if (validationMsg) setValidationMsg('');
                   }}
                   placeholder="NUM."
@@ -472,11 +636,11 @@ const ThreeDGame = () => {
                 <input value={rangeTo} onChange={(e) => setRangeTo(e.target.value.replace(/\D/g, '').slice(0, 3))} placeholder="NUM." className="h-11 w-[76px] px-2 border border-[#d1d1d1] rounded-full text-center text-[16px]" />
                 <span className="font-semibold text-[18px] text-[#1d2b4d]">L-Pick:</span>
                 <select value={lPickType} onChange={(e) => setLPickType(e.target.value)} className="h-11 px-4 border border-[#d1d1d1] rounded-full text-[16px]">
-                  <option>Box</option>
-                  <option>Single</option>
-                  <option>SP</option>
-                  <option>DP</option>
-                  <option>TP</option>
+                  {LPICK_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt.toUpperCase()}
+                    </option>
+                  ))}
                 </select>
                 <input value={qty} onChange={(e) => setQty(e.target.value.replace(/\D/g, '').slice(0, 3))} placeholder="Qty" className="h-11 w-[76px] px-2 border border-[#d1d1d1] rounded-full text-center text-[16px]" />
               </div>
@@ -489,14 +653,30 @@ const ThreeDGame = () => {
                   </label>
                 ))}
               </div>
+              <div className="flex items-center gap-3">
+                <label className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#1d2b4d]">
+                  <input type="checkbox" checked={allowDuplicates} onChange={(e) => setAllowDuplicates(e.target.checked)} />
+                  Allow Duplicates
+                </label>
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="h-9 px-4 rounded border border-[#d4372f] text-[#d4372f] font-semibold"
+                >
+                  Clear All
+                </button>
+                <div className="text-[14px] text-[#334155] font-semibold">
+                  Total Count: {bets.length}
+                </div>
+              </div>
               {validationMsg ? <div className="text-[13px] text-[#d4372f] font-semibold">{validationMsg}</div> : null}
             </div>
 
-            <div className="bg-white border-2 border-[#d9d9d9] rounded-lg p-3 h-full min-h-0">
+            <div className="bg-white border-2 border-[#d9d9d9] rounded-lg p-3 h-full min-h-0 overflow-y-auto">
               {!bets.length ? (
                 <div className="h-full flex items-center justify-center text-[42px] text-[#9a9a9a]">No bets placed yet</div>
               ) : (
-                <div className="space-y-2 h-full overflow-hidden">
+                <div className="space-y-2">
                   {bets.map((bet) => (
                     <div
                       key={bet.id}
@@ -504,7 +684,7 @@ const ThreeDGame = () => {
                         bet.outcome === 'win' ? 'bg-[#eaf8ea] border-[#80c980]' : bet.outcome === 'loss' ? 'bg-[#ffecec] border-[#e9a0a0]' : 'bg-[#fafafa] border-[#dcdcdc]'
                       } ${bet.justAdded ? 'animate-pulse' : ''}`}
                     >
-                      <div className="font-semibold text-[20px]">{bet.number}</div>
+                      <div className="font-semibold text-[20px]">{getDisplayBetNumber(bet)}</div>
                       <div className="uppercase text-[16px] font-semibold">{bet.mode}</div>
                       <div className="text-[18px] font-semibold">{bet.points}</div>
                       <button type="button" onClick={() => setBets((prev) => prev.filter((x) => x.id !== bet.id))} className="h-9 rounded bg-[#ef3f34] border border-[#d4372f] text-white font-semibold">
@@ -528,7 +708,7 @@ const ThreeDGame = () => {
 
             <div className="flex items-center gap-2 h-full">
               <button type="button" onClick={handleBuy} className="h-12 px-6 bg-[#2ca44f] border border-[#248a42] rounded-lg text-white text-[26px] font-semibold">BUY</button>
-              <button type="button" onClick={() => setBets([])} className="h-12 px-6 bg-[#ef3f34] border border-[#d4372f] rounded-lg text-white text-[26px] font-semibold">Clear</button>
+              <button type="button" onClick={handleClearAll} className="h-12 px-6 bg-[#ef3f34] border border-[#d4372f] rounded-lg text-white text-[26px] font-semibold">Clear</button>
               <button type="button" onClick={handleAdvance} className="h-12 px-6 bg-[#1f6d98] border border-[#19597c] rounded-lg text-white text-[26px] font-semibold">Advance</button>
               <div className="ml-auto h-12 min-w-[92px] rounded-lg border-2 border-[#d54d44] text-[34px] font-semibold text-[#1d2b4d] px-4 flex items-center justify-center bg-white">
                 {totalPoints}
@@ -546,15 +726,10 @@ const ThreeDGame = () => {
               onDigit={handleDigitInput}
               onClear={() => {
                 setInputNumber('');
-                setRangeFrom('');
                 if (validationMsg) setValidationMsg('');
               }}
               onDelete={() => {
-                setInputNumber((prev) => {
-                  const next = prev.slice(0, -1);
-                  setRangeFrom(next);
-                  return next;
-                });
+                setInputNumber((prev) => prev.slice(0, -1));
                 if (validationMsg) setValidationMsg('');
               }}
               onIncreasePoint={() => setPoints((prev) => String(Number(prev || 0) + 1))}

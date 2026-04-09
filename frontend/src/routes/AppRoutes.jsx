@@ -21,8 +21,8 @@ import MarketResultHistory from '../pages/MarketResultHistory';
 import TopWinners from '../pages/TopWinners';
 import RouletteGame from '../pages/RouletteGame';
 import GameRate from '../pages/GameRate';
-import LotteryDashboard from '../pages/LotteryDashboard';
-import ThreeDGame from '../pages/ThreeDGame';
+import LotteryDashboard from '../components/lottery/2d-lottery/LotteryDashboard';
+import ThreeDGame from '../components/lottery/3d-lottery/ThreeDGame';
 
 // Scroll to top on route change
 const ScrollToTop = () => {

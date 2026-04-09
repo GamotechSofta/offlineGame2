@@ -37,12 +37,10 @@ export const hasAllUniqueDigits = (num) => new Set(String(num).split('')).size =
 const normalize3Digit = (value) =>
   String(value ?? '')
     .replace(/\D/g, '')
-    .slice(-3)
-    .padStart(3, '0');
+    .slice(0, 3);
 
 const normalizeMode = (mode) => {
   const m = String(mode || '').toLowerCase();
-  if (m === 'all') return 'single';
   if (m === 'str') return 'single';
   if (m === 'dp') return 'duplicates';
   if (m === 'tp') return 'triples';
@@ -51,9 +49,13 @@ const normalizeMode = (mode) => {
 
 export const validateBetForMode = (betNum, modeRaw) => {
   const mode = normalizeMode(modeRaw);
-  const normalizedBet = normalize3Digit(betNum);
-  if (!/^\d{3}$/.test(normalizedBet)) {
+  const rawDigits = String(betNum ?? '').replace(/\D/g, '');
+  if (rawDigits.length !== 3) {
     return { valid: false, reason: 'Number must be exactly 3 digits' };
+  }
+  const normalizedBet = rawDigits.slice(0, 3);
+  if (mode === 'single' && !hasAllUniqueDigits(normalizedBet)) {
+    return { valid: false, reason: 'Single requires all 3 digits to be unique' };
   }
   if (mode === 'sp' && !hasAllUniqueDigits(normalizedBet)) {
     return { valid: false, reason: 'SP requires all 3 digits to be unique' };
@@ -69,16 +71,24 @@ export const validateBetForMode = (betNum, modeRaw) => {
 
 export const evaluateModeAgainstResult = (modeRaw, betNumRaw, resultNumRaw) => {
   const mode = normalizeMode(modeRaw);
-  const betNum = normalize3Digit(betNumRaw);
-  const resultNum = normalize3Digit(resultNumRaw);
-  if (!/^\d{3}$/.test(betNum) || !/^\d{3}$/.test(resultNum)) {
+  const rawBetDigits = String(betNumRaw ?? '').replace(/\D/g, '');
+  const rawResultDigits = String(resultNumRaw ?? '').replace(/\D/g, '');
+  if (rawBetDigits.length !== 3 || rawResultDigits.length !== 3) {
     return { matched: false, reason: 'invalid bet/result format' };
   }
+  const betNum = normalize3Digit(betNumRaw);
+  const resultNum = normalize3Digit(resultNumRaw);
   const frontPair = betNum[0] === resultNum[0] && betNum[1] === resultNum[1];
   const backPair = betNum[1] === resultNum[1] && betNum[2] === resultNum[2];
   const outerPair = betNum[0] === resultNum[0] && betNum[2] === resultNum[2];
 
   if (mode === 'single') {
+    if (!hasAllUniqueDigits(betNum)) {
+      return { matched: false, reason: 'Single invalid: digits are not unique' };
+    }
+    if (!hasAllUniqueDigits(resultNum)) {
+      return { matched: false, reason: 'Single result invalid: digits are not unique' };
+    }
     const matched = betNum === resultNum;
     return { matched, reason: matched ? `exact match (${resultNum})` : 'exact number did not match' };
   }
@@ -93,20 +103,10 @@ export const evaluateModeAgainstResult = (modeRaw, betNumRaw, resultNumRaw) => {
     return { matched: backPair, reason: backPair ? `last two digits matched (${resultNum.slice(1)})` : 'last two digits did not match' };
   }
   if (mode === 'ap') {
-    // AP = any two-digit pair match, position independent.
-    const getPairs = (num) => {
-      const d = normalize3Digit(num);
-      return [
-        `${d[0]}${d[1]}`,
-        `${d[1]}${d[2]}`,
-        `${d[0]}${d[2]}`,
-      ].map((p) => p.split('').sort().join(''));
-    };
-    const betPairs = getPairs(betNum);
-    const resultPairs = getPairs(resultNum);
-    const matchedPair = betPairs.find((p) => resultPairs.includes(p));
-    if (!matchedPair) return { matched: false, reason: 'no pair matched (position independent)' };
-    return { matched: true, reason: `pair ${matchedPair} matched with ${resultNum}` };
+    if (frontPair) return { matched: true, reason: `front pair matched (${resultNum.slice(0, 2)})` };
+    if (backPair) return { matched: true, reason: `back pair matched (${resultNum.slice(1)})` };
+    if (outerPair) return { matched: true, reason: `outer pair matched (${resultNum[0]}${resultNum[2]})` };
+    return { matched: false, reason: 'no position-based pair matched' };
   }
   if (mode === 'sp') {
     if (!hasAllUniqueDigits(betNum)) return { matched: false, reason: 'SP invalid: digits are not unique' };
@@ -132,7 +132,7 @@ export const evaluateModeAgainstResult = (modeRaw, betNumRaw, resultNumRaw) => {
 export const matchBet = (bet, results, options = {}) => {
   const mode = normalizeMode(bet.mode);
   const betNum = normalize3Digit(bet.number);
-  const validation = validateBetForMode(betNum, mode);
+  const validation = validateBetForMode(bet.number, mode);
   if (!validation.valid) {
     return {
       won: false,
@@ -153,25 +153,39 @@ export const matchBet = (bet, results, options = {}) => {
   const selectedPanels = selectedPanelsRaw.filter((p) => panelOrder.includes(p));
   const panelsToCheck = hasAll || !selectedPanels.length ? panelOrder : selectedPanels;
 
-  const entries = panelsToCheck.map((panel) => ({
-    panel,
-    num: normalize3Digit(Array.isArray(results?.[panel]) ? results[panel].join('') : results?.[panel]),
-  }));
+  const entries = panelsToCheck
+    .map((panel) => ({
+      panel,
+      num: normalize3Digit(Array.isArray(results?.[panel]) ? results[panel].join('') : results?.[panel]),
+    }))
+    .filter((entry) => /^\d{3}$/.test(entry.num));
+
+  if (!entries.length) {
+    return {
+      won: false,
+      matchedPanel: null,
+      matchedResult: null,
+      matchReason: 'No valid result panels available',
+      matchedPanels: [],
+    };
+  }
 
   const matches = [];
   for (const entry of entries) {
     const evalResult = evaluateModeAgainstResult(mode, betNum, entry.num);
     if (evalResult.matched) {
+      const displayResult =
+        mode === 'fp' ? entry.num.slice(0, 2) : entry.num;
       matches.push({
         panel: entry.panel,
-        result: entry.num,
+        result: displayResult,
         reason: `${evalResult.reason} on Panel ${entry.panel}`,
       });
       if (!options.returnAllMatches) {
         return {
           won: true,
           matchedPanel: entry.panel,
-          matchedResult: entry.num,
+          matchedResult: displayResult,
           matchReason: `${evalResult.reason} on Panel ${entry.panel}`,
           matchedPanels: [entry.panel],
         };
@@ -190,7 +204,7 @@ export const matchBet = (bet, results, options = {}) => {
     };
   }
 
-  const firstFail = evaluateModeAgainstResult(mode, betNum, entries[0]?.num || '000');
+  const firstFail = evaluateModeAgainstResult(mode, betNum, entries[0].num);
   return {
     won: false,
     matchedPanel: null,
@@ -220,7 +234,11 @@ export const checkWinningBets = (bets, results) => {
 };
 
 export const testCases = [
+  { mode: 'single', bet: '12', result: '123', expected: false },
+  { mode: 'single', bet: '1234', result: '123', expected: false },
   { mode: 'single', bet: '123', result: '123', expected: true },
+  { mode: 'single', bet: '112', result: '112', expected: false },
+  { mode: 'single', bet: '111', result: '111', expected: false },
   { mode: 'single', bet: '123', result: '132', expected: false },
   { mode: 'str', bet: '123', result: '123', expected: true },
   { mode: 'box', bet: '123', result: '321', expected: true },
@@ -232,6 +250,7 @@ export const testCases = [
   { mode: 'ap', bet: '123', result: '129', expected: true },
   { mode: 'ap', bet: '123', result: '923', expected: true },
   { mode: 'ap', bet: '123', result: '153', expected: true },
+  { mode: 'ap', bet: '123', result: '312', expected: false },
   { mode: 'ap', bet: '123', result: '456', expected: false },
   { mode: 'sp', bet: '123', result: '123', expected: true },
   { mode: 'sp', bet: '123', result: '321', expected: false },

@@ -1,6 +1,11 @@
 import React from 'react';
 
 const BetList = ({ bets, onRemove, totalPoints }) => {
+  const getDisplayBetNumber = (bet) =>
+    String(bet?.mode || '').toLowerCase() === 'fp'
+      ? String(bet?.number || '').slice(0, 2)
+      : bet?.number;
+
   if (!bets.length) {
     return (
       <div className="bg-white border border-[#d8d8d8] rounded p-6 text-center text-[#888] text-[24px]">
@@ -28,7 +33,7 @@ const BetList = ({ bets, onRemove, totalPoints }) => {
             bet.outcome === 'win' ? 'bg-[#eaf8ea]' : bet.outcome === 'loss' ? 'bg-[#ffecec]' : ''
           } ${bet.justAdded ? 'animate-pulse' : ''}`}
         >
-          <div className="px-3 py-2 font-semibold"><span className="md:hidden text-[12px] text-[#666] mr-2">No:</span>{bet.number}</div>
+          <div className="px-3 py-2 font-semibold"><span className="md:hidden text-[12px] text-[#666] mr-2">No:</span>{getDisplayBetNumber(bet)}</div>
           <div className="px-3 py-2 uppercase text-right md:text-left"><span className="md:hidden text-[12px] text-[#666] mr-2">Type:</span>{bet.mode}</div>
           <div className="px-3 py-2"><span className="md:hidden text-[12px] text-[#666] mr-2">Pts:</span>{bet.points}</div>
           <div className="px-3 py-2 text-right">
