@@ -1,5 +1,8 @@
 import Admin from '../models/admin/admin.js';
 import bcrypt from 'bcryptjs';
+import DailyCommission from '../models/dailyCommission/dailyCommission.js';
+import User from '../models/user/user.js';
+import Bet from '../models/bet/bet.js';
 import { SP_COMMON_LIST } from '../config/spCommonList.js';
 import { DP_COMMON_LIST } from '../config/dpCommonList.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
@@ -308,6 +311,57 @@ export const getAllBookies = async (req, res) => {
             .select('-password')
             .sort({ createdAt: -1 });
 
+        const bookieIds = bookies.map((b) => b._id);
+        const commissionAgg = bookieIds.length > 0
+            ? await DailyCommission.aggregate([
+                { $match: { bookieId: { $in: bookieIds } } },
+                { $group: { _id: '$bookieId', totalCommissionAmount: { $sum: '$commissionAmount' } } },
+            ])
+            : [];
+        const commissionMap = Object.fromEntries(
+            commissionAgg.map((row) => [String(row._id), Number(row.totalCommissionAmount || 0)])
+        );
+        const hasAnyCommissionRecord = commissionAgg.length > 0;
+
+        // Fallback: if DailyCommission records are missing, estimate from total bet amount
+        // of each bookie's users using current commission percentage.
+        let fallbackCommissionMap = {};
+        if (!hasAnyCommissionRecord && bookieIds.length > 0) {
+            const users = await User.find({ referredBy: { $in: bookieIds } })
+                .select('_id referredBy')
+                .lean();
+            const userIds = users.map((u) => u._id);
+            if (userIds.length > 0) {
+                const betAgg = await Bet.aggregate([
+                    { $match: { userId: { $in: userIds }, status: { $ne: 'cancelled' } } },
+                    { $group: { _id: '$userId', totalBetAmount: { $sum: '$amount' } } },
+                ]);
+                const userToBookie = Object.fromEntries(users.map((u) => [String(u._id), String(u.referredBy)]));
+                const totalBetByBookie = {};
+                for (const row of betAgg) {
+                    const uid = String(row._id);
+                    const bid = userToBookie[uid];
+                    if (!bid) continue;
+                    totalBetByBookie[bid] = (totalBetByBookie[bid] || 0) + Number(row.totalBetAmount || 0);
+                }
+                fallbackCommissionMap = Object.fromEntries(
+                    bookies.map((b) => {
+                        const bid = String(b._id);
+                        const totalBetAmount = Number(totalBetByBookie[bid] || 0);
+                        const pct = Number(b.commissionPercentage || 0);
+                        const commission = Math.round((totalBetAmount * pct / 100) * 100) / 100;
+                        return [bid, commission];
+                    })
+                );
+            }
+        }
+        const enrichedBookies = bookies.map((b) => ({
+            ...b.toObject(),
+            totalCommissionAmount: hasAnyCommissionRecord
+                ? (commissionMap[String(b._id)] || 0)
+                : (fallbackCommissionMap[String(b._id)] || 0),
+        }));
+
         // Debug: log first bookie's balance
         if (bookies.length > 0) {
             console.log(`[getAllBookies] First bookie - Username: ${bookies[0].username}, Balance: ${bookies[0].balance}, canManagePayments: ${bookies[0].canManagePayments}`);
@@ -316,7 +370,7 @@ export const getAllBookies = async (req, res) => {
         res.status(200).json({
             success: true,
             count: bookies.length,
-            data: bookies,
+            data: enrichedBookies,
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });

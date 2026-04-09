@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
-import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEyeSlash, FaCopy, FaPercent } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEyeSlash, FaCopy, FaPercent, FaSearch, FaWallet, FaUsersCog } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -18,6 +18,7 @@ const BookieManagement = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showManageModal, setShowManageModal] = useState(false);
     const [selectedBookie, setSelectedBookie] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     
@@ -41,9 +42,17 @@ const BookieManagement = () => {
     const [secretPassword, setSecretPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [pendingBookie, setPendingBookie] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [manageData, setManageData] = useState({
+        commissionPercentage: '',
+        operation: 'add',
+        amount: '',
+    });
     const closeCreateModal = useModalBackHandler(showCreateModal, () => setShowCreateModal(false));
     const closeEditModal = useModalBackHandler(showEditModal, () => setShowEditModal(false));
     const closeDeleteModal = useModalBackHandler(showDeleteModal, () => setShowDeleteModal(false));
+    const closeManageModal = useModalBackHandler(showManageModal, () => setShowManageModal(false));
     const closePasswordModal = useModalBackHandler(showPasswordModal, () => {
         setShowPasswordModal(false);
         setPendingBookie(null);
@@ -52,6 +61,25 @@ const BookieManagement = () => {
     });
 
     const PHONE_REGEX = /^[6-9]\d{9}$/;
+
+    const filteredBookies = bookies.filter((b) => {
+        const q = searchTerm.trim().toLowerCase();
+        const matchesSearch =
+            !q ||
+            String(b.username || '').toLowerCase().includes(q) ||
+            String(b.phone || '').toLowerCase().includes(q) ||
+            String(b.email || '').toLowerCase().includes(q);
+        const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+
+    const stats = {
+        total: bookies.length,
+        active: bookies.filter((b) => b.status === 'active').length,
+        suspended: bookies.filter((b) => b.status !== 'active').length,
+        totalBalance: bookies.reduce((sum, b) => sum + (Number(b.balance) || 0), 0),
+        totalCommission: bookies.reduce((sum, b) => sum + (Number(b.totalCommissionAmount) || 0), 0),
+    };
 
     // Fetch all bookies
     const fetchBookies = async () => {
@@ -334,6 +362,69 @@ const BookieManagement = () => {
         setShowDeleteModal(true);
     };
 
+    const openManageModal = (bookie) => {
+        setSelectedBookie(bookie);
+        setManageData({
+            commissionPercentage: String(bookie.commissionPercentage ?? 0),
+            operation: 'add',
+            amount: '',
+        });
+        setShowManageModal(true);
+    };
+
+    const handleManageSave = async (e) => {
+        e.preventDefault();
+        if (!selectedBookie?._id) return;
+        const currentBalance = Number(selectedBookie.balance) || 0;
+        const amount = Number(manageData.amount || 0);
+        const commission = Number(manageData.commissionPercentage || 0);
+        if (!Number.isFinite(commission) || commission < 0 || commission > 100) {
+            setError('Commission must be between 0 and 100');
+            return;
+        }
+        if (!Number.isFinite(amount) || amount < 0) {
+            setError('Amount must be a non-negative number');
+            return;
+        }
+
+        const newBalance =
+            manageData.operation === 'subtract'
+                ? Math.max(0, currentBalance - amount)
+                : currentBalance + amount;
+
+        setFormLoading(true);
+        setError('');
+        try {
+            const response = await fetchWithAuth(`${API_BASE_URL}/admin/bookies/${selectedBookie._id}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    firstName: String(selectedBookie.username || '').trim().split(/\s+/)[0] || selectedBookie.username,
+                    lastName: String(selectedBookie.username || '').trim().split(/\s+/).slice(1).join(' '),
+                    email: selectedBookie.email || '',
+                    phone: selectedBookie.phone || '',
+                    commissionPercentage: commission,
+                    canManagePayments: Boolean(selectedBookie.canManagePayments),
+                    balance: newBalance,
+                }),
+            });
+            if (response.status === 401) return;
+            const data = await response.json();
+            if (data.success) {
+                setSuccess('Bookie account updated successfully');
+                setShowManageModal(false);
+                setSelectedBookie(null);
+                fetchBookies();
+                setTimeout(() => setSuccess(''), 3000);
+            } else {
+                setError(data.message || 'Failed to update bookie');
+            }
+        } catch (err) {
+            setError('Network error. Please try again.');
+        } finally {
+            setFormLoading(false);
+        }
+    };
+
     // Copy to clipboard
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
@@ -362,6 +453,51 @@ const BookieManagement = () => {
                         </button>
                     </div>
 
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+                        <div className="bg-white rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Total Bookies</p>
+                            <p className="text-xl font-bold text-gray-800">{stats.total}</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Active</p>
+                            <p className="text-xl font-bold text-green-600">{stats.active}</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Suspended</p>
+                            <p className="text-xl font-bold text-red-500">{stats.suspended}</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Total Bookie Balance</p>
+                            <p className="text-xl font-bold text-[#1B3150]">₹{stats.totalBalance.toLocaleString('en-IN')}</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Total Commission (All Bookies)</p>
+                            <p className="text-xl font-bold text-orange-600">₹{stats.totalCommission.toLocaleString('en-IN')}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4 flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
+                            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search by name, phone or email"
+                                className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm"
+                            />
+                        </div>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm"
+                        >
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Suspended</option>
+                        </select>
+                    </div>
+
                     {/* Alerts */}
                     {error && (
                         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
@@ -378,155 +514,102 @@ const BookieManagement = () => {
                         </div>
                     )}
 
-                    {/* Bookies Table */}
+                    {/* Bookies List */}
                     <div className="bg-white rounded-lg overflow-hidden">
                         {loading ? (
                             <div className="p-8 text-center">
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
                                 <p className="mt-4 text-gray-400">Loading bookies...</p>
                             </div>
-                        ) : bookies.length === 0 ? (
+                        ) : filteredBookies.length === 0 ? (
                             <div className="p-8 text-center text-gray-400">
-                                <p>No bookie accounts found.</p>
-                                <p className="mt-2">Click "Add New Bookie" to create one.</p>
+                                <p>No matching bookie accounts found.</p>
+                                <p className="mt-2">Try changing search/filter or add a new bookie.</p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                            <table className="w-full min-w-[640px] text-sm sm:text-base">
-                                <thead className="bg-gray-100">
-                                    <tr>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            #
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            Name
-                                        </th>
-                                        <th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            Email
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            Phone
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            Commission
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            Balance
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            Payment Management
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            Status
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            Created At
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {bookies.map((bookie, index) => (
-                                        <tr key={bookie._id} className="hover:bg-gray-50">
-                                            <td className="px-3 py-3 whitespace-nowrap text-gray-600">
-                                                {index + 1}
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
+                            <div className="p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                {filteredBookies.map((bookie, index) => (
+                                    <div key={bookie._id} className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-gray-800">{bookie.username}</span>
+                                                    <span className="text-xs text-gray-500">#{index + 1}</span>
+                                                    <h3 className="font-semibold text-gray-800 truncate">{bookie.username}</h3>
                                                     <button
                                                         onClick={() => copyToClipboard(bookie.username)}
                                                         className="text-gray-400 hover:text-orange-500"
                                                         title="Copy name"
                                                     >
-                                                        <FaCopy size={14} />
+                                                        <FaCopy size={13} />
                                                     </button>
                                                 </div>
-                                            </td>
-                                            <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap text-gray-600">
-                                                {bookie.email || '-'}
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-gray-600">
-                                                {bookie.phone || '-'}
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200">
-                                                    <FaPercent className="w-2.5 h-2.5" />
-                                                    {bookie.commissionPercentage ?? 0}
-                                                </span>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <span className="font-semibold text-green-600">
-                                                    ₹{(bookie.balance ?? 0).toLocaleString('en-IN')}
-                                                </span>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                    bookie.canManagePayments 
-                                                        ? 'bg-green-100 text-green-700 border border-green-200' 
-                                                        : 'bg-gray-100 text-gray-600 border border-gray-200'
-                                                }`}>
+                                                <p className="text-sm text-gray-500 mt-0.5 truncate">{bookie.email || 'No email'}</p>
+                                                <p className="text-sm text-gray-600">{bookie.phone || '-'}</p>
+                                            </div>
+                                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                                bookie.status === 'active'
+                                                    ? 'bg-green-100 text-green-700 border border-green-200'
+                                                    : 'bg-red-50 text-red-500 border border-red-200'
+                                            }`}>
+                                                {bookie.status === 'active' ? 'Active' : 'Suspended'}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 mt-3">
+                                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
+                                                <p className="text-[11px] text-gray-500">Commission</p>
+                                                <p className="font-semibold text-orange-600 mt-0.5">{bookie.commissionPercentage ?? 0}%</p>
+                                            </div>
+                                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
+                                                <p className="text-[11px] text-gray-500">Balance</p>
+                                                <p className="font-semibold text-green-600 mt-0.5">₹{(bookie.balance ?? 0).toLocaleString('en-IN')}</p>
+                                            </div>
+                                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
+                                                <p className="text-[11px] text-gray-500">Total Commission Amount</p>
+                                                <p className="font-semibold text-[#1B3150] mt-0.5">₹{(bookie.totalCommissionAmount ?? 0).toLocaleString('en-IN')}</p>
+                                            </div>
+                                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5 col-span-2">
+                                                <p className="text-[11px] text-gray-500">Payment Management</p>
+                                                <p className={`font-semibold mt-0.5 ${bookie.canManagePayments ? 'text-green-600' : 'text-gray-600'}`}>
                                                     {bookie.canManagePayments ? 'Enabled' : 'Disabled'}
-                                                </span>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                    bookie.status === 'active' 
-                                                        ? 'bg-green-100 text-green-700 border border-green-200' 
-                                                        : 'bg-red-50 text-red-500 border border-red-200'
-                                                }`}>
-                                                    {bookie.status === 'active' ? 'Active' : 'Suspended'}
-                                                </span>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-gray-600">
-                                                {new Date(bookie.createdAt).toLocaleDateString('en-IN', {
-                                                    day: '2-digit',
-                                                    month: 'short',
-                                                    year: 'numeric',
-                                                })}
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => handleToggleStatus(bookie)}
-                                                        disabled={togglingId === bookie._id}
-                                                        className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                            bookie.status === 'active'
-                                                                ? 'bg-green-900/30 text-green-600 hover:bg-green-900/50'
-                                                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                                                        }`}
-                                                        title={bookie.status === 'active' ? 'Suspend' : 'Unsuspend'}
-                                                    >
-                                                        {togglingId === bookie._id ? (
-                                                            <span className="animate-spin inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full" />
-                                                        ) : bookie.status === 'active' ? (
-                                                            <FaToggleOn size={18} />
-                                                        ) : (
-                                                            <FaToggleOff size={18} />
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => openEditModal(bookie)}
-                                                        className="p-2 rounded-lg bg-blue-900/30 text-blue-600 hover:bg-blue-900/50 transition-colors"
-                                                        title="Edit"
-                                                    >
-                                                        <FaEdit size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => openDeleteModal(bookie)}
-                                                        className="p-2 rounded-lg bg-red-900/30 text-red-500 hover:bg-red-50 transition-colors"
-                                                        title="Delete"
-                                                    >
-                                                        <FaTrash size={16} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2 mt-3">
+                                            <button
+                                                onClick={() => openManageModal(bookie)}
+                                                className="px-3 py-2 rounded-lg bg-[#1B3150] text-white text-xs font-semibold hover:bg-[#152842]"
+                                                title="Quick Manage Balance & Commission"
+                                            >
+                                                Quick Manage
+                                            </button>
+                                            <button
+                                                onClick={() => handleToggleStatus(bookie)}
+                                                disabled={togglingId === bookie._id}
+                                                className={`px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 ${
+                                                    bookie.status === 'active'
+                                                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                        : 'bg-green-50 text-green-700 border border-green-200'
+                                                }`}
+                                            >
+                                                {togglingId === bookie._id ? 'Please wait...' : (bookie.status === 'active' ? 'Suspend' : 'Unsuspend')}
+                                            </button>
+                                            <button
+                                                onClick={() => openEditModal(bookie)}
+                                                className="px-3 py-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => openDeleteModal(bookie)}
+                                                className="px-3 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 text-xs font-semibold"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
@@ -923,6 +1006,59 @@ const BookieManagement = () => {
                                 <button type="button" onClick={closePasswordModal} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-500 text-gray-800 font-semibold">Cancel</button>
                                 <button type="submit" disabled={togglingId !== null} className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-gray-800 font-semibold disabled:opacity-50">
                                     {togglingId ? <span className="animate-spin">⏳</span> : 'Confirm'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Quick Manage Modal */}
+            {showManageModal && selectedBookie && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-white rounded-lg w-full max-w-md my-auto shadow-xl">
+                        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+                            <h2 className="text-xl font-bold flex items-center gap-2"><FaUsersCog /> Quick Manage Bookie</h2>
+                            <button onClick={closeManageModal} className="text-gray-400 hover:text-gray-800"><FaTimes size={20} /></button>
+                        </div>
+                        <form onSubmit={handleManageSave} className="p-4 space-y-3">
+                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
+                                <p className="text-sm text-gray-500">Bookie</p>
+                                <p className="font-semibold text-gray-800">{selectedBookie.username}</p>
+                                <p className="text-sm text-gray-500 mt-1">Current Balance: <span className="font-semibold text-green-600">₹{Number(selectedBookie.balance || 0).toLocaleString('en-IN')}</span></p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600 mb-1">Commission %</label>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={manageData.commissionPercentage}
+                                    onChange={(e) => setManageData((p) => ({ ...p, commissionPercentage: e.target.value.replace(/[^0-9.]/g, '').slice(0, 6) }))}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50"
+                                />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <select
+                                    value={manageData.operation}
+                                    onChange={(e) => setManageData((p) => ({ ...p, operation: e.target.value }))}
+                                    className="px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm"
+                                >
+                                    <option value="add">Add</option>
+                                    <option value="subtract">Subtract</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="Amount"
+                                    value={manageData.amount}
+                                    onChange={(e) => setManageData((p) => ({ ...p, amount: e.target.value.replace(/[^0-9.]/g, '').slice(0, 16) }))}
+                                    className="col-span-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50"
+                                />
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                                <button type="button" onClick={closeManageModal} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-lg">Cancel</button>
+                                <button type="submit" disabled={formLoading} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg disabled:opacity-50">
+                                    {formLoading ? 'Saving...' : 'Save Changes'}
                                 </button>
                             </div>
                         </form>

@@ -33,7 +33,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/markets', label: t('markets'), icon: FaChartBar, key: 'markets' },
         { path: '/add-user', label: t('addPlayer'), icon: FaUserPlus, key: 'addPlayer' },
         { path: '/reports', label: t('report'), icon: FaChartLine, key: 'report' },
-        { path: '/revenue', label: t('revenue'), icon: FaMoneyBillWave, key: 'revenue' },
+        { path: '/revenue', label: 'Commission', icon: FaMoneyBillWave, key: 'revenue' },
         { path: '/payments', label: t('payments'), icon: FaCreditCard, key: 'payments' },
         { path: '/records', label: t('betHistory'), icon: FaFileInvoiceDollar, key: 'records' },
         { path: '/roulette', label: t('roulette') || 'Roulette', icon: FaDice, key: 'roulette' },
