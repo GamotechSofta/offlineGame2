@@ -24,6 +24,34 @@ export const getTotals = (selectedMap) => {
   return { count, totalAmount };
 };
 
+export const getLotterySetTotals = (selectedMap) => {
+  const totals = {
+    setA: { count: 0, amount: 0 },
+    setB: { count: 0, amount: 0 },
+    setC: { count: 0, amount: 0 },
+    totalAmount: 0,
+  };
+
+  Object.entries(selectedMap || {}).forEach(([key, value]) => {
+    const amount = Number(value || 0);
+    if (amount <= 0) return;
+    const quizNo = Number(String(key).split('-')[0] || 0);
+    if (quizNo >= 1 && quizNo <= 10) {
+      totals.setA.count += 1;
+      totals.setA.amount += amount;
+    } else if (quizNo >= 11 && quizNo <= 20) {
+      totals.setB.count += 1;
+      totals.setB.amount += amount;
+    } else if (quizNo >= 21 && quizNo <= 30) {
+      totals.setC.count += 1;
+      totals.setC.amount += amount;
+    }
+    totals.totalAmount += amount;
+  });
+
+  return totals;
+};
+
 export const formatTimer = (seconds) => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;

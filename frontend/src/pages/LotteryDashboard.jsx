@@ -7,9 +7,10 @@ import NumberBoard from '../components/NumberBoard';
 import SummaryPanel from '../components/SummaryPanel';
 import ControlPanel from '../components/ControlPanel';
 import ResultModal from '../components/ResultModal';
+import { getBalance, updateUserBalance } from '../api/bets';
 import { RESULT_HISTORY } from '../data/mockData';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
-import { formatTimer, getCellKey, getTotals } from '../utils/boardHelpers';
+import { formatTimer, getCellKey, getLotterySetTotals, getTotals } from '../utils/boardHelpers';
 
 const LotteryDashboard = () => {
   const BASE_WIDTH = 1536;
@@ -18,11 +19,12 @@ const LotteryDashboard = () => {
   const rowApplyTimersRef = useRef({});
   const autoApplyTimerRef = useRef(null);
   const appliedAmountByTargetRef = useRef({});
+  const lastLandscapeAutoFsAttemptRef = useRef(0);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : BASE_WIDTH,
     height: typeof window !== 'undefined' ? window.innerHeight : BASE_HEIGHT,
   }));
-  const [clockNow, setClockNow] = useState('07:59:44');
+  const [clockNow, setClockNow] = useState(() => new Date());
   const [activeQuiz, setActiveQuiz] = useState(1);
   const [selectedQuizzes, setSelectedQuizzes] = useState([1]);
   const [multi, setMulti] = useState(false);
@@ -36,9 +38,47 @@ const LotteryDashboard = () => {
   const [rowPointDisplay, setRowPointDisplay] = useState(() => Array.from({ length: 10 }, () => ''));
   const [colPointDisplay, setColPointDisplay] = useState(() => Array.from({ length: 10 }, () => ''));
   const [timerSeconds, setTimerSeconds] = useState(DEFAULT_TIMER_SECONDS);
+  const [walletBalance, setWalletBalance] = useState(0);
   const ALL_QUIZZES = useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), []);
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
+  const getQuarterHourCountdown = useCallback((nowDate = new Date()) => {
+    const mins = nowDate.getMinutes();
+    const secs = nowDate.getSeconds();
+    const elapsedInQuarter = (mins % 15) * 60 + secs;
+    const remaining = DEFAULT_TIMER_SECONDS - elapsedInQuarter;
+    return remaining <= 0 ? DEFAULT_TIMER_SECONDS : remaining;
+  }, []);
+
+  const loadStoredBalance = useCallback(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const b = user?.balance ?? user?.walletBalance ?? user?.wallet ?? 0;
+      setWalletBalance(Number(b) || 0);
+    } catch (_) {
+      setWalletBalance(0);
+    }
+  }, []);
+
+  const refreshWalletBalance = useCallback(async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const userId = user?.id || user?._id;
+      if (!userId) {
+        loadStoredBalance();
+        return;
+      }
+      const res = await getBalance();
+      if (res.success && res.data?.balance != null) {
+        updateUserBalance(res.data.balance);
+        setWalletBalance(Number(res.data.balance) || 0);
+      } else {
+        loadStoredBalance();
+      }
+    } catch (_) {
+      loadStoredBalance();
+    }
+  }, [loadStoredBalance]);
 
   useEffect(() => {
     const onResize = () => {
@@ -53,6 +93,19 @@ const LotteryDashboard = () => {
       const isMobile = window.innerWidth <= 900;
       const isPortrait = window.innerHeight > window.innerWidth;
       setShowRotatePrompt(isMobile && isPortrait);
+
+      if (isMobile && !isPortrait && !document.fullscreenElement) {
+        const nowMs = Date.now();
+        if (nowMs - lastLandscapeAutoFsAttemptRef.current > 1200) {
+          lastLandscapeAutoFsAttemptRef.current = nowMs;
+          const root = document.documentElement;
+          if (root.requestFullscreen) {
+            root.requestFullscreen().catch(() => {
+              // Some browsers require explicit user action.
+            });
+          }
+        }
+      }
     };
     checkMobilePortrait();
     window.addEventListener('resize', checkMobilePortrait);
@@ -78,14 +131,44 @@ const LotteryDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimerSeconds((prev) => (prev <= 0 ? DEFAULT_TIMER_SECONDS : prev - 1));
-      setClockNow(new Date().toLocaleTimeString('en-GB', { hour12: false }));
-    }, 1000);
+    const syncClockAndTimer = () => {
+      const now = new Date();
+      setClockNow(now);
+      setTimerSeconds(getQuarterHourCountdown(now));
+    };
+    syncClockAndTimer();
+    const timer = setInterval(syncClockAndTimer, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [getQuarterHourCountdown]);
+
+  useEffect(() => {
+    loadStoredBalance();
+    refreshWalletBalance();
+
+    const handleStorage = () => loadStoredBalance();
+    const handleUserLogin = () => loadStoredBalance();
+    const handleBalanceUpdated = (e) => {
+      const nextBalance = e?.detail?.balance;
+      if (nextBalance != null) {
+        setWalletBalance(Number(nextBalance) || 0);
+      } else {
+        loadStoredBalance();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('userLogin', handleUserLogin);
+    window.addEventListener('balanceUpdated', handleBalanceUpdated);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('userLogin', handleUserLogin);
+      window.removeEventListener('balanceUpdated', handleBalanceUpdated);
+    };
+  }, [loadStoredBalance, refreshWalletBalance]);
 
   const totals = useMemo(() => getTotals(selectedMap), [selectedMap]);
+  const setTotals = useMemo(() => getLotterySetTotals(selectedMap), [selectedMap]);
 
   const handleQuizToggle = useCallback((quizNo) => {
     setActiveQuiz(quizNo);
@@ -290,6 +373,17 @@ const LotteryDashboard = () => {
     setEnteredAmount(0);
   }, [activeFilter, pendingTarget]);
 
+  useEffect(() => {
+    // Row/column blue input boxes are per active quiz context.
+    // Clear stale display values when quiz selection mode changes.
+    setRowPointDisplay(Array.from({ length: 10 }, () => ''));
+    setColPointDisplay(Array.from({ length: 10 }, () => ''));
+    setPendingTarget(null);
+    setAmountDraft('');
+    setEnteredAmount(0);
+    appliedAmountByTargetRef.current = {};
+  }, [activeQuiz, multi, selectedQuizzes]);
+
   return (
     <AppLayout>
       <div className="w-full h-full relative overflow-hidden bg-[#111] rounded-[14px] sm:rounded-none">
@@ -310,7 +404,7 @@ const LotteryDashboard = () => {
               transformOrigin: 'top left',
             }}
           >
-            <TopHeader now={clockNow} />
+            <TopHeader now={clockNow} walletBalance={walletBalance} />
             <QuizSelector
               activeQuiz={activeQuiz}
               selectedQuizzes={selectedQuizzes}
@@ -332,7 +426,10 @@ const LotteryDashboard = () => {
                 colPointDisplay={colPointDisplay}
                 onSelectTarget={handleSelectTarget}
               />
-              <SummaryPanel count={totals.count} totalAmount={totals.totalAmount} />
+              <SummaryPanel
+                totalAmount={totals.totalAmount}
+                setTotals={setTotals}
+              />
               <ControlPanel
                 timerText={formatTimer(timerSeconds)}
                 amountDraft={amountDraft || '0'}

@@ -4,4 +4,4 @@ export const FILTER_TYPES = {
   ODD: 'odd',
 };
 
-export const DEFAULT_TIMER_SECONDS = 45 * 60 + 15;
+export const DEFAULT_TIMER_SECONDS = 15 * 60;
