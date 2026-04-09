@@ -1,7 +1,7 @@
 import React from 'react';
 import { Wallet } from 'lucide-react';
 
-const TopHeader = ({ now, walletBalance = 0 }) => {
+const TopHeader = ({ now, walletBalance = 0, onOpenThreeD }) => {
   const formattedBalance = new Intl.NumberFormat('en-IN', {
     maximumFractionDigits: 0,
     minimumFractionDigits: 0,
@@ -60,6 +60,13 @@ const TopHeader = ({ now, walletBalance = 0 }) => {
           <div className="leading-none mt-[2px]">Last Sale. 180</div>
         </div>
         <div className="flex items-center justify-end gap-2 h-full">
+          <button
+            type="button"
+            onClick={onOpenThreeD}
+            className="bg-[#f28b1d] border border-[#d97816] text-white px-3 h-10 text-[16px] font-semibold leading-none"
+          >
+            3D Quiz
+          </button>
           <button
             type="button"
             className="h-10 min-w-[132px] px-3 bg-[#0f0f0f] border border-[#3f3f3f] rounded-[8px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] flex items-center justify-center gap-2 text-[24px] font-semibold leading-none tracking-[0.2px] text-white"

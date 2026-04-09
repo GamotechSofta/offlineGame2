@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import TopHeader from '../components/TopHeader';
 import QuizSelector from '../components/QuizSelector';
@@ -13,6 +14,7 @@ import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getLotterySetTotals, getTotals } from '../utils/boardHelpers';
 
 const LotteryDashboard = () => {
+  const navigate = useNavigate();
   const BASE_WIDTH = 1536;
   const BASE_HEIGHT = 864;
   const colApplyTimersRef = useRef({});
@@ -404,7 +406,7 @@ const LotteryDashboard = () => {
               transformOrigin: 'top left',
             }}
           >
-            <TopHeader now={clockNow} walletBalance={walletBalance} />
+            <TopHeader now={clockNow} walletBalance={walletBalance} onOpenThreeD={() => navigate('/lottery/3d')} />
             <QuizSelector
               activeQuiz={activeQuiz}
               selectedQuizzes={selectedQuizzes}

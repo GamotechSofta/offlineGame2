@@ -22,6 +22,7 @@ import TopWinners from '../pages/TopWinners';
 import RouletteGame from '../pages/RouletteGame';
 import GameRate from '../pages/GameRate';
 import LotteryDashboard from '../pages/LotteryDashboard';
+import ThreeDGame from '../pages/ThreeDGame';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -113,7 +114,8 @@ const Layout = ({ children }) => {
   if (
     location.pathname === '/roulette' ||
     location.pathname === '/games/roulette' ||
-    location.pathname === '/lottery'
+    location.pathname === '/lottery' ||
+    location.pathname === '/lottery/3d'
   ) {
     return <>{children}</>;
   }
@@ -187,6 +189,7 @@ const AppRoutes = () => {
           <Route path="/roulette" element={<RouletteGame />} />
           <Route path="/games/roulette" element={<RouletteGame />} />
           <Route path="/lottery" element={<LotteryDashboard />} />
+          <Route path="/lottery/3d" element={<ThreeDGame />} />
         </Routes>
       </Layout>
     </Router>
