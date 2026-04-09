@@ -48,6 +48,9 @@ router.get('/my-screenshot/:id', verifyUser, getPaymentScreenshot);
 
 // ===== Admin APIs =====
 router.get('/', verifyAdmin, getPayments);
+router.get('/generic', getPayments);
+
+
 router.get('/pending-count', verifyAdmin, getPendingCount);
 router.get('/:id/screenshot', verifyAdmin, getPaymentScreenshot);
 router.post('/:id/approve', verifyAdmin, approvePayment);
