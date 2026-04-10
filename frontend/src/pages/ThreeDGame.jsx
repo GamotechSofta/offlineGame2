@@ -27,6 +27,7 @@ const BASE_HEIGHT = 864;
 const ThreeDGame = () => {
   const navigate = useNavigate();
   const slotRef = useRef('');
+  const lastLandscapeAutoFsAttemptRef = useRef(0);
   const inputNumberRef = useRef(null);
   const rangeFromRef = useRef(null);
   const rangeToRef = useRef(null);
@@ -40,6 +41,7 @@ const ThreeDGame = () => {
     width: typeof window !== 'undefined' ? window.innerWidth : BASE_WIDTH,
     height: typeof window !== 'undefined' ? window.innerHeight : BASE_HEIGHT,
   }));
+  const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [timerSeconds, setTimerSeconds] = useState(GAME_INTERVAL_SECONDS);
   const [nextDrawAt, setNextDrawAt] = useState(() => getNextDrawTime(new Date()));
@@ -154,6 +156,33 @@ const ThreeDGame = () => {
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const checkMobilePortrait = () => {
+      const isMobile = window.innerWidth <= 900;
+      const isPortrait = window.innerHeight > window.innerWidth;
+      setShowRotatePrompt(isMobile && isPortrait);
+      if (isMobile && !isPortrait && !document.fullscreenElement) {
+        const nowMs = Date.now();
+        if (nowMs - lastLandscapeAutoFsAttemptRef.current > 1200) {
+          lastLandscapeAutoFsAttemptRef.current = nowMs;
+          const root = document.documentElement;
+          if (root.requestFullscreen) {
+            root.requestFullscreen().catch(() => {
+              // Some browsers require explicit user action.
+            });
+          }
+        }
+      }
+    };
+    checkMobilePortrait();
+    window.addEventListener('resize', checkMobilePortrait);
+    window.addEventListener('orientationchange', checkMobilePortrait);
+    return () => {
+      window.removeEventListener('resize', checkMobilePortrait);
+      window.removeEventListener('orientationchange', checkMobilePortrait);
+    };
   }, []);
 
   useEffect(() => {
@@ -632,6 +661,20 @@ const ThreeDGame = () => {
     setToast(`${label} clicked`);
   }, [applyFreshResult]);
 
+  const handleRotateLandscape = useCallback(async () => {
+    try {
+      const root = document.documentElement;
+      if (root.requestFullscreen && !document.fullscreenElement) {
+        await root.requestFullscreen();
+      }
+      if (window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('landscape');
+      }
+    } catch (_) {
+      // On many mobile browsers this requires user/system support.
+    }
+  }, []);
+
   const handleMotorPick = useCallback(() => {
     const d = String(Math.floor(Math.random() * 10));
     setInputNumber(`${d}${d}${d}`);
@@ -1053,6 +1096,27 @@ const ThreeDGame = () => {
               </div>
               <button type="button" onClick={() => setBuySummary(null)} className="mt-4 w-full h-11 bg-[#2e59c6] border border-[#264ca7] rounded text-white font-semibold">
                 Close
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {showRotatePrompt ? (
+          <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-[#111] border border-[#3b3b3b] text-white p-4 text-center rounded">
+              <div className="phone-rotate-wrap" aria-hidden>
+                <div className="phone-rotate-icon" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Rotate Screen</h3>
+              <p className="text-sm text-gray-300 mb-4">
+                3D game works best in landscape mode.
+                Please rotate your phone horizontally.
+              </p>
+              <button
+                type="button"
+                onClick={handleRotateLandscape}
+                className="w-full h-10 bg-[#ef3f34] border border-[#d4372f] font-semibold rounded"
+              >
+                Rotate + Full Screen
               </button>
             </div>
           </div>
