@@ -1,4 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ClipboardList,
+  CircleX,
+  HelpCircle,
+  KeyRound,
+  LogOut,
+  RefreshCw,
+  Trophy,
+  UserCircle,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ResultPanel from '../components/threeD/ResultPanel';
 import Keypad from '../components/threeD/Keypad';
@@ -13,10 +23,23 @@ import {
 } from '../components/threeD/helpers';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
+const MODE_GROUP_COMBO = MODE_OPTIONS.slice(0, 7);
+const MODE_GROUP_SPECIAL = MODE_OPTIONS.slice(7);
 const ALL_SHORTCUT_MODES = ['box', 'str', 'sp', 'fp', 'bp', 'ap'];
 const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
+/** Progress bar turns red when remaining time is at or below this many seconds (5 minutes). */
+const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
 const STORAGE_KEY = 'matka3d-bets';
-const TAB_BUTTONS = ['Result', 'Account', 'Quiz', 'Ticket List', 'Cancel', 'Password', 'Refresh', 'Logout'];
+const HEADER_MENU_ITEMS = [
+  { label: 'Result', Icon: Trophy },
+  { label: 'Account', Icon: UserCircle },
+  { label: 'Quiz', Icon: HelpCircle },
+  { label: 'Ticket List', Icon: ClipboardList },
+  { label: 'Cancel', Icon: CircleX },
+  { label: 'Password', Icon: KeyRound },
+  { label: 'Refresh', Icon: RefreshCw },
+  { label: 'Logout', Icon: LogOut },
+];
 const PANEL_OPTIONS = ['A', 'B', 'C'];
 const DIGIT_OPTIONS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const VALID_MODES = new Set(['single', 'str', 'box', 'sp', 'fp', 'bp', 'ap', 'duplicates', 'dp', 'triples', 'tp']);
@@ -36,6 +59,7 @@ const ThreeDGame = () => {
   const autoRangeAddLockRef = useRef('');
   const autoAddTimerRef = useRef(null);
   const rangeAutoNextLockRef = useRef(false);
+  const headerMenuRef = useRef(null);
   const [activeInputIndex, setActiveInputIndex] = useState(-1);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : BASE_WIDTH,
@@ -46,7 +70,6 @@ const ThreeDGame = () => {
   const [timerSeconds, setTimerSeconds] = useState(GAME_INTERVAL_SECONDS);
   const [nextDrawAt, setNextDrawAt] = useState(() => getNextDrawTime(new Date()));
   const [results, setResults] = useState(() => generate3DResult());
-  const [lastResults, setLastResults] = useState({ A: '---', B: '---', C: '---' });
   const [resultUpdatedAt, setResultUpdatedAt] = useState(0);
   const [inputNumber, setInputNumber] = useState('');
   const [points, setPoints] = useState('0');
@@ -58,7 +81,6 @@ const ThreeDGame = () => {
   const [rangeTo, setRangeTo] = useState('');
   const [lPickType, setLPickType] = useState('box');
   const [qty, setQty] = useState('');
-  const [allowDuplicates, setAllowDuplicates] = useState(false);
   const [validationMsg, setValidationMsg] = useState('');
   const [toast, setToast] = useState('');
   const [buySummary, setBuySummary] = useState(null);
@@ -72,6 +94,7 @@ const ThreeDGame = () => {
   });
   const [lastTxnId, setLastTxnId] = useState('GM00000000000000');
   const [lastPoints, setLastPoints] = useState(0);
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
 
   const isResultFresh = useMemo(() => Date.now() - resultUpdatedAt < 1400, [resultUpdatedAt, now]);
   const canAddBet = useMemo(
@@ -123,14 +146,9 @@ const ThreeDGame = () => {
   );
 
   const applyFreshResult = useCallback((newResult) => {
-    setLastResults({
-      A: results.A.join(''),
-      B: results.B.join(''),
-      C: results.C.join(''),
-    });
     setResults(newResult);
     setResultUpdatedAt(Date.now());
-  }, [results]);
+  }, []);
 
   const runClockTick = useCallback(() => {
     const current = new Date();
@@ -196,6 +214,24 @@ const ThreeDGame = () => {
     const t = setTimeout(() => setToast(''), 1800);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    if (!isHeaderMenuOpen) return undefined;
+    const handleOutsideClick = (event) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(event.target)) {
+        setIsHeaderMenuOpen(false);
+      }
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setIsHeaderMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isHeaderMenuOpen]);
 
   useEffect(() => {
     if (!bets.length) return undefined;
@@ -411,7 +447,7 @@ const ThreeDGame = () => {
         panelsToApply.forEach((panel, pIdx) => {
           const key = `${betNumber}|${betType}|${panel}`;
           const isSpMode = String(betType || '').toLowerCase() === 'sp';
-          if (!allowDuplicates && !isSpMode && existing.has(key)) {
+          if (!isSpMode && existing.has(key)) {
             skipped.push(`${betNumber}:${betType}:${panel}`);
             return;
           }
@@ -434,7 +470,7 @@ const ThreeDGame = () => {
       setBets((prev) => [...prev, ...created]);
     }
     return { createdCount: created.length, skippedCount: skipped.length };
-  }, [allowDuplicates, bets, normalizeNumberForMode, selectedPanels]);
+  }, [bets, normalizeNumberForMode, selectedPanels]);
 
   const addBet = useCallback(() => {
     const cleanNum = (inputNumber || '').trim();
@@ -633,7 +669,6 @@ const ThreeDGame = () => {
     setRangeTo('');
     setLPickType('box');
     setQty('');
-    setAllowDuplicates(false);
     setValidationMsg('');
     setToast('');
     setBuySummary(null);
@@ -648,6 +683,7 @@ const ThreeDGame = () => {
   }, [applyFreshResult]);
 
   const handleHeaderAction = useCallback((label) => {
+    setIsHeaderMenuOpen(false);
     if (label.toLowerCase() === 'refresh') {
       applyFreshResult(generate3DResult());
       setToast('Result Refreshed');
@@ -720,89 +756,146 @@ const ThreeDGame = () => {
           transformOrigin: 'top left',
         }}
       >
-        <div className="w-full h-full bg-white border border-[#d2d2d2] rounded-xl shadow-[0_6px_18px_rgba(0,0,0,0.08)] p-3 overflow-hidden grid grid-rows-[1.6fr_0.75fr_1fr_0.2fr_6.45fr] gap-2">
+        <div className="relative w-full h-full bg-[#f5f7fc] border border-[#dbe2f0] p-2 overflow-hidden grid grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-3">
         {toast ? (
           <div className="fixed top-4 right-4 z-50 bg-[#2ca44f] text-white px-4 py-2 rounded-md shadow-md text-[14px] font-semibold">
             {toast}
           </div>
         ) : null}
 
-        <div className="grid grid-cols-[280px_1fr] gap-2 items-stretch min-h-0">
-          <div className="bg-[#fffbe8] border border-[#ead278] rounded-lg p-3 shadow-sm">
-            <div className="text-[30px] md:text-[34px] font-bold text-[#d31b1b] leading-none">Mahalaxmi</div>
-            <div className="text-[36px] md:text-[40px] font-bold text-[#d31b1b] leading-none mt-1">3D Quiz</div>
-            <div className="mt-2 text-[13px] text-[#333]">Last Draw: <span className="font-semibold">{timeToDrawText}</span></div>
+        <div className="grid grid-cols-[250px_minmax(0,1fr)_54px] gap-2 items-stretch min-h-0 pb-1">
+          <div className="flex h-full min-h-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#5c5c5c] bg-[#f4f1e8] px-3 py-2 text-center">
+            <div className="text-[44px] font-extrabold leading-none tracking-tight text-[#b32121] md:text-[32px]">3D Quiz</div>
+            <div className="text-[17px] font-semibold text-black">Last Draw: {timeToDrawText}</div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <ResultPanel title="A" digits={results.A} isUpdated={isResultFresh} lastResultText={lastResults.A} />
-            <ResultPanel title="B" digits={results.B} isUpdated={isResultFresh} lastResultText={lastResults.B} />
-            <ResultPanel title="C" digits={results.C} isUpdated={isResultFresh} lastResultText={lastResults.C} />
+          <div className="grid grid-cols-3 gap-2 min-w-0">
+            <ResultPanel title="A" digits={results.A} isUpdated={isResultFresh} />
+            <ResultPanel title="B" digits={results.B} isUpdated={isResultFresh} />
+            <ResultPanel title="C" digits={results.C} isUpdated={isResultFresh} />
           </div>
-        </div>
-
-        <div className="h-full bg-[#f4c12d] border border-[#c79300] rounded-lg p-1 grid grid-cols-8 gap-1 min-h-0">
-          {TAB_BUTTONS.map((tab) => (
-            <button key={tab} type="button" onClick={() => handleHeaderAction(tab)} className="h-full bg-[#efbb2f] border border-[#d39f1a] rounded text-[14px] font-semibold text-[#1d2b4d]">
-              {tab}
+          <div
+            ref={headerMenuRef}
+            className="relative z-40 flex items-stretch justify-center min-w-[52px] shrink-0 h-full"
+          >
+            <button
+              type="button"
+              onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
+              className="flex h-full w-12 shrink-0 items-center justify-center rounded-lg border border-[#7a4f26] bg-[#a97142] text-[22px] font-bold leading-none text-white shadow-sm transition-colors hover:bg-[#935f33] active:bg-[#7d4f28]"
+              aria-label="Open menu"
+              aria-expanded={isHeaderMenuOpen}
+            >
+              &#9776;
             </button>
-          ))}
+            {isHeaderMenuOpen ? (
+              <div className="absolute right-0 top-full z-50 mt-2 flex min-h-[min(420px,72vh)] w-64 flex-col overflow-hidden rounded-2xl border border-[#c9a882] bg-[#fffdf9] py-3 shadow-[0_18px_48px_rgba(30,20,10,0.26)] ring-1 ring-black/5">
+                <div className="border-b border-[#ead9c4] px-4 pb-3 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-[#6b4423]">
+                  Menu
+                </div>
+                <nav className="flex min-h-0 flex-1 flex-col justify-center gap-1.5 p-3" aria-label="Main menu">
+                  {HEADER_MENU_ITEMS.map(({ label, Icon }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => handleHeaderAction(label)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-4 text-left text-[17px] font-semibold transition-colors active:scale-[0.99] ${
+                        label === 'Logout'
+                          ? 'text-[#9a3412] hover:bg-[#ffedd5] active:bg-[#fed7aa]'
+                          : 'text-[#1f1812] hover:bg-[#f5e9d8] active:bg-[#e8dcc8]'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                          label === 'Logout' ? 'bg-[#ffedd5] text-[#c2410c]' : 'bg-[#f4e8d8]/90 text-[#7a4f26]'
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                      </span>
+                      <span className="min-w-0 leading-snug">{label}</span>
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            ) : null}
+          </div>
         </div>
 
-        <div className="grid grid-cols-8 gap-1 text-center min-h-0">
-          <div className="bg-white border border-[#ddd] rounded py-1">
-            <div className="text-[12px] text-[#444]">Time To Draw</div>
-            <div className={`text-[24px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#111]'}`}>{formatTimer(timerSeconds)}</div>
+        <div className="flex w-full min-h-0 items-center justify-center rounded-lg border border-[#8b9ab3] bg-[#dfe6f2] px-2 py-2">
+          <div className="grid w-full min-w-0 grid-cols-7 gap-2 text-center min-h-0">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2f6ff] to-[#e3ecff] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[11px] uppercase tracking-wide text-[#4a5b86] font-semibold">Time To Draw</div>
+            <div className={`text-[24px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#18233f]'}`}>{formatTimer(timerSeconds)}</div>
           </div>
-          <div className="bg-white border border-[#ddd] rounded py-1">
-            <div className="text-[12px] text-[#444]">Dr.Time</div>
-            <div className="text-[20px] font-semibold leading-none">{timeToDrawText}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f9ff] to-[#edf1ff] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[11px] uppercase tracking-wide text-[#5e6787] font-semibold">Dr.Time</div>
+            <div className="text-[20px] font-semibold leading-none text-[#1f2a44]">{timeToDrawText}</div>
           </div>
-          <div className="bg-white border border-[#ddd] rounded py-1">
-            <div className="text-[12px] text-[#444]">Id</div>
-            <div className="text-[18px] font-semibold leading-none">user</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f6f8fc] to-[#ebeff7] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[11px] uppercase tracking-wide text-[#636b7d] font-semibold">Id</div>
+            <div className="text-[18px] font-semibold leading-none text-[#1f2738]">user</div>
           </div>
-          <div className="bg-white border border-[#ddd] rounded py-1">
-            <div className="text-[12px] text-[#444]">Time</div>
-            <div className="text-[18px] font-semibold leading-none">{currentTimeText}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f3f8ff] to-[#e7f0ff] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[11px] uppercase tracking-wide text-[#5a6784] font-semibold">Time</div>
+            <div className="text-[18px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
           </div>
-          <div className="bg-white border border-[#ddd] rounded py-1">
-            <div className="text-[12px] text-[#444]">Limit</div>
-            <div className="text-[18px] font-semibold leading-none">657968</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[11px] uppercase tracking-wide text-[#6a6284] font-semibold">Limit</div>
+            <div className="text-[18px] font-semibold leading-none text-[#2a2340]">657968</div>
           </div>
-          <div className="bg-white border border-[#ddd] rounded py-1">
-            <div className="text-[12px] text-[#444]">Last Trn</div>
-            <div className="text-[18px] font-semibold leading-none">{lastTxnId}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[11px] uppercase tracking-wide text-[#8a6950] font-semibold">Last Trn</div>
+            <div className="text-[15px] font-semibold leading-none text-[#3f2a1c] truncate" title={lastTxnId}>{lastTxnId}</div>
           </div>
-          <div className="bg-white border border-[#ddd] rounded py-1">
-            <div className="text-[12px] text-[#444]">Last Pts</div>
-            <div className="text-[18px] font-semibold leading-none">{lastPoints}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[11px] uppercase tracking-wide text-[#4e7760] font-semibold">Last Pts</div>
+            <div className="text-[18px] font-semibold leading-none text-[#1f3a2b]">{lastPoints}</div>
+          </div>
           </div>
         </div>
 
-        <div className="h-full w-full bg-[#efefef] rounded overflow-hidden min-h-0">
-          <div className={`h-full transition-all duration-700 ${timerSeconds <= 10 ? 'bg-[#d4372f]' : 'bg-[#2e59c6]'}`} style={{ width: `${Math.max(0, Math.min(100, (timerSeconds / GAME_INTERVAL_SECONDS) * 100))}%` }} />
+        <div
+          className={`w-full shrink-0 rounded-full overflow-hidden transition-all duration-300 ${
+            timerSeconds <= TIMER_BAR_RED_MAX_SECONDS
+              ? 'h-3 bg-[#fecdd3] shadow-[inset_0_0_0_1px_rgba(220,38,38,0.35)]'
+              : 'h-2.5 bg-[#e8e8e8]'
+          }`}
+        >
+          <div
+            className={`h-full transition-all duration-700 ${
+              timerSeconds <= TIMER_BAR_RED_MAX_SECONDS ? 'bg-[#d4372f]' : 'bg-[#2e59c6]'
+            } ${timerSeconds <= 10 ? 'animate-pulse' : ''}`}
+            style={{ width: `${Math.max(0, Math.min(100, (timerSeconds / GAME_INTERVAL_SECONDS) * 100))}%` }}
+          />
         </div>
 
-        <div className="grid grid-cols-[1fr_250px] gap-2 min-h-0 h-full">
-          <div className="h-full min-h-0 grid grid-rows-[1fr_1fr_1.3fr_3.2fr_1fr] gap-2">
-            <div className="bg-[#f4c12d] border border-[#c79300] rounded-lg p-2 flex flex-wrap items-center gap-2">
-              <label className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[#176da8] text-white rounded text-[15px]">
-                <input type="checkbox" checked={selectedPanels.length === 3} onChange={() => setSelectedPanels(selectedPanels.length === 3 ? [] : [...PANEL_OPTIONS])} />
-                ALL
+        <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-2 rounded-xl border border-[#d4b896] bg-gradient-to-br from-[#fffbeb] via-[#fef3c7] to-[#fde68a] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_1px_3px_rgba(180,130,40,0.12)]">
+              <label className="inline-flex cursor-pointer select-none items-center gap-2 rounded-lg border border-[#475569] bg-[#334155] px-3 py-2 text-[14px] font-semibold uppercase tracking-wide text-white shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#64748b] has-[:focus-visible]:ring-offset-2">
+                <input className="size-4 accent-white" type="checkbox" checked={selectedPanels.length === 3} onChange={() => setSelectedPanels(selectedPanels.length === 3 ? [] : [...PANEL_OPTIONS])} />
+                All
               </label>
               {PANEL_OPTIONS.map((panel) => (
-                <label key={panel} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-white text-[15px] ${panel === 'A' ? 'bg-[#1f5ea8]' : panel === 'B' ? 'bg-[#b42a1d]' : 'bg-[#1f7a57]'}`}>
-                  <input type="checkbox" checked={selectedPanels.includes(panel)} onChange={() => togglePanel(panel)} />
+                <label
+                  key={panel}
+                  className={`inline-flex cursor-pointer select-none items-center gap-2 rounded-lg border px-3 py-2 text-[15px] font-bold text-white shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
+                    panel === 'A'
+                      ? 'border-[#1d4ed8] bg-[#2563eb] has-[:focus-visible]:ring-[#3b82f6]'
+                      : panel === 'B'
+                        ? 'border-[#b91c1c] bg-[#dc2626] has-[:focus-visible]:ring-[#f87171]'
+                        : 'border-[#047857] bg-[#059669] has-[:focus-visible]:ring-[#34d399]'
+                  }`}
+                >
+                  <input className="size-4 accent-white" type="checkbox" checked={selectedPanels.includes(panel)} onChange={() => togglePanel(panel)} />
                   {panel}
                 </label>
               ))}
+              <span className="mx-1 hidden h-7 w-px bg-[#c9a66b]/70 sm:inline-block" aria-hidden />
               <button
                 type="button"
                 onClick={handleToggleAllDigits}
-                className={`px-2.5 py-1.5 rounded-full border text-[14px] font-semibold ${
+                className={`rounded-full border-2 px-3.5 py-2 text-[13px] font-bold tracking-wide transition ${
                   selectedDigits.length === DIGIT_OPTIONS.length
-                    ? 'bg-[#ef3f34] border-[#d4372f] text-white'
-                    : 'bg-[#f5d06a] border-[#cf9d21] text-[#1d2b4d]'
+                    ? 'border-[#4f46e5] bg-[#4f46e5] text-white shadow-md'
+                    : 'border-[#cbd5e1] bg-white text-[#334155] shadow-sm hover:border-[#94a3b8] hover:bg-[#f8fafc]'
                 }`}
               >
                 All
@@ -812,25 +905,63 @@ const ThreeDGame = () => {
                   key={digit}
                   type="button"
                   onClick={() => toggleDigit(digit)}
-                  className={`w-9 h-9 rounded-full border text-[15px] font-semibold ${selectedDigits.includes(digit) ? 'bg-[#ef3f34] border-[#d4372f] text-white' : 'bg-[#f5d06a] border-[#cf9d21] text-[#1d2b4d]'}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[15px] font-bold transition ${
+                    selectedDigits.includes(digit)
+                      ? 'scale-[1.03] border-[#4f46e5] bg-[#4f46e5] text-white shadow-md'
+                      : 'border-[#e2e8f0] bg-white text-[#334155] shadow-sm hover:border-[#94a3b8] hover:bg-[#f8fafc]'
+                  }`}
                 >
                   {digit}
                 </button>
               ))}
-              <button type="button" onClick={() => navigate('/lottery')} className="ml-auto px-3.5 h-9 rounded bg-[#c22c1f] border border-[#a52318] text-white text-[15px] font-semibold">2D</button>
+              <button
+                type="button"
+                onClick={() => navigate('/lottery')}
+                className="ml-auto rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2 text-[14px] font-bold uppercase tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98]"
+              >
+                2D
+              </button>
             </div>
 
-            <div className="bg-white border border-[#d9d9d9] rounded-lg p-2.5 grid grid-cols-10 gap-2 items-center">
-              {MODE_OPTIONS.map((mode) => (
-                <label key={mode} className="inline-flex items-center justify-center gap-1.5 h-10 px-1 border border-[#d8d8d8] rounded-md bg-[#fbfbfb] text-[15px] uppercase font-semibold whitespace-nowrap">
-                  <input type="checkbox" className="w-4 h-4" checked={selectedModes.includes(mode)} onChange={() => toggleMode(mode)} />
-                  <span>{mode}</span>
-                </label>
-              ))}
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[1fr_250px] gap-2 overflow-hidden">
+          <div className="grid h-full max-h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
+            <div className="overflow-hidden rounded-lg border border-[#d9d9d9] bg-white">
+              <div className="flex min-w-0 flex-col sm:flex-row sm:items-stretch">
+                <div className="flex min-w-0 w-full flex-[7] flex-nowrap items-stretch gap-1.5 overflow-x-auto bg-gradient-to-br from-[#dbeafe] to-[#e0f2fe] px-2 py-2 sm:min-w-0 sm:gap-2 sm:px-2.5 sm:py-2.5">
+                  {MODE_GROUP_COMBO.map((mode) => (
+                    <label
+                      key={mode}
+                      className="flex h-10 min-h-10 min-w-[3.25rem] flex-1 basis-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#bfdbfe] bg-white/90 px-1 text-[13px] font-semibold uppercase shadow-sm sm:min-w-0 sm:px-2 sm:text-[14px] md:text-[15px]"
+                    >
+                      <input type="checkbox" className="size-4 shrink-0 accent-[#2563eb]" checked={selectedModes.includes(mode)} onChange={() => toggleMode(mode)} />
+                      <span className="truncate">{mode}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="h-px w-full shrink-0 bg-[#d1d5db] sm:h-auto sm:w-px sm:self-stretch" aria-hidden />
+                <div className="flex min-w-0 w-full flex-[3] flex-nowrap items-stretch gap-1.5 overflow-x-auto bg-gradient-to-br from-[#d1fae5] to-[#ecfdf5] px-2 py-2 sm:min-w-0 sm:gap-2 sm:px-2.5 sm:py-2.5">
+                  {MODE_GROUP_SPECIAL.map((mode) => (
+                    <label
+                      key={mode}
+                      className={`flex h-10 min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#a7f3d0] bg-white/90 px-1.5 text-[12px] font-semibold uppercase leading-tight shadow-sm sm:px-2 sm:text-[13px] md:text-[14px] ${
+                        mode === 'duplicates'
+                          ? 'min-w-[9.5rem] shrink-0 flex-[1.65] basis-auto sm:min-w-[10.5rem] md:min-w-[11rem] md:text-[15px]'
+                          : 'min-w-[4.75rem] flex-1 basis-0 sm:min-w-[5.25rem]'
+                      }`}
+                    >
+                      <input type="checkbox" className="size-4 shrink-0 accent-[#059669]" checked={selectedModes.includes(mode)} onChange={() => toggleMode(mode)} />
+                      <span className="whitespace-nowrap text-center">{mode}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="bg-white border border-[#d9d9d9] rounded-lg p-3 space-y-3">
-              <div className="flex items-center gap-3">
+            <div className="grid h-full min-h-0 min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+            <div className="order-2 min-h-0 min-w-0 space-y-3 rounded-lg border border-[#d9d9d9] bg-white p-3">
+              <div className="rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#f1f5f9] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.06)]">
+              {/* Line 1: ADD NUMBER + Range + NUM To NUM (single row, scroll if narrow) */}
+              <div className="flex min-w-0 flex-nowrap items-center gap-x-2 overflow-x-auto sm:gap-x-3">
                 <input
                   ref={inputNumberRef}
                   onFocus={() => setActiveInputIndex(0)}
@@ -852,9 +983,9 @@ const ThreeDGame = () => {
                     if (validationMsg) setValidationMsg('');
                   }}
                   placeholder="ADD NUMBER"
-                  className="h-12 w-[190px] px-4 border-2 border-[#2e59c6] rounded-full text-center text-[18px] font-semibold tracking-[1px]"
+                  className="h-11 w-[min(11rem,36vw)] shrink-0 rounded-full border-2 border-[#2e59c6] px-3 text-center text-[16px] font-semibold tracking-wide sm:h-12 sm:w-[190px] sm:text-[18px]"
                 />
-                <span className="font-semibold text-[18px] text-[#1d2b4d]">Range:</span>
+                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">Range:</span>
                 <input
                   ref={rangeFromRef}
                   onFocus={() => setActiveInputIndex(1)}
@@ -877,9 +1008,9 @@ const ThreeDGame = () => {
                     if (validationMsg) setValidationMsg('');
                   }}
                   placeholder="NUM."
-                  className="h-11 w-[76px] px-2 border border-[#d1d1d1] rounded-full text-center text-[16px]"
+                  className="h-10 w-[4.25rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[15px] sm:h-11 sm:w-[76px] sm:text-[16px]"
                 />
-                <span className="font-semibold text-[18px] text-[#1d2b4d]">To</span>
+                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">To</span>
                 <input
                   ref={rangeToRef}
                   onFocus={() => setActiveInputIndex(2)}
@@ -900,16 +1031,25 @@ const ThreeDGame = () => {
                     setRangeTo(e.target.value.replace(/\D/g, '').slice(0, 3));
                   }}
                   placeholder="NUM."
-                  className="h-11 w-[76px] px-2 border border-[#d1d1d1] rounded-full text-center text-[16px]"
+                  className="h-10 w-[4.25rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[15px] sm:h-11 sm:w-[76px] sm:text-[16px]"
                 />
-                <span className="font-semibold text-[18px] text-[#1d2b4d]">L-Pick:</span>
-                <select value={lPickType} onChange={(e) => setLPickType(e.target.value)} className="h-11 px-4 border border-[#d1d1d1] rounded-full text-[16px]">
+              </div>
+              <div className="my-3 border-t border-[#d8dee9]" aria-hidden />
+              {/* Line 2: L-Pick + Qty + ADD */}
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">L-Pick:</span>
+                <select
+                  value={lPickType}
+                  onChange={(e) => setLPickType(e.target.value)}
+                  className="h-10 min-w-[7.5rem] rounded-full border border-[#d1d1d1] px-3 text-[15px] sm:h-11 sm:px-4 sm:text-[16px]"
+                >
                   {LPICK_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
                       {opt.toUpperCase()}
                     </option>
                   ))}
                 </select>
+                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">Qty</span>
                 <input
                   ref={qtyRef}
                   onFocus={() => setActiveInputIndex(3)}
@@ -930,51 +1070,46 @@ const ThreeDGame = () => {
                     setQty(e.target.value.replace(/\D/g, '').slice(0, 3));
                   }}
                   placeholder="Qty"
-                  className="h-11 w-[76px] px-2 border border-[#d1d1d1] rounded-full text-center text-[16px]"
+                  className="h-10 w-[4.25rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[15px] sm:h-11 sm:w-[76px] sm:text-[16px]"
                 />
                 {qty ? (
                   <button
                     type="button"
                     onClick={addBet}
-                    className="h-11 px-5 rounded-full border bg-white border-[#2e59c6] text-[#2e59c6] text-[16px] font-semibold"
+                    className="h-10 shrink-0 rounded-full border border-[#2e59c6] bg-white px-4 text-[15px] font-semibold text-[#2e59c6] sm:h-11 sm:px-5 sm:text-[16px]"
                   >
                     ADD
                   </button>
                 ) : null}
               </div>
-              <div className="grid grid-cols-[74px_repeat(6,minmax(0,1fr))] gap-2 items-center">
-                <span className="font-semibold text-[19px] text-[#1d2b4d]">Rate:</span>
-                {RATE_OPTIONS.map((rate) => (
-                  <label key={rate} className="inline-flex items-center justify-center gap-1.5 h-10 px-2 border border-[#d8d8d8] rounded-md bg-[#fbfbfb] text-[18px] font-semibold whitespace-nowrap">
-                    <input type="radio" className="w-4 h-4" checked={selectedRate === rate} onChange={() => setSelectedRate(rate)} />
-                    <span className="text-[18px] leading-none text-[#222]">{rate}</span>
-                  </label>
-                ))}
               </div>
-              <div className="flex items-center gap-3">
-                <label className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#1d2b4d]">
-                  <input type="checkbox" checked={allowDuplicates} onChange={(e) => setAllowDuplicates(e.target.checked)} />
-                  Allow Duplicates
-                </label>
-                <button
-                  type="button"
-                  onClick={handleClearAll}
-                  className="h-9 px-4 rounded border border-[#d4372f] text-[#d4372f] font-semibold"
-                >
-                  Clear All
-                </button>
-                <div className="text-[14px] text-[#334155] font-semibold">
-                  Total Count: {bets.length}
+              {/* Line 3: Rate — one clear row */}
+              <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto rounded-lg bg-[#f8fafc] px-2 py-2 sm:gap-3 sm:px-3">
+                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">Rate:</span>
+                <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+                  {RATE_OPTIONS.map((rate) => (
+                    <label
+                      key={rate}
+                      className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#cbd5e1] bg-white px-2.5 shadow-sm sm:h-10 sm:px-3"
+                    >
+                      <input type="radio" className="size-4 accent-[#2e59c6]" checked={selectedRate === rate} onChange={() => setSelectedRate(rate)} />
+                      <span className="text-[15px] font-bold leading-none text-[#1e293b] sm:text-[17px]">{rate}</span>
+                    </label>
+                  ))}
                 </div>
+              </div>
+              <div className="flex justify-end border-t border-[#e5e7eb] pt-3">
+                <div className="text-[14px] font-semibold text-[#334155]">Total Count: {bets.length}</div>
               </div>
               {validationMsg ? <div className="text-[13px] text-[#d4372f] font-semibold">{validationMsg}</div> : null}
             </div>
 
-            <div className="bg-white border-2 border-[#d9d9d9] rounded-lg p-3 h-full min-h-0 overflow-y-auto">
+            <div className="order-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border-2 border-[#d9d9d9] bg-white p-3">
               {!bets.length ? (
-                <div className="h-full flex items-center justify-center text-[42px] text-[#9a9a9a]">No bets placed yet</div>
+                <div className="flex min-h-[200px] flex-1 items-center justify-center text-[clamp(1.25rem,3vw,2.625rem)] text-[#9a9a9a] sm:min-h-0">No bets placed yet</div>
               ) : (
-                <div className="flex flex-wrap gap-3">
+                <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto">
+                <div className="grid w-full min-w-0 gap-3 [grid-template-columns:repeat(auto-fit,minmax(5.75rem,1fr))]">
                   {bets.map((bet) => {
                     const panelKey = String(bet.panels || '').trim().toUpperCase();
                     const panelClass =
@@ -986,7 +1121,7 @@ const ThreeDGame = () => {
                     return (
                     <div
                       key={bet.id}
-                      className={`w-[92px] rounded-md border overflow-hidden shadow-sm ${
+                      className={`min-w-0 w-full max-w-full rounded-md border overflow-hidden shadow-sm ${
                         bet.outcome === 'win' ? 'bg-[#eaf8ea] border-[#80c980]' : bet.outcome === 'loss' ? 'bg-[#ffecec] border-[#e9a0a0]' : 'bg-[#fafafa] border-[#dcdcdc]'
                       } ${bet.justAdded ? 'animate-pulse' : ''}`}
                     >
@@ -1018,21 +1153,14 @@ const ThreeDGame = () => {
                     </div>
                   )})}
                 </div>
+                </div>
               )}
             </div>
-
-            <div className="flex items-center gap-2 h-full">
-              <button type="button" onClick={handleBuy} className="h-12 px-6 bg-[#2ca44f] border border-[#248a42] rounded-lg text-white text-[26px] font-semibold">BUY</button>
-              <button type="button" onClick={handleClearAll} className="h-12 px-6 bg-[#ef3f34] border border-[#d4372f] rounded-lg text-white text-[26px] font-semibold">Clear</button>
-              <button type="button" onClick={handleAdvance} className="h-12 px-6 bg-[#1f6d98] border border-[#19597c] rounded-lg text-white text-[26px] font-semibold">Advance</button>
-              <div className="ml-auto h-12 min-w-[92px] rounded-lg border-2 border-[#d54d44] text-[34px] font-semibold text-[#1d2b4d] px-4 flex items-center justify-center bg-white">
-                {totalPoints}
-              </div>
             </div>
 
           </div>
 
-          <div className="h-full min-h-0 grid grid-rows-[auto_1fr_auto] gap-2">
+          <div className="h-full min-h-0 grid grid-rows-[auto_1fr] gap-2">
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={handleMotorPick} className="h-12 rounded-lg bg-[#c22c1f] border border-[#a52318] text-white text-[24px] font-semibold">Motor</button>
               <button type="button" onClick={handleLuckyPick} className="h-12 rounded-lg bg-[#f4c12d] border border-[#c79300] text-[#1d2b4d] text-[24px] font-semibold">Lucky Pick</button>
@@ -1078,9 +1206,16 @@ const ThreeDGame = () => {
               onNext={handleNextFromKeypad}
               points={pointValue}
             />
-            <button type="button" onClick={() => navigate('/lottery')} className="w-full h-12 bg-[#f0b420] border border-[#d69d15] rounded text-[18px] font-semibold text-[#111]">
-              Back To Lottery
-            </button>
+          </div>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-[#c5cdd9] bg-white px-3 py-2 shadow-[0_-2px_12px_rgba(15,23,42,0.06)]">
+            <button type="button" onClick={handleBuy} className="h-12 px-6 bg-[#2ca44f] border border-[#248a42] rounded-lg text-white text-[26px] font-semibold">BUY</button>
+            <button type="button" onClick={handleClearAll} className="h-12 px-6 bg-[#ef3f34] border border-[#d4372f] rounded-lg text-white text-[26px] font-semibold">Clear</button>
+            <button type="button" onClick={handleAdvance} className="h-12 px-6 bg-[#1f6d98] border border-[#19597c] rounded-lg text-white text-[26px] font-semibold">Advance</button>
+            <div className="ml-auto h-12 min-w-[92px] rounded-lg border-2 border-[#d54d44] text-[34px] font-semibold text-[#1d2b4d] px-4 flex items-center justify-center bg-white">
+              {totalPoints}
+            </div>
           </div>
         </div>
 
