@@ -103,6 +103,22 @@ const ThreeDGame = () => {
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
   const isMobileView = useMemo(() => viewport.width <= 900, [viewport.width]);
+  const inputNumberDisplay = useMemo(
+    () => (isMobileView && activeInputIndex === 0 ? `${inputNumber || ''} |` : inputNumber),
+    [activeInputIndex, inputNumber, isMobileView],
+  );
+  const rangeFromDisplay = useMemo(
+    () => (isMobileView && activeInputIndex === 1 ? `${rangeFrom || ''} |` : rangeFrom),
+    [activeInputIndex, isMobileView, rangeFrom],
+  );
+  const rangeToDisplay = useMemo(
+    () => (isMobileView && activeInputIndex === 2 ? `${rangeTo || ''} |` : rangeTo),
+    [activeInputIndex, isMobileView, rangeTo],
+  );
+  const qtyDisplay = useMemo(
+    () => (isMobileView && activeInputIndex === 3 ? `${qty || ''} |` : qty),
+    [activeInputIndex, isMobileView, qty],
+  );
 
   const applyFreshResult = useCallback((newResult) => {
     setLastResults({
@@ -775,7 +791,13 @@ const ThreeDGame = () => {
                 <input
                   ref={inputNumberRef}
                   onFocus={() => setActiveInputIndex(0)}
-                  value={inputNumber}
+                  onClick={() => {
+                    setActiveInputIndex(0);
+                    if (inputNumberRef.current) inputNumberRef.current.focus();
+                  }}
+                  onTouchStart={() => setActiveInputIndex(0)}
+                  onPointerDown={() => setActiveInputIndex(0)}
+                  value={inputNumberDisplay}
                   readOnly={isMobileView}
                   inputMode={isMobileView ? 'none' : 'numeric'}
                   onKeyDown={(e) => {
@@ -793,7 +815,13 @@ const ThreeDGame = () => {
                 <input
                   ref={rangeFromRef}
                   onFocus={() => setActiveInputIndex(1)}
-                  value={rangeFrom}
+                  onClick={() => {
+                    setActiveInputIndex(1);
+                    if (rangeFromRef.current) rangeFromRef.current.focus();
+                  }}
+                  onTouchStart={() => setActiveInputIndex(1)}
+                  onPointerDown={() => setActiveInputIndex(1)}
+                  value={rangeFromDisplay}
                   readOnly={isMobileView}
                   inputMode={isMobileView ? 'none' : 'numeric'}
                   onKeyDown={(e) => {
@@ -812,7 +840,13 @@ const ThreeDGame = () => {
                 <input
                   ref={rangeToRef}
                   onFocus={() => setActiveInputIndex(2)}
-                  value={rangeTo}
+                  onClick={() => {
+                    setActiveInputIndex(2);
+                    if (rangeToRef.current) rangeToRef.current.focus();
+                  }}
+                  onTouchStart={() => setActiveInputIndex(2)}
+                  onPointerDown={() => setActiveInputIndex(2)}
+                  value={rangeToDisplay}
                   readOnly={isMobileView}
                   inputMode={isMobileView ? 'none' : 'numeric'}
                   onKeyDown={(e) => {
@@ -836,7 +870,13 @@ const ThreeDGame = () => {
                 <input
                   ref={qtyRef}
                   onFocus={() => setActiveInputIndex(3)}
-                  value={qty}
+                  onClick={() => {
+                    setActiveInputIndex(3);
+                    if (qtyRef.current) qtyRef.current.focus();
+                  }}
+                  onTouchStart={() => setActiveInputIndex(3)}
+                  onPointerDown={() => setActiveInputIndex(3)}
+                  value={qtyDisplay}
                   readOnly={isMobileView}
                   inputMode={isMobileView ? 'none' : 'numeric'}
                   onKeyDown={(e) => {
