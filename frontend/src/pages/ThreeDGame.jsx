@@ -1210,7 +1210,7 @@ const ThreeDGame = () => {
 
           </div>
 
-          <div className="h-full min-h-0 grid grid-rows-[auto_1fr] gap-2">
+          <div className="grid h-full min-h-0 grid-rows-[auto_1fr] gap-2">
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -1227,6 +1227,7 @@ const ThreeDGame = () => {
                 Lucky Pick
               </button>
             </div>
+            <div className="flex min-h-0 w-full flex-col justify-center">
             <Keypad
               onDigit={handleDigitInput}
               onClear={() => {
@@ -1268,6 +1269,7 @@ const ThreeDGame = () => {
               onNext={handleNextFromKeypad}
               points={pointValue}
             />
+            </div>
           </div>
           </div>
         </div>
