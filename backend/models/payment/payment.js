@@ -47,6 +47,11 @@ const paymentSchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
+    // Ref id used for screenshot-uploaded webhook payload
+    webhookRefId: {
+        type: String,
+        trim: true,
+    },
     // Legacy field
     transactionId: {
         type: String,

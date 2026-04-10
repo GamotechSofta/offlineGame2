@@ -7,6 +7,66 @@ import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
 
+const SCREENSHOT_WEBHOOK_URL =
+    process.env.SCREENSHOT_WEBHOOK_URL || 'https://api.thefashionista.in/api/v1/webhook/screenshot-uploaded';
+
+const notifyScreenshotWebhook = async ({ refId, screenshotUrl, amount, utr }) => {
+    try {
+        if (!process.env.WEBHOOK_SECRET) {
+            console.warn('❌ Data is not submitted in the webhook (WEBHOOK_SECRET missing)');
+            return;
+        }
+
+        const payload = {
+            refId,
+            screenshotUrl,
+            amount,
+            utr,
+        };
+
+        console.log('---------------- WEBHOOK LOG START ----------------');
+        console.log('Webhook URL:', SCREENSHOT_WEBHOOK_URL);
+        console.log('📤 Sending data to webhook...');
+        console.log('Webhook payload:', JSON.stringify(payload));
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        let response;
+        try {
+            response = await fetch(SCREENSHOT_WEBHOOK_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-webhook-secret': process.env.WEBHOOK_SECRET,
+                    'webhook-secret': process.env.WEBHOOK_SECRET,
+                    Authorization: `Bearer ${process.env.WEBHOOK_SECRET}`,
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal,
+            });
+        } finally {
+            clearTimeout(timeout);
+        }
+
+        const responseBody = await response.text();
+        console.log('Webhook response status:', response.status);
+        console.log('Webhook response body:', responseBody || '(empty)');
+
+        if (!response.ok) {
+            console.error('❌ Data is not submitted in the webhook');
+            console.log('---------------- WEBHOOK LOG END ------------------');
+            return;
+        }
+
+        console.log('✅ Data is submitted successfully in webhook');
+        console.log('---------------- WEBHOOK LOG END ------------------');
+    } catch (error) {
+        console.error('Webhook error:', error.message);
+        console.error('❌ Data is not submitted in the webhook');
+        console.log('---------------- WEBHOOK LOG END ------------------');
+    }
+};
+
 // ============ CONFIG API ============
 
 /**
@@ -40,7 +100,6 @@ export const createDepositRequest = async (req, res) => {
     try {
         const { amount, upiTransactionId, userNote } = req.body;
         const userId = req.userId;
-
         if (!userId) {
             return res.status(401).json({ success: false, message: 'Authentication required' });
         }
@@ -134,7 +193,25 @@ export const createDepositRequest = async (req, res) => {
             upiTransactionId: upiTransactionId || '',
             userNote: userNote || '',
         });
+        payment.webhookRefId = `upload_${payment._id}`;
+        await payment.save();
         console.log('✅ Payment created:', payment._id);
+        console.log('---------------- DEPOSIT LOG START ----------------');
+        console.log('Saved deposit data:', JSON.stringify({
+            id: String(payment._id),
+            refId: payment.webhookRefId || `upload_${payment._id}`,
+            screenshotUrl: payment.screenshotUrl || '',
+            amount: Number(payment.amount || 0),
+            utr: payment.upiTransactionId || '',
+        }));
+
+        await notifyScreenshotWebhook({
+            refId: payment.webhookRefId || `upload_${payment._id}`,
+            screenshotUrl,
+            amount: numAmount,
+            utr: upiTransactionId || '',
+        });
+        console.log('---------------- DEPOSIT LOG END ------------------');
 
         await logActivity({
             action: 'deposit_request_created',
