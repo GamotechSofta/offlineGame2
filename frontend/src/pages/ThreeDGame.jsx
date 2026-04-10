@@ -763,24 +763,29 @@ const ThreeDGame = () => {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-[250px_minmax(0,1fr)_54px] gap-2 items-stretch min-h-0 pb-1">
-          <div className="flex h-full min-h-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#5c5c5c] bg-[#f4f1e8] px-3 py-2 text-center">
-            <div className="text-[44px] font-extrabold leading-none tracking-tight text-[#b32121] md:text-[32px]">3D Quiz</div>
-            <div className="text-[17px] font-semibold text-black">Last Draw: {timeToDrawText}</div>
+        <div className="grid min-h-0 grid-cols-[minmax(0,11rem)_minmax(0,1fr)_2.75rem] items-stretch gap-1.5 pb-0.5 sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)_2.75rem] sm:gap-2">
+          <div className="flex h-full min-h-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-200/50 bg-gradient-to-br from-amber-50/95 via-white to-rose-50/30 px-2 py-1.5 text-center shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-white/90 sm:px-2.5 sm:py-2">
+            <div className="bg-gradient-to-r from-rose-700 via-red-600 to-rose-700 bg-clip-text text-[clamp(1.35rem,3.5vw,1.75rem)] font-extrabold leading-none tracking-tight text-transparent">
+              3D Quiz
+            </div>
+            <div className="text-[11px] font-semibold leading-tight text-slate-600 sm:text-xs">
+              Last Draw:{' '}
+              <span className="font-bold tabular-nums text-slate-900">{timeToDrawText}</span>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 min-w-0">
+          <div className="grid min-w-0 grid-cols-3 gap-1 sm:gap-1.5">
             <ResultPanel title="A" digits={results.A} isUpdated={isResultFresh} />
             <ResultPanel title="B" digits={results.B} isUpdated={isResultFresh} />
             <ResultPanel title="C" digits={results.C} isUpdated={isResultFresh} />
           </div>
           <div
             ref={headerMenuRef}
-            className="relative z-40 flex items-stretch justify-center min-w-[52px] shrink-0 h-full"
+            className="relative z-40 flex h-full min-h-0 shrink-0 items-stretch justify-center"
           >
             <button
               type="button"
               onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
-              className="flex h-full w-12 shrink-0 items-center justify-center rounded-lg border border-[#7a4f26] bg-[#a97142] text-[22px] font-bold leading-none text-white shadow-sm transition-colors hover:bg-[#935f33] active:bg-[#7d4f28]"
+              className="flex h-full w-full min-w-0 max-w-[2.75rem] shrink-0 items-center justify-center rounded-lg bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 text-[18px] font-bold leading-none text-white shadow-[0_3px_12px_rgba(120,53,15,0.35)] ring-1 ring-amber-200/35 transition hover:brightness-110 active:scale-[0.98] sm:text-[19px]"
               aria-label="Open menu"
               aria-expanded={isHeaderMenuOpen}
             >
@@ -1162,8 +1167,20 @@ const ThreeDGame = () => {
 
           <div className="h-full min-h-0 grid grid-rows-[auto_1fr] gap-2">
             <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={handleMotorPick} className="h-12 rounded-lg bg-[#c22c1f] border border-[#a52318] text-white text-[24px] font-semibold">Motor</button>
-              <button type="button" onClick={handleLuckyPick} className="h-12 rounded-lg bg-[#f4c12d] border border-[#c79300] text-[#1d2b4d] text-[24px] font-semibold">Lucky Pick</button>
+              <button
+                type="button"
+                onClick={handleMotorPick}
+                className="h-12 rounded-xl bg-gradient-to-b from-orange-600 via-red-600 to-red-800 text-[21px] font-bold tracking-wide text-white shadow-[0_4px_14px_rgba(220,38,38,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98] sm:text-[23px]"
+              >
+                Motor
+              </button>
+              <button
+                type="button"
+                onClick={handleLuckyPick}
+                className="h-12 rounded-xl bg-gradient-to-b from-amber-300 via-amber-400 to-yellow-500 text-[19px] font-bold tracking-wide text-amber-950 shadow-[0_4px_14px_rgba(245,158,11,0.45)] ring-1 ring-amber-100/60 transition hover:brightness-110 active:scale-[0.98] sm:text-[21px]"
+              >
+                Lucky Pick
+              </button>
             </div>
             <Keypad
               onDigit={handleDigitInput}
@@ -1209,12 +1226,35 @@ const ThreeDGame = () => {
           </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-[#c5cdd9] bg-white px-3 py-2 shadow-[0_-2px_12px_rgba(15,23,42,0.06)]">
-            <button type="button" onClick={handleBuy} className="h-12 px-6 bg-[#2ca44f] border border-[#248a42] rounded-lg text-white text-[26px] font-semibold">BUY</button>
-            <button type="button" onClick={handleClearAll} className="h-12 px-6 bg-[#ef3f34] border border-[#d4372f] rounded-lg text-white text-[26px] font-semibold">Clear</button>
-            <button type="button" onClick={handleAdvance} className="h-12 px-6 bg-[#1f6d98] border border-[#19597c] rounded-lg text-white text-[26px] font-semibold">Advance</button>
-            <div className="ml-auto h-12 min-w-[92px] rounded-lg border-2 border-[#d54d44] text-[34px] font-semibold text-[#1d2b4d] px-4 flex items-center justify-center bg-white">
-              {totalPoints}
+          <div className="grid w-full shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 rounded-xl border border-slate-200/90 bg-gradient-to-r from-slate-50 via-white to-slate-100/80 px-3 py-2.5 shadow-[0_-6px_24px_rgba(15,23,42,0.07)] sm:gap-x-3 sm:px-4">
+            <span className="min-w-0" aria-hidden />
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
+              <button
+                type="button"
+                onClick={handleBuy}
+                className="h-12 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 px-6 text-[22px] font-bold tracking-wide text-white shadow-[0_4px_14px_rgba(5,150,105,0.45)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98] sm:px-7 sm:text-[24px]"
+              >
+                BUY
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="h-12 rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 px-5 text-[20px] font-bold tracking-wide text-white shadow-[0_4px_14px_rgba(225,29,72,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98] sm:px-6 sm:text-[22px]"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={handleAdvance}
+                className="h-12 rounded-xl bg-gradient-to-b from-violet-500 via-indigo-600 to-indigo-800 px-5 text-[20px] font-bold tracking-wide text-white shadow-[0_4px_14px_rgba(79,70,229,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98] sm:px-6 sm:text-[22px]"
+              >
+                Advance
+              </button>
+            </div>
+            <div className="flex min-w-0 justify-self-end">
+              <div className="flex h-12 min-w-[5.5rem] items-center justify-center rounded-xl border border-amber-200/70 bg-gradient-to-b from-amber-50 to-amber-100/80 px-4 text-[clamp(1.5rem,4vw,2rem)] font-bold tabular-nums text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-amber-300/25">
+                {totalPoints}
+              </div>
             </div>
           </div>
         </div>
