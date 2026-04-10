@@ -763,7 +763,7 @@ const ThreeDGame = () => {
           </div>
         ) : null}
 
-        <div className="grid min-h-0 grid-cols-[minmax(0,11rem)_minmax(0,1fr)_2.75rem] items-stretch gap-1.5 pb-0.5 sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)_2.75rem] sm:gap-2">
+        <div className="grid min-h-0 grid-cols-[minmax(0,11rem)_minmax(0,1fr)_minmax(2.75rem,3.5rem)] items-stretch gap-1.5 pb-0.5 sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)_minmax(2.75rem,3.75rem)] sm:gap-2">
           <div className="flex h-full min-h-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-200/50 bg-gradient-to-br from-amber-50/95 via-white to-rose-50/30 px-2 py-1.5 text-center shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-white/90 sm:px-2.5 sm:py-2">
             <div className="bg-gradient-to-r from-rose-700 via-red-600 to-rose-700 bg-clip-text text-[clamp(1.35rem,3.5vw,1.75rem)] font-extrabold leading-none tracking-tight text-transparent">
               3D Quiz
@@ -780,7 +780,7 @@ const ThreeDGame = () => {
           </div>
           <div
             ref={headerMenuRef}
-            className="relative z-40 flex h-full min-h-0 shrink-0 items-stretch justify-center"
+            className="relative z-40 flex h-full min-h-0 shrink-0 items-stretch justify-end pr-1.5 sm:pr-2.5"
           >
             <button
               type="button"
@@ -963,7 +963,15 @@ const ThreeDGame = () => {
             </div>
 
             <div className="grid h-full min-h-0 min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-            <div className="order-2 min-h-0 min-w-0 space-y-3 rounded-lg border border-[#d9d9d9] bg-white p-3">
+            <div className="order-2 min-h-0 min-w-0 space-y-5 rounded-lg border border-[#d9d9d9] bg-white p-3 sm:space-y-6 sm:p-4">
+              <header className="space-y-1 border-b border-slate-200/80 pb-3">
+                <h2 className="bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 bg-clip-text text-[17px] font-extrabold leading-tight tracking-tight text-transparent sm:text-[19px]">
+                  Play &amp; stake — 3D Quiz
+                </h2>
+                <p className="text-[12px] font-semibold leading-snug text-slate-500 sm:text-[13px]">
+                  Add number or range, L-Pick &amp; qty, set rate, then BUY / Clear / Advance
+                </p>
+              </header>
               <div className="rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#f1f5f9] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.06)]">
               {/* Line 1: ADD NUMBER + Range + NUM To NUM (single row, scroll if narrow) */}
               <div className="flex min-w-0 flex-nowrap items-center gap-x-2 overflow-x-auto sm:gap-x-3">
@@ -1103,10 +1111,47 @@ const ThreeDGame = () => {
                   ))}
                 </div>
               </div>
-              <div className="flex justify-end border-t border-[#e5e7eb] pt-3">
-                <div className="text-[14px] font-semibold text-[#334155]">Total Count: {bets.length}</div>
+              <div className="w-full min-w-0 border-t border-[#e5e7eb] pt-1 sm:pt-0">
+                <div className="w-full min-w-0 rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#eef2f7] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_10px_rgba(15,23,42,0.06)] sm:p-4">
+                  <div className="mb-3.5 flex w-full justify-end border-b border-slate-200/80 pb-3">
+                    <div className="text-[17px] font-bold leading-tight text-slate-600 sm:text-[20px] md:text-[22px]">
+                      Total Count:{' '}
+                      <span className="tabular-nums text-[1.1em] font-extrabold text-slate-900">{bets.length}</span>
+                    </div>
+                  </div>
+                  <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch sm:gap-4">
+                    <div className="flex w-full min-w-0 flex-wrap items-stretch justify-start gap-2 sm:gap-3">
+                      <button
+                        type="button"
+                        onClick={handleBuy}
+                        className="min-h-[3rem] flex-1 basis-[5.5rem] rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 px-4 py-2 text-[20px] font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98] sm:min-h-[3.5rem] sm:basis-0 sm:px-8 sm:text-[24px]"
+                      >
+                        BUY
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAll}
+                        className="min-h-[3rem] flex-1 basis-[4.5rem] rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 px-3 py-2 text-[18px] font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(225,29,72,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98] sm:min-h-[3.5rem] sm:basis-0 sm:px-7 sm:text-[22px]"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAdvance}
+                        className="min-h-[3rem] flex-1 basis-[5rem] rounded-xl bg-gradient-to-b from-violet-500 via-indigo-600 to-indigo-800 px-3 py-2 text-[18px] font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(79,70,229,0.4)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98] sm:min-h-[3.5rem] sm:basis-0 sm:px-7 sm:text-[22px]"
+                      >
+                        Advance
+                      </button>
+                    </div>
+                    <div className="flex w-full min-w-0 sm:w-auto sm:min-w-[8rem] sm:justify-end">
+                      <div className="flex min-h-[3rem] w-full min-w-0 items-center justify-center rounded-xl border-2 border-amber-200/80 bg-gradient-to-b from-amber-50 to-amber-100/90 px-4 text-[clamp(1.35rem,4.5vw,2rem)] font-bold tabular-nums text-slate-900 shadow-[inset_0_2px_6px_rgba(255,255,255,0.75),0_2px_10px_rgba(180,83,9,0.12)] ring-1 ring-amber-300/30 sm:min-h-[3.5rem] sm:min-w-[7.5rem] sm:px-5 sm:text-[clamp(1.65rem,2.2vw,2.25rem)]">
+                        {totalPoints}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              {validationMsg ? <div className="text-[13px] text-[#d4372f] font-semibold">{validationMsg}</div> : null}
+              {validationMsg ? <div className="text-[12px] font-semibold text-[#d4372f] sm:text-[13px]">{validationMsg}</div> : null}
             </div>
 
             <div className="order-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border-2 border-[#d9d9d9] bg-white p-3">
@@ -1224,38 +1269,6 @@ const ThreeDGame = () => {
               points={pointValue}
             />
           </div>
-          </div>
-
-          <div className="grid w-full shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 rounded-xl border border-slate-200/90 bg-gradient-to-r from-slate-50 via-white to-slate-100/80 px-3 py-2.5 shadow-[0_-6px_24px_rgba(15,23,42,0.07)] sm:gap-x-3 sm:px-4">
-            <span className="min-w-0" aria-hidden />
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
-              <button
-                type="button"
-                onClick={handleBuy}
-                className="h-12 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 px-6 text-[22px] font-bold tracking-wide text-white shadow-[0_4px_14px_rgba(5,150,105,0.45)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98] sm:px-7 sm:text-[24px]"
-              >
-                BUY
-              </button>
-              <button
-                type="button"
-                onClick={handleClearAll}
-                className="h-12 rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 px-5 text-[20px] font-bold tracking-wide text-white shadow-[0_4px_14px_rgba(225,29,72,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98] sm:px-6 sm:text-[22px]"
-              >
-                Clear
-              </button>
-              <button
-                type="button"
-                onClick={handleAdvance}
-                className="h-12 rounded-xl bg-gradient-to-b from-violet-500 via-indigo-600 to-indigo-800 px-5 text-[20px] font-bold tracking-wide text-white shadow-[0_4px_14px_rgba(79,70,229,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98] sm:px-6 sm:text-[22px]"
-              >
-                Advance
-              </button>
-            </div>
-            <div className="flex min-w-0 justify-self-end">
-              <div className="flex h-12 min-w-[5.5rem] items-center justify-center rounded-xl border border-amber-200/70 bg-gradient-to-b from-amber-50 to-amber-100/80 px-4 text-[clamp(1.5rem,4vw,2rem)] font-bold tabular-nums text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-amber-300/25">
-                {totalPoints}
-              </div>
-            </div>
           </div>
         </div>
 
