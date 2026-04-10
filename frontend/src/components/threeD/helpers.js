@@ -29,8 +29,6 @@ export const getSlotMeta = (now = new Date()) => {
   };
 };
 
-// Signature used by BOX (permutation-insensitive compare)
-const digitsSignature = (num) => String(num).split('').sort().join('');
 export const hasTwoSameDigits = (num) => new Set(String(num).split('')).size === 2;
 export const hasAllSameDigits = (num) => new Set(String(num).split('')).size === 1;
 export const hasAllUniqueDigits = (num) => new Set(String(num).split('')).size === 3;
@@ -38,10 +36,19 @@ const normalize3Digit = (value) =>
   String(value ?? '')
     .replace(/\D/g, '')
     .slice(0, 3);
+const normalize2Digit = (value) =>
+  String(value ?? '')
+    .replace(/\D/g, '')
+    .slice(-2);
+export const getSpCycleValue = (value) => {
+  const digits = normalize3Digit(value);
+  if (!/^\d{3}$/.test(digits)) return null;
+  const z = Number(digits[2]);
+  return String(10 + z);
+};
 
 const normalizeMode = (mode) => {
   const m = String(mode || '').toLowerCase();
-  if (m === 'str') return 'single';
   if (m === 'dp') return 'duplicates';
   if (m === 'tp') return 'triples';
   return m;
@@ -50,15 +57,18 @@ const normalizeMode = (mode) => {
 export const validateBetForMode = (betNum, modeRaw) => {
   const mode = normalizeMode(modeRaw);
   const rawDigits = String(betNum ?? '').replace(/\D/g, '');
+  if (mode === 'sp') {
+    if (rawDigits.length !== 2) return { valid: false, reason: 'SP number must be 2 digits (10-19)' };
+    const value = Number(rawDigits);
+    if (value < 10 || value > 19) return { valid: false, reason: 'SP number must be between 10 and 19' };
+    return { valid: true, reason: '' };
+  }
   if (rawDigits.length !== 3) {
     return { valid: false, reason: 'Number must be exactly 3 digits' };
   }
   const normalizedBet = rawDigits.slice(0, 3);
   if (mode === 'single' && !hasAllUniqueDigits(normalizedBet)) {
     return { valid: false, reason: 'Single requires all 3 digits to be unique' };
-  }
-  if (mode === 'sp' && !hasAllUniqueDigits(normalizedBet)) {
-    return { valid: false, reason: 'SP requires all 3 digits to be unique' };
   }
   if (mode === 'duplicates' && !hasTwoSameDigits(normalizedBet)) {
     return { valid: false, reason: 'DP requires exactly two digits to be same' };
@@ -73,8 +83,21 @@ export const evaluateModeAgainstResult = (modeRaw, betNumRaw, resultNumRaw) => {
   const mode = normalizeMode(modeRaw);
   const rawBetDigits = String(betNumRaw ?? '').replace(/\D/g, '');
   const rawResultDigits = String(resultNumRaw ?? '').replace(/\D/g, '');
-  if (rawBetDigits.length !== 3 || rawResultDigits.length !== 3) {
-    return { matched: false, reason: 'invalid bet/result format' };
+  if (rawResultDigits.length !== 3) {
+    return { matched: false, reason: 'invalid result format' };
+  }
+  if (mode === 'sp') {
+    const betNum = normalize2Digit(betNumRaw);
+    if (betNum.length !== 2) return { matched: false, reason: 'SP bet must be 2 digits' };
+    const value = Number(betNum);
+    if (value < 10 || value > 19) return { matched: false, reason: 'SP bet must be in 10-19 range' };
+    const spResult = getSpCycleValue(resultNumRaw);
+    if (!spResult) return { matched: false, reason: 'SP result calculation failed' };
+    const matched = betNum === spResult;
+    return { matched, reason: matched ? `SP cycle matched (${spResult})` : `SP cycle did not match (${spResult})` };
+  }
+  if (rawBetDigits.length !== 3) {
+    return { matched: false, reason: 'invalid bet format' };
   }
   const betNum = normalize3Digit(betNumRaw);
   const resultNum = normalize3Digit(resultNumRaw);
@@ -93,8 +116,12 @@ export const evaluateModeAgainstResult = (modeRaw, betNumRaw, resultNumRaw) => {
     return { matched, reason: matched ? `exact match (${resultNum})` : 'exact number did not match' };
   }
   if (mode === 'box') {
-    const matched = digitsSignature(betNum) === digitsSignature(resultNum);
-    return { matched, reason: matched ? `matched permutation with ${resultNum}` : 'no permutation matched' };
+    const matched = betNum === resultNum;
+    return { matched, reason: matched ? `BOX exact match with ${resultNum}` : 'BOX exact match not found' };
+  }
+  if (mode === 'str') {
+    const matched = betNum === resultNum;
+    return { matched, reason: matched ? `STR exact match with ${resultNum}` : 'STR exact match not found' };
   }
   if (mode === 'fp') {
     return { matched: frontPair, reason: frontPair ? `first two digits matched (${resultNum.slice(0, 2)})` : 'first two digits did not match' };
@@ -107,12 +134,6 @@ export const evaluateModeAgainstResult = (modeRaw, betNumRaw, resultNumRaw) => {
     if (backPair) return { matched: true, reason: `back pair matched (${resultNum.slice(1)})` };
     if (outerPair) return { matched: true, reason: `outer pair matched (${resultNum[0]}${resultNum[2]})` };
     return { matched: false, reason: 'no position-based pair matched' };
-  }
-  if (mode === 'sp') {
-    if (!hasAllUniqueDigits(betNum)) return { matched: false, reason: 'SP invalid: digits are not unique' };
-    if (!hasAllUniqueDigits(resultNum)) return { matched: false, reason: 'SP result invalid: digits are not unique' };
-    const matched = betNum === resultNum;
-    return { matched, reason: matched ? `SP exact match with ${resultNum}` : 'SP exact match not found' };
   }
   if (mode === 'duplicates') {
     if (!hasTwoSameDigits(betNum)) return { matched: false, reason: 'DP invalid: exactly two digits must be same' };
@@ -175,7 +196,7 @@ export const matchBet = (bet, results, options = {}) => {
     const evalResult = evaluateModeAgainstResult(mode, betNum, entry.num);
     if (evalResult.matched) {
       const displayResult =
-        mode === 'fp' ? entry.num.slice(0, 2) : entry.num;
+        mode === 'fp' ? entry.num.slice(0, 2) : mode === 'bp' ? entry.num.slice(1) : mode === 'ap' ? entry.num.slice(0, 2) : mode === 'sp' ? getSpCycleValue(entry.num) || entry.num : entry.num;
       matches.push({
         panel: entry.panel,
         result: displayResult,
@@ -252,9 +273,9 @@ export const testCases = [
   { mode: 'ap', bet: '123', result: '153', expected: true },
   { mode: 'ap', bet: '123', result: '312', expected: false },
   { mode: 'ap', bet: '123', result: '456', expected: false },
-  { mode: 'sp', bet: '123', result: '123', expected: true },
-  { mode: 'sp', bet: '123', result: '321', expected: false },
-  { mode: 'sp', bet: '121', result: '121', expected: false },
+  { mode: 'sp', bet: '13', result: '123', expected: true },
+  { mode: 'sp', bet: '11', result: '321', expected: true },
+  { mode: 'sp', bet: '15', result: '121', expected: false },
   { mode: 'duplicates', bet: '112', result: '112', expected: true },
   { mode: 'duplicates', bet: '121', result: '121', expected: true },
   { mode: 'duplicates', bet: '123', result: '123', expected: false },
@@ -274,12 +295,12 @@ export const strTestCases = [
 ];
 
 export const spTestCases = [
-  { mode: 'sp', bet: '123', result: '123', expected: true },
-  { mode: 'sp', bet: '123', result: '321', expected: false },
-  { mode: 'sp', bet: '123', result: '112', expected: false },
-  { mode: 'sp', bet: '456', result: '456', expected: true },
-  { mode: 'sp', bet: '121', result: '121', expected: false },
-  { mode: 'sp', bet: '111', result: '111', expected: false },
+  { mode: 'sp', bet: '15', result: '115', expected: true },
+  { mode: 'sp', bet: '10', result: '120', expected: true },
+  { mode: 'sp', bet: '19', result: '129', expected: true },
+  { mode: 'sp', bet: '12', result: '123', expected: false },
+  { mode: 'sp', bet: '11', result: '129', expected: false },
+  { mode: 'sp', bet: '20', result: '120', expected: false },
 ];
 
 export const runStrSpSelfTest = () => {
