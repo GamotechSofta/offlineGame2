@@ -42,6 +42,12 @@ const HEADER_MENU_ITEMS = [
 ];
 const PANEL_OPTIONS = ['A', 'B', 'C'];
 const DIGIT_OPTIONS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+/** Panel letter strip on placed-bet cards (matches ResultPanel-style gradients). */
+const BET_CARD_PANEL_HEADER = {
+  A: 'bg-gradient-to-b from-blue-500 via-blue-600 to-indigo-800 shadow-[0_3px_10px_rgba(37,99,235,0.42)] ring-1 ring-white/35',
+  B: 'bg-gradient-to-b from-rose-500 via-red-600 to-red-800 shadow-[0_3px_10px_rgba(220,38,38,0.4)] ring-1 ring-white/35',
+  C: 'bg-gradient-to-b from-emerald-500 via-teal-600 to-emerald-800 shadow-[0_3px_10px_rgba(5,150,105,0.4)] ring-1 ring-white/35',
+};
 const VALID_MODES = new Set(['single', 'str', 'box', 'sp', 'fp', 'bp', 'ap', 'duplicates', 'dp', 'triples', 'tp']);
 const LPICK_OPTIONS = ['single', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'duplicates', 'triples'];
 const BASE_WIDTH = 1536;
@@ -768,9 +774,9 @@ const ThreeDGame = () => {
             <div className="bg-gradient-to-r from-rose-700 via-red-600 to-rose-700 bg-clip-text text-[clamp(1.35rem,3.5vw,1.75rem)] font-extrabold leading-none tracking-tight text-transparent">
               3D Quiz
             </div>
-            <div className="text-[11px] font-semibold leading-tight text-slate-600 sm:text-xs">
+            <div className="text-[13px] font-bold leading-tight text-slate-600 sm:text-[15px] md:text-[16px]">
               Last Draw:{' '}
-              <span className="font-bold tabular-nums text-slate-900">{timeToDrawText}</span>
+              <span className="font-extrabold tabular-nums text-slate-900">{timeToDrawText}</span>
             </div>
           </div>
           <div className="grid min-w-0 grid-cols-3 gap-1 sm:gap-1.5">
@@ -919,13 +925,18 @@ const ThreeDGame = () => {
                   {digit}
                 </button>
               ))}
-              <button
-                type="button"
-                onClick={() => navigate('/lottery')}
-                className="ml-auto rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2 text-[14px] font-bold uppercase tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98]"
-              >
-                2D
-              </button>
+              <div className="ml-auto flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 pl-2 sm:gap-x-3">
+                <span className="max-w-[11rem] text-right text-[13px] font-extrabold leading-snug tracking-tight text-[#4a3d24] sm:max-w-none sm:text-[16px] md:text-[18px]">
+                  Go back to 2D game
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigate('/lottery')}
+                  className="rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2 text-[14px] font-bold uppercase tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98]"
+                >
+                  2D
+                </button>
+              </div>
             </div>
 
           <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[1fr_250px] gap-2 overflow-hidden">
@@ -1162,42 +1173,41 @@ const ThreeDGame = () => {
                 <div className="grid w-full min-w-0 gap-3 [grid-template-columns:repeat(auto-fit,minmax(5.75rem,1fr))]">
                   {bets.map((bet) => {
                     const panelKey = String(bet.panels || '').trim().toUpperCase();
-                    const panelClass =
-                      panelKey === 'A'
-                        ? 'bg-[#1f5ea8] border-[#184b86]'
-                        : panelKey === 'B'
-                          ? 'bg-[#b42a1d] border-[#922216]'
-                          : 'bg-[#1f7a57] border-[#196347]';
+                    const panelHeaderClass = BET_CARD_PANEL_HEADER[panelKey] || BET_CARD_PANEL_HEADER.A;
+                    const shellClass =
+                      bet.outcome === 'win'
+                        ? 'border border-emerald-300/85 bg-gradient-to-b from-emerald-50/95 via-white to-white shadow-[0_4px_16px_rgba(5,150,105,0.18)] ring-1 ring-emerald-200/50'
+                        : bet.outcome === 'loss'
+                          ? 'border border-rose-300/85 bg-gradient-to-b from-rose-50/95 via-white to-white shadow-[0_4px_16px_rgba(225,29,72,0.14)] ring-1 ring-rose-200/45'
+                          : 'border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/60 to-slate-100/50 shadow-[0_4px_14px_rgba(15,23,42,0.09)] ring-1 ring-slate-200/40';
                     return (
                     <div
                       key={bet.id}
-                      className={`min-w-0 w-full max-w-full rounded-md border overflow-hidden shadow-sm ${
-                        bet.outcome === 'win' ? 'bg-[#eaf8ea] border-[#80c980]' : bet.outcome === 'loss' ? 'bg-[#ffecec] border-[#e9a0a0]' : 'bg-[#fafafa] border-[#dcdcdc]'
-                      } ${bet.justAdded ? 'animate-pulse' : ''}`}
+                      className={`min-w-0 w-full max-w-full overflow-hidden rounded-xl ${shellClass} ${bet.justAdded ? 'animate-pulse' : ''}`}
                     >
-                      <div className={`h-7 border-b text-white font-bold text-[14px] flex items-center justify-center ${panelClass}`}>
+                      <div className={`flex h-8 items-center justify-center text-[15px] font-bold tracking-wide text-white drop-shadow-sm ${panelHeaderClass}`}>
                         {panelKey || '-'}
                       </div>
-                      <div className="px-2 py-2 text-center">
-                        <div className="font-semibold text-[21px] leading-none text-[#1a1a1a]">{getDisplayBetNumber(bet)}</div>
-                        <div className="uppercase text-[15px] leading-none mt-1 text-[#6d6d6d] font-semibold">{bet.mode}</div>
-                        <div className="text-[13px] leading-none mt-1 text-[#6d6d6d] font-semibold">Price {bet.rate}</div>
+                      <div className="px-2.5 py-2.5 text-center">
+                        <div className="text-[22px] font-bold leading-none tracking-tight text-slate-900">{getDisplayBetNumber(bet)}</div>
+                        <div className="mt-1 text-[13px] font-bold uppercase leading-none tracking-wide text-slate-500">{bet.mode}</div>
+                        <div className="mt-1 text-[12px] font-semibold leading-none text-slate-500">Price {bet.rate}</div>
                         <button
                           type="button"
                           onClick={() => setBets((prev) => prev.filter((x) => x.id !== bet.id))}
-                          className="mt-1.5 h-6 w-6 mx-auto rounded-full bg-[#ef3f34] border border-[#d4372f] text-white font-bold leading-none"
+                          className="mx-auto mt-2 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-b from-rose-500 to-red-700 text-[16px] font-bold leading-none text-white shadow-[0_2px_10px_rgba(220,38,38,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-95"
                           aria-label="Remove bet"
                         >
                           ×
                         </button>
                       </div>
                       {bet.outcome ? (
-                        <div className="px-2 pb-2 text-[11px] text-center">
-                          <span className={`font-semibold ${bet.outcome === 'win' ? 'text-[#2ca44f]' : 'text-[#d4372f]'}`}>
+                        <div className="border-t border-slate-200/70 bg-slate-50/80 px-2 pb-2 pt-1.5 text-[10px] text-center sm:text-[11px]">
+                          <span className={`font-bold ${bet.outcome === 'win' ? 'text-emerald-600' : 'text-rose-600'}`}>
                             {bet.outcome.toUpperCase()}
                           </span>
-                          <div className="text-[#555] mt-0.5">Panel: {bet.matchedPanel || '-'}</div>
-                          <div className="text-[#555]">Result: {bet.matchedResult || '-'}</div>
+                          <div className="mt-0.5 font-medium text-slate-600">Panel: {bet.matchedPanel || '-'}</div>
+                          <div className="font-medium text-slate-600">Result: {bet.matchedResult || '-'}</div>
                         </div>
                       ) : null}
                     </div>

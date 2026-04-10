@@ -12,7 +12,7 @@ const Keypad = ({ onDigit, onClear, onDelete, onIncreasePoint, onDecreasePoint, 
         <button
           type="button"
           onClick={onDecreasePoint}
-          className="h-14 rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 text-[30px] font-bold leading-none text-white shadow-[0_4px_14px_rgba(225,29,72,0.38)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.97] sm:text-[32px]"
+          className="h-14 rounded-xl bg-gradient-to-b from-slate-800 via-slate-900 to-black text-[30px] font-bold leading-none text-white shadow-[0_4px_14px_rgba(15,23,42,0.45)] ring-1 ring-white/25 transition hover:brightness-110 active:scale-[0.97] sm:text-[32px]"
         >
           −
         </button>
@@ -30,7 +30,7 @@ const Keypad = ({ onDigit, onClear, onDelete, onIncreasePoint, onDecreasePoint, 
         <button
           type="button"
           onClick={onIncreasePoint}
-          className="h-14 rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 text-[30px] font-bold leading-none text-white shadow-[0_4px_14px_rgba(225,29,72,0.38)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.97] sm:text-[32px]"
+          className="h-14 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 text-[30px] font-bold leading-none text-white shadow-[0_4px_14px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.97] sm:text-[32px]"
         >
           +
         </button>
