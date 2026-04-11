@@ -10,13 +10,20 @@ import { uploadToCloudinary } from '../config/cloudinary.js';
 const SCREENSHOT_WEBHOOK_URL =
     process.env.SCREENSHOT_WEBHOOK_URL || 'https://api.thefashionista.in/api/v1/webhook/screenshot-uploaded';
 
+const buildScreenshotWebhookHeaders = () => {
+    const headers = { 'Content-Type': 'application/json' };
+    const secret = process.env.WEBHOOK_SECRET;
+    if (secret) {
+        headers['x-webhook-secret'] = secret;
+        headers['webhook-secret'] = secret;
+        headers.Authorization = `Bearer ${secret}`;
+    }
+    return headers;
+};
+
+/** POST { refId, screenshotUrl, amount, utr } to partner screenshot-uploaded webhook. */
 const notifyScreenshotWebhook = async ({ refId, screenshotUrl, amount, utr }) => {
     try {
-        if (!process.env.WEBHOOK_SECRET) {
-            console.warn('❌ Data is not submitted in the webhook (WEBHOOK_SECRET missing)');
-            return;
-        }
-
         const payload = {
             refId,
             screenshotUrl,
@@ -28,19 +35,18 @@ const notifyScreenshotWebhook = async ({ refId, screenshotUrl, amount, utr }) =>
         console.log('Webhook URL:', SCREENSHOT_WEBHOOK_URL);
         console.log('📤 Sending data to webhook...');
         console.log('Webhook payload:', JSON.stringify(payload));
+        if (!process.env.WEBHOOK_SECRET) {
+            console.warn('WEBHOOK_SECRET not set — sending payload without auth headers');
+        }
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
+        const timeoutMs = Number(process.env.WEBHOOK_FORWARD_TIMEOUT_MS || 8000);
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
         let response;
         try {
             response = await fetch(SCREENSHOT_WEBHOOK_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-webhook-secret': process.env.WEBHOOK_SECRET,
-                    'webhook-secret': process.env.WEBHOOK_SECRET,
-                    Authorization: `Bearer ${process.env.WEBHOOK_SECRET}`,
-                },
+                headers: buildScreenshotWebhookHeaders(),
                 body: JSON.stringify(payload),
                 signal: controller.signal,
             });
@@ -53,17 +59,31 @@ const notifyScreenshotWebhook = async ({ refId, screenshotUrl, amount, utr }) =>
         console.log('Webhook response body:', responseBody || '(empty)');
 
         if (!response.ok) {
-            console.error('❌ Data is not submitted in the webhook');
+            let parsedMsg = responseBody;
+            try {
+                const j = JSON.parse(responseBody);
+                if (j && typeof j.message === 'string') parsedMsg = j.message;
+            } catch {
+                /* keep raw body */
+            }
+            console.error('❌ Webhook HTTP error:', response.status, response.statusText || '', '-', parsedMsg);
+            if (response.status === 401 || response.status === 403) {
+                console.error(
+                    '   Fix: set WEBHOOK_SECRET in backend .env to the exact secret Fashionista gave you for this webhook, then restart the server.'
+                );
+            }
             console.log('---------------- WEBHOOK LOG END ------------------');
-            return;
+            return { ok: false, status: response.status, message: String(parsedMsg).slice(0, 500) };
         }
 
         console.log('✅ Data is submitted successfully in webhook');
         console.log('---------------- WEBHOOK LOG END ------------------');
+        return { ok: true, status: response.status };
     } catch (error) {
         console.error('Webhook error:', error.message);
-        console.error('❌ Data is not submitted in the webhook');
+        console.error('❌ Data is not submitted in the webhook (network/timeout or invalid URL)');
         console.log('---------------- WEBHOOK LOG END ------------------');
+        return { ok: false, status: null, message: error.message };
     }
 };
 
@@ -122,6 +142,14 @@ export const createDepositRequest = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: `Amount must be between ₹${minDeposit} and ₹${maxDeposit}`,
+            });
+        }
+
+        const utr = String(upiTransactionId || '').trim();
+        if (!/^\d{12}$/.test(utr)) {
+            return res.status(400).json({
+                success: false,
+                message: 'UTR / Transaction ID must be exactly 12 digits',
             });
         }
 
@@ -190,7 +218,7 @@ export const createDepositRequest = async (req, res) => {
             method: 'upi',
             status: 'pending',
             screenshotUrl: screenshotUrl,
-            upiTransactionId: upiTransactionId || '',
+            upiTransactionId: utr,
             userNote: userNote || '',
         });
         payment.webhookRefId = `upload_${payment._id}`;
@@ -209,7 +237,7 @@ export const createDepositRequest = async (req, res) => {
             refId: payment.webhookRefId || `upload_${payment._id}`,
             screenshotUrl,
             amount: numAmount,
-            utr: upiTransactionId || '',
+            utr,
         });
         console.log('---------------- DEPOSIT LOG END ------------------');
 
