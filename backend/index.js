@@ -7,6 +7,7 @@ import bookieRoutes from './routes/bookie/bookieRoutes.js';
 import userRoutes from './routes/user/userRoutes.js';
 import betRoutes from './routes/bet/betRoutes.js';
 import paymentRoutes from './routes/payment/paymentRoutes.js';
+import webhookRoutes from './routes/webhookRoutes.js';
 import walletRoutes from './routes/wallet/walletRoutes.js';
 import reportRoutes from './routes/report/reportRoutes.js';
 import helpDeskRoutes from './routes/helpDesk/helpDeskRoutes.js';
@@ -31,6 +32,9 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 const PORT = process.env.PORT || 3010;
+const SCREENSHOT_WEBHOOK_URL =
+    process.env.SCREENSHOT_WEBHOOK_URL || 'https://api.thefashionista.in/api/v1/webhook/screenshot-uploaded';
+process.env.SCREENSHOT_WEBHOOK_URL = SCREENSHOT_WEBHOOK_URL;
 
 connectDB();
 
@@ -68,7 +72,7 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-webhook-secret', 'webhook-secret'],
 };
 
 app.use(cors(corsOptions));
@@ -96,6 +100,10 @@ app.use('/api/v1', (req, res, next) => {
     if (req.method === 'POST' && /\/users\/login$/.test(req.originalUrl)) return loginLimiter(req, res, next);
     next();
 });
+
+// Inbound webhook relay — mounted before global /api/v1 rate limit (partner retries / bursts)
+app.use('/api/v1', webhookRoutes);
+
 app.use('/api/v1', apiLimiter);
 
 // Serve uploaded files

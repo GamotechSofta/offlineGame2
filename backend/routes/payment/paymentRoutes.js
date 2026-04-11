@@ -36,6 +36,14 @@ const upload = multer({
 
 const router = express.Router();
 
+// Debug logs to verify payment APIs are hitting this backend instance.
+router.use((req, res, next) => {
+    if (req.path === '/deposit' && req.method === 'POST') {
+        console.log('🧭 Deposit API hit:', req.method, req.originalUrl);
+    }
+    next();
+});
+
 // ===== Public APIs =====
 router.get('/config', getPaymentConfig);
 
