@@ -1,5 +1,12 @@
 import { FILTER_TYPES } from '../types';
 
+/** Two-digit string for integers 0–99 (e.g. 7 → "07"). */
+export const pad2 = (n) => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return '00';
+  return String(Math.trunc(x)).padStart(2, '0');
+};
+
 export const formatQuizNumber = (num) => String(num).padStart(2, '0');
 
 export const quizLabel = (num) => `Quiz${formatQuizNumber(num)}`;

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const SummaryPanel = ({ totalAmount, setTotals }) => {
+const SummaryPanel = ({ totalAmount, setTotals, onBuy, buyDisabled, buyHelpLines = [] }) => {
   const rows = [
     { count: Number(setTotals?.setA?.count || 0), amount: Number(setTotals?.setA?.amount || 0) },
     { count: Number(setTotals?.setB?.count || 0), amount: Number(setTotals?.setB?.amount || 0) },
@@ -28,9 +28,23 @@ const SummaryPanel = ({ totalAmount, setTotals }) => {
         <div className="border border-[#b8c0ca] h-[56px] flex items-center justify-center text-white font-semibold text-[20px] leading-none">TOTAL</div>
         <div className="border border-[#b8c0ca] h-[56px] flex items-center justify-center text-[#f3e77d] font-semibold text-[26px] leading-none">{totalAmount}</div>
       </div>
-      <button type="button" className="w-full h-[62px] bg-[#ef3f34] text-white font-semibold border-t border-[#d3372f] text-[38px] leading-none">
+      <button
+        type="button"
+        onClick={onBuy}
+        disabled={buyDisabled || !onBuy}
+        className="w-full h-[62px] border-t border-[#d3372f] bg-[#ef3f34] text-[38px] font-semibold leading-none text-white disabled:cursor-not-allowed disabled:opacity-50"
+      >
         BUY
       </button>
+      {Array.isArray(buyHelpLines) && buyHelpLines.length > 0 && (
+        <div className="border-t border-[#c9a227] bg-[#fff8dc] px-1 py-1.5 text-[9px] font-semibold leading-snug text-[#5c2222]">
+          {buyHelpLines.map((line, i) => (
+            <p key={i} className="m-0 mb-0.5 last:mb-0">
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

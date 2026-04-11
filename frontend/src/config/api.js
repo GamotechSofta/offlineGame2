@@ -12,6 +12,22 @@ export const BACKEND_BASE_URL =
     : _api.replace(/\/api\/v1\/?$/, ''));
 
 /**
+ * Origin for Socket.IO (no /api/v1 path).
+ * Override with VITE_SOCKET_URL (e.g. http://localhost:3010).
+ * If VITE_API_BASE_URL is relative, uses current origin so Vite can proxy /socket.io.
+ */
+export function getQuizSocketUrl() {
+  const raw = import.meta.env.VITE_SOCKET_URL;
+  if (raw && String(raw).trim()) {
+    return String(raw).replace(/\/$/, '');
+  }
+  if (isRelativeApi && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return String(BACKEND_BASE_URL || '').replace(/\/$/, '');
+}
+
+/**
  * Returns headers with Bearer token for authenticated player API calls.
  * Token is stored in localStorage user object after login.
  * For JSON body use: { 'Content-Type': 'application/json', ...getAuthHeaders() }

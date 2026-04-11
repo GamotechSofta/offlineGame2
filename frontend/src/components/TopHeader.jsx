@@ -1,7 +1,7 @@
 import React from 'react';
 import { Wallet } from 'lucide-react';
 
-const TopHeader = ({ now, walletBalance = 0, onOpenThreeD }) => {
+const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyBets }) => {
   const formattedBalance = new Intl.NumberFormat('en-IN', {
     maximumFractionDigits: 0,
     minimumFractionDigits: 0,
@@ -59,11 +59,29 @@ const TopHeader = ({ now, walletBalance = 0, onOpenThreeD }) => {
           <div className="leading-none">Last Tr. GM26032818006025</div>
           <div className="leading-none mt-[2px]">Last Sale. 180</div>
         </div>
-        <div className="flex items-center justify-end gap-2 h-full">
+        <div className="flex flex-wrap items-center justify-end gap-2 h-full">
+          {typeof onOpenQuiz === 'function' && (
+            <button
+              type="button"
+              onClick={onOpenQuiz}
+              className="bg-[#2d9de8] border border-[#1c87cd] text-white px-3 h-10 text-[16px] font-semibold leading-none shrink-0"
+            >
+              Quiz
+            </button>
+          )}
+          {typeof onOpenMyBets === 'function' && (
+            <button
+              type="button"
+              onClick={onOpenMyBets}
+              className="shrink-0 border border-[#2a7a4a] bg-[#3d9b5c] px-2.5 py-0 text-[13px] font-semibold leading-none text-white h-10"
+            >
+              My Bets
+            </button>
+          )}
           <button
             type="button"
             onClick={onOpenThreeD}
-            className="bg-[#f28b1d] border border-[#d97816] text-white px-3 h-10 text-[16px] font-semibold leading-none"
+            className="bg-[#f28b1d] border border-[#d97816] text-white px-3 h-10 text-[16px] font-semibold leading-none shrink-0"
           >
             3D Quiz
           </button>

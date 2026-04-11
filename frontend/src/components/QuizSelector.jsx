@@ -71,7 +71,7 @@ const QuizSelector = ({
                 onClick={onOpenResult}
                 className="w-full h-full bg-[#2d9de8] text-white text-[15px] font-semibold border border-[#1c87cd]"
               >
-                Last Result
+                Result
               </button>
             )}
           </div>

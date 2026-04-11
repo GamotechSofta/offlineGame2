@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import TopHeader from '../components/TopHeader';
 import QuizSelector from '../components/QuizSelector';
@@ -7,14 +7,18 @@ import StatusStrip from '../components/StatusStrip';
 import NumberBoard from '../components/NumberBoard';
 import SummaryPanel from '../components/SummaryPanel';
 import ControlPanel from '../components/ControlPanel';
-import ResultModal from '../components/ResultModal';
+import ResultHistoryModal from '../components/ResultHistoryModal';
+import MyBetsModal from '../components/MyBetsModal';
 import { getBalance, updateUserBalance } from '../api/bets';
-import { RESULT_HISTORY } from '../data/mockData';
+import { getQuizSlot, postQuizBetsBatch } from '../api/quizApi';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getLotterySetTotals, getTotals } from '../utils/boardHelpers';
 
+const MAX_QUIZ_NUMBERS_PER_SLOT = 100;
+
 const LotteryDashboard = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const BASE_WIDTH = 1536;
   const BASE_HEIGHT = 864;
   const colApplyTimersRef = useRef({});
@@ -31,6 +35,9 @@ const LotteryDashboard = () => {
   const [selectedQuizzes, setSelectedQuizzes] = useState([1]);
   const [multi, setMulti] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showMyBets, setShowMyBets] = useState(false);
+  const [serverSlot, setServerSlot] = useState(null);
+  const [slotSyncErr, setSlotSyncErr] = useState('');
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [enteredAmount, setEnteredAmount] = useState(2);
   const [amountDraft, setAmountDraft] = useState('2');
@@ -42,6 +49,34 @@ const LotteryDashboard = () => {
   const [timerSeconds, setTimerSeconds] = useState(DEFAULT_TIMER_SECONDS);
   const [walletBalance, setWalletBalance] = useState(0);
   const ALL_QUIZZES = useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), []);
+
+  useEffect(() => {
+    const quiz = searchParams.get('quiz');
+    const quizzes = searchParams.get('quizzes');
+    const multiParam = searchParams.get('multi');
+    if (!quiz && !quizzes) return;
+
+    if (quizzes) {
+      const nums = quizzes
+        .split(',')
+        .map((s) => parseInt(String(s).trim(), 10))
+        .filter((n) => n >= 1 && n <= 30);
+      if (nums.length) {
+        setSelectedQuizzes(nums);
+        setActiveQuiz(nums[0]);
+        setMulti(multiParam === '1' || multiParam === 'true' || nums.length > 1);
+      }
+    } else {
+      const n = parseInt(quiz, 10);
+      if (n >= 1 && n <= 30) {
+        setActiveQuiz(n);
+        setSelectedQuizzes([n]);
+        setMulti(false);
+      }
+    }
+    appliedAmountByTargetRef.current = {};
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
   const getQuarterHourCountdown = useCallback((nowDate = new Date()) => {
@@ -144,6 +179,28 @@ const LotteryDashboard = () => {
   }, [getQuarterHourCountdown]);
 
   useEffect(() => {
+    let stop = false;
+    const sync = () => {
+      getQuizSlot()
+        .then((j) => {
+          if (stop) return;
+          if (j.success && j.data) setServerSlot(j.data);
+          else setServerSlot(null);
+          setSlotSyncErr('');
+        })
+        .catch((e) => {
+          if (!stop) setSlotSyncErr(e.message || '');
+        });
+    };
+    sync();
+    const id = setInterval(sync, 4000);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
     loadStoredBalance();
     refreshWalletBalance();
 
@@ -171,6 +228,58 @@ const LotteryDashboard = () => {
 
   const totals = useMemo(() => getTotals(selectedMap), [selectedMap]);
   const setTotals = useMemo(() => getLotterySetTotals(selectedMap), [selectedMap]);
+
+  const exceedsMaxNumbersPerQuiz = useMemo(() => {
+    const perQuiz = new Map();
+    for (const key of Object.keys(selectedMap || {})) {
+      const parts = String(key).split('-');
+      const q = parseInt(parts[0], 10);
+      const n = parseInt(parts[1], 10);
+      if (!Number.isInteger(q) || q < 1 || q > 30 || !Number.isInteger(n) || n < 0 || n > 99) continue;
+      if (!perQuiz.has(q)) perQuiz.set(q, new Set());
+      perQuiz.get(q).add(n);
+    }
+    for (const set of perQuiz.values()) {
+      if (set.size > MAX_QUIZ_NUMBERS_PER_SLOT) return true;
+    }
+    return false;
+  }, [selectedMap]);
+
+  /** Backend sends acceptsBets; older servers fall back to hint-only. */
+  const slotOpenForBuy = useMemo(() => {
+    if (!serverSlot?.slotStartIso) return false;
+    if (serverSlot.acceptsBets === true) return true;
+    if (serverSlot.acceptsBets === false) return false;
+    return serverSlot.phase === 'hint';
+  }, [serverSlot]);
+
+  const buyHelpLines = useMemo(() => {
+    const lines = [];
+    if (slotSyncErr) {
+      lines.push(`सर्व्हर: ${slotSyncErr}`);
+      return lines;
+    }
+    if (!serverSlot?.slotStartIso) {
+      lines.push('सर्व्हर स्लॉट लोड होत आहे — थोडी वाट पहा.');
+      return lines;
+    }
+    if (!slotOpenForBuy) {
+      lines.push('BUY फक्त सध्याच्या १५ मि. ड्रॉ स्लॉट दरम्यान चालतो (स्लॉट संपल्यानंतर नाही).');
+      const sec = Math.max(0, Number(serverSlot.secondsUntilSlotEnd) || 0);
+      if (sec > 0) lines.push(`या स्लॉटची उर्वरित वेळ: ${formatCountdown(sec)}`);
+    }
+    if (exceedsMaxNumbersPerQuiz) {
+      lines.push(`प्रति Quiz कमाल ${MAX_QUIZ_NUMBERS_PER_SLOT} वेगळे नंबर (00–99) — कमी करा किंवा RESET.`);
+    }
+    return lines;
+  }, [slotSyncErr, serverSlot, exceedsMaxNumbersPerQuiz, slotOpenForBuy]);
+
+  const buyDisabled =
+    totals.totalAmount <= 0 ||
+    !!slotSyncErr ||
+    !serverSlot?.slotStartIso ||
+    !slotOpenForBuy ||
+    exceedsMaxNumbersPerQuiz;
 
   const handleQuizToggle = useCallback((quizNo) => {
     setActiveQuiz(quizNo);
@@ -343,7 +452,100 @@ const LotteryDashboard = () => {
     setAmountDraft(nextValue);
   }, [amountDraft]);
 
-  const openResults = useCallback(() => setShowResults(true), []);
+  const openResults = useCallback(() => {
+    setShowResults(true);
+  }, []);
+
+  const handleBoardBuy = useCallback(async () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (!user?.token) {
+      window.alert('टिकिट खरेदीसाठी लॉगिन करा (खाते / वॉलेट).');
+      return;
+    }
+    if (!serverSlot?.slotStartIso) {
+      window.alert('सर्व्हर स्लॉट मिळत नाही. नंतर पुन्हा प्रयत्न करा.');
+      return;
+    }
+    if (!slotOpenForBuy) {
+      window.alert('BUY फक्त सध्याच्या १५ मि. ड्रॉ स्लॉट उघडा असतानाच चालतो. स्लॉट संपला असेल तर पुढचा थांबा.');
+      return;
+    }
+
+    const stakes = Object.entries(selectedMap)
+      .map(([key, amt]) => {
+        const parts = String(key).split('-');
+        const quizId = parseInt(parts[0], 10);
+        const num = parseInt(parts[1], 10);
+        const amount = Number(amt);
+        if (!Number.isFinite(amount) || amount <= 0) return null;
+        if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) return null;
+        if (!Number.isInteger(num) || num < 0 || num > 99) return null;
+        return { quizId, num, amount: Math.floor(amount) };
+      })
+      .filter(Boolean);
+    if (!stakes.length) {
+      window.alert('आधी बोर्डवर रक्कम लावा.');
+      return;
+    }
+
+    const byQuiz = new Map();
+    for (const s of stakes) {
+      if (!byQuiz.has(s.quizId)) byQuiz.set(s.quizId, []);
+      byQuiz.get(s.quizId).push({ num: s.num, amount: s.amount });
+    }
+
+    const quizIdsSorted = [...byQuiz.keys()].sort((a, b) => a - b);
+    for (const quizId of quizIdsSorted) {
+      const amountByNum = new Map();
+      for (const { num, amount } of byQuiz.get(quizId)) {
+        amountByNum.set(num, (amountByNum.get(num) || 0) + amount);
+      }
+      const bets = [...amountByNum.entries()].map(([number, amount]) => ({ number, amount }));
+      if (bets.length > MAX_QUIZ_NUMBERS_PER_SLOT) {
+        window.alert(
+          `Quiz ${String(quizId).padStart(2, '0')}: एका स्लॉटमध्ये कमाल ${MAX_QUIZ_NUMBERS_PER_SLOT} वेगळे नंबर. कमी करा.`,
+        );
+        return;
+      }
+    }
+
+    try {
+      const rounds = quizIdsSorted.map((quizId) => {
+        const amountByNum = new Map();
+        for (const { num, amount } of byQuiz.get(quizId)) {
+          amountByNum.set(num, (amountByNum.get(num) || 0) + amount);
+        }
+        const bets = [...amountByNum.entries()].map(([number, amount]) => ({ number, amount }));
+        return { quizId, bets };
+      });
+      const j = await postQuizBetsBatch(rounds);
+      const lastBalance = j?.data?.balance;
+      if (lastBalance != null) {
+        updateUserBalance(lastBalance);
+        setWalletBalance(Number(lastBalance));
+        window.dispatchEvent(new CustomEvent('balanceUpdated', { detail: { balance: lastBalance } }));
+      }
+      setSelectedMap({});
+      setPendingTarget(null);
+      setAmountDraft('');
+      setEnteredAmount(0);
+      appliedAmountByTargetRef.current = {};
+      setRowPointDisplay(Array.from({ length: 10 }, () => ''));
+      setColPointDisplay(Array.from({ length: 10 }, () => ''));
+      const n = j?.data?.linesProcessed ?? j?.data?.totalBetsPlaced ?? 0;
+      window.alert(`टिकिट नोंदवले (${n} ओळी). My Bets → Quiz टिकिट मध्ये सर्व नंबर पहा.`);
+    } catch (e) {
+      const msg =
+        e.status === 401
+          ? 'लॉगिन करा.'
+          : e.status === 403
+            ? e.message || 'या वेळी बेट स्वीकारले जात नाहीत.'
+            : e.status === 409
+              ? e.message || 'हा नंबर आधीच बेट केलेला आहे.'
+              : e.message || 'BUY अयशस्वी';
+      window.alert(msg);
+    }
+  }, [selectedMap, serverSlot, slotOpenForBuy]);
   const handleIncrease = useCallback(() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleDecrease = useCallback(() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1)), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleEnterAmount = useCallback(() => {
@@ -406,7 +608,13 @@ const LotteryDashboard = () => {
               transformOrigin: 'top left',
             }}
           >
-            <TopHeader now={clockNow} walletBalance={walletBalance} onOpenThreeD={() => navigate('/lottery/3d')} />
+            <TopHeader
+              now={clockNow}
+              walletBalance={walletBalance}
+              onOpenQuiz={() => navigate('/lottery/quiz')}
+              onOpenThreeD={() => navigate('/lottery/3d')}
+              onOpenMyBets={() => setShowMyBets(true)}
+            />
             <QuizSelector
               activeQuiz={activeQuiz}
               selectedQuizzes={selectedQuizzes}
@@ -431,6 +639,9 @@ const LotteryDashboard = () => {
               <SummaryPanel
                 totalAmount={totals.totalAmount}
                 setTotals={setTotals}
+                onBuy={handleBoardBuy}
+                buyDisabled={buyDisabled}
+                buyHelpLines={buyHelpLines}
               />
               <ControlPanel
                 timerText={formatTimer(timerSeconds)}
@@ -449,7 +660,12 @@ const LotteryDashboard = () => {
         </div>
       </div>
 
-      <ResultModal open={showResults} onClose={() => setShowResults(false)} rows={RESULT_HISTORY} />
+      <ResultHistoryModal
+        open={showResults}
+        onClose={() => setShowResults(false)}
+        defaultIstDay={serverSlot?.istDayKey}
+      />
+      <MyBetsModal open={showMyBets} onClose={() => setShowMyBets(false)} />
       {showRotatePrompt && (
         <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[#111] border border-[#3b3b3b] text-white p-4 text-center">

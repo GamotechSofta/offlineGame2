@@ -22,6 +22,7 @@ import TopWinners from '../pages/TopWinners';
 import GameRate from '../pages/GameRate';
 import LotteryDashboard from '../components/lottery/2d-lottery/LotteryDashboard';
 import ThreeDGame from '../components/lottery/3d-lottery/ThreeDGame';
+import LotteryQuizPage from '../pages/LotteryQuizPage';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -112,7 +113,8 @@ const Layout = ({ children }) => {
   // Lottery: full-screen, no header or navbar
   if (
     location.pathname === '/lottery' ||
-    location.pathname === '/lottery/3d'
+    location.pathname === '/lottery/3d' ||
+    location.pathname === '/lottery/quiz'
   ) {
     return <>{children}</>;
   }
@@ -184,6 +186,7 @@ const AppRoutes = () => {
           <Route path="/top-winners" element={<TopWinners />} />
           <Route path="/game-rate" element={<GameRate />} />
           <Route path="/lottery" element={<LotteryDashboard />} />
+          <Route path="/lottery/quiz" element={<LotteryQuizPage />} />
           <Route path="/lottery/3d" element={<ThreeDGame />} />
         </Routes>
       </Layout>

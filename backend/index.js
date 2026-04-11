@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import dotenv from 'dotenv';
 import connectDB from './config/db_Connection.js';
 import marketRoutes from './routes/market/marketRoutes.js';
@@ -16,8 +17,12 @@ import rateRoutes from './routes/rate/rateRoutes.js';
 import dailyCommissionRoutes from './routes/dailyCommission/dailyCommissionRoutes.js';
 
 import bankDetailRoutes from './routes/bankDetail/bankDetailRoutes.js';
+import quizRoutes from './routes/quiz/quizRoutes.js';
+import { syncQuizSeedsOnStartup } from './services/seedService.js';
 import { getClientIp } from './utils/activityLogger.js';
 import { startMidnightResetScheduler } from './utils/midnightReset.js';
+import { startQuizSlotPickScheduler } from './services/slotScheduler.js';
+import { initQuizSocket } from './socket/socketHub.js';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -34,8 +39,6 @@ const PORT = process.env.PORT || 3010;
 const SCREENSHOT_WEBHOOK_URL =
     process.env.SCREENSHOT_WEBHOOK_URL || 'https://api.thefashionista.in/api/v1/webhook/screenshot-uploaded';
 process.env.SCREENSHOT_WEBHOOK_URL = SCREENSHOT_WEBHOOK_URL;
-
-connectDB();
 
 app.set('trust proxy', 1);
 
@@ -138,9 +141,21 @@ app.use('/api/v1/rates', rateRoutes);
 app.use('/api/v1/daily-commission', dailyCommissionRoutes);
 
 app.use('/api/v1/bank-details', bankDetailRoutes);
+app.use('/api/v1/quiz', quizRoutes);
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    // Start the midnight reset scheduler
-    startMidnightResetScheduler();
+async function startServer() {
+    await connectDB();
+    await syncQuizSeedsOnStartup();
+    const httpServer = http.createServer(app);
+    initQuizSocket(httpServer, { allowedOrigins, isProduction });
+    httpServer.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+        startMidnightResetScheduler();
+        startQuizSlotPickScheduler();
+    });
+}
+
+startServer().catch((err) => {
+    console.error('Server failed to start:', err);
+    process.exit(1);
 });

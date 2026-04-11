@@ -1,0 +1,364 @@
+import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
+import LotteryBoardBet from '../models/quiz/LotteryBoardBet.js';
+import { getBetOwnerKey } from '../utils/betOwnerKey.js';
+import { getCachedSlotContext } from '../services/quizCacheService.js';
+import {
+  SLOT_MS,
+  isValidISTSlotStartIso,
+  isValidISTDayKey,
+  istDayKey,
+  listSlotStartIsoForISTDay,
+  formatDrawLabel,
+} from '../services/slotService.js';
+import { getOrCreatePick } from '../services/quizPickService.js';
+import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
+
+function formatQ(quizId, hintPos) {
+  const q = String(quizId).padStart(2, '0');
+  if (hintPos == null || !Number.isInteger(hintPos) || hintPos < 0 || hintPos > 99) {
+    return `Q${q}--`;
+  }
+  return `Q${q}-${String(hintPos).padStart(2, '0')}`;
+}
+
+/**
+ * GET /api/v1/quiz/slot-results?date=YYYY-MM-DD (IST)
+ * Persisted picks only: result = stored hintPosition (never chosenIndex; no recompute).
+ */
+export const getSlotResultsForDate = async (req, res) => {
+  try {
+    const date = typeof req.query.date === 'string' ? req.query.date.trim() : '';
+    if (!isValidISTDayKey(date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or missing date (IST calendar YYYY-MM-DD).',
+      });
+    }
+    const todayKey = istDayKey();
+    if (date > todayKey) {
+      return res.status(400).json({
+        success: false,
+        code: 'FUTURE_DAY',
+        message: 'Future IST date is not allowed.',
+      });
+    }
+
+    const maxSlots = Math.min(96, Math.max(1, parseInt(String(req.query.maxSlots || '96'), 10) || 96));
+    const now = Date.now();
+    const allStarts = listSlotStartIsoForISTDay(date);
+    let completed = allStarts.filter((iso) => new Date(iso).getTime() + SLOT_MS <= now);
+    completed.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    completed = completed.slice(0, maxSlots);
+
+    if (completed.length === 0) {
+      return res.json({ success: true, data: { date, slots: [] } });
+    }
+
+    const grouped = await QuizSlotPick.aggregate([
+      { $match: { slotStartIso: { $in: completed } } },
+      {
+        $project: {
+          _id: 0,
+          quizId: 1,
+          slotStartIso: 1,
+          hintPosition: 1,
+        },
+      },
+      {
+        $group: {
+          _id: '$slotStartIso',
+          picks: { $push: { quizId: '$quizId', hintPosition: '$hintPosition' } },
+        },
+      },
+      { $sort: { _id: -1 } },
+    ]);
+
+    const picksBySlot = new Map(grouped.map((g) => [g._id, g.picks]));
+
+    const slots = [];
+    for (const slotStartIso of completed) {
+      const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+      const picks = picksBySlot.get(slotStartIso) || [];
+      const byQuiz = new Map(picks.map((p) => [p.quizId, p.hintPosition]));
+      const results = [];
+      for (let quizId = 1; quizId <= 30; quizId += 1) {
+        const hp = byQuiz.get(quizId);
+        const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= 99;
+        results.push({ quizId, result: ok ? hp : null });
+      }
+      slots.push({
+        slotStartIso,
+        timeLabel: formatDrawLabel(slotEndMs),
+        results,
+      });
+    }
+
+    res.json({ success: true, data: { date, slots } });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('getSlotResultsForDate', err);
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
+
+/**
+ * GET /api/v1/quiz/slot-results
+ * - ?date=YYYY-MM-DD — IST day chart (persisted hintPosition only); optional &maxSlots= (default 96).
+ * - ?limit=N — legacy last N completed slots (summary + sale); hintPosition from DB only.
+ */
+export const getSlotResultsHistory = async (req, res) => {
+  if (req.query.date != null && String(req.query.date).trim() !== '') {
+    return getSlotResultsForDate(req, res);
+  }
+  try {
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const now = new Date();
+
+    const rows = await QuizSlotPick.aggregate([
+      {
+        $addFields: {
+          slotEnd: { $add: [{ $toDate: '$slotStartIso' }, SLOT_MS] },
+        },
+      },
+      { $match: { $expr: { $lte: ['$slotEnd', now] } } },
+      {
+        $group: {
+          _id: '$slotStartIso',
+          picks: {
+            $push: {
+              quizId: '$quizId',
+              hintPosition: '$hintPosition',
+            },
+          },
+        },
+      },
+      { $sort: { _id: -1 } },
+      { $limit: limit },
+    ]);
+
+    const slotKeys = rows.map((r) => r._id);
+    const saleBySlot = {};
+    if (slotKeys.length) {
+      const sales = await LotteryBoardBet.aggregate([
+        { $match: { slotStartIso: { $in: slotKeys } } },
+        { $group: { _id: '$slotStartIso', sale: { $sum: '$totalAmount' } } },
+      ]);
+      sales.forEach((s) => {
+        saleBySlot[s._id] = s.sale;
+      });
+    }
+
+    const data = rows.map((row) => {
+      const slotStartIso = row._id;
+      const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+      const picksRaw = [...row.picks].sort((a, b) => a.quizId - b.quizId);
+      const picks = picksRaw.map((p) => {
+        const hp = p.hintPosition;
+        const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= 99;
+        return { quizId: p.quizId, winningPosition: ok ? hp : null };
+      });
+      const summary = picks.map((p) => formatQ(p.quizId, p.winningPosition)).join(', ');
+      const ymd = new Date(slotEndMs).toISOString().slice(2, 10).replace(/-/g, '');
+      const drawLabel = `GM${ymd}${String(picks.length).padStart(2, '0')}`;
+      return {
+        slotStartIso,
+        slotEndIso: new Date(slotEndMs).toISOString(),
+        drawLabel,
+        drawLabelEnd: formatDrawLabel(slotEndMs),
+        resultsSummary: summary,
+        picks,
+        sale: saleBySlot[slotStartIso] ?? 0,
+        at: new Date(slotEndMs).toISOString(),
+      };
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('getSlotResultsHistory', err);
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
+
+/**
+ * POST /api/v1/quiz/board-bet
+ * Body: { slotStartIso, stakes: [{ quizId, num, amount }] }
+ */
+export const postBoardBet = async (req, res) => {
+  try {
+    const { slotStartIso, stakes } = req.body || {};
+    if (!slotStartIso || typeof slotStartIso !== 'string') {
+      return res.status(400).json({ success: false, message: 'slotStartIso is required' });
+    }
+    if (!isValidISTSlotStartIso(slotStartIso)) {
+      return res.status(400).json({ success: false, code: 'INVALID_SLOT', message: 'Invalid slot' });
+    }
+
+    const slotStartMs = new Date(slotStartIso).getTime();
+    const slotEndMs = slotStartMs + SLOT_MS;
+    if (Date.now() >= slotEndMs) {
+      return res.status(403).json({
+        success: false,
+        code: 'SLOT_CLOSED',
+        message: 'This draw slot is closed for new stakes.',
+      });
+    }
+
+    const ctx = getCachedSlotContext();
+    if (ctx.slotStartIso !== slotStartIso) {
+      return res.status(403).json({
+        success: false,
+        code: 'SLOT_MISMATCH',
+        message: 'Stakes must be for the current server draw slot. Refresh and try again.',
+      });
+    }
+
+    if (!Array.isArray(stakes) || stakes.length === 0) {
+      return res.status(400).json({ success: false, message: 'stakes array is required' });
+    }
+
+    const lines = [];
+    let addTotal = 0;
+    for (const s of stakes) {
+      const quizId = Number(s.quizId);
+      const num = Number(s.num);
+      const amount = Number(s.amount);
+      if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) {
+        return res.status(400).json({ success: false, message: 'Invalid quizId in stakes' });
+      }
+      if (!Number.isInteger(num) || num < 0 || num > 99) {
+        return res.status(400).json({ success: false, message: 'Invalid num in stakes' });
+      }
+      if (!Number.isFinite(amount) || amount < 1 || amount > 1_000_000) {
+        return res.status(400).json({ success: false, message: 'Invalid amount in stakes' });
+      }
+      lines.push({ quizId, num, amount });
+      addTotal += amount;
+    }
+
+    const owner = getBetOwnerKey(req);
+
+    let doc = await LotteryBoardBet.findOne({ betOwnerKey: owner, slotStartIso });
+    let createdFresh = false;
+    if (!doc) {
+      try {
+        doc = await LotteryBoardBet.create({
+          betOwnerKey: owner,
+          slotStartIso,
+          lines,
+          totalAmount: addTotal,
+        });
+        createdFresh = true;
+      } catch (e) {
+        if (e?.code !== 11000) throw e;
+        doc = await LotteryBoardBet.findOne({ betOwnerKey: owner, slotStartIso });
+      }
+    }
+    if (!createdFresh && doc) {
+      doc = await LotteryBoardBet.findOneAndUpdate(
+        { _id: doc._id },
+        { $push: { lines: { $each: lines } }, $inc: { totalAmount: addTotal } },
+        { new: true },
+      );
+    }
+    if (!doc) {
+      return res.status(500).json({ success: false, message: 'Could not save bet' });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        slotStartIso,
+        linesAdded: lines.length,
+        totalAmount: doc.totalAmount,
+      },
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('postBoardBet', err);
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
+
+/**
+ * GET /api/v1/quiz/my-board-bets?limit=30
+ */
+export const getMyBoardBets = async (req, res) => {
+  try {
+    const limit = Math.min(60, Math.max(1, parseInt(req.query.limit, 10) || 30));
+    const owner = getBetOwnerKey(req);
+    const docs = await LotteryBoardBet.find({ betOwnerKey: owner })
+      .sort({ updatedAt: -1 })
+      .limit(limit)
+      .lean();
+
+    const now = Date.now();
+    const data = [];
+
+    for (const doc of docs) {
+      const slotStartMs = new Date(doc.slotStartIso).getTime();
+      const slotEndMs = slotStartMs + SLOT_MS;
+      const ended = now >= slotEndMs;
+      const lineOut = [];
+      let wonAmount = 0;
+
+      const quizIds = [...new Set((doc.lines || []).map((l) => l.quizId))];
+      let pickMap = {};
+      if (quizIds.length) {
+        const picks = await QuizSlotPick.find({
+          slotStartIso: doc.slotStartIso,
+          quizId: { $in: quizIds },
+        }).lean();
+        const entries = await Promise.all(
+          picks.map(async (p) => {
+            const pos = await resolveWinningShuffledPosition(p.quizId, doc.slotStartIso, p);
+            return [p.quizId, pos];
+          }),
+        );
+        pickMap = Object.fromEntries(entries);
+      }
+
+      if (ended && quizIds.length) {
+        for (const qid of quizIds) {
+          if (pickMap[qid] === undefined) {
+            // eslint-disable-next-line no-await-in-loop
+            const created = await getOrCreatePick(qid, doc.slotStartIso);
+            // eslint-disable-next-line no-await-in-loop
+            pickMap[qid] = await resolveWinningShuffledPosition(qid, doc.slotStartIso, created);
+          }
+        }
+      }
+
+      for (const line of doc.lines || []) {
+        const winIdx = ended ? pickMap[line.quizId] : null;
+        const won = winIdx != null && winIdx === line.num;
+        if (won) wonAmount += line.amount;
+        lineOut.push({
+          quizId: line.quizId,
+          num: line.num,
+          amount: line.amount,
+          cellLabel: formatQ(line.quizId, line.num),
+          winningIndex: winIdx != null ? String(winIdx).padStart(2, '0') : null,
+          won: ended ? won : null,
+        });
+      }
+
+      data.push({
+        slotStartIso: doc.slotStartIso,
+        slotEndIso: new Date(slotEndMs).toISOString(),
+        drawLabelEnd: formatDrawLabel(slotEndMs),
+        slotEnded: ended,
+        totalAmount: doc.totalAmount,
+        wonAmount: ended ? wonAmount : null,
+        netResult: ended ? wonAmount - doc.totalAmount : null,
+        lines: lineOut,
+      });
+    }
+
+    res.json({ success: true, data });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('getMyBoardBets', err);
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
