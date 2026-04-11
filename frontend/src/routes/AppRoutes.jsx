@@ -19,7 +19,6 @@ import Profile from '../pages/Profile';
 import BetHistory from '../pages/BetHistory';
 import MarketResultHistory from '../pages/MarketResultHistory';
 import TopWinners from '../pages/TopWinners';
-import RouletteGame from '../pages/RouletteGame';
 import GameRate from '../pages/GameRate';
 import LotteryDashboard from '../components/lottery/2d-lottery/LotteryDashboard';
 import ThreeDGame from '../components/lottery/3d-lottery/ThreeDGame';
@@ -110,10 +109,8 @@ const Layout = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Roulette game: full-screen, no header or navbar
+  // Lottery: full-screen, no header or navbar
   if (
-    location.pathname === '/roulette' ||
-    location.pathname === '/games/roulette' ||
     location.pathname === '/lottery' ||
     location.pathname === '/lottery/3d'
   ) {
@@ -186,8 +183,6 @@ const AppRoutes = () => {
           <Route path="/profile" element={<Profile />} />
           <Route path="/top-winners" element={<TopWinners />} />
           <Route path="/game-rate" element={<GameRate />} />
-          <Route path="/roulette" element={<RouletteGame />} />
-          <Route path="/games/roulette" element={<RouletteGame />} />
           <Route path="/lottery" element={<LotteryDashboard />} />
           <Route path="/lottery/3d" element={<ThreeDGame />} />
         </Routes>

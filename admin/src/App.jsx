@@ -24,7 +24,6 @@ import UpdateRate from './pages/UpdateRate';
 import MarketDetail from './pages/MarketDetail';
 import Settings from './pages/Settings';
 import TopWinners from './pages/TopWinners';
-import Roulette from './pages/Roulette';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -235,14 +234,6 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <Settings />
-                        </PrivateRoute>
-                    }
-                />
-                <Route
-                    path="/roulette"
-                    element={
-                        <PrivateRoute>
-                            <Roulette />
                         </PrivateRoute>
                     }
                 />
