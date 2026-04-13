@@ -614,6 +614,7 @@ const LotteryDashboard = () => {
               onOpenQuiz={() => navigate('/lottery/quiz')}
               onOpenThreeD={() => navigate('/lottery/3d')}
               onOpenMyBets={() => setShowMyBets(true)}
+              onBack={() => navigate('/')}
             />
             <QuizSelector
               activeQuiz={activeQuiz}

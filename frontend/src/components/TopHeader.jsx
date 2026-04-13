@@ -1,7 +1,7 @@
 import React from 'react';
 import { Wallet } from 'lucide-react';
 
-const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyBets }) => {
+const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyBets, onBack }) => {
   const formattedBalance = new Intl.NumberFormat('en-IN', {
     maximumFractionDigits: 0,
     minimumFractionDigits: 0,
@@ -66,7 +66,7 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
               onClick={onOpenQuiz}
               className="bg-[#2d9de8] border border-[#1c87cd] text-white px-3 h-10 text-[16px] font-semibold leading-none shrink-0"
             >
-              Quiz
+              Check Here Quiz To Play
             </button>
           )}
           {typeof onOpenMyBets === 'function' && (
@@ -75,7 +75,7 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
               onClick={onOpenMyBets}
               className="shrink-0 border border-[#2a7a4a] bg-[#3d9b5c] px-2.5 py-0 text-[13px] font-semibold leading-none text-white h-10"
             >
-              My Bets
+              My Bets / Ticket
             </button>
           )}
           <button
@@ -97,6 +97,15 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
             <div>{formattedDate}</div>
             <div className="mt-[2px]">{formattedTime}</div>
           </div>
+          {typeof onBack === 'function' && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="h-10 min-w-[92px] border border-white bg-[#5b5b5b] px-3 text-[15px] font-semibold leading-none text-white"
+            >
+              Back
+            </button>
+          )}
         </div>
       </div>
     </div>
