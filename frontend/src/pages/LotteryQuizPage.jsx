@@ -21,9 +21,18 @@ const formatCountdown = (totalSeconds) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
+const cleanQuestionText = (text) => String(text || '').replace(/^प्रश्न\s*\(\d{1,2}-\d{2}\)\s*:\s*/u, '');
+
 const LotteryQuizPage = () => {
   const navigate = useNavigate();
+  const BASE_WIDTH = 1536;
+  const BASE_HEIGHT = 864;
   const [selectedQuiz, setSelectedQuiz] = useState(1);
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : BASE_WIDTH,
+    height: typeof window !== 'undefined' ? window.innerHeight : BASE_HEIGHT,
+  }));
+  const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [slotData, setSlotData] = useState(null);
   const [slotErr, setSlotErr] = useState('');
   const [questions, setQuestions] = useState([]);
@@ -39,12 +48,51 @@ const LotteryQuizPage = () => {
   const lastBetNumbersRef = useRef([]);
   const selectedQuizRef = useRef(selectedQuiz);
   const lastHintSlotRef = useRef(null);
+  const lastLandscapeAutoFsAttemptRef = useRef(0);
 
   const quizLabel = `QUIZ${pad2(selectedQuiz)}`;
+  const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
+  const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
 
   useEffect(() => {
     selectedQuizRef.current = selectedQuiz;
   }, [selectedQuiz]);
+
+  useEffect(() => {
+    const onResize = () => {
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const checkMobilePortrait = () => {
+      const isMobile = window.innerWidth <= 900;
+      const isPortrait = window.innerHeight > window.innerWidth;
+      setShowRotatePrompt(isMobile && isPortrait);
+
+      if (isMobile && !isPortrait && !document.fullscreenElement) {
+        const nowMs = Date.now();
+        if (nowMs - lastLandscapeAutoFsAttemptRef.current > 1200) {
+          lastLandscapeAutoFsAttemptRef.current = nowMs;
+          const root = document.documentElement;
+          if (root.requestFullscreen) {
+            root.requestFullscreen().catch(() => {
+              // Some browsers require explicit user action.
+            });
+          }
+        }
+      }
+    };
+    checkMobilePortrait();
+    window.addEventListener('resize', checkMobilePortrait);
+    window.addEventListener('orientationchange', checkMobilePortrait);
+    return () => {
+      window.removeEventListener('resize', checkMobilePortrait);
+      window.removeEventListener('orientationchange', checkMobilePortrait);
+    };
+  }, []);
 
   useEffect(() => {
     if (hintData?.slotStartIso) {
@@ -322,13 +370,42 @@ const LotteryQuizPage = () => {
     return slotData.phase === 'hint';
   }, [slotData]);
 
+  const handleRotateLandscape = useCallback(async () => {
+    try {
+      const root = document.documentElement;
+      if (root.requestFullscreen && !document.fullscreenElement) {
+        await root.requestFullscreen();
+      }
+      if (window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('landscape');
+      }
+    } catch (_) {
+      // On many mobile browsers this requires user/system support.
+    }
+  }, []);
+
   return (
     <AppLayout>
-      <div
-        className="flex h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden text-black"
-        style={{ backgroundColor: '#efe6d5' }}
-      >
-        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 bg-[#efe6d5]/95 px-2 py-2 backdrop-blur-sm">
+      <div className="relative h-full w-full overflow-hidden rounded-[14px] bg-[#111] sm:rounded-none">
+        <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[#4c4c4c] sm:rounded-none" />
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            width: `${viewport.width}px`,
+            height: `${viewport.height}px`,
+          }}
+        >
+          <div
+            className="absolute top-0 left-0 flex flex-col overflow-hidden border border-[#4c4c4c] bg-[#efe6d5] text-black"
+            style={{
+              width: `${BASE_WIDTH}px`,
+              height: `${BASE_HEIGHT}px`,
+              transform: `scale(${dashboardScaleX}, ${dashboardScaleY})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            <div className="flex h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden">
+              <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 bg-[#efe6d5]/95 px-2 py-2 backdrop-blur-sm">
           <button
             type="button"
             onClick={() => navigate('/lottery')}
@@ -337,87 +414,89 @@ const LotteryQuizPage = () => {
             <ArrowLeft size={16} strokeWidth={2.5} />
             2D
           </button>
-          <span className="text-[11px] font-semibold leading-snug text-[#5c2222] sm:text-sm">
+          <span className="text-[13px] font-bold leading-snug text-[#5c2222] sm:text-base">
             {slotErr
               ? `सर्व्हर: ${slotErr}`
               : hintPhase
                 ? `Hint फेज — ड्रॉ: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(slotData?.secondsUntilSlotEnd ?? 0)})`
-                : `सर्व प्रश्न (सर्व्हर) — ${STUDY_MINUTES} मि. नंतर Hint (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
+                : `${STUDY_MINUTES} मि. नंतर Hint (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
           </span>
-        </div>
+              </div>
 
-        <div className="flex flex-1 flex-col px-2 pb-2 sm:px-4">
-          <div className="mb-3 flex justify-center gap-2 sm:gap-3">
-            <div className={`rounded-xl px-3 py-2 text-xs font-bold sm:px-5 sm:py-2.5 sm:text-sm ${btnInactive} opacity-90`}>
-              {slotData?.drawLabelPrev ?? '—'}
-            </div>
-            <div className={`rounded-xl px-3 py-2 text-xs font-bold sm:px-5 sm:py-2.5 sm:text-sm ${btnActive}`}>
-              {slotData?.drawLabelCurrent ?? '—'}
-            </div>
-            <div className={`rounded-xl px-3 py-2 text-xs font-bold sm:px-5 sm:py-2.5 sm:text-sm ${btnInactive} opacity-90`}>
-              {slotData?.drawLabelNext ?? '—'}
-            </div>
-          </div>
-
-          {(studyPhase || hintPhase) && slotData && (
-            <div className="mx-auto mb-3 w-full max-w-[1100px]">
-              <p className="mb-1.5 text-center text-[11px] font-semibold text-[#5c2222] sm:text-xs">
-                {hintPhase
-                  ? 'एका स्लॉटमध्ये प्रत्येक क्विजचा वेगळा प्रश्न व वेगळा निकाल — खाली Q-01…Q-30 निवडून hint पहा व अंदाज लावा.'
-                  : 'Study: खाली क्विज निवडा — प्रत्येकास 100 प्रश्न.'}
-              </p>
-              <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 sm:gap-2">
-                {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setSelectedQuiz(n)}
-                    className={`rounded-md py-2 text-center text-[11px] font-bold sm:text-sm ${
-                      selectedQuiz === n ? btnActive : btnInactive
-                    }`}
-                  >
-                    Q-{pad2(n)}
-                  </button>
-                ))}
+              <div className="flex flex-1 flex-col px-2 pb-24 sm:px-4">
+          <div className="sticky z-[9] -mx-2 mb-3 bg-[#efe6d5]/95 px-2 pt-1 pb-2 backdrop-blur-sm sm:mx-0 sm:px-0" style={{ top: '52px' }}>
+            <div className="mb-3 flex justify-center gap-2 sm:gap-3">
+              <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnInactive} opacity-90`}>
+                {slotData?.drawLabelPrev ?? '—'}
+              </div>
+              <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnActive}`}>
+                {slotData?.drawLabelCurrent ?? '—'}
+              </div>
+              <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnInactive} opacity-90`}>
+                {slotData?.drawLabelNext ?? '—'}
               </div>
             </div>
-          )}
+
+            {(studyPhase || hintPhase) && slotData && (
+              <div className="w-full">
+                <p className="mb-1.5 text-center text-[11px] font-semibold text-[#5c2222] sm:text-xs">
+                  {hintPhase
+                    ? 'एका स्लॉटमध्ये प्रत्येक क्विजचा वेगळा प्रश्न व वेगळा निकाल — खाली Q-01…Q-30 निवडून hint पहा व अंदाज लावा.'
+                    : 'Study: खाली क्विज निवडा — प्रत्येकास 100 प्रश्न.'}
+                </p>
+                <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 sm:gap-2">
+                  {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setSelectedQuiz(n)}
+                      className={`rounded-md py-3 text-center text-[13px] font-bold sm:py-3.5 sm:text-[15px] ${
+                        selectedQuiz === n ? btnActive : btnInactive
+                      }`}
+                    >
+                      Q-{pad2(n)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           {studyPhase && (
-            <div className="mx-auto w-full max-w-[1100px] flex-1 overflow-x-auto rounded-sm border border-[#8b7355] shadow-md">
+            <div className="w-full overflow-x-auto rounded-sm border border-[#8b7355] shadow-md">
               {questionsLoading && <p className="p-4 text-center text-sm">प्रश्न लोड होत आहेत…</p>}
               {questionsErr && <p className="p-4 text-center text-sm text-red-700">{questionsErr}</p>}
               {!questionsLoading && !questionsErr && (
-                <table className="w-full min-w-[640px] border-collapse text-left text-[12px] sm:text-[13px]">
+                <table className="w-full min-w-[640px] border-collapse text-left text-[13px] sm:text-[15px]">
                   <thead>
                     <tr className="bg-[#ff9a3c] text-black">
-                      <th className="border border-[#c96d20] px-1 py-2 text-center font-bold sm:px-2">{quizLabel}</th>
-                      <th className="border border-[#c96d20] px-1 py-2 text-center font-bold sm:px-2">QUESTION</th>
-                      <th className="border border-[#c96d20] px-1 py-2 text-center font-bold sm:px-2">OPTIONS</th>
-                      <th className="w-[72px] border border-[#c96d20] px-1 py-2 text-center font-bold sm:w-[88px]">ANS</th>
+                      <th className="border border-[#c96d20] px-1 py-3 text-center font-bold sm:px-2 sm:py-3.5">{quizLabel}</th>
+                      <th className="border border-[#c96d20] px-1 py-3 text-center font-bold sm:px-2 sm:py-3.5">QUESTION</th>
+                      <th className="border border-[#c96d20] px-1 py-3 text-center font-bold sm:px-2 sm:py-3.5">OPTIONS</th>
+                      <th className="w-[72px] border border-[#c96d20] px-1 py-3 text-center font-bold sm:w-[88px] sm:py-3.5">ANS</th>
                     </tr>
                   </thead>
                   <tbody>
                     {questions.map((row, position) => (
                       <tr key={row.id}>
                         <td
-                          className="align-top border border-[#7a9e5c] px-2 py-2 font-semibold leading-snug"
+                          className="align-top border border-[#7a9e5c] px-3 py-5 font-semibold leading-snug"
                           style={{ backgroundColor: '#b8e6a8' }}
                         >
-                          <div>Question No. {pad2(position)}</div>
-                          <div className="mt-1 text-[11px] opacity-90">{slotData?.drawLabelCurrent ?? ''}</div>
+                          <div className="text-[14px] font-bold sm:text-[16px]">Question No. {pad2(position)}</div>
+                          <div className="mt-1 text-[13px] font-semibold opacity-95 sm:text-[14px]">{slotData?.drawLabelCurrent ?? ''}</div>
                         </td>
                         <td
-                          className="align-top border border-[#e0a0b0] px-2 py-2 leading-snug"
+                          className="align-top border border-[#e0a0b0] px-3 py-5 leading-snug"
                           style={{ backgroundColor: '#fcd4dc' }}
                         >
-                          {row.question}
+                          <span className="text-[16px] font-extrabold sm:text-[18px]">{cleanQuestionText(row.question)}</span>
                         </td>
                         <td
-                          className="align-top border border-[#7eb8d4] px-2 py-2"
+                          className="align-top border border-[#7eb8d4] px-3 py-5"
                           style={{ backgroundColor: '#cfe9f6' }}
                         >
-                          <div className="grid grid-cols-2 gap-1.5 gap-x-2">
+                          <div className="grid grid-cols-2 gap-2 gap-x-3 text-[14px] font-semibold sm:text-[16px]">
                             {(['A', 'B', 'C', 'D']).map((k) => (
                               <div key={k} className="leading-snug">
                                 <span className="font-bold">{k}:</span> {row.options[k]}
@@ -432,10 +511,10 @@ const LotteryQuizPage = () => {
                           <button
                             type="button"
                             onClick={() => toggleAnswer(row.id)}
-                            className="w-full min-h-[44px] rounded border border-white/30 bg-white/10 px-1 py-2 text-xs font-bold text-white hover:bg-white/20 sm:text-sm"
+                            className="w-full min-h-[72px] rounded border border-white/30 bg-white/10 px-2 py-4 text-sm font-bold text-white hover:bg-white/20 sm:text-base"
                           >
                             {answerRevealed[row.id] ? (
-                              <span className="text-lg tracking-widest">{row.answer}</span>
+                              <span className="text-xl tracking-widest sm:text-2xl">{row.answer}</span>
                             ) : (
                               'HIDE'
                             )}
@@ -451,11 +530,6 @@ const LotteryQuizPage = () => {
 
           {slotOpenForBuy && (
             <div className="mx-auto w-full max-w-[1100px] flex-1 rounded-sm border border-[#8b7355] bg-[#f5f0e6] shadow-md">
-              <p className="border-b border-[#dcb] bg-[#fff8e6] px-2 py-1 text-center text-[11px] text-[#5c2222]">
-                <span className="font-bold text-[#1a4d6e]">QUIZ{pad2(selectedQuiz)}</span>
-                {' · '}
-                बेट पूर्ण {SLOT_MINUTES} मि. स्लॉट दरम्यान · Hint शेवटच्या ~२ मि.
-              </p>
               {hintPhase && hintData && hintData.quizId === selectedQuiz ? (
                 <div className="flex flex-col gap-0 sm:flex-row">
                   <div
@@ -465,11 +539,11 @@ const LotteryQuizPage = () => {
                     Hint
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="border-b border-[#dcb] px-3 py-3 text-sm leading-relaxed" style={{ backgroundColor: '#fcd4dc' }}>
+                    <div className="border-b border-[#dcb] px-3 py-2 text-sm leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
                       <p className="mb-2 font-medium text-[#4a1515]">
                         फक्त प्रश्नाचा मजकूर (A–D पर्याय study फेजमधील यादीत). प्रश्न क्रमांक सर्व्हरकडे लपलेला.
                       </p>
-                      <p className="text-[15px] font-semibold text-black">{hintData.questionText}</p>
+                      <p className="text-[14px] font-semibold text-black">{hintData.questionText}</p>
                     </div>
                     {hintData.seedHash && (
                       <div className="border-b border-[#dcb] bg-[#f0f4ff] px-3 py-2 text-[11px] leading-snug text-[#1a2a5c]">
@@ -479,77 +553,13 @@ const LotteryQuizPage = () => {
                     )}
                   </div>
                 </div>
-              ) : (
-                <div className="border-b border-[#dcb] bg-[#fff8e6] px-3 py-2 text-center text-[11px] text-[#5c2222]">
-                  Hint स्लॉटच्या शेवटच्या ~२ मि. दिसेल. आता Study फेजमध्येही बेट नोंदवता येतात (सर्व्हर स्लॉट उघडा असताना).
+              ) : null}
+
+              {guessFeedback && (
+                <div className="border-t border-[#8b7355] bg-[#efe6d5] px-3 py-2">
+                  <p className="text-sm font-semibold text-[#3d1515]">{guessFeedback}</p>
                 </div>
               )}
-
-              <div className="border-t border-[#8b7355] bg-[#efe6d5] px-3 py-4">
-                <p className="mb-2 text-sm font-semibold text-[#5c2222]">
-                  प्रश्न क्रमांक (00–99) वर बेट — एका स्लॉटमध्ये कमाल १०० वेगळे क्रमांक; समान क्रमांकावर पुन्हा BUY केल्यास रक्कम जोडते.
-                </p>
-                <div className="space-y-2">
-                  {betLines.map((row, i) => (
-                    <div key={i} className="flex flex-wrap items-center gap-2">
-                      <span className="w-6 text-xs font-bold text-[#5c2222]">{i + 1}.</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={2}
-                        value={row.number}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/\D/g, '').slice(0, 2);
-                          setBetLines((prev) => prev.map((r, j) => (j === i ? { ...r, number: v } : r)));
-                          setGuessFeedback(null);
-                        }}
-                        placeholder="क्र."
-                        className="w-20 rounded border-2 border-[#5c2222] bg-white px-2 py-2 text-center text-lg font-bold"
-                      />
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={row.amount}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/[^\d.]/g, '');
-                          setBetLines((prev) => prev.map((r, j) => (j === i ? { ...r, amount: v } : r)));
-                          setGuessFeedback(null);
-                        }}
-                        placeholder="रक्कम"
-                        className="w-28 rounded border border-[#5c2222] bg-white px-2 py-2 text-center text-sm font-bold"
-                      />
-                      {betLines.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setBetLines((prev) => prev.filter((_, j) => j !== i))}
-                          className="text-xs font-bold text-[#8b2222] underline"
-                        >
-                          काढा
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {betLines.length < 100 && (
-                    <button
-                      type="button"
-                      onClick={() => setBetLines((prev) => [...prev, { number: '', amount: '' }])}
-                      className="rounded border border-[#5c2222] bg-white px-3 py-1.5 text-xs font-bold text-[#5c2222]"
-                    >
-                      + ओळ
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => submitQuizBets()}
-                    className="rounded border-2 border-[#1c87cd] bg-[#2d9de8] px-4 py-2 text-sm font-bold text-white"
-                  >
-                    बेट नोंदवा
-                  </button>
-                </div>
-                {guessFeedback && <p className="mt-2 text-sm font-semibold text-[#3d1515]">{guessFeedback}</p>}
-              </div>
             </div>
           )}
 
@@ -588,15 +598,41 @@ const LotteryQuizPage = () => {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={goToBoard}
-            className="mx-auto mt-3 w-full max-w-[1100px] rounded border-2 border-[#b8a01e] bg-[#f5e14a] py-3.5 text-center text-lg font-black tracking-wide text-black shadow-sm active:scale-[0.99] sm:py-4 sm:text-xl"
-          >
-            PLAY
-          </button>
+          <div className="sticky bottom-0 left-0 right-0 z-20 mt-3 bg-[#efe6d5]/95 py-2 backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={goToBoard}
+              className="mx-auto block w-full max-w-[1100px] rounded border-2 border-[#b8a01e] bg-[#f5e14a] py-3.5 text-center text-lg font-black tracking-wide text-black shadow-sm active:scale-[0.99] sm:py-4 sm:text-xl"
+            >
+              PLAY
+            </button>
+          </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+      {showRotatePrompt && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-sm border border-[#3b3b3b] bg-[#111] p-4 text-center text-white">
+            <div className="phone-rotate-wrap" aria-hidden>
+              <div className="phone-rotate-icon" />
+            </div>
+            <h3 className="mb-2 text-lg font-semibold">Rotate Screen</h3>
+            <p className="mb-4 text-sm text-gray-300">
+              Lottery quiz works best in landscape mode.
+              Please rotate your phone horizontally.
+            </p>
+            <button
+              type="button"
+              onClick={handleRotateLandscape}
+              className="h-10 w-full border border-[#d4372f] bg-[#ef3f34] font-semibold"
+            >
+              Rotate + Full Screen
+            </button>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 };
