@@ -45,19 +45,19 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
     .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
 
   return (
-    <div className="bg-black border-b border-[#3f3f3f] px-2 h-[58px] text-[10px]">
+    <div className="bg-black border-b border-[#3f3f3f] px-2 h-[58px] text-[11px]">
       <div className="grid grid-cols-[120px_160px_240px_1fr] gap-2 items-center h-full">
         <div className="leading-tight">
-          <div className="text-[#e5e5e5] text-[12px]">DR DATE</div>
-          <div className="text-[14px] leading-none mt-[1px]">{formattedDate}</div>
+          <div className="text-[#e5e5e5] text-[13px] font-semibold">DR DATE</div>
+          <div className="text-[16px] font-semibold leading-none mt-[1px]">{formattedDate}</div>
         </div>
         <div className="leading-tight">
-          <div className="text-[#e5e5e5] text-[12px]">Time To Draw</div>
-          <div className="text-[14px] leading-none mt-[1px]">{formattedTimeToDraw}</div>
+          <div className="text-[#e5e5e5] text-[13px] font-semibold">Time To Draw</div>
+          <div className="text-[16px] font-semibold leading-none mt-[1px]">{formattedTimeToDraw}</div>
         </div>
-        <div className="leading-tight text-[13px]">
+        <div className="leading-tight text-[14px] font-semibold">
           <div className="leading-none">Last Tr. GM26032818006025</div>
-          <div className="leading-none mt-[2px]">Last Sale. 180</div>
+          <div className="leading-none mt-[3px]">Last Sale. 180</div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 h-full">
           {typeof onOpenQuiz === 'function' && (
@@ -83,7 +83,7 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
             onClick={onOpenThreeD}
             className="bg-[#f28b1d] border border-[#d97816] text-white px-3 h-10 text-[16px] font-semibold leading-none shrink-0"
           >
-            3D Quiz
+            Play 3D Quiz
           </button>
           <button
             type="button"
@@ -93,9 +93,9 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
             <Wallet size={16} strokeWidth={2.25} className="text-[#f3c36b]" />
             <span>{formattedBalance}</span>
           </button>
-          <div className="text-right leading-none text-[13px]">
+          <div className="text-right leading-none text-[14px] font-semibold">
             <div>{formattedDate}</div>
-            <div className="mt-[2px]">{formattedTime}</div>
+            <div className="mt-[3px] text-[15px]">{formattedTime}</div>
           </div>
           {typeof onBack === 'function' && (
             <button
