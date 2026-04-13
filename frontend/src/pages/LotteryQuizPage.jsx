@@ -464,7 +464,12 @@ const LotteryQuizPage = () => {
           </div>
 
           {studyPhase && (
-            <div className="w-full overflow-x-auto rounded-sm border border-[#8b7355] shadow-md">
+            <div
+              className="w-full overflow-x-auto rounded-sm border border-[#8b7355] shadow-md select-none"
+              onCopy={(e) => e.preventDefault()}
+              onCut={(e) => e.preventDefault()}
+              onDragStart={(e) => e.preventDefault()}
+            >
               {questionsLoading && <p className="p-4 text-center text-sm">Loading questions...</p>}
               {questionsErr && <p className="p-4 text-center text-sm text-red-700">{questionsErr}</p>}
               {!questionsLoading && !questionsErr && (
