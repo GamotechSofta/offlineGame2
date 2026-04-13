@@ -15,6 +15,12 @@ import {
     getDpCommonList,
 } from '../../controllers/adminController.js';
 import { getLogs } from '../../controllers/activityLogController.js';
+import {
+    getLottery2DCurrentSlot,
+    getLottery2DSlotDetail,
+    getLottery2DSlotHistory,
+    updateLottery2DSlotResult,
+} from '../../controllers/lottery2dAdminController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -30,6 +36,12 @@ router.patch('/me/secret-declare-password', verifySuperAdmin, setSecretDeclarePa
 router.get('/config/sp-common-list', verifyAdmin, getSpCommonList);
 // DP Common list (DP Common game chart / reference)
 router.get('/config/dp-common-list', verifyAdmin, getDpCommonList);
+
+// 2D lottery admin management
+router.get('/lottery2d/current-slot', verifyAdmin, getLottery2DCurrentSlot);
+router.get('/lottery2d/slots', verifyAdmin, getLottery2DSlotHistory);
+router.get('/lottery2d/slots/:slotStartIso/detail', verifyAdmin, getLottery2DSlotDetail);
+router.patch('/lottery2d/slots/:slotStartIso/result', verifyAdmin, updateLottery2DSlotResult);
 
 // Super Admin management routes (Super Admin only)
 router.get('/super-admins', verifyAdmin, getAllSuperAdmins); // Get all super admins

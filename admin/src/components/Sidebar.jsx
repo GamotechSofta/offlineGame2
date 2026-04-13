@@ -16,6 +16,7 @@ import {
     FaCog,
     FaMoneyBillWave,
     FaLifeRing,
+    FaDice,
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
@@ -39,6 +40,8 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/all-users', label: 'All Players', icon: FaUserFriends },
         { path: '/bookie-management', label: 'Bookie Accounts', icon: FaUsers },
         { path: '/markets', label: 'Markets', icon: FaChartBar },
+        { path: '/2d-management', label: '2D Management', icon: FaDice },
+        { path: '/3d-management', label: '3D Management', icon: FaDice },
         { path: '/add-result', label: 'Add Result', icon: FaEdit },
         { path: '/update-rate', label: 'Update Rate', icon: FaCoins },
         { path: '/reports', label: 'Report', icon: FaChartLine },
@@ -62,6 +65,9 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         }
         if (path === '/reports') {
             return location.pathname === '/reports';
+        }
+        if (path === '/2d-management' || path === '/3d-management') {
+            return location.pathname === path;
         }
         return location.pathname === path;
     };

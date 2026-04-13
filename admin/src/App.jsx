@@ -24,6 +24,8 @@ import UpdateRate from './pages/UpdateRate';
 import MarketDetail from './pages/MarketDetail';
 import Settings from './pages/Settings';
 import TopWinners from './pages/TopWinners';
+import TwoDManagement from './pages/TwoDManagement';
+import ThreeDManagement from './pages/ThreeDManagement';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -226,6 +228,22 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <BookieManagement />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/2d-management"
+                    element={
+                        <PrivateRoute>
+                            <TwoDManagement />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/3d-management"
+                    element={
+                        <PrivateRoute>
+                            <ThreeDManagement />
                         </PrivateRoute>
                     }
                 />

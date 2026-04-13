@@ -97,6 +97,11 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
     }
   }, [dateKey, maxDay]);
 
+  useEffect(() => {
+    if (!open || !dateKey) return;
+    showResult();
+  }, [open, dateKey, showResult]);
+
   if (!open) return null;
 
   return (
@@ -121,7 +126,7 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
             {loading && <p className="p-4 text-center text-sm">Loading...</p>}
             {error && <p className="p-4 text-center text-sm text-red-700">{error}</p>}
             {!loading && !error && !slots.length && (
-              <p className="p-4 text-center text-sm text-[#555]">Select a date and click &quot;Show Result&quot;.</p>
+              <p className="p-4 text-center text-sm text-[#555]">Select a date to view result.</p>
             )}
             {!loading && slots.length > 0 && (
               <div className="flex flex-col gap-3 p-2">
@@ -195,13 +200,9 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
                 />
               </label>
             </div>
-            <button
-              type="button"
-              onClick={() => showResult()}
-              className="mt-auto border-2 border-[#1c87cd] bg-[#2d9de8] py-3 text-sm font-bold text-white"
-            >
-              Show Result
-            </button>
+            <p className="mt-auto border border-[#8a8a8a] bg-[#f1f1f1] px-2 py-3 text-center text-[11px] font-semibold text-[#444]">
+              Result auto-loads when date changes.
+            </p>
           </div>
         </div>
       </div>

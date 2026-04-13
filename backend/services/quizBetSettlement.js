@@ -1,12 +1,20 @@
 import mongoose from 'mongoose';
 import QuizBet from '../models/quiz/QuizBet.js';
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
+import { getRatesMap } from '../models/rate/rate.js';
 import { Wallet } from '../models/wallet/wallet.js';
 import { resolveWinningShuffledPosition } from './quizPickPositionService.js';
 
-function winMultiplier() {
-  const m = parseInt(process.env.QUIZ_BET_WIN_MULTIPLIER ?? '90', 10);
-  return Number.isFinite(m) && m > 0 ? m : 90;
+async function winMultiplier() {
+  try {
+    const rates = await getRatesMap();
+    const m = Number(rates?.quiz2d);
+    if (Number.isFinite(m) && m > 0) return m;
+  } catch {
+    // Fall back to env/default when rates are unavailable.
+  }
+  const envMultiplier = parseInt(process.env.QUIZ_BET_WIN_MULTIPLIER ?? '90', 10);
+  return Number.isFinite(envMultiplier) && envMultiplier > 0 ? envMultiplier : 90;
 }
 
 /**
@@ -19,7 +27,7 @@ export async function settleQuizBetsForSlot(slotStartIso) {
   const picks = await QuizSlotPick.find({ slotStartIso }).lean();
   const pickByQuiz = new Map(picks.map((p) => [p.quizId, p]));
 
-  const mult = winMultiplier();
+  const mult = await winMultiplier();
   let settled = 0;
 
   for (const bet of pending) {

@@ -15,6 +15,7 @@ const GAME_LABELS = {
     triplePatti: 'Triple Patti',
     halfSangam: 'Half Sangam',
     fullSangam: 'Full Sangam',
+    quiz2d: '2D',
 };
 
 const UpdateRate = () => {
