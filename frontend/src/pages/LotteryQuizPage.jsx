@@ -21,7 +21,8 @@ const formatCountdown = (totalSeconds) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-const cleanQuestionText = (text) => String(text || '').replace(/^प्रश्न\s*\(\d{1,2}-\d{2}\)\s*:\s*/u, '');
+const cleanQuestionText = (text) =>
+  String(text || '').replace(/^(?:प्रश्न|Question)\s*\(\d{1,2}-\d{2}\)\s*:\s*/iu, '');
 
 const LotteryQuizPage = () => {
   const navigate = useNavigate();
@@ -141,9 +142,9 @@ const LotteryQuizPage = () => {
       const nums = lastBetNumbersRef.current;
       const hit = nums.some((n) => String(n).padStart(2, '0') === idx);
       if (nums.length) {
-        setGuessFeedback(hit ? `बरोबर — एक किंवा अधिक बेट जिंकले — योग्य क्र. ${idx}` : `चूक — योग्य क्रमांक ${idx}`);
+        setGuessFeedback(hit ? `Correct - one or more bets won - winning number ${idx}` : `Wrong - winning number ${idx}`);
       } else {
-        setGuessFeedback(`योग्य क्रमांक: ${idx}`);
+        setGuessFeedback(`Winning number: ${idx}`);
       }
     };
 
@@ -257,7 +258,7 @@ const LotteryQuizPage = () => {
       (slotData?.acceptsBets === true ||
         (slotData?.acceptsBets !== false && slotData?.phase === 'hint'));
     if (!canBet) {
-      setGuessFeedback('सध्याचा ड्रॉ स्लॉट बंद आहे किंवा लोड होत आहे — थोडी वाट पहा.');
+      setGuessFeedback('Current draw slot is closed or loading. Please wait.');
       return;
     }
 
@@ -267,30 +268,30 @@ const LotteryQuizPage = () => {
       const amt = Number(String(row.amount ?? '').replace(/[^\d.]/g, ''));
       if (!nRaw && !row.amount) continue;
       if (nRaw.length !== 2) {
-        setGuessFeedback('प्रत्येक ओळीसाठी 00–99 दोन अंक भरा किंवा रिकामी ओळ काढा.');
+        setGuessFeedback('For each line, enter a 2-digit number (00-99) or remove empty rows.');
         return;
       }
       const num = parseInt(nRaw, 10);
       if (num < 0 || num > 99 || !Number.isFinite(amt) || amt < 1) {
-        setGuessFeedback('प्रत्येक बेट: क्रमांक 00–99 आणि रक्कम किमान १.');
+        setGuessFeedback('Each bet must have number 00-99 and minimum amount 1.');
         return;
       }
       parsed.push({ number: num, amount: Math.floor(amt) });
     }
 
     if (parsed.length === 0) {
-      setGuessFeedback('किमान एक बेट (क्रमांक + रक्कम) भरा.');
+      setGuessFeedback('Enter at least one bet (number + amount).');
       return;
     }
     if (parsed.length > 100) {
-      setGuessFeedback('एका वेळी कमाल १०० वेगळे क्रमांक.');
+      setGuessFeedback('Maximum 100 unique numbers allowed at a time.');
       return;
     }
 
     const seen = new Set();
     for (const p of parsed) {
       if (seen.has(p.number)) {
-        setGuessFeedback('एकाच स्लॉटमध्ये समान क्रमांक दोनदा नाही.');
+        setGuessFeedback('Duplicate numbers are not allowed in the same slot.');
         return;
       }
       seen.add(p.number);
@@ -303,18 +304,18 @@ const LotteryQuizPage = () => {
       }
     } catch (e) {
       if (e.status === 401) {
-        setGuessFeedback('बेट लावण्यासाठी लॉगिन करा (JWT / user token).');
+        setGuessFeedback('Please login to place bets (JWT / user token).');
         return;
       }
       if (e.status === 403) {
-        setGuessFeedback(e.message || 'या स्लॉटसाठी बेट स्वीकारले जात नाहीत.');
+        setGuessFeedback(e.message || 'Bets are not accepted for this slot.');
         return;
       }
       if (e.status === 409) {
-        setGuessFeedback(e.message || 'बेट नोंदवता आला नाही — पुन्हा प्रयत्न करा.');
+        setGuessFeedback(e.message || 'Could not submit bet. Please try again.');
         return;
       }
-      setGuessFeedback(e.message || 'बेट नोंदवता आला नाही');
+      setGuessFeedback(e.message || 'Bet submission failed.');
       return;
     }
 
@@ -332,30 +333,30 @@ const LotteryQuizPage = () => {
       const hit = parsed.some((p) => String(p.number).padStart(2, '0') === idx);
       if (idx != null) {
         setGuessFeedback(
-          hit ? `बेट नोंदवले. बरोबर क्रमांक ${idx} (स्लॉट संपल्यानंतर जिंगणे खात्यात)` : `बेट नोंदवले. योग्य क्र. ${idx}`,
+          hit ? `Bet submitted. Correct number ${idx} (winnings credited after slot closes).` : `Bet submitted. Winning number ${idx}.`,
         );
       } else {
-        setGuessFeedback('बेट नोंदवले. स्लॉट संपल्यानंतर निकाल दिसेल.');
+        setGuessFeedback('Bet submitted. Result will be shown after slot ends.');
       }
     } catch (e) {
       if (e.status === 403 && e.code === 'SLOT_NOT_ENDED') {
-        setGuessFeedback('बेट नोंदवले. स्लॉट संपल्यानंतर निकाल व Fairness (seed) दिसेल.');
+        setGuessFeedback('Bet submitted. Result and fairness (seed) will appear after slot ends.');
       } else if (e.status === 403) {
-        setGuessFeedback('बेट नोंदवले. निकाल नंतर तपासा.');
+        setGuessFeedback('Bet submitted. Check the result later.');
       } else {
-        setGuessFeedback(e.message || 'तपासणी अयशस्वी');
+        setGuessFeedback(e.message || 'Verification failed.');
       }
     }
   }, [betLines, slotData, selectedQuiz]);
 
   const runFairnessVerify = useCallback(async () => {
     if (!fairnessResult?.seed || !fairnessResult?.seedHash) {
-      setFairnessCheck('निकालातून seed उपलब्ध नाही.');
+      setFairnessCheck('Seed not available in result payload.');
       return;
     }
     try {
       const ok = await verifyFairness(fairnessResult.seed, fairnessResult.seedHash);
-      setFairnessCheck(ok ? '✓ hash(seed) हिंटमधील seedHash शी जुळते — provably fair.' : '✗ जुळत नाही — तपासा.');
+      setFairnessCheck(ok ? '✓ hash(seed) matches hint seedHash - provably fair.' : '✗ Mismatch detected - please check.');
     } catch (err) {
       setFairnessCheck(err.message || 'Verify failed');
     }
@@ -405,21 +406,21 @@ const LotteryQuizPage = () => {
             }}
           >
             <div className="flex h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden">
-              <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 bg-[#efe6d5]/95 px-2 py-2 backdrop-blur-sm">
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 bg-[#efe6d5]/95 px-2 pt-4 pb-2 backdrop-blur-sm">
           <button
             type="button"
             onClick={() => navigate('/lottery')}
-            className={`flex h-9 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-bold ${btnInactive}`}
+            className={`flex h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-base font-extrabold ${btnInactive}`}
           >
-            <ArrowLeft size={16} strokeWidth={2.5} />
+            <ArrowLeft size={18} strokeWidth={2.75} />
             2D
           </button>
-          <span className="text-[13px] font-bold leading-snug text-[#5c2222] sm:text-base">
+          <span className="text-[15px] font-extrabold leading-snug text-[#5c2222] sm:text-lg">
             {slotErr
-              ? `सर्व्हर: ${slotErr}`
+              ? `Server: ${slotErr}`
               : hintPhase
-                ? `Hint फेज — ड्रॉ: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(slotData?.secondsUntilSlotEnd ?? 0)})`
-                : `${STUDY_MINUTES} मि. नंतर Hint (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
+                ? `Hint phase - Draw: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(slotData?.secondsUntilSlotEnd ?? 0)})`
+                : `Hint in ${STUDY_MINUTES} min (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
           </span>
               </div>
 
@@ -441,8 +442,8 @@ const LotteryQuizPage = () => {
               <div className="w-full">
                 <p className="mb-1.5 text-center text-[11px] font-semibold text-[#5c2222] sm:text-xs">
                   {hintPhase
-                    ? 'एका स्लॉटमध्ये प्रत्येक क्विजचा वेगळा प्रश्न व वेगळा निकाल — खाली Q-01…Q-30 निवडून hint पहा व अंदाज लावा.'
-                    : 'Study: खाली क्विज निवडा — प्रत्येकास 100 प्रश्न.'}
+                    ? 'Each quiz gets a unique question and result per slot. Select Q-01...Q-30 below to view hint.'
+                    : 'Study: Select a quiz below - 100 questions each.'}
                 </p>
                 <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 sm:gap-2">
                   {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
@@ -464,7 +465,7 @@ const LotteryQuizPage = () => {
 
           {studyPhase && (
             <div className="w-full overflow-x-auto rounded-sm border border-[#8b7355] shadow-md">
-              {questionsLoading && <p className="p-4 text-center text-sm">प्रश्न लोड होत आहेत…</p>}
+              {questionsLoading && <p className="p-4 text-center text-sm">Loading questions...</p>}
               {questionsErr && <p className="p-4 text-center text-sm text-red-700">{questionsErr}</p>}
               {!questionsLoading && !questionsErr && (
                 <table className="w-full min-w-[640px] border-collapse text-left text-[13px] sm:text-[15px]">
@@ -541,7 +542,7 @@ const LotteryQuizPage = () => {
                   <div className="min-w-0 flex-1">
                     <div className="border-b border-[#dcb] px-3 py-2 text-sm leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
                       <p className="mb-2 font-medium text-[#4a1515]">
-                        फक्त प्रश्नाचा मजकूर (A–D पर्याय study फेजमधील यादीत). प्रश्न क्रमांक सर्व्हरकडे लपलेला.
+                        Only the question text is shown here (A-D options appear in Study list). Question index stays hidden on server.
                       </p>
                       <p className="text-[14px] font-semibold text-black">{hintData.questionText}</p>
                     </div>
@@ -565,20 +566,20 @@ const LotteryQuizPage = () => {
 
           {hintPhase && slotOpenForBuy && (!hintData || hintData.quizId !== selectedQuiz) && (
             <div className="mx-auto py-6 text-center text-sm text-[#5c2222]">
-              QUIZ{pad2(selectedQuiz)} साठी hint लोड होत आहे…
+              Loading hint for QUIZ{pad2(selectedQuiz)}...
             </div>
           )}
 
           {fairnessResult?.seed && (
             <div className="mx-auto mt-3 w-full max-w-[1100px] rounded-sm border border-[#7a9e5c] bg-[#eef8f0] px-3 py-3 text-sm shadow-sm">
               <p className="mb-1 font-bold text-[#1a4d2e]">
-                Fairness (स्लॉट संपल्यानंतर)
+                Fairness (after slot closes)
                 {fairnessResult.quizId != null && (
                   <span className="ml-1 font-mono text-[#0f3558]">· QUIZ{pad2(fairnessResult.quizId)}</span>
                 )}
               </p>
               <p className="mb-1 text-xs text-[#333]">
-                योग्य क्रमांक: <span className="font-mono font-bold">{fairnessResult.questionIndex}</span>
+                Winning number: <span className="font-mono font-bold">{fairnessResult.questionIndex}</span>
               </p>
               <p className="mb-0.5 text-xs font-semibold text-[#333]">Revealed seed (sha256(quizId+slotStart) hex):</p>
               <textarea

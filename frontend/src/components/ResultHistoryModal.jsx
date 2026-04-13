@@ -72,11 +72,11 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
 
   const showResult = useCallback(async () => {
     if (!dateKey) {
-      setError('तारीख पूर्ण भरा (DD MM YYYY).');
+      setError('Enter complete date (DD MM YYYY).');
       return;
     }
     if (maxDay && dateKey > maxDay) {
-      setError('भविष्यातील तारीख नाही.');
+      setError('Future date is not allowed.');
       return;
     }
     setLoading(true);
@@ -118,10 +118,10 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
 
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <div className="min-h-0 flex-1 overflow-y-auto border-b border-[#666] md:border-b-0 md:border-r">
-            {loading && <p className="p-4 text-center text-sm">लोड होत आहे…</p>}
+            {loading && <p className="p-4 text-center text-sm">Loading...</p>}
             {error && <p className="p-4 text-center text-sm text-red-700">{error}</p>}
             {!loading && !error && !slots.length && (
-              <p className="p-4 text-center text-sm text-[#555]">तारीख निवडून &quot;Show Result&quot; दाबा.</p>
+              <p className="p-4 text-center text-sm text-[#555]">Select a date and click &quot;Show Result&quot;.</p>
             )}
             {!loading && slots.length > 0 && (
               <div className="flex flex-col gap-3 p-2">

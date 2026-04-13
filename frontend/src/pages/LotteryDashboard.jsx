@@ -256,20 +256,20 @@ const LotteryDashboard = () => {
   const buyHelpLines = useMemo(() => {
     const lines = [];
     if (slotSyncErr) {
-      lines.push(`सर्व्हर: ${slotSyncErr}`);
+      lines.push(`Server: ${slotSyncErr}`);
       return lines;
     }
     if (!serverSlot?.slotStartIso) {
-      lines.push('सर्व्हर स्लॉट लोड होत आहे — थोडी वाट पहा.');
+      lines.push('Server slot is loading. Please wait.');
       return lines;
     }
     if (!slotOpenForBuy) {
-      lines.push('BUY फक्त सध्याच्या १५ मि. ड्रॉ स्लॉट दरम्यान चालतो (स्लॉट संपल्यानंतर नाही).');
+      lines.push('BUY works only during the current 15-minute draw slot (not after slot closes).');
       const sec = Math.max(0, Number(serverSlot.secondsUntilSlotEnd) || 0);
-      if (sec > 0) lines.push(`या स्लॉटची उर्वरित वेळ: ${formatCountdown(sec)}`);
+      if (sec > 0) lines.push(`Time left in this slot: ${formatCountdown(sec)}`);
     }
     if (exceedsMaxNumbersPerQuiz) {
-      lines.push(`प्रति Quiz कमाल ${MAX_QUIZ_NUMBERS_PER_SLOT} वेगळे नंबर (00–99) — कमी करा किंवा RESET.`);
+      lines.push(`Max ${MAX_QUIZ_NUMBERS_PER_SLOT} unique numbers (00-99) per quiz - reduce selection or RESET.`);
     }
     return lines;
   }, [slotSyncErr, serverSlot, exceedsMaxNumbersPerQuiz, slotOpenForBuy]);
@@ -459,15 +459,15 @@ const LotteryDashboard = () => {
   const handleBoardBuy = useCallback(async () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (!user?.token) {
-      window.alert('टिकिट खरेदीसाठी लॉगिन करा (खाते / वॉलेट).');
+      window.alert('Please login to buy tickets (account / wallet).');
       return;
     }
     if (!serverSlot?.slotStartIso) {
-      window.alert('सर्व्हर स्लॉट मिळत नाही. नंतर पुन्हा प्रयत्न करा.');
+      window.alert('Server slot not available. Please try again.');
       return;
     }
     if (!slotOpenForBuy) {
-      window.alert('BUY फक्त सध्याच्या १५ मि. ड्रॉ स्लॉट उघडा असतानाच चालतो. स्लॉट संपला असेल तर पुढचा थांबा.');
+      window.alert('BUY works only while the current 15-minute draw slot is open. Wait for next slot if closed.');
       return;
     }
 
@@ -484,7 +484,7 @@ const LotteryDashboard = () => {
       })
       .filter(Boolean);
     if (!stakes.length) {
-      window.alert('आधी बोर्डवर रक्कम लावा.');
+      window.alert('Please add amount on board first.');
       return;
     }
 
@@ -503,7 +503,7 @@ const LotteryDashboard = () => {
       const bets = [...amountByNum.entries()].map(([number, amount]) => ({ number, amount }));
       if (bets.length > MAX_QUIZ_NUMBERS_PER_SLOT) {
         window.alert(
-          `Quiz ${String(quizId).padStart(2, '0')}: एका स्लॉटमध्ये कमाल ${MAX_QUIZ_NUMBERS_PER_SLOT} वेगळे नंबर. कमी करा.`,
+          `Quiz ${String(quizId).padStart(2, '0')}: maximum ${MAX_QUIZ_NUMBERS_PER_SLOT} unique numbers allowed in one slot.`,
         );
         return;
       }
@@ -533,16 +533,16 @@ const LotteryDashboard = () => {
       setRowPointDisplay(Array.from({ length: 10 }, () => ''));
       setColPointDisplay(Array.from({ length: 10 }, () => ''));
       const n = j?.data?.linesProcessed ?? j?.data?.totalBetsPlaced ?? 0;
-      window.alert(`टिकिट नोंदवले (${n} ओळी). My Bets → Quiz टिकिट मध्ये सर्व नंबर पहा.`);
+      window.alert(`Ticket submitted (${n} lines). Check all numbers in My Bets -> Quiz Tickets.`);
     } catch (e) {
       const msg =
         e.status === 401
-          ? 'लॉगिन करा.'
+          ? 'Please login.'
           : e.status === 403
-            ? e.message || 'या वेळी बेट स्वीकारले जात नाहीत.'
+            ? e.message || 'Bets are not being accepted right now.'
             : e.status === 409
-              ? e.message || 'हा नंबर आधीच बेट केलेला आहे.'
-              : e.message || 'BUY अयशस्वी';
+              ? e.message || 'This number is already placed.'
+              : e.message || 'BUY failed';
       window.alert(msg);
     }
   }, [selectedMap, serverSlot, slotOpenForBuy]);

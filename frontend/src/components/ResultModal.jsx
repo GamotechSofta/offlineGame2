@@ -24,7 +24,7 @@ const ResultModal = ({ open, onClose, rows = [], loading = false, error = '', ti
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {loading && <p className="p-3 text-center text-[12px]">लोड होत आहे…</p>}
+          {loading && <p className="p-3 text-center text-[12px]">Loading...</p>}
           {error && <p className="p-3 text-center text-[12px] text-red-700">{error}</p>}
           {!loading && !error && (
             <table className="w-full text-[11px]">

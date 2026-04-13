@@ -1,4 +1,4 @@
-/** 2D Quiz: 15 मिनिटे = एक गेम; पहिले १३ मिनिटे सर्व प्रश्न, नंतर फक्त Hint (एक प्रश्न, नंबर नाही). सर्व वेळ IST. */
+/** 2D Quiz: 15 minutes = one game; first 13 minutes study phase, then hint only (one question, no number). All time in IST. */
 
 export const SLOT_MINUTES = 15;
 export const STUDY_MINUTES = 13;
@@ -7,7 +7,7 @@ export const STUDY_SECONDS = STUDY_MINUTES * 60;
 
 const TZ = 'Asia/Kolkata';
 
-/** आज IST मध्ये मध्यरात्रीपासून सेकंद. */
+/** Seconds since midnight in IST. */
 export function getISTSecondsSinceMidnight(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: TZ,
@@ -20,7 +20,7 @@ export function getISTSecondsSinceMidnight(date = new Date()) {
   return n('hour') * 3600 + n('minute') * 60 + n('second');
 }
 
-/** मध्यरात्रीपासून सेकंद → 12h लेबल (IST). */
+/** Seconds since midnight -> 12h label (IST). */
 export function formatISTTimeFromDaySeconds(sec) {
   const wrap = ((sec % 86400) + 86400) % 86400;
   let h24 = Math.floor(wrap / 3600);
@@ -34,8 +34,8 @@ export function formatISTTimeFromDaySeconds(sec) {
 const slotsPerDay = Math.ceil(86400 / SLOT_SECONDS);
 
 /**
- * त्या स्लॉटची **ड्रॉ वेळ** (स्लॉट संपतो तिथे) — मध्यरात्रीपासून सेकंद, [0, 86400).
- * Slot i चा कालावधी [i*900, (i+1)*900) — ड्रॉ = (i+1)*900 mod 86400.
+ * Slot draw-end time (where slot closes) in seconds since midnight, [0, 86400).
+ * Slot i range is [i*900, (i+1)*900) - draw time is (i+1)*900 mod 86400.
  */
 function drawEndSecondsForSlotIndex(slotIdx) {
   const i = ((slotIdx % slotsPerDay) + slotsPerDay) % slotsPerDay;
@@ -43,8 +43,8 @@ function drawEndSecondsForSlotIndex(slotIdx) {
 }
 
 /**
- * सध्याचा १५ मिनिटांचा स्लॉट + फेज.
- * `currentLabel` / `prevLabel` / `nextLabel` = त्या स्लॉटची **ड्रॉ वेळ** (स्टार्ट वेळ नाही).
+ * Current 15-minute slot + phase.
+ * `currentLabel` / `prevLabel` / `nextLabel` = draw-end labels (not start time).
  */
 export function getSlotState(date = new Date()) {
   const s = getISTSecondsSinceMidnight(date);
@@ -64,7 +64,7 @@ export function getSlotState(date = new Date()) {
   };
 }
 
-/** एकाच स्लॉट + क्विझसाठी सर्वांना सारखा “random” प्रश्न क्रमांक 0–99. */
+/** Deterministic "random" question index 0-99 for same slot + quiz for all users. */
 export function pickHintQuestionIndex(slotIndexToday, quizNum, date = new Date()) {
   const y = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric' }).format(date);
   const m = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, month: '2-digit' }).format(date);
