@@ -39,6 +39,7 @@ const LotteryDashboard = () => {
   const [serverSlot, setServerSlot] = useState(null);
   const [slotSyncErr, setSlotSyncErr] = useState('');
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
+  const [uiNotice, setUiNotice] = useState('');
   const [enteredAmount, setEnteredAmount] = useState(2);
   const [amountDraft, setAmountDraft] = useState('2');
   const [pendingTarget, setPendingTarget] = useState(null);
@@ -459,15 +460,15 @@ const LotteryDashboard = () => {
   const handleBoardBuy = useCallback(async () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (!user?.token) {
-      window.alert('Please login to buy tickets (account / wallet).');
+      setUiNotice('Please login to buy tickets (account / wallet).');
       return;
     }
     if (!serverSlot?.slotStartIso) {
-      window.alert('Server slot not available. Please try again.');
+      setUiNotice('Server slot not available. Please try again.');
       return;
     }
     if (!slotOpenForBuy) {
-      window.alert('BUY works only while the current 15-minute draw slot is open. Wait for next slot if closed.');
+      setUiNotice('BUY works only while the current 15-minute draw slot is open. Wait for next slot if closed.');
       return;
     }
 
@@ -484,7 +485,7 @@ const LotteryDashboard = () => {
       })
       .filter(Boolean);
     if (!stakes.length) {
-      window.alert('Please add amount on board first.');
+      setUiNotice('Please add amount on board first.');
       return;
     }
 
@@ -502,9 +503,7 @@ const LotteryDashboard = () => {
       }
       const bets = [...amountByNum.entries()].map(([number, amount]) => ({ number, amount }));
       if (bets.length > MAX_QUIZ_NUMBERS_PER_SLOT) {
-        window.alert(
-          `Quiz ${String(quizId).padStart(2, '0')}: maximum ${MAX_QUIZ_NUMBERS_PER_SLOT} unique numbers allowed in one slot.`,
-        );
+        setUiNotice(`Quiz ${String(quizId).padStart(2, '0')}: maximum ${MAX_QUIZ_NUMBERS_PER_SLOT} unique numbers allowed in one slot.`);
         return;
       }
     }
@@ -533,7 +532,7 @@ const LotteryDashboard = () => {
       setRowPointDisplay(Array.from({ length: 10 }, () => ''));
       setColPointDisplay(Array.from({ length: 10 }, () => ''));
       const n = j?.data?.linesProcessed ?? j?.data?.totalBetsPlaced ?? 0;
-      window.alert(`Ticket submitted (${n} lines). Check all numbers in My Bets -> Quiz Tickets.`);
+      setUiNotice(`Ticket submitted (${n} lines). Check all numbers in My Bets -> Quiz Tickets.`);
     } catch (e) {
       const msg =
         e.status === 401
@@ -543,7 +542,7 @@ const LotteryDashboard = () => {
             : e.status === 409
               ? e.message || 'This number is already placed.'
               : e.message || 'BUY failed';
-      window.alert(msg);
+      setUiNotice(msg);
     }
   }, [selectedMap, serverSlot, slotOpenForBuy]);
   const handleIncrease = useCallback(() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1), [amountDraft, enteredAmount, setAmountFromNumber]);
@@ -684,6 +683,20 @@ const LotteryDashboard = () => {
               className="w-full h-10 bg-[#ef3f34] border border-[#d4372f] font-semibold"
             >
               Rotate + Full Screen
+            </button>
+          </div>
+        </div>
+      )}
+      {uiNotice && (
+        <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-sm border border-[#3b3b3b] bg-[#111] p-4 text-center text-white">
+            <p className="mb-4 text-sm font-semibold">{uiNotice}</p>
+            <button
+              type="button"
+              onClick={() => setUiNotice('')}
+              className="h-10 w-full border border-[#1c87cd] bg-[#2d9de8] font-semibold"
+            >
+              OK
             </button>
           </div>
         </div>
