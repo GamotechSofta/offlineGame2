@@ -1,9 +1,13 @@
-// API Configuration – set VITE_API_BASE_URL in Render (or .env) for production.
-// Local + production API without CORS: use VITE_API_BASE_URL=/api/v1 and Vite proxy (see vite.config.js + .env.development).
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
+// API Configuration – set VITE_API_BASE_URL at build time (Render env, CI, or .env.production).
+// Without it, dev uses localhost; production build must not embed localhost (breaks live sites).
+// Local + prod API without CORS in dev: VITE_API_BASE_URL=/api/v1 + Vite proxy (vite.config.js).
+const _api =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? 'http://localhost:3010/api/v1' : 'https://api.singlepana.in/api/v1');
+
+export const API_BASE_URL = _api;
 
 // Backend base URL for static assets (downloads, etc.) – derived from API or set via VITE_BACKEND_BASE_URL
-const _api = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const isRelativeApi = typeof _api === 'string' && _api.startsWith('/');
 export const BACKEND_BASE_URL =
   import.meta.env.VITE_BACKEND_BASE_URL ||
