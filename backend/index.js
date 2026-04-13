@@ -96,10 +96,26 @@ const loginLimiter = rateLimit({
     max: 25,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, message: 'Too many login attempts. Try again later.' },
+    handler: (req, res) => {
+        const retryAfterMs = req.rateLimit?.resetTime
+            ? Math.max(0, new Date(req.rateLimit.resetTime).getTime() - Date.now())
+            : 15 * 60 * 1000;
+        const retryAfterMinutes = Math.max(1, Math.ceil(retryAfterMs / (60 * 1000)));
+        return res.status(429).json({
+            success: false,
+            message: `Too many login attempts. Try again after ${retryAfterMinutes} minute(s).`,
+            code: 'LOGIN_RATE_LIMITED',
+            retryAfterMinutes,
+        });
+    },
 });
 app.use('/api/v1', (req, res, next) => {
-    if (req.method === 'POST' && /\/users\/login$/.test(req.originalUrl)) return loginLimiter(req, res, next);
+    if (
+        req.method === 'POST' &&
+        /\/(users|admin|bookie)\/login$/.test(req.originalUrl)
+    ) {
+        return loginLimiter(req, res, next);
+    }
     next();
 });
 

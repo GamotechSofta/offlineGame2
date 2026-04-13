@@ -62,6 +62,14 @@ const adminSchema = new mongoose.Schema({
         default: 0,
         min: 0,
     },
+    failedLoginAttempts: {
+        type: Number,
+        default: 0,
+    },
+    loginBlockedUntil: {
+        type: Date,
+        default: null,
+    },
 }, {
     timestamps: true,
 });

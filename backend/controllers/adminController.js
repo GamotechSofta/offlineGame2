@@ -8,6 +8,9 @@ import { DP_COMMON_LIST } from '../config/dpCommonList.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signAdminToken } from '../utils/adminJwt.js';
 
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const LOGIN_BLOCK_DURATION_MS = 15 * 60 * 1000;
+
 /**
  * Admin login
  * Body: { username, password }
@@ -15,6 +18,7 @@ import { signAdminToken } from '../utils/adminJwt.js';
 export const adminLogin = async (req, res) => {
     try {
         const { username, password } = req.body;
+        const now = Date.now();
         
         if (!username || !password) {
             return res.status(400).json({
@@ -23,12 +27,30 @@ export const adminLogin = async (req, res) => {
             });
         }
 
-        const admin = await Admin.findOne({ username }).select('password status role username _id');
+        const admin = await Admin.findOne({ username }).select('password status role username _id failedLoginAttempts loginBlockedUntil');
         if (!admin) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid credentials',
             });
+        }
+
+        const blockedUntilTs = admin.loginBlockedUntil ? new Date(admin.loginBlockedUntil).getTime() : 0;
+        if (blockedUntilTs > now) {
+            const remainingMinutes = Math.ceil((blockedUntilTs - now) / (60 * 1000));
+            return res.status(429).json({
+                success: false,
+                message: `Too many wrong attempts. Account is blocked for ${remainingMinutes} minute(s).`,
+                code: 'ACCOUNT_TEMP_BLOCKED',
+            });
+        }
+        if (blockedUntilTs && blockedUntilTs <= now) {
+            admin.failedLoginAttempts = 0;
+            admin.loginBlockedUntil = null;
+            await Admin.updateOne(
+                { _id: admin._id },
+                { $set: { failedLoginAttempts: 0, loginBlockedUntil: null } }
+            );
         }
 
         // Check if admin account is active
@@ -42,10 +64,38 @@ export const adminLogin = async (req, res) => {
 
         const isPasswordValid = await admin.comparePassword(password);
         if (!isPasswordValid) {
+            const nextFailedAttempts = (admin.failedLoginAttempts || 0) + 1;
+            if (nextFailedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+                admin.failedLoginAttempts = 0;
+                admin.loginBlockedUntil = new Date(now + LOGIN_BLOCK_DURATION_MS);
+                await Admin.updateOne(
+                    { _id: admin._id },
+                    { $set: { failedLoginAttempts: 0, loginBlockedUntil: admin.loginBlockedUntil } }
+                );
+                return res.status(429).json({
+                    success: false,
+                    message: 'Too many wrong attempts. Account is blocked for 15 minutes.',
+                    code: 'ACCOUNT_TEMP_BLOCKED',
+                });
+            }
+            admin.failedLoginAttempts = nextFailedAttempts;
+            admin.loginBlockedUntil = null;
+            await Admin.updateOne(
+                { _id: admin._id },
+                { $set: { failedLoginAttempts: nextFailedAttempts, loginBlockedUntil: null } }
+            );
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials',
+                message: `Invalid credentials. ${MAX_FAILED_LOGIN_ATTEMPTS - nextFailedAttempts} attempt(s) left.`,
             });
+        }
+        if (admin.failedLoginAttempts || admin.loginBlockedUntil) {
+            admin.failedLoginAttempts = 0;
+            admin.loginBlockedUntil = null;
+            await Admin.updateOne(
+                { _id: admin._id },
+                { $set: { failedLoginAttempts: 0, loginBlockedUntil: null } }
+            );
         }
 
         if (admin.role === 'bookie') {

@@ -2,6 +2,9 @@ import Admin from '../models/admin/admin.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signAdminToken } from '../utils/adminJwt.js';
 
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const LOGIN_BLOCK_DURATION_MS = 15 * 60 * 1000;
+
 /**
  * Bookie login - only allows users with role 'bookie' and status 'active'
  * Body: { phone, password } or { username, password } (phone preferred; bookies log in with phone + password)
@@ -9,6 +12,7 @@ import { signAdminToken } from '../utils/adminJwt.js';
 export const bookieLogin = async (req, res) => {
     try {
         const { username, phone, password } = req.body;
+        const now = Date.now();
 
         const loginIdentifier = phone || username;
         if (!loginIdentifier || !password) {
@@ -53,6 +57,24 @@ export const bookieLogin = async (req, res) => {
             });
         }
 
+        const blockedUntilTs = bookie.loginBlockedUntil ? new Date(bookie.loginBlockedUntil).getTime() : 0;
+        if (blockedUntilTs > now) {
+            const remainingMinutes = Math.ceil((blockedUntilTs - now) / (60 * 1000));
+            return res.status(429).json({
+                success: false,
+                message: `Too many wrong attempts. Account is blocked for ${remainingMinutes} minute(s).`,
+                code: 'ACCOUNT_TEMP_BLOCKED',
+            });
+        }
+        if (blockedUntilTs && blockedUntilTs <= now) {
+            bookie.failedLoginAttempts = 0;
+            bookie.loginBlockedUntil = null;
+            await Admin.updateOne(
+                { _id: bookie._id },
+                { $set: { failedLoginAttempts: 0, loginBlockedUntil: null } }
+            );
+        }
+
         // Check if bookie account is active
         if (bookie.status === 'inactive') {
             return res.status(403).json({
@@ -64,10 +86,38 @@ export const bookieLogin = async (req, res) => {
 
         const isPasswordValid = await bookie.comparePassword(password);
         if (!isPasswordValid) {
+            const nextFailedAttempts = (bookie.failedLoginAttempts || 0) + 1;
+            if (nextFailedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+                bookie.failedLoginAttempts = 0;
+                bookie.loginBlockedUntil = new Date(now + LOGIN_BLOCK_DURATION_MS);
+                await Admin.updateOne(
+                    { _id: bookie._id },
+                    { $set: { failedLoginAttempts: 0, loginBlockedUntil: bookie.loginBlockedUntil } }
+                );
+                return res.status(429).json({
+                    success: false,
+                    message: 'Too many wrong attempts. Account is blocked for 15 minutes.',
+                    code: 'ACCOUNT_TEMP_BLOCKED',
+                });
+            }
+            bookie.failedLoginAttempts = nextFailedAttempts;
+            bookie.loginBlockedUntil = null;
+            await Admin.updateOne(
+                { _id: bookie._id },
+                { $set: { failedLoginAttempts: nextFailedAttempts, loginBlockedUntil: null } }
+            );
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials. Please check your phone number and password.',
+                message: `Invalid credentials. ${MAX_FAILED_LOGIN_ATTEMPTS - nextFailedAttempts} attempt(s) left.`,
             });
+        }
+        if (bookie.failedLoginAttempts || bookie.loginBlockedUntil) {
+            bookie.failedLoginAttempts = 0;
+            bookie.loginBlockedUntil = null;
+            await Admin.updateOne(
+                { _id: bookie._id },
+                { $set: { failedLoginAttempts: 0, loginBlockedUntil: null } }
+            );
         }
 
         await logActivity({
