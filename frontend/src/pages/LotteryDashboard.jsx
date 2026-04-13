@@ -457,6 +457,11 @@ const LotteryDashboard = () => {
     setShowResults(true);
   }, []);
 
+  const handleBackToHome = useCallback(() => {
+    // Back button should only navigate to home, never logout.
+    navigate('/');
+  }, [navigate]);
+
   const handleBoardBuy = useCallback(async () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (!user?.token) {
@@ -613,7 +618,7 @@ const LotteryDashboard = () => {
               onOpenQuiz={() => navigate('/lottery/quiz')}
               onOpenThreeD={() => navigate('/lottery/3d')}
               onOpenMyBets={() => setShowMyBets(true)}
-              onBack={() => navigate('/')}
+              onBack={handleBackToHome}
             />
             <QuizSelector
               activeQuiz={activeQuiz}

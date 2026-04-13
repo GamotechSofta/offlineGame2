@@ -745,7 +745,7 @@ const ThreeDGame = () => {
   }, [activeInputIndex, addBet, canAddBet]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#efefef]">
+    <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-[#0b1223] via-[#182a4a] to-[#1e3a5f]">
       <div
         className="absolute inset-0 overflow-hidden"
         style={{
@@ -926,15 +926,12 @@ const ThreeDGame = () => {
                 </button>
               ))}
               <div className="ml-auto flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 pl-2 sm:gap-x-3">
-                <span className="max-w-[11rem] text-right text-[13px] font-extrabold leading-snug tracking-tight text-[#4a3d24] sm:max-w-none sm:text-[16px] md:text-[18px]">
-                  Go back to 2D game
-                </span>
                 <button
                   type="button"
                   onClick={() => navigate('/lottery')}
-                  className="rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2 text-[14px] font-bold uppercase tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98]"
+                  className="rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2 text-[14px] font-bold tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98] sm:text-[15px]"
                 >
-                  2D
+                  Go back to 2D game
                 </button>
               </div>
             </div>
