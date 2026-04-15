@@ -62,11 +62,15 @@ const BottomNavbar = () => {
       label: 'Home',
       path: '/',
       icon: (
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777716/home_pvawyw.png"
-          alt="Home"
-          className="w-6 h-6 object-contain [image-rendering:-webkit-optimize-contrast]"
-        />
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 10.5L12 4.5l8.25 6v8.25a1.5 1.5 0 01-1.5 1.5h-4.5v-5.25a1.5 1.5 0 00-1.5-1.5h-1.5a1.5 1.5 0 00-1.5 1.5v5.25h-4.5a1.5 1.5 0 01-1.5-1.5V10.5z" />
+        </svg>
       ),
       isCenter: true
     },
@@ -99,8 +103,8 @@ const BottomNavbar = () => {
           strokeWidth="1.8"
           viewBox="0 0 24 24"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 20.118a7.5 7.5 0 0115 0A17.94 17.94 0 0112 21.75c-2.676 0-5.216-.584-7.5-1.632z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 12a4.125 4.125 0 100-8.25A4.125 4.125 0 0012 12z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.125 20.25a7.875 7.875 0 0115.75 0" />
         </svg>
       )
     }
