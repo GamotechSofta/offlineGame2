@@ -126,7 +126,7 @@ const Layout = ({ children }) => {
     return (
       <div className="min-h-screen min-h-ios-screen pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 bg-white w-full">
         <AppHeader />
-        <div className="pt-[calc(44px+env(safe-area-inset-top,0px))] sm:pt-[calc(42px+env(safe-area-inset-top,0px))] md:pt-[calc(44px+env(safe-area-inset-top,0px))]">
+        <div className="pt-[var(--app-header-height,56px)]">
           {children}
         </div>
         <BottomNavbar />
@@ -134,28 +134,10 @@ const Layout = ({ children }) => {
     );
   }
 
-  const isBidPage = location.pathname.includes('game-bid') || location.pathname === '/bidoptions';
-  const isSupportPage =
-    location.pathname === '/support' ||
-    location.pathname === '/support/new' ||
-    location.pathname === '/support/status';
-  // All pages now use white background with navy/white theme
-  const isBetsPage = location.pathname === '/bids';
-  const isHistoryPage =
-    location.pathname === '/bet-history' || location.pathname === '/market-result-history';
-
   return (
     <div className="min-h-screen min-h-ios-screen pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 w-full max-w-full overflow-x-hidden bg-white">
       <AppHeader />
-      {/* Reduce mobile top-gap under fixed header */}
-      {/* Desktop: ensure no overlap under fixed header */}
-      <div
-        className={
-          isBidPage
-            ? 'pt-[calc(52px+env(safe-area-inset-top,0px))] sm:pt-[calc(54px+env(safe-area-inset-top,0px))] md:pt-[calc(56px+env(safe-area-inset-top,0px))]'
-            : ((isBetsPage || isHistoryPage) ? 'pt-[calc(72px+env(safe-area-inset-top,0px))] sm:pt-[calc(76px+env(safe-area-inset-top,0px))] md:pt-[calc(88px+env(safe-area-inset-top,0px))]' : 'pt-[calc(56px+env(safe-area-inset-top,0px))] sm:pt-[calc(68px+env(safe-area-inset-top,0px))] md:pt-[calc(72px+env(safe-area-inset-top,0px))]')
-        }
-      >
+      <div className="pt-[var(--app-header-height,56px)]">
         {children}
       </div>
       <BottomNavbar />

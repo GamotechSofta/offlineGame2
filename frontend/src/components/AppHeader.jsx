@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getBalance, updateUserBalance } from '../api/bets';
 import { BACKEND_BASE_URL } from '../config/api';
 
 const AppHeader = () => {
   const navigate = useNavigate();
+  const headerRef = useRef(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState(null);
@@ -88,6 +89,30 @@ const AppHeader = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const updateHeaderHeightVar = () => {
+      const h = headerRef.current?.offsetHeight;
+      if (!h) return;
+      document.documentElement.style.setProperty('--app-header-height', `${h}px`);
+    };
+
+    updateHeaderHeightVar();
+    window.addEventListener('resize', updateHeaderHeightVar);
+    window.addEventListener('orientationchange', updateHeaderHeightVar);
+
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined' && headerRef.current) {
+      ro = new ResizeObserver(() => updateHeaderHeightVar());
+      ro.observe(headerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateHeaderHeightVar);
+      window.removeEventListener('orientationchange', updateHeaderHeightVar);
+      ro?.disconnect();
+    };
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
@@ -122,6 +147,7 @@ const AppHeader = () => {
   return (
     <>
       <div
+        ref={headerRef}
         className="fixed top-0 left-0 right-0 z-50 w-full bg-white border-b-2 border-gray-300 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))] md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] py-1 sm:py-1 md:py-1.5 pt-[calc(0.375rem+env(safe-area-inset-top,0px))] sm:pt-[calc(0.25rem+env(safe-area-inset-top,0px))] md:pt-[calc(0.375rem+env(safe-area-inset-top,0px))] pb-1 sm:pb-1 md:pb-1.5"
       >
         <div className="flex items-center justify-between gap-2 sm:gap-2 md:gap-3">

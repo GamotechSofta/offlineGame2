@@ -428,7 +428,7 @@ const Profile = () => {
       )}
 
       {/* ── Header Bar ── */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-gray-300 shadow-sm">
+      <div className="sticky top-[var(--app-header-height,56px)] z-40 bg-white/95 backdrop-blur-xl border-b border-gray-300 shadow-sm">
         <div className="flex items-center gap-3 px-4 py-3 max-w-lg md:max-w-6xl mx-auto">
           <button
             type="button"
