@@ -24,6 +24,21 @@ const Home = () => {
           </span>
           <span className="text-rose-200 shrink-0">→</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => navigate('/games')}
+          className="mt-3 w-full flex items-center justify-between gap-3 py-3 px-4 rounded-xl bg-gradient-to-r from-[#1B3150] to-[#22406a] border border-blue-300/60 text-white shadow-lg hover:from-[#22406a] hover:to-[#2b4d7d] active:scale-[0.99] transition-all"
+        >
+          <span className="flex items-center gap-2">
+            <span className="w-10 h-10 rounded-full bg-blue-300/30 flex items-center justify-center text-xl" aria-hidden>🎮</span>
+            <span className="text-left">
+              <span className="block font-bold text-sm sm:text-base">Games</span>
+              <span className="block text-xs text-blue-100/90">Open games hub</span>
+            </span>
+          </span>
+          <span className="text-blue-200 shrink-0">→</span>
+        </button>
       </section>
       <Section1 />
     </div>
