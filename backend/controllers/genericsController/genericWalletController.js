@@ -1,5 +1,6 @@
 import User from '../../models/user/user.js';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import { Wallet, WalletTransaction } from '../../models/wallet/wallet.js';
 
 dotenv.config();
@@ -30,10 +31,26 @@ const parsePositiveAmount = (amount) => {
     return parsed;
 };
 
+const readPlayerIdFromRequest = (req) => {
+    const fromParams = req.params?.playerId;
+    const fromBody = req.body?.playerId;
+    const fromQuery = req.query?.playerId;
+    const raw = fromParams || fromBody || fromQuery || '';
+    return String(raw).trim();
+};
+
 const sanitizeEmailPart = (value) => value.toLowerCase().replace(/[^a-z0-9._-]/g, '-');
 
 const ensureWalletForPlayer = async (playerId, { autoCreate = isAutoCreateUsersEnabled() } = {}) => {
-    let user = await User.findOne({ username: playerId });
+    const isObjectId = mongoose.Types.ObjectId.isValid(playerId);
+    let user = null;
+
+    if (isObjectId) {
+        user = await User.findById(playerId);
+    } else {
+        user = await User.findOne({ username: playerId });
+    }
+
     if (!user && !autoCreate) {
         return { user: null, wallet: null };
     }
@@ -73,16 +90,15 @@ export const verifyGenericPartnerAuth = (req, res, next) => {
 
 export const getGenericWalletBalance = async (req, res) => {
     try {
-        const { playerId } = req.body || {};
-        if (!playerId || !String(playerId).trim()) {
+        const playerId = readPlayerIdFromRequest(req);
+        if (!playerId) {
             return res.status(400).json({
                 success: false,
                 error: 'playerId is required',
             });
         }
 
-        const normalizedPlayerId = String(playerId).trim();
-        const { wallet } = await ensureWalletForPlayer(normalizedPlayerId);
+        const { user, wallet } = await ensureWalletForPlayer(playerId);
 
         if (!wallet) {
             return res.status(404).json({
@@ -94,7 +110,7 @@ export const getGenericWalletBalance = async (req, res) => {
         return res.status(200).json({
             success: true,
             data: {
-                playerId: normalizedPlayerId,
+                playerId: String(user?._id || playerId),
                 balance: wallet.balance,
                 currency: DEFAULT_CURRENCY,
             },
@@ -109,19 +125,19 @@ export const getGenericWalletBalance = async (req, res) => {
 
 export const genericWalletDebit = async (req, res) => {
     try {
-        const { playerId, amount, transactionId, roundId, game } = req.body || {};
+        const { amount, transactionId, roundId, game } = req.body || {};
+        const playerId = readPlayerIdFromRequest(req);
         const validAmount = parsePositiveAmount(amount);
 
-        if (!playerId || !String(playerId).trim() || !transactionId || !String(transactionId).trim() || !validAmount) {
+        if (!playerId || !transactionId || !String(transactionId).trim() || !validAmount) {
             return res.status(400).json({
                 success: false,
                 error: 'playerId, transactionId, and valid amount are required',
             });
         }
 
-        const normalizedPlayerId = String(playerId).trim();
         const normalizedTransactionId = String(transactionId).trim();
-        const { user, wallet } = await ensureWalletForPlayer(normalizedPlayerId);
+        const { user, wallet } = await ensureWalletForPlayer(playerId);
 
         if (!user || !wallet) {
             return res.status(404).json({
@@ -141,7 +157,7 @@ export const genericWalletDebit = async (req, res) => {
                 success: true,
                 duplicate: true,
                 data: {
-                    playerId: normalizedPlayerId,
+                    playerId: String(user._id),
                     balance: wallet.balance,
                     transactionId: normalizedTransactionId,
                 },
@@ -153,7 +169,7 @@ export const genericWalletDebit = async (req, res) => {
                 success: false,
                 error: 'Insufficient balance',
                 data: {
-                    playerId: normalizedPlayerId,
+                    playerId: String(user._id),
                     balance: wallet.balance,
                 },
             });
@@ -173,7 +189,7 @@ export const genericWalletDebit = async (req, res) => {
         return res.status(200).json({
             success: true,
             data: {
-                playerId: normalizedPlayerId,
+                playerId: String(user._id),
                 balance: wallet.balance,
                 transactionId: normalizedTransactionId,
             },
@@ -188,19 +204,19 @@ export const genericWalletDebit = async (req, res) => {
 
 export const genericWalletCredit = async (req, res) => {
     try {
-        const { playerId, amount, transactionId, roundId } = req.body || {};
+        const { amount, transactionId, roundId } = req.body || {};
+        const playerId = readPlayerIdFromRequest(req);
         const validAmount = parsePositiveAmount(amount);
 
-        if (!playerId || !String(playerId).trim() || !transactionId || !String(transactionId).trim() || !validAmount) {
+        if (!playerId || !transactionId || !String(transactionId).trim() || !validAmount) {
             return res.status(400).json({
                 success: false,
                 error: 'playerId, transactionId, and valid amount are required',
             });
         }
 
-        const normalizedPlayerId = String(playerId).trim();
         const normalizedTransactionId = String(transactionId).trim();
-        const { user, wallet } = await ensureWalletForPlayer(normalizedPlayerId);
+        const { user, wallet } = await ensureWalletForPlayer(playerId);
 
         if (!user || !wallet) {
             return res.status(404).json({
@@ -220,7 +236,7 @@ export const genericWalletCredit = async (req, res) => {
                 success: true,
                 duplicate: true,
                 data: {
-                    playerId: normalizedPlayerId,
+                    playerId: String(user._id),
                     balance: wallet.balance,
                     transactionId: normalizedTransactionId,
                 },
@@ -241,7 +257,7 @@ export const genericWalletCredit = async (req, res) => {
         return res.status(200).json({
             success: true,
             data: {
-                playerId: normalizedPlayerId,
+                playerId: String(user._id),
                 balance: wallet.balance,
                 transactionId: normalizedTransactionId,
             },
