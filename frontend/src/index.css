@@ -205,6 +205,27 @@ body {
   overflow-x: hidden;
 }
 
+/* Prevent media overflow across all pages */
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Safer box sizing for narrow iPhone widths */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Avoid accidental horizontal overflow from long content */
+* {
+  word-wrap: break-word;
+}
+
 /* Mobile optimizations */
 @media (max-width: 640px) {
   * {
@@ -213,6 +234,46 @@ body {
   
   button, a, input, select, textarea {
     touch-action: manipulation;
+  }
+}
+
+/* iPhone-first hardening (375-430 widths and nearby) */
+@media (max-width: 430px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Prevent iOS zoom on focus */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+    line-height: 1.35;
+  }
+
+  /* Improve touch target usability */
+  button,
+  [role="button"],
+  a[role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    min-height: 44px;
+  }
+
+  /* Text clipping guard on smaller screens */
+  p,
+  span,
+  label,
+  button,
+  a,
+  input,
+  textarea {
+    line-height: 1.35;
   }
 }
 
@@ -226,6 +287,11 @@ body {
   html,
   body,
   #root {
+    min-height: -webkit-fill-available;
+  }
+
+  body {
+    min-height: 100dvh;
     min-height: -webkit-fill-available;
   }
 
