@@ -15,6 +15,7 @@ import helpDeskRoutes from './routes/helpDesk/helpDeskRoutes.js';
 import dashboardRoutes from './routes/dashboard/dashboardRoutes.js';
 import rateRoutes from './routes/rate/rateRoutes.js';
 import dailyCommissionRoutes from './routes/dailyCommission/dailyCommissionRoutes.js';
+import genericRouter from './routes/generics/genericRouter.js';
 
 import bankDetailRoutes from './routes/bankDetail/bankDetailRoutes.js';
 import quizRoutes from './routes/quiz/quizRoutes.js';
@@ -158,6 +159,7 @@ app.use('/api/v1/daily-commission', dailyCommissionRoutes);
 
 app.use('/api/v1/bank-details', bankDetailRoutes);
 app.use('/api/v1/quiz', quizRoutes);
+app.use('/api/v1/generics', genericRouter);
 
 async function startServer() {
     await connectDB();
