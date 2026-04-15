@@ -25,7 +25,7 @@ const quizSchema = new mongoose.Schema(
   {
     gameMode: { type: String, required: true, enum: ['2d', '3d'], default: '2d' },
     quizId: { type: Number, required: true, min: 1, max: 30 },
-    /** Bumped in seedService when JSON changes; mismatch triggers full reseed. */
+    /** Version field retained for data management/migrations. */
     version: { type: Number, required: true },
     questions: { type: [questionSchema], required: true },
   },

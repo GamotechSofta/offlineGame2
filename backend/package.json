@@ -11,8 +11,7 @@
     "dev": "nodemon index.js",
     "create-admin": "node scripts/createAdmin.js",
     "create-bookie": "node scripts/createBookie.js",
-    "check-env": "node scripts/checkEnv.js",
-    "seed:quiz": "node scripts/seedQuiz.js"
+    "check-env": "node scripts/checkEnv.js"
   },
   "dependencies": {
     "axios": "^1.15.0",

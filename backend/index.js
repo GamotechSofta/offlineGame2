@@ -19,7 +19,6 @@ import genericRouter from './routes/generics/genericRouter.js';
 
 import bankDetailRoutes from './routes/bankDetail/bankDetailRoutes.js';
 import quizRoutes from './routes/quiz/quizRoutes.js';
-import { syncQuizSeedsOnStartup } from './services/seedService.js';
 import { getClientIp } from './utils/activityLogger.js';
 import { startMidnightResetScheduler } from './utils/midnightReset.js';
 import { startQuizSlotPickScheduler } from './services/slotScheduler.js';
@@ -163,7 +162,6 @@ app.use('/api/v1/generics', genericRouter);
 
 async function startServer() {
     await connectDB();
-    await syncQuizSeedsOnStartup();
     const httpServer = http.createServer(app);
     initQuizSocket(httpServer, { allowedOrigins, isProduction });
     httpServer.listen(PORT, () => {
