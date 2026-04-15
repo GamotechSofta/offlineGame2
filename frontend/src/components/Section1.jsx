@@ -4,6 +4,81 @@ import { API_BASE_URL } from '../config/api';
 import { isPastClosingTime } from '../utils/marketTiming';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
+const getStatusText = (status) => {
+  if (status === 'closed') return 'Closed for today';
+  if (status === 'running') return 'Close is Running';
+  return 'Market is Open';
+};
+
+const TimeSlot = ({ label, value }) => (
+  <div className="space-y-0.5">
+    <p className="text-[10px] sm:text-xs font-medium text-gray-500 leading-tight">{label}</p>
+    <p className="text-xs sm:text-sm font-semibold leading-tight">{value || '-'}</p>
+  </div>
+);
+
+const MarketCard = ({ market, onOpen }) => {
+  const isClickable = market.status === 'open' || market.status === 'running';
+  const statusText = getStatusText(market.status);
+
+  return (
+    <article
+      onClick={() => isClickable && onOpen(market)}
+      className={`bg-white rounded-lg overflow-hidden transform transition-transform duration-200 shadow hover:shadow-lg ${
+        isClickable
+          ? 'cursor-pointer hover:scale-[1.01] border border-gray-200 hover:border-[#1B3150]/50'
+          : 'cursor-not-allowed border border-gray-200'
+      }`}
+    >
+      <div className="p-2 sm:p-2.5 flex flex-col gap-2">
+        <header className="flex items-start justify-between gap-2">
+          <h3 className="text-gray-900 text-sm sm:text-base font-bold truncate flex-1 min-w-0 leading-tight">
+            {market.gameName}
+          </h3>
+          <span className={`text-[10px] sm:text-xs font-medium shrink-0 leading-tight px-1.5 py-0.5 ${market.status === 'closed' ? 'text-red-500' : 'text-green-600'}`}>
+            {statusText}
+          </span>
+        </header>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-green-600 text-base sm:text-lg md:text-xl font-bold leading-tight">
+              {market.result}
+            </p>
+            <footer className="flex gap-3 text-gray-600">
+              <TimeSlot label="Open Bids" value={market.startingTimeFormatted} />
+              <TimeSlot label="Close Bids" value={market.closingTimeFormatted} />
+            </footer>
+          </div>
+          <div className="flex items-center justify-center shrink-0 ml-auto self-center">
+            {market.status === 'closed' ? (
+              <div className="size-11 rounded-full bg-red-500 flex items-center justify-center text-white">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpen(market);
+                }}
+                className="size-11 rounded-full bg-green-500 flex items-center justify-center text-white hover:bg-green-600 active:scale-95"
+                aria-label="Play"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+};
+
 const Section1 = () => {
   const navigate = useNavigate();
   const [markets, setMarkets] = useState([]);
@@ -53,10 +128,12 @@ const Section1 = () => {
         const mainOnly = (data.data || []).filter((m) => m.marketType !== 'startline');
         const transformedMarkets = mainOnly.map((market) => {
           const st = getMarketStatus(market);
+          const openingTimeFormatted = formatTime(market.startingTime);
+          const closingTimeFormatted = formatTime(market.closingTime);
           return {
             id: market._id,
             gameName: market.marketName,
-            timeRange: `${formatTime(market.startingTime)} - ${formatTime(market.closingTime)}`,
+            timeRange: `${openingTimeFormatted} - ${closingTimeFormatted}`,
             result: market.displayResult || '***-**-***',
             status: st.status,
             timer: st.timer,
@@ -65,7 +142,9 @@ const Section1 = () => {
             closingTime: market.closingTime,
             betClosureTime: market.betClosureTime ?? 0,
             openingNumber: market.openingNumber,
-            closingNumber: market.closingNumber
+            closingNumber: market.closingNumber,
+            startingTimeFormatted: openingTimeFormatted,
+            closingTimeFormatted: closingTimeFormatted,
           };
         });
         setMarkets(transformedMarkets);
@@ -85,6 +164,9 @@ const Section1 = () => {
 
   useRefreshOnMarketReset(fetchMarkets);
 
+  const openMarket = (market) => {
+    navigate('/bidoptions', { state: { market } });
+  };
 
   return (
     <section className="w-full bg-gray-200 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
@@ -126,72 +208,13 @@ const Section1 = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2 min-[375px]:gap-3 sm:gap-4">
-          {markets.map((market) => {
-            const isClickable = market.status === 'open' || market.status === 'running';
-            const statusText = market.status === 'closed' ? 'Closed for today' : market.status === 'running' ? 'Close is Running' : 'Market is Open';
-            return (
-            <div
+          {markets.map((market) => (
+            <MarketCard
               key={market.id}
-              onClick={() => isClickable && navigate('/bidoptions', { state: { market } })}
-              className={`bg-white rounded-lg overflow-hidden transform transition-transform duration-200 shadow hover:shadow-lg ${
-                isClickable 
-                  ? 'cursor-pointer hover:scale-[1.01] border border-gray-200 hover:border-[#1B3150]/50' 
-                  : 'cursor-not-allowed border border-gray-200'
-              }`}
-            >
-              <div className="p-1.5 sm:p-2 flex flex-col">
-                {/* Top: Market name (left) + Status (right) */}
-                <div className="flex items-start justify-between gap-2 mb-0.5">
-                  <h3 className="text-gray-900 text-sm sm:text-base font-bold truncate flex-1 min-w-0 leading-tight">
-                    {market.gameName}
-                  </h3>
-                  <span className={`text-[10px] sm:text-xs font-medium shrink-0 leading-tight px-1.5 py-0.5 ${market.status === 'closed' ? 'text-red-500' : 'text-green-600'}`}>
-                    {statusText}
-                  </span>
-                </div>
-
-                {/* Middle: Result numbers (green) + Icons (right) */}
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <p className="text-green-600 text-base sm:text-lg md:text-xl font-bold leading-tight flex-1 min-w-0">
-                    {market.result}
-                  </p>
-                  <div className="flex items-center justify-center shrink-0 ml-auto self-center pt-2">
-                    {market.status === 'closed' ? (
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-500 flex items-center justify-center text-white p-2">
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); navigate('/bidoptions', { state: { market } }); }}
-                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-green-500 flex items-center justify-center text-white hover:bg-green-600 active:scale-95 p-2"
-                        aria-label="Play"
-                      >
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Bottom: Open Bids / Close Bids times */}
-                <div className="flex gap-2 text-gray-600">
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 leading-tight">Open Bids</p>
-                    <p className="text-xs sm:text-sm font-semibold leading-tight">{formatTime(market.startingTime) || '-'}</p>
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] sm:text-xs font-medium text-gray-500 leading-tight">Close Bids</p>
-                    <p className="text-xs sm:text-sm font-semibold leading-tight">{formatTime(market.closingTime) || '-'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            );
-          })}
+              market={market}
+              onOpen={openMarket}
+            />
+          ))}
         </div>
       )}
     </section>
