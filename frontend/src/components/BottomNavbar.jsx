@@ -41,9 +41,9 @@ const BottomNavbar = () => {
       )
     },
     {
-      id: 'funds',
-      label: 'Funds',
-      path: '/funds',
+      id: 'games',
+      label: 'Games',
+      path: '/games',
       icon: (
         <svg
           className="w-6 h-6"
@@ -52,8 +52,8 @@ const BottomNavbar = () => {
           strokeWidth="1.8"
           viewBox="0 0 24 24"
         >
-          <circle cx="12" cy="12" r="9" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.5h6M9 11h5.25M9.75 8.5c2.4 0 3.75 1.2 3.75 3 0 1.9-1.55 3.2-3.9 3.2h-.6L13.5 18" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5h13.5A2.25 2.25 0 0121 9.75v4.5A2.25 2.25 0 0118.75 16.5H5.25A2.25 2.25 0 013 14.25v-4.5A2.25 2.25 0 015.25 7.5z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 10.5v3M6.75 12h3M15.75 11.25h.008v.008h-.008v-.008zM17.25 12.75h.008v.008h-.008v-.008z" />
         </svg>
       )
     },
@@ -75,6 +75,23 @@ const BottomNavbar = () => {
       isCenter: true
     },
     {
+      id: 'funds',
+      label: 'Funds',
+      path: '/funds',
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          viewBox="0 0 24 24"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.5h6M9 11h5.25M9.75 8.5c2.4 0 3.75 1.2 3.75 3 0 1.9-1.55 3.2-3.9 3.2h-.6L13.5 18" />
+        </svg>
+      )
+    },
+    {
       id: 'support',
       label: 'Support',
       path: '/support',
@@ -88,23 +105,6 @@ const BottomNavbar = () => {
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75h6.75M8.625 13.5h4.5" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4.5h9A3.75 3.75 0 0120.25 8.25v5.25a3.75 3.75 0 01-3.75 3.75h-4.25l-3.75 2.25v-2.25H7.5a3.75 3.75 0 01-3.75-3.75V8.25A3.75 3.75 0 017.5 4.5z" />
-        </svg>
-      )
-    },
-    {
-      id: 'profile',
-      label: 'Profile',
-      path: '/profile',
-      icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 12a4.125 4.125 0 100-8.25A4.125 4.125 0 0012 12z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4.125 20.25a7.875 7.875 0 0115.75 0" />
         </svg>
       )
     }
