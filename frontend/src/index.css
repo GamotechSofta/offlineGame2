@@ -214,38 +214,11 @@ body {
   button, a, input, select, textarea {
     touch-action: manipulation;
   }
-
-  /* Prevent iOS zoom jump when focusing small-font fields */
-  input,
-  select,
-  textarea {
-    font-size: 16px;
-  }
 }
 
 /* iOS Safari - Game Bid screen fixes */
 .ios-scroll-touch {
   -webkit-overflow-scrolling: touch;
-}
-
-/* Shared iPhone-safe page utilities */
-.ios-page-safe {
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
-  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
-}
-
-.ios-content-scroll {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-}
-
-.btn-label-safe {
-  white-space: normal;
-  text-align: center;
-  line-height: 1.2;
-  word-break: break-word;
 }
 
 /* iOS viewport height fix - prevents layout jump when address bar shows/hides */

@@ -123,12 +123,12 @@ const Login = () => {
   };
 
   return (
-    <div className="relative ios-page-safe overflow-hidden bg-[#020b22] px-4 py-6 sm:bg-gray-50 sm:px-6 lg:px-8">
+    <div className="relative min-h-screen overflow-hidden bg-[#020b22] px-4 py-8 sm:bg-gray-50 sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute inset-0 sm:hidden">
         <div className="absolute -top-20 -right-16 h-64 w-64 rounded-full bg-[#2563eb]/20 blur-3xl" />
         <div className="absolute bottom-10 -left-20 h-72 w-72 rounded-full bg-[#1d4ed8]/20 blur-3xl" />
       </div>
-      <div className="mx-auto flex min-h-[calc(100dvh-5rem)] w-full max-w-md items-start pt-4 sm:items-center sm:pt-0">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center">
         <div className="relative w-full rounded-2xl border border-[#244c89] bg-[#071737]/85 p-6 shadow-sm backdrop-blur-sm sm:border-gray-200 sm:bg-white sm:p-8">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-[#60a5fa] sm:text-3xl sm:text-[#1B3150]">Sign In</h1>
