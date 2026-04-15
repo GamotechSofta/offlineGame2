@@ -240,3 +240,83 @@ Returned when `AUTO_CREATE_USERS=false` and the player does not exist.
   "error": "User not found"
 }
 ```
+
+## Proxy Usage (Production)
+
+Base URL via proxy:
+
+```text
+https://api.singlepana.in/api/v1/generics
+```
+
+Sample player id used below:
+
+```text
+6999af7f6bcfdab90afbe5bc
+```
+
+### Common Headers
+
+```http
+Content-Type: application/json
+Authorization: Bearer partner-token
+```
+
+### Balance
+
+Route:
+
+```text
+POST https://api.singlepana.in/api/v1/generics/wallet/balance/6999af7f6bcfdab90afbe5bc
+```
+
+cURL:
+
+```bash
+curl -X POST "https://api.singlepana.in/api/v1/generics/wallet/balance/6999af7f6bcfdab90afbe5bc" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer partner-token"
+```
+
+### Debit
+
+Route:
+
+```text
+POST https://api.singlepana.in/api/v1/generics/wallet/debit/6999af7f6bcfdab90afbe5bc
+```
+
+cURL:
+
+```bash
+curl -X POST "https://api.singlepana.in/api/v1/generics/wallet/debit/6999af7f6bcfdab90afbe5bc" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer partner-token" \
+  -d '{
+    "amount": 50,
+    "transactionId": "txn-001",
+    "roundId": "round-001",
+    "game": "aviator"
+  }'
+```
+
+### Credit
+
+Route:
+
+```text
+POST https://api.singlepana.in/api/v1/generics/wallet/credit/6999af7f6bcfdab90afbe5bc
+```
+
+cURL:
+
+```bash
+curl -X POST "https://api.singlepana.in/api/v1/generics/wallet/credit/6999af7f6bcfdab90afbe5bc" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer partner-token" \
+  -d '{
+    "amount": 70.81,
+    "transactionId": "txn-002",
+    "roundId": "round-001"
+  }'
+```
