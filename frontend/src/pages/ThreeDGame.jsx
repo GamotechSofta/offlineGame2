@@ -10,7 +10,7 @@ import {
   Trophy,
   UserCircle,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ResultPanel from '../components/threeD/ResultPanel';
 import Keypad from '../components/threeD/Keypad';
 import {
@@ -25,6 +25,7 @@ import {
 } from '../components/threeD/helpers';
 import TicketListModal from '../components/threeD/TicketListModal';
 import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
+import { getBalance, updateUserBalance } from '../api/bets';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
 const MODE_GROUP_COMBO = MODE_OPTIONS.slice(0, 7);
@@ -36,6 +37,8 @@ const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
 const STORAGE_KEY = 'matka3d-bets';
 const TICKET_HISTORY_KEY = '3d-ticket-history';
 const RESULT_HISTORY_KEY = '3d-result-history';
+const WALLET_TX_HISTORY_KEY = 'wallet-transaction-history';
+const QUIZ_SELECTION_KEY = '3d-selected-quiz-id';
 const HEADER_MENU_ITEMS = [
   { label: 'Result', Icon: Trophy },
   { label: 'Account', Icon: UserCircle },
@@ -63,6 +66,8 @@ const RESULT_MODAL_BASE_HEIGHT = 760;
 
 const ThreeDGame = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const quizId = searchParams.get('quiz');
   const slotRef = useRef('');
   const lastLandscapeAutoFsAttemptRef = useRef(0);
   const inputNumberRef = useRef(null);
@@ -72,6 +77,8 @@ const ThreeDGame = () => {
   const autoAddLockRef = useRef(false);
   const autoRangeAddLockRef = useRef('');
   const autoAddTimerRef = useRef(null);
+  const hasSettledRef = useRef(false);
+  const isBuyingRef = useRef(false);
   const rangeAutoNextLockRef = useRef(false);
   const headerMenuRef = useRef(null);
   const [activeInputIndex, setActiveInputIndex] = useState(-1);
@@ -86,7 +93,7 @@ const ThreeDGame = () => {
   const [results, setResults] = useState(() => generate3DResult());
   const [resultUpdatedAt, setResultUpdatedAt] = useState(0);
   const [inputNumber, setInputNumber] = useState('');
-  const [points, setPoints] = useState('0');
+  const [points, setPoints] = useState(String(RATE_OPTIONS[0]));
   const [selectedModes, setSelectedModes] = useState(['box']);
   const [selectedRate, setSelectedRate] = useState(10);
   const [selectedPanels, setSelectedPanels] = useState(['A']);
@@ -112,6 +119,15 @@ const ThreeDGame = () => {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isTicketListOpen, setIsTicketListOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [selectedQuizId, setSelectedQuizId] = useState(() => {
+    try {
+      const raw = localStorage.getItem(QUIZ_SELECTION_KEY);
+      const parsed = Number(raw);
+      return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+    } catch {
+      return null;
+    }
+  });
   const [resultDateDay, setResultDateDay] = useState(() => String(new Date().getDate()).padStart(2, '0'));
   const [resultDateMonth, setResultDateMonth] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
   const [resultDateYear, setResultDateYear] = useState(() => String(new Date().getFullYear()));
@@ -140,6 +156,7 @@ const ThreeDGame = () => {
       return [];
     }
   });
+  const [walletBalance, setWalletBalance] = useState(0);
 
   const isResultFresh = useMemo(() => Date.now() - resultUpdatedAt < 1400, [resultUpdatedAt, now]);
   const isBuySuccessToast = useMemo(
@@ -148,6 +165,92 @@ const ThreeDGame = () => {
   );
   const canUsePortal = typeof document !== 'undefined';
   const lastTicket = useMemo(() => (ticketHistory.length ? ticketHistory[0] : null), [ticketHistory]);
+  const formattedWalletBalance = useMemo(
+    () => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Number(walletBalance) || 0),
+    [walletBalance],
+  );
+
+  const loadStoredBalance = useCallback(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const b = user?.balance ?? user?.walletBalance ?? user?.wallet ?? 0;
+      setWalletBalance(Number(b) || 0);
+    } catch (_) {
+      setWalletBalance(0);
+    }
+  }, []);
+
+  const refreshWalletBalance = useCallback(async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const userId = user?.id || user?._id;
+      if (!userId) {
+        loadStoredBalance();
+        return;
+      }
+      const res = await getBalance();
+      if (res.success && res.data?.balance != null) {
+        updateUserBalance(res.data.balance);
+        setWalletBalance(Number(res.data.balance) || 0);
+      } else {
+        loadStoredBalance();
+      }
+    } catch (_) {
+      loadStoredBalance();
+    }
+  }, [loadStoredBalance]);
+
+  const pushWalletHistory = useCallback((entry) => {
+    try {
+      const raw = localStorage.getItem(WALLET_TX_HISTORY_KEY);
+      const prev = raw ? JSON.parse(raw) : [];
+      const next = Array.isArray(prev) ? prev : [];
+      next.unshift(entry);
+      localStorage.setItem(WALLET_TX_HISTORY_KEY, JSON.stringify(next.slice(0, 500)));
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    if (!quizId) return;
+
+    const parsedQuizId = Number(String(quizId).replace(/\D/g, ''));
+
+    if (Number.isInteger(parsedQuizId) && parsedQuizId > 0) {
+      setSelectedQuizId(parsedQuizId);
+      try {
+        localStorage.setItem(QUIZ_SELECTION_KEY, String(parsedQuizId));
+      } catch (_) {}
+
+      // Remove query param after applying it
+      navigate('/lottery/3d', { replace: true });
+    }
+  }, [quizId, navigate]);
+
+  useEffect(() => {
+    loadStoredBalance();
+    refreshWalletBalance();
+
+    const handleStorage = () => loadStoredBalance();
+    const handleUserLogin = () => loadStoredBalance();
+    const handleBalanceUpdated = (e) => {
+      const nextBalance = e?.detail?.balance;
+      if (nextBalance != null) {
+        setWalletBalance(Number(nextBalance) || 0);
+      } else {
+        loadStoredBalance();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('userLogin', handleUserLogin);
+    window.addEventListener('balanceUpdated', handleBalanceUpdated);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('userLogin', handleUserLogin);
+      window.removeEventListener('balanceUpdated', handleBalanceUpdated);
+    };
+  }, [loadStoredBalance, refreshWalletBalance]);
   const canAddBet = useMemo(
     () => {
       const singleValid = /^\d{1,3}$/.test((inputNumber || '').trim());
@@ -168,6 +271,11 @@ const ThreeDGame = () => {
     const parsed = parseInt(points, 10);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
   }, [points]);
+
+  useEffect(() => {
+    // Rate is the default stake per bet.
+    setPoints(String(selectedRate));
+  }, [selectedRate]);
   const getDisplayBetNumber = useCallback((bet) => {
     const mode = String(bet?.mode || '').toLowerCase();
     const digits = String(bet?.number || '').replace(/\D/g, '').slice(-3).padStart(3, '0');
@@ -195,20 +303,20 @@ const ThreeDGame = () => {
     return Math.min(horizontal, vertical, 0.82);
   }, [viewport.height, viewport.width]);
   const inputNumberDisplay = useMemo(
-    () => (isMobileView && activeInputIndex === 0 ? `${inputNumber || ''} |` : inputNumber),
-    [activeInputIndex, inputNumber, isMobileView],
+    () => (activeInputIndex === 0 ? `${inputNumber || ''} |` : inputNumber),
+    [activeInputIndex, inputNumber],
   );
   const rangeFromDisplay = useMemo(
-    () => (isMobileView && activeInputIndex === 1 ? `${rangeFrom || ''} |` : rangeFrom),
-    [activeInputIndex, isMobileView, rangeFrom],
+    () => (activeInputIndex === 1 ? `${rangeFrom || ''} |` : rangeFrom),
+    [activeInputIndex, rangeFrom],
   );
   const rangeToDisplay = useMemo(
-    () => (isMobileView && activeInputIndex === 2 ? `${rangeTo || ''} |` : rangeTo),
-    [activeInputIndex, isMobileView, rangeTo],
+    () => (activeInputIndex === 2 ? `${rangeTo || ''} |` : rangeTo),
+    [activeInputIndex, rangeTo],
   );
   const qtyDisplay = useMemo(
-    () => (isMobileView && activeInputIndex === 3 ? `${qty || ''} |` : qty),
-    [activeInputIndex, isMobileView, qty],
+    () => (activeInputIndex === 3 ? `${qty || ''} |` : qty),
+    [activeInputIndex, qty],
   );
 
   const pushResultToHistory = useCallback((newResult, createdAt = new Date()) => {
@@ -404,8 +512,10 @@ const ThreeDGame = () => {
       const next = base === '0' ? digit : `${base}${digit}`.slice(0, 4);
       return next || '0';
     };
-    // Keep keypad top box visibly in sync for every digit press.
-    setPoints((prev) => appendPointDigit(prev));
+    // Points should change only when the points box is active.
+    if (focusedIndex === -1) {
+      setPoints((prev) => appendPointDigit(prev));
+    }
     if (focusedIndex === -1 || focusedIndex === 0) {
       setInputNumber((prev) => appendDigit(prev));
     } else if (focusedIndex === 1) setRangeFrom((prev) => appendDigit(prev));
@@ -545,18 +655,6 @@ const ThreeDGame = () => {
 
   const addNumbersToBetState = useCallback((numbers, betTypes, pts, rateValue) => {
     const normalizedTypes = Array.isArray(betTypes) ? betTypes : [betTypes];
-    const existing = new Set(
-      bets.flatMap((b) => {
-        const mode = String(b.mode || '').toLowerCase();
-        const num = String(b.number || '');
-        const panels = String(b.panels || '')
-          .split(',')
-          .map((p) => p.trim().toUpperCase())
-          .filter(Boolean);
-        if (!panels.length) return [`${num}|${mode}|A`, `${num}|${mode}|B`, `${num}|${mode}|C`];
-        return panels.map((panel) => `${num}|${mode}|${panel}`);
-      }),
-    );
     const created = [];
     const skipped = [];
     const panelsToApply = selectedPanels.length ? selectedPanels : ['A', 'B', 'C'];
@@ -569,13 +667,6 @@ const ThreeDGame = () => {
           return;
         }
         panelsToApply.forEach((panel, pIdx) => {
-          const key = `${betNumber}|${betType}|${panel}`;
-          const isSpMode = String(betType || '').toLowerCase() === 'sp';
-          if (!isSpMode && existing.has(key)) {
-            skipped.push(`${betNumber}:${betType}:${panel}`);
-            return;
-          }
-          existing.add(key);
           created.push({
             id: `${Date.now()}-${idx}-${tIdx}-${pIdx}-${betNumber}`,
             number: betNumber,
@@ -598,7 +689,7 @@ const ThreeDGame = () => {
 
   const addBet = useCallback(() => {
     const cleanNum = (inputNumber || '').trim();
-    const pts = pointValue;
+    const pts = Number(selectedRate) > 0 ? Number(selectedRate) : pointValue;
     const selectedBetTypes = getNormalizedSelectedModes();
     const resetPrimaryInputs = () => {
       setInputNumber('');
@@ -694,6 +785,7 @@ const ThreeDGame = () => {
   }, [
     inputNumber,
     pointValue,
+    selectedRate,
     selectedModes,
     rangeFrom,
     rangeTo,
@@ -722,10 +814,7 @@ const ThreeDGame = () => {
 
     if (isSingleThreeDigits && isPrimaryInputFlow && !autoAddLockRef.current) {
       autoAddLockRef.current = true;
-      autoAddTimerRef.current = setTimeout(() => {
-        addBet();
-        autoAddTimerRef.current = null;
-      }, 40);
+      addBet();
       return;
     }
     if (!isSingleThreeDigits) {
@@ -736,10 +825,7 @@ const ThreeDGame = () => {
       const rangeKey = `${rangeFrom}-${rangeTo}`;
       if (autoRangeAddLockRef.current !== rangeKey) {
         autoRangeAddLockRef.current = rangeKey;
-        autoAddTimerRef.current = setTimeout(() => {
-          addBet();
-          autoAddTimerRef.current = null;
-        }, 40);
+        addBet();
       }
       return;
     }
@@ -768,36 +854,159 @@ const ThreeDGame = () => {
   }, [rangeFrom]);
 
   const handleBuy = useCallback(() => {
+    if (isBuyingRef.current) return;
     if (!bets.length) {
       setValidationMsg('Add at least one bet before BUY.');
       return;
     }
-    const updatedBets = settleAllBets(bets, results);
-    const summary = calculateSettlementSummary(updatedBets);
-    setBets(updatedBets);
-    const matched = updatedBets.filter((b) => b.outcome === 'win').length;
+    isBuyingRef.current = true;
+
+    try {
+    const investedAmount = Number(totalPoints);
+
+    if (investedAmount <= 0) {
+      setValidationMsg('Total points must be greater than 0.');
+      return;
+    }
+    if ((Number(walletBalance) || 0) < investedAmount) {
+      setValidationMsg('Insufficient balance');
+      return;
+    }
+
     const drawDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const gameId = generateGameId();
+    const settleAtMs = new Date(nextDrawAt).getTime();
+
+    let nextBalance = (Number(walletBalance) || 0) - investedAmount;
+    updateUserBalance(nextBalance);
+    setWalletBalance(nextBalance);
+    pushWalletHistory({
+      type: 'debit',
+      game: '3D',
+      amount: investedAmount,
+      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      description: '3D Game Bet',
+      referenceId: `${gameId}-BET`,
+    });
+
+    hasSettledRef.current = false;
+    const pendingBets = bets.map((bet) => ({
+      ...bet,
+      outcome: 'pending',
+      matchedPanel: null,
+      matchedResult: null,
+      matchReason: null,
+      winAmount: 0,
+      multiplier: 0,
+      payoutLabel: null,
+    }));
+    const resolvedQuizId = Number.isInteger(Number(selectedQuizId)) && Number(selectedQuizId) > 0
+      ? Number(selectedQuizId)
+      : null;
     const ticket = {
       id: Date.now(),
       userName: 'user',
+      quizId: resolvedQuizId,
       drawTime: timeToDrawText,
       drawDate,
       gameId,
-      bets: updatedBets,
-      totalPoints: summary.totalInvested ?? summary.totalPoints,
-      totalWin: summary.totalWinAmount,
-      outcome: summary.netResult > 0 ? 'win' : 'loss',
+      slotKey: slotRef.current,
+      settleAtMs: Number.isFinite(settleAtMs) ? settleAtMs : null,
+      bets: pendingBets,
+      totalPoints: investedAmount,
+      totalWin: 0,
+      outcome: 'pending',
+      settled: false,
       createdAt: new Date().toISOString(),
     };
     setTicketHistory((prev) => [ticket, ...prev].slice(0, 200));
     setLastTxnId(gameId);
-    setLastPoints(summary.totalInvested ?? totalPoints);
+    setLastPoints(investedAmount);
     setToast('Bet placed successfully');
-    setValidationMsg('');
     setBuySummary(null);
+    setValidationMsg('Status: pending. Result will be shown after draw time.');
     setBets([]);
-  }, [bets, calculateSettlementSummary, generateGameId, now, results, settleAllBets, timeToDrawText, totalPoints]);
+    } finally {
+      isBuyingRef.current = false;
+    }
+  }, [bets, generateGameId, nextDrawAt, now, pushWalletHistory, selectedQuizId, timeToDrawText, totalPoints, walletBalance]);
+
+  useEffect(() => {
+    if (!resultUpdatedAt) return;
+    if (hasSettledRef.current) return;
+    const nowMs = now.getTime();
+    const pendingTickets = ticketHistory.filter((ticket) => !ticket?.settled);
+    if (!pendingTickets.length) return;
+    const getTicketSettleAtMs = (ticket) => {
+      const direct = Number(ticket?.settleAtMs);
+      if (Number.isFinite(direct) && direct > 0) return direct;
+      const createdAtMs = new Date(ticket?.createdAt || ticket?.id || 0).getTime();
+      if (Number.isFinite(createdAtMs) && createdAtMs > 0) {
+        return createdAtMs + (GAME_INTERVAL_SECONDS * 1000);
+      }
+      return 0;
+    };
+    const eligibleCount = pendingTickets.filter((ticket) => nowMs >= getTicketSettleAtMs(ticket)).length;
+    if (!eligibleCount) return;
+
+    let settledCount = 0;
+    let totalWinCredit = 0;
+    let totalInvested = 0;
+
+    const nextHistory = ticketHistory.map((ticket) => {
+      if (ticket?.settled) return ticket;
+      const settleAtMs = getTicketSettleAtMs(ticket);
+      if (!settleAtMs || nowMs < settleAtMs) return ticket;
+      const settledBets = settleAllBets(ticket?.bets || [], results);
+      const summary = calculateSettlementSummary(settledBets);
+      const invested = Number(summary.totalInvested ?? summary.totalPoints ?? ticket?.totalPoints ?? 0);
+      const wonAmount = Number(summary.totalWinAmount || 0);
+      const outcome = wonAmount > 0 ? 'win' : 'loss';
+
+      settledCount += 1;
+      totalWinCredit += wonAmount;
+      totalInvested += invested;
+
+      if (wonAmount > 0) {
+        pushWalletHistory({
+          type: 'credit',
+          game: '3D',
+          amount: wonAmount,
+          timestamp: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          description: '3D Game Winning',
+          referenceId: `${ticket.gameId || ticket.id}-WIN`,
+        });
+      }
+
+      return {
+        ...ticket,
+        bets: settledBets,
+        totalPoints: invested,
+        totalWin: wonAmount,
+        outcome,
+        settled: true,
+        settledAt: new Date().toISOString(),
+      };
+    });
+
+    if (!settledCount) return;
+
+    if (totalWinCredit > 0) {
+      setWalletBalance((prev) => {
+        const next = (Number(prev) || 0) + totalWinCredit;
+        updateUserBalance(next);
+        return next;
+      });
+      setValidationMsg(`You won ₹${totalWinCredit}`);
+    } else {
+      setValidationMsg(`You lost ₹${totalInvested}`);
+    }
+
+    hasSettledRef.current = true;
+    setTicketHistory(nextHistory);
+  }, [calculateSettlementSummary, now, pushWalletHistory, resultUpdatedAt, results, settleAllBets, ticketHistory]);
 
   const handleClearAll = useCallback(() => {
     setBets([]);
@@ -874,16 +1083,104 @@ const ThreeDGame = () => {
   }, []);
 
   const handleMotorPick = useCallback(() => {
-    const d = String(Math.floor(Math.random() * 10));
-    setInputNumber(`${d}${d}${d}`);
-    setToast('Motor number selected');
-  }, []);
+    const digitPool = selectedDigits.length ? [...selectedDigits] : [];
+    if (!digitPool.length) {
+      setValidationMsg('Select at least one digit for Motor.');
+      return;
+    }
+
+    const selectedBetTypes = getNormalizedSelectedModes()
+      .map((m) => String(m || '').toLowerCase());
+    const wantsStrLike = selectedBetTypes.includes('single') || selectedBetTypes.includes('str');
+    const wantsDuplicates = selectedBetTypes.includes('duplicates');
+    const wantsTriples = selectedBetTypes.includes('triples');
+    if (!wantsStrLike && !wantsDuplicates && !wantsTriples) {
+      setValidationMsg('For Motor, select mode: SINGLE/STR, DUPLICATES, or TRIPLES.');
+      return;
+    }
+
+    const allCombos = [];
+    digitPool.forEach((a) => {
+      digitPool.forEach((b) => {
+        digitPool.forEach((c) => {
+          allCombos.push(`${a}${b}${c}`);
+        });
+      });
+    });
+    const duplicateCombos = allCombos.filter((num) => new Set(num.split('')).size === 2);
+    const tripleCombos = digitPool.map((d) => `${d}${d}${d}`);
+    const pts = Number(pointValue) > 0 ? Number(pointValue) : 10;
+
+    const motorTasks = [];
+    if (wantsStrLike) motorTasks.push({ mode: 'str', nums: allCombos });
+    if (wantsDuplicates) motorTasks.push({ mode: 'duplicates', nums: duplicateCombos });
+    if (wantsTriples) motorTasks.push({ mode: 'box', nums: tripleCombos });
+
+    let createdCount = 0;
+    let skippedCount = 0;
+    motorTasks.forEach((task) => {
+      const result = addNumbersToBetState(task.nums, [task.mode], pts, selectedRate);
+      createdCount += result.createdCount;
+      skippedCount += result.skippedCount;
+    });
+
+    if (!createdCount) {
+      setValidationMsg('Motor could not add any bet with current selection.');
+      return;
+    }
+
+    setValidationMsg(
+      skippedCount ? `${createdCount} motor bets added. ${skippedCount} skipped.` : '',
+    );
+    setToast(`Motor added ${createdCount} bets`);
+    setInputNumber('');
+    setRangeFrom('');
+    setRangeTo('');
+    setQty('');
+    setPoints('0');
+  }, [addNumbersToBetState, getNormalizedSelectedModes, pointValue, selectedDigits, selectedRate]);
 
   const handleLuckyPick = useCallback(() => {
-    const n = Array.from({ length: 3 }, () => Math.floor(Math.random() * 10)).join('');
-    setInputNumber(n);
-    setToast('Lucky pick generated');
-  }, []);
+    const randomCount = Math.random() < 0.5 ? 4 : 5;
+    const numberSet = new Set();
+    while (numberSet.size < randomCount) {
+      numberSet.add(toThreeDigit(Math.floor(Math.random() * 1000)));
+    }
+    const randomDigitCount = Math.random() < 0.5 ? 4 : 5;
+    const shuffledDigits = [...DIGIT_OPTIONS].sort(() => Math.random() - 0.5);
+    const highlightedDigits = shuffledDigits.slice(0, randomDigitCount);
+    setSelectedDigits(highlightedDigits);
+
+    const selectedBetTypes = getNormalizedSelectedModes()
+      .map((m) => String(m || '').toLowerCase())
+      .filter((m) => ['single', 'str', 'box', 'sp', 'fp', 'bp', 'ap'].includes(m));
+    const modePool = selectedBetTypes.length ? selectedBetTypes : ['box', 'str', 'sp', 'fp', 'bp', 'ap'];
+    const pts = Number(pointValue) > 0 ? Number(pointValue) : 10;
+    const randomNumbers = Array.from(numberSet);
+
+    let createdCount = 0;
+    let skippedCount = 0;
+    randomNumbers.forEach((num) => {
+      const randomMode = modePool[Math.floor(Math.random() * modePool.length)];
+      const result = addNumbersToBetState([num], [randomMode], pts, selectedRate);
+      createdCount += result.createdCount;
+      skippedCount += result.skippedCount;
+    });
+
+    if (!createdCount) {
+      setValidationMsg('Lucky pick generated duplicates only. Try again.');
+      return;
+    }
+    setValidationMsg(
+      skippedCount ? `${createdCount} lucky bets added. ${skippedCount} duplicates skipped.` : '',
+    );
+    setToast(`Lucky pick added ${createdCount} bets`);
+    setInputNumber('');
+    setRangeFrom('');
+    setRangeTo('');
+    setQty('');
+    setPoints('0');
+  }, [addNumbersToBetState, getNormalizedSelectedModes, pointValue, selectedRate, toThreeDigit]);
 
   const handleNextFromKeypad = useCallback(() => {
     const orderedInputs = [inputNumberRef.current, rangeFromRef.current, rangeToRef.current, qtyRef.current].filter(Boolean);
@@ -945,6 +1242,9 @@ const ThreeDGame = () => {
             <div className="text-[13px] font-bold leading-tight text-slate-600 sm:text-[15px] md:text-[16px]">
               Last Draw:{' '}
               <span className="font-extrabold tabular-nums text-slate-900">{timeToDrawText}</span>
+            </div>
+            <div className="text-[12px] font-bold leading-tight text-slate-700 sm:text-[14px] md:text-[15px]">
+              Wallet: <span className="font-extrabold tabular-nums text-emerald-700">₹{formattedWalletBalance}</span>
             </div>
           </div>
           <div className="grid min-w-0 grid-cols-3 gap-1 sm:gap-1.5">
@@ -1164,11 +1464,10 @@ const ThreeDGame = () => {
                   onTouchStart={() => setActiveInputIndex(0)}
                   onPointerDown={() => setActiveInputIndex(0)}
                   value={inputNumberDisplay}
-                  readOnly={isMobileView}
-                  inputMode={isMobileView ? 'none' : 'numeric'}
-                  onKeyDown={(e) => {
-                    if (isMobileView) e.preventDefault();
-                  }}
+                  readOnly
+                  inputMode="none"
+                  onKeyDown={(e) => e.preventDefault()}
+                  onPaste={(e) => e.preventDefault()}
                   onChange={(e) => {
                     const next = e.target.value.replace(/\D/g, '').slice(0, 3);
                     setInputNumber(next);
@@ -1188,11 +1487,10 @@ const ThreeDGame = () => {
                   onTouchStart={() => setActiveInputIndex(1)}
                   onPointerDown={() => setActiveInputIndex(1)}
                   value={rangeFromDisplay}
-                  readOnly={isMobileView}
-                  inputMode={isMobileView ? 'none' : 'numeric'}
-                  onKeyDown={(e) => {
-                    if (isMobileView) e.preventDefault();
-                  }}
+                  readOnly
+                  inputMode="none"
+                  onKeyDown={(e) => e.preventDefault()}
+                  onPaste={(e) => e.preventDefault()}
                   onChange={(e) => {
                     setActiveInputIndex(1);
                     const next = e.target.value.replace(/\D/g, '').slice(0, 3);
@@ -1213,11 +1511,10 @@ const ThreeDGame = () => {
                   onTouchStart={() => setActiveInputIndex(2)}
                   onPointerDown={() => setActiveInputIndex(2)}
                   value={rangeToDisplay}
-                  readOnly={isMobileView}
-                  inputMode={isMobileView ? 'none' : 'numeric'}
-                  onKeyDown={(e) => {
-                    if (isMobileView) e.preventDefault();
-                  }}
+                  readOnly
+                  inputMode="none"
+                  onKeyDown={(e) => e.preventDefault()}
+                  onPaste={(e) => e.preventDefault()}
                   onChange={(e) => {
                     setActiveInputIndex(2);
                     setRangeTo(e.target.value.replace(/\D/g, '').slice(0, 3));
@@ -1252,11 +1549,10 @@ const ThreeDGame = () => {
                   onTouchStart={() => setActiveInputIndex(3)}
                   onPointerDown={() => setActiveInputIndex(3)}
                   value={qtyDisplay}
-                  readOnly={isMobileView}
-                  inputMode={isMobileView ? 'none' : 'numeric'}
-                  onKeyDown={(e) => {
-                    if (isMobileView) e.preventDefault();
-                  }}
+                  readOnly
+                  inputMode="none"
+                  onKeyDown={(e) => e.preventDefault()}
+                  onPaste={(e) => e.preventDefault()}
                   onChange={(e) => {
                     setActiveInputIndex(3);
                     setQty(e.target.value.replace(/\D/g, '').slice(0, 3));
@@ -1412,7 +1708,7 @@ const ThreeDGame = () => {
               onClear={() => {
                 const focusedIndex = resolveKeypadTargetIndex();
                 if (focusedIndex === -1 || focusedIndex === 0) {
-                  setPoints('0');
+                  if (focusedIndex === -1) setPoints(String(selectedRate));
                   setInputNumber('');
                 }
                 else if (focusedIndex === 1) setRangeFrom('');
@@ -1424,10 +1720,12 @@ const ThreeDGame = () => {
               onDelete={() => {
                 const focusedIndex = resolveKeypadTargetIndex();
                 if (focusedIndex === -1 || focusedIndex === 0) {
-                  setPoints((prev) => {
-                    const next = String(prev || '').slice(0, -1);
-                    return next || '0';
-                  });
+                  if (focusedIndex === -1) {
+                    setPoints((prev) => {
+                      const next = String(prev || '').slice(0, -1);
+                      return next || String(selectedRate);
+                    });
+                  }
                   setInputNumber((prev) => prev.slice(0, -1));
                 } else if (focusedIndex === 1) setRangeFrom((prev) => prev.slice(0, -1));
                 else if (focusedIndex === 2) setRangeTo((prev) => prev.slice(0, -1));

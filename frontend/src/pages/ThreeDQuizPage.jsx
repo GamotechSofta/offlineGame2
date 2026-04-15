@@ -244,7 +244,9 @@ const ThreeDQuizPage = () => {
     setAnswerRevealed((prev) => ({ ...prev, [rowId]: !prev[rowId] }));
   }, []);
 
-  const goToBoard = useCallback(() => navigate('/lottery/3d'), [navigate]);
+  const goToBoard = useCallback(() => {
+    navigate(`/lottery/3d?quiz=${selectedQuiz}`);
+  }, [navigate, selectedQuiz]);
 
   const submitQuizBets = useCallback(async () => {
     const slotStartIso = slotData?.slotStartIso;
@@ -470,7 +472,7 @@ const ThreeDQuizPage = () => {
 
                 <div className="sticky bottom-0 left-0 right-0 z-20 mt-3 bg-[#efe6d5]/95 py-2 backdrop-blur-sm">
             <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-2">
-                    <button type="button" onClick={submitQuizBets} className="rounded border-2 border-[#b8a01e] bg-[#f5e14a] px-6 text-lg font-black tracking-wide text-black shadow-sm active:scale-[0.99]">
+                    <button type="button" onClick={goToBoard} className="rounded border-2 border-[#b8a01e] bg-[#f5e14a] px-6 text-lg font-black tracking-wide text-black shadow-sm active:scale-[0.99]">
                       PLAY 3D QUIZ
                     </button>
                   </div>

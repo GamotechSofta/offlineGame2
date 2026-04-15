@@ -38,18 +38,22 @@ const normalize3Digit = (value) => {
 };
 const digitsSignature = (num) => String(num).split('').sort().join('');
 const getBoxType = (num) => {
+  if (hasAllSameDigits(num)) return '1-way';
   if (hasAllUniqueDigits(num)) return '6-way';
   if (hasTwoSameDigits(num)) return '3-way';
   return null;
 };
 const PAYOUT_TABLE = {
   str: 900,
+  box_1: 900,
   box_3: 300,
   box_6: 150,
   fp: 90,
   bp: 90,
   sp: 90,
   ap: 30,
+  dp: 300,
+  tp: 900,
 };
 // Kept for export compatibility. SP is now Split Pair, not cycle-based.
 export const getSpCycleValue = (value) => {
@@ -60,8 +64,13 @@ export const getSpCycleValue = (value) => {
 const getPayoutMultiplier = (mode, betNum, boxType) => {
   const normalizedMode = normalizeMode(mode);
   if (normalizedMode === 'str') return PAYOUT_TABLE.str;
+  if (normalizedMode === 'dp') return PAYOUT_TABLE.dp;
+  if (normalizedMode === 'tp') return PAYOUT_TABLE.tp;
   if (normalizedMode === 'box') {
-    const resolvedBoxType = boxType || (betNum ? getBoxType(betNum) : null);
+    const resolvedBoxType =
+      boxType ||
+      (betNum && /^\d{3}$/.test(betNum) ? getBoxType(betNum) : null);
+    if (resolvedBoxType === '1-way') return PAYOUT_TABLE.box_1;
     if (resolvedBoxType === '3-way') return PAYOUT_TABLE.box_3;
     if (resolvedBoxType === '6-way') return PAYOUT_TABLE.box_6;
     return 0;
@@ -76,6 +85,8 @@ const getPayoutMultiplier = (mode, betNum, boxType) => {
 const normalizeMode = (mode) => {
   const m = String(mode || '').toLowerCase();
   if (m === 'single') return 'str';
+  if (m === 'dp') return 'duplicates';
+  if (m === 'tp') return 'triples';
   return m;
 };
 
@@ -88,9 +99,21 @@ export const validateBetForMode = (betNum, modeRaw) => {
   if (mode === 'box') {
     const boxType = getBoxType(normalizedBet);
     if (!boxType) {
-      return { valid: false, reason: 'BOX does not support triple numbers (e.g. 111)' };
+      return { valid: false, reason: 'BOX supports only 1-way, 3-way, or 6-way numbers' };
     }
     return { valid: true, reason: '', boxType };
+  }
+  if (mode === 'duplicates') {
+    if (!hasTwoSameDigits(normalizedBet)) {
+      return { valid: false, reason: 'DUPLICATES requires exactly two same digits (e.g. 112)' };
+    }
+    return { valid: true, reason: '' };
+  }
+  if (mode === 'triples') {
+    if (!hasAllSameDigits(normalizedBet)) {
+      return { valid: false, reason: 'TRIPLES requires all digits same (e.g. 111)' };
+    }
+    return { valid: true, reason: '' };
   }
   if (!['str', 'fp', 'bp', 'sp', 'ap'].includes(mode)) {
     return { valid: false, reason: `Unknown mode: ${modeRaw}` };
@@ -114,7 +137,7 @@ export const evaluateModeAgainstResult = (modeRaw, betNumRaw, resultNumRaw) => {
   }
   if (mode === 'box') {
     const boxType = getBoxType(betNum);
-    if (!boxType) return { matched: false, reason: 'BOX bet must be 3-way or 6-way', boxType: null };
+    if (!boxType) return { matched: false, reason: 'BOX bet must be 1-way, 3-way or 6-way', boxType: null };
     const matched = digitsSignature(betNum) === digitsSignature(resultNum);
     return {
       matched,
@@ -136,6 +159,16 @@ export const evaluateModeAgainstResult = (modeRaw, betNumRaw, resultNumRaw) => {
     if (backPair) return { matched: true, reason: `back pair matched (${resultNum.slice(1)})`, matchedPair: resultNum.slice(1) };
     if (splitPair) return { matched: true, reason: 'split pair matched', matchedPair: `${resultNum[0]}${resultNum[2]}` };
     return { matched: false, reason: 'no position-based pair matched' };
+  }
+  if (mode === 'duplicates') {
+    if (!hasTwoSameDigits(betNum)) return { matched: false, reason: 'DUPLICATES bet must have exactly two same digits' };
+    const matched = betNum === resultNum;
+    return { matched, reason: matched ? `duplicates exact match (${resultNum})` : 'duplicates exact match not found' };
+  }
+  if (mode === 'triples') {
+    if (!hasAllSameDigits(betNum)) return { matched: false, reason: 'TRIPLES bet must have all same digits' };
+    const matched = betNum === resultNum;
+    return { matched, reason: matched ? `triples exact match (${resultNum})` : 'triples exact match not found' };
   }
   return { matched: false, reason: `Unknown mode: ${modeRaw}` };
 };
@@ -249,6 +282,7 @@ export const settleAllBets = (bets, results) => {
   return bets.map((bet) => {
     const evaluation = matchBet(bet, results, { returnAllMatches: true });
     const points = Number(bet.points || 0);
+    const safePoints = Number.isFinite(points) && points > 0 ? points : 0;
     const multiplier = evaluation.won
       ? getPayoutMultiplier(
         evaluation.mode || bet.mode,
@@ -256,8 +290,8 @@ export const settleAllBets = (bets, results) => {
         evaluation.boxType,
       )
       : 0;
-    const winAmount = evaluation.won ? points * multiplier : 0;
-    const payoutLabel = evaluation.won ? `${points} x ${multiplier}` : null;
+    const winAmount = evaluation.won ? safePoints * multiplier : 0;
+    const payoutLabel = evaluation.won ? `${safePoints} × ${multiplier} = ${winAmount}` : null;
     return {
       ...bet,
       outcome: evaluation.won ? 'win' : 'loss',
@@ -309,7 +343,7 @@ export const testCases = [
   { mode: 'str', bet: '123', result: '123', expected: true },
   { mode: 'box', bet: '123', result: '321', expected: true },
   { mode: 'box', bet: '112', result: '121', expected: true },
-  { mode: 'box', bet: '111', result: '111', expected: false },
+  { mode: 'box', bet: '111', result: '111', expected: true },
   { mode: 'box', bet: '123', result: '124', expected: false },
   { mode: 'fp', bet: '123', result: '129', expected: true },
   { mode: 'fp', bet: '123', result: '213', expected: false },
