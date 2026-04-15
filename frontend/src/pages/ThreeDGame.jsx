@@ -175,6 +175,15 @@ const ThreeDGame = () => {
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
   const isMobileView = useMemo(() => viewport.width <= 900, [viewport.width]);
+  const isTouchDevice = useMemo(
+    () => typeof window !== 'undefined' && ('ontouchstart' in window || (navigator?.maxTouchPoints || 0) > 0),
+    [],
+  );
+  const useDesktopStakeSplit = useMemo(() => !isTouchDevice, [isTouchDevice]);
+  const isZoomCompactView = useMemo(
+    () => viewport.width <= 1200 || viewport.height <= 700,
+    [viewport.height, viewport.width],
+  );
   const inputNumberDisplay = useMemo(
     () => (isMobileView && activeInputIndex === 0 ? `${inputNumber || ''} |` : inputNumber),
     [activeInputIndex, inputNumber, isMobileView],
@@ -1120,17 +1129,18 @@ const ThreeDGame = () => {
               </div>
             </div>
 
-            <div className="grid h-full min-h-0 min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-            <div className="order-2 min-h-0 min-w-0 space-y-5 rounded-lg border border-[#d9d9d9] bg-white p-3 sm:space-y-6 sm:p-4">
-              <header className="space-y-1 border-b border-slate-200/80 pb-3">
-                <h2 className="bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 bg-clip-text text-[17px] font-extrabold leading-tight tracking-tight text-transparent sm:text-[19px]">
+            <div className={`grid h-full min-h-0 min-w-0 gap-2 sm:gap-3 ${useDesktopStakeSplit ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'grid-cols-1 sm:grid-cols-2'}`}>
+            <div className={`order-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-[#d9d9d9] bg-white ${isZoomCompactView ? 'p-2.5' : 'p-3 sm:p-4'}`}>
+              <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${isZoomCompactView ? 'space-y-2' : 'space-y-3 sm:space-y-4'}`}>
+              <header className={`space-y-1 border-b border-slate-200/80 ${isZoomCompactView ? 'pb-2' : 'pb-3'}`}>
+                <h2 className={`bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 bg-clip-text font-extrabold leading-tight tracking-tight text-transparent ${isZoomCompactView ? 'text-[15px] sm:text-[16px]' : 'text-[17px] sm:text-[19px]'}`}>
                   Play &amp; stake — 3D Quiz
                 </h2>
-                <p className="text-[12px] font-semibold leading-snug text-slate-500 sm:text-[13px]">
+                <p className={`font-semibold leading-snug text-slate-500 ${isZoomCompactView ? 'text-[11px] sm:text-[12px]' : 'text-[12px] sm:text-[13px]'}`}>
                   Add number or range, L-Pick &amp; qty, set rate, then BUY / Clear / Advance
                 </p>
               </header>
-              <div className="rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#f1f5f9] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.06)]">
+              <div className={`rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#f1f5f9] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.06)] ${isZoomCompactView ? 'p-2' : 'p-2.5 sm:p-3'}`}>
               {/* Line 1: ADD NUMBER + Range + NUM To NUM (single row, scroll if narrow) */}
               <div className="flex min-w-0 flex-nowrap items-center gap-x-2 overflow-x-auto sm:gap-x-3">
                 <input
@@ -1205,7 +1215,7 @@ const ThreeDGame = () => {
                   className="h-10 w-[4.25rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[15px] sm:h-11 sm:w-[76px] sm:text-[16px]"
                 />
               </div>
-              <div className="my-3 border-t border-[#d8dee9]" aria-hidden />
+              <div className={`${isZoomCompactView ? 'my-2' : 'my-2.5'} border-t border-[#d8dee9]`} aria-hidden />
               {/* Line 2: L-Pick + Qty + ADD */}
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                 <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">L-Pick:</span>
@@ -1269,47 +1279,48 @@ const ThreeDGame = () => {
                   ))}
                 </div>
               </div>
-              <div className="w-full min-w-0 border-t border-[#e5e7eb] pt-1 sm:pt-0">
-                <div className="w-full min-w-0 rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#eef2f7] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_10px_rgba(15,23,42,0.06)] sm:p-4">
-                  <div className="mb-3.5 flex w-full justify-end border-b border-slate-200/80 pb-3">
-                    <div className="text-[17px] font-bold leading-tight text-slate-600 sm:text-[20px] md:text-[22px]">
+              </div>
+              <div className="w-full min-w-0 shrink-0 border-t border-[#e5e7eb] pt-1">
+                <div className={`w-full min-w-0 rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#eef2f7] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_10px_rgba(15,23,42,0.06)] ${isZoomCompactView ? 'p-2.5' : 'p-3 sm:p-4'}`}>
+                  <div className={`flex w-full justify-end border-b border-slate-200/80 ${isZoomCompactView ? 'mb-2 pb-2' : 'mb-2.5 pb-2.5 sm:mb-3 sm:pb-3'}`}>
+                    <div className={`font-bold leading-tight text-slate-600 ${isZoomCompactView ? 'text-[14px] sm:text-[16px]' : 'text-[16px] sm:text-[19px] md:text-[22px]'}`}>
                       Total Count:{' '}
                       <span className="tabular-nums text-[1.1em] font-extrabold text-slate-900">{bets.length}</span>
                     </div>
                   </div>
-                  <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch sm:gap-4">
-                    <div className="flex w-full min-w-0 flex-wrap items-stretch justify-start gap-2 sm:gap-3">
+                  <div className={`grid w-full min-w-0 grid-cols-1 ${isZoomCompactView ? 'gap-2' : 'gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch sm:gap-3'}`}>
+                    <div className={`flex w-full min-w-0 flex-wrap items-stretch justify-start ${isZoomCompactView ? 'gap-1.5' : 'gap-2'}`}>
                       <button
                         type="button"
                         onClick={handleBuy}
-                        className="min-h-[3rem] flex-1 basis-[5.5rem] rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 px-4 py-2 text-[20px] font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98] sm:min-h-[3.5rem] sm:basis-0 sm:px-8 sm:text-[24px]"
+                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4.5rem] px-2 py-1.5 text-[15px] sm:min-h-[2.5rem] sm:text-[16px]' : 'min-h-[2.75rem] basis-[5.25rem] px-3 py-2 text-[18px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[22px]'} flex-1 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         BUY
                       </button>
                       <button
                         type="button"
                         onClick={handleClearAll}
-                        className="min-h-[3rem] flex-1 basis-[4.5rem] rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 px-3 py-2 text-[18px] font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(225,29,72,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98] sm:min-h-[3.5rem] sm:basis-0 sm:px-7 sm:text-[22px]"
+                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4rem] px-2 py-1.5 text-[14px] sm:min-h-[2.5rem] sm:text-[16px]' : 'min-h-[2.75rem] basis-[4.25rem] px-3 py-2 text-[17px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[22px]'} flex-1 rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(225,29,72,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         Clear
                       </button>
                       <button
                         type="button"
                         onClick={handleAdvance}
-                        className="min-h-[3rem] flex-1 basis-[5rem] rounded-xl bg-gradient-to-b from-violet-500 via-indigo-600 to-indigo-800 px-3 py-2 text-[18px] font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(79,70,229,0.4)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98] sm:min-h-[3.5rem] sm:basis-0 sm:px-7 sm:text-[22px]"
+                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4.25rem] px-2 py-1.5 text-[14px] sm:min-h-[2.5rem] sm:text-[16px]' : 'min-h-[2.75rem] basis-[4.75rem] px-3 py-2 text-[17px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[22px]'} flex-1 rounded-xl bg-gradient-to-b from-violet-500 via-indigo-600 to-indigo-800 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(79,70,229,0.4)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         Advance
                       </button>
                     </div>
-                    <div className="flex w-full min-w-0 sm:w-auto sm:min-w-[8rem] sm:justify-end">
-                      <div className="flex min-h-[3rem] w-full min-w-0 items-center justify-center rounded-xl border-2 border-amber-200/80 bg-gradient-to-b from-amber-50 to-amber-100/90 px-4 text-[clamp(1.35rem,4.5vw,2rem)] font-bold tabular-nums text-slate-900 shadow-[inset_0_2px_6px_rgba(255,255,255,0.75),0_2px_10px_rgba(180,83,9,0.12)] ring-1 ring-amber-300/30 sm:min-h-[3.5rem] sm:min-w-[7.5rem] sm:px-5 sm:text-[clamp(1.65rem,2.2vw,2.25rem)]">
+                    <div className={`flex w-full min-w-0 ${isZoomCompactView ? '' : 'sm:w-auto sm:min-w-[8rem] sm:justify-end'}`}>
+                      <div className={`flex w-full min-w-0 items-center justify-center rounded-xl border-2 border-amber-200/80 bg-gradient-to-b from-amber-50 to-amber-100/90 font-bold tabular-nums text-slate-900 shadow-[inset_0_2px_6px_rgba(255,255,255,0.75),0_2px_10px_rgba(180,83,9,0.12)] ring-1 ring-amber-300/30 ${isZoomCompactView ? 'min-h-[2.35rem] px-3 text-[clamp(1rem,3.2vw,1.35rem)] sm:min-h-[2.5rem]' : 'min-h-[2.75rem] px-4 text-[clamp(1.2rem,4vw,1.75rem)] sm:min-h-[3.25rem] sm:min-w-[7.25rem] sm:px-5 sm:text-[clamp(1.55rem,2.2vw,2.15rem)]'}`}>
                         {totalPoints}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              {validationMsg ? <div className="text-[12px] font-semibold text-[#d4372f] sm:text-[13px]">{validationMsg}</div> : null}
+              {validationMsg ? <div className="mt-1 shrink-0 text-[12px] font-semibold text-[#d4372f] sm:text-[13px]">{validationMsg}</div> : null}
             </div>
 
             <div className="order-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border-2 border-[#d9d9d9] bg-white p-3">
