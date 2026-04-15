@@ -28,23 +28,33 @@ const BottomNavbar = () => {
       label: 'My Bets',
       path: '/bids',
       icon: (
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777192/auction_ofhpps.png"
-          alt="My Bets"
-          className="w-6 h-6 object-contain [image-rendering:-webkit-optimize-contrast]"
-        />
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 7.5A1.5 1.5 0 016 6h12a1.5 1.5 0 011.5 1.5V9a1.5 1.5 0 010 3 1.5 1.5 0 010 3v1.5A1.5 1.5 0 0118 18H6a1.5 1.5 0 01-1.5-1.5V15a1.5 1.5 0 010-3 1.5 1.5 0 010-3V7.5z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 9.75h6M9 14.25h3.75" />
+        </svg>
       )
     },
     {
-      id: 'bank',
-      label: 'Bank',
-      path: '/bank',
+      id: 'funds',
+      label: 'Funds',
+      path: '/funds',
       icon: (
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777283/bank_il6uwi.png"
-          alt="Bank"
-          className="w-6 h-6 object-contain [image-rendering:-webkit-optimize-contrast]"
-        />
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          viewBox="0 0 24 24"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.5h6M9 11h5.25M9.75 8.5c2.4 0 3.75 1.2 3.75 3 0 1.9-1.55 3.2-3.9 3.2h-.6L13.5 18" />
+        </svg>
       )
     },
     {
@@ -61,27 +71,37 @@ const BottomNavbar = () => {
       isCenter: true
     },
     {
-      id: 'funds',
-      label: 'Funds',
-      path: '/funds',
-      icon: (
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777500/funding_zjmbzp.png"
-          alt="Funds"
-          className="w-6 h-6 object-contain [image-rendering:-webkit-optimize-contrast]"
-        />
-      )
-    },
-    {
       id: 'support',
       label: 'Support',
       path: '/support',
       icon: (
-        <img
-          src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777618/customer-support_du0zcj.png"
-          alt="Support"
-          className="w-6 h-6 object-contain [image-rendering:-webkit-optimize-contrast]"
-        />
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75h6.75M8.625 13.5h4.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4.5h9A3.75 3.75 0 0120.25 8.25v5.25a3.75 3.75 0 01-3.75 3.75h-4.25l-3.75 2.25v-2.25H7.5a3.75 3.75 0 01-3.75-3.75V8.25A3.75 3.75 0 017.5 4.5z" />
+        </svg>
+      )
+    },
+    {
+      id: 'profile',
+      label: 'Profile',
+      path: '/profile',
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 20.118a7.5 7.5 0 0115 0A17.94 17.94 0 0112 21.75c-2.676 0-5.216-.584-7.5-1.632z" />
+        </svg>
       )
     }
   ];

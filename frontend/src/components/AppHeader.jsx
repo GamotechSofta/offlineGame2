@@ -11,7 +11,6 @@ const AppHeader = () => {
 
   const menuItems = [
     { label: 'My Bets', path: '/bids' },
-    { label: 'Bank', path: '/funds?tab=bank-detail' },
     { label: 'Funds', path: '/funds' },
     { label: 'Download App', path: null, isDownload: true },
     { label: 'Game Rate', path: '/game-rate' },
@@ -186,11 +185,16 @@ const AppHeader = () => {
             onClick={() => navigate('/funds?tab=add-fund')}
             className="flex shrink-0 items-center gap-1.5 md:gap-2 lg:gap-2.5 rounded-lg bg-gray-50 border-2 border-gray-300 px-2 md:px-2.5 lg:px-3 py-1 md:py-1.5 hover:bg-gray-100 hover:border-gray-400 transition-colors"
           >
-            <img
-              src="https://res.cloudinary.com/dnyp5jknp/image/upload/v1771394532/wallet_n1oyef.png"
-              alt="Wallet"
-              className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 object-contain"
-            />
+            <svg
+              className="w-5 h-5 md:w-6 md:h-6 text-[#1B3150]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 7.5h16.5A1.5 1.5 0 0121.75 9v9a1.5 1.5 0 01-1.5 1.5H3.75A1.5 1.5 0 012.25 18V9a1.5 1.5 0 011.5-1.5z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 14.25a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM6.75 7.5V6A1.5 1.5 0 018.25 4.5h7.5A1.5 1.5 0 0117.25 6v1.5" />
+            </svg>
             <span className="text-xs md:text-sm lg:text-base font-bold text-gray-800">₹{formattedBalance}</span>
           </button>
 
@@ -307,11 +311,10 @@ const AppHeader = () => {
                         className="w-6 h-6 sm:w-7 sm:h-7 object-contain brightness-0"
                       />
                     ) : item.label === 'My Bets' ? (
-                      <img
-                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777192/auction_ofhpps.png"
-                        alt="My Bets"
-                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain brightness-0"
-                      />
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7 text-gray-800" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 7.5A1.5 1.5 0 016 6h12a1.5 1.5 0 011.5 1.5V9a1.5 1.5 0 010 3 1.5 1.5 0 010 3v1.5A1.5 1.5 0 0118 18H6a1.5 1.5 0 01-1.5-1.5V15a1.5 1.5 0 010-3 1.5 1.5 0 010-3V7.5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 9.75h6M9 14.25h3.75" />
+                      </svg>
                     ) : item.label === 'Bank' ? (
                       <img
                         src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777283/bank_il6uwi.png"
@@ -319,11 +322,10 @@ const AppHeader = () => {
                         className="w-6 h-6 sm:w-7 sm:h-7 object-contain brightness-0"
                       />
                     ) : item.label === 'Funds' ? (
-                      <img
-                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777500/funding_zjmbzp.png"
-                        alt="Funds"
-                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain brightness-0"
-                      />
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7 text-gray-800" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.5h6M9 11h5.25M9.75 8.5c2.4 0 3.75 1.2 3.75 3 0 1.9-1.55 3.2-3.9 3.2h-.6L13.5 18" />
+                      </svg>
                     ) : item.label === 'Notification' ? (
                       <img
                         src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798359/notification_1_pflwit.png"
@@ -349,11 +351,10 @@ const AppHeader = () => {
                         className="w-6 h-6 sm:w-7 sm:h-7 object-contain brightness-0"
                       />
                     ) : item.label === 'Help Desk' ? (
-                      <img
-                        src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769777618/customer-support_du0zcj.png"
-                        alt="Help Desk"
-                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain brightness-0"
-                      />
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7 text-gray-800" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75h6.75M8.625 13.5h4.5" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4.5h9A3.75 3.75 0 0120.25 8.25v5.25a3.75 3.75 0 01-3.75 3.75h-4.25l-3.75 2.25v-2.25H7.5a3.75 3.75 0 01-3.75-3.75V8.25A3.75 3.75 0 017.5 4.5z" />
+                      </svg>
                     ) : item.label === 'Share App' ? (
                       <img
                         src="https://res.cloudinary.com/dzd47mpdo/image/upload/v1769798998/share_a6shgt.png"
