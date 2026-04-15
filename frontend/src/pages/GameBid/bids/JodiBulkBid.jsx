@@ -510,7 +510,7 @@ const JodiBulkBid = ({ market, title }) => {
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && colBulk[c]) applyCol(c, colBulk[c]);
                                     }}
-                                    className="no-spinner h-6 sm:h-7 w-full rounded-[2px] border border-[#2a9cd9] bg-[#e8f6ff] px-0.5 sm:px-1 text-center text-[10px] sm:text-xs font-semibold text-[#1f2937] placeholder:text-center focus:outline-none focus:ring-1 focus:ring-[#2a9cd9]"
+                                    className="no-spinner h-6 sm:h-7 w-full rounded-[2px] border border-[#2a9cd9] bg-[#e8f6ff] px-0.5 sm:px-1 text-center text-base sm:text-xs font-semibold text-[#1f2937] placeholder:text-center focus:outline-none focus:ring-1 focus:ring-[#2a9cd9] touch-manipulation"
                                 />
                             ))}
 
@@ -539,7 +539,7 @@ const JodiBulkBid = ({ market, title }) => {
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && rowBulk[r]) applyRow(r, rowBulk[r]);
                                             }}
-                                            className="no-spinner h-6 sm:h-7 w-full rounded-[2px] border border-[#2a9cd9] bg-[#e8f6ff] px-0.5 sm:px-1 text-center text-[10px] sm:text-xs font-semibold text-[#1f2937] placeholder:text-center focus:outline-none focus:ring-1 focus:ring-[#2a9cd9]"
+                                            className="no-spinner h-6 sm:h-7 w-full rounded-[2px] border border-[#2a9cd9] bg-[#e8f6ff] px-0.5 sm:px-1 text-center text-base sm:text-xs font-semibold text-[#1f2937] placeholder:text-center focus:outline-none focus:ring-1 focus:ring-[#2a9cd9] touch-manipulation"
                                         />
                                     </div>
 
@@ -574,7 +574,7 @@ const JodiBulkBid = ({ market, title }) => {
                                                         applyQuickPointToCell(key);
                                                     }}
                                                     onKeyDown={(e) => handleCellKeyDown(e, r, c)}
-                                                    className={`no-spinner h-6 sm:h-7 w-full rounded-[2px] px-0.5 sm:px-1 text-center text-[10px] sm:text-xs font-semibold text-[#1f2937] focus:outline-none focus:ring-1 focus:ring-[#2a9cd9] ${
+                                                    className={`no-spinner h-6 sm:h-7 w-full rounded-[2px] px-0.5 sm:px-1 text-center text-base sm:text-xs font-semibold text-[#1f2937] focus:outline-none focus:ring-1 focus:ring-[#2a9cd9] touch-manipulation ${
                                                         hasBet
                                                             ? 'border border-[#2a9cd9] bg-[#eaf6ff]'
                                                             : 'border border-[#8e9499] bg-white'
