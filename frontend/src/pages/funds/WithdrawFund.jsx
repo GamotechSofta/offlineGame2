@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../../config/api';
 
 const WithdrawFund = () => {
+    const navigate = useNavigate();
     const [config, setConfig] = useState(null);
     const [bankAccounts, setBankAccounts] = useState([]);
     const [walletBalance, setWalletBalance] = useState(0);
@@ -12,7 +14,9 @@ const WithdrawFund = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showNoBankModal, setShowNoBankModal] = useState(false);
     const [submittedAmount, setSubmittedAmount] = useState(0);
+    const [bankFetchCompleted, setBankFetchCompleted] = useState(false);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -41,17 +45,27 @@ const WithdrawFund = () => {
             if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
-                setBankAccounts(data.data || []);
+                const accounts = data.data || [];
+                setBankAccounts(accounts);
                 // Auto-select default account
-                const defaultAcc = data.data?.find(acc => acc.isDefault);
+                const defaultAcc = accounts.find(acc => acc.isDefault);
                 if (defaultAcc) {
                     setSelectedBankId(defaultAcc._id);
                 }
+                setBankFetchCompleted(true);
             }
         } catch (err) {
             console.error('Failed to fetch bank accounts:', err);
+            setBankFetchCompleted(true);
         }
     };
+
+    useEffect(() => {
+        if (!bankFetchCompleted) return;
+        if (bankAccounts.length === 0) {
+            setShowNoBankModal(true);
+        }
+    }, [bankAccounts.length, bankFetchCompleted]);
 
     const fetchWalletBalance = async () => {
         if (!user.id) return;
@@ -335,6 +349,40 @@ const WithdrawFund = () => {
                                 className="w-full py-3 bg-white border border-gray-400 hover:bg-gray-50 text-[#1B3150] font-medium rounded-xl transition-colors"
                             >
                                 View History
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* No Bank Account Modal */}
+            {showNoBankModal && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-sm w-full p-6 border border-gray-300 shadow-xl text-center">
+                        <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.105 0-2 .672-2 1.5S10.895 11 12 11s2 .672 2 1.5S13.105 14 12 14m0-8v1m0 10v1m8-6a8 8 0 11-16 0 8 8 0 0116 0z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">No Bank Account Added</h3>
+                        <p className="text-gray-600 text-sm mb-6">
+                            Please add a bank account first from Bank Detail to continue withdrawal.
+                        </p>
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => {
+                                    setShowNoBankModal(false);
+                                    navigate('/funds?tab=bank-detail');
+                                }}
+                                className="w-full py-3 bg-[#1B3150] hover:bg-[#152842] text-white font-semibold rounded-xl transition-colors shadow-md"
+                            >
+                                Add Bank Account
+                            </button>
+                            <button
+                                onClick={() => setShowNoBankModal(false)}
+                                className="w-full py-3 bg-white border border-gray-400 hover:bg-gray-50 text-[#1B3150] font-medium rounded-xl transition-colors"
+                            >
+                                Close
                             </button>
                         </div>
                     </div>
