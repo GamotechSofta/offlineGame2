@@ -181,7 +181,7 @@ const BidLayout = ({
     }, [walletBalance]);
 
     return (
-        <div className="min-h-screen min-h-ios-screen bg-[#E8ECEF] font-sans w-full max-w-full overflow-x-hidden">
+        <div className="min-h-screen min-h-ios-screen bg-gray-200 font-sans w-full max-w-full overflow-x-hidden">
             {/* Header - Gray theme - iOS safe area padding */}
             <div
                 className="bg-gray-100 border-b-2 border-gray-200 py-1.5 flex items-center justify-between gap-2 sticky top-0 z-10 shadow-sm"

@@ -318,9 +318,9 @@ const BidOptions = () => {
   });
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center">
+    <div className="min-h-screen bg-gray-200 flex flex-col items-center">
       {/* Header */}
-      <div className="w-full flex items-center px-3 sm:px-4 pt-2 sm:pt-3 pb-2 sm:pb-3 bg-white border-b-2 border-gray-300 relative shadow-sm">
+      <div className="w-full flex items-center px-3 sm:px-4 pt-2 sm:pt-3 pb-2 sm:pb-3 bg-gray-200 border-b-2 border-gray-300 relative shadow-sm">
         <button
           onClick={() => navigate(isStarline ? '/startline-dashboard' : '/')}
           className="absolute left-3 sm:left-4 flex items-center justify-center min-w-[36px] min-h-[36px] -ml-1 text-gray-600 hover:text-[#1B3150] active:scale-95 touch-manipulation"

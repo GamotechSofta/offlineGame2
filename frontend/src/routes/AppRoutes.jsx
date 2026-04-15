@@ -124,7 +124,7 @@ const Layout = ({ children }) => {
   // Same header (logoipsum, Download App, bell) for all pages - mobile-style
   if (isHomePage) {
     return (
-      <div className="min-h-screen min-h-ios-screen pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 bg-white w-full">
+      <div className="min-h-screen min-h-ios-screen pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 bg-gray-200 w-full">
         <AppHeader />
         <div className="pt-[var(--app-header-height,56px)]">
           {children}
@@ -135,7 +135,7 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen min-h-ios-screen pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 w-full max-w-full overflow-x-hidden bg-white">
+    <div className="min-h-screen min-h-ios-screen pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 w-full max-w-full overflow-x-hidden bg-gray-200">
       <AppHeader />
       <div className="pt-[var(--app-header-height,56px)]">
         {children}

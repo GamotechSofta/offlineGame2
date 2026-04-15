@@ -353,7 +353,7 @@ const SinglePanaBulkBid = ({ market, title }) => {
             </div>
 
             {/* Submit Bet: match Jodi Special Mode (mobile sticky, desktop inline) */}
-            <div className="md:hidden fixed left-0 right-0 bottom-[calc(env(safe-area-inset-bottom,0px)+104px)] z-40 px-3">
+            <div className="md:hidden fixed left-0 right-0 bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] z-40 px-3">
                 <button type="button" onClick={openReview} disabled={!canSubmit} className={submitBtnClass(canSubmit)}>
                     Submit Bet
                 </button>

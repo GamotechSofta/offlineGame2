@@ -707,7 +707,7 @@ const EasyModeBid = ({
                                 </div>
                                 {/* Mobile: sticky Submit button for special mode */}
                                 {showInlineSubmit && (
-                                    <div className="md:hidden fixed left-0 right-0 bottom-[calc(env(safe-area-inset-bottom,0px)+104px)] z-40 px-3">
+                                    <div className="md:hidden fixed left-0 right-0 bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] z-40 px-3">
                                         {(() => {
                                             const enabled = bids.length > 0 || Object.values(specialInputs).some((v) => Number(v) > 0);
                                             const disabled = bids.length === 0 && !Object.values(specialInputs).some((v) => Number(v) > 0);
@@ -850,7 +850,7 @@ const EasyModeBid = ({
                                         {/* Mobile: sticky submit for Single/Double Pana special mode */}
                                         {showInlineSubmit && (specialModeType === 'singlePana' || specialModeType === 'doublePana') && (
                                             <>
-                                                <div className="md:hidden fixed left-0 right-0 bottom-[calc(env(safe-area-inset-bottom,0px)+104px)] z-40 px-3 mb-3">
+                                                <div className="md:hidden fixed left-0 right-0 bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] z-40 px-3 mb-3">
                                                     <button
                                                         type="button"
                                                         disabled={!bids.length}
