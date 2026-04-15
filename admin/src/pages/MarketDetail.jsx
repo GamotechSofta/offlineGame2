@@ -50,7 +50,7 @@ const mergeItemsBlocks = (a = {}, b = {}) => {
         const it = (src && src.items) || {};
         for (const k of Object.keys(it)) {
             if (!items[k]) items[k] = { amount: 0, count: 0 };
-            items[k].amount += Number(it[k]?.amount || 0);
+            items[k].amount += Number(it[k]?.amount || 0); 
             items[k].count += Number(it[k]?.count || 0);
         }
     };

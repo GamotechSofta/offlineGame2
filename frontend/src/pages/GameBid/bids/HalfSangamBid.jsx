@@ -252,6 +252,7 @@ const HalfSangamBid = ({ market, title }) => {
                             <HalfSangamEasyForm
                                 key={easyFormKey}
                                 flipped={flipped}
+                                session={session}
                                 setFlipped={setFlipped}
                                 setBids={setBids}
                                 mergeBidRow={mergeBidRow}
@@ -286,6 +287,7 @@ const HalfSangamBid = ({ market, title }) => {
 
 function HalfSangamEasyForm({
     flipped,
+    session,
     setFlipped,
     setBids,
     mergeBidRow,
