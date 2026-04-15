@@ -121,14 +121,14 @@ const BottomNavbar = () => {
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden pt-1"
       style={{
-        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 6px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
         paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
         paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
       }}
     >
       {/* Backplate to prevent white background showing behind navbar */}
       <div className="absolute inset-0 bg-white pointer-events-none" />
-      <div className="relative bg-white rounded-3xl border-2 border-gray-300 shadow-lg flex items-end justify-around px-1 py-1.5 min-h-[56px]">
+      <div className="relative bg-white rounded-3xl border-2 border-gray-300 shadow-lg flex items-end justify-around px-1 py-1.5 min-h-[62px]">
         {navItems.map((item) => {
           const active = isActive(item.path);
           const isCenter = item.isCenter;
@@ -163,7 +163,7 @@ const BottomNavbar = () => {
                   </div>
                 </div>
                 <span
-                  className={`text-[10px] sm:text-xs font-bold mt-1 transition-colors duration-200 ${
+                  className={`text-[10px] sm:text-xs leading-tight text-center whitespace-normal max-w-[64px] font-bold mt-1 transition-colors duration-200 ${
                     active ? 'text-[#1B3150]' : 'text-gray-600'
                   }`}
                 >
@@ -200,7 +200,7 @@ const BottomNavbar = () => {
                 )}
               </div>
               <span
-                className={`text-[10px] sm:text-xs font-bold transition-colors duration-200 ${
+                className={`text-[10px] sm:text-xs leading-tight text-center whitespace-normal max-w-[64px] font-bold transition-colors duration-200 ${
                   active ? 'text-[#1B3150]' : 'text-gray-600'
                 }`}
               >

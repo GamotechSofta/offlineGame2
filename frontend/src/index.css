@@ -195,12 +195,14 @@ body {
   background: #ffffff;
   position: relative;
   color: #1f2937;
+  overscroll-behavior-x: none;
 }
 
 #root {
   background: #ffffff;
-  min-height: 100%;
+  min-height: 100dvh;
   min-height: -webkit-fill-available;
+  overflow-x: hidden;
 }
 
 /* Mobile optimizations */
@@ -221,6 +223,12 @@ body {
 
 /* iOS viewport height fix - prevents layout jump when address bar shows/hides */
 @supports (-webkit-touch-callout: none) {
+  html,
+  body,
+  #root {
+    min-height: -webkit-fill-available;
+  }
+
   .min-h-ios-screen {
     min-height: -webkit-fill-available;
   }
