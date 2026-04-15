@@ -229,11 +229,15 @@ export const getResult = async (req, res) => {
       }),
     );
 
+    const formattedQuestionIndex = gameMode === '3d'
+      ? String(winningPos).padStart(3, '0')
+      : String(winningPos).padStart(2, '0');
+
     res.json({
       success: true,
       data: {
         /** Shuffled list position 00–99 (same as study UI and guesses). */
-        questionIndex: String(winningPos).padStart(2, '0'),
+        questionIndex: formattedQuestionIndex,
         result: winningPos,
         slotStartIso,
         seed: seedRow.seed,
