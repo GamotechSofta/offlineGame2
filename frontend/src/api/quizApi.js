@@ -11,15 +11,15 @@ export async function getQuizSlot() {
   return json;
 }
 
-export async function getQuizQuestions(quizId) {
-  const res = await fetch(`${base}/questions/${quizId}`, cred);
+export async function getQuizQuestions(quizId, mode = '2d') {
+  const res = await fetch(`${base}/questions/${quizId}?mode=${encodeURIComponent(mode)}`, cred);
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
   return json;
 }
 
-export async function getQuizHint(quizId) {
-  const res = await fetch(`${base}/hint/${quizId}`, cred);
+export async function getQuizHint(quizId, mode = '2d') {
+  const res = await fetch(`${base}/hint/${quizId}?mode=${encodeURIComponent(mode)}`, cred);
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(json.message || `HTTP ${res.status}`);
@@ -31,12 +31,12 @@ export async function getQuizHint(quizId) {
 }
 
 /** @param {number} quizId @param {{ number: number, amount: number }[]} bets */
-export async function postQuizBet(quizId, bets) {
+export async function postQuizBet(quizId, bets, mode = '2d') {
   const res = await fetch(`${base}/bet`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify({ quizId, bets }),
+    body: JSON.stringify({ quizId, bets, mode }),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -49,12 +49,12 @@ export async function postQuizBet(quizId, bets) {
 }
 
 /** @param {{ quizId: number, bets: { number: number, amount: number }[] }[]} rounds */
-export async function postQuizBetsBatch(rounds) {
+export async function postQuizBetsBatch(rounds, mode = '2d') {
   const res = await fetch(`${base}/bet-batch`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify({ rounds }),
+    body: JSON.stringify({ rounds, mode }),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -113,8 +113,8 @@ export async function getMyBoardBets(limit = 30) {
 }
 
 /** Wallet quiz tickets (requires Bearer token). */
-export async function getMyQuizBets(limit = 120) {
-  const res = await fetch(`${base}/my-quiz-bets?limit=${encodeURIComponent(String(limit))}`, {
+export async function getMyQuizBets(limit = 120, mode = '2d') {
+  const res = await fetch(`${base}/my-quiz-bets?limit=${encodeURIComponent(String(limit))}&mode=${encodeURIComponent(mode)}`, {
     ...cred,
     headers: { ...getAuthHeaders() },
   });
@@ -128,8 +128,11 @@ export async function getMyQuizBets(limit = 120) {
   return json;
 }
 
-export async function getQuizResult(quizId, slotStartIso) {
-  const q = slotStartIso ? `?slotStartIso=${encodeURIComponent(slotStartIso)}` : '';
+export async function getQuizResult(quizId, slotStartIso, mode = '2d') {
+  const params = new URLSearchParams();
+  if (slotStartIso) params.set('slotStartIso', slotStartIso);
+  params.set('mode', mode);
+  const q = `?${params.toString()}`;
   const res = await fetch(`${base}/result/${quizId}${q}`, cred);
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {

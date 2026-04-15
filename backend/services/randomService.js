@@ -27,8 +27,8 @@ function getQuizServerSecret() {
   return '__quiz_dev_placeholder_secret_min16__';
 }
 
-export function buildSeedHex(quizId, slotStartIso) {
-  const payload = `${String(quizId)}${String(slotStartIso)}${getQuizServerSecret()}`;
+export function buildSeedHex(quizId, slotStartIso, gameMode = '2d') {
+  const payload = `${String(gameMode)}|${String(quizId)}|${String(slotStartIso)}|${getQuizServerSecret()}`;
   return crypto.createHash('sha256').update(payload, 'utf8').digest('hex');
 }
 

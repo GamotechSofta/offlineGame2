@@ -7,27 +7,27 @@ import { stripQuestionMetaForHint, buildSeedHex, buildSeedHashHex, computeHintPo
 import { getShuffleOrderIndices } from './quizShuffleService.js';
 
 /** Seed hex from DB if committed, else deterministic formula (no DB write). */
-async function loadOrDeriveSeedHex(quizId, slotStartIso) {
-  const doc = await QuizSlotSeed.findOne({ quizId, slotStartIso }).lean();
+async function loadOrDeriveSeedHex(quizId, slotStartIso, gameMode = '2d') {
+  const doc = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso }).lean();
   if (doc) {
     if (buildSeedHashHex(doc.seed) !== doc.seedHash) {
       throw new Error('SEED_TAMPER');
     }
     return doc.seed;
   }
-  return buildSeedHex(quizId, slotStartIso);
+  return buildSeedHex(quizId, slotStartIso, gameMode);
 }
 
 /**
  * Deterministic pick fields (same rules as persisted pick) — does not write QuizSlotPick or recent-picks.
  */
-export async function computePickFields(quizId, slotStartIso, seedHex) {
-  const quiz = await Quiz.findOne({ quizId }).lean();
+export async function computePickFields(quizId, slotStartIso, seedHex, gameMode = '2d') {
+  const quiz = await Quiz.findOne({ gameMode, quizId }).lean();
   if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length !== 100) {
     throw new Error('QUIZ_DATA_INVALID');
   }
 
-  const order = await getShuffleOrderIndices(quizId, slotStartIso, seedHex);
+  const order = await getShuffleOrderIndices(quizId, slotStartIso, seedHex, gameMode);
   const { hintPosition: seedHintPos } = computeHintPosition(seedHex);
   const recentDoc = await QuizRecentPicks.findOne({ quizId }).lean();
   const banned = new Set(recentDoc?.recentIndices ?? []);
@@ -43,6 +43,7 @@ export async function computePickFields(quizId, slotStartIso, seedHex) {
 
   return {
     quizId,
+    gameMode,
     slotStartIso,
     seedHex,
     chosenIndex,
@@ -51,22 +52,22 @@ export async function computePickFields(quizId, slotStartIso, seedHex) {
   };
 }
 
-async function pushRecent(quizId, chosenIndex) {
-  const doc = await QuizRecentPicks.findOne({ quizId });
+async function pushRecent(quizId, chosenIndex, gameMode = '2d') {
+  const doc = await QuizRecentPicks.findOne({ gameMode, quizId });
   const prev = doc?.recentIndices ?? [];
   const merged = [chosenIndex, ...prev].slice(0, 5);
   await QuizRecentPicks.findOneAndUpdate(
-    { quizId },
+    { gameMode, quizId },
     { $set: { recentIndices: merged } },
     { upsert: true },
   );
 }
 
-async function ensureSlotSeed(quizId, slotStartIso) {
-  const computedSeedHex = buildSeedHex(quizId, slotStartIso);
+async function ensureSlotSeed(quizId, slotStartIso, gameMode = '2d') {
+  const computedSeedHex = buildSeedHex(quizId, slotStartIso, gameMode);
   const computedHash = buildSeedHashHex(computedSeedHex);
 
-  let doc = await QuizSlotSeed.findOne({ quizId, slotStartIso }).lean();
+  let doc = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso }).lean();
   if (doc) {
     if (buildSeedHashHex(doc.seed) !== doc.seedHash) {
       throw new Error('SEED_TAMPER');
@@ -75,16 +76,16 @@ async function ensureSlotSeed(quizId, slotStartIso) {
   }
 
   const up = await QuizSlotSeed.updateOne(
-    { quizId, slotStartIso },
+    { gameMode, quizId, slotStartIso },
     { $setOnInsert: { seed: computedSeedHex, seedHash: computedHash } },
     { upsert: true },
   );
   if (up.upsertedCount > 0) {
     // eslint-disable-next-line no-console
-    console.log(JSON.stringify({ tag: '[quiz:seed]', quizId, slotStartIso, seedHash: computedHash }));
+    console.log(JSON.stringify({ tag: '[quiz:seed]', gameMode, quizId, slotStartIso, seedHash: computedHash }));
   }
 
-  doc = await QuizSlotSeed.findOne({ quizId, slotStartIso }).lean();
+  doc = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso }).lean();
   if (!doc || buildSeedHashHex(doc.seed) !== doc.seedHash) {
     throw new Error('SEED_STATE_INVALID');
   }
@@ -94,25 +95,26 @@ async function ensureSlotSeed(quizId, slotStartIso) {
 /**
  * Locked pick in QuizSlotPick — never recomputes index on repeat requests.
  */
-export async function getOrCreatePick(quizId, slotStartIso) {
+export async function getOrCreatePick(quizId, slotStartIso, gameMode = '2d') {
   const mem = getCachedPick(quizId, slotStartIso);
   if (mem?.hintQuestionText != null) {
     return mem;
   }
 
-  let pick = await QuizSlotPick.findOne({ quizId, slotStartIso }).lean();
+  let pick = await QuizSlotPick.findOne({ gameMode, quizId, slotStartIso }).lean();
   if (pick) {
     setCachedPick(quizId, slotStartIso, pick);
     return pick;
   }
 
-  const seedDoc = await ensureSlotSeed(quizId, slotStartIso);
-  const fields = await computePickFields(quizId, slotStartIso, seedDoc.seed);
+  const seedDoc = await ensureSlotSeed(quizId, slotStartIso, gameMode);
+  const fields = await computePickFields(quizId, slotStartIso, seedDoc.seed, gameMode);
 
   // eslint-disable-next-line no-console
   console.log(
     JSON.stringify({
       tag: '[quiz:hint]',
+      gameMode,
       quizId,
       slotStartIso,
       hintPosition: fields.hintPosition,
@@ -125,7 +127,7 @@ export async function getOrCreatePick(quizId, slotStartIso) {
     pick = created.toObject();
   } catch (e) {
     if (e?.code === 11000) {
-      pick = await QuizSlotPick.findOne({ quizId, slotStartIso }).lean();
+      pick = await QuizSlotPick.findOne({ gameMode, quizId, slotStartIso }).lean();
       if (pick) {
         setCachedPick(quizId, slotStartIso, pick);
         return pick;
@@ -134,7 +136,7 @@ export async function getOrCreatePick(quizId, slotStartIso) {
     throw e;
   }
 
-  await pushRecent(quizId, pick.chosenIndex);
+  await pushRecent(quizId, pick.chosenIndex, gameMode);
   setCachedPick(quizId, slotStartIso, pick);
   return pick;
 }
@@ -143,11 +145,11 @@ export async function getOrCreatePick(quizId, slotStartIso) {
  * Read pick from DB if present; otherwise compute winning numbers only (no QuizSlotPick / no pushRecent).
  * Used for read-only day result boards.
  */
-export async function peekPickForSlotResult(quizId, slotStartIso) {
-  const existing = await QuizSlotPick.findOne({ quizId, slotStartIso }).lean();
+export async function peekPickForSlotResult(quizId, slotStartIso, gameMode = '2d') {
+  const existing = await QuizSlotPick.findOne({ gameMode, quizId, slotStartIso }).lean();
   if (existing) {
     return existing;
   }
-  const seedHex = await loadOrDeriveSeedHex(quizId, slotStartIso);
-  return computePickFields(quizId, slotStartIso, seedHex);
+  const seedHex = await loadOrDeriveSeedHex(quizId, slotStartIso, gameMode);
+  return computePickFields(quizId, slotStartIso, seedHex, gameMode);
 }

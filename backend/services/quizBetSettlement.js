@@ -20,11 +20,11 @@ async function winMultiplier() {
 /**
  * Settle all pending quiz bets for a completed slot (idempotent per bet via status: pending).
  */
-export async function settleQuizBetsForSlot(slotStartIso) {
-  const pending = await QuizBet.find({ slotStartIso, status: 'pending' }).lean();
+export async function settleQuizBetsForSlot(slotStartIso, gameMode = '2d') {
+  const pending = await QuizBet.find({ gameMode, slotStartIso, status: 'pending' }).lean();
   if (!pending.length) return { settled: 0 };
 
-  const picks = await QuizSlotPick.find({ slotStartIso }).lean();
+  const picks = await QuizSlotPick.find({ gameMode, slotStartIso }).lean();
   const pickByQuiz = new Map(picks.map((p) => [p.quizId, p]));
 
   const mult = await winMultiplier();
@@ -38,7 +38,7 @@ export async function settleQuizBetsForSlot(slotStartIso) {
     }
     let winningNumber;
     try {
-      winningNumber = await resolveWinningShuffledPosition(bet.quizId, slotStartIso, pick);
+      winningNumber = await resolveWinningShuffledPosition(bet.quizId, slotStartIso, pick, gameMode);
     } catch {
       // eslint-disable-next-line no-continue
       continue;
@@ -69,7 +69,7 @@ export async function settleQuizBetsForSlot(slotStartIso) {
 
   if (settled > 0) {
     // eslint-disable-next-line no-console
-    console.log(JSON.stringify({ tag: '[quiz:bet:settle]', slotStartIso, settled }));
+    console.log(JSON.stringify({ tag: '[quiz:bet:settle]', gameMode, slotStartIso, settled }));
   }
   return { settled };
 }

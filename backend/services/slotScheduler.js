@@ -15,9 +15,9 @@ let intervalId = null;
 
 /** Avoid re-emitting the same completed slot every minute. */
 const emittedQuizResultSlots = new Set();
-async function ensureAllPicksForSlot(slotStartIso) {
+async function ensureAllPicksForSlot(slotStartIso, gameMode = '2d') {
   const settled = await Promise.allSettled(
-    Array.from({ length: 30 }, (_, i) => getOrCreatePick(i + 1, slotStartIso)),
+    Array.from({ length: 30 }, (_, i) => getOrCreatePick(i + 1, slotStartIso, gameMode)),
   );
   let ok = 0;
   for (const r of settled) {
@@ -29,6 +29,7 @@ async function ensureAllPicksForSlot(slotStartIso) {
     console.error(
       JSON.stringify({
         tag: '[slot:generate:error]',
+        gameMode,
         slotStartIso,
         failed,
         succeeded: ok,
@@ -39,6 +40,7 @@ async function ensureAllPicksForSlot(slotStartIso) {
   console.log(
     JSON.stringify({
       tag: '[slot:generate]',
+      gameMode,
       slotStartIso,
       totalGenerated: ok,
     }),
@@ -48,15 +50,16 @@ async function ensureAllPicksForSlot(slotStartIso) {
 /**
  * After slot end: broadcast persisted hintPosition for all quizzes (no chosenIndex).
  */
-async function emitCompletedSlotResults(slotStartIso) {
+async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
   const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
   if (Date.now() < slotEndMs) return;
 
   const io = getQuizSocketIo();
   if (!io) return;
-  if (emittedQuizResultSlots.has(slotStartIso)) return;
+  const emitKey = `${gameMode}|${slotStartIso}`;
+  if (emittedQuizResultSlots.has(emitKey)) return;
 
-  const picks = await QuizSlotPick.find({ slotStartIso }, { quizId: 1, hintPosition: 1, _id: 0 }).lean();
+  const picks = await QuizSlotPick.find({ gameMode, slotStartIso }, { quizId: 1, hintPosition: 1, _id: 0 }).lean();
   const byQuiz = new Map(picks.map((p) => [p.quizId, p.hintPosition]));
   const results = [];
   for (let quizId = 1; quizId <= 30; quizId += 1) {
@@ -65,18 +68,18 @@ async function emitCompletedSlotResults(slotStartIso) {
     results.push({ quizId, result: ok ? hp : null });
   }
 
-  emittedQuizResultSlots.add(slotStartIso);
+  emittedQuizResultSlots.add(emitKey);
   while (emittedQuizResultSlots.size > 500) {
     const first = emittedQuizResultSlots.values().next().value;
     if (first === undefined) break;
     emittedQuizResultSlots.delete(first);
   }
 
-  io.emit('quiz:result', { slotStartIso, results });
+  io.emit('quiz:result', { gameMode, slotStartIso, results });
   // eslint-disable-next-line no-console
-  console.log(JSON.stringify({ tag: '[socket:emit]', event: 'quiz:result', slotStartIso }));
+  console.log(JSON.stringify({ tag: '[socket:emit]', event: 'quiz:result', gameMode, slotStartIso }));
 
-  settleQuizBetsForSlot(slotStartIso).catch((err) => {
+  settleQuizBetsForSlot(slotStartIso, gameMode).catch((err) => {
     // eslint-disable-next-line no-console
     console.error(JSON.stringify({ tag: '[quiz:bet:settle:error]', slotStartIso, message: err?.message }));
   });
@@ -89,9 +92,11 @@ async function tick() {
     if (seen.has(slotStartIso)) continue;
     seen.add(slotStartIso);
     // eslint-disable-next-line no-await-in-loop
-    await ensureAllPicksForSlot(slotStartIso);
+    await ensureAllPicksForSlot(slotStartIso, '2d');
+    await ensureAllPicksForSlot(slotStartIso, '3d');
     // eslint-disable-next-line no-await-in-loop
-    await emitCompletedSlotResults(slotStartIso);
+    await emitCompletedSlotResults(slotStartIso, '2d');
+    await emitCompletedSlotResults(slotStartIso, '3d');
   }
 }
 /**

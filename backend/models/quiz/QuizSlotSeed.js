@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
  */
 const quizSlotSeedSchema = new mongoose.Schema(
   {
+    gameMode: { type: String, required: true, enum: ['2d', '3d'], default: '2d' },
     quizId: { type: Number, required: true, min: 1, max: 30 },
     slotStartIso: { type: String, required: true },
     seed: { type: String, required: true },
@@ -14,7 +15,7 @@ const quizSlotSeedSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-quizSlotSeedSchema.index({ quizId: 1, slotStartIso: 1 }, { unique: true });
+quizSlotSeedSchema.index({ gameMode: 1, quizId: 1, slotStartIso: 1 }, { unique: true });
 
 const QuizSlotSeed = mongoose.model('QuizSlotSeed', quizSlotSeedSchema);
 export default QuizSlotSeed;

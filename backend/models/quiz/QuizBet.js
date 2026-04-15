@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
  */
 const quizBetSchema = new mongoose.Schema(
   {
+    gameMode: { type: String, required: true, enum: ['2d', '3d'], default: '2d' },
     betOwnerKey: { type: String, required: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     quizId: { type: Number, required: true, min: 1, max: 30 },
@@ -24,8 +25,8 @@ const quizBetSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-quizBetSchema.index({ betOwnerKey: 1, quizId: 1, slotStartIso: 1, number: 1 }, { unique: true });
-quizBetSchema.index({ slotStartIso: 1, quizId: 1, status: 1 });
+quizBetSchema.index({ gameMode: 1, betOwnerKey: 1, quizId: 1, slotStartIso: 1, number: 1 }, { unique: true });
+quizBetSchema.index({ gameMode: 1, slotStartIso: 1, quizId: 1, status: 1 });
 
 const QuizBet = mongoose.model('QuizBet', quizBetSchema);
 export default QuizBet;

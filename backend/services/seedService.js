@@ -19,9 +19,9 @@ const __dirname = path.dirname(__filename);
 const JSON_PATH = path.join(__dirname, '../data/quizQuestions.mock.json');
 
 /** Bump when seed JSON or schema shape changes — triggers automatic reseed. */
-export const QUIZ_DATA_VERSION = 1;
+export const QUIZ_DATA_VERSION = 2;
 
-const EXPECTED_QUIZ_COUNT = 30;
+const EXPECTED_QUIZ_COUNT = 60;
 const QUESTIONS_PER_QUIZ = 100;
 
 function isReplicaSetTransactionError(err) {
@@ -40,12 +40,21 @@ export function readQuizSeedDocumentsFromFile() {
   }
   const raw = JSON.parse(fs.readFileSync(JSON_PATH, 'utf8'));
   const bulk = [];
-  for (let q = 1; q <= EXPECTED_QUIZ_COUNT; q += 1) {
+  for (let q = 1; q <= 30; q += 1) {
     const arr = raw[String(q)];
     if (!Array.isArray(arr) || arr.length !== QUESTIONS_PER_QUIZ) {
       throw new Error(`Quiz ${q}: expected ${QUESTIONS_PER_QUIZ} questions in seed JSON`);
     }
-    bulk.push({ quizId: q, version: QUIZ_DATA_VERSION, questions: arr });
+    bulk.push({ gameMode: '2d', quizId: q, version: QUIZ_DATA_VERSION, questions: arr });
+    bulk.push({
+      gameMode: '3d',
+      quizId: q,
+      version: QUIZ_DATA_VERSION,
+      questions: arr.map((row) => ({
+        ...row,
+        question: `[3D] ${String(row.question || '').trim()}`,
+      })),
+    });
   }
   return bulk;
 }
@@ -82,6 +91,13 @@ async function replaceAllQuizDataSequential(docs) {
  * Full replace from JSON — clears slot picks / recent picks so indices stay consistent with questions.
  */
 export async function reseedQuizzesFromJsonFile() {
+  await Promise.all([
+    Quiz.syncIndexes(),
+    QuizSlotPick.syncIndexes(),
+    QuizSlotSeed.syncIndexes(),
+    QuizRecentPicks.syncIndexes(),
+    QuizBet.syncIndexes(),
+  ]);
   const docs = readQuizSeedDocumentsFromFile();
   try {
     await replaceAllQuizDataInTransaction(docs);

@@ -23,7 +23,8 @@ const questionSchema = new mongoose.Schema(
 
 const quizSchema = new mongoose.Schema(
   {
-    quizId: { type: Number, required: true, unique: true, min: 1, max: 30 },
+    gameMode: { type: String, required: true, enum: ['2d', '3d'], default: '2d' },
+    quizId: { type: Number, required: true, min: 1, max: 30 },
     /** Bumped in seedService when JSON changes; mismatch triggers full reseed. */
     version: { type: Number, required: true },
     questions: { type: [questionSchema], required: true },
@@ -31,7 +32,7 @@ const quizSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-quizSchema.index({ quizId: 1 });
+quizSchema.index({ gameMode: 1, quizId: 1 }, { unique: true });
 
 const Quiz = mongoose.model('Quiz', quizSchema);
 export default Quiz;

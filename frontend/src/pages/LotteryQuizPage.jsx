@@ -9,6 +9,7 @@ import { verifyFairness } from '../utils/quizFairness';
 
 const STUDY_MINUTES = 13;
 const SLOT_MINUTES = 15;
+const QUIZ_MODE = '2d';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -115,6 +116,7 @@ const LotteryQuizPage = () => {
 
     const onQuizResult = async (data) => {
       if (!data?.slotStartIso || !Array.isArray(data.results)) return;
+      if (String(data?.gameMode || '2d').toLowerCase() !== QUIZ_MODE) return;
       const targetSlot = lastHintSlotRef.current;
       if (!targetSlot || data.slotStartIso !== targetSlot) return;
 
@@ -125,7 +127,7 @@ const LotteryQuizPage = () => {
       const idx = String(row.result).padStart(2, '0');
 
       try {
-        const j = await getQuizResult(qid, data.slotStartIso);
+          const j = await getQuizResult(qid, data.slotStartIso, QUIZ_MODE);
         if (j.success && j.data) {
           setFairnessResult({
             quizId: qid,
@@ -184,7 +186,7 @@ const LotteryQuizPage = () => {
     setQuestions([]);
     setQuestionsLoading(true);
     setQuestionsErr('');
-    getQuizQuestions(selectedQuiz)
+    getQuizQuestions(selectedQuiz, QUIZ_MODE)
       .then((j) => {
         if (!cancelled && j.success && Array.isArray(j.data?.questions)) {
           setQuestions(j.data.questions);
@@ -214,7 +216,7 @@ const LotteryQuizPage = () => {
     let cancelled = false;
     const load = async () => {
       try {
-        const j = await getQuizHint(selectedQuiz);
+        const j = await getQuizHint(selectedQuiz, QUIZ_MODE);
         if (!cancelled && j.success) {
           setHintData({
             quizId: selectedQuiz,
@@ -298,7 +300,7 @@ const LotteryQuizPage = () => {
     }
 
     try {
-      const j = await postQuizBet(selectedQuiz, parsed);
+      const j = await postQuizBet(selectedQuiz, parsed, QUIZ_MODE);
       if (j.success && j.data?.bets) {
         lastBetNumbersRef.current = j.data.bets.map((b) => b.number);
       }
@@ -320,7 +322,7 @@ const LotteryQuizPage = () => {
     }
 
     try {
-      const j = await getQuizResult(selectedQuiz, slotStartIso);
+      const j = await getQuizResult(selectedQuiz, slotStartIso, QUIZ_MODE);
       const correct = j.data?.questionIndex;
       setFairnessResult({
         quizId: selectedQuiz,

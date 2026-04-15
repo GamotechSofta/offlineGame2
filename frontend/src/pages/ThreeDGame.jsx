@@ -690,6 +690,10 @@ const ThreeDGame = () => {
 
   const handleHeaderAction = useCallback((label) => {
     setIsHeaderMenuOpen(false);
+    if (label.toLowerCase() === 'quiz') {
+      navigate('/lottery/3d/quiz');
+      return;
+    }
     if (label.toLowerCase() === 'refresh') {
       applyFreshResult(generate3DResult());
       setToast('Result Refreshed');
@@ -701,7 +705,7 @@ const ThreeDGame = () => {
       return;
     }
     setToast(`${label} clicked`);
-  }, [applyFreshResult]);
+  }, [applyFreshResult, navigate]);
 
   const handleRotateLandscape = useCallback(async () => {
     try {

@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
  */
 const quizSlotPickSchema = new mongoose.Schema(
   {
+    gameMode: { type: String, required: true, enum: ['2d', '3d'], default: '2d' },
     quizId: { type: Number, required: true, min: 1, max: 30 },
     slotStartIso: { type: String, required: true },
     seedHex: { type: String, required: true },
@@ -28,9 +29,9 @@ const quizSlotPickSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-quizSlotPickSchema.index({ quizId: 1, slotStartIso: 1 }, { unique: true });
+quizSlotPickSchema.index({ gameMode: 1, quizId: 1, slotStartIso: 1 }, { unique: true });
 /** Slot-first history queries (e.g. IST day result chart). */
-quizSlotPickSchema.index({ slotStartIso: 1, quizId: 1 });
+quizSlotPickSchema.index({ gameMode: 1, slotStartIso: 1, quizId: 1 });
 
 const QuizSlotPick = mongoose.model('QuizSlotPick', quizSlotPickSchema);
 export default QuizSlotPick;

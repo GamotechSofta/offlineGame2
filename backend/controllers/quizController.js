@@ -25,6 +25,7 @@ const MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT = 100;
 const MAX_BET_LINES_PER_REQUEST = 100;
 const QUIZ_BET_MIN_STAKE = 1;
 const QUIZ_BET_MAX_STAKE = 1_000_000;
+const resolveGameMode = (req) => (String(req.query?.mode || req.body?.mode || '2d').toLowerCase() === '3d' ? '3d' : '2d');
 
 function slotAcceptsBets(ctx, nowMs = Date.now()) {
   if (ctx?.slotStartMs == null || ctx?.slotEndMs == null) return false;
@@ -97,6 +98,7 @@ export const getSlot = async (req, res) => {
 export const getQuestions = async (req, res) => {
   try {
     const quizId = req.quizId;
+    const gameMode = resolveGameMode(req);
     const ctx = getCachedSlotContext();
     if (ctx.phase !== 'study') {
       return res.status(403).json({
@@ -107,7 +109,7 @@ export const getQuestions = async (req, res) => {
       });
     }
 
-    const quiz = await Quiz.findOne({ quizId }).lean();
+    const quiz = await Quiz.findOne({ gameMode, quizId }).lean();
     if (!quiz) {
       return res.status(404).json({ success: false, message: 'Quiz not found' });
     }
@@ -115,7 +117,7 @@ export const getQuestions = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Quiz data invalid' });
     }
 
-    const order = await getShuffleOrderIndices(quizId, ctx.slotStartIso);
+    const order = await getShuffleOrderIndices(quizId, ctx.slotStartIso, null, gameMode);
     const questions = order.map((idx) => quiz.questions[idx]);
     const data = {
       quizId,
@@ -136,6 +138,7 @@ export const getQuestions = async (req, res) => {
 export const getHint = async (req, res) => {
   try {
     const quizId = req.quizId;
+    const gameMode = resolveGameMode(req);
     const ctx = getCachedSlotContext();
     if (ctx.phase !== 'hint') {
       return res.status(403).json({
@@ -146,8 +149,8 @@ export const getHint = async (req, res) => {
       });
     }
 
-    const pick = await getOrCreatePick(quizId, ctx.slotStartIso);
-    const seedRow = await QuizSlotSeed.findOne({ quizId, slotStartIso: ctx.slotStartIso }).lean();
+    const pick = await getOrCreatePick(quizId, ctx.slotStartIso, gameMode);
+    const seedRow = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso: ctx.slotStartIso }).lean();
 
     res.json({
       success: true,
@@ -167,6 +170,7 @@ export const getHint = async (req, res) => {
 export const getResult = async (req, res) => {
   try {
     const quizId = req.quizId;
+    const gameMode = resolveGameMode(req);
     const slotStartIso = req.query.slotStartIso;
     if (!slotStartIso || typeof slotStartIso !== 'string') {
       return res.status(400).json({
@@ -202,17 +206,17 @@ export const getResult = async (req, res) => {
     }
 
     /** Result index is read-only from persisted pick — never recomputed. */
-    const pick = await QuizSlotPick.findOne({ quizId, slotStartIso }).lean();
+    const pick = await QuizSlotPick.findOne({ gameMode, quizId, slotStartIso }).lean();
     if (!pick) {
       return res.status(404).json({ success: false, message: 'No hint record for this slot.' });
     }
 
-    const seedRow = await QuizSlotSeed.findOne({ quizId, slotStartIso }).lean();
+    const seedRow = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso }).lean();
     if (!seedRow || buildSeedHashHex(seedRow.seed) !== seedRow.seedHash) {
       return res.status(404).json({ success: false, message: 'No seed record for this slot.' });
     }
 
-    const winningPos = await resolveWinningShuffledPosition(quizId, slotStartIso, pick);
+    const winningPos = await resolveWinningShuffledPosition(quizId, slotStartIso, pick, gameMode);
 
     // eslint-disable-next-line no-console
     console.log(
@@ -251,6 +255,7 @@ export const getResult = async (req, res) => {
 export const postQuizBet = async (req, res) => {
   try {
     const userId = req.userId;
+    const gameMode = resolveGameMode(req);
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
@@ -324,7 +329,7 @@ export const postQuizBet = async (req, res) => {
     }
 
     const owner = getBetOwnerKey(req);
-    const existing = await QuizBet.find({ betOwnerKey: owner, quizId, slotStartIso }).lean();
+    const existing = await QuizBet.find({ gameMode, betOwnerKey: owner, quizId, slotStartIso }).lean();
     const existingByNum = new Map(existing.map((e) => [e.number, e]));
     const newDistinct = lines.filter((l) => !existingByNum.has(l.num)).length;
     if (existing.length + newDistinct > MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT) {
@@ -343,6 +348,7 @@ export const postQuizBet = async (req, res) => {
         incs.push({ _id: ex._id, amount });
       } else {
         insertDocs.push({
+          gameMode,
           betOwnerKey: owner,
           userId: uid,
           quizId,
@@ -411,6 +417,7 @@ export const postQuizBet = async (req, res) => {
 export const postQuizBetsBatch = async (req, res) => {
   try {
     const userId = req.userId;
+    const gameMode = resolveGameMode(req);
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
@@ -505,7 +512,7 @@ export const postQuizBetsBatch = async (req, res) => {
         lines.push({ num, amount });
       }
 
-      const existing = await QuizBet.find({ betOwnerKey: owner, quizId, slotStartIso }).lean();
+      const existing = await QuizBet.find({ gameMode, betOwnerKey: owner, quizId, slotStartIso }).lean();
       const existingByNum = new Map(existing.map((e) => [e.number, e]));
       const newDistinct = lines.filter((l) => !existingByNum.has(l.num)).length;
       if (existing.length + newDistinct > MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT) {
@@ -523,6 +530,7 @@ export const postQuizBetsBatch = async (req, res) => {
           incs.push({ _id: ex._id, amount });
         } else {
           insertDocs.push({
+            gameMode,
             betOwnerKey: owner,
             userId: uid,
             quizId,
@@ -607,7 +615,8 @@ export const getMyQuizBets = async (req, res) => {
 
     const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
     const uid = new mongoose.Types.ObjectId(userId);
-    const bets = await QuizBet.find({ userId: uid })
+    const gameMode = resolveGameMode(req);
+    const bets = await QuizBet.find({ gameMode, userId: uid })
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .lean();
@@ -620,7 +629,7 @@ export const getMyQuizBets = async (req, res) => {
     const pairs = [...uniquePairs.values()];
     const pickMap = new Map();
     if (pairs.length) {
-      const picks = await QuizSlotPick.find({ $or: pairs }).select('slotStartIso quizId hintPosition').lean();
+      const picks = await QuizSlotPick.find({ gameMode, $or: pairs }).select('slotStartIso quizId hintPosition').lean();
       for (const p of picks) {
         pickMap.set(pairKey(p.slotStartIso, p.quizId), p.hintPosition);
       }

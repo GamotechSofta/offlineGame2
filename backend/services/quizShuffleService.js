@@ -19,10 +19,10 @@ function cachePrune() {
 }
 
 /** Canonical seed hex: DB row if present, else same formula as seed upsert (no write). */
-async function getCanonicalSeedHex(quizId, slotStartIso) {
-  const row = await QuizSlotSeed.findOne({ quizId, slotStartIso }).select('seed').lean();
+async function getCanonicalSeedHex(quizId, slotStartIso, gameMode = '2d') {
+  const row = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso }).select('seed').lean();
   if (row?.seed) return row.seed;
-  return buildSeedHex(quizId, slotStartIso);
+  return buildSeedHex(quizId, slotStartIso, gameMode);
 }
 
 /** Synchronous shuffle from canonical 64-char seed hex (single source with DB seed). */
@@ -34,14 +34,14 @@ export function getShuffleOrderFromSeedHex(seedHex) {
  * Permutation indices [0..99] for this quiz+slot — order[i] is the original DB question index at shuffled position i.
  * @param {string} [seedHexIfKnown] — when already loaded (e.g. after ensureSlotSeed), avoids extra read.
  */
-export async function getShuffleOrderIndices(quizId, slotStartIso, seedHexIfKnown = null) {
-  const key = `${quizId}|${slotStartIso}`;
+export async function getShuffleOrderIndices(quizId, slotStartIso, seedHexIfKnown = null, gameMode = '2d') {
+  const key = `${gameMode}|${quizId}|${slotStartIso}`;
   const hit = orderCache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) {
     return hit.order;
   }
 
-  const seedHex = seedHexIfKnown ?? (await getCanonicalSeedHex(quizId, slotStartIso));
+  const seedHex = seedHexIfKnown ?? (await getCanonicalSeedHex(quizId, slotStartIso, gameMode));
   const order = getShuffleOrderFromSeedHex(seedHex);
   orderCache.set(key, { at: Date.now(), order });
   cachePrune();
@@ -50,6 +50,7 @@ export async function getShuffleOrderIndices(quizId, slotStartIso, seedHexIfKnow
   console.log(
     JSON.stringify({
       tag: '[quiz:shuffle]',
+        gameMode,
       quizId,
       slotStartIso,
       first5Indices: order.slice(0, 5),
