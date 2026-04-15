@@ -199,40 +199,6 @@ const Bids = () => {
     navigate(-1);
   };
 
-  // Mobile only: prevent page scrolling (as requested)
-  useEffect(() => {
-    let cleanup = () => {};
-    try {
-      const mql = window.matchMedia('(max-width: 767px)');
-      const apply = () => {
-        cleanup();
-        if (!mql.matches) return;
-        const prevBody = document.body.style.overflow;
-        const prevHtml = document.documentElement.style.overflow;
-        const prevOverscrollBody = document.body.style.overscrollBehavior;
-        const prevOverscrollHtml = document.documentElement.style.overscrollBehavior;
-        document.body.style.overflow = 'hidden';
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overscrollBehavior = 'none';
-        document.documentElement.style.overscrollBehavior = 'none';
-        cleanup = () => {
-          document.body.style.overflow = prevBody;
-          document.documentElement.style.overflow = prevHtml;
-          document.body.style.overscrollBehavior = prevOverscrollBody;
-          document.documentElement.style.overscrollBehavior = prevOverscrollHtml;
-        };
-      };
-      apply();
-      mql.addEventListener?.('change', apply);
-      return () => {
-        mql.removeEventListener?.('change', apply);
-        cleanup();
-      };
-    } catch (_) {
-      return () => cleanup();
-    }
-  }, []);
-
   const items = useMemo(() => ([
     {
       title: 'Bet History',
@@ -551,7 +517,7 @@ const Bids = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-800 pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="ios-page-safe bg-white text-gray-800 pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0">
       <style>{`
         .hide-scrollbar {
           scrollbar-width: none; /* Firefox */
@@ -747,7 +713,7 @@ const Bids = () => {
 
             {isAnyHistoryPanel ? (
               <div className={isAnyHistoryPanel ? 'mt-0' : 'mt-6'}>
-                <div className="max-h-[calc(100vh-220px)] overflow-y-auto hide-scrollbar">
+                <div className="max-h-[calc(100dvh-220px)] overflow-y-auto ios-scroll-touch hide-scrollbar">
                   {betsLoading ? (
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-gray-600 text-sm">
                       Loading bets...
@@ -785,7 +751,7 @@ const Bids = () => {
               </div>
             ) : activeTitle === 'Game Results' ? (
               <div className="mt-3">
-                <div className="max-h-[calc(100vh-260px)] overflow-y-auto hide-scrollbar">
+                <div className="max-h-[calc(100dvh-260px)] overflow-y-auto ios-scroll-touch hide-scrollbar">
                   {resultsRows.length === 0 ? (
                     <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center text-gray-600">
                       No markets found.
