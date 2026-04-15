@@ -704,7 +704,7 @@ const JodiBulkBid = ({ market, title }) => {
             </div>
 
             {/* Sticky Submit Bet button above mobile navbar */}
-            <div className="fixed left-0 right-0 bottom-[88px] z-20 px-3 sm:px-4 md:hidden">
+            <div className="fixed left-0 right-0 bottom-[calc(env(safe-area-inset-bottom,0px)+104px)] z-40 px-3 sm:px-4 md:hidden">
                 <div className="flex">
                     <button
                         type="button"
