@@ -119,16 +119,19 @@ const BottomNavbar = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden pt-1"
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden [transform:translate3d(0,0,0)]"
       style={{
-        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
         paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
         paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
+        WebkitTransform: 'translate3d(0,0,0)',
       }}
     >
       {/* Backplate to prevent white background showing behind navbar */}
       <div className="absolute inset-0 bg-white pointer-events-none" />
-      <div className="relative bg-white rounded-3xl border-2 border-gray-300 shadow-lg flex items-end justify-around px-1 py-1.5 min-h-[62px]">
+      <div
+        className="relative bg-white rounded-3xl border-2 border-gray-300 shadow-lg flex items-end justify-around px-1 pt-1.5 min-h-[62px]"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}
+      >
         {navItems.map((item) => {
           const active = isActive(item.path);
           const isCenter = item.isCenter;

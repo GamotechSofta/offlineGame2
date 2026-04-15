@@ -164,8 +164,7 @@ const BidReviewModal = ({
           </div>
         ) : (
           <div
-            className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden border-2 border-gray-300 max-h-[min(90svh,720px)] sm:max-h-[calc(100vh-48px)] flex flex-col"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0px)' }}
+            className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden border-2 border-gray-300 max-h-[min(94dvh,760px)] sm:max-h-[calc(100dvh-48px)] flex flex-col"
           >
             {/* Title bar */}
             <div className="bg-[#1B3150] text-white px-3 sm:px-4 py-2.5 text-center text-sm sm:text-lg font-semibold shrink-0 border-b-2 border-[#1B3150]">
@@ -173,9 +172,9 @@ const BidReviewModal = ({
             </div>
 
             {/* Content: only history list scrolls */}
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* History (scroll only this section) */}
-              <div className="flex-1 overflow-y-auto overscroll-contain ios-scroll-touch px-3 sm:px-4 pt-3 sm:pt-4 min-h-0">
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain ios-scroll-touch">
+              {/* Content scroll area */}
+              <div className="px-3 sm:px-4 pt-3 sm:pt-4 min-h-0">
                 <div className="grid grid-cols-3 text-center font-semibold text-[#1B3150] text-[11px] sm:text-base">
                   <div className="truncate">{labelKey}</div>
                   <div className="truncate">Points</div>
@@ -246,7 +245,10 @@ const BidReviewModal = ({
             </div>
 
             {/* Buttons (sticky bottom inside modal) */}
-            <div className="px-3 sm:px-4 py-3 sm:py-4 grid grid-cols-2 gap-3 sm:gap-4 bg-white shrink-0 border-t-2 border-gray-300">
+            <div
+              className="px-3 sm:px-4 pt-3 sm:pt-4 grid grid-cols-2 gap-3 sm:gap-4 bg-white shrink-0 border-t-2 border-gray-300"
+              style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+            >
               <button
                 type="button"
                 onClick={handleClose}
