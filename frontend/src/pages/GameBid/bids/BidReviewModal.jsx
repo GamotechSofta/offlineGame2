@@ -107,7 +107,7 @@ const BidReviewModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-6">
+    <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center p-1.5 sm:p-6">
       {/* Overlay */}
       {stage === 'review' ? (
         <button type="button" onClick={handleClose} aria-label="Close" className="absolute inset-0 bg-black/60" />
@@ -164,28 +164,28 @@ const BidReviewModal = ({
           </div>
         ) : (
           <div
-            className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden border-2 border-gray-300 max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-32px)] flex flex-col"
+            className="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden border-2 border-gray-300 max-h-[calc(100dvh-8px)] sm:max-h-[calc(100dvh-32px)] flex flex-col"
           >
             {/* Title bar */}
-            <div className="bg-[#1B3150] text-white px-3 sm:px-4 py-3 text-center text-sm sm:text-base font-semibold shrink-0 border-b-2 border-[#1B3150]">
+            <div className="bg-[#1B3150] text-white px-3 sm:px-4 py-2.5 text-center text-[13px] sm:text-base font-semibold shrink-0 border-b-2 border-[#1B3150]">
               {formatDateTitle(marketTitle, dateText)}
             </div>
 
             {/* Scrollable content */}
             <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain ios-scroll-touch">
-              <div className="px-3 sm:px-4 pt-3 sm:pt-4">
-                <div className="rounded-xl border-2 border-gray-300 bg-gray-50 px-3 py-2 text-[11px] sm:text-sm font-semibold text-[#1B3150]">
+              <div className="px-2.5 sm:px-4 pt-2.5 sm:pt-4">
+                <div className="rounded-xl border-2 border-gray-300 bg-gray-50 px-3 py-1.5 text-[10px] sm:text-sm font-semibold text-[#1B3150]">
                   Bet Entries ({rows.length})
                 </div>
-                <div className="mt-2.5 sm:mt-3 space-y-2.5 sm:space-y-3">
+                <div className="mt-2 sm:mt-3 space-y-2 sm:space-y-3">
                   {rows.map((r) => (
-                    <div key={r.id} className="bg-gray-50 rounded-xl px-3 sm:px-4 py-3 border-2 border-gray-300">
-                      <div className="grid grid-cols-3 gap-2 text-[10px] sm:text-xs font-semibold text-gray-500 mb-1.5">
+                    <div key={r.id} className="bg-gray-50 rounded-xl px-2.5 sm:px-4 py-2.5 border-2 border-gray-300">
+                      <div className="grid grid-cols-3 gap-2 text-[9px] sm:text-xs font-semibold text-gray-500 mb-1">
                         <div>{labelKey}</div>
                         <div className="text-center">Points</div>
                         <div className="text-right">Type</div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 items-center text-[13px] sm:text-base font-semibold text-gray-800">
+                      <div className="grid grid-cols-3 gap-2 items-center text-[12px] sm:text-base font-semibold text-gray-800">
                         <div className="truncate">{renderBetNumber(r.displayNumber ?? r.number)}</div>
                         <div className="text-center text-[#1B3150]">{r.points}</div>
                         <div className="text-right font-medium text-gray-600 uppercase truncate">{r.type}</div>
@@ -196,24 +196,24 @@ const BidReviewModal = ({
               </div>
 
               {/* Summary */}
-              <div className="px-3 sm:px-4 pt-3 sm:pt-4 shrink-0">
+              <div className="px-2.5 sm:px-4 pt-2.5 sm:pt-4 shrink-0">
                 <div className="rounded-2xl overflow-hidden border-2 border-gray-300 bg-gray-50">
                   <div className="grid grid-cols-2">
-                    <div className="p-3 sm:p-4 text-left border-r-2 border-b-2 border-gray-300">
-                      <div className="text-gray-600 text-[11px] sm:text-sm">Total Bets</div>
-                      <div className="text-gray-800 font-bold text-base sm:text-lg leading-tight mt-0.5">{totalBids}</div>
+                    <div className="p-2.5 sm:p-4 text-left border-r-2 border-b-2 border-gray-300">
+                      <div className="text-gray-600 text-[10px] sm:text-sm">Total Bets</div>
+                      <div className="text-gray-800 font-bold text-sm sm:text-lg leading-tight mt-0.5">{totalBids}</div>
                     </div>
-                    <div className="p-3 sm:p-4 text-left border-b-2 border-gray-300">
-                      <div className="text-gray-600 text-[11px] sm:text-sm">Total Bet Amount</div>
-                      <div className="text-[#1B3150] font-bold text-base sm:text-lg leading-tight mt-0.5">{amount}</div>
+                    <div className="p-2.5 sm:p-4 text-left border-b-2 border-gray-300">
+                      <div className="text-gray-600 text-[10px] sm:text-sm">Total Bet Amount</div>
+                      <div className="text-[#1B3150] font-bold text-sm sm:text-lg leading-tight mt-0.5">{amount}</div>
                     </div>
-                    <div className="p-3 sm:p-4 text-left border-r-2 border-gray-300">
-                      <div className="text-gray-600 text-[11px] sm:text-sm">Balance Before</div>
-                      <div className="text-gray-800 font-bold text-base sm:text-lg leading-tight mt-0.5">{formatMoney(before)}</div>
+                    <div className="p-2.5 sm:p-4 text-left border-r-2 border-gray-300">
+                      <div className="text-gray-600 text-[10px] sm:text-sm">Balance Before</div>
+                      <div className="text-gray-800 font-bold text-sm sm:text-lg leading-tight mt-0.5">{formatMoney(before)}</div>
                     </div>
-                    <div className="p-3 sm:p-4 text-left">
-                      <div className="text-gray-600 text-[11px] sm:text-sm">Balance After</div>
-                      <div className={`font-bold text-base sm:text-lg leading-tight mt-0.5 ${after < 0 ? 'text-red-600' : 'text-gray-800'}`}>{formatMoney(after)}</div>
+                    <div className="p-2.5 sm:p-4 text-left">
+                      <div className="text-gray-600 text-[10px] sm:text-sm">Balance After</div>
+                      <div className={`font-bold text-sm sm:text-lg leading-tight mt-0.5 ${after < 0 ? 'text-red-600' : 'text-gray-800'}`}>{formatMoney(after)}</div>
                     </div>
                   </div>
                 </div>
@@ -221,41 +221,41 @@ const BidReviewModal = ({
 
               {/* Betting closed / outside window */}
               {!bettingAllowed && bettingMessage && (
-                <div className="mx-3 sm:mx-4 mt-2 p-3 rounded-xl bg-red-50 border-2 border-red-300 text-red-600 text-sm shrink-0">
+                <div className="mx-2.5 sm:mx-4 mt-2 p-2.5 rounded-xl bg-red-50 border-2 border-red-300 text-red-600 text-xs sm:text-sm shrink-0">
                   {bettingMessage}
                 </div>
               )}
 
               {/* Insufficient balance warning */}
               {insufficientBalance && (
-                <div className="mx-3 sm:mx-4 mt-2 p-3 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-700 text-sm shrink-0">
+                <div className="mx-2.5 sm:mx-4 mt-2 p-2.5 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-700 text-xs sm:text-sm shrink-0">
                   Insufficient balance. Required: ₹{amount.toLocaleString('en-IN')}, Available: ₹{before.toLocaleString('en-IN')}. Add funds to place this bet.
                 </div>
               )}
 
               {/* Submit error */}
               {submitError && (
-                <div className="mx-3 sm:mx-4 mt-2 p-3 rounded-xl bg-red-50 border-2 border-red-300 text-red-600 text-sm shrink-0">
+                <div className="mx-2.5 sm:mx-4 mt-2 p-2.5 rounded-xl bg-red-50 border-2 border-red-300 text-red-600 text-xs sm:text-sm shrink-0">
                   {submitError}
                 </div>
               )}
 
               {/* Note */}
-              <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-3 sm:pb-4 text-center text-red-600 font-semibold text-[12px] sm:text-base shrink-0">
+              <div className="px-2.5 sm:px-4 pt-2.5 sm:pt-3 pb-2.5 sm:pb-3 text-center text-red-600 font-semibold text-[11px] sm:text-sm shrink-0">
                 *Note: Bet once placed cannot be cancelled*
               </div>
             </div>
 
             {/* Actions */}
             <div
-              className="px-3 sm:px-4 pt-3 sm:pt-4 grid grid-cols-2 gap-3 sm:gap-4 bg-white shrink-0 border-t-2 border-gray-300"
-              style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+              className="px-2.5 sm:px-4 pt-2.5 sm:pt-3 grid grid-cols-2 gap-2.5 sm:gap-3 bg-white shrink-0 border-t-2 border-gray-300 sticky bottom-0"
+              style={{ paddingBottom: 'calc(0.6rem + env(safe-area-inset-bottom, 0px))' }}
             >
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={submitting}
-                className="bg-white border-2 border-gray-300 text-gray-700 font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:border-gray-400 hover:bg-gray-50 disabled:opacity-50"
+                className="bg-white border-2 border-gray-300 text-gray-700 font-bold text-sm sm:text-base py-2.5 sm:py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:border-gray-400 hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -263,7 +263,7 @@ const BidReviewModal = ({
                 type="button"
                 onClick={handleSubmitClick}
                 disabled={submitting || cannotSubmit}
-                className="bg-[#1B3150] text-white font-bold py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:bg-[#152842] disabled:opacity-50 flex items-center justify-center gap-2"
+                className="bg-[#1B3150] text-white font-bold text-sm sm:text-base py-2.5 sm:py-3 rounded-xl sm:rounded-2xl shadow-md active:scale-[0.99] transition-transform hover:bg-[#152842] disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <>
