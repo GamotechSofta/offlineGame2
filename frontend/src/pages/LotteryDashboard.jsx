@@ -39,6 +39,7 @@ const LotteryDashboard = () => {
   const [serverSlot, setServerSlot] = useState(null);
   const [slotSyncErr, setSlotSyncErr] = useState('');
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
+  const [rotatePromptDismissed, setRotatePromptDismissed] = useState(false);
   const [uiNotice, setUiNotice] = useState('');
   const [enteredAmount, setEnteredAmount] = useState(2);
   const [amountDraft, setAmountDraft] = useState('2');
@@ -130,7 +131,13 @@ const LotteryDashboard = () => {
     const checkMobilePortrait = () => {
       const isMobile = window.innerWidth <= 900;
       const isPortrait = window.innerHeight > window.innerWidth;
-      setShowRotatePrompt(isMobile && isPortrait);
+      const shouldShowRotatePrompt = isMobile && isPortrait && !rotatePromptDismissed;
+      setShowRotatePrompt(shouldShowRotatePrompt);
+
+      // Allow showing the helper overlay again when user rotates to landscape.
+      if (!isMobile || !isPortrait) {
+        setRotatePromptDismissed(false);
+      }
 
       if (isMobile && !isPortrait && !document.fullscreenElement) {
         const nowMs = Date.now();
@@ -152,7 +159,7 @@ const LotteryDashboard = () => {
       window.removeEventListener('resize', checkMobilePortrait);
       window.removeEventListener('orientationchange', checkMobilePortrait);
     };
-  }, []);
+  }, [rotatePromptDismissed]);
 
   const handleRotateLandscape = useCallback(async () => {
     try {
@@ -166,6 +173,11 @@ const LotteryDashboard = () => {
     } catch (_) {
       // On many mobile browsers this requires user/system support.
     }
+  }, []);
+
+  const handleContinuePortrait = useCallback(() => {
+    setRotatePromptDismissed(true);
+    setShowRotatePrompt(false);
   }, []);
 
   useEffect(() => {
@@ -594,7 +606,7 @@ const LotteryDashboard = () => {
 
   return (
     <AppLayout>
-      <div className="w-full h-full relative overflow-hidden bg-[#111] rounded-[14px] sm:rounded-none">
+      <div className="w-full min-h-screen min-h-[100dvh] h-[100dvh] relative overflow-hidden bg-[#111] rounded-[14px] sm:rounded-none">
         <div className="absolute inset-0 border border-[#4c4c4c] pointer-events-none rounded-[14px] sm:rounded-none" />
         <div
           className="absolute inset-0 overflow-hidden"
@@ -688,6 +700,13 @@ const LotteryDashboard = () => {
               className="w-full h-10 bg-[#ef3f34] border border-[#d4372f] font-semibold"
             >
               Rotate + Full Screen
+            </button>
+            <button
+              type="button"
+              onClick={handleContinuePortrait}
+              className="w-full h-10 mt-2 border border-[#4c4c4c] bg-[#1f1f1f] text-gray-200"
+            >
+              Continue in Portrait
             </button>
           </div>
         </div>
