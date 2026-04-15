@@ -14,13 +14,16 @@ import ResultPanel from '../components/threeD/ResultPanel';
 import Keypad from '../components/threeD/Keypad';
 import {
   GAME_INTERVAL_SECONDS,
-  checkWinningBets,
+  calculateSettlementSummary,
   formatTimer,
   generate3DResult,
   getNextDrawTime,
   getSlotMeta,
+  settleAllBets,
   validateBetForMode,
 } from '../components/threeD/helpers';
+import TicketListModal from '../components/threeD/TicketListModal';
+import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
 const MODE_GROUP_COMBO = MODE_OPTIONS.slice(0, 7);
@@ -30,6 +33,8 @@ const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
 /** Progress bar turns red when remaining time is at or below this many seconds (5 minutes). */
 const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
 const STORAGE_KEY = 'matka3d-bets';
+const TICKET_HISTORY_KEY = '3d-ticket-history';
+const RESULT_HISTORY_KEY = '3d-result-history';
 const HEADER_MENU_ITEMS = [
   { label: 'Result', Icon: Trophy },
   { label: 'Account', Icon: UserCircle },
@@ -101,8 +106,44 @@ const ThreeDGame = () => {
   const [lastTxnId, setLastTxnId] = useState('GM00000000000000');
   const [lastPoints, setLastPoints] = useState(0);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [isTicketListOpen, setIsTicketListOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [resultDateDay, setResultDateDay] = useState(() => String(new Date().getDate()).padStart(2, '0'));
+  const [resultDateMonth, setResultDateMonth] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [resultDateYear, setResultDateYear] = useState(() => String(new Date().getFullYear()));
+  const [resultFilterKey, setResultFilterKey] = useState(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  });
+  const [resultHistory, setResultHistory] = useState(() => {
+    try {
+      const raw = localStorage.getItem(RESULT_HISTORY_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [ticketHistory, setTicketHistory] = useState(() => {
+    try {
+      const raw = localStorage.getItem(TICKET_HISTORY_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
 
   const isResultFresh = useMemo(() => Date.now() - resultUpdatedAt < 1400, [resultUpdatedAt, now]);
+  const isBuySuccessToast = useMemo(
+    () => String(toast || '').toLowerCase() === 'bet placed successfully',
+    [toast],
+  );
+  const lastTicket = useMemo(() => (ticketHistory.length ? ticketHistory[0] : null), [ticketHistory]);
   const canAddBet = useMemo(
     () => {
       const singleValid = /^\d{1,3}$/.test((inputNumber || '').trim());
@@ -151,10 +192,32 @@ const ThreeDGame = () => {
     [activeInputIndex, isMobileView, qty],
   );
 
-  const applyFreshResult = useCallback((newResult) => {
+  const pushResultToHistory = useCallback((newResult, createdAt = new Date()) => {
+    const d = new Date(createdAt);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateKey = `${y}-${m}-${day}`;
+    const time = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+      .format(d)
+      .replace(/\s?(am|pm)$/i, (match) => ` ${match.trim().toUpperCase()}`);
+    const row = {
+      id: `${d.getTime()}-${newResult.A.join('')}-${newResult.B.join('')}-${newResult.C.join('')}`,
+      createdAt: d.toISOString(),
+      dateKey,
+      time,
+      A: newResult.A.join(''),
+      B: newResult.B.join(''),
+      C: newResult.C.join(''),
+    };
+    setResultHistory((prev) => [row, ...prev].slice(0, 500));
+  }, []);
+
+  const applyFreshResult = useCallback((newResult, createdAt = new Date()) => {
     setResults(newResult);
     setResultUpdatedAt(Date.now());
-  }, []);
+    pushResultToHistory(newResult, createdAt);
+  }, [pushResultToHistory]);
 
   const runClockTick = useCallback(() => {
     const current = new Date();
@@ -164,7 +227,7 @@ const ThreeDGame = () => {
     setNextDrawAt(meta.nextDraw);
     if (slotRef.current !== meta.slotKey) {
       slotRef.current = meta.slotKey;
-      applyFreshResult(generate3DResult());
+      applyFreshResult(generate3DResult(), current);
     }
   }, [applyFreshResult]);
 
@@ -216,6 +279,18 @@ const ThreeDGame = () => {
   }, [bets]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem(TICKET_HISTORY_KEY, JSON.stringify(ticketHistory));
+    } catch (_) {}
+  }, [ticketHistory]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RESULT_HISTORY_KEY, JSON.stringify(resultHistory));
+    } catch (_) {}
+  }, [resultHistory]);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const t = setTimeout(() => setToast(''), 1800);
     return () => clearTimeout(t);
@@ -254,6 +329,12 @@ const ThreeDGame = () => {
         .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`),
     [now],
   );
+  const resultModalRows = useMemo(() => {
+    return resultHistory
+      .filter((row) => row.dateKey === resultFilterKey)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 12);
+  }, [resultFilterKey, resultHistory]);
 
   const timeToDrawText = useMemo(
     () =>
@@ -262,6 +343,23 @@ const ThreeDGame = () => {
         .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`),
     [nextDrawAt],
   );
+  const generateGameId = useCallback(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+    return `GM${y}${m}${day}${rand}`;
+  }, []);
+  const applyResultDateFilter = useCallback(() => {
+    const day = String(resultDateDay || '').replace(/\D/g, '').padStart(2, '0').slice(-2);
+    const month = String(resultDateMonth || '').replace(/\D/g, '').padStart(2, '0').slice(-2);
+    const year = String(resultDateYear || '').replace(/\D/g, '').padStart(4, '0').slice(-4);
+    setResultDateDay(day);
+    setResultDateMonth(month);
+    setResultDateYear(year);
+    setResultFilterKey(`${year}-${month}-${day}`);
+  }, [resultDateDay, resultDateMonth, resultDateYear]);
 
   const resolveKeypadTargetIndex = useCallback(() => {
     const focusedIndex =
@@ -654,14 +752,32 @@ const ThreeDGame = () => {
       setValidationMsg('Add at least one bet before BUY.');
       return;
     }
-    const { updatedBets, totalWinPoints, totalLossPoints } = checkWinningBets(bets, results);
+    const updatedBets = settleAllBets(bets, results);
+    const summary = calculateSettlementSummary(updatedBets);
     setBets(updatedBets);
     const matched = updatedBets.filter((b) => b.outcome === 'win').length;
-    setLastTxnId(`GM${Date.now()}`);
-    setLastPoints(totalPoints);
+    const drawDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const gameId = generateGameId();
+    const ticket = {
+      id: Date.now(),
+      userName: 'user',
+      drawTime: timeToDrawText,
+      drawDate,
+      gameId,
+      bets: updatedBets,
+      totalPoints: summary.totalInvested ?? summary.totalPoints,
+      totalWin: summary.totalWinAmount,
+      outcome: summary.netResult > 0 ? 'win' : 'loss',
+      createdAt: new Date().toISOString(),
+    };
+    setTicketHistory((prev) => [ticket, ...prev].slice(0, 200));
+    setLastTxnId(gameId);
+    setLastPoints(summary.totalInvested ?? totalPoints);
+    setToast('Bet placed successfully');
     setValidationMsg('');
-    setBuySummary({ totalBets: updatedBets.length, matched, totalWinPoints, totalLossPoints });
-  }, [bets, results, totalPoints]);
+    setBuySummary(null);
+    setBets([]);
+  }, [bets, calculateSettlementSummary, generateGameId, now, results, settleAllBets, timeToDrawText, totalPoints]);
 
   const handleClearAll = useCallback(() => {
     setBets([]);
@@ -683,20 +799,36 @@ const ThreeDGame = () => {
 
   const handleAdvance = useCallback(() => {
     if (!window.confirm('Are you sure to generate next result?')) return;
-    applyFreshResult(generate3DResult());
+    applyFreshResult(generate3DResult(), new Date());
     setTimerSeconds(GAME_INTERVAL_SECONDS);
     setNextDrawAt(getNextDrawTime(new Date()));
   }, [applyFreshResult]);
 
   const handleHeaderAction = useCallback((label) => {
     setIsHeaderMenuOpen(false);
+    if (label.toLowerCase() === 'result') {
+      const d = new Date(now);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = String(d.getFullYear());
+      setResultDateDay(day);
+      setResultDateMonth(month);
+      setResultDateYear(year);
+      setResultFilterKey(`${year}-${month}-${day}`);
+      setIsResultModalOpen(true);
+      return;
+    }
     if (label.toLowerCase() === 'quiz') {
       navigate('/lottery/3d/quiz');
       return;
     }
     if (label.toLowerCase() === 'refresh') {
-      applyFreshResult(generate3DResult());
+      applyFreshResult(generate3DResult(), new Date());
       setToast('Result Refreshed');
+      return;
+    }
+    if (label.toLowerCase() === 'ticket list') {
+      setIsTicketListOpen(true);
       return;
     }
     if (label.toLowerCase() === 'logout') {
@@ -705,7 +837,7 @@ const ThreeDGame = () => {
       return;
     }
     setToast(`${label} clicked`);
-  }, [applyFreshResult, navigate]);
+  }, [applyFreshResult, navigate, now]);
 
   const handleRotateLandscape = useCallback(async () => {
     try {
@@ -768,8 +900,20 @@ const ThreeDGame = () => {
       >
         <div className="relative w-full h-full bg-[#f5f7fc] border border-[#dbe2f0] p-2 overflow-hidden grid grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-3">
         {toast ? (
-          <div className="fixed top-4 right-4 z-50 bg-[#2ca44f] text-white px-4 py-2 rounded-md shadow-md text-[14px] font-semibold">
-            {toast}
+          <div
+            className={`fixed z-50 ${
+              isBuySuccessToast ? 'inset-0 flex items-center justify-center bg-black/35 p-4' : 'top-4 right-4'
+            }`}
+          >
+            <div
+              className={`text-white font-semibold shadow-md ${
+                isBuySuccessToast
+                  ? 'rounded-2xl border border-emerald-300/60 bg-gradient-to-b from-emerald-500 to-emerald-700 px-10 py-7 text-[30px] font-extrabold tracking-wide shadow-[0_12px_36px_rgba(5,150,105,0.45)]'
+                  : 'rounded-md bg-[#2ca44f] px-4 py-2 text-[14px]'
+              }`}
+            >
+              {toast}
+            </div>
           </div>
         ) : null}
 
@@ -853,16 +997,18 @@ const ThreeDGame = () => {
             <div className="text-[18px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[11px] uppercase tracking-wide text-[#6a6284] font-semibold">Limit</div>
-            <div className="text-[18px] font-semibold leading-none text-[#2a2340]">657968</div>
+            <div className="text-[11px] uppercase tracking-wide text-[#6a6284] font-semibold">Last Ticket</div>
+            <div className={`text-[16px] font-bold leading-none ${lastTicket?.outcome === 'win' ? 'text-[#15803d]' : 'text-[#b91c1c]'}`}>
+              {lastTicket ? lastTicket.outcome.toUpperCase() : '-'}
+            </div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#8a6950] font-semibold">Last Trn</div>
             <div className="text-[15px] font-semibold leading-none text-[#3f2a1c] truncate" title={lastTxnId}>{lastTxnId}</div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[11px] uppercase tracking-wide text-[#4e7760] font-semibold">Last Pts</div>
-            <div className="text-[18px] font-semibold leading-none text-[#1f3a2b]">{lastPoints}</div>
+            <div className="text-[11px] uppercase tracking-wide text-[#4e7760] font-semibold">Last Win</div>
+            <div className="text-[18px] font-semibold leading-none text-[#1f3a2b]">{lastTicket?.totalWin ?? 0}</div>
           </div>
           </div>
         </div>
@@ -1294,10 +1440,131 @@ const ThreeDGame = () => {
                 <div>Winning Bets: <span className="font-semibold text-[#2ca44f]">{buySummary.matched}</span></div>
                 <div>Total Win: <span className="font-semibold text-[#2ca44f]">{buySummary.totalWinPoints}</span></div>
                 <div>Total Loss: <span className="font-semibold text-[#d4372f]">{buySummary.totalLossPoints}</span></div>
+                <div>Net Result: <span className={`font-semibold ${buySummary.netResult >= 0 ? 'text-[#2ca44f]' : 'text-[#d4372f]'}`}>{buySummary.netResult}</span></div>
+                <div>Ticket Outcome: <span className={`font-semibold ${buySummary.outcome === 'win' ? 'text-[#2ca44f]' : 'text-[#d4372f]'}`}>{buySummary.outcome?.toUpperCase?.() || '-'}</span></div>
+                <div>Last Win Amount: <span className="font-semibold text-[#2ca44f]">{buySummary.lastWinAmount}</span></div>
               </div>
               <button type="button" onClick={() => setBuySummary(null)} className="mt-4 w-full h-11 bg-[#2e59c6] border border-[#264ca7] rounded text-white font-semibold">
                 Close
               </button>
+            </div>
+          </div>
+        ) : null}
+        <TicketListModal
+          open={isTicketListOpen}
+          onClose={() => setIsTicketListOpen(false)}
+          tickets={ticketHistory}
+          onView={(ticket) => {
+            setSelectedTicket(ticket);
+            setIsTicketListOpen(false);
+          }}
+        />
+        <TicketDetailsModal
+          open={Boolean(selectedTicket)}
+          ticket={selectedTicket}
+          onClose={() => setSelectedTicket(null)}
+        />
+        {isResultModalOpen ? (
+          <div className="fixed inset-0 z-[88] flex items-center justify-center bg-black/60 p-2 sm:p-4">
+            <div className="flex max-h-[94vh] w-full max-w-[1220px] flex-col overflow-hidden rounded-2xl border border-[#8d8d8d] bg-[#d4d7dd] shadow-2xl">
+              <div className="flex items-center justify-between bg-[#e5354c] px-3 py-2 text-white sm:px-6 sm:py-3">
+                <h3 className="truncate text-[clamp(1rem,4vw,2.5rem)] font-black tracking-wide">
+                  3D Result <span className="ml-2">{`${resultDateDay}-${resultDateMonth}-${resultDateYear}`}</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsResultModalOpen(false)}
+                  className="rounded bg-black/10 px-3 py-1 text-[26px] font-bold leading-none hover:bg-black/20 sm:text-[40px]"
+                  aria-label="Close result modal"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 bg-[#cfd4dc] p-2 sm:p-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+                <div className="min-h-0 overflow-hidden rounded-xl border border-[#babec7] bg-[#e5e7eb] p-2 sm:p-3">
+                  <div className="min-h-0 overflow-auto">
+                    <div className="min-w-[620px]">
+                      <div className="grid grid-cols-[84px_repeat(3,minmax(0,1fr))] gap-1.5 sm:grid-cols-[98px_repeat(3,minmax(0,1fr))] sm:gap-2">
+                        <div className="flex h-10 items-center justify-center rounded-md border border-[#9ca3af] bg-[#f3f4f6] text-[19px] font-black text-[#374151] sm:h-12 sm:text-[30px]">
+                          TIME
+                        </div>
+                        <div className="flex h-10 items-center justify-center rounded-md bg-gradient-to-b from-[#3f66c9] to-[#2f4ea6] text-[22px] font-black text-white sm:h-12 sm:text-[34px]">A</div>
+                        <div className="flex h-10 items-center justify-center rounded-md bg-gradient-to-b from-[#ea4f08] to-[#cc3f00] text-[22px] font-black text-white sm:h-12 sm:text-[34px]">B</div>
+                        <div className="flex h-10 items-center justify-center rounded-md bg-gradient-to-b from-[#31925d] to-[#2b7f52] text-[22px] font-black text-white sm:h-12 sm:text-[34px]">C</div>
+                      </div>
+                      <div className="mt-2 max-h-[52vh] space-y-1.5 overflow-y-auto pr-1 sm:space-y-2">
+                        {resultModalRows.length ? resultModalRows.map((row) => (
+                          <div key={row.id} className="grid grid-cols-[84px_repeat(3,minmax(0,1fr))] gap-1.5 sm:grid-cols-[98px_repeat(3,minmax(0,1fr))] sm:gap-2">
+                            <div className="flex h-[60px] items-center justify-center rounded-md border border-[#9ca3af] bg-black px-1 text-[16px] font-black leading-tight text-white sm:h-[84px] sm:text-[30px]">
+                              {row.time}
+                            </div>
+                            <div className="grid h-[60px] grid-cols-3 overflow-hidden rounded-md border border-[#5f77b8] bg-gradient-to-b from-[#3f66c9] to-[#2f4ea6] text-[clamp(1.6rem,4vw,3.2rem)] font-black text-white sm:h-[84px]">
+                              {row.A.split('').map((digit, idx) => (
+                                <span key={`A-${row.id}-${idx}`} className="flex items-center justify-center border-r border-white/35 last:border-r-0">{digit}</span>
+                              ))}
+                            </div>
+                            <div className="grid h-[60px] grid-cols-3 overflow-hidden rounded-md border border-[#b65935] bg-gradient-to-b from-[#ea4f08] to-[#cc3f00] text-[clamp(1.6rem,4vw,3.2rem)] font-black text-white sm:h-[84px]">
+                              {row.B.split('').map((digit, idx) => (
+                                <span key={`B-${row.id}-${idx}`} className="flex items-center justify-center border-r border-white/35 last:border-r-0">{digit}</span>
+                              ))}
+                            </div>
+                            <div className="grid h-[60px] grid-cols-3 overflow-hidden rounded-md border border-[#4b8d68] bg-gradient-to-b from-[#31925d] to-[#2b7f52] text-[clamp(1.6rem,4vw,3.2rem)] font-black text-white sm:h-[84px]">
+                              {row.C.split('').map((digit, idx) => (
+                                <span key={`C-${row.id}-${idx}`} className="flex items-center justify-center border-r border-white/35 last:border-r-0">{digit}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )) : (
+                          <div className="rounded-md border border-[#b8bfca] bg-[#f8fafc] px-4 py-6 text-center text-[16px] font-semibold text-[#475569]">
+                            No result found for selected date.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex min-h-[170px] flex-col rounded-xl border border-[#babec7] bg-[#dde1e8] p-3 sm:min-h-[210px] sm:p-4">
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[30px] font-black text-[#1f2937] sm:text-[42px]">
+                    <span className="shrink-0">Date :</span>
+                    <input
+                      type="text"
+                      value={resultDateDay}
+                      onChange={(e) => setResultDateDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                      className="h-14 w-14 rounded-lg border border-[#c2c6ce] bg-[#f3f4f6] text-center text-[30px] font-black text-[#4b5563] sm:h-[72px] sm:w-[74px] sm:text-[36px]"
+                    />
+                    <input
+                      type="text"
+                      value={resultDateMonth}
+                      onChange={(e) => setResultDateMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                      className="h-14 w-14 rounded-lg border border-[#c2c6ce] bg-[#f3f4f6] text-center text-[30px] font-black text-[#4b5563] sm:h-[72px] sm:w-[74px] sm:text-[36px]"
+                    />
+                    <input
+                      type="text"
+                      value={resultDateYear}
+                      onChange={(e) => setResultDateYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className="h-14 w-[82px] rounded-lg border border-[#c2c6ce] bg-[#f3f4f6] text-center text-[30px] font-black text-[#4b5563] sm:h-[72px] sm:w-[96px] sm:text-[36px]"
+                    />
+                  </div>
+                  <div className="mt-auto pt-4 sm:pt-6">
+                    <button
+                      type="button"
+                      onClick={applyResultDateFilter}
+                      className="h-12 w-full rounded-xl bg-[#234372] text-[26px] font-black text-white shadow-[0_6px_18px_rgba(15,23,42,0.35)] sm:h-[86px] sm:text-[45px]"
+                    >
+                      Show Result
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {lastTicket ? (
+                <div className="border-t border-[#b9bec7] bg-[#d4d7dd] px-5 py-3 text-[14px] font-semibold text-[#374151]">
+                  Last Ticket: <span className="font-bold">{lastTicket.gameId}</span> | Outcome:{' '}
+                  <span className={lastTicket.outcome === 'win' ? 'text-[#15803d]' : 'text-[#b91c1c]'}>
+                    {String(lastTicket.outcome || '-').toUpperCase()}
+                  </span>{' '}
+                  | Win: <span className="font-bold">{lastTicket.totalWin ?? 0}</span>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}

@@ -36,6 +36,7 @@ const ThreeDQuizPage = () => {
   }));
   const [slotData, setSlotData] = useState(null);
   const [slotErr, setSlotErr] = useState('');
+  const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionsErr, setQuestionsErr] = useState('');
@@ -49,10 +50,12 @@ const ThreeDQuizPage = () => {
   const lastBetNumbersRef = useRef([]);
   const selectedQuizRef = useRef(selectedQuiz);
   const lastHintSlotRef = useRef(null);
+  const lastLandscapeAutoFsAttemptRef = useRef(0);
 
   const quizLabel = `QUIZ${pad2(selectedQuiz)}`;
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
+  const useScaledCanvas = useMemo(() => viewport.width >= 1200 && viewport.height >= 700, [viewport.height, viewport.width]);
 
   useEffect(() => {
     selectedQuizRef.current = selectedQuiz;
@@ -62,6 +65,33 @@ const ThreeDQuizPage = () => {
     const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const checkMobilePortrait = () => {
+      const isMobile = window.innerWidth <= 900;
+      const isPortrait = window.innerHeight > window.innerWidth;
+      setShowRotatePrompt(isMobile && isPortrait);
+      if (isMobile && !isPortrait && !document.fullscreenElement) {
+        const nowMs = Date.now();
+        if (nowMs - lastLandscapeAutoFsAttemptRef.current > 1200) {
+          lastLandscapeAutoFsAttemptRef.current = nowMs;
+          const root = document.documentElement;
+          if (root.requestFullscreen) {
+            root.requestFullscreen().catch(() => {
+              // Some browsers require explicit user action.
+            });
+          }
+        }
+      }
+    };
+    checkMobilePortrait();
+    window.addEventListener('resize', checkMobilePortrait);
+    window.addEventListener('orientationchange', checkMobilePortrait);
+    return () => {
+      window.removeEventListener('resize', checkMobilePortrait);
+      window.removeEventListener('orientationchange', checkMobilePortrait);
+    };
   }, []);
 
   useEffect(() => {
@@ -302,12 +332,34 @@ const ThreeDQuizPage = () => {
     }
   }, [fairnessResult]);
 
+  const handleRotateLandscape = useCallback(async () => {
+    try {
+      const root = document.documentElement;
+      if (root.requestFullscreen && !document.fullscreenElement) {
+        await root.requestFullscreen();
+      }
+      if (window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('landscape');
+      }
+    } catch (_) {
+      // On many mobile browsers this requires user/system support.
+    }
+  }, []);
+
   return (
     <AppLayout>
       <div className="relative h-full w-full overflow-hidden rounded-[14px] bg-[#111] sm:rounded-none">
         <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[#4c4c4c] sm:rounded-none" />
         <div className="absolute inset-0 overflow-hidden" style={{ width: `${viewport.width}px`, height: `${viewport.height}px` }}>
-          <div className="absolute top-0 left-0 flex flex-col overflow-hidden border border-[#4c4c4c] bg-[#efe6d5] text-black" style={{ width: `${BASE_WIDTH}px`, height: `${BASE_HEIGHT}px`, transform: `scale(${dashboardScaleX}, ${dashboardScaleY})`, transformOrigin: 'top left' }}>
+          <div
+            className="absolute top-0 left-0 flex flex-col overflow-hidden border border-[#4c4c4c] bg-[#efe6d5] text-black"
+            style={{
+              width: useScaledCanvas ? `${BASE_WIDTH}px` : `${viewport.width}px`,
+              height: useScaledCanvas ? `${BASE_HEIGHT}px` : `${viewport.height}px`,
+              transform: useScaledCanvas ? `scale(${dashboardScaleX}, ${dashboardScaleY})` : 'none',
+              transformOrigin: 'top left',
+            }}
+          >
             <div className="flex h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden">
               <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 bg-[#efe6d5]/95 px-2 pt-4 pb-2 backdrop-blur-sm">
                 <button type="button" onClick={goToBoard} className={`flex h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-base font-extrabold ${btnInactive}`}>
@@ -417,19 +469,7 @@ const ThreeDQuizPage = () => {
                 )}
 
                 <div className="sticky bottom-0 left-0 right-0 z-20 mt-3 bg-[#efe6d5]/95 py-2 backdrop-blur-sm">
-                  <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-2 sm:flex-row">
-                    <input
-                      value={betLines[0]?.number ?? ''}
-                      onChange={(e) => setBetLines([{ number: e.target.value.replace(/\D/g, '').slice(0, 3), amount: betLines[0]?.amount ?? '' }])}
-                      placeholder="000-099"
-                      className="h-12 flex-1 rounded border border-[#b8a01e] px-3 text-lg font-bold"
-                    />
-                    <input
-                      value={betLines[0]?.amount ?? ''}
-                      onChange={(e) => setBetLines([{ number: betLines[0]?.number ?? '', amount: e.target.value.replace(/[^\d]/g, '').slice(0, 5) }])}
-                      placeholder="Amount"
-                      className="h-12 flex-1 rounded border border-[#b8a01e] px-3 text-lg font-bold"
-                    />
+            <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-2">
                     <button type="button" onClick={submitQuizBets} className="rounded border-2 border-[#b8a01e] bg-[#f5e14a] px-6 text-lg font-black tracking-wide text-black shadow-sm active:scale-[0.99]">
                       PLAY 3D QUIZ
                     </button>
@@ -440,6 +480,27 @@ const ThreeDQuizPage = () => {
           </div>
         </div>
       </div>
+      {showRotatePrompt ? (
+        <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[#111] border border-[#3b3b3b] text-white p-4 text-center rounded">
+            <div className="phone-rotate-wrap" aria-hidden>
+              <div className="phone-rotate-icon" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Rotate Screen</h3>
+            <p className="text-sm text-gray-300 mb-4">
+              3D quiz works best in landscape mode.
+              Please rotate your phone horizontally.
+            </p>
+            <button
+              type="button"
+              onClick={handleRotateLandscape}
+              className="w-full h-10 bg-[#ef3f34] border border-[#d4372f] font-semibold rounded"
+            >
+              Rotate + Full Screen
+            </button>
+          </div>
+        </div>
+      ) : null}
     </AppLayout>
   );
 };
