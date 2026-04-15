@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useBettingWindow } from '../BettingWindowContext';
 
 const formatMoney = (v) => {
@@ -70,6 +71,7 @@ const BidReviewModal = ({
   const [stage, setStage] = useState('review'); // 'review' | 'success'
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -77,6 +79,17 @@ const BidReviewModal = ({
       setSubmitError('');
     }
   }, [open]);
+
+  useEffect(() => {
+    try {
+      const ua = navigator.userAgent || '';
+      const isAppleDevice = /iPad|iPhone|iPod/.test(ua);
+      const isTouchMac = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+      setIsIOS(isAppleDevice || isTouchMac);
+    } catch (_) {
+      setIsIOS(false);
+    }
+  }, []);
 
   // Keep showing success popup even if parent sets open=false after submit.
   if (!open && stage !== 'success') return null;
@@ -106,8 +119,11 @@ const BidReviewModal = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center p-1.5 sm:p-6">
+  const modalNode = (
+    <div
+      className="fixed inset-0 flex items-end sm:items-center justify-center p-1.5 sm:p-6"
+      style={{ zIndex: isIOS ? 20000 : 999 }}
+    >
       {/* Overlay */}
       {stage === 'review' ? (
         <button type="button" onClick={handleClose} aria-label="Close" className="absolute inset-0 bg-black/60" />
@@ -280,6 +296,11 @@ const BidReviewModal = ({
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalNode, document.body);
+  }
+  return modalNode;
 };
 
 export default BidReviewModal;
