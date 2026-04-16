@@ -1,6 +1,6 @@
 import React from 'react';
 
-const QuizSlotStatsTable = ({ rows, onEditResult }) => {
+const QuizSlotStatsTable = ({ rows, onEditResult, canEdit = true }) => {
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Quiz-wise Slot Stats</h3>
@@ -31,13 +31,17 @@ const QuizSlotStatsTable = ({ rows, onEditResult }) => {
                                     ₹{Number(row.totalBetAmount || 0).toLocaleString('en-IN')}
                                 </td>
                                 <td className="py-2 text-right">
-                                    <button
-                                        type="button"
-                                        onClick={() => onEditResult(row.quizId, row.result)}
-                                        className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-xs font-semibold text-gray-700"
-                                    >
-                                        Edit Result
-                                    </button>
+                                    {canEdit ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onEditResult(row.quizId, row.result)}
+                                            className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-xs font-semibold text-gray-700"
+                                        >
+                                            Edit Result
+                                        </button>
+                                    ) : (
+                                        <span className="text-xs text-gray-400">Locked</span>
+                                    )}
                                 </td>
                             </tr>
                         ))}

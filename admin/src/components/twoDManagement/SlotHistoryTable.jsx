@@ -6,7 +6,7 @@ const SlotHistoryTable = ({ slots, selectedSlot, onSelectSlot, loading }) => {
             <div className="flex items-center justify-between gap-2 mb-2">
                 <div>
                     <h3 className="text-lg font-semibold text-gray-800">Old Slots</h3>
-                    <p className="text-sm text-gray-500">Selected date sathi completed time slots ithe disatil.</p>
+                    <p className="text-sm text-gray-500">Completed time slots for the selected date will appear here.</p>
                 </div>
                 {loading ? <span className="text-xs text-gray-500">Loading...</span> : null}
             </div>

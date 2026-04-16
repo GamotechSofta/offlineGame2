@@ -1,6 +1,8 @@
 import QuizBet from '../models/quiz/QuizBet.js';
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
 import { getRatesMap } from '../models/rate/rate.js';
+import Admin from '../models/admin/admin.js';
+import bcrypt from 'bcryptjs';
 import {
   SLOT_MS,
   formatDrawLabel,
@@ -79,6 +81,32 @@ function toSlotSummary(slotStartIso, slotEndMs, bets, picksByQuiz, winMultiplier
   };
 }
 
+async function verifySecretDeclarePassword(req) {
+  const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+  if (!adminWithSecret?.secretDeclarePassword) {
+    return { success: true, hasSecretDeclarePassword: false };
+  }
+
+  const provided = (req.body?.secretDeclarePassword ?? '').toString().trim();
+  const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+  if (!isValid) {
+    return {
+      success: false,
+      hasSecretDeclarePassword: true,
+      error: {
+        status: 403,
+        body: {
+          success: false,
+          message: 'Invalid secret declare password',
+          code: 'INVALID_SECRET_DECLARE_PASSWORD',
+        },
+      },
+    };
+  }
+
+  return { success: true, hasSecretDeclarePassword: true };
+}
+
 export const getLottery2DCurrentSlot = async (req, res) => {
   try {
     const ctx = getSlotContext(new Date());
@@ -139,6 +167,43 @@ export const getLottery2DCurrentSlot = async (req, res) => {
           istDayKey: ctx.istDayKey,
         },
         summary: slotSummary,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+export const getLottery2DCurrentSlotHints = async (req, res) => {
+  try {
+    const verification = await verifySecretDeclarePassword(req);
+    if (!verification.success) {
+      return res.status(verification.error.status).json(verification.error.body);
+    }
+
+    const ctx = getSlotContext(new Date());
+    const slotStartIso = ctx.slotStartIso;
+
+    const [picks] = await Promise.all([
+      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
+    ]);
+
+    const perQuiz = baseQuizStatsById();
+    for (const p of picks) {
+      const row = perQuiz.get(p.quizId);
+      if (row) row.result = Number.isInteger(p.hintPosition) ? p.hintPosition : null;
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        slot: {
+          slotStartIso,
+          slotEndIso: new Date(ctx.slotEndMs).toISOString(),
+          drawLabelEnd: formatDrawLabel(ctx.slotEndMs),
+          phase: ctx.phase,
+          istDayKey: ctx.istDayKey,
+        },
         perQuiz: QUIZ_IDS.map((q) => perQuiz.get(q)),
       },
     });
@@ -279,6 +344,10 @@ export const updateLottery2DSlotResult = async (req, res) => {
     const quizId = Number(req.body?.quizId);
     const result = Number(req.body?.result);
 
+    if (req.admin?.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Super admin access required.' });
+    }
+
     if (!isValidISTSlotStartIso(slotStartIso)) {
       return res.status(400).json({ success: false, message: 'Invalid slotStartIso.' });
     }
@@ -287,6 +356,21 @@ export const updateLottery2DSlotResult = async (req, res) => {
     }
     if (!Number.isInteger(result) || result < 0 || result > 99) {
       return res.status(400).json({ success: false, message: 'result must be between 00 and 99.' });
+    }
+
+    const ctx = getSlotContext(new Date());
+    if (slotStartIso !== ctx.slotStartIso) {
+      return res.status(400).json({
+        success: false,
+        message: 'Manual hint changes are allowed only for the current running slot.',
+      });
+    }
+
+    if (Date.now() >= ctx.slotEndMs) {
+      return res.status(400).json({
+        success: false,
+        message: 'This slot has already closed. Hint changes are no longer allowed.',
+      });
     }
 
     await getOrCreatePick(quizId, slotStartIso, GAME_MODE);

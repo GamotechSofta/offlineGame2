@@ -17,6 +17,7 @@ import {
 import { getLogs } from '../../controllers/activityLogController.js';
 import {
     getLottery2DCurrentSlot,
+  getLottery2DCurrentSlotHints,
     getLottery2DSlotDetail,
     getLottery2DSlotHistory,
     updateLottery2DSlotResult,
@@ -39,6 +40,7 @@ router.get('/config/dp-common-list', verifyAdmin, getDpCommonList);
 
 // 2D lottery admin management
 router.get('/lottery2d/current-slot', verifyAdmin, getLottery2DCurrentSlot);
+router.post('/lottery2d/current-slot/hints', verifyAdmin, getLottery2DCurrentSlotHints);
 router.get('/lottery2d/slots', verifyAdmin, getLottery2DSlotHistory);
 router.get('/lottery2d/slots/:slotStartIso/detail', verifyAdmin, getLottery2DSlotDetail);
 router.patch('/lottery2d/slots/:slotStartIso/result', verifyAdmin, updateLottery2DSlotResult);

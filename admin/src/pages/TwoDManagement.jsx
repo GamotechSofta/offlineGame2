@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaChevronDown } from 'react-icons/fa';
 import AdminLayout from '../components/AdminLayout';
+import useModalBackHandler from '../hooks/useModalBackHandler';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import CurrentSlotOverview from '../components/twoDManagement/CurrentSlotOverview';
 import SlotHistoryTable from '../components/twoDManagement/SlotHistoryTable';
@@ -24,7 +25,6 @@ const TwoDManagement = () => {
     const [historySlots, setHistorySlots] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState('');
     const [detailData, setDetailData] = useState(null);
-    const [editState, setEditState] = useState({ quizId: '', result: '' });
     const [loadingCurrent, setLoadingCurrent] = useState(true);
     const [loadingHistory, setLoadingHistory] = useState(true);
     const [loadingDetail, setLoadingDetail] = useState(false);
@@ -32,9 +32,25 @@ const TwoDManagement = () => {
     const [activeSection, setActiveSection] = useState('oldSlots');
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
+    const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
+    const [currentHintRows, setCurrentHintRows] = useState([]);
+    const [hintPassword, setHintPassword] = useState('');
+    const [hintError, setHintError] = useState('');
+    const [loadingHints, setLoadingHints] = useState(false);
+    const [hintUnlocked, setHintUnlocked] = useState(false);
+    const [unlockedHintPassword, setUnlockedHintPassword] = useState('');
+    const [adminRole, setAdminRole] = useState('');
+    const [showEditHintModal, setShowEditHintModal] = useState(false);
+    const [editHintForm, setEditHintForm] = useState({ quizId: '', result: '' });
+    const [editHintError, setEditHintError] = useState('');
     const detailSectionRef = useRef(null);
     const timeDropdownRef = useRef(null);
     const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
+    const closeEditHintModal = useModalBackHandler(showEditHintModal, () => {
+        setShowEditHintModal(false);
+        setEditHintForm({ quizId: '', result: '' });
+        setEditHintError('');
+    });
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -53,6 +69,49 @@ const TwoDManagement = () => {
             setError(err.message || 'Failed to load current slot');
         } finally {
             setLoadingCurrent(false);
+        }
+    }, []);
+
+    const fetchCurrentHints = useCallback(async (secretDeclarePasswordValue = '') => {
+        setLoadingHints(true);
+        setHintError('');
+        try {
+            const body = secretDeclarePasswordValue ? { secretDeclarePassword: secretDeclarePasswordValue } : {};
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/current-slot/hints`, {
+                method: 'POST',
+                body: JSON.stringify(body),
+            });
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) {
+                if (data?.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    setHintError(data.message || 'Invalid secret password');
+                    setHintUnlocked(false);
+                    setCurrentHintRows([]);
+                    setUnlockedHintPassword('');
+                    return;
+                }
+                throw new Error(data?.message || 'Failed to load current slot hints');
+            }
+
+            const rows = Array.isArray(data?.data?.perQuiz)
+                ? data.data.perQuiz.map((row) => ({
+                    quizId: row.quizId,
+                    hint: row.result == null ? '--' : String(row.result).padStart(2, '0'),
+                }))
+                : [];
+
+            setCurrentHintRows(rows);
+            setHintUnlocked(true);
+            setUnlockedHintPassword(secretDeclarePasswordValue || '');
+            setHintPassword('');
+        } catch (err) {
+            setHintError(err.message || 'Failed to load current slot hints');
+            setHintUnlocked(false);
+            setCurrentHintRows([]);
+            setUnlockedHintPassword('');
+        } finally {
+            setLoadingHints(false);
         }
     }, []);
 
@@ -106,6 +165,21 @@ const TwoDManagement = () => {
             navigate('/');
             return;
         }
+        try {
+            const parsedAdmin = JSON.parse(admin);
+            setAdminRole(parsedAdmin?.role || '');
+        } catch {
+            setAdminRole('');
+        }
+        fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
+            .then((res) => {
+                if (res.status === 401) return null;
+                return res.json();
+            })
+            .then((json) => {
+                if (json?.success) setHasSecretDeclarePassword(json.hasSecretDeclarePassword || false);
+            })
+            .catch(() => setHasSecretDeclarePassword(false));
         fetchCurrent();
     }, [fetchCurrent, navigate]);
 
@@ -116,6 +190,20 @@ const TwoDManagement = () => {
     useEffect(() => {
         if (selectedSlot) fetchDetail(selectedSlot);
     }, [selectedSlot, fetchDetail]);
+
+    useEffect(() => {
+        setCurrentHintRows([]);
+        setHintPassword('');
+        setHintError('');
+        setHintUnlocked(false);
+        setUnlockedHintPassword('');
+    }, [currentSlotData?.slot?.slotStartIso]);
+
+    useEffect(() => {
+        if (currentSlotData?.slot?.slotStartIso && !hasSecretDeclarePassword) {
+            fetchCurrentHints('');
+        }
+    }, [currentSlotData?.slot?.slotStartIso, hasSecretDeclarePassword, fetchCurrentHints]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -140,29 +228,73 @@ const TwoDManagement = () => {
         }
     };
 
-    const onSaveResult = async () => {
+    const handleUnlockHints = async () => {
+        if (hasSecretDeclarePassword && !hintPassword.trim()) {
+            setHintError('Please enter the secret declare password');
+            return;
+        }
+        await fetchCurrentHints(hintPassword.trim());
+    };
+
+    const handleLockHints = () => {
+        setCurrentHintRows([]);
+        setHintPassword('');
+        setHintError('');
+        setHintUnlocked(false);
+        setUnlockedHintPassword('');
+    };
+
+    const handleEditCurrentHint = async (quizId, currentHint) => {
+        if (adminRole !== 'super_admin') {
+            setError('Only super admin can edit running slot hint numbers.');
+            return;
+        }
+        if (!currentSlotData?.slot?.slotStartIso) {
+            setError('Current slot is not available.');
+            return;
+        }
         setNotice('');
         setError('');
-        const quizId = Number(editState.quizId);
-        const result = Number(editState.result);
-        if (!selectedSlot) return setError('Please select a slot first.');
-        if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) return setError('Quiz ID must be between 1 and 30.');
-        if (!Number.isInteger(result) || result < 0 || result > 99) return setError('Result must be between 00 and 99.');
+        setEditHintError('');
+        setEditHintForm({
+            quizId: String(quizId),
+            result: currentHint === '--' ? '' : currentHint,
+        });
+        setShowEditHintModal(true);
+    };
+
+    const submitEditCurrentHint = async (e) => {
+        e.preventDefault();
+        const quizId = Number(editHintForm.quizId);
+        const trimmed = editHintForm.result.trim();
+        const result = Number(trimmed);
+
+        if (!/^\d{1,2}$/.test(trimmed) || !Number.isInteger(result) || result < 0 || result > 99) {
+            setEditHintError('Result must be between 00 and 99.');
+            return;
+        }
+        if (!currentSlotData?.slot?.slotStartIso) {
+            setEditHintError('Current slot is not available.');
+            return;
+        }
 
         setSavingResult(true);
         try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(selectedSlot)}/result`, {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(currentSlotData.slot.slotStartIso)}/result`, {
                 method: 'PATCH',
                 body: JSON.stringify({ quizId, result }),
             });
             if (res.status === 401) return;
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to update result');
-            setNotice(`Quiz ${String(quizId).padStart(2, '0')} result updated to ${String(result).padStart(2, '0')}.`);
-            await fetchDetail(selectedSlot);
+            setNotice(`Running slot Quiz ${String(quizId).padStart(2, '0')} hint updated to ${String(result).padStart(2, '0')}.`);
+            closeEditHintModal();
             await fetchCurrent();
+            if (hintUnlocked || !hasSecretDeclarePassword) {
+                await fetchCurrentHints(unlockedHintPassword);
+            }
         } catch (err) {
-            setError(err.message || 'Failed to update result');
+            setEditHintError(err.message || 'Failed to update result');
         } finally {
             setSavingResult(false);
         }
@@ -190,7 +322,24 @@ const TwoDManagement = () => {
                 {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div> : null}
                 {notice ? <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700">{notice}</div> : null}
 
-                <CurrentSlotOverview data={currentSlotData} loading={loadingCurrent} />
+                <CurrentSlotOverview
+                    data={currentSlotData}
+                    loading={loadingCurrent}
+                    hintRows={currentHintRows}
+                    loadingHints={loadingHints}
+                    hasSecretDeclarePassword={hasSecretDeclarePassword}
+                    hintPassword={hintPassword}
+                    hintError={hintError}
+                    hintUnlocked={hintUnlocked}
+                    onHintPasswordChange={(value) => {
+                        setHintPassword(value);
+                        setHintError('');
+                    }}
+                    onUnlockHints={handleUnlockHints}
+                    onLockHints={handleLockHints}
+                    canEditHints={adminRole === 'super_admin' && hintUnlocked && !savingResult}
+                    onEditHint={handleEditCurrentHint}
+                />
 
                 <div className="bg-white border border-gray-200 rounded-xl p-2">
                     <div className="flex flex-wrap gap-2">
@@ -358,7 +507,7 @@ const TwoDManagement = () => {
                         ) : detailData?.perQuiz ? (
                             <QuizSlotStatsTable
                                 rows={detailData.perQuiz}
-                                onEditResult={(quizId, result) => setEditState({ quizId: String(quizId), result: result == null ? '' : String(result) })}
+                                canEdit={false}
                             />
                         ) : (
                             <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">
@@ -368,6 +517,49 @@ const TwoDManagement = () => {
                     </div>
                 )}
             </div>
+            {showEditHintModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
+                        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-orange-500">
+                                Edit Running Hint for Quiz{String(editHintForm.quizId || '').padStart(2, '0')}
+                            </h3>
+                            <button type="button" onClick={closeEditHintModal} className="text-gray-400 hover:text-gray-800 p-1">×</button>
+                        </div>
+                        <form onSubmit={submitEditCurrentHint} className="p-4 space-y-4">
+                            <p className="text-gray-600 text-sm">
+                                Enter a new hint number between 00 and 99 for the current running slot.
+                            </p>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={2}
+                                placeholder="00"
+                                value={editHintForm.result}
+                                onChange={(e) => {
+                                    setEditHintForm((prev) => ({ ...prev, result: e.target.value.replace(/\D/g, '').slice(0, 2) }));
+                                    setEditHintError('');
+                                }}
+                                className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400"
+                                autoFocus
+                            />
+                            {editHintError ? (
+                                <div className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2">
+                                    {editHintError}
+                                </div>
+                            ) : null}
+                            <div className="flex gap-2 justify-end">
+                                <button type="button" onClick={closeEditHintModal} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={savingResult} className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:bg-orange-300">
+                                    {savingResult ? 'Saving...' : 'Save Hint'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </AdminLayout>
     );
 };
