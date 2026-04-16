@@ -4,7 +4,6 @@ import { API_BASE_URL, fetchWithAuth, getAuthHeaders } from '../config/api';
 import { getMyWalletTransactions, getRatesCurrent } from '../api/bets';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import BetHistoryCard from '../components/BetHistoryCard';
-import GameSpecificHistorySection from '../components/GameSpecificHistorySection';
 import AviatorBetHistoryCard from '../components/AviatorBetHistoryCard';
 
 const safeParse = (raw, fallback) => {
@@ -69,6 +68,73 @@ const parseRoundId = (text) => {
   const s = String(text || '');
   const m = s.match(/roundId=([^|]+)/i);
   return m && m[1] ? String(m[1]).trim() : '';
+};
+const buildGameRoundRows = (transactions, gameName) => {
+  const byKey = new Map();
+  const knownRoundIds = new Set();
+
+  for (const t of transactions || []) {
+    const desc = String(t?.description || '');
+    const g = detectGameName(desc) || detectGameName(t?.bet?.marketName || '');
+    const type = String(t?.type || '').toLowerCase();
+    if (type !== 'debit' || g !== gameName) continue;
+
+    const roundId = parseRoundId(desc);
+    const key = roundId || String(t?.referenceId || t?._id || '').trim();
+    if (!key) continue;
+    if (roundId) knownRoundIds.add(roundId);
+
+    const amount = Number(t?.amount || 0) || 0;
+    const existing = byKey.get(key) || {
+      key,
+      betId: key,
+      betAmount: null,
+      cashOutAmount: null,
+      createdAt: t?.createdAt || null,
+      gameName,
+    };
+
+    existing.betAmount = amount;
+    if (!existing.createdAt || new Date(t?.createdAt || 0).getTime() > new Date(existing.createdAt || 0).getTime()) {
+      existing.createdAt = t?.createdAt || existing.createdAt;
+    }
+    byKey.set(key, existing);
+  }
+
+  for (const t of transactions || []) {
+    const type = String(t?.type || '').toLowerCase();
+    if (type !== 'credit') continue;
+    const desc = String(t?.description || '');
+    const creditRoundId = parseRoundId(desc);
+    const creditRef = String(t?.referenceId || t?._id || '').trim();
+    const directGame = detectGameName(desc) || detectGameName(t?.bet?.marketName || '');
+    const isLikelyCredit = directGame === gameName || (creditRoundId && knownRoundIds.has(creditRoundId));
+    if (!isLikelyCredit) continue;
+
+    const matchKey =
+      (creditRoundId && byKey.has(creditRoundId) && creditRoundId) ||
+      (creditRef && byKey.has(creditRef) && creditRef) ||
+      null;
+    if (!matchKey) continue;
+
+    const amount = Number(t?.amount || 0) || 0;
+    const existing = byKey.get(matchKey);
+    if (!existing) continue;
+    existing.cashOutAmount = amount > 0 ? amount : existing.cashOutAmount;
+    if (!existing.createdAt || new Date(t?.createdAt || 0).getTime() > new Date(existing.createdAt || 0).getTime()) {
+      existing.createdAt = t?.createdAt || existing.createdAt;
+    }
+    byKey.set(matchKey, existing);
+  }
+
+  return [...byKey.values()]
+    .filter((x) => Number.isFinite(Number(x.betAmount)))
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .map((x, i) => ({
+      ...x,
+      index: i + 1,
+      timeFormatted: formatTxnTime(x.createdAt),
+    }));
 };
 const normalizeGameQueryToTab = (raw) => {
   const q = normalizeMarketName(raw);
@@ -203,7 +269,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedSessions, setSelectedSessions] = useState([]); // ['OPEN','CLOSE']
   const [selectedStatuses, setSelectedStatuses] = useState([]); // ['Win','Lost','Pending']
-  const [aviatorStatusFilter, setAviatorStatusFilter] = useState('all'); // all | won | lost
+  const [gameStatusFilter, setGameStatusFilter] = useState('all'); // all | won | lost
   const [selectedMarkets, setSelectedMarkets] = useState([]); // normalized market keys
   const [markets, setMarkets] = useState([]);
   const [ratesMap, setRatesMap] = useState(null);
@@ -492,98 +558,44 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
 
   const aviatorRoundRows = useMemo(() => {
     if (!isGameDetailPage || selectedGameFromQuery !== 'Aviator') return [];
-    const byKey = new Map();
-    const knownAviatorRoundIds = new Set();
-
-    // Pass 1: build rounds from Aviator debit entries.
-    for (const t of gameTransactions || []) {
-      const desc = String(t?.description || '');
-      const g = detectGameName(desc) || detectGameName(t?.bet?.marketName || '');
-      const type = String(t?.type || '').toLowerCase();
-      if (type !== 'debit' || g !== 'Aviator') continue;
-
-      const roundId = parseRoundId(desc);
-      const key = roundId || String(t?.referenceId || t?._id || '').trim();
-      if (!key) continue;
-      if (roundId) knownAviatorRoundIds.add(roundId);
-
-      const amount = Number(t?.amount || 0) || 0;
-      const existing = byKey.get(key) || {
-        key,
-        betId: key,
-        betAmount: null,
-        cashOutAmount: null,
-        createdAt: t?.createdAt || null,
-      };
-
-      existing.betAmount = amount;
-      if (!existing.createdAt || new Date(t?.createdAt || 0).getTime() > new Date(existing.createdAt || 0).getTime()) {
-        existing.createdAt = t?.createdAt || existing.createdAt;
-      }
-      byKey.set(key, existing);
-    }
-
-    // Pass 2: attach cash-out credits by roundId/reference to known Aviator rounds.
-    for (const t of gameTransactions || []) {
-      const type = String(t?.type || '').toLowerCase();
-      if (type !== 'credit') continue;
-      const desc = String(t?.description || '');
-      const creditRoundId = parseRoundId(desc);
-      const creditRef = String(t?.referenceId || t?._id || '').trim();
-
-      const directGame = detectGameName(desc) || detectGameName(t?.bet?.marketName || '');
-      const isLikelyAviatorCredit = directGame === 'Aviator' || (creditRoundId && knownAviatorRoundIds.has(creditRoundId));
-      if (!isLikelyAviatorCredit) continue;
-
-      const matchKey =
-        (creditRoundId && byKey.has(creditRoundId) && creditRoundId) ||
-        (creditRef && byKey.has(creditRef) && creditRef) ||
-        null;
-      if (!matchKey) continue;
-
-      const amount = Number(t?.amount || 0) || 0;
-      const existing = byKey.get(matchKey);
-      if (!existing) continue;
-      // If multiple credit rows exist for same round, keep the latest non-zero amount.
-      existing.cashOutAmount = amount > 0 ? amount : existing.cashOutAmount;
-      if (!existing.createdAt || new Date(t?.createdAt || 0).getTime() > new Date(existing.createdAt || 0).getTime()) {
-        existing.createdAt = t?.createdAt || existing.createdAt;
-      }
-      byKey.set(matchKey, existing);
-    }
-
-    return [...byKey.values()]
-      .filter((x) => Number.isFinite(Number(x.betAmount)))
-      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      .map((x, i) => ({
-        ...x,
-        index: i + 1,
-        timeFormatted: formatTxnTime(x.createdAt),
-      }));
+    return buildGameRoundRows(gameTransactions, 'Aviator');
+  }, [gameTransactions, isGameDetailPage, selectedGameFromQuery]);
+  const funTimerRoundRows = useMemo(() => {
+    if (!isGameDetailPage || selectedGameFromQuery !== 'FunTimer') return [];
+    return buildGameRoundRows(gameTransactions, 'FunTimer');
+  }, [gameTransactions, isGameDetailPage, selectedGameFromQuery]);
+  const rouletteRoundRows = useMemo(() => {
+    if (!isGameDetailPage || selectedGameFromQuery !== 'Roulette') return [];
+    return buildGameRoundRows(gameTransactions, 'Roulette');
   }, [gameTransactions, isGameDetailPage, selectedGameFromQuery]);
 
   const filteredAviatorRoundRows = useMemo(() => {
-    if (aviatorStatusFilter === 'won') {
+    if (selectedGameFromQuery === 'Aviator' && gameStatusFilter === 'won') {
       return aviatorRoundRows.filter((x) => Number(x.betAmount || 0) < Number(x.cashOutAmount || 0));
     }
-    if (aviatorStatusFilter === 'lost') {
+    if (selectedGameFromQuery === 'Aviator' && gameStatusFilter === 'lost') {
       return aviatorRoundRows.filter((x) => Number(x.betAmount || 0) > Number(x.cashOutAmount || 0));
     }
     return aviatorRoundRows;
-  }, [aviatorRoundRows, aviatorStatusFilter]);
-
-  const aviatorRows = useMemo(
-    () => filteredGameRows.filter((r) => String(r.gameLabel || '').toLowerCase() === 'aviator'),
-    [filteredGameRows]
-  );
-  const funTimerRows = useMemo(
-    () => filteredGameRows.filter((r) => String(r.gameLabel || '').toLowerCase() === 'funtimer'),
-    [filteredGameRows]
-  );
-  const rouletteRows = useMemo(
-    () => filteredGameRows.filter((r) => String(r.gameLabel || '').toLowerCase() === 'roulette'),
-    [filteredGameRows]
-  );
+  }, [aviatorRoundRows, gameStatusFilter, selectedGameFromQuery]);
+  const filteredFunTimerRoundRows = useMemo(() => {
+    if (selectedGameFromQuery === 'FunTimer' && gameStatusFilter === 'won') {
+      return funTimerRoundRows.filter((x) => Number(x.betAmount || 0) < Number(x.cashOutAmount || 0));
+    }
+    if (selectedGameFromQuery === 'FunTimer' && gameStatusFilter === 'lost') {
+      return funTimerRoundRows.filter((x) => Number(x.betAmount || 0) > Number(x.cashOutAmount || 0));
+    }
+    return funTimerRoundRows;
+  }, [funTimerRoundRows, gameStatusFilter, selectedGameFromQuery]);
+  const filteredRouletteRoundRows = useMemo(() => {
+    if (selectedGameFromQuery === 'Roulette' && gameStatusFilter === 'won') {
+      return rouletteRoundRows.filter((x) => Number(x.betAmount || 0) < Number(x.cashOutAmount || 0));
+    }
+    if (selectedGameFromQuery === 'Roulette' && gameStatusFilter === 'lost') {
+      return rouletteRoundRows.filter((x) => Number(x.betAmount || 0) > Number(x.cashOutAmount || 0));
+    }
+    return rouletteRoundRows;
+  }, [rouletteRoundRows, gameStatusFilter, selectedGameFromQuery]);
 
   // Draft state for modal
   const [draftSessions, setDraftSessions] = useState([]);
@@ -723,12 +735,12 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                         { key: 'won', label: 'Win' },
                         { key: 'lost', label: 'Lost' },
                       ].map((f) => {
-                        const active = aviatorStatusFilter === f.key;
+                        const active = gameStatusFilter === f.key;
                         return (
                           <button
                             key={f.key}
                             type="button"
-                            onClick={() => setAviatorStatusFilter(f.key)}
+                            onClick={() => setGameStatusFilter(f.key)}
                             className={`min-h-[38px] px-4 rounded-xl text-sm font-bold border-2 transition-colors ${
                               active
                                 ? 'bg-[#1B3150] border-[#1B3150] text-white shadow-sm'
@@ -761,18 +773,100 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                   </section>
                 )}
                 {selectedGameFromQuery === 'FunTimer' && (
-                  <GameSpecificHistorySection
-                    title="FunTimer Bet History"
-                    rows={funTimerRows}
-                    hasUser={!!userId}
-                  />
+                  <section className="p-0">
+                    <h3 className="text-base sm:text-lg font-bold text-[#1B3150] mb-3">FunTimer Bet History</h3>
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 mr-1">Result</span>
+                      {[
+                        { key: 'all', label: 'All' },
+                        { key: 'won', label: 'Win' },
+                        { key: 'lost', label: 'Lost' },
+                      ].map((f) => {
+                        const active = gameStatusFilter === f.key;
+                        return (
+                          <button
+                            key={f.key}
+                            type="button"
+                            onClick={() => setGameStatusFilter(f.key)}
+                            className={`min-h-[38px] px-4 rounded-xl text-sm font-bold border-2 transition-colors ${
+                              active
+                                ? 'bg-[#1B3150] border-[#1B3150] text-white shadow-sm'
+                                : 'bg-white border-gray-300 text-[#1B3150] hover:border-[#1B3150]/40 hover:bg-gray-50'
+                            }`}
+                          >
+                            {f.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {filteredFunTimerRoundRows.length === 0 ? (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        {userId ? 'No FunTimer records found for selected filter.' : 'Please login to see your FunTimer bet history.'}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {filteredFunTimerRoundRows.map((row) => (
+                          <AviatorBetHistoryCard
+                            key={row.key}
+                            index={row.index}
+                            betId={row.betId}
+                            betAmount={row.betAmount}
+                            cashOutAmount={row.cashOutAmount}
+                            timeFormatted={row.timeFormatted}
+                            gameName="FunTimer"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
                 )}
                 {selectedGameFromQuery === 'Roulette' && (
-                  <GameSpecificHistorySection
-                    title="Roulette Bet History"
-                    rows={rouletteRows}
-                    hasUser={!!userId}
-                  />
+                  <section className="p-0">
+                    <h3 className="text-base sm:text-lg font-bold text-[#1B3150] mb-3">Roulette Bet History</h3>
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 mr-1">Result</span>
+                      {[
+                        { key: 'all', label: 'All' },
+                        { key: 'won', label: 'Win' },
+                        { key: 'lost', label: 'Lost' },
+                      ].map((f) => {
+                        const active = gameStatusFilter === f.key;
+                        return (
+                          <button
+                            key={f.key}
+                            type="button"
+                            onClick={() => setGameStatusFilter(f.key)}
+                            className={`min-h-[38px] px-4 rounded-xl text-sm font-bold border-2 transition-colors ${
+                              active
+                                ? 'bg-[#1B3150] border-[#1B3150] text-white shadow-sm'
+                                : 'bg-white border-gray-300 text-[#1B3150] hover:border-[#1B3150]/40 hover:bg-gray-50'
+                            }`}
+                          >
+                            {f.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {filteredRouletteRoundRows.length === 0 ? (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        {userId ? 'No Roulette records found for selected filter.' : 'Please login to see your Roulette bet history.'}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {filteredRouletteRoundRows.map((row) => (
+                          <AviatorBetHistoryCard
+                            key={row.key}
+                            index={row.index}
+                            betId={row.betId}
+                            betAmount={row.betAmount}
+                            cashOutAmount={row.cashOutAmount}
+                            timeFormatted={row.timeFormatted}
+                            gameName="Roulette"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
                 )}
               </>
             )
