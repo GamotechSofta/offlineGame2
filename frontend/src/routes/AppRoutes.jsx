@@ -109,7 +109,7 @@ const Layout = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (isTwoDGamePage || isThreeDGamePage) return;
+    if (isLotteryFullScreenPage) return;
     const releaseFullscreenAndRotatePortrait = async () => {
       try {
         if (document.fullscreenElement && document.exitFullscreen) {
@@ -131,7 +131,7 @@ const Layout = ({ children }) => {
       }
     };
     releaseFullscreenAndRotatePortrait();
-  }, [isThreeDGamePage, isTwoDGamePage, location.pathname]);
+  }, [isLotteryFullScreenPage, location.pathname]);
 
   useEffect(() => {
     const checkPortraitNeed = () => {

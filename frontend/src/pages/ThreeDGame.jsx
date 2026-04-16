@@ -27,6 +27,7 @@ import {
 import TicketListModal from '../components/threeD/TicketListModal';
 import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
 import { getBalance, updateUserBalance } from '../api/bets';
+import { getQuizSlotResultsForDate } from '../api/quizApi';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
 const MODE_GROUP_COMBO = MODE_OPTIONS.slice(0, 7);
@@ -37,7 +38,6 @@ const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
 const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
 const STORAGE_KEY = 'matka3d-bets';
 const TICKET_HISTORY_KEY = '3d-ticket-history';
-const RESULT_HISTORY_KEY = '3d-result-history';
 const WALLET_TX_HISTORY_KEY = 'wallet-transaction-history';
 const QUIZ_SELECTION_KEY = '3d-selected-quiz-id';
 const HEADER_MENU_ITEMS = [
@@ -62,8 +62,19 @@ const VALID_MODES = new Set(['single', 'str', 'box', 'sp', 'fp', 'bp', 'ap', 'du
 const LPICK_OPTIONS = ['single', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'duplicates', 'triples'];
 const BASE_WIDTH = 1536;
 const BASE_HEIGHT = 864;
-const RESULT_MODAL_BASE_WIDTH = 1220;
-const RESULT_MODAL_BASE_HEIGHT = 760;
+const RESULT_PANEL_SET_STARTS = { A: 1, B: 11, C: 21 };
+
+const deriveThreeDigitSetValue = (results, setStartQuizId) => {
+  const byQuiz = new Map((Array.isArray(results) ? results : []).map((r) => [r.quizId, r.result]));
+  const digits = [0, 1, 2].map((offset) => {
+    const quizId = setStartQuizId + offset;
+    const raw = byQuiz.get(quizId);
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 0 || n > 99) return '-';
+    return String(n).padStart(2, '0').slice(-1);
+  });
+  return digits.join('');
+};
 
 const ThreeDGame = () => {
   const navigate = useNavigate();
@@ -137,15 +148,9 @@ const ThreeDGame = () => {
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   });
-  const [resultHistory, setResultHistory] = useState(() => {
-    try {
-      const raw = localStorage.getItem(RESULT_HISTORY_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [resultSlots, setResultSlots] = useState([]);
+  const [resultLoading, setResultLoading] = useState(false);
+  const [resultError, setResultError] = useState('');
   const [ticketHistory, setTicketHistory] = useState(() => {
     try {
       const raw = localStorage.getItem(TICKET_HISTORY_KEY);
@@ -295,12 +300,6 @@ const ThreeDGame = () => {
     () => viewport.width <= 1200 || viewport.height <= 700,
     [viewport.height, viewport.width],
   );
-  const resultModalScale = useMemo(() => {
-    const horizontal = Math.max(0.35, (viewport.width - 120) / RESULT_MODAL_BASE_WIDTH);
-    const vertical = Math.max(0.35, (viewport.height - 140) / RESULT_MODAL_BASE_HEIGHT);
-    // Keep this as popup size, not fullscreen takeover.
-    return Math.min(horizontal, vertical, 0.82);
-  }, [viewport.height, viewport.width]);
   const inputNumberDisplay = useMemo(
     () => (activeInputIndex === 0 ? `${inputNumber || ''} |` : inputNumber),
     [activeInputIndex, inputNumber],
@@ -318,32 +317,10 @@ const ThreeDGame = () => {
     [activeInputIndex, qty],
   );
 
-  const pushResultToHistory = useCallback((newResult, createdAt = new Date()) => {
-    const d = new Date(createdAt);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const dateKey = `${y}-${m}-${day}`;
-    const time = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
-      .format(d)
-      .replace(/\s?(am|pm)$/i, (match) => ` ${match.trim().toUpperCase()}`);
-    const row = {
-      id: `${d.getTime()}-${newResult.A.join('')}-${newResult.B.join('')}-${newResult.C.join('')}`,
-      createdAt: d.toISOString(),
-      dateKey,
-      time,
-      A: newResult.A.join(''),
-      B: newResult.B.join(''),
-      C: newResult.C.join(''),
-    };
-    setResultHistory((prev) => [row, ...prev].slice(0, 500));
-  }, []);
-
-  const applyFreshResult = useCallback((newResult, createdAt = new Date()) => {
+  const applyFreshResult = useCallback((newResult) => {
     setResults(newResult);
     setResultUpdatedAt(Date.now());
-    pushResultToHistory(newResult, createdAt);
-  }, [pushResultToHistory]);
+  }, []);
 
   const runClockTick = useCallback(() => {
     const current = new Date();
@@ -353,7 +330,7 @@ const ThreeDGame = () => {
     setNextDrawAt(meta.nextDraw);
     if (slotRef.current !== meta.slotKey) {
       slotRef.current = meta.slotKey;
-      applyFreshResult(generate3DResult(), current);
+      applyFreshResult(generate3DResult());
     }
   }, [applyFreshResult]);
 
@@ -411,16 +388,36 @@ const ThreeDGame = () => {
   }, [ticketHistory]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(RESULT_HISTORY_KEY, JSON.stringify(resultHistory));
-    } catch (_) {}
-  }, [resultHistory]);
-
-  useEffect(() => {
     if (!toast) return undefined;
     const t = setTimeout(() => setToast(''), 1800);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    if (!isResultModalOpen || !resultFilterKey) return undefined;
+    let cancelled = false;
+    const loadResults = async () => {
+      setResultLoading(true);
+      setResultError('');
+      try {
+        const j = await getQuizSlotResultsForDate(resultFilterKey);
+        if (!cancelled && j.success && j.data) {
+          setResultSlots(Array.isArray(j.data.slots) ? j.data.slots : []);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setResultSlots([]);
+          setResultError(e.message || 'Failed to load result history.');
+        }
+      } finally {
+        if (!cancelled) setResultLoading(false);
+      }
+    };
+    loadResults();
+    return () => {
+      cancelled = true;
+    };
+  }, [isResultModalOpen, resultFilterKey]);
 
   useEffect(() => {
     if (!bets.length) return undefined;
@@ -437,13 +434,17 @@ const ThreeDGame = () => {
         .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`),
     [now],
   );
-  const resultRowsLimit = useMemo(() => (isMobileView ? 24 : 16), [isMobileView]);
   const resultModalRows = useMemo(() => {
-    return resultHistory
-      .filter((row) => row.dateKey === resultFilterKey)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, resultRowsLimit);
-  }, [resultFilterKey, resultHistory, resultRowsLimit]);
+    return (resultSlots || []).map((slot) => {
+      return {
+        id: slot?.slotStartIso || `${slot?.timeLabel || 'slot'}-abc`,
+        time: slot?.timeLabel || '-',
+        A: deriveThreeDigitSetValue(slot?.results, RESULT_PANEL_SET_STARTS.A),
+        B: deriveThreeDigitSetValue(slot?.results, RESULT_PANEL_SET_STARTS.B),
+        C: deriveThreeDigitSetValue(slot?.results, RESULT_PANEL_SET_STARTS.C),
+      };
+    });
+  }, [resultSlots]);
 
   const timeToDrawText = useMemo(
     () =>
@@ -1009,7 +1010,7 @@ const ThreeDGame = () => {
 
   const handleAdvance = useCallback(() => {
     if (!window.confirm('Are you sure to generate next result?')) return;
-    applyFreshResult(generate3DResult(), new Date());
+    applyFreshResult(generate3DResult());
     setTimerSeconds(GAME_INTERVAL_SECONDS);
     setNextDrawAt(getNextDrawTime(new Date()));
   }, [applyFreshResult]);
@@ -1032,7 +1033,7 @@ const ThreeDGame = () => {
       return;
     }
     if (label.toLowerCase() === 'refresh') {
-      applyFreshResult(generate3DResult(), new Date());
+      applyFreshResult(generate3DResult());
       setToast('Result Refreshed');
       return;
     }
@@ -1772,221 +1773,144 @@ const ThreeDGame = () => {
           onClose={() => setSelectedTicket(null)}
         />
         {canUsePortal && isResultModalOpen ? createPortal(
-          isMobileView ? (
-            <div className="fixed inset-0 z-[88] flex items-center justify-center bg-black/45 p-2">
-              <div className="flex h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#8d8d8d] bg-[#d4d7dd] shadow-2xl">
-                <div className="flex items-center justify-between bg-[#e5354c] px-3 py-2 text-white">
-                  <h3 className="truncate text-[20px] font-black tracking-wide">
-                    3D Result <span className="ml-1 text-[18px]">{`${resultDateDay}-${resultDateMonth}-${resultDateYear}`}</span>
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setIsResultModalOpen(false)}
-                    className="rounded bg-black/10 px-2 py-0.5 text-[24px] font-bold leading-none hover:bg-black/20"
-                    aria-label="Close result modal"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="grid grid-cols-[1fr_auto] items-center gap-2 border-b border-[#bcc2cc] bg-[#cfd4dc] p-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[24px] font-black text-[#1f2937]">Date :</span>
-                    <input
-                      type="text"
-                      value={resultDateDay}
-                      onChange={(e) => setResultDateDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                      className="h-9 w-11 rounded-md border border-[#c2c6ce] bg-[#f3f4f6] text-center text-[22px] font-black text-[#4b5563]"
-                    />
-                    <input
-                      type="text"
-                      value={resultDateMonth}
-                      onChange={(e) => setResultDateMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                      className="h-9 w-11 rounded-md border border-[#c2c6ce] bg-[#f3f4f6] text-center text-[22px] font-black text-[#4b5563]"
-                    />
-                    <input
-                      type="text"
-                      value={resultDateYear}
-                      onChange={(e) => setResultDateYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      className="h-9 w-[62px] rounded-md border border-[#c2c6ce] bg-[#f3f4f6] text-center text-[22px] font-black text-[#4b5563]"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={applyResultDateFilter}
-                    className="h-9 rounded-lg bg-[#234372] px-3 text-[18px] font-black text-white shadow-[0_6px_18px_rgba(15,23,42,0.35)]"
-                  >
-                    Show
-                  </button>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto bg-[#e5e7eb] p-2">
-                  <div className="min-w-0">
-                    <div className="grid grid-cols-[78px_repeat(3,minmax(0,1fr))] gap-1.5">
-                      <div className="flex h-9 items-center justify-center rounded-md border border-[#9ca3af] bg-[#f3f4f6] text-[14px] font-black text-[#374151]">TIME</div>
-                      <div className="flex h-9 items-center justify-center rounded-md bg-gradient-to-b from-[#3f66c9] to-[#2f4ea6] text-[18px] font-black text-white">A</div>
-                      <div className="flex h-9 items-center justify-center rounded-md bg-gradient-to-b from-[#ea4f08] to-[#cc3f00] text-[18px] font-black text-white">B</div>
-                      <div className="flex h-9 items-center justify-center rounded-md bg-gradient-to-b from-[#31925d] to-[#2b7f52] text-[18px] font-black text-white">C</div>
-                    </div>
-                    <div className="mt-1.5 space-y-1.5">
-                      {resultModalRows.length ? resultModalRows.map((row) => (
-                        <div key={row.id} className="grid grid-cols-[78px_repeat(3,minmax(0,1fr))] gap-1.5">
-                          <div className="flex h-[44px] items-center justify-center rounded-md border border-[#9ca3af] bg-black px-1 text-[11px] font-black leading-tight text-white">
-                            {row.time}
-                          </div>
-                          <div className="grid h-[44px] grid-cols-3 overflow-hidden rounded-md border border-[#5f77b8] bg-gradient-to-b from-[#3f66c9] to-[#2f4ea6] text-[24px] font-black text-white">
-                            {row.A.split('').map((digit, idx) => (
-                              <span key={`A-m-${row.id}-${idx}`} className="flex items-center justify-center border-r border-white/35 last:border-r-0">{digit}</span>
-                            ))}
-                          </div>
-                          <div className="grid h-[44px] grid-cols-3 overflow-hidden rounded-md border border-[#b65935] bg-gradient-to-b from-[#ea4f08] to-[#cc3f00] text-[24px] font-black text-white">
-                            {row.B.split('').map((digit, idx) => (
-                              <span key={`B-m-${row.id}-${idx}`} className="flex items-center justify-center border-r border-white/35 last:border-r-0">{digit}</span>
-                            ))}
-                          </div>
-                          <div className="grid h-[44px] grid-cols-3 overflow-hidden rounded-md border border-[#4b8d68] bg-gradient-to-b from-[#31925d] to-[#2b7f52] text-[24px] font-black text-white">
-                            {row.C.split('').map((digit, idx) => (
-                              <span key={`C-m-${row.id}-${idx}`} className="flex items-center justify-center border-r border-white/35 last:border-r-0">{digit}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )) : (
-                        <div className="rounded-md border border-[#b8bfca] bg-[#f8fafc] px-4 py-6 text-center text-[14px] font-semibold text-[#475569]">
-                          No result found for selected date.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {lastTicket ? (
-                  <div className="truncate border-t border-[#b9bec7] bg-[#d4d7dd] px-3 py-1.5 text-[10px] font-semibold text-[#374151]">
-                    Last Ticket: <span className="font-bold">{lastTicket.gameId}</span> | Outcome:{' '}
-                    <span className={lastTicket.outcome === 'win' ? 'text-[#15803d]' : 'text-[#b91c1c]'}>
-                      {String(lastTicket.outcome || '-').toUpperCase()}
-                    </span>{' '}
-                    | Win: <span className="font-bold">{lastTicket.totalWin ?? 0}</span>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <div className="fixed inset-0 z-[88] flex items-center justify-center bg-black/45 p-4">
-              <div
-                className="relative"
-                style={{
-                  width: `${RESULT_MODAL_BASE_WIDTH * resultModalScale}px`,
-                  height: `${RESULT_MODAL_BASE_HEIGHT * resultModalScale}px`,
-                }}
-              >
-                <div
-                  className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#8d8d8d] bg-[#d4d7dd] shadow-2xl"
-                  style={{
-                    width: `${RESULT_MODAL_BASE_WIDTH}px`,
-                    height: `${RESULT_MODAL_BASE_HEIGHT}px`,
-                    transform: `scale(${resultModalScale})`,
-                    transformOrigin: 'top left',
-                  }}
+          <div className="fixed inset-0 z-[88] flex items-center justify-center bg-black/55 p-3 sm:p-4">
+            <div className="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#8d8d8d] bg-[#d4d7dd] shadow-2xl">
+              <div className="flex items-center justify-between bg-[#e5354c] px-3 py-2 text-white sm:px-4">
+                <h3 className="truncate text-lg font-black tracking-wide sm:text-2xl">
+                  3D Result
+                  <span className="ml-2 text-base sm:text-xl">{`${resultDateDay}-${resultDateMonth}-${resultDateYear}`}</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsResultModalOpen(false)}
+                  className="rounded bg-black/10 px-2 py-0.5 text-3xl font-bold leading-none hover:bg-black/20"
+                  aria-label="Close result modal"
                 >
-                  <div className="flex items-center justify-between bg-[#e5354c] px-3 py-2 text-white sm:px-6 sm:py-3">
-                    <h3 className="truncate text-[clamp(1rem,4vw,2.5rem)] font-black tracking-wide">
-                      3D Result <span className="ml-2">{`${resultDateDay}-${resultDateMonth}-${resultDateYear}`}</span>
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => setIsResultModalOpen(false)}
-                      className="rounded bg-black/10 px-3 py-1 text-[26px] font-bold leading-none hover:bg-black/20 sm:text-[40px]"
-                      aria-label="Close result modal"
-                    >
-                      ×
-                    </button>
+                  ×
+                </button>
+              </div>
+
+              <div className="grid gap-2 border-b border-[#bcc2cc] bg-[#cfd4dc] p-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3 sm:p-3">
+                <div className="grid grid-cols-[auto_56px_56px_88px] items-center gap-2">
+                  <span className="text-sm font-bold text-[#1f2937] sm:text-base">Date</span>
+                  <input
+                    type="text"
+                    value={resultDateDay}
+                    onChange={(e) => setResultDateDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    className="h-9 rounded-md border border-[#c2c6ce] bg-[#f3f4f6] text-center text-base font-bold text-[#4b5563]"
+                    placeholder="DD"
+                  />
+                  <input
+                    type="text"
+                    value={resultDateMonth}
+                    onChange={(e) => setResultDateMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    className="h-9 rounded-md border border-[#c2c6ce] bg-[#f3f4f6] text-center text-base font-bold text-[#4b5563]"
+                    placeholder="MM"
+                  />
+                  <input
+                    type="text"
+                    value={resultDateYear}
+                    onChange={(e) => setResultDateYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    className="h-9 rounded-md border border-[#c2c6ce] bg-[#f3f4f6] text-center text-base font-bold text-[#4b5563]"
+                    placeholder="YYYY"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={applyResultDateFilter}
+                  className="h-9 rounded-lg bg-[#234372] px-4 text-sm font-black text-white shadow-[0_6px_18px_rgba(15,23,42,0.35)] sm:min-w-[120px]"
+                >
+                  Show Result
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto bg-[#e5e7eb] p-2 sm:p-3">
+                {resultLoading && (
+                  <div className="rounded-md border border-[#b8bfca] bg-[#f8fafc] px-4 py-8 text-center text-sm font-semibold text-[#475569]">
+                    Loading result history...
                   </div>
-                  <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_240px] gap-3 bg-[#cfd4dc] p-3">
-                    <div className="min-h-0 overflow-hidden rounded-xl border border-[#babec7] bg-[#e5e7eb] p-2 sm:p-3">
-                      <div className="min-h-0 overflow-auto">
-                        <div className="min-w-[620px]">
-                          <div className="grid grid-cols-[84px_repeat(3,minmax(0,1fr))] gap-1.5 sm:grid-cols-[98px_repeat(3,minmax(0,1fr))] sm:gap-2">
-                            <div className="flex h-10 items-center justify-center rounded-md border border-[#9ca3af] bg-[#f3f4f6] text-[19px] font-black text-[#374151] sm:h-12 sm:text-[30px]">
-                              TIME
-                            </div>
-                            <div className="flex h-10 items-center justify-center rounded-md bg-gradient-to-b from-[#3f66c9] to-[#2f4ea6] text-[22px] font-black text-white sm:h-12 sm:text-[34px]">A</div>
-                            <div className="flex h-10 items-center justify-center rounded-md bg-gradient-to-b from-[#ea4f08] to-[#cc3f00] text-[22px] font-black text-white sm:h-12 sm:text-[34px]">B</div>
-                            <div className="flex h-10 items-center justify-center rounded-md bg-gradient-to-b from-[#31925d] to-[#2b7f52] text-[22px] font-black text-white sm:h-12 sm:text-[34px]">C</div>
-                          </div>
-                          <div className="mt-2 max-h-[52vh] space-y-1.5 overflow-y-auto pr-1 sm:space-y-2">
-                            {resultModalRows.length ? resultModalRows.map((row) => (
-                              <div key={row.id} className="grid grid-cols-[84px_repeat(3,minmax(0,1fr))] gap-1.5 sm:grid-cols-[98px_repeat(3,minmax(0,1fr))] sm:gap-2">
-                                <div className="flex h-[60px] items-center justify-center rounded-md border border-[#9ca3af] bg-black px-1 text-[16px] font-black leading-tight text-white sm:h-[84px] sm:text-[30px]">
-                                  {row.time}
-                                </div>
-                                <div className="grid h-[60px] grid-cols-3 overflow-hidden rounded-md border border-[#5f77b8] bg-gradient-to-b from-[#3f66c9] to-[#2f4ea6] text-[clamp(1.6rem,4vw,3.2rem)] font-black text-white sm:h-[84px]">
-                                  {row.A.split('').map((digit, idx) => (
-                                    <span key={`A-${row.id}-${idx}`} className="flex items-center justify-center border-r border-white/35 last:border-r-0">{digit}</span>
-                                  ))}
-                                </div>
-                                <div className="grid h-[60px] grid-cols-3 overflow-hidden rounded-md border border-[#b65935] bg-gradient-to-b from-[#ea4f08] to-[#cc3f00] text-[clamp(1.6rem,4vw,3.2rem)] font-black text-white sm:h-[84px]">
-                                  {row.B.split('').map((digit, idx) => (
-                                    <span key={`B-${row.id}-${idx}`} className="flex items-center justify-center border-r border-white/35 last:border-r-0">{digit}</span>
-                                  ))}
-                                </div>
-                                <div className="grid h-[60px] grid-cols-3 overflow-hidden rounded-md border border-[#4b8d68] bg-gradient-to-b from-[#31925d] to-[#2b7f52] text-[clamp(1.6rem,4vw,3.2rem)] font-black text-white sm:h-[84px]">
-                                  {row.C.split('').map((digit, idx) => (
-                                    <span key={`C-${row.id}-${idx}`} className="flex items-center justify-center border-r border-white/35 last:border-r-0">{digit}</span>
-                                  ))}
-                                </div>
-                              </div>
-                            )) : (
-                              <div className="rounded-md border border-[#b8bfca] bg-[#f8fafc] px-4 py-6 text-center text-[16px] font-semibold text-[#475569]">
-                                No result found for selected date.
-                              </div>
-                            )}
-                          </div>
+                )}
+                {!resultLoading && resultError && (
+                  <div className="rounded-md border border-[#f0b5b5] bg-[#fff1f1] px-4 py-8 text-center text-sm font-semibold text-[#b91c1c]">
+                    {resultError}
+                  </div>
+                )}
+                {!resultLoading && !resultError && (
+                <>
+                <div className="hidden min-w-[460px] sm:block">
+                  <div className="grid grid-cols-[130px_repeat(3,minmax(0,1fr))] gap-2">
+                    <div className="flex h-10 items-center justify-center rounded-md border border-[#9ca3af] bg-[#f3f4f6] text-sm font-black text-[#374151]">TIME</div>
+                    <div className="flex h-10 items-center justify-center rounded-md bg-gradient-to-b from-[#3f66c9] to-[#2f4ea6] text-lg font-black text-white">A</div>
+                    <div className="flex h-10 items-center justify-center rounded-md bg-gradient-to-b from-[#ea4f08] to-[#cc3f00] text-lg font-black text-white">B</div>
+                    <div className="flex h-10 items-center justify-center rounded-md bg-gradient-to-b from-[#31925d] to-[#2b7f52] text-lg font-black text-white">C</div>
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {resultModalRows.length ? resultModalRows.map((row) => (
+                      <div key={row.id} className="grid grid-cols-[130px_repeat(3,minmax(0,1fr))] gap-2">
+                        <div className="flex h-12 items-center justify-center rounded-md border border-[#9ca3af] bg-black px-1 text-xs font-bold text-white">
+                          {row.time}
+                        </div>
+                        <div className="grid h-12 grid-cols-1 overflow-hidden rounded-md border border-[#5f77b8] bg-gradient-to-b from-[#3f66c9] to-[#2f4ea6] text-2xl font-black text-white">
+                          <span className="flex items-center justify-center tracking-[0.25em]">{row.A}</span>
+                        </div>
+                        <div className="grid h-12 grid-cols-1 overflow-hidden rounded-md border border-[#b65935] bg-gradient-to-b from-[#ea4f08] to-[#cc3f00] text-2xl font-black text-white">
+                          <span className="flex items-center justify-center tracking-[0.25em]">{row.B}</span>
+                        </div>
+                        <div className="grid h-12 grid-cols-1 overflow-hidden rounded-md border border-[#4b8d68] bg-gradient-to-b from-[#31925d] to-[#2b7f52] text-2xl font-black text-white">
+                          <span className="flex items-center justify-center tracking-[0.25em]">{row.C}</span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="rounded-md border border-[#b8bfca] bg-[#f8fafc] px-4 py-8 text-center text-sm font-semibold text-[#475569]">
+                        No result found for selected date.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 sm:hidden">
+                  {resultModalRows.length ? resultModalRows.map((row) => (
+                    <div key={`mobile-${row.id}`} className="rounded-lg border border-[#b8bfca] bg-[#f8fafc] p-2">
+                      <div className="mb-2 flex items-center justify-between text-xs font-bold text-[#334155]">
+                        <span>TIME</span>
+                        <span>{row.time}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded-md border border-[#5f77b8] bg-gradient-to-b from-[#3f66c9] to-[#2f4ea6] p-1 text-center text-white">
+                          <div className="mb-1 text-[10px] font-bold">A</div>
+                          <div className="font-black tracking-[0.22em]">{row.A}</div>
+                        </div>
+                        <div className="rounded-md border border-[#b65935] bg-gradient-to-b from-[#ea4f08] to-[#cc3f00] p-1 text-center text-white">
+                          <div className="mb-1 text-[10px] font-bold">B</div>
+                          <div className="font-black tracking-[0.22em]">{row.B}</div>
+                        </div>
+                        <div className="rounded-md border border-[#4b8d68] bg-gradient-to-b from-[#31925d] to-[#2b7f52] p-1 text-center text-white">
+                          <div className="mb-1 text-[10px] font-bold">C</div>
+                          <div className="font-black tracking-[0.22em]">{row.C}</div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex min-h-[170px] flex-col rounded-xl border border-[#babec7] bg-[#dde1e8] p-3 sm:min-h-[210px] sm:p-4">
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[30px] font-black text-[#1f2937] sm:text-[42px]">
-                        <span className="shrink-0">Date :</span>
-                        <input
-                          type="text"
-                          value={resultDateDay}
-                          onChange={(e) => setResultDateDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                          className="h-14 w-14 rounded-lg border border-[#c2c6ce] bg-[#f3f4f6] text-center text-[30px] font-black text-[#4b5563] sm:h-[72px] sm:w-[74px] sm:text-[36px]"
-                        />
-                        <input
-                          type="text"
-                          value={resultDateMonth}
-                          onChange={(e) => setResultDateMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                          className="h-14 w-14 rounded-lg border border-[#c2c6ce] bg-[#f3f4f6] text-center text-[30px] font-black text-[#4b5563] sm:h-[72px] sm:w-[74px] sm:text-[36px]"
-                        />
-                        <input
-                          type="text"
-                          value={resultDateYear}
-                          onChange={(e) => setResultDateYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                          className="h-14 w-[82px] rounded-lg border border-[#c2c6ce] bg-[#f3f4f6] text-center text-[30px] font-black text-[#4b5563] sm:h-[72px] sm:w-[96px] sm:text-[36px]"
-                        />
-                      </div>
-                      <div className="mt-auto pt-4 sm:pt-6">
-                        <button
-                          type="button"
-                          onClick={applyResultDateFilter}
-                          className="h-12 w-full rounded-xl bg-[#234372] text-[26px] font-black text-white shadow-[0_6px_18px_rgba(15,23,42,0.35)] sm:h-[86px] sm:text-[45px]"
-                        >
-                          Show Result
-                        </button>
-                      </div>
+                  )) : (
+                    <div className="rounded-md border border-[#b8bfca] bg-[#f8fafc] px-4 py-8 text-center text-sm font-semibold text-[#475569]">
+                      No result found for selected date.
                     </div>
-                  </div>
-                  {lastTicket ? (
-                    <div className="border-t border-[#b9bec7] bg-[#d4d7dd] px-5 py-3 text-[14px] font-semibold text-[#374151]">
-                      Last Ticket: <span className="font-bold">{lastTicket.gameId}</span> | Outcome:{' '}
-                      <span className={lastTicket.outcome === 'win' ? 'text-[#15803d]' : 'text-[#b91c1c]'}>
-                        {String(lastTicket.outcome || '-').toUpperCase()}
-                      </span>{' '}
-                      | Win: <span className="font-bold">{lastTicket.totalWin ?? 0}</span>
-                    </div>
-                  ) : null}
+                  )}
                 </div>
+                </>
+                )}
               </div>
+
+              {lastTicket ? (
+                <div className="border-t border-[#b9bec7] bg-[#d4d7dd] px-3 py-2 text-xs font-semibold text-[#374151] sm:px-4 sm:text-sm">
+                  Last Ticket: <span className="font-bold">{lastTicket.gameId}</span> | Outcome:{' '}
+                  <span className={lastTicket.outcome === 'win' ? 'text-[#15803d]' : 'text-[#b91c1c]'}>
+                    {String(lastTicket.outcome || '-').toUpperCase()}
+                  </span>{' '}
+                  | Win: <span className="font-bold">{lastTicket.totalWin ?? 0}</span>
+                </div>
+              ) : null}
             </div>
-          )
+          </div>
         , document.body) : null}
         {showRotatePrompt ? (
           <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
