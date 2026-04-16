@@ -43,7 +43,6 @@ const HEADER_MENU_ITEMS = [
   { label: 'Quiz', Icon: HelpCircle },
   { label: 'Ticket List', Icon: ClipboardList },
   { label: 'Cancel', Icon: CircleX },
-  { label: 'Password', Icon: KeyRound },
   { label: 'Refresh', Icon: RefreshCw },
   { label: 'Logout', Icon: LogOut },
 ];
@@ -71,6 +70,31 @@ const deriveThreeDigitSetValue = (results, setStartQuizId) => {
     return String(n).padStart(2, '0').slice(-1);
   });
   return digits.join('');
+};
+
+const toIstDayKey = (d = new Date()) => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(d);
+    const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+    return `${map.year}-${map.month}-${map.day}`;
+  } catch (_) {
+    const x = new Date(d);
+    const y = x.getFullYear();
+    const m = String(x.getMonth() + 1).padStart(2, '0');
+    const day = String(x.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+};
+
+const toDigits3 = (value) => {
+  const s = String(value ?? '').replace(/\s+/g, '');
+  if (!s) return ['-', '-', '-'];
+  return s.padStart(3, '-').slice(-3).split('');
 };
 
 const ThreeDGame = () => {
@@ -117,6 +141,7 @@ const ThreeDGame = () => {
   const [lastTxnId, setLastTxnId] = useState('GM00000000000000');
   const [lastPoints, setLastPoints] = useState(0);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isTicketListOpen, setIsTicketListOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
@@ -133,11 +158,20 @@ const ThreeDGame = () => {
   const [resultSlots, setResultSlots] = useState([]);
   const [resultLoading, setResultLoading] = useState(false);
   const [resultError, setResultError] = useState('');
+  const [lastDrawResult, setLastDrawResult] = useState(null);
   const [ticketHistory, setTicketHistory] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [playerIdentity, setPlayerIdentity] = useState('user');
 
   const isResultFresh = useMemo(() => Date.now() - resultUpdatedAt < 1400, [resultUpdatedAt, now]);
+  const topDisplayResults = useMemo(() => {
+    if (!lastDrawResult) return results;
+    return {
+      A: toDigits3(lastDrawResult.A),
+      B: toDigits3(lastDrawResult.B),
+      C: toDigits3(lastDrawResult.C),
+    };
+  }, [lastDrawResult, results]);
   const isBuySuccessToast = useMemo(
     () => String(toast || '').toLowerCase() === 'bet placed successfully',
     [toast],
@@ -148,6 +182,19 @@ const ThreeDGame = () => {
     () => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Number(walletBalance) || 0),
     [walletBalance],
   );
+  const accountDetails = useMemo(() => {
+    const user = getCurrentUser() || {};
+    const userId = user?.id || user?._id || '-';
+    const phone = user?.phone || user?.mobile || user?.mobileNumber || '-';
+    const email = user?.email || '-';
+    return {
+      name: playerIdentity || 'user',
+      userId: String(userId),
+      phone: String(phone),
+      email: String(email),
+      wallet: Number(walletBalance) || 0,
+    };
+  }, [playerIdentity, walletBalance]);
 
   const loadStoredBalance = useCallback(() => {
     try {
@@ -324,6 +371,25 @@ const ThreeDGame = () => {
     setResultUpdatedAt(Date.now());
   }, []);
 
+  const refreshLastDrawResult = useCallback(async () => {
+    try {
+      const dayKey = toIstDayKey(new Date());
+      const j = await getQuizSlotResultsForDate(dayKey, 1, '3d');
+      const slots = Array.isArray(j?.data?.slots) ? j.data.slots : [];
+      const slot = slots[0];
+      if (!slot?.results) return;
+      setLastDrawResult({
+        slotStartIso: slot.slotStartIso,
+        timeLabel: slot.timeLabel || '-',
+        A: deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.A),
+        B: deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.B),
+        C: deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.C),
+      });
+    } catch (_) {
+      // optional
+    }
+  }, []);
+
   const runClockTick = useCallback(() => {
     const current = new Date();
     const meta = getSlotMeta(current);
@@ -333,14 +399,19 @@ const ThreeDGame = () => {
     if (slotRef.current !== meta.slotKey) {
       slotRef.current = meta.slotKey;
       applyFreshResult(generate3DResult());
+      refreshLastDrawResult();
     }
-  }, [applyFreshResult]);
+  }, [applyFreshResult, refreshLastDrawResult]);
 
   useEffect(() => {
     runClockTick();
     const id = setInterval(runClockTick, 1000);
     return () => clearInterval(id);
   }, [runClockTick]);
+
+  useEffect(() => {
+    refreshLastDrawResult();
+  }, [refreshLastDrawResult]);
 
   useEffect(() => {
     const onResize = () => {
@@ -1098,6 +1169,10 @@ const ThreeDGame = () => {
       setIsTicketListOpen(true);
       return;
     }
+    if (label.toLowerCase() === 'account') {
+      setIsAccountModalOpen(true);
+      return;
+    }
     if (label.toLowerCase() === 'logout') {
       window.alert('Demo logout action triggered.');
       return;
@@ -1291,16 +1366,16 @@ const ThreeDGame = () => {
             </div>
             <div className="text-[13px] font-bold leading-tight text-slate-600 sm:text-[15px] md:text-[16px]">
               Last Draw:{' '}
-              <span className="font-extrabold tabular-nums text-slate-900">{timeToDrawText}</span>
+              <span className="font-extrabold tabular-nums text-slate-900">{lastDrawResult?.timeLabel || '-'}</span>
             </div>
             <div className="text-[12px] font-bold leading-tight text-slate-700 sm:text-[14px] md:text-[15px]">
               Wallet: <span className="font-extrabold tabular-nums text-emerald-700">₹{formattedWalletBalance}</span>
             </div>
           </div>
           <div className="grid min-w-0 grid-cols-3 gap-1 sm:gap-1.5">
-            <ResultPanel title="A" digits={results.A} isUpdated={isResultFresh} />
-            <ResultPanel title="B" digits={results.B} isUpdated={isResultFresh} />
-            <ResultPanel title="C" digits={results.C} isUpdated={isResultFresh} />
+            <ResultPanel title="A" digits={topDisplayResults.A} isUpdated={isResultFresh} />
+            <ResultPanel title="B" digits={topDisplayResults.B} isUpdated={isResultFresh} />
+            <ResultPanel title="C" digits={topDisplayResults.C} isUpdated={isResultFresh} />
           </div>
           <button
             type="button"
@@ -1975,6 +2050,30 @@ const ThreeDGame = () => {
             </div>
           </div>
         , document.body) : null}
+        {isAccountModalOpen ? (
+          <div className="fixed inset-0 z-[89] flex items-center justify-center bg-black/60 p-3 sm:p-4">
+            <div className="w-full max-w-md rounded-xl border border-[#7b7b7b] bg-[#d4d7dd] shadow-2xl">
+              <div className="flex items-center justify-between bg-[#c71616] px-4 py-2 text-white">
+                <h3 className="text-xl font-black tracking-wide">Account Details</h3>
+                <button
+                  type="button"
+                  onClick={() => setIsAccountModalOpen(false)}
+                  className="rounded bg-black/20 px-2 py-0.5 text-2xl font-bold leading-none hover:bg-black/35"
+                  aria-label="Close account modal"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="space-y-2 bg-[#eceff4] p-4 text-sm font-semibold text-[#1f2937]">
+                <div className="rounded border border-[#c4ccd8] bg-white px-3 py-2">Name: <span className="font-bold">{accountDetails.name}</span></div>
+                <div className="rounded border border-[#c4ccd8] bg-white px-3 py-2">User ID: <span className="font-bold">{accountDetails.userId}</span></div>
+                <div className="rounded border border-[#c4ccd8] bg-white px-3 py-2">Phone: <span className="font-bold">{accountDetails.phone}</span></div>
+                <div className="rounded border border-[#c4ccd8] bg-white px-3 py-2">Email: <span className="font-bold">{accountDetails.email}</span></div>
+                <div className="rounded border border-[#c4ccd8] bg-white px-3 py-2">Wallet: <span className="font-bold text-emerald-700">₹{accountDetails.wallet}</span></div>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {showRotatePrompt ? (
           <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
             <div className="w-full max-w-sm bg-[#111] border border-[#3b3b3b] text-white p-4 text-center rounded">
