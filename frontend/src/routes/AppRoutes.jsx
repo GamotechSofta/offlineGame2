@@ -74,6 +74,11 @@ const PUBLIC_PATHS = ['/login'];
 
 const Layout = ({ children }) => {
   const location = useLocation();
+  const isTwoDGamePage = location.pathname === '/lottery';
+  const isThreeDGamePage = location.pathname === '/lottery/3d';
+  const isLotteryQuizPage = location.pathname === '/lottery/quiz';
+  const isThreeDQuizPage = location.pathname === '/lottery/3d/quiz';
+  const isLotteryFullScreenPage = isTwoDGamePage || isThreeDGamePage || isLotteryQuizPage || isThreeDQuizPage;
   const [hasUser, setHasUser] = useState(() => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -84,6 +89,7 @@ const Layout = ({ children }) => {
   });
   const isLoginPage = location.pathname === '/login';
   const isHomePage = location.pathname === '/';
+  const [showPortraitPrompt, setShowPortraitPrompt] = useState(false);
 
   useEffect(() => {
     const check = () => {
@@ -102,6 +108,84 @@ const Layout = ({ children }) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isTwoDGamePage || isThreeDGamePage) return;
+    const releaseFullscreenAndRotatePortrait = async () => {
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      } catch (_) {
+        // Ignore if browser blocks fullscreen exit.
+      }
+
+      try {
+        if (window.screen?.orientation?.unlock) {
+          window.screen.orientation.unlock();
+        }
+        if (window.screen?.orientation?.lock) {
+          await window.screen.orientation.lock('portrait');
+        }
+      } catch (_) {
+        // Not supported on all mobile browsers/devices.
+      }
+    };
+    releaseFullscreenAndRotatePortrait();
+  }, [isThreeDGamePage, isTwoDGamePage, location.pathname]);
+
+  useEffect(() => {
+    const checkPortraitNeed = () => {
+      const isMobile = window.innerWidth <= 900;
+      const isLandscape = window.innerWidth > window.innerHeight;
+      setShowPortraitPrompt(!isLotteryFullScreenPage && !isLoginPage && isMobile && isLandscape);
+    };
+    checkPortraitNeed();
+    window.addEventListener('resize', checkPortraitNeed);
+    window.addEventListener('orientationchange', checkPortraitNeed);
+    return () => {
+      window.removeEventListener('resize', checkPortraitNeed);
+      window.removeEventListener('orientationchange', checkPortraitNeed);
+    };
+  }, [isLoginPage, isLotteryFullScreenPage, location.pathname]);
+
+  const handleRotatePortrait = async () => {
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch (_) {}
+
+    try {
+      if (window.screen?.orientation?.unlock) {
+        window.screen.orientation.unlock();
+      }
+      if (window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('portrait');
+      }
+    } catch (_) {
+      // Some browsers require manual device rotation.
+    }
+  };
+
+  const portraitPromptOverlay = showPortraitPrompt ? (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4">
+      <div className="w-full max-w-sm rounded border border-[#3b3b3b] bg-[#111] p-4 text-center text-white">
+        <h3 className="mb-2 text-lg font-semibold">Rotate Screen</h3>
+        <p className="mb-4 text-sm text-gray-300">
+          This screen works best in portrait mode.
+          Please rotate your phone vertically.
+        </p>
+        <button
+          type="button"
+          onClick={handleRotatePortrait}
+          className="h-10 w-full rounded border border-[#2563eb] bg-[#3b82f6] font-semibold"
+        >
+          Switch to Portrait
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   // Unauthenticated: redirect to login (first visit or after logout)
   const isPublicPath = PUBLIC_PATHS.includes(location.pathname);
   if (!hasUser && !isPublicPath) {
@@ -109,15 +193,17 @@ const Layout = ({ children }) => {
   }
 
   if (isLoginPage) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        {portraitPromptOverlay}
+      </>
+    );
   }
 
   // Lottery: full-screen, no header or navbar
   if (
-    location.pathname === '/lottery' ||
-    location.pathname === '/lottery/3d' ||
-    location.pathname === '/lottery/quiz' ||
-    location.pathname === '/lottery/3d/quiz'
+    isLotteryFullScreenPage
   ) {
     return <>{children}</>;
   }
@@ -131,6 +217,7 @@ const Layout = ({ children }) => {
           {children}
         </div>
         <BottomNavbar />
+        {portraitPromptOverlay}
       </div>
     );
   }
@@ -142,6 +229,7 @@ const Layout = ({ children }) => {
         {children}
       </div>
       <BottomNavbar />
+      {portraitPromptOverlay}
     </div>
   );
 };

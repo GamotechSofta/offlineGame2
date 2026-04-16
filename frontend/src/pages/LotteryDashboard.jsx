@@ -469,8 +469,27 @@ const LotteryDashboard = () => {
     setShowResults(true);
   }, []);
 
-  const handleBackToHome = useCallback(() => {
+  const handleBackToHome = useCallback(async () => {
     // Back button should only navigate to home, never logout.
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch (_) {
+      // Ignore if browser blocks exitFullscreen.
+    }
+
+    try {
+      if (window.screen?.orientation?.unlock) {
+        window.screen.orientation.unlock();
+      }
+      if (window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('portrait');
+      }
+    } catch (_) {
+      // Not supported on all mobile browsers/devices.
+    }
+
     navigate('/');
   }, [navigate]);
 

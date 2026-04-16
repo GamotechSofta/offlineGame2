@@ -4,6 +4,7 @@ import {
   ClipboardList,
   CircleX,
   HelpCircle,
+  House,
   KeyRound,
   LogOut,
   RefreshCw,
@@ -80,7 +81,6 @@ const ThreeDGame = () => {
   const hasSettledRef = useRef(false);
   const isBuyingRef = useRef(false);
   const rangeAutoNextLockRef = useRef(false);
-  const headerMenuRef = useRef(null);
   const [activeInputIndex, setActiveInputIndex] = useState(-1);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : BASE_WIDTH,
@@ -115,7 +115,6 @@ const ThreeDGame = () => {
   });
   const [lastTxnId, setLastTxnId] = useState('GM00000000000000');
   const [lastPoints, setLastPoints] = useState(0);
-  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isTicketListOpen, setIsTicketListOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -422,24 +421,6 @@ const ThreeDGame = () => {
     const t = setTimeout(() => setToast(''), 1800);
     return () => clearTimeout(t);
   }, [toast]);
-
-  useEffect(() => {
-    if (!isHeaderMenuOpen) return undefined;
-    const handleOutsideClick = (event) => {
-      if (headerMenuRef.current && !headerMenuRef.current.contains(event.target)) {
-        setIsHeaderMenuOpen(false);
-      }
-    };
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') setIsHeaderMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isHeaderMenuOpen]);
 
   useEffect(() => {
     if (!bets.length) return undefined;
@@ -1034,7 +1015,6 @@ const ThreeDGame = () => {
   }, [applyFreshResult]);
 
   const handleHeaderAction = useCallback((label) => {
-    setIsHeaderMenuOpen(false);
     if (label.toLowerCase() === 'result') {
       const d = new Date(now);
       const day = String(d.getDate()).padStart(2, '0');
@@ -1081,6 +1061,29 @@ const ThreeDGame = () => {
       // On many mobile browsers this requires user/system support.
     }
   }, []);
+
+  const handleGoHome = useCallback(async () => {
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch (_) {
+      // Ignore if browser blocks exitFullscreen.
+    }
+
+    try {
+      if (window.screen?.orientation?.unlock) {
+        window.screen.orientation.unlock();
+      }
+      if (window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('portrait');
+      }
+    } catch (_) {
+      // Not supported on all mobile browsers/devices.
+    }
+
+    navigate('/');
+  }, [navigate]);
 
   const handleMotorPick = useCallback(() => {
     const digitPool = selectedDigits.length ? [...selectedDigits] : [];
@@ -1234,7 +1237,7 @@ const ThreeDGame = () => {
           </div>
         ) : null}
 
-        <div className="grid min-h-0 grid-cols-[minmax(0,11rem)_minmax(0,1fr)_minmax(2.75rem,3.5rem)] items-stretch gap-1.5 pb-0.5 sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)_minmax(2.75rem,3.75rem)] sm:gap-2">
+        <div className="grid min-h-0 grid-cols-[minmax(0,11rem)_minmax(0,1fr)_minmax(0,5.5rem)] items-stretch gap-1.5 pb-0.5 sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)_minmax(0,6rem)] sm:gap-2">
           <div className="flex h-full min-h-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-200/50 bg-gradient-to-br from-amber-50/95 via-white to-rose-50/30 px-2 py-1.5 text-center shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-white/90 sm:px-2.5 sm:py-2">
             <div className="bg-gradient-to-r from-rose-700 via-red-600 to-rose-700 bg-clip-text text-[clamp(1.35rem,3.5vw,1.75rem)] font-extrabold leading-none tracking-tight text-transparent">
               3D Quiz
@@ -1252,85 +1255,69 @@ const ThreeDGame = () => {
             <ResultPanel title="B" digits={results.B} isUpdated={isResultFresh} />
             <ResultPanel title="C" digits={results.C} isUpdated={isResultFresh} />
           </div>
-          <div
-            ref={headerMenuRef}
-            className="relative z-40 flex h-full min-h-0 shrink-0 items-stretch justify-end pr-1.5 sm:pr-2.5"
+          <button
+            type="button"
+            onClick={handleGoHome}
+            className="inline-flex h-full min-h-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200/40 bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 px-2 text-[13px] font-bold uppercase tracking-wide text-white shadow-[0_3px_12px_rgba(120,53,15,0.35)] ring-1 ring-amber-200/35 transition hover:brightness-110 active:scale-[0.99]"
           >
-            <button
-              type="button"
-              onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
-              className="flex h-full w-full min-w-0 max-w-[2.75rem] shrink-0 items-center justify-center rounded-lg bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 text-[18px] font-bold leading-none text-white shadow-[0_3px_12px_rgba(120,53,15,0.35)] ring-1 ring-amber-200/35 transition hover:brightness-110 active:scale-[0.98] sm:text-[19px]"
-              aria-label="Open menu"
-              aria-expanded={isHeaderMenuOpen}
-            >
-              &#9776;
-            </button>
-            {isHeaderMenuOpen ? (
-              <div className="absolute right-0 top-full z-50 mt-2 flex min-h-[min(420px,72vh)] w-64 flex-col overflow-hidden rounded-2xl border border-[#c9a882] bg-[#fffdf9] py-3 shadow-[0_18px_48px_rgba(30,20,10,0.26)] ring-1 ring-black/5">
-                <div className="border-b border-[#ead9c4] px-4 pb-3 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-[#6b4423]">
-                  Menu
-                </div>
-                <nav className="flex min-h-0 flex-1 flex-col justify-center gap-1.5 p-3" aria-label="Main menu">
-                  {HEADER_MENU_ITEMS.map(({ label, Icon }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => handleHeaderAction(label)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-4 text-left text-[17px] font-semibold transition-colors active:scale-[0.99] ${
-                        label === 'Logout'
-                          ? 'text-[#9a3412] hover:bg-[#ffedd5] active:bg-[#fed7aa]'
-                          : 'text-[#1f1812] hover:bg-[#f5e9d8] active:bg-[#e8dcc8]'
-                      }`}
-                    >
-                      <span
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                          label === 'Logout' ? 'bg-[#ffedd5] text-[#c2410c]' : 'bg-[#f4e8d8]/90 text-[#7a4f26]'
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" strokeWidth={2.25} aria-hidden />
-                      </span>
-                      <span className="min-w-0 leading-snug">{label}</span>
-                    </button>
-                  ))}
-                </nav>
-              </div>
-            ) : null}
-          </div>
+            <House className="h-4 w-4 shrink-0" strokeWidth={2.5} aria-hidden />
+            <span>Home</span>
+          </button>
         </div>
 
-        <div className="flex w-full min-h-0 items-center justify-center rounded-lg border border-[#8b9ab3] bg-[#dfe6f2] px-2 py-2">
-          <div className="grid w-full min-w-0 grid-cols-7 gap-2 text-center min-h-0">
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2f6ff] to-[#e3ecff] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+        <div className="flex w-full min-h-0 items-center justify-center rounded-lg border border-[#8b9ab3] bg-[#dfe6f2] px-2 py-0.5">
+          <div className="grid w-full min-w-0 grid-cols-7 gap-1 text-center min-h-0">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2f6ff] to-[#e3ecff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#4a5b86] font-semibold">Time To Draw</div>
-            <div className={`text-[24px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#18233f]'}`}>{formatTimer(timerSeconds)}</div>
+            <div className={`text-[20px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#18233f]'}`}>{formatTimer(timerSeconds)}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f9ff] to-[#edf1ff] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f9ff] to-[#edf1ff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#5e6787] font-semibold">Dr.Time</div>
-            <div className="text-[20px] font-semibold leading-none text-[#1f2a44]">{timeToDrawText}</div>
+            <div className="text-[17px] font-semibold leading-none text-[#1f2a44]">{timeToDrawText}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f6f8fc] to-[#ebeff7] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f6f8fc] to-[#ebeff7] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#636b7d] font-semibold">Id</div>
-            <div className="text-[18px] font-semibold leading-none text-[#1f2738]">user</div>
+            <div className="text-[16px] font-semibold leading-none text-[#1f2738]">user</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f3f8ff] to-[#e7f0ff] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f3f8ff] to-[#e7f0ff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#5a6784] font-semibold">Time</div>
-            <div className="text-[18px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
+            <div className="text-[16px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#6a6284] font-semibold">Last Ticket</div>
-            <div className={`text-[16px] font-bold leading-none ${lastTicket?.outcome === 'win' ? 'text-[#15803d]' : 'text-[#b91c1c]'}`}>
+            <div className={`text-[14px] font-bold leading-none ${lastTicket?.outcome === 'win' ? 'text-[#15803d]' : 'text-[#b91c1c]'}`}>
               {lastTicket ? lastTicket.outcome.toUpperCase() : '-'}
             </div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#8a6950] font-semibold">Last Trn</div>
-            <div className="text-[15px] font-semibold leading-none text-[#3f2a1c] truncate" title={lastTxnId}>{lastTxnId}</div>
+            <div className="text-[13px] font-semibold leading-none text-[#3f2a1c] truncate" title={lastTxnId}>{lastTxnId}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[60px] flex-col justify-center gap-1 py-2.5 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#4e7760] font-semibold">Last Win</div>
-            <div className="text-[18px] font-semibold leading-none text-[#1f3a2b]">{lastTicket?.totalWin ?? 0}</div>
+            <div className="text-[16px] font-semibold leading-none text-[#1f3a2b]">{lastTicket?.totalWin ?? 0}</div>
           </div>
           </div>
+        </div>
+
+        <div className="w-full min-h-0 rounded-lg border border-[#d6c2a5] bg-[#fff7ec] px-2 py-2">
+          <nav className="grid w-full grid-cols-8 gap-1" aria-label="Main menu">
+            {HEADER_MENU_ITEMS.map(({ label, Icon }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => handleHeaderAction(label)}
+                className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border px-1.5 py-1.5 text-[11px] font-semibold transition-colors active:scale-[0.99] ${
+                  label === 'Logout'
+                    ? 'border-[#f2be9f] bg-[#ffedd5] text-[#c2410c] hover:bg-[#fed7aa]'
+                    : 'border-[#e2c8aa] bg-[#f7ecde] text-[#6b4423] hover:bg-[#eedfc8]'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
+                <span className="truncate">{label}</span>
+              </button>
+            ))}
+          </nav>
         </div>
 
         <div
