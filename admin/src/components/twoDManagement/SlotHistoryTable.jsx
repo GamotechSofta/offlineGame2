@@ -3,8 +3,11 @@ import React from 'react';
 const SlotHistoryTable = ({ slots, selectedSlot, onSelectSlot, loading }) => {
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div className="flex items-center justify-between gap-2 mb-3">
-                <h3 className="text-lg font-semibold text-gray-800">Old Slots</h3>
+            <div className="flex items-center justify-between gap-2 mb-2">
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-800">Old Slots</h3>
+                    <p className="text-sm text-gray-500">Selected date sathi completed time slots ithe disatil.</p>
+                </div>
                 {loading ? <span className="text-xs text-gray-500">Loading...</span> : null}
             </div>
             <div className="overflow-x-auto">

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaChevronDown } from 'react-icons/fa';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import CurrentSlotOverview from '../components/twoDManagement/CurrentSlotOverview';
@@ -32,6 +33,8 @@ const TwoDManagement = () => {
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const detailSectionRef = useRef(null);
+    const timeDropdownRef = useRef(null);
+    const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -64,8 +67,12 @@ const TwoDManagement = () => {
             const slots = data?.data?.slots || [];
             setHistorySlots(slots);
             if (slots.length) {
-                const first = slots[0].slotStartIso;
-                setSelectedSlot((prev) => prev || first);
+                setSelectedSlot((prev) => {
+                    if (prev && slots.some((slot) => slot.slotStartIso === prev)) {
+                        return prev;
+                    }
+                    return slots[0].slotStartIso;
+                });
             } else {
                 setSelectedSlot('');
                 setDetailData(null);
@@ -110,6 +117,17 @@ const TwoDManagement = () => {
         if (selectedSlot) fetchDetail(selectedSlot);
     }, [selectedSlot, fetchDetail]);
 
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (timeDropdownRef.current && !timeDropdownRef.current.contains(event.target)) {
+                setIsTimeDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const handleSelectSlot = async (slotStartIso) => {
         setSelectedSlot(slotStartIso);
         setNotice('');
@@ -149,6 +167,8 @@ const TwoDManagement = () => {
             setSavingResult(false);
         }
     };
+
+    const selectedSlotMeta = historySlots.find((slot) => slot.slotStartIso === selectedSlot) || null;
 
     return (
         <AdminLayout onLogout={handleLogout} title="2D Management">
@@ -202,14 +222,61 @@ const TwoDManagement = () => {
                 {activeSection === 'oldSlots' ? (
                     <>
                         <div className="bg-white border border-gray-200 rounded-xl p-5">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <label className="text-sm font-medium text-gray-700">History Date</label>
-                                <input
-                                    type="date"
-                                    value={date}
-                                    onChange={(e) => setDate(e.target.value)}
-                                    className="px-3 py-2 rounded-lg border border-gray-300"
-                                />
+                            <div className="flex flex-wrap items-end gap-4">
+                                <div className="min-w-[180px]">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">History Date</label>
+                                    <input
+                                        type="date"
+                                        value={date}
+                                        onChange={(e) => {
+                                            setDate(e.target.value);
+                                            setNotice('');
+                                            setError('');
+                                            setIsTimeDropdownOpen(false);
+                                        }}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                                    />
+                                </div>
+                                <div ref={timeDropdownRef} className="min-w-[220px] flex-1 relative">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">History Time Slot</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => historySlots.length && setIsTimeDropdownOpen((prev) => !prev)}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-left flex items-center justify-between gap-3 disabled:bg-gray-50 disabled:text-gray-400"
+                                        disabled={!historySlots.length}
+                                    >
+                                        <span>{selectedSlotMeta?.drawLabelEnd || 'No slots available for selected date'}</span>
+                                        <FaChevronDown
+                                            className={`text-xs text-gray-500 transition-transform ${isTimeDropdownOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+                                    {isTimeDropdownOpen && historySlots.length ? (
+                                        <div className="absolute z-20 mt-2 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                                            <div className="max-h-64 overflow-y-auto py-1">
+                                                {historySlots.map((slot) => {
+                                                    const active = slot.slotStartIso === selectedSlot;
+                                                    return (
+                                                        <button
+                                                            key={slot.slotStartIso}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedSlot(slot.slotStartIso);
+                                                                setNotice('');
+                                                                setError('');
+                                                                setIsTimeDropdownOpen(false);
+                                                            }}
+                                                            className={`w-full px-3 py-2 text-left text-sm transition ${
+                                                                active ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            {slot.drawLabelEnd}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
                             </div>
                         </div>
 
@@ -222,6 +289,70 @@ const TwoDManagement = () => {
                     </>
                 ) : (
                     <div ref={detailSectionRef} className="space-y-5">
+                        <div className="bg-white border border-gray-200 rounded-xl p-5">
+                            <div className="flex flex-wrap items-end gap-4">
+                                <div className="min-w-[180px]">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Filter Date</label>
+                                    <input
+                                        type="date"
+                                        value={date}
+                                        onChange={(e) => {
+                                            setDate(e.target.value);
+                                            setNotice('');
+                                            setError('');
+                                            setIsTimeDropdownOpen(false);
+                                        }}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                                    />
+                                </div>
+                                <div ref={timeDropdownRef} className="min-w-[220px] flex-1 relative">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Filter Time Slot</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => historySlots.length && setIsTimeDropdownOpen((prev) => !prev)}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-left flex items-center justify-between gap-3 disabled:bg-gray-50 disabled:text-gray-400"
+                                        disabled={!historySlots.length}
+                                    >
+                                        <span>{selectedSlotMeta?.drawLabelEnd || 'No slots available for selected date'}</span>
+                                        <FaChevronDown
+                                            className={`text-xs text-gray-500 transition-transform ${isTimeDropdownOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+                                    {isTimeDropdownOpen && historySlots.length ? (
+                                        <div className="absolute z-20 mt-2 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                                            <div className="max-h-64 overflow-y-auto py-1">
+                                                {historySlots.map((slot) => {
+                                                    const active = slot.slotStartIso === selectedSlot;
+                                                    return (
+                                                        <button
+                                                            key={slot.slotStartIso}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedSlot(slot.slotStartIso);
+                                                                setNotice('');
+                                                                setError('');
+                                                                setIsTimeDropdownOpen(false);
+                                                            }}
+                                                            className={`w-full px-3 py-2 text-left text-sm transition ${
+                                                                active ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            {slot.drawLabelEnd}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                                {selectedSlotMeta ? (
+                                    <div className="text-sm text-gray-500">
+                                        Showing stats for <span className="font-semibold text-gray-700">{selectedSlotMeta.drawLabelEnd}</span>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
+
                         {loadingDetail ? (
                             <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">Loading slot detail...</div>
                         ) : detailData?.perQuiz ? (
