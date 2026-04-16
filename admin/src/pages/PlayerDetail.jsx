@@ -10,8 +10,179 @@ import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 const TABS = [
     { id: 'wallet', label: 'Wallet Statement' },
     { id: 'bets', label: 'Bet History' },
+    { id: 'game-history', label: 'Game History' },
     { id: 'profile', label: 'Profile' },
 ];
+
+const formatTxnTime = (iso) => {
+    try {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '-';
+        const date = d.toLocaleDateString('en-GB').replace(/\//g, '-');
+        const time = d
+            .toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+            .replace(/\s/g, ' ')
+            .toLowerCase();
+        return `${date} ${time}`;
+    } catch {
+        return '-';
+    }
+};
+
+const normalizeMarketName = (s) => (s || '').toString().trim().toLowerCase();
+const detectGameName = (text) => {
+    const s = normalizeMarketName(text);
+    if (s.includes('aviator')) return 'Aviator';
+    if (s.includes('funtimer') || s.includes('fun timer')) return 'FunTimer';
+    if (s.includes('roulette')) return 'Roulette';
+    return '';
+};
+const detectTransactionGameName = (txn) =>
+    detectGameName(txn?.description || '') ||
+    detectGameName(txn?.bet?.marketName || '') ||
+    detectGameName(txn?.marketName || '') ||
+    detectGameName(txn?.gameName || '');
+const parseRoundId = (text) => {
+    const s = String(text || '');
+    const m = s.match(/roundId=([^|]+)/i);
+    return m && m[1] ? String(m[1]).trim() : '';
+};
+
+const buildGameRoundRows = (transactions, gameName) => {
+    const debitRows = [];
+    const knownRoundIds = new Set();
+    const byRef = new Map();
+    const byRound = new Map();
+
+    for (const t of transactions || []) {
+        const desc = String(t?.description || '');
+        const g = detectGameName(desc) || detectGameName(t?.bet?.marketName || '');
+        const type = String(t?.type || '').toLowerCase();
+        if (type !== 'debit' || g !== gameName) continue;
+
+        const roundId = parseRoundId(desc);
+        const refId = String(t?.referenceId || '').trim();
+        const key = refId || String(t?._id || '').trim();
+        if (!key) continue;
+        if (roundId) knownRoundIds.add(roundId);
+
+        const row = {
+            key,
+            betId: key,
+            roundId: roundId || '',
+            refId: refId || '',
+            betAmount: Number(t?.amount || 0) || 0,
+            cashOutAmount: null,
+            createdAt: t?.createdAt || null,
+            gameName,
+        };
+        const idx = debitRows.push(row) - 1;
+        if (refId) byRef.set(refId, idx);
+        if (roundId) {
+            const arr = byRound.get(roundId) || [];
+            arr.push(idx);
+            byRound.set(roundId, arr);
+        }
+    }
+
+    for (const t of transactions || []) {
+        const type = String(t?.type || '').toLowerCase();
+        if (type !== 'credit') continue;
+        const desc = String(t?.description || '');
+        const creditRoundId = parseRoundId(desc);
+        const creditRef = String(t?.referenceId || '').trim();
+        const directGame = detectTransactionGameName(t);
+        if (directGame && directGame !== gameName) continue;
+        if (!directGame && !creditRef && !(creditRoundId && knownRoundIds.has(creditRoundId))) continue;
+
+        let matchIndex = -1;
+        if (creditRef && byRef.has(creditRef)) {
+            matchIndex = byRef.get(creditRef);
+        } else if (creditRoundId && knownRoundIds.has(creditRoundId) && byRound.has(creditRoundId)) {
+            const candidates = byRound.get(creditRoundId) || [];
+            matchIndex = candidates.find((i) => debitRows[i] && debitRows[i].cashOutAmount == null) ?? candidates[0] ?? -1;
+        }
+        if (matchIndex < 0 || !debitRows[matchIndex]) continue;
+
+        const amount = Number(t?.amount || 0) || 0;
+        if (amount > 0) debitRows[matchIndex].cashOutAmount = amount;
+        if (!debitRows[matchIndex].createdAt || new Date(t?.createdAt || 0).getTime() > new Date(debitRows[matchIndex].createdAt || 0).getTime()) {
+            debitRows[matchIndex].createdAt = t?.createdAt || debitRows[matchIndex].createdAt;
+        }
+    }
+
+    return debitRows
+        .filter((x) => Number.isFinite(Number(x.betAmount)))
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .map((x, i) => ({
+            ...x,
+            index: i + 1,
+            timeFormatted: formatTxnTime(x.createdAt),
+        }));
+};
+
+const buildAggregatedGameRoundRows = (transactions, gameName) => {
+    const grouped = new Map();
+    const knownRoundIds = new Set();
+    const allTransactions = Array.isArray(transactions) ? transactions : [];
+
+    const ensureRow = (groupKey, txn) => {
+        if (!grouped.has(groupKey)) {
+            grouped.set(groupKey, {
+                key: groupKey,
+                betId: groupKey,
+                roundId: groupKey,
+                betAmount: 0,
+                cashOutAmount: 0,
+                createdAt: txn?.createdAt || null,
+                gameName,
+            });
+        }
+        return grouped.get(groupKey);
+    };
+
+    for (const txn of allTransactions) {
+        const type = String(txn?.type || '').toLowerCase();
+        if (type !== 'debit') continue;
+        const desc = String(txn?.description || '');
+        if (detectTransactionGameName(txn) !== gameName) continue;
+        const groupKey = String(parseRoundId(desc) || txn?.referenceId || txn?._id || '').trim();
+        if (!groupKey) continue;
+
+        knownRoundIds.add(groupKey);
+        const row = ensureRow(groupKey, txn);
+        row.betAmount += Number(txn?.amount || 0) || 0;
+        if (!row.createdAt || new Date(txn?.createdAt || 0).getTime() > new Date(row.createdAt || 0).getTime()) {
+            row.createdAt = txn?.createdAt || row.createdAt;
+        }
+    }
+
+    for (const txn of allTransactions) {
+        const type = String(txn?.type || '').toLowerCase();
+        if (type !== 'credit') continue;
+        const desc = String(txn?.description || '');
+        const groupKey = String(parseRoundId(desc) || txn?.referenceId || txn?._id || '').trim();
+        if (!groupKey) continue;
+        const detectedGame = detectTransactionGameName(txn);
+        const belongsToGame = detectedGame === gameName || (!detectedGame && knownRoundIds.has(groupKey));
+        if (!belongsToGame || !knownRoundIds.has(groupKey)) continue;
+
+        const row = ensureRow(groupKey, txn);
+        row.cashOutAmount += Number(txn?.amount || 0) || 0;
+        if (!row.createdAt || new Date(txn?.createdAt || 0).getTime() > new Date(row.createdAt || 0).getTime()) {
+            row.createdAt = txn?.createdAt || row.createdAt;
+        }
+    }
+
+    return Array.from(grouped.values())
+        .filter((row) => Number(row.betAmount || 0) > 0)
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .map((row, index) => ({
+            ...row,
+            index: index + 1,
+            timeFormatted: formatTxnTime(row.createdAt),
+        }));
+};
 
 const formatDateRange = (from, to) => {
     if (!from || !to) return '';
@@ -84,6 +255,8 @@ const PlayerDetail = () => {
     const [statementData, setStatementData] = useState([]);
     const [walletTx, setWalletTx] = useState([]);
     const [bets, setBets] = useState([]);
+    const [gameTransactions, setGameTransactions] = useState([]);
+    const [gameHistoryFilter, setGameHistoryFilter] = useState('all');
     const [loadingTab, setLoadingTab] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
     const [toggleMessage, setToggleMessage] = useState('');
@@ -131,6 +304,7 @@ const PlayerDetail = () => {
         if (activeTab === 'statement' && statementFrom && statementTo) fetchStatement();
         if (activeTab === 'wallet') fetchWalletTx();
         if (activeTab === 'bets') fetchBets();
+        if (activeTab === 'game-history') fetchGameHistory();
     }, [activeTab, userId, player, statementFrom, statementTo]);
 
     const fetchPlayer = async () => {
@@ -260,6 +434,33 @@ const PlayerDetail = () => {
             setLoadingTab(false);
         }
     };
+
+    const fetchGameHistory = async () => {
+        if (!userId) return;
+        setLoadingTab(true);
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/wallet/transactions?userId=${userId}&includeBet=1`);
+            if (res.status === 401) return;
+            const data = await res.json();
+            setGameTransactions(data.success ? data.data || [] : []);
+        } catch (err) {
+            setGameTransactions([]);
+        } finally {
+            setLoadingTab(false);
+        }
+    };
+
+    const aviatorGameRows = buildGameRoundRows(gameTransactions, 'Aviator');
+    const funTimerGameRows = buildAggregatedGameRoundRows(gameTransactions, 'FunTimer');
+    const rouletteGameRows = buildGameRoundRows(gameTransactions, 'Roulette');
+    const gameHistorySections = [
+        { key: 'aviator', title: 'Aviator Game History', rows: aviatorGameRows, game: 'Aviator' },
+        { key: 'funtimer', title: 'FunTimer Game History', rows: funTimerGameRows, game: 'FunTimer' },
+        { key: 'roulette', title: 'Roulette Game History', rows: rouletteGameRows, game: 'Roulette' },
+    ];
+    const filteredGameHistorySections = gameHistoryFilter === 'all'
+        ? gameHistorySections
+        : gameHistorySections.filter((section) => section.key === gameHistoryFilter);
 
     const handleLogout = () => {
         clearAdminSession();
@@ -929,6 +1130,119 @@ const PlayerDetail = () => {
                                             <span className="text-gray-400 text-xs">{new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</span>
                                         </div>
                                     </div>
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {activeTab === 'game-history' && (
+                    <>
+                        {loadingTab ? (
+                            <div className="p-8 text-center text-gray-400">Loading...</div>
+                        ) : (
+                            <div className="p-4 sm:p-6 space-y-6">
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        { key: 'all', label: 'All' },
+                                        { key: 'aviator', label: 'Aviator' },
+                                        { key: 'funtimer', label: 'FunTimer' },
+                                        { key: 'roulette', label: 'Roulette' },
+                                    ].map((option) => (
+                                        <button
+                                            key={option.key}
+                                            type="button"
+                                            onClick={() => setGameHistoryFilter(option.key)}
+                                            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                                                gameHistoryFilter === option.key
+                                                    ? 'bg-orange-500 border-orange-500 text-white'
+                                                    : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {filteredGameHistorySections.map((section) => (
+                                    <section key={section.game} className="space-y-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <h3 className="text-base sm:text-lg font-bold text-orange-500">{section.title}</h3>
+                                            <span className="text-xs sm:text-sm text-gray-500">
+                                                {section.rows.length} record{section.rows.length === 1 ? '' : 's'}
+                                            </span>
+                                        </div>
+
+                                        {section.rows.length === 0 ? (
+                                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                                                No {section.game} game history found.
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                                                {section.rows.map((row) => {
+                                                    const betAmount = Number(row.betAmount || 0) || 0;
+                                                    const payout = Number(row.cashOutAmount || 0) || 0;
+                                                    const isWon = payout > betAmount;
+                                                    const statusLabel = isWon ? 'Won' : 'Lost';
+                                                    const statusClass = isWon
+                                                        ? 'bg-green-50 text-green-700 border-green-300'
+                                                        : 'bg-red-50 text-red-700 border-red-300';
+
+                                                    return (
+                                                        <div
+                                                            key={`${section.game}-${row.key}`}
+                                                            className={`rounded-xl border-2 p-4 ${
+                                                                isWon ? 'border-green-200 bg-green-50/60' : 'border-red-200 bg-red-50/60'
+                                                            }`}
+                                                        >
+                                                            <div className="mb-2 flex items-center justify-between gap-2">
+                                                                <span className="text-xs font-medium text-gray-500">#{row.index}</span>
+                                                                <span className="rounded-md border-2 border-orange-300 bg-orange-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-orange-600">
+                                                                    Game
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="mb-3 flex items-center justify-between gap-2 text-xs">
+                                                                <span className="text-gray-500">Bet ID</span>
+                                                                <span className="font-mono text-gray-800">{String(row.betId || '').slice(-8) || '—'}</span>
+                                                            </div>
+
+                                                            <div className="mb-3 text-base font-extrabold uppercase tracking-wide text-[#1B3150]">
+                                                                {section.game}
+                                                            </div>
+
+                                                            <div className="space-y-2 text-sm">
+                                                                <div className="flex justify-between gap-3">
+                                                                    <span className="text-gray-500">Game</span>
+                                                                    <span className="font-medium text-gray-800">game - {section.game}</span>
+                                                                </div>
+                                                                <div className="flex justify-between gap-3">
+                                                                    <span className="text-gray-500">Total Play</span>
+                                                                    <span className="font-semibold tabular-nums text-gray-900">{formatCurrency(betAmount)}</span>
+                                                                </div>
+                                                                <div className="flex justify-between gap-3">
+                                                                    <span className="text-gray-500">Payout</span>
+                                                                    <span className={`font-semibold tabular-nums ${isWon ? 'text-green-600' : 'text-gray-600'}`}>
+                                                                        {formatCurrency(payout)}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex justify-between gap-3">
+                                                                    <span className="text-gray-500">Status</span>
+                                                                    <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${statusClass}`}>
+                                                                        {statusLabel}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex justify-between gap-3">
+                                                                    <span className="text-gray-500">Time</span>
+                                                                    <span className="text-right text-gray-600">{row.timeFormatted || '-'}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </section>
                                 ))}
                             </div>
                         )}
