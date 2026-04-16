@@ -931,7 +931,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                         {userId ? 'No Aviator records found for selected filter.' : 'Please login to see your Aviator bet history.'}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4">
                         {filteredAviatorRoundRows.map((row) => (
                           <AviatorBetHistoryCard
                             key={row.key}
@@ -978,7 +978,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                         {userId ? 'No FunTimer records found for selected filter.' : 'Please login to see your FunTimer bet history.'}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4">
                         {filteredFunTimerRoundRows.map((row) => (
                           <FunTimerBetHistoryCard
                             key={row.key}
@@ -1027,7 +1027,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                         {userId ? 'No Roulette records found for selected filter.' : 'Please login to see your Roulette bet history.'}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4">
                         {filteredRouletteRoundRows.map((row) => (
                           <AviatorBetHistoryCard
                             key={row.key}
