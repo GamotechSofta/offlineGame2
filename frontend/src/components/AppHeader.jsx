@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getBalance, updateUserBalance } from '../api/bets';
-import { BACKEND_BASE_URL } from '../config/api';
+import { API_BASE_URL, BACKEND_BASE_URL } from '../config/api';
+import { clearCurrentUser, getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const AppHeader = () => {
   const navigate = useNavigate();
   const headerRef = useRef(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCurrentUser());
   const [balance, setBalance] = useState(null);
 
   const menuItems = [
@@ -21,8 +22,8 @@ const AppHeader = () => {
 
   const loadStoredBalance = () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const b = user?.balance ?? user?.walletBalance ?? user?.wallet ?? 0;
+      const sessionUser = getCurrentUser() || {};
+      const b = sessionUser?.balance ?? sessionUser?.walletBalance ?? sessionUser?.wallet ?? 0;
       setBalance(Number(b));
     } catch (_) {
       setBalance(0);
@@ -30,18 +31,8 @@ const AppHeader = () => {
   };
 
   useEffect(() => {
-    // Check if user is logged in
     const checkUser = () => {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        try {
-          setUser(JSON.parse(userData));
-        } catch (e) {
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
+      setUser(getCurrentUser());
       loadStoredBalance();
     };
 
@@ -50,8 +41,8 @@ const AppHeader = () => {
     // Fetch balance from server
     const fetchAndUpdateBalance = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
-        const userId = user?.id || user?._id;
+        const sessionUser = getCurrentUser();
+        const userId = sessionUser?.id || sessionUser?._id;
         if (!userId) return;
         const res = await getBalance();
         if (res.success && res.data?.balance != null) {
@@ -63,10 +54,7 @@ const AppHeader = () => {
 
     fetchAndUpdateBalance();
 
-    // Listen for storage changes (when user logs in/out in another tab)
-    window.addEventListener('storage', checkUser);
-    
-    // Listen for custom login event
+    const unsubscribe = subscribeUserSession(checkUser);
     window.addEventListener('userLogin', checkUser);
     window.addEventListener('userLogout', checkUser);
     
@@ -82,7 +70,7 @@ const AppHeader = () => {
     window.addEventListener('balanceUpdated', handleBalanceUpdate);
 
     return () => {
-      window.removeEventListener('storage', checkUser);
+      unsubscribe();
       window.removeEventListener('userLogin', checkUser);
       window.removeEventListener('userLogout', checkUser);
       window.removeEventListener('balanceUpdated', handleBalanceUpdate);
@@ -113,10 +101,12 @@ const AppHeader = () => {
     };
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/users/logout`, { method: 'POST', credentials: 'include' });
+    } catch (_) {}
+    clearCurrentUser();
     setUser(null);
-    window.dispatchEvent(new Event('userLogout'));
     navigate('/login', { replace: true });
   };
 

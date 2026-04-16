@@ -1,3 +1,5 @@
+import { clearCurrentUser, getCurrentUser } from '../session/userSession';
+
 // API Configuration – set VITE_API_BASE_URL at build time (Render env, CI, or .env.production).
 // Without it, dev uses localhost; production build must not embed localhost (breaks live sites).
 // Local + prod API without CORS in dev: VITE_API_BASE_URL=/api/v1 + Vite proxy (vite.config.js).
@@ -38,16 +40,21 @@ export function getQuizSocketUrl() {
  * For FormData omit Content-Type (fetch sets multipart boundary).
  */
 export function getAuthHeaders() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const token = user?.token;
-  if (!token) return {};
+  const token = getCurrentUser()?.token;
+  if (!token || token === 'cookie-auth') return {};
   return { Authorization: `Bearer ${token}` };
 }
 
 /** Clear user session and redirect to login. Use on 401 or suspend. */
 export function clearUserSession() {
-  localStorage.removeItem('user');
-  window.dispatchEvent(new Event('userLogout'));
+  try {
+    fetch(`${API_BASE_URL}/users/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      keepalive: true,
+    }).catch(() => {});
+  } catch (_) {}
+  clearCurrentUser();
   window.location.href = '/login';
 }
 
@@ -56,7 +63,7 @@ export function clearUserSession() {
  */
 export async function fetchWithAuth(url, options = {}) {
   const headers = { ...getAuthHeaders(), ...(options.headers || {}) };
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...options, headers, credentials: 'include' });
   if (res.status === 401) {
     clearUserSession();
     return res;

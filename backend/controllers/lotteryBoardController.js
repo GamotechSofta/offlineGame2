@@ -13,6 +13,9 @@ import {
 import { getOrCreatePick } from '../services/quizPickService.js';
 import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
 
+const resolveGameMode = (req) =>
+  (String(req.query?.mode || req.body?.mode || '2d').toLowerCase() === '3d' ? '3d' : '2d');
+
 function formatQ(quizId, hintPos) {
   const q = String(quizId).padStart(2, '0');
   if (hintPos == null || !Number.isInteger(hintPos) || hintPos < 0 || hintPos > 99) {
@@ -22,11 +25,12 @@ function formatQ(quizId, hintPos) {
 }
 
 /**
- * GET /api/v1/quiz/slot-results?date=YYYY-MM-DD (IST)
+ * GET /api/v1/quiz/slot-results?date=YYYY-MM-DD&mode=2d|3d (IST)
  * Persisted picks only: result = stored hintPosition (never chosenIndex; no recompute).
  */
 export const getSlotResultsForDate = async (req, res) => {
   try {
+    const gameMode = resolveGameMode(req);
     const date = typeof req.query.date === 'string' ? req.query.date.trim() : '';
     if (!isValidISTDayKey(date)) {
       return res.status(400).json({
@@ -55,7 +59,7 @@ export const getSlotResultsForDate = async (req, res) => {
     }
 
     const grouped = await QuizSlotPick.aggregate([
-      { $match: { slotStartIso: { $in: completed } } },
+      { $match: { gameMode, slotStartIso: { $in: completed } } },
       {
         $project: {
           _id: 0,
@@ -93,7 +97,7 @@ export const getSlotResultsForDate = async (req, res) => {
       });
     }
 
-    res.json({ success: true, data: { date, slots } });
+    res.json({ success: true, data: { date, gameMode, slots } });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('getSlotResultsForDate', err);
@@ -103,18 +107,20 @@ export const getSlotResultsForDate = async (req, res) => {
 
 /**
  * GET /api/v1/quiz/slot-results
- * - ?date=YYYY-MM-DD — IST day chart (persisted hintPosition only); optional &maxSlots= (default 96).
- * - ?limit=N — legacy last N completed slots (summary + sale); hintPosition from DB only.
+ * - ?date=YYYY-MM-DD&mode=2d|3d — IST day chart (persisted hintPosition only); optional &maxSlots= (default 96).
+ * - ?limit=N&mode=2d|3d — legacy last N completed slots (summary + sale); hintPosition from DB only.
  */
 export const getSlotResultsHistory = async (req, res) => {
   if (req.query.date != null && String(req.query.date).trim() !== '') {
     return getSlotResultsForDate(req, res);
   }
   try {
+    const gameMode = resolveGameMode(req);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const now = new Date();
 
     const rows = await QuizSlotPick.aggregate([
+      { $match: { gameMode } },
       {
         $addFields: {
           slotEnd: { $add: [{ $toDate: '$slotStartIso' }, SLOT_MS] },
@@ -138,7 +144,7 @@ export const getSlotResultsHistory = async (req, res) => {
 
     const slotKeys = rows.map((r) => r._id);
     const saleBySlot = {};
-    if (slotKeys.length) {
+    if (gameMode === '2d' && slotKeys.length) {
       const sales = await LotteryBoardBet.aggregate([
         { $match: { slotStartIso: { $in: slotKeys } } },
         { $group: { _id: '$slotStartIso', sale: { $sum: '$totalAmount' } } },
@@ -172,7 +178,7 @@ export const getSlotResultsHistory = async (req, res) => {
       };
     });
 
-    res.json({ success: true, data });
+    res.json({ success: true, mode: gameMode, data });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('getSlotResultsHistory', err);

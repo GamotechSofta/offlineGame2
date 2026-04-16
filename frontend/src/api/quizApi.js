@@ -66,16 +66,20 @@ export async function postQuizBetsBatch(rounds, mode = '2d') {
   return json;
 }
 
-export async function getQuizSlotResults(limit = 20) {
-  const res = await fetch(`${base}/slot-results?limit=${encodeURIComponent(String(limit))}`, cred);
+export async function getQuizSlotResults(limit = 20, mode = '2d') {
+  const q = new URLSearchParams({
+    limit: String(limit),
+    mode: String(mode || '2d'),
+  });
+  const res = await fetch(`${base}/slot-results?${q}`, cred);
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
   return json;
 }
 
 /** IST calendar YYYY-MM-DD — persisted hintPosition only (GET /quiz/slot-results?date=). */
-export async function getQuizSlotResultsForDate(date, maxSlots) {
-  const q = new URLSearchParams({ date });
+export async function getQuizSlotResultsForDate(date, maxSlots, mode = '2d') {
+  const q = new URLSearchParams({ date, mode: String(mode || '2d') });
   if (maxSlots != null) q.set('maxSlots', String(maxSlots));
   const res = await fetch(`${base}/slot-results?${q}`, cred);
   const json = await res.json().catch(() => ({}));

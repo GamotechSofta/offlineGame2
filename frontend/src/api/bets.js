@@ -1,4 +1,5 @@
 import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../config/api';
+import { getCurrentUser, isUserLoggedIn, patchCurrentUser } from '../session/userSession';
 
 /** MongoDB ObjectId is 24 hex characters */
 const VALID_OBJECTID = /^[a-fA-F0-9]{24}$/;
@@ -19,16 +20,14 @@ function isValidObjectId(id) {
 }
 
 /**
- * Update stored user balance in localStorage and notify app (e.g. header wallet).
+ * Update shared session user balance and notify app (e.g. header wallet).
  */
 export function updateUserBalance(newBalance) {
   try {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    user.balance = newBalance;
-    user.walletBalance = newBalance; // Also update walletBalance for compatibility
-    localStorage.setItem('user', JSON.stringify(user));
-    // Dispatch both events for compatibility
-    window.dispatchEvent(new Event('userLogin'));
+    patchCurrentUser({
+      balance: newBalance,
+      walletBalance: newBalance,
+    });
     window.dispatchEvent(new CustomEvent('balanceUpdated', { detail: { balance: newBalance } }));
   } catch (_) {}
 }
@@ -41,7 +40,7 @@ export function updateUserBalance(newBalance) {
  * @returns {Promise<{ success: boolean, data?: { newBalance: number }, message?: string }>}
  */
 export async function placeBet(marketId, bets, scheduledDate = null) {
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const user = getCurrentUser();
   const rawUserId = user?.id || user?._id;
   if (!rawUserId) {
     return { success: false, message: 'Please log in to place a bet' };
@@ -146,8 +145,7 @@ export async function getRatesCurrent() {
  * @returns {Promise<{ success: boolean, data?: { balance: number }, message?: string }>}
  */
 export async function getBalance() {
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  if (!user?.id && !user?._id) {
+  if (!isUserLoggedIn()) {
     return { success: false, message: 'Please log in' };
   }
   const response = await fetchWithAuth(`${API_BASE_URL}/wallet/balance`, {
@@ -166,8 +164,7 @@ export async function getBalance() {
  * @param {number} limit
  */
 export async function getMyWalletTransactions(limit = 200) {
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  if (!user?.id && !user?._id) {
+  if (!isUserLoggedIn()) {
     return { success: false, message: 'Please log in' };
   }
   const url = `${API_BASE_URL}/wallet/my-transactions?limit=${encodeURIComponent(limit)}&includeBet=1`;
@@ -186,8 +183,7 @@ export async function getMyWalletTransactions(limit = 200) {
  */
 export async function getBetHistory(params = {}) {
   try {
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
-    if (!user?.id && !user?._id) {
+    if (!isUserLoggedIn()) {
       return { success: false, message: 'Please log in', data: [] };
     }
 

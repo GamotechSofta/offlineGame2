@@ -28,6 +28,7 @@ import TicketListModal from '../components/threeD/TicketListModal';
 import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
 import { getBalance, updateUserBalance } from '../api/bets';
 import { getQuizSlotResultsForDate } from '../api/quizApi';
+import { getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
 const MODE_GROUP_COMBO = MODE_OPTIONS.slice(0, 7);
@@ -36,10 +37,6 @@ const ALL_SHORTCUT_MODES = ['box', 'str', 'sp', 'fp', 'bp', 'ap'];
 const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
 /** Progress bar turns red when remaining time is at or below this many seconds (5 minutes). */
 const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
-const STORAGE_KEY = 'matka3d-bets';
-const TICKET_HISTORY_KEY = '3d-ticket-history';
-const WALLET_TX_HISTORY_KEY = 'wallet-transaction-history';
-const QUIZ_SELECTION_KEY = '3d-selected-quiz-id';
 const HEADER_MENU_ITEMS = [
   { label: 'Result', Icon: Trophy },
   { label: 'Account', Icon: UserCircle },
@@ -116,28 +113,13 @@ const ThreeDGame = () => {
   const [validationMsg, setValidationMsg] = useState('');
   const [toast, setToast] = useState('');
   const [buySummary, setBuySummary] = useState(null);
-  const [bets, setBets] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [bets, setBets] = useState([]);
   const [lastTxnId, setLastTxnId] = useState('GM00000000000000');
   const [lastPoints, setLastPoints] = useState(0);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isTicketListOpen, setIsTicketListOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
-  const [selectedQuizId, setSelectedQuizId] = useState(() => {
-    try {
-      const raw = localStorage.getItem(QUIZ_SELECTION_KEY);
-      const parsed = Number(raw);
-      return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-    } catch {
-      return null;
-    }
-  });
+  const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [resultDateDay, setResultDateDay] = useState(() => String(new Date().getDate()).padStart(2, '0'));
   const [resultDateMonth, setResultDateMonth] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
   const [resultDateYear, setResultDateYear] = useState(() => String(new Date().getFullYear()));
@@ -151,16 +133,9 @@ const ThreeDGame = () => {
   const [resultSlots, setResultSlots] = useState([]);
   const [resultLoading, setResultLoading] = useState(false);
   const [resultError, setResultError] = useState('');
-  const [ticketHistory, setTicketHistory] = useState(() => {
-    try {
-      const raw = localStorage.getItem(TICKET_HISTORY_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [ticketHistory, setTicketHistory] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [playerIdentity, setPlayerIdentity] = useState('user');
 
   const isResultFresh = useMemo(() => Date.now() - resultUpdatedAt < 1400, [resultUpdatedAt, now]);
   const isBuySuccessToast = useMemo(
@@ -176,7 +151,7 @@ const ThreeDGame = () => {
 
   const loadStoredBalance = useCallback(() => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = getCurrentUser() || {};
       const b = user?.balance ?? user?.walletBalance ?? user?.wallet ?? 0;
       setWalletBalance(Number(b) || 0);
     } catch (_) {
@@ -184,9 +159,27 @@ const ThreeDGame = () => {
     }
   }, []);
 
+  const loadStoredPlayerIdentity = useCallback(() => {
+    try {
+      const user = getCurrentUser() || {};
+      const label =
+        user?.username ||
+        user?.name ||
+        user?.fullName ||
+        user?.phone ||
+        user?.email ||
+        user?.id ||
+        user?._id ||
+        'user';
+      setPlayerIdentity(String(label).trim() || 'user');
+    } catch (_) {
+      setPlayerIdentity('user');
+    }
+  }, []);
+
   const refreshWalletBalance = useCallback(async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const user = getCurrentUser();
       const userId = user?.id || user?._id;
       if (!userId) {
         loadStoredBalance();
@@ -204,15 +197,7 @@ const ThreeDGame = () => {
     }
   }, [loadStoredBalance]);
 
-  const pushWalletHistory = useCallback((entry) => {
-    try {
-      const raw = localStorage.getItem(WALLET_TX_HISTORY_KEY);
-      const prev = raw ? JSON.parse(raw) : [];
-      const next = Array.isArray(prev) ? prev : [];
-      next.unshift(entry);
-      localStorage.setItem(WALLET_TX_HISTORY_KEY, JSON.stringify(next.slice(0, 500)));
-    } catch (_) {}
-  }, []);
+  const pushWalletHistory = useCallback(() => {}, []);
 
   useEffect(() => {
     if (!quizId) return;
@@ -221,9 +206,6 @@ const ThreeDGame = () => {
 
     if (Number.isInteger(parsedQuizId) && parsedQuizId > 0) {
       setSelectedQuizId(parsedQuizId);
-      try {
-        localStorage.setItem(QUIZ_SELECTION_KEY, String(parsedQuizId));
-      } catch (_) {}
 
       // Remove query param after applying it
       navigate('/lottery/3d', { replace: true });
@@ -232,10 +214,22 @@ const ThreeDGame = () => {
 
   useEffect(() => {
     loadStoredBalance();
+    loadStoredPlayerIdentity();
     refreshWalletBalance();
 
-    const handleStorage = () => loadStoredBalance();
-    const handleUserLogin = () => loadStoredBalance();
+    const handleSessionChange = () => {
+      loadStoredBalance();
+      loadStoredPlayerIdentity();
+    };
+    const unsubscribe = subscribeUserSession(handleSessionChange);
+    const handleUserLogin = () => {
+      loadStoredBalance();
+      loadStoredPlayerIdentity();
+    };
+    const handleUserLogout = () => {
+      loadStoredBalance();
+      loadStoredPlayerIdentity();
+    };
     const handleBalanceUpdated = (e) => {
       const nextBalance = e?.detail?.balance;
       if (nextBalance != null) {
@@ -243,18 +237,20 @@ const ThreeDGame = () => {
       } else {
         loadStoredBalance();
       }
+      loadStoredPlayerIdentity();
     };
 
-    window.addEventListener('storage', handleStorage);
     window.addEventListener('userLogin', handleUserLogin);
+    window.addEventListener('userLogout', handleUserLogout);
     window.addEventListener('balanceUpdated', handleBalanceUpdated);
 
     return () => {
-      window.removeEventListener('storage', handleStorage);
+      unsubscribe();
       window.removeEventListener('userLogin', handleUserLogin);
+      window.removeEventListener('userLogout', handleUserLogout);
       window.removeEventListener('balanceUpdated', handleBalanceUpdated);
     };
-  }, [loadStoredBalance, refreshWalletBalance]);
+  }, [loadStoredBalance, loadStoredPlayerIdentity, refreshWalletBalance]);
   const canAddBet = useMemo(
     () => {
       const singleValid = /^\d{1,3}$/.test((inputNumber || '').trim());
@@ -376,18 +372,6 @@ const ThreeDGame = () => {
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(bets));
-    } catch (_) {}
-  }, [bets]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(TICKET_HISTORY_KEY, JSON.stringify(ticketHistory));
-    } catch (_) {}
-  }, [ticketHistory]);
-
-  useEffect(() => {
     if (!toast) return undefined;
     const t = setTimeout(() => setToast(''), 1800);
     return () => clearTimeout(t);
@@ -400,7 +384,7 @@ const ThreeDGame = () => {
       setResultLoading(true);
       setResultError('');
       try {
-        const j = await getQuizSlotResultsForDate(resultFilterKey);
+        const j = await getQuizSlotResultsForDate(resultFilterKey, undefined, '3d');
         if (!cancelled && j.success && j.data) {
           setResultSlots(Array.isArray(j.data.slots) ? j.data.slots : []);
         }
@@ -1042,7 +1026,6 @@ const ThreeDGame = () => {
       return;
     }
     if (label.toLowerCase() === 'logout') {
-      localStorage.removeItem(STORAGE_KEY);
       window.alert('Demo logout action triggered.');
       return;
     }
@@ -1278,7 +1261,7 @@ const ThreeDGame = () => {
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f6f8fc] to-[#ebeff7] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#636b7d] font-semibold">Id</div>
-            <div className="text-[16px] font-semibold leading-none text-[#1f2738]">user</div>
+            <div className="truncate text-[16px] font-semibold leading-none text-[#1f2738]" title={playerIdentity}>{playerIdentity}</div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f3f8ff] to-[#e7f0ff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#5a6784] font-semibold">Time</div>

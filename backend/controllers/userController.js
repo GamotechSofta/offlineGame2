@@ -215,6 +215,22 @@ export const userHeartbeat = async (req, res) => {
     }
 };
 
+export const userLogout = async (req, res) => {
+    try {
+        const isProduction = process.env.NODE_ENV === 'production';
+        res.clearCookie('userToken', {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'lax',
+            ...(isProduction ? {} : { domain: 'localhost' }),
+            path: '/',
+        });
+        return res.status(200).json({ success: true, message: 'Logged out successfully' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message || 'Logout failed' });
+    }
+};
+
 const getCurrentUserProfile = async (userId) => {
     const user = await User.findById(userId).select('username phone isActive').lean();
     if (!user) return { error: { status: 404, message: 'User not found' } };

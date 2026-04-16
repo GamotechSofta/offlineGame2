@@ -13,6 +13,7 @@ import {
 import { getOrCreatePick } from '../services/quizPickService.js';
 
 const QUIZ_IDS = Array.from({ length: 30 }, (_, i) => i + 1);
+const GAME_MODE = '2d';
 
 async function getQuiz2DMultiplier() {
   try {
@@ -85,8 +86,8 @@ export const getLottery2DCurrentSlot = async (req, res) => {
     const slotEndMs = ctx.slotEndMs;
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ slotStartIso }).select('quizId userId number amount winPayout').lean(),
-      QuizSlotPick.find({ slotStartIso }).select('quizId hintPosition').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount winPayout').lean(),
+      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
 
@@ -169,8 +170,8 @@ export const getLottery2DSlotHistory = async (req, res) => {
     }
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId userId number amount winPayout').lean(),
-      QuizSlotPick.find({ slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId hintPosition').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId userId number amount winPayout').lean(),
+      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
 
@@ -212,8 +213,8 @@ export const getLottery2DSlotDetail = async (req, res) => {
     }
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ slotStartIso }).select('quizId userId number amount winPayout').lean(),
-      QuizSlotPick.find({ slotStartIso }).select('quizId hintPosition').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount winPayout').lean(),
+      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
 
@@ -288,9 +289,9 @@ export const updateLottery2DSlotResult = async (req, res) => {
       return res.status(400).json({ success: false, message: 'result must be between 00 and 99.' });
     }
 
-    await getOrCreatePick(quizId, slotStartIso);
+    await getOrCreatePick(quizId, slotStartIso, GAME_MODE);
     const updated = await QuizSlotPick.findOneAndUpdate(
-      { quizId, slotStartIso },
+      { gameMode: GAME_MODE, quizId, slotStartIso },
       { $set: { hintPosition: result } },
       { new: true },
     ).select('quizId slotStartIso hintPosition updatedAt').lean();

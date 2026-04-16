@@ -1,16 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../config/api';
-
-const readUserFromStorage = () => {
-  try {
-    const raw = localStorage.getItem('user');
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch (e) {
-    return null;
-  }
-};
+import { clearCurrentUser, getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const pick = (obj, keys) => {
   for (const k of keys) {
@@ -109,7 +100,7 @@ const IconCopy = () => (
 
 const Profile = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(() => readUserFromStorage());
+  const [user, setUser] = useState(() => getCurrentUser());
   const [toast, setToast] = useState('');
   const [copiedField, setCopiedField] = useState('');
   const [quickStats, setQuickStats] = useState({ totalBets: 0, monthBets: 0 });
@@ -136,17 +127,14 @@ const Profile = () => {
       navigate('/login');
     };
     const onLogin = () => {
-      const u = readUserFromStorage();
+      const u = getCurrentUser();
       if (u) setUser(u);
     };
+    const unsubscribe = subscribeUserSession((nextUser) => setUser(nextUser));
     window.addEventListener('userLogout', onLogout);
     window.addEventListener('userLogin', onLogin);
-    window.addEventListener('storage', () => {
-      const u = readUserFromStorage();
-      if (!u) onLogout();
-      else setUser(u);
-    });
     return () => {
+      unsubscribe();
       window.removeEventListener('userLogout', onLogout);
       window.removeEventListener('userLogin', onLogin);
     };
@@ -208,8 +196,11 @@ const Profile = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    window.dispatchEvent(new Event('userLogout'));
+    fetch(`${API_BASE_URL}/users/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(() => {});
+    clearCurrentUser();
     navigate('/login', { replace: true });
   };
 
@@ -228,7 +219,7 @@ const Profile = () => {
 
   const handleDownloadStatement = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const user = getCurrentUser();
       if (!user?.id && !user?._id) {
         showToast('Please log in to download statement');
         return;

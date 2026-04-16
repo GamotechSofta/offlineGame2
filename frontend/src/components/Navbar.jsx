@@ -1,45 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { API_BASE_URL } from '../config/api';
+import { clearCurrentUser, getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCurrentUser());
 
   useEffect(() => {
-    // Check if user is logged in
     const checkUser = () => {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        try {
-          setUser(JSON.parse(userData));
-        } catch (e) {
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
+      setUser(getCurrentUser());
     };
 
     checkUser();
 
-    // Listen for storage changes (when user logs in/out in another tab)
-    window.addEventListener('storage', checkUser);
-    
-    // Listen for custom login event
+    const unsubscribe = subscribeUserSession(checkUser);
     window.addEventListener('userLogin', checkUser);
     window.addEventListener('userLogout', checkUser);
 
     return () => {
-      window.removeEventListener('storage', checkUser);
+      unsubscribe();
       window.removeEventListener('userLogin', checkUser);
       window.removeEventListener('userLogout', checkUser);
     };
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/users/logout`, { method: 'POST', credentials: 'include' });
+    } catch (_) {}
+    clearCurrentUser();
     setUser(null);
-    window.dispatchEvent(new Event('userLogout'));
     navigate('/login', { replace: true });
   };
 

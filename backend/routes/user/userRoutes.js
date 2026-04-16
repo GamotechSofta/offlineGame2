@@ -4,6 +4,7 @@ import {
     userLogin,
     userSignup,
     userHeartbeat,
+    userLogout,
     getMyProfile,
     getMyBalance,
     getMyUsername,
@@ -26,6 +27,7 @@ const router = express.Router();
 // Public routes
 router.post('/login', userLogin);
 router.post('/signup', userSignup);
+router.post('/logout', userLogout);
 
 // Player auth required
 router.post('/heartbeat', verifyUser, userHeartbeat);

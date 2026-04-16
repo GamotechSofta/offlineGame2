@@ -25,6 +25,8 @@ import ThreeDGame from '../components/lottery/3d-lottery/ThreeDGame';
 import LotteryQuizPage from '../pages/LotteryQuizPage';
 import ThreeDQuizPage from '../pages/ThreeDQuizPage';
 import GamesHub from '../pages/GamesHub';
+import { API_BASE_URL } from '../config/api';
+import { clearCurrentUser, getCurrentUser, setCurrentUser } from '../session/userSession';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -79,27 +81,40 @@ const Layout = ({ children }) => {
   const isLotteryQuizPage = location.pathname === '/lottery/quiz';
   const isThreeDQuizPage = location.pathname === '/lottery/3d/quiz';
   const isLotteryFullScreenPage = isTwoDGamePage || isThreeDGamePage || isLotteryQuizPage || isThreeDQuizPage;
-  const [hasUser, setHasUser] = useState(() => {
-    try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      return !!(user && user.token);
-    } catch {
-      return false;
-    }
-  });
+  const [hasUser, setHasUser] = useState(null);
   const isLoginPage = location.pathname === '/login';
   const isHomePage = location.pathname === '/';
   const [showPortraitPrompt, setShowPortraitPrompt] = useState(false);
 
   useEffect(() => {
-    const check = () => {
-      try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        setHasUser(!!(user && user.token));
-      } catch {
-        setHasUser(false);
+    const check = async () => {
+      const user = getCurrentUser();
+      if (user && (user.id || user._id)) {
+        setHasUser(true);
+        return;
       }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/me`, { credentials: 'include' });
+        const data = await res.json();
+        if (res.ok && data?.success && data?.data) {
+          const existingUser = getCurrentUser() || {};
+          setCurrentUser({
+            ...existingUser,
+            ...data.data,
+            token: existingUser?.token || 'cookie-auth',
+          }, { emitEvent: false });
+          setHasUser(true);
+          return;
+        }
+      } catch (_) {
+        // ignore network check error and mark as logged out
+      }
+      clearCurrentUser({ emitEvent: false });
+      setHasUser(false);
     };
+
+    check();
     window.addEventListener('userLogin', check);
     window.addEventListener('userLogout', check);
     return () => {
@@ -188,6 +203,9 @@ const Layout = ({ children }) => {
 
   // Unauthenticated: redirect to login (first visit or after logout)
   const isPublicPath = PUBLIC_PATHS.includes(location.pathname);
+  if (hasUser === null) {
+    return null;
+  }
   if (!hasUser && !isPublicPath) {
     return <Navigate to="/login" replace />;
   }

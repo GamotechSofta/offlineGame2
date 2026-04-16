@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { API_BASE_URL, getAuthHeaders, clearUserSession } from '../config/api';
 import { getBalance, updateUserBalance } from '../api/bets';
+import { isUserLoggedIn } from '../session/userSession';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also used to detect suspended accounts
 
@@ -10,13 +11,10 @@ export const useHeartbeat = () => {
   useEffect(() => {
     const sendHeartbeat = async () => {
       try {
-        const userData = localStorage.getItem('user');
-        if (!userData) return;
-        const user = JSON.parse(userData);
-        const userId = user?.id || user?._id;
-        if (!userId) return;
+        if (!isUserLoggedIn()) return;
         const res = await fetch(`${API_BASE_URL}/users/heartbeat`, {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({}),
         });
@@ -35,8 +33,7 @@ export const useHeartbeat = () => {
       }
     };
 
-    const userData = localStorage.getItem('user');
-    if (!userData) return;
+    if (!isUserLoggedIn()) return;
 
     sendHeartbeat();
     intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);

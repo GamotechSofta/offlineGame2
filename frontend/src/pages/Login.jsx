@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { getCurrentUser, setCurrentUser } from '../session/userSession';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -90,12 +91,12 @@ const Login = () => {
       }
 
       if (data.success) {
-        // Store user data
-        const previousUser = localStorage.getItem('user');
+        // Store user data in shared session service (in-memory, not persisted).
+        const previousUser = getCurrentUser();
         let previousCreatedAt = null;
         if (previousUser) {
           try {
-            const parsed = JSON.parse(previousUser);
+            const parsed = typeof previousUser === 'string' ? JSON.parse(previousUser) : previousUser;
             previousCreatedAt = parsed?.createdAt || parsed?.created_at || parsed?.createdOn || null;
           } catch (e) {
             previousCreatedAt = null;
@@ -107,9 +108,7 @@ const Login = () => {
           createdAt: data.data?.createdAt || data.data?.created_at || data.data?.createdOn || previousCreatedAt
         };
 
-        localStorage.setItem('user', JSON.stringify(userPayload));
-        // Dispatch custom event to update navbar
-        window.dispatchEvent(new Event('userLogin'));
+        setCurrentUser(userPayload);
         // Redirect to home after login
         navigate('/');
       } else {

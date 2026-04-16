@@ -13,6 +13,7 @@ import { getBalance, updateUserBalance } from '../api/bets';
 import { getQuizSlot, postQuizBetsBatch } from '../api/quizApi';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getLotterySetTotals, getTotals } from '../utils/boardHelpers';
+import { getCurrentUser, isUserLoggedIn, subscribeUserSession } from '../session/userSession';
 
 const MAX_QUIZ_NUMBERS_PER_SLOT = 100;
 
@@ -91,7 +92,7 @@ const LotteryDashboard = () => {
 
   const loadStoredBalance = useCallback(() => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = getCurrentUser() || {};
       const b = user?.balance ?? user?.walletBalance ?? user?.wallet ?? 0;
       setWalletBalance(Number(b) || 0);
     } catch (_) {
@@ -101,7 +102,7 @@ const LotteryDashboard = () => {
 
   const refreshWalletBalance = useCallback(async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const user = getCurrentUser();
       const userId = user?.id || user?._id;
       if (!userId) {
         loadStoredBalance();
@@ -217,8 +218,9 @@ const LotteryDashboard = () => {
     loadStoredBalance();
     refreshWalletBalance();
 
-    const handleStorage = () => loadStoredBalance();
+    const unsubscribe = subscribeUserSession(() => loadStoredBalance());
     const handleUserLogin = () => loadStoredBalance();
+    const handleUserLogout = () => loadStoredBalance();
     const handleBalanceUpdated = (e) => {
       const nextBalance = e?.detail?.balance;
       if (nextBalance != null) {
@@ -228,13 +230,14 @@ const LotteryDashboard = () => {
       }
     };
 
-    window.addEventListener('storage', handleStorage);
     window.addEventListener('userLogin', handleUserLogin);
+    window.addEventListener('userLogout', handleUserLogout);
     window.addEventListener('balanceUpdated', handleBalanceUpdated);
 
     return () => {
-      window.removeEventListener('storage', handleStorage);
+      unsubscribe();
       window.removeEventListener('userLogin', handleUserLogin);
+      window.removeEventListener('userLogout', handleUserLogout);
       window.removeEventListener('balanceUpdated', handleBalanceUpdated);
     };
   }, [loadStoredBalance, refreshWalletBalance]);
@@ -494,8 +497,7 @@ const LotteryDashboard = () => {
   }, [navigate]);
 
   const handleBoardBuy = useCallback(async () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (!user?.token) {
+    if (!isUserLoggedIn()) {
       setUiNotice('Please login to buy tickets (account / wallet).');
       return;
     }
