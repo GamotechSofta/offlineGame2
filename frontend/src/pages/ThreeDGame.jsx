@@ -102,6 +102,7 @@ const ThreeDGame = () => {
   const [searchParams] = useSearchParams();
   const quizId = searchParams.get('quiz');
   const slotRef = useRef('');
+  const backendResultCacheRef = useRef(new Map());
   const lastLandscapeAutoFsAttemptRef = useRef(0);
   const inputNumberRef = useRef(null);
   const rangeFromRef = useRef(null);
@@ -389,6 +390,51 @@ const ThreeDGame = () => {
       // optional
     }
   }, []);
+
+  const computeSlotStartIsoFromSettleAtMs = useCallback((settleAtMs) => {
+    const end = new Date(Number(settleAtMs) || 0);
+    if (!Number.isFinite(end.getTime()) || end.getTime() <= 0) return null;
+    const startMs = end.getTime() - (GAME_INTERVAL_SECONDS * 1000);
+    const start = new Date(startMs);
+    start.setSeconds(0, 0);
+    return start.toISOString();
+  }, []);
+
+  const toPanelDigits = useCallback((threeDigit) => {
+    const s = String(threeDigit ?? '').replace(/\D/g, '').padStart(3, '0').slice(-3);
+    if (s.length !== 3) return null;
+    const out = s.split('').map((d) => Number(d));
+    return out.every((n) => Number.isInteger(n) && n >= 0 && n <= 9) ? out : null;
+  }, []);
+
+  const getBackendResultsForSlotStartIso = useCallback(async (slotStartIso) => {
+    const key = String(slotStartIso || '').trim();
+    if (!key) return null;
+    if (backendResultCacheRef.current.has(key)) return backendResultCacheRef.current.get(key) || null;
+
+    try {
+      const dayKey = toIstDayKey(new Date(key));
+      const j = await getQuizSlotResultsForDate(dayKey, 96, '3d');
+      const slots = Array.isArray(j?.data?.slots) ? j.data.slots : [];
+      const slot = slots.find((s) => String(s?.slotStartIso || '') === key);
+      if (!slot?.results) {
+        backendResultCacheRef.current.set(key, null);
+        return null;
+      }
+      const A3 = deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.A);
+      const B3 = deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.B);
+      const C3 = deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.C);
+      const A = toPanelDigits(A3);
+      const B = toPanelDigits(B3);
+      const C = toPanelDigits(C3);
+      const resolved = A && B && C ? { A, B, C } : null;
+      backendResultCacheRef.current.set(key, resolved);
+      return resolved;
+    } catch (_) {
+      backendResultCacheRef.current.set(key, null);
+      return null;
+    }
+  }, [toPanelDigits]);
 
   const runClockTick = useCallback(() => {
     const current = new Date();
@@ -1038,70 +1084,89 @@ const ThreeDGame = () => {
 
   useEffect(() => {
     if (!resultUpdatedAt) return;
-    if (hasSettledRef.current) return;
     const nowMs = now.getTime();
     const pendingTickets = ticketHistory.filter((ticket) => !ticket?.settled);
     if (!pendingTickets.length) return;
-    const eligibleCount = pendingTickets.filter((ticket) => nowMs >= getTicketSettleAtMs(ticket)).length;
-    if (!eligibleCount) return;
+    const eligibleTickets = pendingTickets.filter((ticket) => nowMs >= getTicketSettleAtMs(ticket));
+    if (!eligibleTickets.length) return;
 
-    let settledCount = 0;
-    let totalWinCredit = 0;
-    let totalInvested = 0;
+    let cancelled = false;
+    (async () => {
+      let settledCount = 0;
+      let totalWinCredit = 0;
+      let totalInvested = 0;
 
-    const nextHistory = ticketHistory.map((ticket) => {
-      if (ticket?.settled) return ticket;
-      const settleAtMs = getTicketSettleAtMs(ticket);
-      if (!settleAtMs || nowMs < settleAtMs) return ticket;
-      const settledBets = settleAllBets(ticket?.bets || [], results);
-      const summary = calculateSettlementSummary(settledBets);
-      const invested = Number(summary.totalInvested ?? summary.totalPoints ?? ticket?.totalPoints ?? 0);
-      const wonAmount = Number(summary.totalWinAmount || 0);
-      const outcome = wonAmount > 0 ? 'win' : 'loss';
+      const nextHistory = [];
+      for (const ticket of ticketHistory) {
+        if (ticket?.settled) {
+          nextHistory.push(ticket);
+          continue;
+        }
+        const settleAtMs = getTicketSettleAtMs(ticket);
+        if (!settleAtMs || nowMs < settleAtMs) {
+          nextHistory.push(ticket);
+          continue;
+        }
 
-      settledCount += 1;
-      totalWinCredit += wonAmount;
-      totalInvested += invested;
+        const slotStartIso = computeSlotStartIsoFromSettleAtMs(settleAtMs);
+        const backendPanels = slotStartIso ? await getBackendResultsForSlotStartIso(slotStartIso) : null;
+        // Settle only on official backend result; if unavailable, keep ticket pending and retry.
+        if (!backendPanels) {
+          nextHistory.push(ticket);
+          continue;
+        }
+        const settledBets = settleAllBets(ticket?.bets || [], backendPanels);
+        const summary = calculateSettlementSummary(settledBets);
+        const invested = Number(summary.totalInvested ?? summary.totalPoints ?? ticket?.totalPoints ?? 0);
+        const wonAmount = Number(summary.totalWinAmount || 0);
+        const outcome = wonAmount > 0 ? 'win' : 'loss';
 
-      if (wonAmount > 0) {
-        pushWalletHistory({
-          type: 'credit',
-          game: '3D',
-          amount: wonAmount,
-          timestamp: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          description: '3D Game Winning',
-          referenceId: `${ticket.gameId || ticket.id}-WIN`,
+        settledCount += 1;
+        totalWinCredit += wonAmount;
+        totalInvested += invested;
+
+        nextHistory.push({
+          ...ticket,
+          bets: settledBets,
+          totalPoints: invested,
+          totalWin: wonAmount,
+          outcome,
+          settled: true,
+          settledAt: new Date().toISOString(),
+          settledUsing: 'backend',
         });
       }
 
-      return {
-        ...ticket,
-        bets: settledBets,
-        totalPoints: invested,
-        totalWin: wonAmount,
-        outcome,
-        settled: true,
-        settledAt: new Date().toISOString(),
-      };
-    });
+      if (cancelled || !settledCount) return;
 
-    if (!settledCount) return;
+      if (totalWinCredit > 0) {
+        setWalletBalance((prev) => {
+          const next = (Number(prev) || 0) + totalWinCredit;
+          updateUserBalance(next);
+          return next;
+        });
+        setValidationMsg(`You won ₹${totalWinCredit}`);
+      } else {
+        setValidationMsg(`You lost ₹${totalInvested}`);
+      }
 
-    if (totalWinCredit > 0) {
-      setWalletBalance((prev) => {
-        const next = (Number(prev) || 0) + totalWinCredit;
-        updateUserBalance(next);
-        return next;
-      });
-      setValidationMsg(`You won ₹${totalWinCredit}`);
-    } else {
-      setValidationMsg(`You lost ₹${totalInvested}`);
-    }
+      setTicketHistory(nextHistory);
+    })();
 
-    hasSettledRef.current = true;
-    setTicketHistory(nextHistory);
-  }, [calculateSettlementSummary, getTicketSettleAtMs, now, pushWalletHistory, resultUpdatedAt, results, settleAllBets, ticketHistory]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    calculateSettlementSummary,
+    computeSlotStartIsoFromSettleAtMs,
+    getBackendResultsForSlotStartIso,
+    getTicketSettleAtMs,
+    now,
+    pushWalletHistory,
+    resultUpdatedAt,
+    settleAllBets,
+    ticketHistory,
+  ]);
 
   const handleClearAll = useCallback(() => {
     setBets([]);

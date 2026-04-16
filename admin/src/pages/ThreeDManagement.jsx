@@ -85,6 +85,8 @@ const ThreeDManagement = () => {
             const data = await res.json();
             if (!data?.success) {
                 if (data?.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    // If status endpoint is restricted, infer that a secret password is enabled.
+                    setHasSecretDeclarePassword(true);
                     setHintError(data.message || 'Invalid secret password');
                     setHintUnlocked(false);
                     setCurrentHintRows([]);
@@ -97,7 +99,7 @@ const ThreeDManagement = () => {
             const rows = Array.isArray(data?.data?.perQuiz)
                 ? data.data.perQuiz.map((row) => ({
                     quizId: row.quizId,
-                    hint: row.result == null ? '--' : String(row.result).padStart(2, '0'),
+                    hint: row.result == null ? '--' : String(row.result).padStart(3, '0'),
                 }))
                 : [];
 
@@ -174,6 +176,11 @@ const ThreeDManagement = () => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
             .then((res) => {
                 if (res.status === 401) return null;
+                // Non-super-admin may get 403; treat as "secret password enabled" to show unlock prompt.
+                if (res.status === 403) {
+                    setHasSecretDeclarePassword(true);
+                    return null;
+                }
                 return res.json();
             })
             .then((json) => {
@@ -286,7 +293,7 @@ const ThreeDManagement = () => {
             if (res.status === 401) return;
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to update result');
-            setNotice(`Running slot Quiz ${String(quizId).padStart(2, '0')} hint updated to ${String(result).padStart(2, '0')}.`);
+            setNotice(`Running slot Quiz ${String(quizId).padStart(2, '0')} hint updated to ${String(result).padStart(3, '0')}.`);
             closeEditHintModal();
             await fetchCurrent();
             if (hintUnlocked || !hasSecretDeclarePassword) {
@@ -306,7 +313,7 @@ const ThreeDManagement = () => {
             <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">3D Management</h1>
+                <h1 className="text-2xl font-bold text-gray-800">3D Management</h1>
                         <p className="text-sm text-gray-500">Current slot, old slot results, edit and quiz-wise ticket analytics (3D mode).</p>
                     </div>
                     <button
@@ -507,6 +514,7 @@ const ThreeDManagement = () => {
                             <QuizSlotStatsTable
                                 rows={detailData.perQuiz}
                                 canEdit={false}
+                                resultPadLength={3}
                             />
                         ) : (
                             <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">

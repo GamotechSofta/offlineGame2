@@ -184,6 +184,9 @@ export const getLottery2DCurrentSlotHints = async (req, res) => {
     const ctx = getSlotContext(new Date());
     const slotStartIso = ctx.slotStartIso;
 
+    // Ensure all Q01-Q30 picks exist for the running slot so hints grid is fully populated.
+    await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
+
     const [picks] = await Promise.all([
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
     ]);

@@ -448,7 +448,7 @@ const ThreeDQuizPage = () => {
                           {questions.map((row, position) => (
                             <tr key={row.id}>
                               <td className="align-top border border-[#7a9e5c] px-3 py-5 font-semibold leading-snug" style={{ backgroundColor: '#b8e6a8' }}>
-                                <div className="text-[14px] font-bold sm:text-[16px]">Question No. {pad2(position)}</div>
+                                <div className="text-[14px] font-bold sm:text-[16px]">Question No. {pad3(position)}</div>
                                 <div className="mt-1 text-[13px] font-semibold opacity-95 sm:text-[14px]">{slotData?.drawLabelCurrent ?? ''}</div>
                               </td>
                               <td className="align-top border border-[#e0a0b0] px-3 py-5 leading-snug" style={{ backgroundColor: '#fcd4dc' }}>

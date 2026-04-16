@@ -184,9 +184,24 @@ export const getLottery3DCurrentSlotHints = async (req, res) => {
     const ctx = getSlotContext(new Date());
     const slotStartIso = ctx.slotStartIso;
 
-    const [picks] = await Promise.all([
-      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
-    ]);
+    // Ensure all Q01-Q30 picks exist for the running slot so hints grid is fully populated.
+    await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
+
+    let picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean();
+
+    // Self-heal legacy/corrupt rows where hintPosition is missing, so admin UI doesn't show "--".
+    const pickByQuiz = new Map(picks.map((p) => [p.quizId, p]));
+    const invalidQuizIds = QUIZ_IDS.filter((quizId) => {
+      const row = pickByQuiz.get(quizId);
+      return !row || !Number.isInteger(row.hintPosition) || row.hintPosition < 0 || row.hintPosition > 99;
+    });
+    if (invalidQuizIds.length) {
+      await Promise.all(invalidQuizIds.map(async (quizId) => {
+        await QuizSlotPick.deleteOne({ gameMode: GAME_MODE, quizId, slotStartIso });
+        await getOrCreatePick(quizId, slotStartIso, GAME_MODE);
+      }));
+      picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean();
+    }
 
     const perQuiz = baseQuizStatsById();
     for (const p of picks) {

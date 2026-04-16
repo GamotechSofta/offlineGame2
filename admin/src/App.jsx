@@ -255,6 +255,10 @@ const App = () => {
                         </PrivateRoute>
                     }
                 />
+                {/* If a frontend lottery URL is opened in admin app, redirect to admin 3D screen. */}
+                <Route path="/lottery/*" element={<Navigate to="/3d-management" replace />} />
+                {/* Catch-all fallback to avoid "No routes matched" warnings in admin app. */}
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
         </Router>
     );

@@ -85,6 +85,8 @@ const TwoDManagement = () => {
             const data = await res.json();
             if (!data?.success) {
                 if (data?.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    // If status endpoint is restricted, infer that a secret password is enabled.
+                    setHasSecretDeclarePassword(true);
                     setHintError(data.message || 'Invalid secret password');
                     setHintUnlocked(false);
                     setCurrentHintRows([]);
@@ -174,6 +176,11 @@ const TwoDManagement = () => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
             .then((res) => {
                 if (res.status === 401) return null;
+                // Non-super-admin may get 403; treat as "secret password enabled" to show unlock prompt.
+                if (res.status === 403) {
+                    setHasSecretDeclarePassword(true);
+                    return null;
+                }
                 return res.json();
             })
             .then((json) => {

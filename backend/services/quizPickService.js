@@ -96,14 +96,14 @@ async function ensureSlotSeed(quizId, slotStartIso, gameMode = '2d') {
  * Locked pick in QuizSlotPick — never recomputes index on repeat requests.
  */
 export async function getOrCreatePick(quizId, slotStartIso, gameMode = '2d') {
-  const mem = getCachedPick(quizId, slotStartIso);
+  const mem = getCachedPick(quizId, slotStartIso, gameMode);
   if (mem?.hintQuestionText != null) {
     return mem;
   }
 
   let pick = await QuizSlotPick.findOne({ gameMode, quizId, slotStartIso }).lean();
   if (pick) {
-    setCachedPick(quizId, slotStartIso, pick);
+    setCachedPick(quizId, slotStartIso, pick, gameMode);
     return pick;
   }
 
@@ -129,7 +129,7 @@ export async function getOrCreatePick(quizId, slotStartIso, gameMode = '2d') {
     if (e?.code === 11000) {
       pick = await QuizSlotPick.findOne({ gameMode, quizId, slotStartIso }).lean();
       if (pick) {
-        setCachedPick(quizId, slotStartIso, pick);
+        setCachedPick(quizId, slotStartIso, pick, gameMode);
         return pick;
       }
     }
@@ -137,7 +137,7 @@ export async function getOrCreatePick(quizId, slotStartIso, gameMode = '2d') {
   }
 
   await pushRecent(quizId, pick.chosenIndex, gameMode);
-  setCachedPick(quizId, slotStartIso, pick);
+  setCachedPick(quizId, slotStartIso, pick, gameMode);
   return pick;
 }
 

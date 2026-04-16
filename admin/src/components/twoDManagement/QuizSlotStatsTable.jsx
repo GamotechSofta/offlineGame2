@@ -1,6 +1,6 @@
 import React from 'react';
 
-const QuizSlotStatsTable = ({ rows, onEditResult, canEdit = true }) => {
+const QuizSlotStatsTable = ({ rows, onEditResult, canEdit = true, resultPadLength = 2 }) => {
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Quiz-wise Slot Stats</h3>
@@ -22,7 +22,7 @@ const QuizSlotStatsTable = ({ rows, onEditResult, canEdit = true }) => {
                         {rows.map((row) => (
                             <tr key={row.quizId} className="border-b border-gray-100">
                                 <td className="py-2 pr-3 font-medium text-gray-800">Quiz{String(row.quizId).padStart(2, '0')}</td>
-                                <td className="py-2 pr-3 text-right font-mono">{row.result == null ? '--' : String(row.result).padStart(2, '0')}</td>
+                                <td className="py-2 pr-3 text-right font-mono">{row.result == null ? '--' : String(row.result).padStart(resultPadLength, '0')}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.ticketCount}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.uniqueUsers}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.winnerTickets}</td>

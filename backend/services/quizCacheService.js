@@ -51,8 +51,8 @@ function prunePickCache() {
   }
 }
 
-export function getCachedPick(quizId, slotStartIso) {
-  const key = `${quizId}|${slotStartIso}`;
+export function getCachedPick(quizId, slotStartIso, gameMode = '2d') {
+  const key = `${String(gameMode || '2d').toLowerCase()}|${quizId}|${slotStartIso}`;
   const row = pickCache.get(key);
   if (!row) return null;
   if (Date.now() - row.at > PICK_CACHE_MS) {
@@ -63,8 +63,8 @@ export function getCachedPick(quizId, slotStartIso) {
 }
 
 /** @param {object} pick - plain or mongoose doc (serialized fields used by API) */
-export function setCachedPick(quizId, slotStartIso, pick) {
-  const key = `${quizId}|${slotStartIso}`;
+export function setCachedPick(quizId, slotStartIso, pick, gameMode = '2d') {
+  const key = `${String(gameMode || '2d').toLowerCase()}|${quizId}|${slotStartIso}`;
   const plain = pick?.toObject?.() ?? pick;
   pickCache.set(key, { at: Date.now(), pick: plain });
   prunePickCache();
