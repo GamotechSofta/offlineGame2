@@ -461,6 +461,16 @@ const ThreeDGame = () => {
     setResultFilterKey(`${year}-${month}-${day}`);
   }, [resultDateDay, resultDateMonth, resultDateYear]);
 
+  const getTicketSettleAtMs = useCallback((ticket) => {
+    const direct = Number(ticket?.settleAtMs);
+    if (Number.isFinite(direct) && direct > 0) return direct;
+    const createdAtMs = new Date(ticket?.createdAt || ticket?.id || 0).getTime();
+    if (Number.isFinite(createdAtMs) && createdAtMs > 0) {
+      return createdAtMs + (GAME_INTERVAL_SECONDS * 1000);
+    }
+    return 0;
+  }, []);
+
   const resolveKeypadTargetIndex = useCallback(() => {
     const focusedIndex =
       document.activeElement === rangeFromRef.current ? 1
@@ -904,21 +914,63 @@ const ThreeDGame = () => {
     }
   }, [bets, generateGameId, nextDrawAt, now, pushWalletHistory, selectedQuizId, timeToDrawText, totalPoints, walletBalance]);
 
+  const handleCancelPendingTicket = useCallback(() => {
+    const nowMs = Date.now();
+    const cancellable = (ticketHistory || []).find((ticket) => {
+      if (ticket?.settled) return false;
+      const settleAtMs = getTicketSettleAtMs(ticket);
+      return settleAtMs > nowMs;
+    });
+
+    if (!cancellable) {
+      setToast('No active ticket to cancel before draw time.');
+      return;
+    }
+
+    const refundAmount = Number(cancellable?.totalPoints || 0);
+    const ticketLabel = cancellable?.gameId || String(cancellable?.id || '');
+    const ok = window.confirm(`Cancel ticket ${ticketLabel} before draw and refund ₹${refundAmount}?`);
+    if (!ok) return;
+
+    setTicketHistory((prev) => prev.map((ticket) => {
+      if (ticket?.id !== cancellable.id) return ticket;
+      return {
+        ...ticket,
+        bets: (ticket?.bets || []).map((bet) => ({
+          ...bet,
+          outcome: 'cancelled',
+          winAmount: 0,
+          matchedPanel: '-',
+          matchedResult: '-',
+          matchReason: 'Cancelled before draw',
+          payoutLabel: null,
+        })),
+        totalWin: 0,
+        outcome: 'cancelled',
+        settled: true,
+        cancelledAt: new Date().toISOString(),
+        settledAt: new Date().toISOString(),
+      };
+    }));
+
+    if (refundAmount > 0) {
+      setWalletBalance((prev) => {
+        const next = (Number(prev) || 0) + refundAmount;
+        updateUserBalance(next);
+        return next;
+      });
+    }
+
+    setToast('Ticket cancelled');
+    setValidationMsg(`Ticket ${ticketLabel} cancelled. Refund ₹${refundAmount} credited.`);
+  }, [getTicketSettleAtMs, ticketHistory]);
+
   useEffect(() => {
     if (!resultUpdatedAt) return;
     if (hasSettledRef.current) return;
     const nowMs = now.getTime();
     const pendingTickets = ticketHistory.filter((ticket) => !ticket?.settled);
     if (!pendingTickets.length) return;
-    const getTicketSettleAtMs = (ticket) => {
-      const direct = Number(ticket?.settleAtMs);
-      if (Number.isFinite(direct) && direct > 0) return direct;
-      const createdAtMs = new Date(ticket?.createdAt || ticket?.id || 0).getTime();
-      if (Number.isFinite(createdAtMs) && createdAtMs > 0) {
-        return createdAtMs + (GAME_INTERVAL_SECONDS * 1000);
-      }
-      return 0;
-    };
     const eligibleCount = pendingTickets.filter((ticket) => nowMs >= getTicketSettleAtMs(ticket)).length;
     if (!eligibleCount) return;
 
@@ -978,7 +1030,7 @@ const ThreeDGame = () => {
 
     hasSettledRef.current = true;
     setTicketHistory(nextHistory);
-  }, [calculateSettlementSummary, now, pushWalletHistory, resultUpdatedAt, results, settleAllBets, ticketHistory]);
+  }, [calculateSettlementSummary, getTicketSettleAtMs, now, pushWalletHistory, resultUpdatedAt, results, settleAllBets, ticketHistory]);
 
   const handleClearAll = useCallback(() => {
     setBets([]);
@@ -1039,8 +1091,7 @@ const ThreeDGame = () => {
       return;
     }
     if (label.toLowerCase() === 'refresh') {
-      applyFreshResult(generate3DResult());
-      setToast('Result Refreshed');
+      window.location.reload();
       return;
     }
     if (label.toLowerCase() === 'ticket list') {
@@ -1051,8 +1102,12 @@ const ThreeDGame = () => {
       window.alert('Demo logout action triggered.');
       return;
     }
+    if (label.toLowerCase() === 'cancel') {
+      handleCancelPendingTicket();
+      return;
+    }
     setToast(`${label} clicked`);
-  }, [applyFreshResult, handleRotateLandscape, navigate, now]);
+  }, [applyFreshResult, handleCancelPendingTicket, handleRotateLandscape, navigate, now]);
 
   const handleGoHome = useCallback(async () => {
     try {
@@ -1277,7 +1332,13 @@ const ThreeDGame = () => {
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[11px] uppercase tracking-wide text-[#6a6284] font-semibold">Last Ticket</div>
-            <div className={`text-[14px] font-bold leading-none ${lastTicket?.outcome === 'win' ? 'text-[#15803d]' : 'text-[#b91c1c]'}`}>
+            <div className={`text-[14px] font-bold leading-none ${
+              lastTicket?.outcome === 'win'
+                ? 'text-[#15803d]'
+                : lastTicket?.outcome === 'cancelled'
+                  ? 'text-[#475569]'
+                  : 'text-[#b91c1c]'
+            }`}>
               {lastTicket ? lastTicket.outcome.toUpperCase() : '-'}
             </div>
           </div>
@@ -1623,7 +1684,9 @@ const ThreeDGame = () => {
                         ? 'border border-emerald-300/85 bg-gradient-to-b from-emerald-50/95 via-white to-white shadow-[0_4px_16px_rgba(5,150,105,0.18)] ring-1 ring-emerald-200/50'
                         : bet.outcome === 'loss'
                           ? 'border border-rose-300/85 bg-gradient-to-b from-rose-50/95 via-white to-white shadow-[0_4px_16px_rgba(225,29,72,0.14)] ring-1 ring-rose-200/45'
-                          : 'border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/60 to-slate-100/50 shadow-[0_4px_14px_rgba(15,23,42,0.09)] ring-1 ring-slate-200/40';
+                          : bet.outcome === 'cancelled'
+                            ? 'border border-slate-300/90 bg-gradient-to-b from-slate-50/95 via-white to-white shadow-[0_4px_14px_rgba(71,85,105,0.14)] ring-1 ring-slate-200/55'
+                            : 'border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/60 to-slate-100/50 shadow-[0_4px_14px_rgba(15,23,42,0.09)] ring-1 ring-slate-200/40';
                     return (
                     <div
                       key={bet.id}
@@ -1647,7 +1710,9 @@ const ThreeDGame = () => {
                       </div>
                       {bet.outcome ? (
                         <div className="border-t border-slate-200/70 bg-slate-50/80 px-2 pb-2 pt-1.5 text-[10px] text-center sm:text-[11px]">
-                          <span className={`font-bold ${bet.outcome === 'win' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          <span className={`font-bold ${
+                            bet.outcome === 'win' ? 'text-emerald-600' : bet.outcome === 'cancelled' ? 'text-slate-600' : 'text-rose-600'
+                          }`}>
                             {bet.outcome.toUpperCase()}
                           </span>
                           <div className="mt-0.5 font-medium text-slate-600">Panel: {bet.matchedPanel || '-'}</div>
@@ -1895,7 +1960,13 @@ const ThreeDGame = () => {
               {lastTicket ? (
                 <div className="border-t border-[#b9bec7] bg-[#d4d7dd] px-3 py-2 text-xs font-semibold text-[#374151] sm:px-4 sm:text-sm">
                   Last Ticket: <span className="font-bold">{lastTicket.gameId}</span> | Outcome:{' '}
-                  <span className={lastTicket.outcome === 'win' ? 'text-[#15803d]' : 'text-[#b91c1c]'}>
+                  <span className={
+                    lastTicket.outcome === 'win'
+                      ? 'text-[#15803d]'
+                      : lastTicket.outcome === 'cancelled'
+                        ? 'text-[#475569]'
+                        : 'text-[#b91c1c]'
+                  }>
                     {String(lastTicket.outcome || '-').toUpperCase()}
                   </span>{' '}
                   | Win: <span className="font-bold">{lastTicket.totalWin ?? 0}</span>

@@ -53,13 +53,13 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
         mode,
         points,
         winAmount,
-        outcome: outcome === 'win' ? 'win' : outcome === 'loss' ? 'loss' : 'pending',
+        outcome: outcome === 'win' ? 'win' : outcome === 'loss' ? 'loss' : outcome === 'cancelled' ? 'cancelled' : 'pending',
         matchedPanel,
         matchedResult,
         payoutLabel,
       };
     }).sort((a, b) => {
-      const order = { win: 0, loss: 1, pending: 2 };
+      const order = { win: 0, loss: 1, cancelled: 2, pending: 3 };
       const byOutcome = (order[a.outcome] ?? 9) - (order[b.outcome] ?? 9);
       if (byOutcome !== 0) return byOutcome;
       return String(a.id).localeCompare(String(b.id));
@@ -143,12 +143,14 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
                     className={`rounded-md px-3 py-2 text-[13px] font-bold sm:text-[14px] ${
                       item.outcome === 'win'
                         ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
+                        : item.outcome === 'cancelled'
+                          ? 'border border-slate-300 bg-slate-100 text-slate-700'
                         : 'bg-[#d0d0d0] text-[#c71616]'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
-                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : 'text-slate-600'}`}>
+                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
                         {item.outcome.toUpperCase()}
                       </span>
                     </div>
@@ -168,12 +170,14 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
                     className={`rounded-md px-3 py-2 text-[13px] font-bold sm:text-[14px] ${
                       item.outcome === 'win'
                         ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
+                        : item.outcome === 'cancelled'
+                          ? 'border border-slate-300 bg-slate-100 text-slate-700'
                         : 'bg-[#d0d0d0] text-[#c71616]'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
-                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : 'text-slate-600'}`}>
+                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
                         {item.outcome.toUpperCase()}
                       </span>
                     </div>

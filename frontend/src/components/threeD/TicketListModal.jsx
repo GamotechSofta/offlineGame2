@@ -26,7 +26,9 @@ const TicketListModal = ({ open, onClose, tickets = [], onView }) => {
               ? 'win'
               : String(ticket?.outcome || '').toLowerCase() === 'pending'
                 ? 'pending'
-                : 'loss',
+                : String(ticket?.outcome || '').toLowerCase() === 'cancelled'
+                  ? 'cancelled'
+                  : 'loss',
           totalPoints: Number(ticket?.totalPoints || 0),
           totalWin: Number(ticket?.totalWin || 0),
         };
@@ -68,10 +70,16 @@ const TicketListModal = ({ open, onClose, tickets = [], onView }) => {
                 <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
                   <span
                     className={`rounded-md px-4 py-2 text-[15px] font-bold text-white shadow ${
-                      ticket.outcome === 'win' ? 'bg-[#19a34a]' : ticket.outcome === 'pending' ? 'bg-[#d97706]' : 'bg-[#dc2626]'
+                      ticket.outcome === 'win'
+                        ? 'bg-[#19a34a]'
+                        : ticket.outcome === 'pending'
+                          ? 'bg-[#d97706]'
+                          : ticket.outcome === 'cancelled'
+                            ? 'bg-[#475569]'
+                            : 'bg-[#dc2626]'
                     }`}
                   >
-                    {ticket.outcome === 'win' ? 'Win' : ticket.outcome === 'pending' ? 'Pending' : 'Loss'}
+                    {ticket.outcome === 'win' ? 'Win' : ticket.outcome === 'pending' ? 'Pending' : ticket.outcome === 'cancelled' ? 'Cancelled' : 'Loss'}
                   </span>
                   <button
                     type="button"
