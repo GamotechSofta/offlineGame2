@@ -10,6 +10,7 @@ const Home = () => {
     <div className="min-h-screen min-h-ios-screen bg-gray-200 w-full max-w-full overflow-x-hidden">
       <HeroSection />
       <section className="w-full max-w-full px-3 sm:px-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <button
           type="button"
           onClick={() => navigate('/lottery')}
@@ -28,7 +29,7 @@ const Home = () => {
         <button
           type="button"
           onClick={() => navigate('/games')}
-          className="mt-3 w-full flex items-center justify-between gap-3 py-3 px-4 rounded-xl bg-gradient-to-r from-[#1B3150] to-[#22406a] border border-blue-300/60 text-white shadow-lg hover:from-[#22406a] hover:to-[#2b4d7d] active:scale-[0.99] transition-all"
+          className="w-full flex items-center justify-between gap-3 py-3 px-4 rounded-xl bg-gradient-to-r from-[#1B3150] to-[#22406a] border border-blue-300/60 text-white shadow-lg hover:from-[#22406a] hover:to-[#2b4d7d] active:scale-[0.99] transition-all"
         >
           <span className="flex items-center gap-2">
             <span className="w-10 h-10 rounded-full bg-blue-300/30 flex items-center justify-center text-xl" aria-hidden>🎮</span>
@@ -39,6 +40,7 @@ const Home = () => {
           </span>
           <span className="text-blue-200 shrink-0">→</span>
         </button>
+        </div>
       </section>
       <Section1 />
     </div>

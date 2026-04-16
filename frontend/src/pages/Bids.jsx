@@ -245,15 +245,22 @@ const Bids = () => {
       color: '#25d366',
       iconUrl: 'https://res.cloudinary.com/dzd47mpdo/image/upload/v1769799295/result_ekwn16.png'
     },
+    {
+      title: 'Game Bet History',
+      subtitle: 'You can view your game bet history',
+      color: '#60a5fa',
+    },
   ]), []);
 
   const TAB_TO_TITLE = useMemo(() => ({
     'bet-history': 'Bet History',
     'game-results': 'Game Results',
+    'game-bet-history': 'Game Bet History',
   }), []);
   const TITLE_TO_TAB = useMemo(() => ({
     'Bet History': 'bet-history',
     'Game Results': 'game-results',
+    'Game Bet History': 'game-bet-history',
   }), []);
 
   const tabParam = (searchParams.get('tab') || '').toString();
@@ -301,11 +308,19 @@ const Bids = () => {
       navigate('/market-result-history');
       return;
     }
+    if (item?.title === 'Game Bet History') {
+      navigate('/bet-history?scope=games&title=Game%20Bet%20History');
+      return;
+    }
     // keep current behavior for other items
     setActiveTitle(item.title);
   };
 
   const handleDesktopItemClick = (item) => {
+    if (item?.title === 'Game Bet History') {
+      navigate('/bet-history?scope=games&title=Game%20Bet%20History');
+      return;
+    }
     // Desktop: show content on right panel (no navigation)
     setActiveTitle(item.title);
   };
