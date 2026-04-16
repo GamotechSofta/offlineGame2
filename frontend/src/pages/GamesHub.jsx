@@ -131,7 +131,7 @@ const GamesHub = () => {
     <div className="min-h-screen bg-gray-200 px-3 sm:px-4 pt-3 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]">
       <div className="w-full">
         {loading && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3">
             {[...Array(6)].map((_, idx) => (
               <div
                 key={`skeleton-${idx}`}
@@ -159,7 +159,7 @@ const GamesHub = () => {
         )}
 
         {!loading && !error && games.length > 0 && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3">
             {games.map((game, index) => {
               const theme = CARD_THEMES[index % CARD_THEMES.length];
               const title = game?.name || 'Unnamed Game';

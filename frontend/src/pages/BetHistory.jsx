@@ -70,9 +70,12 @@ const parseRoundId = (text) => {
   return m && m[1] ? String(m[1]).trim() : '';
 };
 const buildGameRoundRows = (transactions, gameName) => {
-  const byKey = new Map();
+  const debitRows = [];
   const knownRoundIds = new Set();
+  const byRef = new Map(); // referenceId -> row index
+  const byRound = new Map(); // roundId -> row indices[]
 
+  // Build one row per debit transaction (do not merge same round bets).
   for (const t of transactions || []) {
     const desc = String(t?.description || '');
     const g = detectGameName(desc) || detectGameName(t?.bet?.marketName || '');
@@ -80,54 +83,59 @@ const buildGameRoundRows = (transactions, gameName) => {
     if (type !== 'debit' || g !== gameName) continue;
 
     const roundId = parseRoundId(desc);
-    const key = roundId || String(t?.referenceId || t?._id || '').trim();
+    const refId = String(t?.referenceId || '').trim();
+    const key = refId || String(t?._id || '').trim();
     if (!key) continue;
     if (roundId) knownRoundIds.add(roundId);
 
-    const amount = Number(t?.amount || 0) || 0;
-    const existing = byKey.get(key) || {
+    const row = {
       key,
       betId: key,
-      betAmount: null,
+      roundId: roundId || '',
+      refId: refId || '',
+      betAmount: Number(t?.amount || 0) || 0,
       cashOutAmount: null,
       createdAt: t?.createdAt || null,
       gameName,
     };
-
-    existing.betAmount = amount;
-    if (!existing.createdAt || new Date(t?.createdAt || 0).getTime() > new Date(existing.createdAt || 0).getTime()) {
-      existing.createdAt = t?.createdAt || existing.createdAt;
+    const idx = debitRows.push(row) - 1;
+    if (refId) byRef.set(refId, idx);
+    if (roundId) {
+      const arr = byRound.get(roundId) || [];
+      arr.push(idx);
+      byRound.set(roundId, arr);
     }
-    byKey.set(key, existing);
   }
 
+  // Attach credit to matching debit: prefer referenceId, else first unmatched in same round.
   for (const t of transactions || []) {
     const type = String(t?.type || '').toLowerCase();
     if (type !== 'credit') continue;
     const desc = String(t?.description || '');
     const creditRoundId = parseRoundId(desc);
-    const creditRef = String(t?.referenceId || t?._id || '').trim();
+    const creditRef = String(t?.referenceId || '').trim();
     const directGame = detectGameName(desc) || detectGameName(t?.bet?.marketName || '');
     const isLikelyCredit = directGame === gameName || (creditRoundId && knownRoundIds.has(creditRoundId));
     if (!isLikelyCredit) continue;
 
-    const matchKey =
-      (creditRoundId && byKey.has(creditRoundId) && creditRoundId) ||
-      (creditRef && byKey.has(creditRef) && creditRef) ||
-      null;
-    if (!matchKey) continue;
+    let matchIndex = -1;
+    if (creditRef && byRef.has(creditRef)) {
+      matchIndex = byRef.get(creditRef);
+    } else if (creditRoundId && byRound.has(creditRoundId)) {
+      const candidates = byRound.get(creditRoundId) || [];
+      // Prefer a row that still has no cashout.
+      matchIndex = candidates.find((i) => debitRows[i] && debitRows[i].cashOutAmount == null) ?? candidates[0] ?? -1;
+    }
+    if (matchIndex < 0 || !debitRows[matchIndex]) continue;
 
     const amount = Number(t?.amount || 0) || 0;
-    const existing = byKey.get(matchKey);
-    if (!existing) continue;
-    existing.cashOutAmount = amount > 0 ? amount : existing.cashOutAmount;
-    if (!existing.createdAt || new Date(t?.createdAt || 0).getTime() > new Date(existing.createdAt || 0).getTime()) {
-      existing.createdAt = t?.createdAt || existing.createdAt;
+    if (amount > 0) debitRows[matchIndex].cashOutAmount = amount;
+    if (!debitRows[matchIndex].createdAt || new Date(t?.createdAt || 0).getTime() > new Date(debitRows[matchIndex].createdAt || 0).getTime()) {
+      debitRows[matchIndex].createdAt = t?.createdAt || debitRows[matchIndex].createdAt;
     }
-    byKey.set(matchKey, existing);
   }
 
-  return [...byKey.values()]
+  return debitRows
     .filter((x) => Number.isFinite(Number(x.betAmount)))
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
     .map((x, i) => ({
