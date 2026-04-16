@@ -55,7 +55,6 @@ const ThreeDQuizPage = () => {
   const quizLabel = `QUIZ${pad2(selectedQuiz)}`;
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
-  const useScaledCanvas = useMemo(() => viewport.width >= 1200 && viewport.height >= 700, [viewport.height, viewport.width]);
 
   useEffect(() => {
     selectedQuizRef.current = selectedQuiz;
@@ -92,6 +91,29 @@ const ThreeDQuizPage = () => {
       window.removeEventListener('resize', checkMobilePortrait);
       window.removeEventListener('orientationchange', checkMobilePortrait);
     };
+  }, []);
+
+  useEffect(() => {
+    const enforceLandscapeOnEntry = async () => {
+      const isMobile = window.innerWidth <= 900;
+      if (!isMobile) return;
+      try {
+        const root = document.documentElement;
+        if (root.requestFullscreen && !document.fullscreenElement) {
+          await root.requestFullscreen();
+        }
+      } catch (_) {
+        // Browser may require direct user gesture.
+      }
+      try {
+        if (window.screen?.orientation?.lock) {
+          await window.screen.orientation.lock('landscape');
+        }
+      } catch (_) {
+        // Not supported on all mobile browsers/devices.
+      }
+    };
+    enforceLandscapeOnEntry();
   }, []);
 
   useEffect(() => {
@@ -352,13 +374,16 @@ const ThreeDQuizPage = () => {
     <AppLayout>
       <div className="relative w-full min-h-screen min-h-[100dvh] overflow-hidden rounded-[14px] bg-[#111] sm:rounded-none">
         <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[#4c4c4c] sm:rounded-none" />
-        <div className="absolute inset-0 overflow-hidden" style={{ width: `${viewport.width}px`, height: `${viewport.height}px` }}>
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{ width: `${viewport.width}px`, height: `${viewport.height}px` }}
+        >
           <div
             className="absolute top-0 left-0 flex flex-col overflow-hidden border border-[#4c4c4c] bg-[#efe6d5] text-black"
             style={{
-              width: useScaledCanvas ? `${BASE_WIDTH}px` : `${viewport.width}px`,
-              height: useScaledCanvas ? `${BASE_HEIGHT}px` : `${viewport.height}px`,
-              transform: useScaledCanvas ? `scale(${dashboardScaleX}, ${dashboardScaleY})` : 'none',
+              width: `${BASE_WIDTH}px`,
+              height: `${BASE_HEIGHT}px`,
+              transform: `scale(${dashboardScaleX}, ${dashboardScaleY})`,
               transformOrigin: 'top left',
             }}
           >
@@ -423,7 +448,8 @@ const ThreeDQuizPage = () => {
                           {questions.map((row, position) => (
                             <tr key={row.id}>
                               <td className="align-top border border-[#7a9e5c] px-3 py-5 font-semibold leading-snug" style={{ backgroundColor: '#b8e6a8' }}>
-                                <div className="text-[14px] font-bold sm:text-[16px]">Question No. {pad3(position)}</div>
+                                <div className="text-[14px] font-bold sm:text-[16px]">Question No. {pad2(position)}</div>
+                                <div className="mt-1 text-[13px] font-semibold opacity-95 sm:text-[14px]">{slotData?.drawLabelCurrent ?? ''}</div>
                               </td>
                               <td className="align-top border border-[#e0a0b0] px-3 py-5 leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
                                 <span className="text-[16px] font-extrabold sm:text-[18px]">{cleanQuestionText(row.question)}</span>
@@ -472,8 +498,8 @@ const ThreeDQuizPage = () => {
 
                 <div className="sticky bottom-0 left-0 right-0 z-20 mt-3 bg-[#efe6d5]/95 py-2 backdrop-blur-sm">
             <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-2">
-                    <button type="button" onClick={goToBoard} className="rounded border-2 border-[#b8a01e] bg-[#f5e14a] px-6 text-lg font-black tracking-wide text-black shadow-sm active:scale-[0.99]">
-                      PLAY 3D QUIZ
+                    <button type="button" onClick={goToBoard} className="rounded border-2 border-[#b8a01e] bg-[#f5e14a] py-3.5 text-center text-lg font-black tracking-wide text-black shadow-sm active:scale-[0.99] sm:py-4 sm:text-xl">
+                      PLAY
                     </button>
                   </div>
                 </div>

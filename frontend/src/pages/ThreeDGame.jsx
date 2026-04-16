@@ -999,7 +999,21 @@ const ThreeDGame = () => {
     setNextDrawAt(getNextDrawTime(new Date()));
   }, [applyFreshResult]);
 
-  const handleHeaderAction = useCallback((label) => {
+  const handleRotateLandscape = useCallback(async () => {
+    try {
+      const root = document.documentElement;
+      if (root.requestFullscreen && !document.fullscreenElement) {
+        await root.requestFullscreen();
+      }
+      if (window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('landscape');
+      }
+    } catch (_) {
+      // On many mobile browsers this requires user/system support.
+    }
+  }, []);
+
+  const handleHeaderAction = useCallback(async (label) => {
     if (label.toLowerCase() === 'result') {
       const d = new Date(now);
       const day = String(d.getDate()).padStart(2, '0');
@@ -1013,6 +1027,8 @@ const ThreeDGame = () => {
       return;
     }
     if (label.toLowerCase() === 'quiz') {
+      // Keep mobile in landscape while moving from 3D board to 3D quiz.
+      await handleRotateLandscape();
       navigate('/lottery/3d/quiz');
       return;
     }
@@ -1030,21 +1046,7 @@ const ThreeDGame = () => {
       return;
     }
     setToast(`${label} clicked`);
-  }, [applyFreshResult, navigate, now]);
-
-  const handleRotateLandscape = useCallback(async () => {
-    try {
-      const root = document.documentElement;
-      if (root.requestFullscreen && !document.fullscreenElement) {
-        await root.requestFullscreen();
-      }
-      if (window.screen?.orientation?.lock) {
-        await window.screen.orientation.lock('landscape');
-      }
-    } catch (_) {
-      // On many mobile browsers this requires user/system support.
-    }
-  }, []);
+  }, [applyFreshResult, handleRotateLandscape, navigate, now]);
 
   const handleGoHome = useCallback(async () => {
     try {
