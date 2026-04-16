@@ -257,6 +257,7 @@ const PlayerDetail = () => {
     const [bets, setBets] = useState([]);
     const [gameTransactions, setGameTransactions] = useState([]);
     const [gameHistoryFilter, setGameHistoryFilter] = useState('all');
+    const [gameHistorySearch, setGameHistorySearch] = useState('');
     const [loadingTab, setLoadingTab] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
     const [toggleMessage, setToggleMessage] = useState('');
@@ -458,9 +459,18 @@ const PlayerDetail = () => {
         { key: 'funtimer', title: 'FunTimer Game History', rows: funTimerGameRows, game: 'FunTimer' },
         { key: 'roulette', title: 'Roulette Game History', rows: rouletteGameRows, game: 'Roulette' },
     ];
-    const filteredGameHistorySections = gameHistoryFilter === 'all'
+    const filteredGameHistorySections = (gameHistoryFilter === 'all'
         ? gameHistorySections
-        : gameHistorySections.filter((section) => section.key === gameHistoryFilter);
+        : gameHistorySections.filter((section) => section.key === gameHistoryFilter)
+    ).map((section) => ({
+        ...section,
+        rows: (section.rows || []).filter((row) => {
+            const query = gameHistorySearch.trim().toLowerCase();
+            if (!query) return true;
+            const betId = String(row?.betId || '').toLowerCase();
+            return betId.includes(query);
+        }),
+    }));
 
     const handleLogout = () => {
         clearAdminSession();
@@ -1142,26 +1152,38 @@ const PlayerDetail = () => {
                             <div className="p-8 text-center text-gray-400">Loading...</div>
                         ) : (
                             <div className="p-4 sm:p-6 space-y-6">
-                                <div className="flex flex-wrap gap-2">
-                                    {[
-                                        { key: 'all', label: 'All' },
-                                        { key: 'aviator', label: 'Aviator' },
-                                        { key: 'funtimer', label: 'FunTimer' },
-                                        { key: 'roulette', label: 'Roulette' },
-                                    ].map((option) => (
-                                        <button
-                                            key={option.key}
-                                            type="button"
-                                            onClick={() => setGameHistoryFilter(option.key)}
-                                            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
-                                                gameHistoryFilter === option.key
-                                                    ? 'bg-orange-500 border-orange-500 text-white'
-                                                    : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'
-                                            }`}
-                                        >
-                                            {option.label}
-                                        </button>
-                                    ))}
+                                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { key: 'all', label: 'All' },
+                                            { key: 'aviator', label: 'Aviator' },
+                                            { key: 'funtimer', label: 'FunTimer' },
+                                            { key: 'roulette', label: 'Roulette' },
+                                        ].map((option) => (
+                                            <button
+                                                key={option.key}
+                                                type="button"
+                                                onClick={() => setGameHistoryFilter(option.key)}
+                                                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                                                    gameHistoryFilter === option.key
+                                                        ? 'bg-orange-500 border-orange-500 text-white'
+                                                        : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="w-full lg:w-[320px]">
+                                        <input
+                                            type="text"
+                                            value={gameHistorySearch}
+                                            onChange={(e) => setGameHistorySearch(e.target.value)}
+                                            placeholder="Search by Bet ID"
+                                            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-orange-400 focus:outline-none"
+                                        />
+                                    </div>
                                 </div>
 
                                 {filteredGameHistorySections.map((section) => (
