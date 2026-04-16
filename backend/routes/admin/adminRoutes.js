@@ -22,6 +22,13 @@ import {
     getLottery2DSlotHistory,
     updateLottery2DSlotResult,
 } from '../../controllers/lottery2dAdminController.js';
+import {
+    getLottery3DCurrentSlot,
+    getLottery3DCurrentSlotHints,
+    getLottery3DSlotDetail,
+    getLottery3DSlotHistory,
+    updateLottery3DSlotResult,
+} from '../../controllers/lottery3dAdminController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -44,6 +51,13 @@ router.post('/lottery2d/current-slot/hints', verifyAdmin, getLottery2DCurrentSlo
 router.get('/lottery2d/slots', verifyAdmin, getLottery2DSlotHistory);
 router.get('/lottery2d/slots/:slotStartIso/detail', verifyAdmin, getLottery2DSlotDetail);
 router.patch('/lottery2d/slots/:slotStartIso/result', verifyAdmin, updateLottery2DSlotResult);
+
+// 3D lottery admin management
+router.get('/lottery3d/current-slot', verifyAdmin, getLottery3DCurrentSlot);
+router.post('/lottery3d/current-slot/hints', verifyAdmin, getLottery3DCurrentSlotHints);
+router.get('/lottery3d/slots', verifyAdmin, getLottery3DSlotHistory);
+router.get('/lottery3d/slots/:slotStartIso/detail', verifyAdmin, getLottery3DSlotDetail);
+router.patch('/lottery3d/slots/:slotStartIso/result', verifyAdmin, updateLottery3DSlotResult);
 
 // Super Admin management routes (Super Admin only)
 router.get('/super-admins', verifyAdmin, getAllSuperAdmins); // Get all super admins
