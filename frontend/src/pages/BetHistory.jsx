@@ -203,6 +203,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedSessions, setSelectedSessions] = useState([]); // ['OPEN','CLOSE']
   const [selectedStatuses, setSelectedStatuses] = useState([]); // ['Win','Lost','Pending']
+  const [aviatorStatusFilter, setAviatorStatusFilter] = useState('all'); // all | won | lost
   const [selectedMarkets, setSelectedMarkets] = useState([]); // normalized market keys
   const [markets, setMarkets] = useState([]);
   const [ratesMap, setRatesMap] = useState(null);
@@ -561,6 +562,16 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
       }));
   }, [gameTransactions, isGameDetailPage, selectedGameFromQuery]);
 
+  const filteredAviatorRoundRows = useMemo(() => {
+    if (aviatorStatusFilter === 'won') {
+      return aviatorRoundRows.filter((x) => Number(x.betAmount || 0) < Number(x.cashOutAmount || 0));
+    }
+    if (aviatorStatusFilter === 'lost') {
+      return aviatorRoundRows.filter((x) => Number(x.betAmount || 0) > Number(x.cashOutAmount || 0));
+    }
+    return aviatorRoundRows;
+  }, [aviatorRoundRows, aviatorStatusFilter]);
+
   const aviatorRows = useMemo(
     () => filteredGameRows.filter((r) => String(r.gameLabel || '').toLowerCase() === 'aviator'),
     [filteredGameRows]
@@ -703,15 +714,39 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
             ) : (
               <>
                 {selectedGameFromQuery === 'Aviator' && (
-                  <section className="rounded-2xl border-2 border-gray-200 bg-white p-3 sm:p-4">
+                  <section className="p-0">
                     <h3 className="text-base sm:text-lg font-bold text-[#1B3150] mb-3">Aviator Bet History</h3>
-                    {aviatorRoundRows.length === 0 ? (
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 mr-1">Result</span>
+                      {[
+                        { key: 'all', label: 'All' },
+                        { key: 'won', label: 'Win' },
+                        { key: 'lost', label: 'Lost' },
+                      ].map((f) => {
+                        const active = aviatorStatusFilter === f.key;
+                        return (
+                          <button
+                            key={f.key}
+                            type="button"
+                            onClick={() => setAviatorStatusFilter(f.key)}
+                            className={`min-h-[38px] px-4 rounded-xl text-sm font-bold border-2 transition-colors ${
+                              active
+                                ? 'bg-[#1B3150] border-[#1B3150] text-white shadow-sm'
+                                : 'bg-white border-gray-300 text-[#1B3150] hover:border-[#1B3150]/40 hover:bg-gray-50'
+                            }`}
+                          >
+                            {f.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {filteredAviatorRoundRows.length === 0 ? (
                       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-                        {userId ? 'No Aviator records found.' : 'Please login to see your Aviator bet history.'}
+                        {userId ? 'No Aviator records found for selected filter.' : 'Please login to see your Aviator bet history.'}
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-3">
-                        {aviatorRoundRows.map((row) => (
+                        {filteredAviatorRoundRows.map((row) => (
                           <AviatorBetHistoryCard
                             key={row.key}
                             index={row.index}

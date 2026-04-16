@@ -36,6 +36,13 @@ const AviatorBetHistoryCard = ({ index, betId, betAmount, cashOutAmount, timeFor
     }
   }
 
+  const cardToneClass =
+    statusLabel === 'Won'
+      ? 'bg-green-50 border-green-600/45 shadow-[0_1px_6px_rgba(22,163,74,0.07)] hover:bg-green-100/80 hover:border-green-600/55 hover:shadow-[0_1px_8px_rgba(22,163,74,0.1)]'
+      : statusLabel === 'Loss'
+        ? 'bg-red-50 border-red-600/45 shadow-[0_1px_6px_rgba(220,38,38,0.07)] hover:bg-red-100/80 hover:border-red-600/55 hover:shadow-[0_1px_8px_rgba(220,38,38,0.1)]'
+        : 'bg-white border-gray-200 shadow-sm hover:border-[#1B3150]/25';
+
   const handleCopyBetId = async () => {
     const value = String(betId || '').trim();
     if (!value) return;
@@ -63,7 +70,7 @@ const AviatorBetHistoryCard = ({ index, betId, betAmount, cashOutAmount, timeFor
   };
 
   return (
-    <div className="h-full rounded-xl border-2 p-3 sm:p-3.5 text-gray-800 bg-white border-gray-200 shadow-sm hover:border-[#1B3150]/25 transition-[box-shadow,border-color,background-color] duration-200">
+    <div className={`h-full rounded-xl border-2 p-3 sm:p-3.5 text-gray-800 transition-[box-shadow,border-color,background-color] duration-200 ${cardToneClass}`}>
       <div className="flex items-center justify-between gap-2 mb-2">
         <span className="text-[11px] sm:text-xs text-gray-500 font-medium">#{index}</span>
         <span

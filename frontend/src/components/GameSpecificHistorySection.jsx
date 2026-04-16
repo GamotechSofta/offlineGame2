@@ -3,7 +3,7 @@ import BetHistoryCard from './BetHistoryCard';
 
 const GameSpecificHistorySection = ({ title, rows = [], hasUser = false }) => {
   return (
-    <section className="rounded-2xl border-2 border-gray-200 bg-white p-3 sm:p-4">
+    <section className="p-0">
       <h3 className="text-base sm:text-lg font-bold text-[#1B3150] mb-3">{title}</h3>
       {rows.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
