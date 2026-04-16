@@ -258,6 +258,7 @@ const PlayerDetail = () => {
     const [gameTransactions, setGameTransactions] = useState([]);
     const [gameHistoryFilter, setGameHistoryFilter] = useState('all');
     const [gameHistorySearch, setGameHistorySearch] = useState('');
+    const [betHistorySearch, setBetHistorySearch] = useState('');
     const [loadingTab, setLoadingTab] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
     const [toggleMessage, setToggleMessage] = useState('');
@@ -454,6 +455,13 @@ const PlayerDetail = () => {
     const aviatorGameRows = buildGameRoundRows(gameTransactions, 'Aviator');
     const funTimerGameRows = buildAggregatedGameRoundRows(gameTransactions, 'FunTimer');
     const rouletteGameRows = buildGameRoundRows(gameTransactions, 'Roulette');
+    const filteredBets = (bets || []).filter((bet) => {
+        const query = betHistorySearch.trim().toLowerCase();
+        if (!query) return true;
+        const betId = String(bet?._id || '').toLowerCase();
+        const betNumber = String(bet?.betNumber || '').toLowerCase();
+        return betId.includes(query) || betNumber.includes(query);
+    });
     const gameHistorySections = [
         { key: 'aviator', title: 'Aviator Game History', rows: aviatorGameRows, game: 'Aviator' },
         { key: 'funtimer', title: 'FunTimer Game History', rows: funTimerGameRows, game: 'FunTimer' },
@@ -1126,8 +1134,22 @@ const PlayerDetail = () => {
                         ) : bets.length === 0 ? (
                             <div className="p-8 text-center text-gray-500">No bets.</div>
                         ) : (
-                            <div className="divide-y divide-gray-700 min-w-0">
-                                {bets.map((b) => (
+                            <div className="min-w-0">
+                                <div className="border-b border-gray-200 p-4">
+                                    <input
+                                        type="text"
+                                        value={betHistorySearch}
+                                        onChange={(e) => setBetHistorySearch(e.target.value)}
+                                        placeholder="Search by Bet ID or Bet Number"
+                                        className="w-full max-w-md rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-orange-400 focus:outline-none"
+                                    />
+                                </div>
+
+                                {filteredBets.length === 0 ? (
+                                    <div className="p-8 text-center text-gray-500">No matching bets found.</div>
+                                ) : (
+                                    <div className="divide-y divide-gray-700">
+                                        {filteredBets.map((b) => (
                                     <div key={b._id} className="p-4 hover:bg-gray-100/20">
                                         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                             <span className="text-orange-500 font-mono font-medium">{b.betNumber}</span>
@@ -1140,7 +1162,9 @@ const PlayerDetail = () => {
                                             <span className="text-gray-400 text-xs">{new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</span>
                                         </div>
                                     </div>
-                                ))}
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </>
