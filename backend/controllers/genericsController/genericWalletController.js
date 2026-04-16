@@ -125,7 +125,7 @@ export const getGenericWalletBalance = async (req, res) => {
 
 export const genericWalletDebit = async (req, res) => {
     try {
-        const { amount, transactionId, roundId, game } = req.body || {};
+        const { amount, transactionId, roundId, game, betNumber } = req.body || {};
         const playerId = readPlayerIdFromRequest(req);
         const validAmount = parsePositiveAmount(amount);
 
@@ -183,7 +183,7 @@ export const genericWalletDebit = async (req, res) => {
             type: 'debit',
             amount: validAmount,
             referenceId: normalizedTransactionId,
-            description: `Generic debit | roundId=${roundId || ''} | game=${game || ''}`,
+            description: `Generic debit | roundId=${roundId || ''} | game=${game || ''} | betNumber=${betNumber || ''}`,
         });
 
         return res.status(200).json({

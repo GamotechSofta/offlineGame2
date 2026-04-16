@@ -5,6 +5,7 @@ import { getMyWalletTransactions, getRatesCurrent } from '../api/bets';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import BetHistoryCard from '../components/BetHistoryCard';
 import AviatorBetHistoryCard from '../components/AviatorBetHistoryCard';
+import FunTimerBetHistoryCard from '../components/FunTimerBetHistoryCard';
 
 const safeParse = (raw, fallback) => {
   try {
@@ -69,6 +70,51 @@ const parseRoundId = (text) => {
   const m = s.match(/roundId=([^|]+)/i);
   return m && m[1] ? String(m[1]).trim() : '';
 };
+
+const parseGameBetNumber = (txn) => {
+  const directCandidates = [
+    txn?.betNumber,
+    txn?.selectedNumber,
+    txn?.betNo,
+    txn?.bet_no,
+    txn?.number,
+    txn?.selection,
+    txn?.selectedNo,
+    txn?.bet?.betNumber,
+    txn?.bet?.selectedNumber,
+    txn?.bet?.betNo,
+    txn?.bet?.bet_no,
+    txn?.bet?.number,
+    txn?.bet?.selection,
+    txn?.bet?.selectedNo,
+  ];
+
+  for (const candidate of directCandidates) {
+    const value = String(candidate ?? '').trim();
+    if (value) return value;
+  }
+
+  const source = [txn?.description, txn?.bet?.description, txn?.bet?.marketName].filter(Boolean).join(' | ');
+  const patterns = [
+    /(?:bet(?:\s*no|\s*number)?|number|selectedNumber|selection|selected\s*no|bet_on|bet no)\s*[:=-]\s*([a-z0-9_-]+)/i,
+    /\b(?:on|num(?:ber)?|bet)\s+([a-z0-9_-]+)/i,
+    /([a-z0-9_-]+)\s*(?:number|no)\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = source.match(pattern);
+    if (match?.[1]) return String(match[1]).trim();
+  }
+
+  return '';
+};
+
+const detectTransactionGameName = (txn) =>
+  detectGameName(txn?.description || '') ||
+  detectGameName(txn?.bet?.marketName || '') ||
+  detectGameName(txn?.marketName || '') ||
+  detectGameName(txn?.gameName || '');
+
 const buildGameRoundRows = (transactions, gameName) => {
   const debitRows = [];
   const knownRoundIds = new Set();
@@ -97,6 +143,7 @@ const buildGameRoundRows = (transactions, gameName) => {
       cashOutAmount: null,
       createdAt: t?.createdAt || null,
       gameName,
+      betNumber: parseGameBetNumber(t),
     };
     const idx = debitRows.push(row) - 1;
     if (refId) byRef.set(refId, idx);
@@ -114,14 +161,18 @@ const buildGameRoundRows = (transactions, gameName) => {
     const desc = String(t?.description || '');
     const creditRoundId = parseRoundId(desc);
     const creditRef = String(t?.referenceId || '').trim();
-    const directGame = detectGameName(desc) || detectGameName(t?.bet?.marketName || '');
-    const isLikelyCredit = directGame === gameName || (creditRoundId && knownRoundIds.has(creditRoundId));
-    if (!isLikelyCredit) continue;
+    const directGame = detectTransactionGameName(t);
+
+    // Only attach credits that explicitly belong to this game, or that match
+    // an existing debit reference / known round for this game. Generic game
+    // credits may only contain roundId, so allow that path as well.
+    if (directGame && directGame !== gameName) continue;
+    if (!directGame && !creditRef && !(creditRoundId && knownRoundIds.has(creditRoundId))) continue;
 
     let matchIndex = -1;
     if (creditRef && byRef.has(creditRef)) {
       matchIndex = byRef.get(creditRef);
-    } else if (creditRoundId && byRound.has(creditRoundId)) {
+    } else if (creditRoundId && knownRoundIds.has(creditRoundId) && byRound.has(creditRoundId)) {
       const candidates = byRound.get(creditRoundId) || [];
       // Prefer a row that still has no cashout.
       matchIndex = candidates.find((i) => debitRows[i] && debitRows[i].cashOutAmount == null) ?? candidates[0] ?? -1;
@@ -142,6 +193,121 @@ const buildGameRoundRows = (transactions, gameName) => {
       ...x,
       index: i + 1,
       timeFormatted: formatTxnTime(x.createdAt),
+    }));
+};
+
+const aggregateGameRoundRows = (rows) => {
+  const grouped = new Map();
+
+  for (const row of rows || []) {
+    const groupKey = String(row?.roundId || row?.betId || row?.key || '').trim();
+    if (!groupKey) continue;
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        ...row,
+        key: groupKey,
+        betId: row?.roundId || row?.betId || groupKey,
+        betAmount: Number(row?.betAmount || 0) || 0,
+        cashOutAmount: Number(row?.cashOutAmount || 0) || 0,
+      });
+      continue;
+    }
+
+    const current = grouped.get(groupKey);
+    current.betAmount += Number(row?.betAmount || 0) || 0;
+    current.cashOutAmount += Number(row?.cashOutAmount || 0) || 0;
+
+    const currentTime = new Date(current.createdAt || 0).getTime();
+    const nextTime = new Date(row?.createdAt || 0).getTime();
+    if (nextTime > currentTime) {
+      current.createdAt = row?.createdAt || current.createdAt;
+      current.timeFormatted = row?.timeFormatted || current.timeFormatted;
+    }
+  }
+
+  return Array.from(grouped.values())
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .map((row, index) => ({
+      ...row,
+      index: index + 1,
+      timeFormatted: formatTxnTime(row.createdAt),
+    }));
+};
+
+const buildAggregatedGameRoundRows = (transactions, gameName) => {
+  const grouped = new Map();
+  const knownRoundIds = new Set();
+
+  const ensureRow = (groupKey, txn, fallbackGameName = gameName) => {
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        key: groupKey,
+        betId: groupKey,
+        roundId: groupKey,
+        refId: String(txn?.referenceId || '').trim(),
+        betAmount: 0,
+        cashOutAmount: 0,
+        createdAt: txn?.createdAt || null,
+        gameName: fallbackGameName,
+        betNumber: parseGameBetNumber(txn),
+      });
+    }
+    return grouped.get(groupKey);
+  };
+
+  const allTransactions = Array.isArray(transactions) ? transactions : [];
+
+  // Pass 1: register all debit rounds for this game.
+  for (const txn of allTransactions) {
+    const type = String(txn?.type || '').toLowerCase();
+    if (type !== 'debit') continue;
+
+    const desc = String(txn?.description || '');
+    const detectedGame = detectTransactionGameName(txn);
+    if (detectedGame !== gameName) continue;
+
+    const roundId = parseRoundId(desc);
+    const groupKey = String(roundId || txn?.referenceId || txn?._id || '').trim();
+    if (!groupKey) continue;
+
+    knownRoundIds.add(groupKey);
+    const row = ensureRow(groupKey, txn, gameName);
+    row.betAmount += Number(txn?.amount || 0) || 0;
+    if (!row.betNumber) row.betNumber = parseGameBetNumber(txn);
+    if (!row.createdAt || new Date(txn?.createdAt || 0).getTime() > new Date(row.createdAt || 0).getTime()) {
+      row.createdAt = txn?.createdAt || row.createdAt;
+    }
+  }
+
+  // Pass 2: attach all matching credits to the already-known rounds.
+  for (const txn of allTransactions) {
+    const type = String(txn?.type || '').toLowerCase();
+    if (type !== 'credit') continue;
+
+    const desc = String(txn?.description || '');
+    const detectedGame = detectTransactionGameName(txn);
+    const roundId = parseRoundId(desc);
+    const groupKey = String(roundId || txn?.referenceId || txn?._id || '').trim();
+    if (!groupKey) continue;
+
+    const belongsToGame = detectedGame === gameName || (!detectedGame && knownRoundIds.has(groupKey));
+    if (!belongsToGame || !knownRoundIds.has(groupKey)) continue;
+
+    const row = ensureRow(groupKey, txn, gameName);
+    row.cashOutAmount += Number(txn?.amount || 0) || 0;
+    if (!row.createdAt || new Date(txn?.createdAt || 0).getTime() > new Date(row.createdAt || 0).getTime()) {
+      row.createdAt = txn?.createdAt || row.createdAt;
+    }
+  }
+
+  return Array.from(grouped.values())
+    .filter((row) => Number(row.betAmount || 0) > 0)
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .map((row, index) => ({
+      ...row,
+      index: index + 1,
+      timeFormatted: formatTxnTime(row.createdAt),
     }));
 };
 const normalizeGameQueryToTab = (raw) => {
@@ -570,7 +736,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
   }, [gameTransactions, isGameDetailPage, selectedGameFromQuery]);
   const funTimerRoundRows = useMemo(() => {
     if (!isGameDetailPage || selectedGameFromQuery !== 'FunTimer') return [];
-    return buildGameRoundRows(gameTransactions, 'FunTimer');
+    return buildAggregatedGameRoundRows(gameTransactions, 'FunTimer');
   }, [gameTransactions, isGameDetailPage, selectedGameFromQuery]);
   const rouletteRoundRows = useMemo(() => {
     if (!isGameDetailPage || selectedGameFromQuery !== 'Roulette') return [];
@@ -588,10 +754,10 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
   }, [aviatorRoundRows, gameStatusFilter, selectedGameFromQuery]);
   const filteredFunTimerRoundRows = useMemo(() => {
     if (selectedGameFromQuery === 'FunTimer' && gameStatusFilter === 'won') {
-      return funTimerRoundRows.filter((x) => Number(x.betAmount || 0) < Number(x.cashOutAmount || 0));
+      return funTimerRoundRows.filter((x) => Number(x.cashOutAmount || 0) > Number(x.betAmount || 0));
     }
     if (selectedGameFromQuery === 'FunTimer' && gameStatusFilter === 'lost') {
-      return funTimerRoundRows.filter((x) => Number(x.betAmount || 0) > Number(x.cashOutAmount || 0));
+      return funTimerRoundRows.filter((x) => Number(x.cashOutAmount || 0) <= Number(x.betAmount || 0));
     }
     return funTimerRoundRows;
   }, [funTimerRoundRows, gameStatusFilter, selectedGameFromQuery]);
@@ -814,14 +980,15 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                     ) : (
                       <div className="grid grid-cols-2 gap-3">
                         {filteredFunTimerRoundRows.map((row) => (
-                          <AviatorBetHistoryCard
+                          <FunTimerBetHistoryCard
                             key={row.key}
                             index={row.index}
                             betId={row.betId}
+                            betNumber={row.betNumber}
                             betAmount={row.betAmount}
-                            cashOutAmount={row.cashOutAmount}
+                            winAmount={row.cashOutAmount}
+                            statusLabel={Number(row.cashOutAmount || 0) > Number(row.betAmount || 0) ? 'Won' : 'Lost'}
                             timeFormatted={row.timeFormatted}
-                            gameName="FunTimer"
                           />
                         ))}
                       </div>
