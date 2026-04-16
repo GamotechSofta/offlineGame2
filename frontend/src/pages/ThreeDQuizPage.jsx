@@ -350,7 +350,7 @@ const ThreeDQuizPage = () => {
 
   return (
     <AppLayout>
-      <div className="relative h-full w-full overflow-hidden rounded-[14px] bg-[#111] sm:rounded-none">
+      <div className="relative w-full min-h-screen min-h-[100dvh] overflow-hidden rounded-[14px] bg-[#111] sm:rounded-none">
         <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[#4c4c4c] sm:rounded-none" />
         <div className="absolute inset-0 overflow-hidden" style={{ width: `${viewport.width}px`, height: `${viewport.height}px` }}>
           <div
