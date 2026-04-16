@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import BetHistoryCard from '../components/BetHistoryCard';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash, FaWallet, FaPrint } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
@@ -1148,21 +1149,30 @@ const PlayerDetail = () => {
                                 {filteredBets.length === 0 ? (
                                     <div className="p-8 text-center text-gray-500">No matching bets found.</div>
                                 ) : (
-                                    <div className="divide-y divide-gray-700">
-                                        {filteredBets.map((b) => (
-                                    <div key={b._id} className="p-4 hover:bg-gray-100/20">
-                                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                                            <span className="text-orange-500 font-mono font-medium">{b.betNumber}</span>
-                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${b.status === 'won' ? 'bg-green-900/50 text-green-600' : b.status === 'lost' ? 'bg-red-50 text-red-500' : 'bg-gray-200 text-gray-600'}`}>{b.status}</span>
+                                    <div className="p-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                                            {filteredBets.map((b, index) => (
+                                                <BetHistoryCard
+                                                    key={b._id}
+                                                    index={index + 1}
+                                                    betId={b._id}
+                                                    session={b.betOn || 'OPEN'}
+                                                    marketTitle={(b.marketId?.marketName || 'Market').toUpperCase()}
+                                                    gameLabel={b.betType === 'panna' ? 'Pana' : (b.betType || 'Bet')}
+                                                    betValue={b.betNumber || '-'}
+                                                    betAmount={b.amount}
+                                                    winPayout={b.payout}
+                                                    statusLabel={
+                                                        b.status === 'won'
+                                                            ? 'Win'
+                                                            : b.status === 'lost'
+                                                                ? 'Lost'
+                                                                : 'Pending'
+                                                    }
+                                                    timeFormatted={new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                                                />
+                                            ))}
                                         </div>
-                                        <p className="text-gray-400 text-xs mb-2">{b.marketId?.marketName || '—'} · {b.betType || '—'}</p>
-                                        <div className="flex flex-wrap gap-4 text-sm">
-                                            <span><span className="text-gray-500">Amount</span> <span className="text-gray-800 font-mono">{formatCurrency(b.amount)}</span></span>
-                                            <span><span className="text-gray-500">Payout</span> <span className="text-green-600 font-mono">{formatCurrency(b.payout)}</span></span>
-                                            <span className="text-gray-400 text-xs">{new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</span>
-                                        </div>
-                                    </div>
-                                        ))}
                                     </div>
                                 )}
                             </div>
