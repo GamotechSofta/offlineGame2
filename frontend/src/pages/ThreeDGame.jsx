@@ -312,6 +312,12 @@ const ThreeDGame = () => {
     () => (activeInputIndex === 3 ? `${qty || ''} |` : qty),
     [activeInputIndex, qty],
   );
+  const keypadCenterDisplay = useMemo(() => {
+    if (activeInputIndex === 1) return rangeFromDisplay || '0';
+    if (activeInputIndex === 2) return rangeToDisplay || '0';
+    if (activeInputIndex === 3) return qtyDisplay || '0';
+    return inputNumberDisplay || '0';
+  }, [activeInputIndex, inputNumberDisplay, qtyDisplay, rangeFromDisplay, rangeToDisplay]);
 
   const applyFreshResult = useCallback((newResult) => {
     setResults(newResult);
@@ -1718,6 +1724,7 @@ const ThreeDGame = () => {
               isPointBoxActive={activeInputIndex === -1}
               onNext={handleNextFromKeypad}
               points={pointValue}
+              displayValue={keypadCenterDisplay}
             />
             </div>
           </div>
