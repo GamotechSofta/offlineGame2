@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import BetHistoryCard from '../components/BetHistoryCard';
+import RouletteBetHistoryCard from '../components/RouletteBetHistoryCard';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash, FaWallet, FaPrint } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
@@ -48,6 +49,43 @@ const parseRoundId = (text) => {
     const m = s.match(/roundId=([^|]+)/i);
     return m && m[1] ? String(m[1]).trim() : '';
 };
+const parseGameBetNumber = (txn) => {
+    const directCandidates = [
+        txn?.betNumber,
+        txn?.selectedNumber,
+        txn?.betNo,
+        txn?.bet_no,
+        txn?.number,
+        txn?.selection,
+        txn?.selectedNo,
+        txn?.bet?.betNumber,
+        txn?.bet?.selectedNumber,
+        txn?.bet?.betNo,
+        txn?.bet?.bet_no,
+        txn?.bet?.number,
+        txn?.bet?.selection,
+        txn?.bet?.selectedNo,
+    ];
+
+    for (const candidate of directCandidates) {
+        const value = String(candidate ?? '').trim();
+        if (value) return value;
+    }
+
+    const source = [txn?.description, txn?.bet?.description, txn?.bet?.marketName].filter(Boolean).join(' | ');
+    const patterns = [
+        /(?:bet(?:\s*no|\s*number)?|number|selectedNumber|selection|selected\s*no|bet_on|bet no)\s*[:=-]\s*([a-z0-9_-]+)/i,
+        /\b(?:on|num(?:ber)?|bet)\s+([a-z0-9_-]+)/i,
+        /([a-z0-9_-]+)\s*(?:number|no)\b/i,
+    ];
+
+    for (const pattern of patterns) {
+        const match = source.match(pattern);
+        if (match?.[1]) return String(match[1]).trim();
+    }
+
+    return '';
+};
 
 const buildGameRoundRows = (transactions, gameName) => {
     const debitRows = [];
@@ -76,6 +114,7 @@ const buildGameRoundRows = (transactions, gameName) => {
             cashOutAmount: null,
             createdAt: t?.createdAt || null,
             gameName,
+            betNumber: parseGameBetNumber(t),
         };
         const idx = debitRows.push(row) - 1;
         if (refId) byRef.set(refId, idx);
@@ -1243,6 +1282,20 @@ const PlayerDetail = () => {
                                                     const statusClass = isWon
                                                         ? 'bg-green-50 text-green-700 border-green-300'
                                                         : 'bg-red-50 text-red-700 border-red-300';
+
+                                                    if (section.game === 'Roulette') {
+                                                        return (
+                                                            <RouletteBetHistoryCard
+                                                                key={`${section.game}-${row.key}`}
+                                                                index={row.index}
+                                                                betId={row.betId}
+                                                                betNumber={row.betNumber}
+                                                                betAmount={row.betAmount}
+                                                                winAmount={row.cashOutAmount}
+                                                                timeFormatted={row.timeFormatted}
+                                                            />
+                                                        );
+                                                    }
 
                                                     return (
                                                         <div

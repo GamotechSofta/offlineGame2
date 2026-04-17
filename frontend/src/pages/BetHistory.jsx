@@ -6,6 +6,7 @@ import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import BetHistoryCard from '../components/BetHistoryCard';
 import AviatorBetHistoryCard from '../components/AviatorBetHistoryCard';
 import FunTimerBetHistoryCard from '../components/FunTimerBetHistoryCard';
+import RouletteBetHistoryCard from '../components/RouletteBetHistoryCard';
 
 const safeParse = (raw, fallback) => {
   try {
@@ -1029,14 +1030,14 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4">
                         {filteredRouletteRoundRows.map((row) => (
-                          <AviatorBetHistoryCard
+                          <RouletteBetHistoryCard
                             key={row.key}
                             index={row.index}
                             betId={row.betId}
+                            betNumber={row.betNumber}
                             betAmount={row.betAmount}
-                            cashOutAmount={row.cashOutAmount}
+                            winAmount={row.cashOutAmount}
                             timeFormatted={row.timeFormatted}
-                            gameName="Roulette"
                           />
                         ))}
                       </div>
