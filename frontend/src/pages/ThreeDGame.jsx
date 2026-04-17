@@ -39,6 +39,7 @@ const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
 /** Progress bar turns red when remaining time is at or below this many seconds (5 minutes). */
 const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
 const MAX_VISIBLE_BET_CARDS = 350;
+const HISTORY_FETCH_LIMIT = 5000;
 const HEADER_MENU_ITEMS = [
   { label: 'Result', Icon: Trophy },
   { label: 'Account', Icon: UserCircle },
@@ -99,6 +100,81 @@ const toDigits3 = (value) => {
   if (!s) return ['-', '-', '-'];
   return s.padStart(3, '-').slice(-3).split('');
 };
+
+const BetCardsGrid = React.memo(function BetCardsGrid({
+  bets,
+  visibleBetCards,
+  hiddenBetCardCount,
+  getDisplayBetNumber,
+  onRemoveBet,
+}) {
+  if (!bets.length) {
+    return (
+      <div className="flex min-h-[200px] flex-1 items-center justify-center text-[clamp(1.25rem,3vw,2.625rem)] text-[#9a9a9a] sm:min-h-0">
+        No bets placed yet
+      </div>
+    );
+  }
+
+  return (
+    <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto">
+      {hiddenBetCardCount > 0 ? (
+        <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">
+          Showing latest {visibleBetCards.length} bets for fast view. {hiddenBetCardCount} older bets are hidden from grid but included in BUY.
+        </div>
+      ) : null}
+      <div className="grid w-full min-w-0 gap-3 [grid-template-columns:repeat(auto-fit,minmax(5.75rem,1fr))]">
+        {visibleBetCards.map((bet) => {
+          const panelKey = String(bet.panels || '').trim().toUpperCase();
+          const panelHeaderClass = BET_CARD_PANEL_HEADER[panelKey] || BET_CARD_PANEL_HEADER.A;
+          const shellClass =
+            bet.outcome === 'win'
+              ? 'border border-emerald-300/85 bg-gradient-to-b from-emerald-50/95 via-white to-white shadow-[0_4px_16px_rgba(5,150,105,0.18)] ring-1 ring-emerald-200/50'
+              : bet.outcome === 'loss'
+                ? 'border border-rose-300/85 bg-gradient-to-b from-rose-50/95 via-white to-white shadow-[0_4px_16px_rgba(225,29,72,0.14)] ring-1 ring-rose-200/45'
+                : bet.outcome === 'cancelled'
+                  ? 'border border-slate-300/90 bg-gradient-to-b from-slate-50/95 via-white to-white shadow-[0_4px_14px_rgba(71,85,105,0.14)] ring-1 ring-slate-200/55'
+                  : 'border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/60 to-slate-100/50 shadow-[0_4px_14px_rgba(15,23,42,0.09)] ring-1 ring-slate-200/40';
+          return (
+            <div
+              key={bet.id}
+              className={`min-w-0 w-full max-w-full overflow-hidden rounded-xl ${shellClass} ${bet.justAdded ? 'animate-pulse' : ''}`}
+            >
+              <div className={`flex h-8 items-center justify-center text-[15px] font-bold tracking-wide text-white drop-shadow-sm ${panelHeaderClass}`}>
+                {panelKey || '-'}
+              </div>
+              <div className="px-2.5 py-2.5 text-center">
+                <div className="text-[22px] font-bold leading-none tracking-tight text-slate-900">{getDisplayBetNumber(bet)}</div>
+                <div className="mt-1 text-[13px] font-bold uppercase leading-none tracking-wide text-slate-500">{bet.mode}</div>
+                <div className="mt-1 text-[12px] font-semibold leading-none text-slate-500">Price {bet.rate}</div>
+                <button
+                  type="button"
+                  onClick={() => onRemoveBet(bet.id)}
+                  className="mx-auto mt-2 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-b from-rose-500 to-red-700 text-[16px] font-bold leading-none text-white shadow-[0_2px_10px_rgba(220,38,38,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-95"
+                  aria-label="Remove bet"
+                >
+                  ×
+                </button>
+              </div>
+              {bet.outcome ? (
+                <div className="border-t border-slate-200/70 bg-slate-50/80 px-2 pb-2 pt-1.5 text-[10px] text-center sm:text-[11px]">
+                  <span className={`font-bold ${
+                    bet.outcome === 'win' ? 'text-emerald-600' : bet.outcome === 'cancelled' ? 'text-slate-600' : 'text-rose-600'
+                  }`}
+                  >
+                    {bet.outcome.toUpperCase()}
+                  </span>
+                  <div className="mt-0.5 font-medium text-slate-600">Panel: {bet.matchedPanel || '-'}</div>
+                  <div className="font-medium text-slate-600">Result: {bet.matchedResult || '-'}</div>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
 
 const ThreeDGame = () => {
   const navigate = useNavigate();
@@ -265,7 +341,7 @@ const ThreeDGame = () => {
 
   const loadBackendHistoryTickets = useCallback(async () => {
     try {
-      const j = await getMyQuizBets(50000, '3d');
+      const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
       const rows = Array.isArray(j?.data) ? j.data : [];
       const rowsBySlot = new Map();
       rows.forEach((row) => {
@@ -1315,6 +1391,9 @@ const ThreeDGame = () => {
     setBuySummary(null);
     setActiveInputIndex(-1);
   }, []);
+  const handleRemoveBet = useCallback((betId) => {
+    setBets((prev) => prev.filter((x) => x.id !== betId));
+  }, []);
 
   const handleAdvance = useCallback(() => {
     if (!window.confirm('Are you sure to generate next result?')) return;
@@ -1948,64 +2027,13 @@ const ThreeDGame = () => {
             </div>
 
             <div className="order-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border-2 border-[#d9d9d9] bg-white p-3">
-              {!bets.length ? (
-                <div className="flex min-h-[200px] flex-1 items-center justify-center text-[clamp(1.25rem,3vw,2.625rem)] text-[#9a9a9a] sm:min-h-0">No bets placed yet</div>
-              ) : (
-                <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto">
-                {hiddenBetCardCount > 0 ? (
-                  <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">
-                    Showing latest {visibleBetCards.length} bets for fast view. {hiddenBetCardCount} older bets are hidden from grid but included in BUY.
-                  </div>
-                ) : null}
-                <div className="grid w-full min-w-0 gap-3 [grid-template-columns:repeat(auto-fit,minmax(5.75rem,1fr))]">
-                  {visibleBetCards.map((bet) => {
-                    const panelKey = String(bet.panels || '').trim().toUpperCase();
-                    const panelHeaderClass = BET_CARD_PANEL_HEADER[panelKey] || BET_CARD_PANEL_HEADER.A;
-                    const shellClass =
-                      bet.outcome === 'win'
-                        ? 'border border-emerald-300/85 bg-gradient-to-b from-emerald-50/95 via-white to-white shadow-[0_4px_16px_rgba(5,150,105,0.18)] ring-1 ring-emerald-200/50'
-                        : bet.outcome === 'loss'
-                          ? 'border border-rose-300/85 bg-gradient-to-b from-rose-50/95 via-white to-white shadow-[0_4px_16px_rgba(225,29,72,0.14)] ring-1 ring-rose-200/45'
-                          : bet.outcome === 'cancelled'
-                            ? 'border border-slate-300/90 bg-gradient-to-b from-slate-50/95 via-white to-white shadow-[0_4px_14px_rgba(71,85,105,0.14)] ring-1 ring-slate-200/55'
-                            : 'border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/60 to-slate-100/50 shadow-[0_4px_14px_rgba(15,23,42,0.09)] ring-1 ring-slate-200/40';
-                    return (
-                    <div
-                      key={bet.id}
-                      className={`min-w-0 w-full max-w-full overflow-hidden rounded-xl ${shellClass} ${bet.justAdded ? 'animate-pulse' : ''}`}
-                    >
-                      <div className={`flex h-8 items-center justify-center text-[15px] font-bold tracking-wide text-white drop-shadow-sm ${panelHeaderClass}`}>
-                        {panelKey || '-'}
-                      </div>
-                      <div className="px-2.5 py-2.5 text-center">
-                        <div className="text-[22px] font-bold leading-none tracking-tight text-slate-900">{getDisplayBetNumber(bet)}</div>
-                        <div className="mt-1 text-[13px] font-bold uppercase leading-none tracking-wide text-slate-500">{bet.mode}</div>
-                        <div className="mt-1 text-[12px] font-semibold leading-none text-slate-500">Price {bet.rate}</div>
-                        <button
-                          type="button"
-                          onClick={() => setBets((prev) => prev.filter((x) => x.id !== bet.id))}
-                          className="mx-auto mt-2 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-b from-rose-500 to-red-700 text-[16px] font-bold leading-none text-white shadow-[0_2px_10px_rgba(220,38,38,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-95"
-                          aria-label="Remove bet"
-                        >
-                          ×
-                        </button>
-                      </div>
-                      {bet.outcome ? (
-                        <div className="border-t border-slate-200/70 bg-slate-50/80 px-2 pb-2 pt-1.5 text-[10px] text-center sm:text-[11px]">
-                          <span className={`font-bold ${
-                            bet.outcome === 'win' ? 'text-emerald-600' : bet.outcome === 'cancelled' ? 'text-slate-600' : 'text-rose-600'
-                          }`}>
-                            {bet.outcome.toUpperCase()}
-                          </span>
-                          <div className="mt-0.5 font-medium text-slate-600">Panel: {bet.matchedPanel || '-'}</div>
-                          <div className="font-medium text-slate-600">Result: {bet.matchedResult || '-'}</div>
-                        </div>
-                      ) : null}
-                    </div>
-                  )})}
-                </div>
-                </div>
-              )}
+              <BetCardsGrid
+                bets={bets}
+                visibleBetCards={visibleBetCards}
+                hiddenBetCardCount={hiddenBetCardCount}
+                getDisplayBetNumber={getDisplayBetNumber}
+                onRemoveBet={handleRemoveBet}
+              />
             </div>
             </div>
 

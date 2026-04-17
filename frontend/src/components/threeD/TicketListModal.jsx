@@ -1,5 +1,11 @@
 import React, { useMemo } from 'react';
 
+const drawTimeFormatter = new Intl.DateTimeFormat('en-IN', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+});
+
 const TicketListModal = ({
   open,
   onClose,
@@ -18,7 +24,7 @@ const TicketListModal = ({
           : `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}-${String(createdAt.getDate()).padStart(2, '0')}`;
         const drawTimeFallback = Number.isNaN(createdAt.getTime())
           ? '-'
-          : new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+          : drawTimeFormatter
             .format(createdAt)
             .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
         return {

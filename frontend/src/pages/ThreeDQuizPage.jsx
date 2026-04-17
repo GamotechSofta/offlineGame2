@@ -25,6 +25,80 @@ const cleanQuestionText = (text) =>
   String(text || '').replace(/^(?:प्रश्न|Question)\s*\(\d{1,2}-\d{2,3}\)\s*:\s*/iu, '');
 const QUIZ_MODE = '3d';
 const QUIZ_SELECTOR_COUNT = 3;
+const SLOT_POLL_VISIBLE_MS = 3000;
+const SLOT_POLL_HIDDEN_MS = 7000;
+const HINT_POLL_VISIBLE_MS = 4000;
+const HINT_POLL_HIDDEN_MS = 9000;
+
+const hasSlotDataChanged = (prev, next) => {
+  if (!prev) return true;
+  return (
+    prev.slotStartIso !== next.slotStartIso
+    || prev.phase !== next.phase
+    || prev.acceptsBets !== next.acceptsBets
+    || prev.secondsUntilSlotEnd !== next.secondsUntilSlotEnd
+    || prev.secondsUntilHint !== next.secondsUntilHint
+    || prev.drawLabelPrev !== next.drawLabelPrev
+    || prev.drawLabelCurrent !== next.drawLabelCurrent
+    || prev.drawLabelNext !== next.drawLabelNext
+  );
+};
+
+const StudyQuestionsTable = React.memo(function StudyQuestionsTable({
+  quizLabel,
+  slotLabel,
+  questionsLoading,
+  questionsErr,
+  questions,
+  answerRevealed,
+  toggleAnswer,
+}) {
+  return (
+    <div className="w-full overflow-x-auto rounded-sm border border-[#8b7355] shadow-md select-none">
+      {questionsLoading && <p className="p-4 text-center text-sm">Loading questions...</p>}
+      {questionsErr && <p className="p-4 text-center text-sm text-red-700">{questionsErr}</p>}
+      {!questionsLoading && !questionsErr && (
+        <table className="w-full min-w-[640px] border-collapse text-left text-[13px] sm:text-[15px]">
+          <thead>
+            <tr className="bg-[#ff9a3c] text-black">
+              <th className="border border-[#c96d20] px-1 py-3 text-center font-bold sm:px-2 sm:py-3.5">{quizLabel}</th>
+              <th className="border border-[#c96d20] px-1 py-3 text-center font-bold sm:px-2 sm:py-3.5">QUESTION</th>
+              <th className="border border-[#c96d20] px-1 py-3 text-center font-bold sm:px-2 sm:py-3.5">OPTIONS</th>
+              <th className="w-[72px] border border-[#c96d20] px-1 py-3 text-center font-bold sm:w-[88px] sm:py-3.5">ANS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {questions.map((row, position) => (
+              <tr key={row.id}>
+                <td className="align-top border border-[#7a9e5c] px-3 py-5 font-semibold leading-snug" style={{ backgroundColor: '#b8e6a8' }}>
+                  <div className="text-[14px] font-bold sm:text-[16px]">Question No. {pad3(position)}</div>
+                  <div className="mt-1 text-[13px] font-semibold opacity-95 sm:text-[14px]">{slotLabel}</div>
+                </td>
+                <td className="align-top border border-[#e0a0b0] px-3 py-5 leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
+                  <span className="text-[16px] font-extrabold sm:text-[18px]">{cleanQuestionText(row.question)}</span>
+                </td>
+                <td className="align-top border border-[#7eb8d4] px-3 py-5" style={{ backgroundColor: '#cfe9f6' }}>
+                  <div className="grid grid-cols-2 gap-2 gap-x-3 text-[14px] font-semibold sm:text-[16px]">
+                    {['A', 'B', 'C', 'D'].map((k) => (
+                      <div key={k} className="leading-snug">
+                        <span className="font-bold">{k}:</span> {row.options[k]}
+                      </div>
+                    ))}
+                  </div>
+                </td>
+                <td className="align-middle border border-[#0f3558] p-1 text-center" style={{ backgroundColor: '#1a4a7a' }}>
+                  <button type="button" onClick={() => toggleAnswer(row.id)} className="w-full min-h-[72px] rounded border border-white/30 bg-white/10 px-2 py-4 text-sm font-bold text-white hover:bg-white/20 sm:text-base">
+                    {answerRevealed[row.id] ? <span className="text-xl tracking-widest sm:text-2xl">{row.answer}</span> : 'HIDE'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+});
 
 const ThreeDQuizPage = () => {
   const navigate = useNavigate();
@@ -149,7 +223,7 @@ const ThreeDQuizPage = () => {
             quizId: qid,
             seed: j.data?.seed,
             seedHash: j.data?.seedHash,
-            questionIndex: toDisplayQuestionNumber(j.data?.questionIndex ?? idx2),
+            questionIndex: toDisplayQuestionNumber(j.data?.questionIndex ?? idx3),
           });
           setFairnessCheck(null);
         }
@@ -172,20 +246,34 @@ const ThreeDQuizPage = () => {
 
   useEffect(() => {
     let stop = false;
+    let timerId;
     const poll = async () => {
       try {
         const j = await getQuizSlot();
-        if (!stop && j.success) setSlotData(j.data);
+        if (!stop && j.success && j.data) {
+          setSlotData((prev) => (hasSlotDataChanged(prev, j.data) ? j.data : prev));
+        }
         if (!stop) setSlotErr('');
       } catch (e) {
         if (!stop) setSlotErr(e.message || 'Slot sync failed');
+      } finally {
+        if (!stop) {
+          const delay = document.hidden ? SLOT_POLL_HIDDEN_MS : SLOT_POLL_VISIBLE_MS;
+          timerId = window.setTimeout(poll, delay);
+        }
       }
     };
     poll();
-    const id = setInterval(poll, 2000);
+    const onVisibilityChange = () => {
+      if (stop) return;
+      if (timerId) window.clearTimeout(timerId);
+      timerId = window.setTimeout(poll, 150);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       stop = true;
-      clearInterval(id);
+      if (timerId) window.clearTimeout(timerId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
 
@@ -223,26 +311,47 @@ const ThreeDQuizPage = () => {
     }
     setHintData(null);
     let cancelled = false;
+    let timerId;
     const load = async () => {
       try {
         const j = await getQuizHint(selectedQuiz, QUIZ_MODE);
-        if (!cancelled && j.success) {
-          setHintData({
+        if (!cancelled && j.success && j.data) {
+          const nextHint = {
             quizId: selectedQuiz,
             questionText: j.data.questionText,
             slotStartIso: j.data.slotStartIso,
             seedHash: j.data.seedHash,
-          });
+          };
+          setHintData((prev) => (
+            prev
+            && prev.quizId === nextHint.quizId
+            && prev.questionText === nextHint.questionText
+            && prev.slotStartIso === nextHint.slotStartIso
+            && prev.seedHash === nextHint.seedHash
+              ? prev
+              : nextHint
+          ));
         }
       } catch {
         // race with study phase, will retry
+      } finally {
+        if (!cancelled) {
+          const delay = document.hidden ? HINT_POLL_HIDDEN_MS : HINT_POLL_VISIBLE_MS;
+          timerId = window.setTimeout(load, delay);
+        }
       }
     };
     load();
-    const id = setInterval(load, 2500);
+    const onVisibilityChange = () => {
+      if (cancelled) return;
+      if (timerId) window.clearTimeout(timerId);
+      timerId = window.setTimeout(load, 150);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      if (timerId) window.clearTimeout(timerId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [slotData?.phase, selectedQuiz]);
 
@@ -389,7 +498,7 @@ const ThreeDQuizPage = () => {
             }}
           >
             <div className="flex h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden">
-              <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 bg-[#efe6d5]/95 px-2 pt-4 pb-2 backdrop-blur-sm">
+              <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 bg-[#efe6d5]/95 px-2 pt-4 pb-2">
                 <button type="button" onClick={goToBoard} className={`flex h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-base font-extrabold ${btnInactive}`}>
                   <ArrowLeft size={18} strokeWidth={2.75} />
                   3D
@@ -400,7 +509,7 @@ const ThreeDQuizPage = () => {
               </div>
 
               <div className="flex flex-1 flex-col px-2 pb-24 sm:px-4">
-                <div className="sticky z-[9] -mx-2 mb-3 bg-[#efe6d5]/95 px-2 pt-1 pb-2 backdrop-blur-sm sm:mx-0 sm:px-0" style={{ top: '52px' }}>
+                <div className="sticky z-[9] -mx-2 mb-3 bg-[#efe6d5]/95 px-2 pt-1 pb-2 sm:mx-0 sm:px-0" style={{ top: '52px' }}>
                   <div className="mb-3 flex justify-center gap-2 sm:gap-3">
                     <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnInactive} opacity-90`}>{slotData?.drawLabelPrev ?? '—'}</div>
                     <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnActive}`}>{slotData?.drawLabelCurrent ?? '—'}</div>
@@ -432,49 +541,15 @@ const ThreeDQuizPage = () => {
                 </div>
 
                 {studyPhase && (
-                  <div className="w-full overflow-x-auto rounded-sm border border-[#8b7355] shadow-md select-none">
-                    {questionsLoading && <p className="p-4 text-center text-sm">Loading questions...</p>}
-                    {questionsErr && <p className="p-4 text-center text-sm text-red-700">{questionsErr}</p>}
-                    {!questionsLoading && !questionsErr && (
-                      <table className="w-full min-w-[640px] border-collapse text-left text-[13px] sm:text-[15px]">
-                        <thead>
-                          <tr className="bg-[#ff9a3c] text-black">
-                            <th className="border border-[#c96d20] px-1 py-3 text-center font-bold sm:px-2 sm:py-3.5">{quizLabel}</th>
-                            <th className="border border-[#c96d20] px-1 py-3 text-center font-bold sm:px-2 sm:py-3.5">QUESTION</th>
-                            <th className="border border-[#c96d20] px-1 py-3 text-center font-bold sm:px-2 sm:py-3.5">OPTIONS</th>
-                            <th className="w-[72px] border border-[#c96d20] px-1 py-3 text-center font-bold sm:w-[88px] sm:py-3.5">ANS</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {questions.map((row, position) => (
-                            <tr key={row.id}>
-                              <td className="align-top border border-[#7a9e5c] px-3 py-5 font-semibold leading-snug" style={{ backgroundColor: '#b8e6a8' }}>
-                                <div className="text-[14px] font-bold sm:text-[16px]">Question No. {pad3(position)}</div>
-                                <div className="mt-1 text-[13px] font-semibold opacity-95 sm:text-[14px]">{slotData?.drawLabelCurrent ?? ''}</div>
-                              </td>
-                              <td className="align-top border border-[#e0a0b0] px-3 py-5 leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
-                                <span className="text-[16px] font-extrabold sm:text-[18px]">{cleanQuestionText(row.question)}</span>
-                              </td>
-                              <td className="align-top border border-[#7eb8d4] px-3 py-5" style={{ backgroundColor: '#cfe9f6' }}>
-                                <div className="grid grid-cols-2 gap-2 gap-x-3 text-[14px] font-semibold sm:text-[16px]">
-                                  {['A', 'B', 'C', 'D'].map((k) => (
-                                    <div key={k} className="leading-snug">
-                                      <span className="font-bold">{k}:</span> {row.options[k]}
-                                    </div>
-                                  ))}
-                                </div>
-                              </td>
-                              <td className="align-middle border border-[#0f3558] p-1 text-center" style={{ backgroundColor: '#1a4a7a' }}>
-                                <button type="button" onClick={() => toggleAnswer(row.id)} className="w-full min-h-[72px] rounded border border-white/30 bg-white/10 px-2 py-4 text-sm font-bold text-white hover:bg-white/20 sm:text-base">
-                                  {answerRevealed[row.id] ? <span className="text-xl tracking-widest sm:text-2xl">{row.answer}</span> : 'HIDE'}
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
+                  <StudyQuestionsTable
+                    quizLabel={quizLabel}
+                    slotLabel={slotData?.drawLabelCurrent ?? ''}
+                    questionsLoading={questionsLoading}
+                    questionsErr={questionsErr}
+                    questions={questions}
+                    answerRevealed={answerRevealed}
+                    toggleAnswer={toggleAnswer}
+                  />
                 )}
 
                 {slotOpenForBuy && hintPhase && hintData && (
@@ -497,7 +572,7 @@ const ThreeDQuizPage = () => {
                   </div>
                 )}
 
-                <div className="sticky bottom-0 left-0 right-0 z-20 mt-3 bg-[#efe6d5]/95 py-2 backdrop-blur-sm">
+                <div className="sticky bottom-0 left-0 right-0 z-20 mt-3 bg-[#efe6d5]/95 py-2">
             <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-2">
                     <button type="button" onClick={goToBoard} className="rounded border-2 border-[#b8a01e] bg-[#f5e14a] py-3.5 text-center text-lg font-black tracking-wide text-black shadow-sm active:scale-[0.99] sm:py-4 sm:text-xl">
                       PLAY
