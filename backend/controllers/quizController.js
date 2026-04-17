@@ -18,14 +18,19 @@ import { getShuffleOrderIndices } from '../services/quizShuffleService.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
 import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
 import { getBetOwnerKey } from '../utils/betOwnerKey.js';
+import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js';
 
-/** Max distinct numbers 0–99 per (quiz, slot) for one user. */
+/** Base max distinct numbers for 2D mode (0-99). */
 const MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT = 100;
 /** Max bet lines in one POST body (abuse guard). */
 const MAX_BET_LINES_PER_REQUEST = 100;
 const QUIZ_BET_MIN_STAKE = 1;
 const QUIZ_BET_MAX_STAKE = 1_000_000;
 const resolveGameMode = (req) => (String(req.query?.mode || req.body?.mode || '2d').toLowerCase() === '3d' ? '3d' : '2d');
+const getQuizIdUpperLimit = (gameMode) => (gameMode === '3d' ? 3 : 30);
+const getQuizNumberUpperLimit = (gameMode) => (gameMode === '3d' ? 999 : 99);
+const getQuizQuestionCount = (gameMode) => (gameMode === '3d' ? 1000 : 100);
+const getMaxDistinctNumbersPerSlot = (gameMode) => (gameMode === '3d' ? 1000 : MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT);
 
 function slotAcceptsBets(ctx, nowMs = Date.now()) {
   if (ctx?.slotStartMs == null || ctx?.slotEndMs == null) return false;
@@ -109,15 +114,18 @@ export const getQuestions = async (req, res) => {
       });
     }
 
-    const quiz = await Quiz.findOne({ gameMode, quizId }).lean();
+    const quiz = gameMode === '3d'
+      ? await ensure3DQuizQuestionBank(quizId)
+      : await Quiz.findOne({ gameMode, quizId }).lean();
     if (!quiz) {
       return res.status(404).json({ success: false, message: 'Quiz not found' });
     }
-    if (!Array.isArray(quiz.questions) || quiz.questions.length !== 100) {
+    const expectedCount = getQuizQuestionCount(gameMode);
+    if (!Array.isArray(quiz.questions) || quiz.questions.length !== expectedCount) {
       return res.status(500).json({ success: false, message: 'Quiz data invalid' });
     }
 
-    const order = await getShuffleOrderIndices(quizId, ctx.slotStartIso, null, gameMode);
+    const order = await getShuffleOrderIndices(quizId, ctx.slotStartIso, null, gameMode, expectedCount);
     const questions = order.map((idx) => quiz.questions[idx]);
     const data = {
       quizId,
@@ -236,7 +244,7 @@ export const getResult = async (req, res) => {
     res.json({
       success: true,
       data: {
-        /** Shuffled list position 00–99 (same as study UI and guesses). */
+        /** Shuffled list position (2D: 00-99, 3D: 000-999). */
         questionIndex: formattedQuestionIndex,
         result: winningPos,
         slotStartIso,
@@ -264,10 +272,13 @@ export const postQuizBet = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
+    const numberUpperLimit = getQuizNumberUpperLimit(gameMode);
+    const maxDistinctPerSlot = getMaxDistinctNumbersPerSlot(gameMode);
     const { quizId: rawQuizId, bets: rawBets } = req.body || {};
+    const quizIdUpperLimit = getQuizIdUpperLimit(gameMode);
     const quizId = Number(rawQuizId);
-    if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) {
-      return res.status(400).json({ success: false, message: 'quizId must be 1–30' });
+    if (!Number.isInteger(quizId) || quizId < 1 || quizId > quizIdUpperLimit) {
+      return res.status(400).json({ success: false, message: `quizId must be 1–${quizIdUpperLimit}` });
     }
     if (!Array.isArray(rawBets) || rawBets.length === 0) {
       return res.status(400).json({ success: false, message: 'bets array is required' });
@@ -313,9 +324,9 @@ export const postQuizBet = async (req, res) => {
       const num =
         typeof b.number === 'number' && Number.isInteger(b.number)
           ? b.number
-          : parseInt(String(b.number ?? '').replace(/\D/g, '').slice(0, 2), 10);
-      if (Number.isNaN(num) || num < 0 || num > 99) {
-        return res.status(400).json({ success: false, message: 'Each number must be 0–99' });
+          : parseInt(String(b.number ?? '').replace(/\D/g, '').slice(0, gameMode === '3d' ? 3 : 2), 10);
+      if (Number.isNaN(num) || num < 0 || num > numberUpperLimit) {
+        return res.status(400).json({ success: false, message: `Each number must be 0–${numberUpperLimit}` });
       }
       if (numbersSeen.has(num)) {
         return res.status(400).json({ success: false, message: 'Duplicate numbers in request' });
@@ -336,10 +347,10 @@ export const postQuizBet = async (req, res) => {
     const existing = await QuizBet.find({ gameMode, betOwnerKey: owner, quizId, slotStartIso }).lean();
     const existingByNum = new Map(existing.map((e) => [e.number, e]));
     const newDistinct = lines.filter((l) => !existingByNum.has(l.num)).length;
-    if (existing.length + newDistinct > MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT) {
+    if (existing.length + newDistinct > maxDistinctPerSlot) {
       return res.status(400).json({
         success: false,
-        message: `Maximum ${MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT} distinct numbers per quiz per slot (${existing.length} already placed).`,
+        message: `Maximum ${maxDistinctPerSlot} distinct numbers per quiz per slot (${existing.length} already placed).`,
       });
     }
 
@@ -426,12 +437,15 @@ export const postQuizBetsBatch = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
+    const numberUpperLimit = getQuizNumberUpperLimit(gameMode);
+    const maxDistinctPerSlot = getMaxDistinctNumbersPerSlot(gameMode);
     const { rounds: rawRounds } = req.body || {};
+    const quizIdUpperLimit = getQuizIdUpperLimit(gameMode);
     if (!Array.isArray(rawRounds) || rawRounds.length === 0) {
       return res.status(400).json({ success: false, message: 'rounds array is required' });
     }
-    if (rawRounds.length > 30) {
-      return res.status(400).json({ success: false, message: 'At most 30 quiz rounds per request' });
+    if (rawRounds.length > quizIdUpperLimit) {
+      return res.status(400).json({ success: false, message: `At most ${quizIdUpperLimit} quiz rounds per request` });
     }
 
     const now = Date.now();
@@ -467,8 +481,8 @@ export const postQuizBetsBatch = async (req, res) => {
 
     for (const round of rawRounds) {
       const quizId = Number(round.quizId);
-      if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) {
-        return res.status(400).json({ success: false, message: 'Each round needs quizId 1–30' });
+      if (!Number.isInteger(quizId) || quizId < 1 || quizId > quizIdUpperLimit) {
+        return res.status(400).json({ success: false, message: `Each round needs quizId 1–${quizIdUpperLimit}` });
       }
       if (seenQuiz.has(quizId)) {
         return res.status(400).json({
@@ -495,9 +509,9 @@ export const postQuizBetsBatch = async (req, res) => {
         const num =
           typeof b.number === 'number' && Number.isInteger(b.number)
             ? b.number
-            : parseInt(String(b.number ?? '').replace(/\D/g, '').slice(0, 2), 10);
-        if (Number.isNaN(num) || num < 0 || num > 99) {
-          return res.status(400).json({ success: false, message: `Each number must be 0–99 (quiz ${quizId})` });
+            : parseInt(String(b.number ?? '').replace(/\D/g, '').slice(0, gameMode === '3d' ? 3 : 2), 10);
+        if (Number.isNaN(num) || num < 0 || num > numberUpperLimit) {
+          return res.status(400).json({ success: false, message: `Each number must be 0–${numberUpperLimit} (quiz ${quizId})` });
         }
         if (numbersSeen.has(num)) {
           return res.status(400).json({
@@ -519,10 +533,10 @@ export const postQuizBetsBatch = async (req, res) => {
       const existing = await QuizBet.find({ gameMode, betOwnerKey: owner, quizId, slotStartIso }).lean();
       const existingByNum = new Map(existing.map((e) => [e.number, e]));
       const newDistinct = lines.filter((l) => !existingByNum.has(l.num)).length;
-      if (existing.length + newDistinct > MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT) {
+      if (existing.length + newDistinct > maxDistinctPerSlot) {
         return res.status(400).json({
           success: false,
-          message: `Maximum ${MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT} distinct numbers per quiz per slot for quiz ${quizId} (${existing.length} already placed).`,
+          message: `Maximum ${maxDistinctPerSlot} distinct numbers per quiz per slot for quiz ${quizId} (${existing.length} already placed).`,
         });
       }
 
@@ -645,8 +659,10 @@ export const getMyQuizBets = async (req, res) => {
       const slotEndMs = slotStartMs + SLOT_MS;
       const slotEnded = now >= slotEndMs;
       const hp = pickMap.get(pairKey(b.slotStartIso, b.quizId));
+      const maxPos = gameMode === '3d' ? 999 : 99;
+      const padLength = gameMode === '3d' ? 3 : 2;
       const winningNumber =
-        slotEnded && hp != null && Number.isInteger(hp) && hp >= 0 && hp <= 99 ? String(hp).padStart(2, '0') : null;
+        slotEnded && hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos ? String(hp).padStart(padLength, '0') : null;
       return {
         id: String(b._id),
         quizId: b.quizId,

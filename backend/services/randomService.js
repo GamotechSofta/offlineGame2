@@ -42,12 +42,13 @@ export function buildSeedHashHex(seedHex) {
 }
 
 /**
- * Slot-local hint position in shuffled order (0–99), same for all users for this quiz+slot.
+ * Slot-local hint position in shuffled order, same for all users for this quiz+slot.
  * hintSeed = sha256(seedHex + "_hint")
  */
-export function computeHintPosition(seedHex) {
+export function computeHintPosition(seedHex, length = 100) {
   const hintSeedHex = crypto.createHash('sha256').update(`${seedHex}_hint`, 'utf8').digest('hex');
-  const hintPosition = parseInt(hintSeedHex.slice(0, 8), 16) % 100;
+  const safeLength = Number.isInteger(length) && length > 0 ? length : 100;
+  const hintPosition = parseInt(hintSeedHex.slice(0, 8), 16) % safeLength;
   return { hintSeedHex, hintPosition };
 }
 
@@ -89,7 +90,7 @@ export function pickIndexAvoidingRecent(seedHex, banned, length = 100) {
 
 /** Strip embedded (quiz-XX) index from question line for hint-only payload. */
 export function stripQuestionMetaForHint(text) {
-  return String(text || '').replace(/^प्रश्न\s*\(\d{1,2}-\d{2}\)\s*:\s*/u, 'प्रश्न: ');
+  return String(text || '').replace(/^प्रश्न\s*\(\d{1,2}-\d{2,3}\)\s*:\s*/u, 'प्रश्न: ');
 }
 
 /** Chosen index from existing shuffle seed (deterministic; no Math.random). */

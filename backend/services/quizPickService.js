@@ -5,6 +5,7 @@ import QuizRecentPicks from '../models/quiz/QuizRecentPicks.js';
 import { getCachedPick, setCachedPick } from './quizCacheService.js';
 import { stripQuestionMetaForHint, buildSeedHex, buildSeedHashHex, computeHintPosition } from './randomService.js';
 import { getShuffleOrderIndices } from './quizShuffleService.js';
+import { ensure3DQuizQuestionBank } from './quizQuestionBankService.js';
 
 /** Seed hex from DB if committed, else deterministic formula (no DB write). */
 async function loadOrDeriveSeedHex(quizId, slotStartIso, gameMode = '2d') {
@@ -22,20 +23,24 @@ async function loadOrDeriveSeedHex(quizId, slotStartIso, gameMode = '2d') {
  * Deterministic pick fields (same rules as persisted pick) — does not write QuizSlotPick or recent-picks.
  */
 export async function computePickFields(quizId, slotStartIso, seedHex, gameMode = '2d') {
-  const quiz = await Quiz.findOne({ gameMode, quizId }).lean();
-  if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length !== 100) {
+  const quiz = gameMode === '3d'
+    ? await ensure3DQuizQuestionBank(quizId)
+    : await Quiz.findOne({ gameMode, quizId }).lean();
+  const questionCount = Array.isArray(quiz?.questions) ? quiz.questions.length : 0;
+  const requiredQuestionCount = gameMode === '3d' ? 1000 : 100;
+  if (!quiz || !Array.isArray(quiz.questions) || questionCount !== requiredQuestionCount) {
     throw new Error('QUIZ_DATA_INVALID');
   }
 
-  const order = await getShuffleOrderIndices(quizId, slotStartIso, seedHex, gameMode);
-  const { hintPosition: seedHintPos } = computeHintPosition(seedHex);
-  const recentDoc = await QuizRecentPicks.findOne({ quizId }).lean();
+  const order = await getShuffleOrderIndices(quizId, slotStartIso, seedHex, gameMode, questionCount);
+  const { hintPosition: seedHintPos } = computeHintPosition(seedHex, questionCount);
+  const recentDoc = await QuizRecentPicks.findOne({ gameMode, quizId }).lean();
   const banned = new Set(recentDoc?.recentIndices ?? []);
 
   let pos = seedHintPos;
   let chosenIndex = order[pos];
-  for (let step = 0; step < 99 && banned.has(chosenIndex); step += 1) {
-    pos = (pos + 1) % 100;
+  for (let step = 0; step < questionCount - 1 && banned.has(chosenIndex); step += 1) {
+    pos = (pos + 1) % questionCount;
     chosenIndex = order[pos];
   }
 

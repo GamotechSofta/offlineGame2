@@ -31,6 +31,8 @@ function formatQ(quizId, hintPos) {
 export const getSlotResultsForDate = async (req, res) => {
   try {
     const gameMode = resolveGameMode(req);
+    const maxPos = gameMode === '3d' ? 999 : 99;
+    const maxQuizId = gameMode === '3d' ? 3 : 30;
     const date = typeof req.query.date === 'string' ? req.query.date.trim() : '';
     if (!isValidISTDayKey(date)) {
       return res.status(400).json({
@@ -85,9 +87,9 @@ export const getSlotResultsForDate = async (req, res) => {
       const picks = picksBySlot.get(slotStartIso) || [];
       const byQuiz = new Map(picks.map((p) => [p.quizId, p.hintPosition]));
       const results = [];
-      for (let quizId = 1; quizId <= 30; quizId += 1) {
+      for (let quizId = 1; quizId <= maxQuizId; quizId += 1) {
         const hp = byQuiz.get(quizId);
-        const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= 99;
+        const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos;
         results.push({ quizId, result: ok ? hp : null });
       }
       slots.push({
@@ -116,6 +118,9 @@ export const getSlotResultsHistory = async (req, res) => {
   }
   try {
     const gameMode = resolveGameMode(req);
+    const maxPos = gameMode === '3d' ? 999 : 99;
+    const padLen = gameMode === '3d' ? 3 : 2;
+    const maxQuizId = gameMode === '3d' ? 3 : 30;
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const now = new Date();
 
@@ -157,13 +162,24 @@ export const getSlotResultsHistory = async (req, res) => {
     const data = rows.map((row) => {
       const slotStartIso = row._id;
       const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
-      const picksRaw = [...row.picks].sort((a, b) => a.quizId - b.quizId);
+      const picksRaw = [...row.picks]
+        .filter((p) => Number.isInteger(p.quizId) && p.quizId >= 1 && p.quizId <= maxQuizId)
+        .sort((a, b) => a.quizId - b.quizId);
       const picks = picksRaw.map((p) => {
         const hp = p.hintPosition;
-        const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= 99;
+        const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos;
         return { quizId: p.quizId, winningPosition: ok ? hp : null };
       });
-      const summary = picks.map((p) => formatQ(p.quizId, p.winningPosition)).join(', ');
+      const summary = picks.map((p) => {
+        if (gameMode === '3d') {
+          const setLabel = p.quizId === 1 ? 'A' : p.quizId === 2 ? 'B' : p.quizId === 3 ? 'C' : `Q${String(p.quizId).padStart(2, '0')}`;
+          if (p.winningPosition == null) return `Set ${setLabel}--`;
+          return `Set ${setLabel}-${String(p.winningPosition).padStart(padLen, '0')}`;
+        }
+        const q = String(p.quizId).padStart(2, '0');
+        if (p.winningPosition == null) return `Q${q}--`;
+        return `Q${q}-${String(p.winningPosition).padStart(padLen, '0')}`;
+      }).join(', ');
       const ymd = new Date(slotEndMs).toISOString().slice(2, 10).replace(/-/g, '');
       const drawLabel = `GM${ymd}${String(picks.length).padStart(2, '0')}`;
       return {

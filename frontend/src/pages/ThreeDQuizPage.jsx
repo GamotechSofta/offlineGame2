@@ -22,8 +22,9 @@ const formatCountdown = (totalSeconds) => {
 };
 
 const cleanQuestionText = (text) =>
-  String(text || '').replace(/^(?:प्रश्न|Question)\s*\(\d{1,2}-\d{2}\)\s*:\s*/iu, '');
+  String(text || '').replace(/^(?:प्रश्न|Question)\s*\(\d{1,2}-\d{2,3}\)\s*:\s*/iu, '');
 const QUIZ_MODE = '3d';
+const QUIZ_SELECTOR_COUNT = 3;
 
 const ThreeDQuizPage = () => {
   const navigate = useNavigate();
@@ -140,7 +141,7 @@ const ThreeDQuizPage = () => {
       const row = data.results.find((r) => r.quizId === qid);
       if (!row || row.result == null) return;
 
-      const idx2 = String(row.result).padStart(2, '0');
+      const idx3 = pad3(row.result);
       try {
         const j = await getQuizResult(qid, data.slotStartIso, QUIZ_MODE);
         if (j.success && j.data) {
@@ -157,8 +158,8 @@ const ThreeDQuizPage = () => {
       }
 
       const nums = lastBetNumbersRef.current;
-      const hit = nums.some((n) => String(n).padStart(2, '0') === idx2);
-      const winNum = toDisplayQuestionNumber(idx2);
+      const hit = nums.some((n) => pad3(n) === idx3);
+      const winNum = toDisplayQuestionNumber(idx3);
       setGuessFeedback(nums.length ? (hit ? `Correct - one or more bets won - winning number ${winNum}` : `Wrong - winning number ${winNum}`) : `Winning number: ${winNum}`);
     };
 
@@ -284,12 +285,12 @@ const ThreeDQuizPage = () => {
       const amt = Number(String(row.amount ?? '').replace(/[^\d.]/g, ''));
       if (!nRaw && !row.amount) continue;
       if (nRaw.length !== 3) {
-        setGuessFeedback('For each line, enter a 3-digit number (000-099) or remove empty rows.');
+        setGuessFeedback('For each line, enter a 3-digit number (000-999) or remove empty rows.');
         return;
       }
       const num = parseInt(nRaw, 10);
-      if (num < 0 || num > 99 || !Number.isFinite(amt) || amt < 1) {
-        setGuessFeedback('Each bet must have number 000-099 and minimum amount 1.');
+      if (num < 0 || num > 999 || !Number.isFinite(amt) || amt < 1) {
+        setGuessFeedback('Each bet must have number 000-999 and minimum amount 1.');
         return;
       }
       parsed.push({ number: num, amount: Math.floor(amt) });
@@ -330,8 +331,8 @@ const ThreeDQuizPage = () => {
         questionIndex: toDisplayQuestionNumber(correct),
       });
       setFairnessCheck(null);
-      const idx2 = String(correct ?? '').padStart(2, '0');
-      const hit = parsed.some((p) => String(p.number).padStart(2, '0') === idx2);
+      const idx3 = pad3(correct);
+      const hit = parsed.some((p) => pad3(p.number) === idx3);
       const shown = toDisplayQuestionNumber(correct);
       setGuessFeedback(hit ? `Bet submitted. Correct number ${shown} (winnings credited after slot closes).` : `Bet submitted. Winning number ${shown}.`);
     } catch (e) {
@@ -409,11 +410,11 @@ const ThreeDQuizPage = () => {
                     <div className="w-full">
                       <p className="mb-1.5 text-center text-[11px] font-semibold text-[#5c2222] sm:text-xs">
                         {hintPhase
-                          ? 'Each quiz gets a unique question and result per slot. Select Q-01...Q-30 below to view hint.'
-                          : 'Study: Select a quiz below - 100 questions each.'}
+                          ? 'Each quiz gets a unique question and result per slot. Select Q-01...Q-03 below to view hint.'
+                          : 'Study: Select a quiz below (Q-01 to Q-03) - 100 questions each.'}
                       </p>
                       <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 sm:gap-2">
-                        {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
+                        {Array.from({ length: QUIZ_SELECTOR_COUNT }, (_, i) => i + 1).map((n) => (
                           <button
                             key={n}
                             type="button"

@@ -1,6 +1,13 @@
 import React, { useMemo } from 'react';
 
-const TicketListModal = ({ open, onClose, tickets = [], onView }) => {
+const TicketListModal = ({
+  open,
+  onClose,
+  tickets = [],
+  onView,
+  title = 'TICKET',
+  emptyMessage = 'No tickets available yet.',
+}) => {
   const normalizedTickets = useMemo(() => {
     const safeTickets = Array.isArray(tickets) ? tickets : [];
     return [...safeTickets]
@@ -42,7 +49,7 @@ const TicketListModal = ({ open, onClose, tickets = [], onView }) => {
     <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/60 p-2 sm:p-4">
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-[#7b7b7b] bg-[#c7c7c7] shadow-2xl">
         <div className="flex items-center justify-between bg-[#c71616] px-3 py-2 text-white sm:px-5 sm:py-3">
-          <h3 className="text-[22px] font-extrabold tracking-wide sm:text-[28px]">TICKET</h3>
+          <h3 className="text-[22px] font-extrabold tracking-wide sm:text-[28px]">{title}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -93,7 +100,7 @@ const TicketListModal = ({ open, onClose, tickets = [], onView }) => {
             ))
           ) : (
             <div className="rounded-lg bg-[#4f4f4f] px-4 py-8 text-center text-[16px] font-semibold text-white">
-              No tickets available yet.
+              {emptyMessage}
             </div>
           )}
         </div>

@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 /**
  * Multiple number bets per logged-in user per (quizId, slotStartIso).
- * Winning number = persisted hintPosition (shuffled position 0–99).
+ * Winning number = persisted hintPosition (2D: 0-99, 3D: 0-999).
  */
 const quizBetSchema = new mongoose.Schema(
   {
@@ -11,7 +11,7 @@ const quizBetSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     quizId: { type: Number, required: true, min: 1, max: 30 },
     slotStartIso: { type: String, required: true },
-    number: { type: Number, required: true, min: 0, max: 99 },
+    number: { type: Number, required: true, min: 0, max: 999 },
     amount: { type: Number, required: true, min: 1 },
     status: {
       type: String,

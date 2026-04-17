@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import QuizBet from '../models/quiz/QuizBet.js';
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
+import User from '../models/user/user.js';
 import { getRatesMap } from '../models/rate/rate.js';
 import Admin from '../models/admin/admin.js';
 import bcrypt from 'bcryptjs';
@@ -14,7 +16,7 @@ import {
 } from '../services/slotService.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
 
-const QUIZ_IDS = Array.from({ length: 30 }, (_, i) => i + 1);
+const QUIZ_IDS = [1, 2, 3];
 const GAME_MODE = '3d';
 
 async function getQuiz3DMultiplier() {
@@ -107,6 +109,100 @@ async function verifySecretDeclarePassword(req) {
   return { success: true, hasSecretDeclarePassword: true };
 }
 
+const getSetLabelByQuizId = (quizId) => {
+  if (Number(quizId) === 1) return 'Set A';
+  if (Number(quizId) === 2) return 'Set B';
+  if (Number(quizId) === 3) return 'Set C';
+  return `Q${String(quizId).padStart(2, '0')}`;
+};
+
+function getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier }) {
+  if (!isCompleted) {
+    return { outcome: 'pending', payout: 0, net: -Number(bet.amount || 0) };
+  }
+  const hp = pickByQuiz.get(bet.quizId);
+  const won = Number.isInteger(hp) && hp === Number(bet.number);
+  if (!won) {
+    return { outcome: 'lose', payout: 0, net: -Number(bet.amount || 0) };
+  }
+  const payout = Math.round(Number(bet.amount || 0) * Number(winMultiplier || 0));
+  return { outcome: 'win', payout, net: payout - Number(bet.amount || 0) };
+}
+
+async function buildPlayersForSlot(slotStartIso) {
+  const slotStartMs = new Date(slotStartIso).getTime();
+  const slotEndMs = slotStartMs + SLOT_MS;
+  const isCompleted = Date.now() >= slotEndMs;
+  const [bets, picks, winMultiplier] = await Promise.all([
+    QuizBet.find({ gameMode: GAME_MODE, slotStartIso })
+      .select('_id userId quizId number amount createdAt')
+      .sort({ createdAt: -1 })
+      .lean(),
+    QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso })
+      .select('quizId hintPosition')
+      .lean(),
+    getQuiz3DMultiplier(),
+  ]);
+
+  const userIds = Array.from(new Set(bets.map((b) => String(b.userId || '')).filter(Boolean)));
+  const users = await User.find({ _id: { $in: userIds } }).select('username phone').lean();
+  const userById = new Map(users.map((u) => [String(u._id), u]));
+  const pickByQuiz = new Map(picks.map((p) => [p.quizId, p.hintPosition]));
+  const playerMap = new Map();
+
+  for (const bet of bets) {
+    const userId = String(bet.userId || '');
+    if (!userId) continue;
+    const user = userById.get(userId);
+    if (!playerMap.has(userId)) {
+      playerMap.set(userId, {
+        userId,
+        username: user?.username || 'unknown',
+        phone: user?.phone || '',
+        betCount: 0,
+        totalStake: 0,
+        totalPayout: 0,
+        netProfitLoss: 0,
+        wins: 0,
+        losses: 0,
+        pending: 0,
+        bets: [],
+      });
+    }
+    const row = playerMap.get(userId);
+    const amount = Number(bet.amount || 0);
+    const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier });
+    row.betCount += 1;
+    row.totalStake += amount;
+    row.totalPayout += result.payout;
+    row.netProfitLoss += result.net;
+    if (result.outcome === 'win') row.wins += 1;
+    else if (result.outcome === 'lose') row.losses += 1;
+    else row.pending += 1;
+    row.bets.push({
+      betId: String(bet._id),
+      quizId: bet.quizId,
+      setLabel: getSetLabelByQuizId(bet.quizId),
+      number: String(bet.number).padStart(3, '0'),
+      amount,
+      outcome: result.outcome,
+      payout: result.payout,
+      netProfitLoss: result.net,
+      createdAt: bet.createdAt,
+    });
+  }
+
+  return {
+    slot: {
+      slotStartIso,
+      slotEndIso: new Date(slotEndMs).toISOString(),
+      drawLabelEnd: formatDrawLabel(slotEndMs),
+      isCompleted,
+    },
+    players: Array.from(playerMap.values()).sort((a, b) => b.totalStake - a.totalStake),
+  };
+}
+
 export const getLottery3DCurrentSlot = async (req, res) => {
   try {
     const ctx = getSlotContext(new Date());
@@ -184,7 +280,7 @@ export const getLottery3DCurrentSlotHints = async (req, res) => {
     const ctx = getSlotContext(new Date());
     const slotStartIso = ctx.slotStartIso;
 
-    // Ensure all Q01-Q30 picks exist for the running slot so hints grid is fully populated.
+    // Ensure all 3D sets (Q01/Q02/Q03 => A/B/C) exist for running slot.
     await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
 
     let picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean();
@@ -193,7 +289,7 @@ export const getLottery3DCurrentSlotHints = async (req, res) => {
     const pickByQuiz = new Map(picks.map((p) => [p.quizId, p]));
     const invalidQuizIds = QUIZ_IDS.filter((quizId) => {
       const row = pickByQuiz.get(quizId);
-      return !row || !Number.isInteger(row.hintPosition) || row.hintPosition < 0 || row.hintPosition > 99;
+      return !row || !Number.isInteger(row.hintPosition) || row.hintPosition < 0 || row.hintPosition > 999;
     });
     if (invalidQuizIds.length) {
       await Promise.all(invalidQuizIds.map(async (quizId) => {
@@ -353,6 +449,138 @@ export const getLottery3DSlotDetail = async (req, res) => {
   }
 };
 
+/**
+ * GET /admin/lottery3d/slots/:slotStartIso/players
+ * Returns all players for a slot with each bet + slot P/L.
+ */
+export const getLottery3DSlotPlayers = async (req, res) => {
+  try {
+    const { slotStartIso } = req.params;
+    if (!isValidISTSlotStartIso(slotStartIso)) {
+      return res.status(400).json({ success: false, message: 'Invalid slotStartIso.' });
+    }
+    const data = await buildPlayersForSlot(slotStartIso);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+/**
+ * GET /admin/lottery3d/players/:userId/history?limit=30
+ * Returns full 3D betting history for selected player with slot-wise and overall P/L.
+ */
+export const getLottery3DPlayerHistory = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'Invalid userId.' });
+    }
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
+    const user = await User.findById(userId).select('username phone').lean();
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Player not found.' });
+    }
+
+    const bets = await QuizBet.find({ gameMode: GAME_MODE, userId })
+      .select('_id slotStartIso quizId number amount createdAt')
+      .sort({ slotStartIso: -1, createdAt: -1 })
+      .lean();
+    if (!bets.length) {
+      return res.json({
+        success: true,
+        data: {
+          player: { userId, username: user.username || 'unknown', phone: user.phone || '' },
+          summary: { totalBets: 0, totalStake: 0, totalPayout: 0, netProfitLoss: 0, wins: 0, losses: 0, pending: 0 },
+          slots: [],
+        },
+      });
+    }
+
+    const slotStarts = Array.from(new Set(bets.map((b) => b.slotStartIso))).slice(0, limit);
+    const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStarts } })
+      .select('slotStartIso quizId hintPosition')
+      .lean();
+    const winMultiplier = await getQuiz3DMultiplier();
+    const picksBySlot = new Map();
+    for (const p of picks) {
+      if (!picksBySlot.has(p.slotStartIso)) picksBySlot.set(p.slotStartIso, new Map());
+      picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
+    }
+
+    const slotsMap = new Map();
+    const summary = { totalBets: 0, totalStake: 0, totalPayout: 0, netProfitLoss: 0, wins: 0, losses: 0, pending: 0 };
+    for (const bet of bets) {
+      if (!slotStarts.includes(bet.slotStartIso)) continue;
+      const slotStartMs = new Date(bet.slotStartIso).getTime();
+      const slotEndMs = slotStartMs + SLOT_MS;
+      const isCompleted = Date.now() >= slotEndMs;
+      const pickByQuiz = picksBySlot.get(bet.slotStartIso) || new Map();
+      const amount = Number(bet.amount || 0);
+      const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier });
+      if (!slotsMap.has(bet.slotStartIso)) {
+        slotsMap.set(bet.slotStartIso, {
+          slotStartIso: bet.slotStartIso,
+          slotEndIso: new Date(slotEndMs).toISOString(),
+          drawLabelEnd: formatDrawLabel(slotEndMs),
+          isCompleted,
+          betCount: 0,
+          totalStake: 0,
+          totalPayout: 0,
+          netProfitLoss: 0,
+          wins: 0,
+          losses: 0,
+          pending: 0,
+          bets: [],
+        });
+      }
+      const slotRow = slotsMap.get(bet.slotStartIso);
+      slotRow.betCount += 1;
+      slotRow.totalStake += amount;
+      slotRow.totalPayout += result.payout;
+      slotRow.netProfitLoss += result.net;
+      if (result.outcome === 'win') slotRow.wins += 1;
+      else if (result.outcome === 'lose') slotRow.losses += 1;
+      else slotRow.pending += 1;
+      slotRow.bets.push({
+        betId: String(bet._id),
+        quizId: bet.quizId,
+        setLabel: getSetLabelByQuizId(bet.quizId),
+        number: String(bet.number).padStart(3, '0'),
+        amount,
+        outcome: result.outcome,
+        payout: result.payout,
+        netProfitLoss: result.net,
+        createdAt: bet.createdAt,
+      });
+
+      summary.totalBets += 1;
+      summary.totalStake += amount;
+      summary.totalPayout += result.payout;
+      summary.netProfitLoss += result.net;
+      if (result.outcome === 'win') summary.wins += 1;
+      else if (result.outcome === 'lose') summary.losses += 1;
+      else summary.pending += 1;
+    }
+
+    const slots = slotStarts
+      .map((slotStartIso) => slotsMap.get(slotStartIso))
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.slotStartIso).getTime() - new Date(a.slotStartIso).getTime());
+
+    return res.json({
+      success: true,
+      data: {
+        player: { userId, username: user.username || 'unknown', phone: user.phone || '' },
+        summary,
+        slots,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
 export const updateLottery3DSlotResult = async (req, res) => {
   try {
     const { slotStartIso } = req.params;
@@ -366,11 +594,11 @@ export const updateLottery3DSlotResult = async (req, res) => {
     if (!isValidISTSlotStartIso(slotStartIso)) {
       return res.status(400).json({ success: false, message: 'Invalid slotStartIso.' });
     }
-    if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) {
-      return res.status(400).json({ success: false, message: 'quizId must be between 1 and 30.' });
+    if (!Number.isInteger(quizId) || !QUIZ_IDS.includes(quizId)) {
+      return res.status(400).json({ success: false, message: 'quizId must be one of 1, 2, 3.' });
     }
-    if (!Number.isInteger(result) || result < 0 || result > 99) {
-      return res.status(400).json({ success: false, message: 'result must be between 00 and 99.' });
+    if (!Number.isInteger(result) || result < 0 || result > 999) {
+      return res.status(400).json({ success: false, message: 'result must be between 000 and 999.' });
     }
 
     const ctx = getSlotContext(new Date());

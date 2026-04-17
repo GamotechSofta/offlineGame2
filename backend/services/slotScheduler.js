@@ -61,10 +61,12 @@ async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
 
   const picks = await QuizSlotPick.find({ gameMode, slotStartIso }, { quizId: 1, hintPosition: 1, _id: 0 }).lean();
   const byQuiz = new Map(picks.map((p) => [p.quizId, p.hintPosition]));
+  const maxPos = gameMode === '3d' ? 999 : 99;
+  const maxQuizId = gameMode === '3d' ? 3 : 30;
   const results = [];
-  for (let quizId = 1; quizId <= 30; quizId += 1) {
+  for (let quizId = 1; quizId <= maxQuizId; quizId += 1) {
     const hp = byQuiz.get(quizId);
-    const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= 99;
+    const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos;
     results.push({ quizId, result: ok ? hp : null });
   }
 

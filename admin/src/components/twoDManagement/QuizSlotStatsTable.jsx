@@ -1,9 +1,16 @@
 import React from 'react';
 
-const QuizSlotStatsTable = ({ rows, onEditResult, canEdit = true, resultPadLength = 2 }) => {
+const QuizSlotStatsTable = ({
+    rows,
+    onEditResult,
+    canEdit = true,
+    resultPadLength = 2,
+    quizLabelFormatter = (quizId) => `Quiz${String(quizId).padStart(2, '0')}`,
+    title = 'Quiz-wise Slot Stats',
+}) => {
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Quiz-wise Slot Stats</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">{title}</h3>
             <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                     <thead>
@@ -21,7 +28,7 @@ const QuizSlotStatsTable = ({ rows, onEditResult, canEdit = true, resultPadLengt
                     <tbody>
                         {rows.map((row) => (
                             <tr key={row.quizId} className="border-b border-gray-100">
-                                <td className="py-2 pr-3 font-medium text-gray-800">Quiz{String(row.quizId).padStart(2, '0')}</td>
+                                <td className="py-2 pr-3 font-medium text-gray-800">{quizLabelFormatter(row.quizId)}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.result == null ? '--' : String(row.result).padStart(resultPadLength, '0')}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.ticketCount}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.uniqueUsers}</td>

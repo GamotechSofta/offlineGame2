@@ -14,6 +14,7 @@ const CurrentSlotOverview = ({
     onLockHints,
     canEditHints = false,
     onEditHint,
+    quizLabelFormatter = (quizId) => `Q${String(quizId).padStart(2, '0')}`,
 }) => {
     if (loading) {
         return (
@@ -115,7 +116,7 @@ const CurrentSlotOverview = ({
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2">
                         {hintRows.map((item) => (
                             <div key={item.quizId} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs">
-                                <span className="text-gray-500">Q{String(item.quizId).padStart(2, '0')}</span>
+                                <span className="text-gray-500">{quizLabelFormatter(item.quizId)}</span>
                                 <span className="float-right font-mono font-semibold text-gray-800">{item.hint}</span>
                                 {canEditHints ? (
                                     <button

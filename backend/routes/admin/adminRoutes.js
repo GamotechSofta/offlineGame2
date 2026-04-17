@@ -26,7 +26,9 @@ import {
     getLottery3DCurrentSlot,
     getLottery3DCurrentSlotHints,
     getLottery3DSlotDetail,
+    getLottery3DSlotPlayers,
     getLottery3DSlotHistory,
+    getLottery3DPlayerHistory,
     updateLottery3DSlotResult,
 } from '../../controllers/lottery3dAdminController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
@@ -57,6 +59,8 @@ router.get('/lottery3d/current-slot', verifyAdmin, getLottery3DCurrentSlot);
 router.post('/lottery3d/current-slot/hints', verifyAdmin, getLottery3DCurrentSlotHints);
 router.get('/lottery3d/slots', verifyAdmin, getLottery3DSlotHistory);
 router.get('/lottery3d/slots/:slotStartIso/detail', verifyAdmin, getLottery3DSlotDetail);
+router.get('/lottery3d/slots/:slotStartIso/players', verifyAdmin, getLottery3DSlotPlayers);
+router.get('/lottery3d/players/:userId/history', verifyAdmin, getLottery3DPlayerHistory);
 router.patch('/lottery3d/slots/:slotStartIso/result', verifyAdmin, updateLottery3DSlotResult);
 
 // Super Admin management routes (Super Admin only)

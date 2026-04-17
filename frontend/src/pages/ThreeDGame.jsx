@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   ClipboardList,
   CircleX,
+  History,
   HelpCircle,
   House,
   KeyRound,
@@ -27,7 +28,7 @@ import {
 import TicketListModal from '../components/threeD/TicketListModal';
 import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
 import { getBalance, updateUserBalance } from '../api/bets';
-import { getQuizSlotResultsForDate } from '../api/quizApi';
+import { getMyQuizBets, getQuizSlotResultsForDate } from '../api/quizApi';
 import { getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
@@ -45,6 +46,7 @@ const HEADER_MENU_ITEMS = [
   { label: 'Cancel', Icon: CircleX },
   { label: 'Refresh', Icon: RefreshCw },
   { label: 'Logout', Icon: LogOut },
+  { label: 'History', Icon: History },
 ];
 const PANEL_OPTIONS = ['A', 'B', 'C'];
 const DIGIT_OPTIONS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -58,18 +60,14 @@ const VALID_MODES = new Set(['single', 'str', 'box', 'sp', 'fp', 'bp', 'ap', 'du
 const LPICK_OPTIONS = ['single', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'duplicates', 'triples'];
 const BASE_WIDTH = 1536;
 const BASE_HEIGHT = 864;
-const RESULT_PANEL_SET_STARTS = { A: 1, B: 11, C: 21 };
+const PANEL_QUIZ_IDS = { A: 1, B: 2, C: 3 };
 
-const deriveThreeDigitSetValue = (results, setStartQuizId) => {
+const deriveThreeDigitSetValue = (results, quizId) => {
   const byQuiz = new Map((Array.isArray(results) ? results : []).map((r) => [r.quizId, r.result]));
-  const digits = [0, 1, 2].map((offset) => {
-    const quizId = setStartQuizId + offset;
-    const raw = byQuiz.get(quizId);
-    const n = Number(raw);
-    if (!Number.isInteger(n) || n < 0 || n > 99) return '-';
-    return String(n).padStart(2, '0').slice(-1);
-  });
-  return digits.join('');
+  const raw = byQuiz.get(quizId);
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0 || n > 999) return '---';
+  return String(n).padStart(3, '0');
 };
 
 const toIstDayKey = (d = new Date()) => {
@@ -144,6 +142,8 @@ const ThreeDGame = () => {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isTicketListOpen, setIsTicketListOpen] = useState(false);
+  const [isHistoryListOpen, setIsHistoryListOpen] = useState(false);
+  const [backendHistoryTickets, setBackendHistoryTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [resultDateDay, setResultDateDay] = useState(() => String(new Date().getDate()).padStart(2, '0'));
@@ -245,6 +245,60 @@ const ThreeDGame = () => {
     }
   }, [loadStoredBalance]);
 
+  const loadBackendHistoryTickets = useCallback(async () => {
+    try {
+      const j = await getMyQuizBets(200, '3d');
+      const rows = Array.isArray(j?.data) ? j.data : [];
+      const mapped = rows.map((row) => {
+        const createdAtIso = row?.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString();
+        const createdAt = new Date(createdAtIso);
+        const drawDate = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}-${String(createdAt.getDate()).padStart(2, '0')}`;
+        const drawTime = String(row?.drawLabelEnd || '').trim() || new Intl.DateTimeFormat('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        }).format(createdAt).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
+        const status = String(row?.status || '').toLowerCase();
+        const outcome = status === 'win' ? 'win' : status === 'lose' ? 'loss' : 'pending';
+        const setPanel = Number(row?.quizId) === 1 ? 'A' : Number(row?.quizId) === 2 ? 'B' : Number(row?.quizId) === 3 ? 'C' : 'A';
+        const number3 = String(row?.number ?? '').replace(/\D/g, '').slice(-3).padStart(3, '0');
+        const amount = Number(row?.amount || 0);
+        const winPayout = Number(row?.winPayout || 0);
+        return {
+          id: `backend-${row?.id || `${createdAtIso}-${row?.quizId}-${number3}`}`,
+          userName: playerIdentity || 'user',
+          quizId: row?.quizId,
+          drawDate,
+          drawTime,
+          createdAt: createdAtIso,
+          gameId: row?.id || '-',
+          totalPoints: amount,
+          totalWin: winPayout,
+          outcome,
+          settled: outcome !== 'pending',
+          settledUsing: 'backend',
+          bets: [
+            {
+              id: row?.id || `${createdAtIso}-${row?.quizId}-${number3}`,
+              panels: setPanel,
+              mode: 'str',
+              number: number3,
+              points: amount,
+              outcome,
+              matchedPanel: outcome === 'win' ? setPanel : '-',
+              matchedResult: outcome === 'win' ? number3 : '-',
+              winAmount: winPayout,
+              payoutLabel: outcome === 'win' ? `${amount} × ${amount > 0 ? Math.round(winPayout / amount) : 0} = ${winPayout}` : null,
+            },
+          ],
+        };
+      });
+      setBackendHistoryTickets(mapped);
+    } catch (_) {
+      setBackendHistoryTickets([]);
+    }
+  }, [playerIdentity]);
+
   const pushWalletHistory = useCallback(() => {}, []);
 
   useEffect(() => {
@@ -252,7 +306,7 @@ const ThreeDGame = () => {
 
     const parsedQuizId = Number(String(quizId).replace(/\D/g, ''));
 
-    if (Number.isInteger(parsedQuizId) && parsedQuizId > 0) {
+    if (Number.isInteger(parsedQuizId) && parsedQuizId >= 1 && parsedQuizId <= 3) {
       setSelectedQuizId(parsedQuizId);
 
       // Remove query param after applying it
@@ -382,9 +436,9 @@ const ThreeDGame = () => {
       setLastDrawResult({
         slotStartIso: slot.slotStartIso,
         timeLabel: slot.timeLabel || '-',
-        A: deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.A),
-        B: deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.B),
-        C: deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.C),
+        A: deriveThreeDigitSetValue(slot.results, PANEL_QUIZ_IDS.A),
+        B: deriveThreeDigitSetValue(slot.results, PANEL_QUIZ_IDS.B),
+        C: deriveThreeDigitSetValue(slot.results, PANEL_QUIZ_IDS.C),
       });
     } catch (_) {
       // optional
@@ -421,9 +475,9 @@ const ThreeDGame = () => {
         backendResultCacheRef.current.set(key, null);
         return null;
       }
-      const A3 = deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.A);
-      const B3 = deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.B);
-      const C3 = deriveThreeDigitSetValue(slot.results, RESULT_PANEL_SET_STARTS.C);
+      const A3 = deriveThreeDigitSetValue(slot.results, PANEL_QUIZ_IDS.A);
+      const B3 = deriveThreeDigitSetValue(slot.results, PANEL_QUIZ_IDS.B);
+      const C3 = deriveThreeDigitSetValue(slot.results, PANEL_QUIZ_IDS.C);
       const A = toPanelDigits(A3);
       const B = toPanelDigits(B3);
       const C = toPanelDigits(C3);
@@ -546,9 +600,9 @@ const ThreeDGame = () => {
       return {
         id: slot?.slotStartIso || `${slot?.timeLabel || 'slot'}-abc`,
         time: slot?.timeLabel || '-',
-        A: deriveThreeDigitSetValue(slot?.results, RESULT_PANEL_SET_STARTS.A),
-        B: deriveThreeDigitSetValue(slot?.results, RESULT_PANEL_SET_STARTS.B),
-        C: deriveThreeDigitSetValue(slot?.results, RESULT_PANEL_SET_STARTS.C),
+        A: deriveThreeDigitSetValue(slot?.results, PANEL_QUIZ_IDS.A),
+        B: deriveThreeDigitSetValue(slot?.results, PANEL_QUIZ_IDS.B),
+        C: deriveThreeDigitSetValue(slot?.results, PANEL_QUIZ_IDS.C),
       };
     });
   }, [resultSlots]);
@@ -1232,6 +1286,13 @@ const ThreeDGame = () => {
     }
     if (label.toLowerCase() === 'ticket list') {
       setIsTicketListOpen(true);
+      setIsHistoryListOpen(false);
+      return;
+    }
+    if (label.toLowerCase() === 'history') {
+      await loadBackendHistoryTickets();
+      setIsHistoryListOpen(true);
+      setIsTicketListOpen(false);
       return;
     }
     if (label.toLowerCase() === 'account') {
@@ -1247,7 +1308,7 @@ const ThreeDGame = () => {
       return;
     }
     setToast(`${label} clicked`);
-  }, [applyFreshResult, handleCancelPendingTicket, handleRotateLandscape, navigate, now]);
+  }, [applyFreshResult, handleCancelPendingTicket, handleRotateLandscape, loadBackendHistoryTickets, navigate, now]);
 
   const handleGoHome = useCallback(async () => {
     try {
@@ -1962,6 +2023,17 @@ const ThreeDGame = () => {
           onView={(ticket) => {
             setSelectedTicket(ticket);
             setIsTicketListOpen(false);
+          }}
+        />
+        <TicketListModal
+          open={isHistoryListOpen}
+          onClose={() => setIsHistoryListOpen(false)}
+          tickets={backendHistoryTickets}
+          title="HISTORY"
+          emptyMessage="No backend history available yet."
+          onView={(ticket) => {
+            setSelectedTicket(ticket);
+            setIsHistoryListOpen(false);
           }}
         />
         <TicketDetailsModal
