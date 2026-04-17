@@ -412,10 +412,11 @@ const ThreeDGame = () => {
       });
       mapped.sort((a, b) => new Date(b?.slotStartIso || b?.createdAt || 0).getTime() - new Date(a?.slotStartIso || a?.createdAt || 0).getTime());
       setBackendHistoryTickets(mapped);
+      await refreshWalletBalance();
     } catch (_) {
       setBackendHistoryTickets([]);
     }
-  }, [playerIdentity]);
+  }, [playerIdentity, refreshWalletBalance]);
 
   const pushWalletHistory = useCallback(() => {}, []);
 

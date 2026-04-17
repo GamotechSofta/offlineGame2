@@ -17,6 +17,7 @@ import { buildSeedHashHex } from '../services/randomService.js';
 import { getShuffleOrderIndices } from '../services/quizShuffleService.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
 import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
+import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBetOwnerKey } from '../utils/betOwnerKey.js';
 import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js';
 
@@ -657,6 +658,25 @@ export const getMyQuizBets = async (req, res) => {
     const limit = Math.min(50000, Math.max(1, parseInt(String(req.query.limit || '10000'), 10) || 10000));
     const uid = new mongoose.Types.ObjectId(userId);
     const gameMode = resolveGameMode(req);
+
+    // Safety net: settle ended pending slots on demand so winners are credited
+    // even if scheduler execution was delayed/restarted.
+    try {
+      const pendingSlotStarts = await QuizBet.distinct('slotStartIso', { gameMode, userId: uid, status: 'pending' });
+      const endedPendingSlotStarts = (Array.isArray(pendingSlotStarts) ? pendingSlotStarts : []).filter((slotStartIso) => {
+        const slotStartMs = new Date(slotStartIso).getTime();
+        if (!Number.isFinite(slotStartMs)) return false;
+        return Date.now() >= (slotStartMs + SLOT_MS);
+      });
+      if (endedPendingSlotStarts.length) {
+        await Promise.allSettled(
+          endedPendingSlotStarts.map((slotStartIso) => settleQuizBetsForSlot(slotStartIso, gameMode)),
+        );
+      }
+    } catch {
+      // If fallback settle fails, continue with best-effort read.
+    }
+
     const bets = await QuizBet.find({ gameMode, userId: uid })
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit)

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaChevronDown } from 'react-icons/fa';
 import AdminLayout from '../components/AdminLayout';
@@ -490,6 +490,30 @@ const ThreeDManagement = () => {
     };
 
     const selectedSlotMeta = historySlots.find((slot) => slot.slotStartIso === selectedSlot) || null;
+    const slotPlayerListRows = useMemo(() => {
+        const merged = new Map();
+        historySlots.forEach((slot) => {
+            const players = Array.isArray(historyPlayersMap[slot.slotStartIso]) ? historyPlayersMap[slot.slotStartIso] : [];
+            players.forEach((player) => {
+                const userId = String(player?.userId || '').trim();
+                if (!userId) return;
+                const existing = merged.get(userId) || {
+                    userId,
+                    username: player?.username || 'unknown',
+                    phone: player?.phone || '',
+                    slotCount: 0,
+                    betCount: 0,
+                };
+                existing.slotCount += 1;
+                existing.betCount += Number(player?.betCount ?? 0);
+                if (!existing.phone && player?.phone) existing.phone = player.phone;
+                if ((existing.username === 'unknown' || !existing.username) && player?.username) existing.username = player.username;
+                merged.set(userId, existing);
+            });
+        });
+        return Array.from(merged.values())
+            .sort((a, b) => b.slotCount - a.slotCount || b.betCount - a.betCount || a.userId.localeCompare(b.userId));
+    }, [historyPlayersMap, historySlots]);
 
     return (
         <AdminLayout onLogout={handleLogout} title="3D Management">
@@ -541,7 +565,8 @@ const ThreeDManagement = () => {
                             <thead>
                                 <tr className="text-left text-gray-500 border-b border-gray-200">
                                     <th className="py-2 pr-3">Player</th>
-                                    <th className="py-2 pr-3 text-right">Total Bets</th>
+                                    <th className="py-2 pr-3 text-right">Total Bets (This Slot)</th>
+                                    <th className="py-2 pr-3 text-right">All-time Bets</th>
                                     <th className="py-2 pr-3 text-right">Stake</th>
                                     <th className="py-2 pr-3 text-right">Payout</th>
                                     <th className="py-2 pr-3 text-right">P/L</th>
@@ -551,7 +576,7 @@ const ThreeDManagement = () => {
                             <tbody>
                                 {!currentPlayers.length && !loadingCurrentPlayers ? (
                                     <tr>
-                                        <td colSpan={6} className="py-4 text-center text-gray-500">No players in current slot yet.</td>
+                                        <td colSpan={7} className="py-4 text-center text-gray-500">No players in current slot yet.</td>
                                     </tr>
                                 ) : null}
                                 {currentPlayers.map((player) => (
@@ -566,7 +591,8 @@ const ThreeDManagement = () => {
                                             </button>
                                             {player.phone ? <div className="text-xs text-gray-500">{player.phone}</div> : null}
                                         </td>
-                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.totalBetCountAllTime ?? player.betCount ?? 0)}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.currentSlotBetCount ?? player.batchBetCount ?? player.betCount ?? 0)}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.totalBetCountAllTime ?? player.totalBetCount ?? player.betCount ?? 0)}</td>
                                         <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalStake || 0).toLocaleString('en-IN')}</td>
                                         <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalPayout || 0).toLocaleString('en-IN')}</td>
                                         <td className={`py-2 pr-3 text-right font-mono ${Number(player.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -750,8 +776,8 @@ const ThreeDManagement = () => {
                         <div className="bg-white border border-gray-200 rounded-xl p-5">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-800">All Old Slots - Player Bet History</h3>
-                                    <p className="text-sm text-gray-500">प्रत्येक slot साठी player-wise bets, profit/loss आणि details.</p>
+                                    <h3 className="text-lg font-semibold text-gray-800">Slot Player Bets - Playing Players</h3>
+                                    <p className="text-sm text-gray-500">फक्त खेळणाऱ्या player ची ID आणि basic details. Click केल्यावर full history उघडेल.</p>
                                 </div>
                                 {loadingAllHistoryPlayers ? <span className="text-xs text-gray-500">Loading all slot players...</span> : null}
                             </div>
@@ -760,76 +786,68 @@ const ThreeDManagement = () => {
                             <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">
                                 Selected date साठी old slots नाहीत.
                             </div>
-                        ) : historySlots.map((slot) => {
-                            const players = Array.isArray(historyPlayersMap[slot.slotStartIso]) ? historyPlayersMap[slot.slotStartIso] : [];
-                            const hasPlayersLoaded = Object.prototype.hasOwnProperty.call(historyPlayersMap, slot.slotStartIso);
-                            return (
-                                <div key={`player-stats-${slot.slotStartIso}`} className="bg-white border border-gray-200 rounded-xl p-5">
-                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                                        <div>
-                                            <h3 className="text-base font-semibold text-gray-800">{slot.drawLabelEnd}</h3>
-                                            <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
-                                        </div>
-                                        <p className="text-xs text-gray-500">
-                                            Players: <span className="font-semibold text-gray-700">{slot.totalUsers}</span> | Tickets: <span className="font-semibold text-gray-700">{slot.totalTickets}</span>
-                                        </p>
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="min-w-full text-sm">
-                                            <thead>
-                                                <tr className="text-left text-gray-500 border-b border-gray-200">
-                                                    <th className="py-2 pr-3">Player</th>
-                                                    <th className="py-2 pr-3 text-right">Total Bets</th>
-                                                    <th className="py-2 pr-3 text-right">Wins/Losses</th>
-                                                    <th className="py-2 pr-3 text-right">Stake</th>
-                                                    <th className="py-2 pr-3 text-right">Payout</th>
-                                                    <th className="py-2 pr-3 text-right">P/L</th>
-                                                    <th className="py-2 text-right">Action</th>
+                        ) : (
+                            <div className="bg-white border border-gray-200 rounded-xl p-5">
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full text-sm">
+                                        <thead>
+                                            <tr className="text-left text-gray-500 border-b border-gray-200">
+                                                <th className="py-2 pr-3">Player ID</th>
+                                                <th className="py-2 pr-3">Player Name</th>
+                                                <th className="py-2 pr-3">Phone</th>
+                                                <th className="py-2 pr-3 text-right">Played Slots</th>
+                                                <th className="py-2 pr-3 text-right">Bets (Selected Date)</th>
+                                                <th className="py-2 text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {!slotPlayerListRows.length ? (
+                                                <tr>
+                                                    <td colSpan={6} className="py-4 text-center text-gray-500">
+                                                        {loadingAllHistoryPlayers ? 'Slot player data loading...' : 'No playing players found for selected date.'}
+                                                    </td>
                                                 </tr>
-                                            </thead>
-                                            <tbody>
-                                                {!players.length ? (
-                                                    <tr>
-                                                        <td colSpan={7} className="py-4 text-center text-gray-500">
-                                                            {hasPlayersLoaded ? 'No players found for this slot.' : 'Slot player data loading...'}
-                                                        </td>
-                                                    </tr>
-                                                ) : players.map((player) => (
-                                                    <tr key={`${slot.slotStartIso}-${player.userId}`} className="border-b border-gray-100">
-                                                        <td className="py-2 pr-3">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleOpenPlayerHistory(player)}
-                                                                className="text-blue-600 hover:text-blue-800 font-semibold"
-                                                            >
-                                                                {player.username || 'unknown'}
-                                                            </button>
-                                                            {player.phone ? <div className="text-xs text-gray-500">{player.phone}</div> : null}
-                                                        </td>
-                                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.totalBetCountAllTime ?? player.betCount ?? 0)}</td>
-                                                        <td className="py-2 pr-3 text-right font-mono">{player.wins}/{player.losses}</td>
-                                                        <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalStake || 0).toLocaleString('en-IN')}</td>
-                                                        <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalPayout || 0).toLocaleString('en-IN')}</td>
-                                                        <td className={`py-2 pr-3 text-right font-mono ${Number(player.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                            ₹{Number(player.netProfitLoss || 0).toLocaleString('en-IN')}
-                                                        </td>
-                                                        <td className="py-2 text-right">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleOpenPlayerHistory(player)}
-                                                                className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-xs font-semibold text-gray-700"
-                                                            >
-                                                                View Details
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                            ) : slotPlayerListRows.map((player) => (
+                                                <tr
+                                                    key={`slot-player-${player.userId}`}
+                                                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                                                    onClick={() => handleOpenPlayerHistory(player)}
+                                                >
+                                                    <td className="py-2 pr-3 font-mono text-xs sm:text-sm">{player.userId}</td>
+                                                    <td className="py-2 pr-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenPlayerHistory(player);
+                                                            }}
+                                                            className="text-blue-600 hover:text-blue-800 font-semibold"
+                                                        >
+                                                            {player.username || 'unknown'}
+                                                        </button>
+                                                    </td>
+                                                    <td className="py-2 pr-3">{player.phone || '-'}</td>
+                                                    <td className="py-2 pr-3 text-right font-mono">{Number(player.slotCount || 0)}</td>
+                                                    <td className="py-2 pr-3 text-right font-mono">{Number(player.betCount || 0)}</td>
+                                                    <td className="py-2 text-right">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenPlayerHistory(player);
+                                                            }}
+                                                            className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-xs font-semibold text-gray-700"
+                                                        >
+                                                            View Full History
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-                            );
-                        })}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import QuizBet from '../models/quiz/QuizBet.js';
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
 import { getRatesMap } from '../models/rate/rate.js';
-import { Wallet } from '../models/wallet/wallet.js';
+import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { resolveWinningShuffledPosition } from './quizPickPositionService.js';
 
 async function winMultiplier(gameMode = '2d') {
@@ -68,6 +68,14 @@ export async function settleQuizBetsForSlot(slotStartIso, gameMode = '2d') {
       if (mongoose.Types.ObjectId.isValid(uid)) {
         // eslint-disable-next-line no-await-in-loop
         await Wallet.findOneAndUpdate({ userId: uid }, { $inc: { balance: winPayout } }, { upsert: true });
+        // eslint-disable-next-line no-await-in-loop
+        await WalletTransaction.create({
+          userId: uid,
+          type: 'credit',
+          amount: winPayout,
+          description: `Quiz ${String(gameMode).toUpperCase()} win payout`,
+          referenceId: String(bet._id),
+        });
       }
     }
   }
