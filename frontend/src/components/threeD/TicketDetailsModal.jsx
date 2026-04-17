@@ -11,6 +11,14 @@ const getDisplayNumberByMode = (number, modeRaw) => {
 };
 
 const formatQuizLabel = (ticket) => {
+  const bets = Array.isArray(ticket?.bets) ? ticket.bets : [];
+  const panels = Array.from(new Set(
+    bets
+      .map((bet) => String(bet?.panels || '').trim().toUpperCase())
+      .filter((p) => ['A', 'B', 'C'].includes(p)),
+  ));
+  if (panels.length > 1) return `SET ${panels.join('/')}`;
+  if (panels.length === 1) return `SET ${panels[0]}`;
   const rawCandidates = [ticket?.quizId, ticket?.selectedQuizId, ticket?.quizNo, ticket?.quiz];
   const raw = rawCandidates.find((value) => value != null && String(value).trim() !== '');
   if (raw == null) return '-';
@@ -110,7 +118,7 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
               <div className="text-[14px] font-semibold text-white/90 sm:text-[16px]">For Amusement Only</div>
             </div>
             <div className="space-y-2 text-[14px] sm:text-[16px]">
-              <div>Agent ID : <span className="font-semibold">user</span></div>
+              <div>Agent ID : <span className="font-semibold">{ticket?.userName || 'user'}</span></div>
               <div>Quiz : <span className="font-semibold">{overview.quizLabel}</span></div>
               <div>Coupon Dr Time : <span className="font-semibold">{ticket.drawTime || '-'}</span></div>
               <div>Coupon Dr Date : <span className="font-semibold">{ticket.drawDate || '-'}</span></div>

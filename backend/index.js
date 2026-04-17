@@ -80,7 +80,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(cookieParser());
-app.use(express.json());
+// Large 3D batch buys can send very big payloads (thousands of bet lines).
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

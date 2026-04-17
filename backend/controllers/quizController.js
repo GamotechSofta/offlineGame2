@@ -20,17 +20,39 @@ import { resolveWinningShuffledPosition } from '../services/quizPickPositionServ
 import { getBetOwnerKey } from '../utils/betOwnerKey.js';
 import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js';
 
-/** Base max distinct numbers for 2D mode (0-99). */
-const MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT = 100;
-/** Max bet lines in one POST body (abuse guard). */
-const MAX_BET_LINES_PER_REQUEST = 100;
 const QUIZ_BET_MIN_STAKE = 1;
 const QUIZ_BET_MAX_STAKE = 1_000_000;
+const QUIZ_BET_MODE_ALIASES = new Map([
+  ['single', 'str'],
+  ['str', 'str'],
+  ['box', 'box'],
+  ['fp', 'fp'],
+  ['bp', 'bp'],
+  ['sp', 'sp'],
+  ['ap', 'ap'],
+  ['duplicates', 'duplicates'],
+  ['dp', 'duplicates'],
+  ['triples', 'triples'],
+  ['tp', 'triples'],
+]);
 const resolveGameMode = (req) => (String(req.query?.mode || req.body?.mode || '2d').toLowerCase() === '3d' ? '3d' : '2d');
 const getQuizIdUpperLimit = (gameMode) => (gameMode === '3d' ? 3 : 30);
 const getQuizNumberUpperLimit = (gameMode) => (gameMode === '3d' ? 999 : 99);
 const getQuizQuestionCount = (gameMode) => (gameMode === '3d' ? 1000 : 100);
-const getMaxDistinctNumbersPerSlot = (gameMode) => (gameMode === '3d' ? 1000 : MAX_QUIZ_DISTINCT_NUMBERS_PER_SLOT);
+const normalizeQuizBetMode = (modeRaw) => {
+  const key = String(modeRaw || '').trim().toLowerCase();
+  return QUIZ_BET_MODE_ALIASES.get(key) || null;
+};
+let ensureQuizBetIndexesPromise = null;
+async function ensureQuizBetIndexes() {
+  if (!ensureQuizBetIndexesPromise) {
+    ensureQuizBetIndexesPromise = QuizBet.syncIndexes().catch((err) => {
+      ensureQuizBetIndexesPromise = null;
+      throw err;
+    });
+  }
+  await ensureQuizBetIndexesPromise;
+}
 
 function slotAcceptsBets(ctx, nowMs = Date.now()) {
   if (ctx?.slotStartMs == null || ctx?.slotEndMs == null) return false;
@@ -41,21 +63,37 @@ function slotAcceptsBets(ctx, nowMs = Date.now()) {
  * Apply amount increases + new QuizBet rows. On failure, reverse applied ops and refund wallet once.
  */
 async function applyMergesAndInsertsOrRefund(userId, totalStake, incs, insertDocs) {
-  const rollback = [];
   try {
-    for (const { _id, amount } of incs) {
-      const r = await QuizBet.updateOne({ _id }, { $inc: { amount } });
-      if (r.matchedCount !== 1) throw new Error('MERGE_TARGET_MISSING');
-      rollback.push({ t: 'inc', _id, amount });
+    if (incs.length) {
+      const incOps = incs.map(({ _id, amount }) => ({
+        updateOne: {
+          filter: { _id },
+          update: { $inc: { amount } },
+        },
+      }));
+      const incResult = await QuizBet.bulkWrite(incOps, { ordered: true });
+      const matched = Number(incResult?.matchedCount || 0);
+      if (matched !== incs.length) throw new Error('MERGE_TARGET_MISSING');
     }
-    for (const doc of insertDocs) {
-      const [created] = await QuizBet.create([doc]);
-      rollback.push({ t: 'ins', _id: created._id });
+    if (insertDocs.length) {
+      await QuizBet.insertMany(insertDocs, { ordered: true });
     }
   } catch (e) {
-    for (const op of rollback.slice().reverse()) {
-      if (op.t === 'inc') await QuizBet.updateOne({ _id: op._id }, { $inc: { amount: -op.amount } });
-      if (op.t === 'ins') await QuizBet.deleteOne({ _id: op._id });
+    // Rollback in bulk to keep refund path fast even for large payloads.
+    if (insertDocs.length) {
+      const insertedIds = insertDocs.map((d) => d?._id).filter(Boolean);
+      if (insertedIds.length) {
+        await QuizBet.deleteMany({ _id: { $in: insertedIds } });
+      }
+    }
+    if (incs.length) {
+      const rollbackIncOps = incs.map(({ _id, amount }) => ({
+        updateOne: {
+          filter: { _id },
+          update: { $inc: { amount: -amount } },
+        },
+      }));
+      await QuizBet.bulkWrite(rollbackIncOps, { ordered: false });
     }
     await Wallet.findOneAndUpdate({ userId }, { $inc: { balance: totalStake } });
     if (e?.code === 11000) {
@@ -262,7 +300,7 @@ export const getResult = async (req, res) => {
 /**
  * POST /api/v1/quiz/bet
  * Body: { quizId, bets: [{ number, amount }] } — any time while current 15m IST slot is open;
- * up to 100 distinct numbers per quiz per slot; repeat number adds to stake (merge).
+ * repeat number adds to stake (merge).
  */
 export const postQuizBet = async (req, res) => {
   try {
@@ -271,9 +309,9 @@ export const postQuizBet = async (req, res) => {
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
+    await ensureQuizBetIndexes();
 
     const numberUpperLimit = getQuizNumberUpperLimit(gameMode);
-    const maxDistinctPerSlot = getMaxDistinctNumbersPerSlot(gameMode);
     const { quizId: rawQuizId, bets: rawBets } = req.body || {};
     const quizIdUpperLimit = getQuizIdUpperLimit(gameMode);
     const quizId = Number(rawQuizId);
@@ -310,13 +348,6 @@ export const postQuizBet = async (req, res) => {
       });
     }
 
-    if (rawBets.length > MAX_BET_LINES_PER_REQUEST) {
-      return res.status(400).json({
-        success: false,
-        message: `At most ${MAX_BET_LINES_PER_REQUEST} bet lines per request.`,
-      });
-    }
-
     const numbersSeen = new Set();
     const lines = [];
     let totalStake = 0;
@@ -328,10 +359,15 @@ export const postQuizBet = async (req, res) => {
       if (Number.isNaN(num) || num < 0 || num > numberUpperLimit) {
         return res.status(400).json({ success: false, message: `Each number must be 0–${numberUpperLimit}` });
       }
-      if (numbersSeen.has(num)) {
+      const betMode = normalizeQuizBetMode(b?.betMode || b?.mode || 'str');
+      if (!betMode) {
+        return res.status(400).json({ success: false, message: 'Invalid bet mode in request' });
+      }
+      const duplicateKey = `${num}|${betMode}`;
+      if (numbersSeen.has(duplicateKey)) {
         return res.status(400).json({ success: false, message: 'Duplicate numbers in request' });
       }
-      numbersSeen.add(num);
+      numbersSeen.add(duplicateKey);
       const amount = Number(b.amount);
       if (!Number.isFinite(amount) || amount < QUIZ_BET_MIN_STAKE || amount > QUIZ_BET_MAX_STAKE) {
         return res.status(400).json({
@@ -340,35 +376,29 @@ export const postQuizBet = async (req, res) => {
         });
       }
       totalStake += amount;
-      lines.push({ num, amount });
+      lines.push({ num, amount, betMode });
     }
 
     const owner = getBetOwnerKey(req);
     const existing = await QuizBet.find({ gameMode, betOwnerKey: owner, quizId, slotStartIso }).lean();
-    const existingByNum = new Map(existing.map((e) => [e.number, e]));
-    const newDistinct = lines.filter((l) => !existingByNum.has(l.num)).length;
-    if (existing.length + newDistinct > maxDistinctPerSlot) {
-      return res.status(400).json({
-        success: false,
-        message: `Maximum ${maxDistinctPerSlot} distinct numbers per quiz per slot (${existing.length} already placed).`,
-      });
-    }
-
+    const existingByKey = new Map(existing.map((e) => [`${e.number}|${normalizeQuizBetMode(e.betMode || 'str') || 'str'}`, e]));
     const uid = new mongoose.Types.ObjectId(userId);
     const incs = [];
     const insertDocs = [];
-    for (const { num, amount } of lines) {
-      const ex = existingByNum.get(num);
+    for (const { num, amount, betMode } of lines) {
+      const ex = existingByKey.get(`${num}|${betMode}`);
       if (ex) {
         incs.push({ _id: ex._id, amount });
       } else {
         insertDocs.push({
+          _id: new mongoose.Types.ObjectId(),
           gameMode,
           betOwnerKey: owner,
           userId: uid,
           quizId,
           slotStartIso,
           number: num,
+          betMode,
           amount,
           status: 'pending',
           winPayout: 0,
@@ -414,7 +444,7 @@ export const postQuizBet = async (req, res) => {
         linesProcessed: lines.length,
         totalStake,
         balance: walletUpdate.balance,
-        bets: lines.map((l) => ({ number: l.num, amount: l.amount })),
+        bets: lines.map((l) => ({ number: l.num, amount: l.amount, betMode: l.betMode })),
       },
     });
   } catch (err) {
@@ -427,7 +457,7 @@ export const postQuizBet = async (req, res) => {
 /**
  * POST /api/v1/quiz/bet-batch
  * Body: { rounds: [{ quizId, bets: [{ number, amount }] }] } — one wallet debit while slot open;
- * per quiz up to 100 distinct numbers; same number again increases stake.
+ * same number again increases stake.
  */
 export const postQuizBetsBatch = async (req, res) => {
   try {
@@ -436,16 +466,13 @@ export const postQuizBetsBatch = async (req, res) => {
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
+    await ensureQuizBetIndexes();
 
     const numberUpperLimit = getQuizNumberUpperLimit(gameMode);
-    const maxDistinctPerSlot = getMaxDistinctNumbersPerSlot(gameMode);
     const { rounds: rawRounds } = req.body || {};
     const quizIdUpperLimit = getQuizIdUpperLimit(gameMode);
     if (!Array.isArray(rawRounds) || rawRounds.length === 0) {
       return res.status(400).json({ success: false, message: 'rounds array is required' });
-    }
-    if (rawRounds.length > quizIdUpperLimit) {
-      return res.status(400).json({ success: false, message: `At most ${quizIdUpperLimit} quiz rounds per request` });
     }
 
     const now = Date.now();
@@ -476,7 +503,7 @@ export const postQuizBetsBatch = async (req, res) => {
 
     const owner = getBetOwnerKey(req);
     const uid = new mongoose.Types.ObjectId(userId);
-    const seenQuiz = new Set();
+    const normalizedByQuiz = new Map();
     const roundsData = [];
 
     for (const round of rawRounds) {
@@ -484,27 +511,12 @@ export const postQuizBetsBatch = async (req, res) => {
       if (!Number.isInteger(quizId) || quizId < 1 || quizId > quizIdUpperLimit) {
         return res.status(400).json({ success: false, message: `Each round needs quizId 1–${quizIdUpperLimit}` });
       }
-      if (seenQuiz.has(quizId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Duplicate quizId in rounds. Send one block per quiz.',
-        });
-      }
-      seenQuiz.add(quizId);
 
       const rawBets = round.bets;
       if (!Array.isArray(rawBets) || rawBets.length === 0) {
         return res.status(400).json({ success: false, message: 'Each round needs a non-empty bets array' });
       }
-      if (rawBets.length > MAX_BET_LINES_PER_REQUEST) {
-        return res.status(400).json({
-          success: false,
-          message: `At most ${MAX_BET_LINES_PER_REQUEST} bet lines per round (quiz ${quizId}).`,
-        });
-      }
-
-      const numbersSeen = new Set();
-      const lines = [];
+      const byKey = normalizedByQuiz.get(quizId) || new Map();
       for (const b of rawBets) {
         const num =
           typeof b.number === 'number' && Number.isInteger(b.number)
@@ -513,13 +525,10 @@ export const postQuizBetsBatch = async (req, res) => {
         if (Number.isNaN(num) || num < 0 || num > numberUpperLimit) {
           return res.status(400).json({ success: false, message: `Each number must be 0–${numberUpperLimit} (quiz ${quizId})` });
         }
-        if (numbersSeen.has(num)) {
-          return res.status(400).json({
-            success: false,
-            message: `Duplicate numbers in request (quiz ${quizId})`,
-          });
+        const betMode = normalizeQuizBetMode(b?.betMode || b?.mode || 'str');
+        if (!betMode) {
+          return res.status(400).json({ success: false, message: `Invalid bet mode in request (quiz ${quizId})` });
         }
-        numbersSeen.add(num);
         const amount = Number(b.amount);
         if (!Number.isFinite(amount) || amount < QUIZ_BET_MIN_STAKE || amount > QUIZ_BET_MAX_STAKE) {
           return res.status(400).json({
@@ -527,37 +536,51 @@ export const postQuizBetsBatch = async (req, res) => {
             message: `Each amount must be between ${QUIZ_BET_MIN_STAKE} and ${QUIZ_BET_MAX_STAKE} (quiz ${quizId})`,
           });
         }
-        lines.push({ num, amount });
-      }
-
-      const existing = await QuizBet.find({ gameMode, betOwnerKey: owner, quizId, slotStartIso }).lean();
-      const existingByNum = new Map(existing.map((e) => [e.number, e]));
-      const newDistinct = lines.filter((l) => !existingByNum.has(l.num)).length;
-      if (existing.length + newDistinct > maxDistinctPerSlot) {
-        return res.status(400).json({
-          success: false,
-          message: `Maximum ${maxDistinctPerSlot} distinct numbers per quiz per slot for quiz ${quizId} (${existing.length} already placed).`,
+        const key = `${num}|${betMode}`;
+        byKey.set(key, {
+          num,
+          betMode,
+          amount: Number(byKey.get(key)?.amount || 0) + amount,
         });
       }
+      normalizedByQuiz.set(quizId, byKey);
+    }
 
+    const quizIds = [...normalizedByQuiz.keys()];
+    const existingAll = quizIds.length
+      ? await QuizBet.find({ gameMode, betOwnerKey: owner, slotStartIso, quizId: { $in: quizIds } }).lean()
+      : [];
+    const existingByCompositeKey = new Map(
+      existingAll.map((e) => [
+        `${e.quizId}|${e.number}|${normalizeQuizBetMode(e.betMode || 'str') || 'str'}`,
+        e,
+      ]),
+    );
+
+    for (const [quizId, byKey] of normalizedByQuiz.entries()) {
+      const lines = [...byKey.values()];
       const incs = [];
       const insertDocs = [];
-      for (const { num, amount } of lines) {
-        const ex = existingByNum.get(num);
+      for (const { num, amount, betMode } of lines) {
+        const ex = existingByCompositeKey.get(`${quizId}|${num}|${betMode}`);
         if (ex) {
           incs.push({ _id: ex._id, amount });
         } else {
-          insertDocs.push({
+          const doc = {
+            _id: new mongoose.Types.ObjectId(),
             gameMode,
             betOwnerKey: owner,
             userId: uid,
             quizId,
             slotStartIso,
             number: num,
+            betMode,
             amount,
             status: 'pending',
             winPayout: 0,
-          });
+          };
+          insertDocs.push(doc);
+          existingByCompositeKey.set(`${quizId}|${num}|${betMode}`, doc);
         }
       }
       roundsData.push({ quizId, lines, incs, insertDocs });
@@ -609,7 +632,7 @@ export const postQuizBetsBatch = async (req, res) => {
         balance: walletUpdate.balance,
         rounds: roundsData.map((r) => ({
           quizId: r.quizId,
-          bets: r.lines.map((l) => ({ number: l.num, amount: l.amount })),
+          bets: r.lines.map((l) => ({ number: l.num, amount: l.amount, betMode: l.betMode })),
         })),
       },
     });
@@ -621,7 +644,7 @@ export const postQuizBetsBatch = async (req, res) => {
 };
 
 /**
- * GET /api/v1/quiz/my-quiz-bets?limit= (default 80, max 200)
+ * GET /api/v1/quiz/my-quiz-bets?limit= (default 10000, max 50000)
  * Logged-in user's QuizBet rows (wallet tickets): pending | win | lose + optional winning number after draw.
  */
 export const getMyQuizBets = async (req, res) => {
@@ -631,7 +654,7 @@ export const getMyQuizBets = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
-    const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
+    const limit = Math.min(50000, Math.max(1, parseInt(String(req.query.limit || '10000'), 10) || 10000));
     const uid = new mongoose.Types.ObjectId(userId);
     const gameMode = resolveGameMode(req);
     const bets = await QuizBet.find({ gameMode, userId: uid })
@@ -667,6 +690,7 @@ export const getMyQuizBets = async (req, res) => {
         id: String(b._id),
         quizId: b.quizId,
         number: b.number,
+        betMode: b.betMode || 'str',
         amount: b.amount,
         status: b.status,
         winPayout: b.winPayout,

@@ -12,6 +12,8 @@ const quizBetSchema = new mongoose.Schema(
     quizId: { type: Number, required: true, min: 1, max: 30 },
     slotStartIso: { type: String, required: true },
     number: { type: Number, required: true, min: 0, max: 999 },
+    /** 3D play type (str/box/fp/bp/sp/ap/duplicates/triples). */
+    betMode: { type: String, required: true, default: 'str' },
     amount: { type: Number, required: true, min: 1 },
     status: {
       type: String,
@@ -25,7 +27,7 @@ const quizBetSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-quizBetSchema.index({ gameMode: 1, betOwnerKey: 1, quizId: 1, slotStartIso: 1, number: 1 }, { unique: true });
+quizBetSchema.index({ gameMode: 1, betOwnerKey: 1, quizId: 1, slotStartIso: 1, number: 1, betMode: 1 }, { unique: true });
 quizBetSchema.index({ gameMode: 1, slotStartIso: 1, quizId: 1, status: 1 });
 
 const QuizBet = mongoose.model('QuizBet', quizBetSchema);

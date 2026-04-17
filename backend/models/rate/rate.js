@@ -10,6 +10,7 @@ const DEFAULT_RATES = {
     fullSangam: 10000,
     oddEven: 2,
     quiz2d: 90,
+    quiz3d: 90,
 };
 
 const rateSchema = new mongoose.Schema({
@@ -17,7 +18,7 @@ const rateSchema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true,
-        enum: ['single', 'jodi', 'singlePatti', 'doublePatti', 'triplePatti', 'halfSangam', 'fullSangam', 'oddEven', 'quiz2d'],
+        enum: ['single', 'jodi', 'singlePatti', 'doublePatti', 'triplePatti', 'halfSangam', 'fullSangam', 'oddEven', 'quiz2d', 'quiz3d'],
     },
     rate: {
         type: Number,

@@ -150,7 +150,26 @@ const ThreeDManagement = () => {
             if (res.status === 401) return;
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to load slot history');
-            const slots = data?.data?.slots || [];
+            let slots = data?.data?.slots || [];
+            // If today's history has no completed slots yet (common around midnight), auto-fallback to previous day.
+            if (!slots.length && targetDate === todayDate()) {
+                const d = new Date(`${targetDate}T12:00:00`);
+                d.setDate(d.getDate() - 1);
+                const prevDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const prevParams = new URLSearchParams({ date: prevDate, limit: '40' });
+                const prevRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots?${prevParams.toString()}`);
+                if (prevRes.status !== 401) {
+                    const prevData = await prevRes.json();
+                    if (prevData?.success) {
+                        const prevSlots = prevData?.data?.slots || [];
+                        if (prevSlots.length) {
+                            slots = prevSlots;
+                            setDate(prevDate);
+                            setNotice(`No completed slots for ${targetDate}. Showing last available history (${prevDate}).`);
+                        }
+                    }
+                }
+            }
             setHistorySlots(slots);
             if (slots.length) {
                 setSelectedSlot((prev) => {
@@ -234,7 +253,7 @@ const ThreeDManagement = () => {
         }
         setLoadingAllHistoryDetails(true);
         try {
-            const pairs = await Promise.all(
+            const settled = await Promise.allSettled(
                 list.map(async (slot) => {
                     const slotStartIso = slot?.slotStartIso;
                     if (!slotStartIso) return [null, null];
@@ -246,7 +265,9 @@ const ThreeDManagement = () => {
                 }),
             );
             const next = {};
-            pairs.forEach(([k, v]) => {
+            settled.forEach((entry) => {
+                if (entry.status !== 'fulfilled') return;
+                const [k, v] = entry.value || [];
                 if (k) next[k] = v;
             });
             setHistoryDetailsMap(next);
@@ -265,7 +286,7 @@ const ThreeDManagement = () => {
         }
         setLoadingAllHistoryPlayers(true);
         try {
-            const pairs = await Promise.all(
+            const settled = await Promise.allSettled(
                 list.map(async (slot) => {
                     const slotStartIso = slot?.slotStartIso;
                     if (!slotStartIso) return [null, []];
@@ -277,7 +298,9 @@ const ThreeDManagement = () => {
                 }),
             );
             const next = {};
-            pairs.forEach(([k, v]) => {
+            settled.forEach((entry) => {
+                if (entry.status !== 'fulfilled') return;
+                const [k, v] = entry.value || [];
                 if (k) next[k] = v;
             });
             setHistoryPlayersMap(next);
@@ -518,7 +541,7 @@ const ThreeDManagement = () => {
                             <thead>
                                 <tr className="text-left text-gray-500 border-b border-gray-200">
                                     <th className="py-2 pr-3">Player</th>
-                                    <th className="py-2 pr-3 text-right">Bets</th>
+                                    <th className="py-2 pr-3 text-right">Total Bets</th>
                                     <th className="py-2 pr-3 text-right">Stake</th>
                                     <th className="py-2 pr-3 text-right">Payout</th>
                                     <th className="py-2 pr-3 text-right">P/L</th>
@@ -543,7 +566,7 @@ const ThreeDManagement = () => {
                                             </button>
                                             {player.phone ? <div className="text-xs text-gray-500">{player.phone}</div> : null}
                                         </td>
-                                        <td className="py-2 pr-3 text-right font-mono">{player.betCount}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.totalBetCountAllTime ?? player.betCount ?? 0)}</td>
                                         <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalStake || 0).toLocaleString('en-IN')}</td>
                                         <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalPayout || 0).toLocaleString('en-IN')}</td>
                                         <td className={`py-2 pr-3 text-right font-mono ${Number(player.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -756,7 +779,7 @@ const ThreeDManagement = () => {
                                             <thead>
                                                 <tr className="text-left text-gray-500 border-b border-gray-200">
                                                     <th className="py-2 pr-3">Player</th>
-                                                    <th className="py-2 pr-3 text-right">Bets</th>
+                                                    <th className="py-2 pr-3 text-right">Total Bets</th>
                                                     <th className="py-2 pr-3 text-right">Wins/Losses</th>
                                                     <th className="py-2 pr-3 text-right">Stake</th>
                                                     <th className="py-2 pr-3 text-right">Payout</th>
@@ -783,7 +806,7 @@ const ThreeDManagement = () => {
                                                             </button>
                                                             {player.phone ? <div className="text-xs text-gray-500">{player.phone}</div> : null}
                                                         </td>
-                                                        <td className="py-2 pr-3 text-right font-mono">{player.betCount}</td>
+                                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.totalBetCountAllTime ?? player.betCount ?? 0)}</td>
                                                         <td className="py-2 pr-3 text-right font-mono">{player.wins}/{player.losses}</td>
                                                         <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalStake || 0).toLocaleString('en-IN')}</td>
                                                         <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalPayout || 0).toLocaleString('en-IN')}</td>
@@ -864,7 +887,7 @@ const ThreeDManagement = () => {
                                                         <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
                                                     </div>
                                                     <div className="text-xs text-gray-600">
-                                                        Bets: <span className="font-semibold">{slot.betCount}</span> | Stake: <span className="font-semibold">₹{Number(slot.totalStake || 0).toLocaleString('en-IN')}</span> | Payout: <span className="font-semibold">₹{Number(slot.totalPayout || 0).toLocaleString('en-IN')}</span>
+                                                        Total Bets: <span className="font-semibold">{slot.betCount}</span> | Stake: <span className="font-semibold">₹{Number(slot.totalStake || 0).toLocaleString('en-IN')}</span> | Payout: <span className="font-semibold">₹{Number(slot.totalPayout || 0).toLocaleString('en-IN')}</span>
                                                     </div>
                                                 </div>
                                                 <div className="overflow-x-auto">

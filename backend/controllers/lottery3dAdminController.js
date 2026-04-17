@@ -60,10 +60,16 @@ function toSlotSummary(slotStartIso, slotEndMs, bets, picksByQuiz, winMultiplier
     revenue += Number(bet.amount || 0);
     if (bet.userId) users.add(String(bet.userId));
     const hp = picksByQuiz.get(bet.quizId);
-    if (Number.isInteger(hp) && hp === bet.number) {
+    const explicitStatus = String(bet?.status || '').toLowerCase();
+    const explicitPayout = Number(bet?.winPayout || 0);
+    const isWinByStored = explicitStatus === 'win' || explicitPayout > 0;
+    const isWinByComputed = Number.isInteger(hp) && hp === bet.number;
+    if (isWinByStored || isWinByComputed) {
       winnerTickets += 1;
       if (bet.userId) winnerUsers.add(String(bet.userId));
-      winnerPayout += Math.round(Number(bet.amount || 0) * winMultiplier);
+      winnerPayout += explicitPayout > 0
+        ? explicitPayout
+        : Math.round(Number(bet.amount || 0) * winMultiplier);
     }
   }
 
@@ -120,12 +126,21 @@ function getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier }) {
   if (!isCompleted) {
     return { outcome: 'pending', payout: 0, net: -Number(bet.amount || 0) };
   }
+  const explicitStatus = String(bet?.status || '').toLowerCase();
+  const explicitPayout = Number(bet?.winPayout || 0);
+  if (explicitStatus === 'win') {
+    const payout = explicitPayout > 0 ? explicitPayout : Math.round(Number(bet.amount || 0) * Number(winMultiplier || 0));
+    return { outcome: 'win', payout, net: payout - Number(bet.amount || 0) };
+  }
+  if (explicitStatus === 'lose') {
+    return { outcome: 'lose', payout: 0, net: -Number(bet.amount || 0) };
+  }
   const hp = pickByQuiz.get(bet.quizId);
   const won = Number.isInteger(hp) && hp === Number(bet.number);
   if (!won) {
     return { outcome: 'lose', payout: 0, net: -Number(bet.amount || 0) };
   }
-  const payout = Math.round(Number(bet.amount || 0) * Number(winMultiplier || 0));
+  const payout = explicitPayout > 0 ? explicitPayout : Math.round(Number(bet.amount || 0) * Number(winMultiplier || 0));
   return { outcome: 'win', payout, net: payout - Number(bet.amount || 0) };
 }
 
@@ -135,7 +150,7 @@ async function buildPlayersForSlot(slotStartIso) {
   const isCompleted = Date.now() >= slotEndMs;
   const [bets, picks, winMultiplier] = await Promise.all([
     QuizBet.find({ gameMode: GAME_MODE, slotStartIso })
-      .select('_id userId quizId number amount createdAt')
+      .select('_id userId quizId number amount status winPayout createdAt')
       .sort({ createdAt: -1 })
       .lean(),
     QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso })
@@ -147,6 +162,24 @@ async function buildPlayersForSlot(slotStartIso) {
   const userIds = Array.from(new Set(bets.map((b) => String(b.userId || '')).filter(Boolean)));
   const users = await User.find({ _id: { $in: userIds } }).select('username phone').lean();
   const userById = new Map(users.map((u) => [String(u._id), u]));
+  const overallStatsRaw = userIds.length
+    ? await QuizBet.aggregate([
+      { $match: { gameMode: GAME_MODE, userId: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) } } },
+      {
+        $group: {
+          _id: '$userId',
+          totalBetCountAllTime: { $sum: 1 },
+          totalStakeAllTime: { $sum: '$amount' },
+        },
+      },
+    ])
+    : [];
+  const overallStatsByUserId = new Map(
+    overallStatsRaw.map((row) => [String(row._id), {
+      totalBetCountAllTime: Number(row.totalBetCountAllTime || 0),
+      totalStakeAllTime: Number(row.totalStakeAllTime || 0),
+    }]),
+  );
   const pickByQuiz = new Map(picks.map((p) => [p.quizId, p.hintPosition]));
   const playerMap = new Map();
 
@@ -159,6 +192,8 @@ async function buildPlayersForSlot(slotStartIso) {
         userId,
         username: user?.username || 'unknown',
         phone: user?.phone || '',
+        totalBetCountAllTime: 0,
+        totalStakeAllTime: 0,
         betCount: 0,
         totalStake: 0,
         totalPayout: 0,
@@ -192,6 +227,12 @@ async function buildPlayersForSlot(slotStartIso) {
     });
   }
 
+  for (const [userId, row] of playerMap.entries()) {
+    const overall = overallStatsByUserId.get(userId);
+    row.totalBetCountAllTime = Number(overall?.totalBetCountAllTime || row.betCount || 0);
+    row.totalStakeAllTime = Number(overall?.totalStakeAllTime || row.totalStake || 0);
+  }
+
   return {
     slot: {
       slotStartIso,
@@ -210,7 +251,7 @@ export const getLottery3DCurrentSlot = async (req, res) => {
     const slotEndMs = ctx.slotEndMs;
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount status winPayout').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz3DMultiplier(),
     ]);
@@ -346,7 +387,7 @@ export const getLottery3DSlotHistory = async (req, res) => {
     }
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId userId number amount winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId userId number amount status winPayout').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId hintPosition').lean(),
       getQuiz3DMultiplier(),
     ]);
@@ -389,7 +430,7 @@ export const getLottery3DSlotDetail = async (req, res) => {
     }
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount status winPayout').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz3DMultiplier(),
     ]);
@@ -483,7 +524,7 @@ export const getLottery3DPlayerHistory = async (req, res) => {
     }
 
     const bets = await QuizBet.find({ gameMode: GAME_MODE, userId })
-      .select('_id slotStartIso quizId number amount createdAt')
+      .select('_id slotStartIso quizId number amount status winPayout createdAt')
       .sort({ slotStartIso: -1, createdAt: -1 })
       .lean();
     if (!bets.length) {
@@ -511,14 +552,14 @@ export const getLottery3DPlayerHistory = async (req, res) => {
     const slotsMap = new Map();
     const summary = { totalBets: 0, totalStake: 0, totalPayout: 0, netProfitLoss: 0, wins: 0, losses: 0, pending: 0 };
     for (const bet of bets) {
-      if (!slotStarts.includes(bet.slotStartIso)) continue;
+      const includeInSlots = slotStarts.includes(bet.slotStartIso);
       const slotStartMs = new Date(bet.slotStartIso).getTime();
       const slotEndMs = slotStartMs + SLOT_MS;
       const isCompleted = Date.now() >= slotEndMs;
       const pickByQuiz = picksBySlot.get(bet.slotStartIso) || new Map();
       const amount = Number(bet.amount || 0);
       const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier });
-      if (!slotsMap.has(bet.slotStartIso)) {
+      if (includeInSlots && !slotsMap.has(bet.slotStartIso)) {
         slotsMap.set(bet.slotStartIso, {
           slotStartIso: bet.slotStartIso,
           slotEndIso: new Date(slotEndMs).toISOString(),
@@ -534,25 +575,27 @@ export const getLottery3DPlayerHistory = async (req, res) => {
           bets: [],
         });
       }
-      const slotRow = slotsMap.get(bet.slotStartIso);
-      slotRow.betCount += 1;
-      slotRow.totalStake += amount;
-      slotRow.totalPayout += result.payout;
-      slotRow.netProfitLoss += result.net;
-      if (result.outcome === 'win') slotRow.wins += 1;
-      else if (result.outcome === 'lose') slotRow.losses += 1;
-      else slotRow.pending += 1;
-      slotRow.bets.push({
-        betId: String(bet._id),
-        quizId: bet.quizId,
-        setLabel: getSetLabelByQuizId(bet.quizId),
-        number: String(bet.number).padStart(3, '0'),
-        amount,
-        outcome: result.outcome,
-        payout: result.payout,
-        netProfitLoss: result.net,
-        createdAt: bet.createdAt,
-      });
+      if (includeInSlots) {
+        const slotRow = slotsMap.get(bet.slotStartIso);
+        slotRow.betCount += 1;
+        slotRow.totalStake += amount;
+        slotRow.totalPayout += result.payout;
+        slotRow.netProfitLoss += result.net;
+        if (result.outcome === 'win') slotRow.wins += 1;
+        else if (result.outcome === 'lose') slotRow.losses += 1;
+        else slotRow.pending += 1;
+        slotRow.bets.push({
+          betId: String(bet._id),
+          quizId: bet.quizId,
+          setLabel: getSetLabelByQuizId(bet.quizId),
+          number: String(bet.number).padStart(3, '0'),
+          amount,
+          outcome: result.outcome,
+          payout: result.payout,
+          netProfitLoss: result.net,
+          createdAt: bet.createdAt,
+        });
+      }
 
       summary.totalBets += 1;
       summary.totalStake += amount;

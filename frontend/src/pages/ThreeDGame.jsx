@@ -28,7 +28,7 @@ import {
 import TicketListModal from '../components/threeD/TicketListModal';
 import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
 import { getBalance, updateUserBalance } from '../api/bets';
-import { getMyQuizBets, getQuizSlotResultsForDate } from '../api/quizApi';
+import { getMyQuizBets, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
 import { getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
@@ -38,6 +38,7 @@ const ALL_SHORTCUT_MODES = ['box', 'str', 'sp', 'fp', 'bp', 'ap'];
 const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
 /** Progress bar turns red when remaining time is at or below this many seconds (5 minutes). */
 const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
+const MAX_VISIBLE_BET_CARDS = 350;
 const HEADER_MENU_ITEMS = [
   { label: 'Result', Icon: Trophy },
   { label: 'Account', Icon: UserCircle },
@@ -61,6 +62,10 @@ const LPICK_OPTIONS = ['single', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'duplicat
 const BASE_WIDTH = 1536;
 const BASE_HEIGHT = 864;
 const PANEL_QUIZ_IDS = { A: 1, B: 2, C: 3 };
+const panelToQuizId = (panelRaw) => {
+  const p = String(panelRaw || '').trim().toUpperCase();
+  return PANEL_QUIZ_IDS[p] || 1;
+};
 
 const deriveThreeDigitSetValue = (results, quizId) => {
   const byQuiz = new Map((Array.isArray(results) ? results : []).map((r) => [r.quizId, r.result]));
@@ -179,9 +184,22 @@ const ThreeDGame = () => {
   );
   const canUsePortal = typeof document !== 'undefined';
   const lastTicket = useMemo(() => (ticketHistory.length ? ticketHistory[0] : null), [ticketHistory]);
+  const historyTicketsForModal = useMemo(
+    () => (Array.isArray(backendHistoryTickets) ? backendHistoryTickets : []),
+    [backendHistoryTickets],
+  );
   const formattedWalletBalance = useMemo(
     () => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Number(walletBalance) || 0),
     [walletBalance],
+  );
+  const visibleBetCards = useMemo(() => {
+    const list = Array.isArray(bets) ? bets : [];
+    if (list.length <= MAX_VISIBLE_BET_CARDS) return list;
+    return list.slice(-MAX_VISIBLE_BET_CARDS);
+  }, [bets]);
+  const hiddenBetCardCount = useMemo(
+    () => Math.max(0, (Array.isArray(bets) ? bets.length : 0) - visibleBetCards.length),
+    [bets, visibleBetCards.length],
   );
   const accountDetails = useMemo(() => {
     const user = getCurrentUser() || {};
@@ -247,52 +265,76 @@ const ThreeDGame = () => {
 
   const loadBackendHistoryTickets = useCallback(async () => {
     try {
-      const j = await getMyQuizBets(200, '3d');
+      const j = await getMyQuizBets(50000, '3d');
       const rows = Array.isArray(j?.data) ? j.data : [];
-      const mapped = rows.map((row) => {
-        const createdAtIso = row?.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString();
+      const rowsBySlot = new Map();
+      rows.forEach((row) => {
+        const slotStartIso = String(row?.slotStartIso || '').trim() || 'unknown-slot';
+        if (!rowsBySlot.has(slotStartIso)) rowsBySlot.set(slotStartIso, []);
+        rowsBySlot.get(slotStartIso).push(row);
+      });
+
+      const mapped = Array.from(rowsBySlot.entries()).map(([slotStartIso, slotRows]) => {
+        const sortedRows = [...slotRows].sort((a, b) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime());
+        const firstRow = sortedRows[0] || {};
+        const createdAtIso = firstRow?.createdAt ? new Date(firstRow.createdAt).toISOString() : new Date().toISOString();
         const createdAt = new Date(createdAtIso);
         const drawDate = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}-${String(createdAt.getDate()).padStart(2, '0')}`;
-        const drawTime = String(row?.drawLabelEnd || '').trim() || new Intl.DateTimeFormat('en-IN', {
+        const drawTime = String(firstRow?.drawLabelEnd || '').trim() || new Intl.DateTimeFormat('en-IN', {
           hour: '2-digit',
           minute: '2-digit',
           hour12: true,
         }).format(createdAt).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
-        const status = String(row?.status || '').toLowerCase();
-        const outcome = status === 'win' ? 'win' : status === 'lose' ? 'loss' : 'pending';
-        const setPanel = Number(row?.quizId) === 1 ? 'A' : Number(row?.quizId) === 2 ? 'B' : Number(row?.quizId) === 3 ? 'C' : 'A';
-        const number3 = String(row?.number ?? '').replace(/\D/g, '').slice(-3).padStart(3, '0');
-        const amount = Number(row?.amount || 0);
-        const winPayout = Number(row?.winPayout || 0);
+
+        let totalPoints = 0;
+        let totalWin = 0;
+        let hasPending = false;
+        let hasWin = false;
+        const bets = sortedRows.map((row) => {
+          const status = String(row?.status || '').toLowerCase();
+          const outcome = status === 'win' ? 'win' : status === 'lose' ? 'loss' : 'pending';
+          if (outcome === 'pending') hasPending = true;
+          if (outcome === 'win') hasWin = true;
+          const setPanel = Number(row?.quizId) === 1 ? 'A' : Number(row?.quizId) === 2 ? 'B' : Number(row?.quizId) === 3 ? 'C' : 'A';
+          const number3 = String(row?.number ?? '').replace(/\D/g, '').slice(-3).padStart(3, '0');
+          const betMode = String(row?.betMode || row?.mode || 'str').trim().toLowerCase();
+          const amount = Number(row?.amount || 0);
+          const winPayout = Number(row?.winPayout || 0);
+          const winningNumber = String(row?.winningNumber ?? '').replace(/\D/g, '').slice(-3).padStart(3, '0');
+          totalPoints += amount;
+          totalWin += winPayout;
+          return {
+            id: row?.id || `${row?.createdAt || Date.now()}-${row?.quizId}-${number3}`,
+            panels: setPanel,
+            mode: betMode,
+            number: number3,
+            points: amount,
+            outcome,
+            matchedPanel: setPanel,
+            matchedResult: outcome === 'pending' ? '-' : (/^\d{3}$/.test(winningNumber) ? winningNumber : '-'),
+            winAmount: winPayout,
+            payoutLabel: outcome === 'win' ? `${amount} × ${amount > 0 ? Math.round(winPayout / amount) : 0} = ${winPayout}` : null,
+          };
+        });
+
+        const outcome = hasPending ? 'pending' : (hasWin ? 'win' : 'loss');
         return {
-          id: `backend-${row?.id || `${createdAtIso}-${row?.quizId}-${number3}`}`,
+          id: `backend-slot-${slotStartIso}`,
           userName: playerIdentity || 'user',
-          quizId: row?.quizId,
+          slotStartIso,
           drawDate,
           drawTime,
           createdAt: createdAtIso,
-          gameId: row?.id || '-',
-          totalPoints: amount,
-          totalWin: winPayout,
+          gameId: slotStartIso,
+          totalPoints,
+          totalWin,
           outcome,
-          settled: outcome !== 'pending',
+          settled: !hasPending,
           settledUsing: 'backend',
-          bets: [
-            {
-              id: row?.id || `${createdAtIso}-${row?.quizId}-${number3}`,
-              panels: setPanel,
-              mode: 'str',
-              number: number3,
-              points: amount,
-              outcome,
-              matchedPanel: outcome === 'win' ? setPanel : '-',
-              matchedResult: outcome === 'win' ? number3 : '-',
-              winAmount: winPayout,
-              payoutLabel: outcome === 'win' ? `${amount} × ${amount > 0 ? Math.round(winPayout / amount) : 0} = ${winPayout}` : null,
-            },
-          ],
+          bets,
         };
       });
+      mapped.sort((a, b) => new Date(b?.slotStartIso || b?.createdAt || 0).getTime() - new Date(a?.slotStartIso || a?.createdAt || 0).getTime());
       setBackendHistoryTickets(mapped);
     } catch (_) {
       setBackendHistoryTickets([]);
@@ -751,7 +793,7 @@ const ThreeDGame = () => {
     if (from < 0 || to > 999) return { ok: false, error: 'Range must be between 000 and 999.' };
     if (from >= to) return { ok: false, error: 'Invalid range: From must be less than To.' };
     const count = to - from + 1;
-    if (count > 999) return { ok: false, error: 'Range limit exceeded (max 999 numbers).' };
+    if (count > 1000) return { ok: false, error: 'Range limit exceeded (max 1000 numbers).' };
     const nums = Array.from({ length: count }, (_, i) => toThreeDigit(from + i));
     return { ok: true, nums };
   }, [toThreeDigit]);
@@ -782,7 +824,7 @@ const ThreeDGame = () => {
   const generateLuckyPickNumbers = useCallback((qtyNum, typeRaw) => {
     const type = String(typeRaw || 'single').toLowerCase();
     if (!Number.isInteger(qtyNum) || qtyNum <= 0) return { ok: false, error: 'Qty must be greater than 0.' };
-    if (qtyNum > 500) return { ok: false, error: 'Qty limit exceeded (max 500).' };
+    if (qtyNum > 1000) return { ok: false, error: 'Qty limit exceeded (max 1000).' };
 
     const outSet = new Set();
     let attempts = 0;
@@ -1006,7 +1048,7 @@ const ThreeDGame = () => {
     }
   }, [rangeFrom]);
 
-  const handleBuy = useCallback(() => {
+  const handleBuy = useCallback(async () => {
     if (isBuyingRef.current) return;
     if (!bets.length) {
       setValidationMsg('Add at least one bet before BUY.');
@@ -1026,22 +1068,56 @@ const ThreeDGame = () => {
       return;
     }
 
+    // Persist 3D ticket lines to backend DB so admin history remains after refresh.
+    const roundMap = new Map();
+    for (const bet of bets) {
+      const number = Number(String(bet?.number ?? '').replace(/\D/g, '').slice(-3));
+      const amount = Number(bet?.points || 0);
+      const mode = String(bet?.mode || 'str').trim().toLowerCase();
+      if (!Number.isInteger(number) || number < 0 || number > 999) continue;
+      if (!Number.isFinite(amount) || amount <= 0) continue;
+      const panelsRaw = String(bet?.panels || 'A').split(',').map((x) => x.trim()).filter(Boolean);
+      const primaryPanel = panelsRaw.length ? panelsRaw[0] : 'A';
+      const quizId = Number.isInteger(Number(selectedQuizId)) && Number(selectedQuizId) >= 1 && Number(selectedQuizId) <= 3
+        ? Number(selectedQuizId)
+        : panelToQuizId(primaryPanel);
+      const roundKey = `${quizId}|${mode}`;
+      if (!roundMap.has(roundKey)) {
+        roundMap.set(roundKey, { quizId, mode, byNumber: new Map() });
+      }
+      const bucket = roundMap.get(roundKey);
+      bucket.byNumber.set(number, (bucket.byNumber.get(number) || 0) + amount);
+    }
+
+    const rounds = [...roundMap.values()].map(({ quizId, mode, byNumber }) => ({
+      quizId,
+      bets: [...byNumber.entries()].map(([number, amount]) => ({ number, amount, betMode: mode })),
+    })).filter((r) => r.bets.length > 0);
+
+    if (!rounds.length) {
+      setValidationMsg('No valid bets to save.');
+      return;
+    }
+
+    let backendBalance = null;
+    try {
+      const saved = await postQuizBetsBatch(rounds, '3d');
+      const b = Number(saved?.data?.balance);
+      if (Number.isFinite(b)) backendBalance = b;
+    } catch (e) {
+      setValidationMsg(e?.message || 'Failed to save bet in database.');
+      return;
+    }
+
     const drawDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const gameId = generateGameId();
     const settleAtMs = new Date(nextDrawAt).getTime();
-
-    let nextBalance = (Number(walletBalance) || 0) - investedAmount;
-    updateUserBalance(nextBalance);
-    setWalletBalance(nextBalance);
-    pushWalletHistory({
-      type: 'debit',
-      game: '3D',
-      amount: investedAmount,
-      timestamp: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      description: '3D Game Bet',
-      referenceId: `${gameId}-BET`,
-    });
+    if (backendBalance != null) {
+      updateUserBalance(backendBalance);
+      setWalletBalance(backendBalance);
+    } else {
+      refreshWalletBalance();
+    }
 
     hasSettledRef.current = false;
     const pendingBets = bets.map((bet) => ({
@@ -1083,7 +1159,7 @@ const ThreeDGame = () => {
     } finally {
       isBuyingRef.current = false;
     }
-  }, [bets, generateGameId, nextDrawAt, now, pushWalletHistory, selectedQuizId, timeToDrawText, totalPoints, walletBalance]);
+  }, [bets, generateGameId, nextDrawAt, now, refreshWalletBalance, selectedQuizId, timeToDrawText, totalPoints, walletBalance]);
 
   const handleCancelPendingTicket = useCallback(() => {
     const nowMs = Date.now();
@@ -1876,8 +1952,13 @@ const ThreeDGame = () => {
                 <div className="flex min-h-[200px] flex-1 items-center justify-center text-[clamp(1.25rem,3vw,2.625rem)] text-[#9a9a9a] sm:min-h-0">No bets placed yet</div>
               ) : (
                 <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto">
+                {hiddenBetCardCount > 0 ? (
+                  <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">
+                    Showing latest {visibleBetCards.length} bets for fast view. {hiddenBetCardCount} older bets are hidden from grid but included in BUY.
+                  </div>
+                ) : null}
                 <div className="grid w-full min-w-0 gap-3 [grid-template-columns:repeat(auto-fit,minmax(5.75rem,1fr))]">
-                  {bets.map((bet) => {
+                  {visibleBetCards.map((bet) => {
                     const panelKey = String(bet.panels || '').trim().toUpperCase();
                     const panelHeaderClass = BET_CARD_PANEL_HEADER[panelKey] || BET_CARD_PANEL_HEADER.A;
                     const shellClass =
@@ -2028,9 +2109,9 @@ const ThreeDGame = () => {
         <TicketListModal
           open={isHistoryListOpen}
           onClose={() => setIsHistoryListOpen(false)}
-          tickets={backendHistoryTickets}
+          tickets={historyTicketsForModal}
           title="HISTORY"
-          emptyMessage="No backend history available yet."
+          emptyMessage="No history available yet."
           onView={(ticket) => {
             setSelectedTicket(ticket);
             setIsHistoryListOpen(false);

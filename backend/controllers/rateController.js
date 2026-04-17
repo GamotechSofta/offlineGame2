@@ -31,6 +31,7 @@ export const getRates = async (req, res) => {
             { gameType: 'fullSangam', label: 'Full Sangam', rate: map.fullSangam },
             { gameType: 'oddEven', label: 'Odd Even', rate: map.oddEven },
             { gameType: 'quiz2d', label: '2D', rate: map.quiz2d },
+            { gameType: 'quiz3d', label: '3D', rate: map.quiz3d },
         ];
         res.status(200).json({ success: true, data: list });
     } catch (error) {
@@ -38,7 +39,7 @@ export const getRates = async (req, res) => {
     }
 };
 
-const RATE_GAME_TYPES = ['single', 'jodi', 'singlePatti', 'doublePatti', 'triplePatti', 'halfSangam', 'fullSangam', 'oddEven', 'quiz2d'];
+const RATE_GAME_TYPES = ['single', 'jodi', 'singlePatti', 'doublePatti', 'triplePatti', 'halfSangam', 'fullSangam', 'oddEven', 'quiz2d', 'quiz3d'];
 
 /**
  * PATCH /rates/:gameType – update one rate. Body: { rate: number, secretDeclarePassword?: string }
@@ -85,6 +86,7 @@ export const updateRate = async (req, res) => {
             { gameType: 'fullSangam', label: 'Full Sangam', rate: map.fullSangam },
             { gameType: 'oddEven', label: 'Odd Even', rate: map.oddEven },
             { gameType: 'quiz2d', label: '2D', rate: map.quiz2d },
+            { gameType: 'quiz3d', label: '3D', rate: map.quiz3d },
         ];
         res.status(200).json({ success: true, data: list });
     } catch (error) {
