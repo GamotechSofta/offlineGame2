@@ -777,7 +777,7 @@ const ThreeDManagement = () => {
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-800">Slot Player Bets - Playing Players</h3>
-                                    <p className="text-sm text-gray-500">फक्त खेळणाऱ्या player ची ID आणि basic details. Click केल्यावर full history उघडेल.</p>
+                                    <p className="text-sm text-gray-500">Player ID and basic details only (players who played). Click a row to view full history.</p>
                                 </div>
                                 {loadingAllHistoryPlayers ? <span className="text-xs text-gray-500">Loading all slot players...</span> : null}
                             </div>

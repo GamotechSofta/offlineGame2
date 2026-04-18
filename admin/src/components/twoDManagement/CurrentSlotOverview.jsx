@@ -15,6 +15,8 @@ const CurrentSlotOverview = ({
     canEditHints = false,
     onEditHint,
     quizLabelFormatter = (quizId) => `Q${String(quizId).padStart(2, '0')}`,
+    /** When set (2D only), clicking the quiz card opens stake-by-number detail; Edit stops propagation. */
+    onQuizCardClick,
 }) => {
     if (loading) {
         return (
@@ -115,13 +117,36 @@ const CurrentSlotOverview = ({
                 ) : hintRows.length ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2">
                         {hintRows.map((item) => (
-                            <div key={item.quizId} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs">
+                            <div
+                                key={item.quizId}
+                                role={onQuizCardClick ? 'button' : undefined}
+                                tabIndex={onQuizCardClick ? 0 : undefined}
+                                onClick={onQuizCardClick ? () => onQuizCardClick(item.quizId) : undefined}
+                                onKeyDown={
+                                    onQuizCardClick
+                                        ? (e) => {
+                                              if (e.key === 'Enter' || e.key === ' ') {
+                                                  e.preventDefault();
+                                                  onQuizCardClick(item.quizId);
+                                              }
+                                          }
+                                        : undefined
+                                }
+                                className={`rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs ${
+                                    onQuizCardClick
+                                        ? 'cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 hover:shadow-sm transition'
+                                        : ''
+                                }`}
+                            >
                                 <span className="text-gray-500">{quizLabelFormatter(item.quizId)}</span>
                                 <span className="float-right font-mono font-semibold text-gray-800">{item.hint}</span>
                                 {canEditHints ? (
                                     <button
                                         type="button"
-                                        onClick={() => onEditHint(item.quizId, item.hint)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onEditHint(item.quizId, item.hint);
+                                        }}
                                         className="mt-2 block w-full rounded-md border border-gray-200 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
                                     >
                                         Edit

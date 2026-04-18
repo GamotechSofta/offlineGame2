@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaChevronDown } from 'react-icons/fa';
 import AdminLayout from '../components/AdminLayout';
@@ -9,6 +9,9 @@ import SlotHistoryTable from '../components/twoDManagement/SlotHistoryTable';
 import QuizSlotStatsTable from '../components/twoDManagement/QuizSlotStatsTable';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
+
+/** Same browser tab: remember hint unlock for current slot so returning from quiz detail does not ask for password again. */
+const HINT_UNLOCK_SESSION_KEY = 'offlinebookie:admin:2d-hint-unlock';
 
 const todayDate = () => {
     const now = new Date();
@@ -28,7 +31,6 @@ const TwoDManagement = () => {
     const [loadingCurrent, setLoadingCurrent] = useState(true);
     const [loadingHistory, setLoadingHistory] = useState(true);
     const [loadingDetail, setLoadingDetail] = useState(false);
-    const [savingResult, setSavingResult] = useState(false);
     const [activeSection, setActiveSection] = useState('oldSlots');
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
@@ -40,22 +42,68 @@ const TwoDManagement = () => {
     const [hintUnlocked, setHintUnlocked] = useState(false);
     const [unlockedHintPassword, setUnlockedHintPassword] = useState('');
     const [adminRole, setAdminRole] = useState('');
-    const [showEditHintModal, setShowEditHintModal] = useState(false);
-    const [editHintForm, setEditHintForm] = useState({ quizId: '', result: '' });
-    const [editHintError, setEditHintError] = useState('');
+    const [currentPlayers, setCurrentPlayers] = useState([]);
+    const [loadingCurrentPlayers, setLoadingCurrentPlayers] = useState(false);
+    const [showPlayerHistoryModal, setShowPlayerHistoryModal] = useState(false);
+    const [selectedPlayer, setSelectedPlayer] = useState(null);
+    const [playerHistoryData, setPlayerHistoryData] = useState(null);
+    const [loadingPlayerHistory, setLoadingPlayerHistory] = useState(false);
+    const [playerHistoryError, setPlayerHistoryError] = useState('');
+    const [historyPlayersMap, setHistoryPlayersMap] = useState({});
+    const [loadingAllHistoryPlayers, setLoadingAllHistoryPlayers] = useState(false);
     const detailSectionRef = useRef(null);
     const timeDropdownRef = useRef(null);
+    const currentSlotIsoRef = useRef('');
     const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
-    const closeEditHintModal = useModalBackHandler(showEditHintModal, () => {
-        setShowEditHintModal(false);
-        setEditHintForm({ quizId: '', result: '' });
-        setEditHintError('');
+    /** Slot Player Bets: default aggregate all slots for the date; choosing one slot narrows the table to that slot only. */
+    const [playerBetsAggregateAllSlots, setPlayerBetsAggregateAllSlots] = useState(true);
+    const closePlayerHistoryModal = useModalBackHandler(showPlayerHistoryModal, () => {
+        setShowPlayerHistoryModal(false);
+        setSelectedPlayer(null);
+        setPlayerHistoryData(null);
+        setPlayerHistoryError('');
     });
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
         navigate('/');
     }, [navigate]);
+
+    const fetchSlotPlayers = useCallback(async (slotStartIso) => {
+        if (!slotStartIso) return;
+        setLoadingCurrentPlayers(true);
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(slotStartIso)}/players`);
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load slot players');
+            const rows = Array.isArray(data?.data?.players) ? data.data.players : [];
+            setCurrentPlayers(rows);
+        } catch (err) {
+            setError(err.message || 'Failed to load slot players');
+            setCurrentPlayers([]);
+        } finally {
+            setLoadingCurrentPlayers(false);
+        }
+    }, []);
+
+    const fetchPlayerHistory = useCallback(async (userId) => {
+        if (!userId) return;
+        setLoadingPlayerHistory(true);
+        setPlayerHistoryError('');
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/players/${encodeURIComponent(userId)}/history?limit=40`);
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load player history');
+            setPlayerHistoryData(data.data || null);
+        } catch (err) {
+            setPlayerHistoryError(err.message || 'Failed to load player history');
+            setPlayerHistoryData(null);
+        } finally {
+            setLoadingPlayerHistory(false);
+        }
+    }, []);
 
     const fetchCurrent = useCallback(async () => {
         setLoadingCurrent(true);
@@ -65,12 +113,14 @@ const TwoDManagement = () => {
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to load current slot');
             setCurrentSlotData(data.data);
+            const iso = data.data?.slot?.slotStartIso;
+            if (iso) fetchSlotPlayers(iso);
         } catch (err) {
             setError(err.message || 'Failed to load current slot');
         } finally {
             setLoadingCurrent(false);
         }
-    }, []);
+    }, [fetchSlotPlayers]);
 
     const fetchCurrentHints = useCallback(async (secretDeclarePasswordValue = '') => {
         setLoadingHints(true);
@@ -91,6 +141,11 @@ const TwoDManagement = () => {
                     setHintUnlocked(false);
                     setCurrentHintRows([]);
                     setUnlockedHintPassword('');
+                    try {
+                        sessionStorage.removeItem(HINT_UNLOCK_SESSION_KEY);
+                    } catch {
+                        /* ignore */
+                    }
                     return;
                 }
                 throw new Error(data?.message || 'Failed to load current slot hints');
@@ -107,6 +162,17 @@ const TwoDManagement = () => {
             setHintUnlocked(true);
             setUnlockedHintPassword(secretDeclarePasswordValue || '');
             setHintPassword('');
+            const iso = currentSlotIsoRef.current;
+            if (iso) {
+                try {
+                    sessionStorage.setItem(
+                        HINT_UNLOCK_SESSION_KEY,
+                        JSON.stringify({ slotStartIso: iso, secret: secretDeclarePasswordValue || '' }),
+                    );
+                } catch {
+                    /* ignore quota */
+                }
+            }
         } catch (err) {
             setHintError(err.message || 'Failed to load current slot hints');
             setHintUnlocked(false);
@@ -161,6 +227,49 @@ const TwoDManagement = () => {
         }
     }, []);
 
+    const fetchAllHistoryPlayers = useCallback(async (slots) => {
+        const list = Array.isArray(slots) ? slots : [];
+        if (!list.length) {
+            setHistoryPlayersMap({});
+            return;
+        }
+        setLoadingAllHistoryPlayers(true);
+        try {
+            const settled = await Promise.allSettled(
+                list.map(async (slot) => {
+                    const slotStartIso = slot?.slotStartIso;
+                    if (!slotStartIso) return [null, []];
+                    const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(slotStartIso)}/players`);
+                    if (res.status === 401) return [slotStartIso, []];
+                    const data = await res.json();
+                    if (!data?.success) return [slotStartIso, []];
+                    return [slotStartIso, Array.isArray(data?.data?.players) ? data.data.players : []];
+                }),
+            );
+            const next = {};
+            settled.forEach((entry) => {
+                if (entry.status !== 'fulfilled') return;
+                const [k, v] = entry.value || [];
+                if (k) next[k] = v;
+            });
+            setHistoryPlayersMap(next);
+        } catch {
+            setHistoryPlayersMap({});
+        } finally {
+            setLoadingAllHistoryPlayers(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const slotStartIso = currentSlotData?.slot?.slotStartIso;
+        if (!slotStartIso) {
+            setCurrentPlayers([]);
+            return undefined;
+        }
+        fetchSlotPlayers(slotStartIso);
+        return undefined;
+    }, [currentSlotData?.slot?.slotStartIso, fetchSlotPlayers]);
+
     useEffect(() => {
         const admin = localStorage.getItem('admin');
         if (!admin) {
@@ -199,18 +308,55 @@ const TwoDManagement = () => {
     }, [selectedSlot, fetchDetail]);
 
     useEffect(() => {
+        fetchAllHistoryPlayers(historySlots);
+    }, [historySlots, fetchAllHistoryPlayers]);
+
+    useEffect(() => {
+        currentSlotIsoRef.current = currentSlotData?.slot?.slotStartIso || '';
+    }, [currentSlotData?.slot?.slotStartIso]);
+
+    useEffect(() => {
+        const iso = currentSlotData?.slot?.slotStartIso;
+        if (!iso) {
+            setCurrentHintRows([]);
+            setHintPassword('');
+            setHintError('');
+            setHintUnlocked(false);
+            setUnlockedHintPassword('');
+            return;
+        }
+
+        try {
+            const raw = sessionStorage.getItem(HINT_UNLOCK_SESSION_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed?.slotStartIso === iso && typeof parsed.secret === 'string') {
+                    fetchCurrentHints(parsed.secret);
+                    return;
+                }
+                if (parsed?.slotStartIso && parsed.slotStartIso !== iso) {
+                    sessionStorage.removeItem(HINT_UNLOCK_SESSION_KEY);
+                }
+            }
+        } catch {
+            sessionStorage.removeItem(HINT_UNLOCK_SESSION_KEY);
+        }
+
         setCurrentHintRows([]);
         setHintPassword('');
         setHintError('');
         setHintUnlocked(false);
         setUnlockedHintPassword('');
-    }, [currentSlotData?.slot?.slotStartIso]);
 
-    useEffect(() => {
-        if (currentSlotData?.slot?.slotStartIso && !hasSecretDeclarePassword) {
+        if (!hasSecretDeclarePassword) {
             fetchCurrentHints('');
         }
     }, [currentSlotData?.slot?.slotStartIso, hasSecretDeclarePassword, fetchCurrentHints]);
+
+
+    useEffect(() => {
+        setPlayerBetsAggregateAllSlots(true);
+    }, [date]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -244,6 +390,11 @@ const TwoDManagement = () => {
     };
 
     const handleLockHints = () => {
+        try {
+            sessionStorage.removeItem(HINT_UNLOCK_SESSION_KEY);
+        } catch {
+            /* ignore */
+        }
         setCurrentHintRows([]);
         setHintPassword('');
         setHintError('');
@@ -251,63 +402,61 @@ const TwoDManagement = () => {
         setUnlockedHintPassword('');
     };
 
-    const handleEditCurrentHint = async (quizId, currentHint) => {
+    const handleEditCurrentHint = (quizId) => {
         if (adminRole !== 'super_admin') {
             setError('Only super admin can edit running slot hint numbers.');
             return;
         }
-        if (!currentSlotData?.slot?.slotStartIso) {
+        const iso = currentSlotData?.slot?.slotStartIso;
+        if (!iso) {
             setError('Current slot is not available.');
             return;
         }
         setNotice('');
         setError('');
-        setEditHintError('');
-        setEditHintForm({
-            quizId: String(quizId),
-            result: currentHint === '--' ? '' : currentHint,
-        });
-        setShowEditHintModal(true);
-    };
-
-    const submitEditCurrentHint = async (e) => {
-        e.preventDefault();
-        const quizId = Number(editHintForm.quizId);
-        const trimmed = editHintForm.result.trim();
-        const result = Number(trimmed);
-
-        if (!/^\d{1,2}$/.test(trimmed) || !Number.isInteger(result) || result < 0 || result > 99) {
-            setEditHintError('Result must be between 00 and 99.');
-            return;
-        }
-        if (!currentSlotData?.slot?.slotStartIso) {
-            setEditHintError('Current slot is not available.');
-            return;
-        }
-
-        setSavingResult(true);
-        try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(currentSlotData.slot.slotStartIso)}/result`, {
-                method: 'PATCH',
-                body: JSON.stringify({ quizId, result }),
-            });
-            if (res.status === 401) return;
-            const data = await res.json();
-            if (!data?.success) throw new Error(data?.message || 'Failed to update result');
-            setNotice(`Running slot Quiz ${String(quizId).padStart(2, '0')} hint updated to ${String(result).padStart(2, '0')}.`);
-            closeEditHintModal();
-            await fetchCurrent();
-            if (hintUnlocked || !hasSecretDeclarePassword) {
-                await fetchCurrentHints(unlockedHintPassword);
-            }
-        } catch (err) {
-            setEditHintError(err.message || 'Failed to update result');
-        } finally {
-            setSavingResult(false);
-        }
+        navigate(`/2d-management/quiz/${quizId}/stake?slotStartIso=${encodeURIComponent(iso)}`);
     };
 
     const selectedSlotMeta = historySlots.find((slot) => slot.slotStartIso === selectedSlot) || null;
+
+    const slotsForPlayerBetsMerge = useMemo(() => {
+        if (!historySlots.length) return [];
+        if (playerBetsAggregateAllSlots) return historySlots;
+        if (!selectedSlot) return historySlots;
+        return historySlots.filter((s) => s.slotStartIso === selectedSlot);
+    }, [historySlots, selectedSlot, playerBetsAggregateAllSlots]);
+
+    const slotPlayerListRows = useMemo(() => {
+        const merged = new Map();
+        slotsForPlayerBetsMerge.forEach((slot) => {
+            const players = Array.isArray(historyPlayersMap[slot.slotStartIso]) ? historyPlayersMap[slot.slotStartIso] : [];
+            players.forEach((player) => {
+                const userId = String(player?.userId || '').trim();
+                if (!userId) return;
+                const existing = merged.get(userId) || {
+                    userId,
+                    username: player?.username || 'unknown',
+                    phone: player?.phone || '',
+                    slotCount: 0,
+                    betCount: 0,
+                };
+                existing.slotCount += 1;
+                existing.betCount += Number(player?.betCount ?? 0);
+                if (!existing.phone && player?.phone) existing.phone = player.phone;
+                if ((existing.username === 'unknown' || !existing.username) && player?.username) existing.username = player.username;
+                merged.set(userId, existing);
+            });
+        });
+        return Array.from(merged.values())
+            .sort((a, b) => b.slotCount - a.slotCount || b.betCount - a.betCount || a.userId.localeCompare(b.userId));
+    }, [historyPlayersMap, slotsForPlayerBetsMerge]);
+
+    const handleOpenPlayerHistory = async (player) => {
+        if (!player?.userId) return;
+        setSelectedPlayer(player);
+        setShowPlayerHistoryModal(true);
+        await fetchPlayerHistory(player.userId);
+    };
 
     return (
         <AdminLayout onLogout={handleLogout} title="2D Management">
@@ -344,9 +493,73 @@ const TwoDManagement = () => {
                     }}
                     onUnlockHints={handleUnlockHints}
                     onLockHints={handleLockHints}
-                    canEditHints={adminRole === 'super_admin' && hintUnlocked && !savingResult}
+                    canEditHints={adminRole === 'super_admin' && hintUnlocked}
                     onEditHint={handleEditCurrentHint}
+                    onQuizCardClick={(qid) => {
+                        const iso = currentSlotData?.slot?.slotStartIso;
+                        if (!iso) return;
+                        navigate(`/2d-management/quiz/${qid}/stake?slotStartIso=${encodeURIComponent(iso)}`);
+                    }}
                 />
+
+                <div className="bg-white border border-gray-200 rounded-xl p-5">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                        <h3 className="text-lg font-semibold text-gray-800">Current Slot Playing Players</h3>
+                        {loadingCurrentPlayers ? <span className="text-xs text-gray-500">Loading...</span> : null}
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                            <thead>
+                                <tr className="text-left text-gray-500 border-b border-gray-200">
+                                    <th className="py-2 pr-3">Player</th>
+                                    <th className="py-2 pr-3 text-right">Total Bets (This Slot)</th>
+                                    <th className="py-2 pr-3 text-right">All-time Bets</th>
+                                    <th className="py-2 pr-3 text-right">Stake</th>
+                                    <th className="py-2 pr-3 text-right">Payout</th>
+                                    <th className="py-2 pr-3 text-right">P/L</th>
+                                    <th className="py-2 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {!currentPlayers.length && !loadingCurrentPlayers ? (
+                                    <tr>
+                                        <td colSpan={7} className="py-4 text-center text-gray-500">No players in current slot yet.</td>
+                                    </tr>
+                                ) : null}
+                                {currentPlayers.map((player) => (
+                                    <tr key={`current-${player.userId}`} className="border-b border-gray-100">
+                                        <td className="py-2 pr-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOpenPlayerHistory(player)}
+                                                className="text-blue-600 hover:text-blue-800 font-semibold"
+                                            >
+                                                {player.username || 'unknown'}
+                                            </button>
+                                            {player.phone ? <div className="text-xs text-gray-500">{player.phone}</div> : null}
+                                        </td>
+                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.currentSlotBetCount ?? player.batchBetCount ?? player.betCount ?? 0)}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.totalBetCountAllTime ?? player.totalBetCount ?? player.betCount ?? 0)}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalStake || 0).toLocaleString('en-IN')}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalPayout || 0).toLocaleString('en-IN')}</td>
+                                        <td className={`py-2 pr-3 text-right font-mono ${Number(player.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            ₹{Number(player.netProfitLoss || 0).toLocaleString('en-IN')}
+                                        </td>
+                                        <td className="py-2 text-right">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOpenPlayerHistory(player)}
+                                                className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-xs font-semibold text-gray-700"
+                                            >
+                                                View Full History
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
                 <div className="bg-white border border-gray-200 rounded-xl p-2">
                     <div className="flex flex-wrap gap-2">
@@ -371,6 +584,17 @@ const TwoDManagement = () => {
                             }`}
                         >
                             Quiz-wise Slot Stats
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveSection('playerHistory')}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                                activeSection === 'playerHistory'
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        >
+                            Slot Player Bets
                         </button>
                     </div>
                 </div>
@@ -443,7 +667,7 @@ const TwoDManagement = () => {
                             loading={loadingHistory}
                         />
                     </>
-                ) : (
+                ) : activeSection === 'quizStats' ? (
                     <div ref={detailSectionRef} className="space-y-5">
                         <div className="bg-white border border-gray-200 rounded-xl p-5">
                             <div className="flex flex-wrap items-end gap-4">
@@ -522,51 +746,281 @@ const TwoDManagement = () => {
                             </div>
                         )}
                     </div>
+                ) : (
+                    <div className="space-y-5">
+                        <div className="bg-white border border-gray-200 rounded-xl p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-800">Slot Player Bets - Playing Players</h3>
+                                    <p className="text-sm text-gray-500">
+                                        Player ID and basic details only (players who played). Click a row to view full history.
+                                    </p>
+                                </div>
+                                {loadingAllHistoryPlayers ? <span className="text-xs text-gray-500">Loading all slot players...</span> : null}
+                            </div>
+                            <div className="flex flex-wrap items-end gap-4">
+                                <div className="min-w-[180px]">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Filter Date</label>
+                                    <input
+                                        type="date"
+                                        value={date}
+                                        onChange={(e) => {
+                                            setDate(e.target.value);
+                                            setNotice('');
+                                            setError('');
+                                            setIsTimeDropdownOpen(false);
+                                        }}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                                    />
+                                </div>
+                                <div ref={timeDropdownRef} className="min-w-[220px] flex-1 relative">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Filter Time Slot</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => historySlots.length && setIsTimeDropdownOpen((prev) => !prev)}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-left flex items-center justify-between gap-3 disabled:bg-gray-50 disabled:text-gray-400"
+                                        disabled={!historySlots.length}
+                                    >
+                                        <span>
+                                            {playerBetsAggregateAllSlots
+                                                ? 'All slots (full day)'
+                                                : selectedSlotMeta?.drawLabelEnd || 'No slots available for selected date'}
+                                        </span>
+                                        <FaChevronDown
+                                            className={`text-xs text-gray-500 transition-transform ${isTimeDropdownOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+                                    {isTimeDropdownOpen && historySlots.length ? (
+                                        <div className="absolute z-20 mt-2 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                                            <div className="max-h-64 overflow-y-auto py-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setPlayerBetsAggregateAllSlots(true);
+                                                        setNotice('');
+                                                        setError('');
+                                                        setIsTimeDropdownOpen(false);
+                                                    }}
+                                                    className={`w-full px-3 py-2 text-left text-sm transition ${
+                                                        playerBetsAggregateAllSlots
+                                                            ? 'bg-orange-50 text-orange-600 font-semibold'
+                                                            : 'text-gray-700 hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    All slots (full day)
+                                                </button>
+                                                {historySlots.map((slot) => {
+                                                    const active =
+                                                        !playerBetsAggregateAllSlots && slot.slotStartIso === selectedSlot;
+                                                    return (
+                                                        <button
+                                                            key={`pb-${slot.slotStartIso}`}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setPlayerBetsAggregateAllSlots(false);
+                                                                setSelectedSlot(slot.slotStartIso);
+                                                                setNotice('');
+                                                                setError('');
+                                                                setIsTimeDropdownOpen(false);
+                                                            }}
+                                                            className={`w-full px-3 py-2 text-left text-sm transition ${
+                                                                active ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            {slot.drawLabelEnd}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    {playerBetsAggregateAllSlots ? (
+                                        <>
+                                            Showing playing players for <span className="font-semibold text-gray-700">all slots</span> on{' '}
+                                            <span className="font-semibold text-gray-700">{date}</span>
+                                        </>
+                                    ) : selectedSlotMeta ? (
+                                        <>
+                                            Showing playing players for{' '}
+                                            <span className="font-semibold text-gray-700">{selectedSlotMeta.drawLabelEnd}</span> only
+                                        </>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+                        {!historySlots.length && !loadingHistory ? (
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">
+                                Selected date साठी old slots नाहीत.
+                            </div>
+                        ) : (
+                            <div className="bg-white border border-gray-200 rounded-xl p-5">
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full text-sm">
+                                        <thead>
+                                            <tr className="text-left text-gray-500 border-b border-gray-200">
+                                                <th className="py-2 pr-3">Player ID</th>
+                                                <th className="py-2 pr-3">Player Name</th>
+                                                <th className="py-2 pr-3">Phone</th>
+                                                <th className="py-2 pr-3 text-right">Played Slots</th>
+                                                <th className="py-2 pr-3 text-right">Bets (Selected Date)</th>
+                                                <th className="py-2 text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {!slotPlayerListRows.length ? (
+                                                <tr>
+                                                    <td colSpan={6} className="py-4 text-center text-gray-500">
+                                                        {loadingAllHistoryPlayers ? 'Slot player data loading...' : 'No playing players found for selected date.'}
+                                                    </td>
+                                                </tr>
+                                            ) : slotPlayerListRows.map((player) => (
+                                                <tr
+                                                    key={`slot-player-${player.userId}`}
+                                                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                                                    onClick={() => handleOpenPlayerHistory(player)}
+                                                >
+                                                    <td className="py-2 pr-3 font-mono text-xs sm:text-sm">{player.userId}</td>
+                                                    <td className="py-2 pr-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenPlayerHistory(player);
+                                                            }}
+                                                            className="text-blue-600 hover:text-blue-800 font-semibold"
+                                                        >
+                                                            {player.username || 'unknown'}
+                                                        </button>
+                                                    </td>
+                                                    <td className="py-2 pr-3">{player.phone || '-'}</td>
+                                                    <td className="py-2 pr-3 text-right font-mono">{Number(player.slotCount || 0)}</td>
+                                                    <td className="py-2 pr-3 text-right font-mono">{Number(player.betCount || 0)}</td>
+                                                    <td className="py-2 text-right">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenPlayerHistory(player);
+                                                            }}
+                                                            className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-xs font-semibold text-gray-700"
+                                                        >
+                                                            View Full History
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
-            {showEditHintModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
+
+            {showPlayerHistoryModal && (
+                <div className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/40">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-5xl max-h-[88vh] overflow-hidden">
                         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-orange-500">
-                                Edit Running Hint for Quiz{String(editHintForm.quizId || '').padStart(2, '0')}
-                            </h3>
-                            <button type="button" onClick={closeEditHintModal} className="text-gray-400 hover:text-gray-800 p-1">×</button>
-                        </div>
-                        <form onSubmit={submitEditCurrentHint} className="p-4 space-y-4">
-                            <p className="text-gray-600 text-sm">
-                                Enter a new hint number between 00 and 99 for the current running slot.
-                            </p>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={2}
-                                placeholder="00"
-                                value={editHintForm.result}
-                                onChange={(e) => {
-                                    setEditHintForm((prev) => ({ ...prev, result: e.target.value.replace(/\D/g, '').slice(0, 2) }));
-                                    setEditHintError('');
-                                }}
-                                className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400"
-                                autoFocus
-                            />
-                            {editHintError ? (
-                                <div className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2">
-                                    {editHintError}
-                                </div>
-                            ) : null}
-                            <div className="flex gap-2 justify-end">
-                                <button type="button" onClick={closeEditHintModal} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold">
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={savingResult} className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:bg-orange-300">
-                                    {savingResult ? 'Saving...' : 'Save Hint'}
-                                </button>
+                            <div>
+                                <h3 className="text-lg font-semibold text-blue-700">
+                                    Player 2D Bet History - {playerHistoryData?.player?.username || selectedPlayer?.username || 'Player'}
+                                </h3>
+                                {playerHistoryData?.player?.phone ? (
+                                    <p className="text-xs text-gray-500">{playerHistoryData.player.phone}</p>
+                                ) : null}
                             </div>
-                        </form>
+                            <button type="button" onClick={closePlayerHistoryModal} className="text-gray-400 hover:text-gray-800 p-1">×</button>
+                        </div>
+                        <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(88vh-64px)]">
+                            {loadingPlayerHistory ? (
+                                <div className="text-sm text-gray-500">Loading player history...</div>
+                            ) : playerHistoryError ? (
+                                <div className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2">
+                                    {playerHistoryError}
+                                </div>
+                            ) : playerHistoryData ? (
+                                <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                            <p className="text-xs text-gray-500">Total Bets</p>
+                                            <p className="text-lg font-bold text-gray-800">{playerHistoryData.summary?.totalBets || 0}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                            <p className="text-xs text-gray-500">Total Stake</p>
+                                            <p className="text-lg font-bold text-gray-800">₹{Number(playerHistoryData.summary?.totalStake || 0).toLocaleString('en-IN')}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                            <p className="text-xs text-gray-500">Total Payout</p>
+                                            <p className="text-lg font-bold text-gray-800">₹{Number(playerHistoryData.summary?.totalPayout || 0).toLocaleString('en-IN')}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                            <p className="text-xs text-gray-500">Net Profit/Loss</p>
+                                            <p className={`text-lg font-bold ${Number(playerHistoryData.summary?.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                ₹{Number(playerHistoryData.summary?.netProfitLoss || 0).toLocaleString('en-IN')}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {(playerHistoryData.slots || []).map((slot) => (
+                                            <div key={slot.slotStartIso} className="rounded-xl border border-gray-200">
+                                                <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-gray-800">{slot.drawLabelEnd}</p>
+                                                        <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
+                                                    </div>
+                                                    <div className="text-xs text-gray-600">
+                                                        Total Bets: <span className="font-semibold">{slot.betCount}</span> | Stake: <span className="font-semibold">₹{Number(slot.totalStake || 0).toLocaleString('en-IN')}</span> | Payout: <span className="font-semibold">₹{Number(slot.totalPayout || 0).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="overflow-x-auto">
+                                                    <table className="min-w-full text-xs">
+                                                        <thead>
+                                                            <tr className="text-left text-gray-500 border-b border-gray-100">
+                                                                <th className="py-2 px-3">Quiz</th>
+                                                                <th className="py-2 px-3">Number</th>
+                                                                <th className="py-2 px-3 text-right">Amount</th>
+                                                                <th className="py-2 px-3 text-right">Outcome</th>
+                                                                <th className="py-2 px-3 text-right">Payout</th>
+                                                                <th className="py-2 px-3 text-right">P/L</th>
+                                                                <th className="py-2 px-3">Placed At</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {slot.bets?.map((bet) => (
+                                                                <tr key={bet.betId} className="border-b border-gray-100">
+                                                                    <td className="py-2 px-3 font-medium">{bet.setLabel}</td>
+                                                                    <td className="py-2 px-3 font-mono">{bet.number}</td>
+                                                                    <td className="py-2 px-3 text-right font-mono">₹{Number(bet.amount || 0).toLocaleString('en-IN')}</td>
+                                                                    <td className={`py-2 px-3 text-right font-semibold ${bet.outcome === 'win' ? 'text-green-600' : bet.outcome === 'lose' ? 'text-red-600' : 'text-amber-600'}`}>
+                                                                        {String(bet.outcome || '').toUpperCase()}
+                                                                    </td>
+                                                                    <td className="py-2 px-3 text-right font-mono">₹{Number(bet.payout || 0).toLocaleString('en-IN')}</td>
+                                                                    <td className={`py-2 px-3 text-right font-mono ${Number(bet.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                        ₹{Number(bet.netProfitLoss || 0).toLocaleString('en-IN')}
+                                                                    </td>
+                                                                    <td className="py-2 px-3 text-gray-600">{bet.createdAt ? new Date(bet.createdAt).toLocaleString() : '-'}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {!playerHistoryData.slots?.length ? (
+                                            <div className="text-sm text-gray-500">No 2D betting history found for this player.</div>
+                                        ) : null}
+                                    </div>
+                                </>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
             )}
+
         </AdminLayout>
     );
 };

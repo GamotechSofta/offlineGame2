@@ -67,7 +67,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             return location.pathname === '/reports';
         }
         if (path === '/2d-management' || path === '/3d-management') {
-            return location.pathname === path;
+            return location.pathname === path || location.pathname.startsWith(`${path}/`);
         }
         return location.pathname === path;
     };

@@ -25,6 +25,7 @@ import MarketDetail from './pages/MarketDetail';
 import Settings from './pages/Settings';
 import TopWinners from './pages/TopWinners';
 import TwoDManagement from './pages/TwoDManagement';
+import TwoDQuizStakeDetail from './pages/TwoDQuizStakeDetail';
 import ThreeDManagement from './pages/ThreeDManagement';
 
 // Scroll to top on route change
@@ -228,6 +229,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <BookieManagement />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/2d-management/quiz/:quizId/stake"
+                    element={
+                        <PrivateRoute>
+                            <TwoDQuizStakeDetail />
                         </PrivateRoute>
                     }
                 />

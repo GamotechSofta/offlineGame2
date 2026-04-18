@@ -93,6 +93,8 @@ const apiLimiter = rateLimit({
     handler: (req, res, next, options) => {
         res.status(429).json(options.message);
     },
+    /** Admin dashboard is JWT-protected; skip global burst limit so hints / refresh are not throttled. */
+    skip: (req) => typeof req.originalUrl === 'string' && req.originalUrl.startsWith('/api/v1/admin'),
 });
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

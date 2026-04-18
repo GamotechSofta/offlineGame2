@@ -20,6 +20,9 @@ import {
   getLottery2DCurrentSlotHints,
     getLottery2DSlotDetail,
     getLottery2DSlotHistory,
+    getLottery2DSlotPlayers,
+    getLottery2DPlayerHistory,
+    getLottery2DQuizStakeByNumber,
     updateLottery2DSlotResult,
 } from '../../controllers/lottery2dAdminController.js';
 import {
@@ -52,6 +55,9 @@ router.get('/lottery2d/current-slot', verifyAdmin, getLottery2DCurrentSlot);
 router.post('/lottery2d/current-slot/hints', verifyAdmin, getLottery2DCurrentSlotHints);
 router.get('/lottery2d/slots', verifyAdmin, getLottery2DSlotHistory);
 router.get('/lottery2d/slots/:slotStartIso/detail', verifyAdmin, getLottery2DSlotDetail);
+router.get('/lottery2d/quizzes/:quizId/stake-by-number', verifyAdmin, getLottery2DQuizStakeByNumber);
+router.get('/lottery2d/slots/:slotStartIso/players', verifyAdmin, getLottery2DSlotPlayers);
+router.get('/lottery2d/players/:userId/history', verifyAdmin, getLottery2DPlayerHistory);
 router.patch('/lottery2d/slots/:slotStartIso/result', verifyAdmin, updateLottery2DSlotResult);
 
 // 3D lottery admin management
