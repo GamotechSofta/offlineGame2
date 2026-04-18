@@ -172,6 +172,8 @@ const LotteryDashboard = () => {
   }, [rotatePromptDismissed]);
 
   const handleRotateLandscape = useCallback(async () => {
+    setRotatePromptDismissed(true);
+    setShowRotatePrompt(false);
     try {
       const root = document.documentElement;
       if (root.requestFullscreen && !document.fullscreenElement) {
@@ -183,11 +185,6 @@ const LotteryDashboard = () => {
     } catch (_) {
       // On many mobile browsers this requires user/system support.
     }
-  }, []);
-
-  const handleContinuePortrait = useCallback(() => {
-    setRotatePromptDismissed(true);
-    setShowRotatePrompt(false);
   }, []);
 
   useEffect(() => {
@@ -872,27 +869,20 @@ const LotteryDashboard = () => {
       {showRotatePrompt && (
         <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[#111] border border-[#3b3b3b] text-white p-4 text-center">
-            <div className="phone-rotate-wrap" aria-hidden>
+            <div className="phone-rotate-wrap phone-rotate-wrap--tap" aria-hidden>
               <div className="phone-rotate-icon" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Rotate Screen</h3>
             <p className="text-sm text-gray-300 mb-4">
               Lottery game works best in landscape mode.
-              Please rotate your phone horizontally.
+              Tap below to go full screen, then rotate your phone horizontally.
             </p>
             <button
               type="button"
               onClick={handleRotateLandscape}
-              className="w-full h-10 bg-[#ef3f34] border border-[#d4372f] font-semibold"
+              className="w-full h-11 bg-[#ef3f34] border border-[#d4372f] font-extrabold text-[15px]"
             >
-              Rotate + Full Screen
-            </button>
-            <button
-              type="button"
-              onClick={handleContinuePortrait}
-              className="w-full h-10 mt-2 border border-[#4c4c4c] bg-[#1f1f1f] text-gray-200"
-            >
-              Continue in Portrait
+              Tap Here
             </button>
           </div>
         </div>
