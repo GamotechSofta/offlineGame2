@@ -10,7 +10,7 @@ import ControlPanel from '../components/ControlPanel';
 import ResultHistoryModal from '../components/ResultHistoryModal';
 import MyBetsModal from '../components/MyBetsModal';
 import { getBalance, updateUserBalance } from '../api/bets';
-import { getQuizSlot, postQuizBetsBatch } from '../api/quizApi';
+import { getQuizSlot, getQuizSlotResults, postQuizBetsBatch } from '../api/quizApi';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getLotterySetTotals, getTotals } from '../utils/boardHelpers';
 import { getCurrentUser, isUserLoggedIn, subscribeUserSession } from '../session/userSession';
@@ -55,6 +55,10 @@ const LotteryDashboard = () => {
   const [rowPointDisplay, setRowPointDisplay] = useState(() => Array.from({ length: 10 }, () => ''));
   const [colPointDisplay, setColPointDisplay] = useState(() => Array.from({ length: 10 }, () => ''));
   const [timerSeconds, setTimerSeconds] = useState(DEFAULT_TIMER_SECONDS);
+  /** Latest completed slot: quizId → winning position (00–99); empty if none / error. */
+  const [lastSlotByQuiz, setLastSlotByQuiz] = useState({});
+  /** Draw end time label for that slot (IST, same as Old Results chart), e.g. "4:00 PM". */
+  const [prevSlotDrawEndLabel, setPrevSlotDrawEndLabel] = useState('');
   const [walletBalance, setWalletBalance] = useState(0);
   const ALL_QUIZZES = useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), []);
 
@@ -213,6 +217,47 @@ const LotteryDashboard = () => {
     };
     sync();
     const id = setInterval(sync, 4000);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
+    let stop = false;
+    const loadLastSlot = () => {
+      getQuizSlotResults(1, '2d')
+        .then((j) => {
+          if (stop) return;
+          const slot = Array.isArray(j?.data) ? j.data[0] : null;
+          const timeLabel =
+            typeof slot?.drawLabelEnd === 'string' && slot.drawLabelEnd.trim() !== ''
+              ? slot.drawLabelEnd.trim()
+              : '';
+          setPrevSlotDrawEndLabel(timeLabel);
+          const picks = slot?.picks;
+          if (!Array.isArray(picks)) {
+            setLastSlotByQuiz({});
+            return;
+          }
+          const next = {};
+          for (const p of picks) {
+            const q = p?.quizId;
+            if (Number.isInteger(q) && q >= 1 && q <= 30) {
+              next[q] = p.winningPosition ?? null;
+            }
+          }
+          setLastSlotByQuiz(next);
+        })
+        .catch(() => {
+          if (!stop) {
+            setLastSlotByQuiz({});
+            setPrevSlotDrawEndLabel('');
+          }
+        });
+    };
+    loadLastSlot();
+    const id = setInterval(loadLastSlot, 4000);
     return () => {
       stop = true;
       clearInterval(id);
@@ -775,6 +820,8 @@ const LotteryDashboard = () => {
               activeQuiz={activeQuiz}
               selectedQuizzes={selectedQuizzes}
               multi={multi}
+              lastDrawByQuiz={lastSlotByQuiz}
+              previousSlotTimeLabel={prevSlotDrawEndLabel}
               onToggleQuiz={handleQuizToggle}
               onToggleMulti={handleMultiToggle}
               onToggleAll={handleAllToggle}

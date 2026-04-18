@@ -21,7 +21,9 @@ const NumberBoard = ({
   return (
     <div className="h-full bg-[#d7d7d7] px-[6px] pt-[10px] pb-[10px] border-r border-[#8a8a8a] flex flex-col">
       <div className="grid grid-cols-11 gap-[9px]">
-        <div className="text-[#3799d5] text-[32px] leading-none font-bold pl-1 pt-[4px]">BLOCK</div>
+        <div className="text-[#3799d5] text-[17px] leading-tight font-bold pl-1 pt-[6px] whitespace-nowrap">
+          BLOCK
+        </div>
         {Array.from({ length: 10 }, (_, i) => {
           const hasVisibleInCol = Array.from({ length: 10 }, (_, row) => row * 10 + i).some((n) => isVisible(n));
           return (
