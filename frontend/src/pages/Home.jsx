@@ -3,6 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import HeroSection from '../components/HeroSection';
 import Section1 from '../components/Section1';
 
+const BANNER_TILES = [
+  {
+    src: '/Lottery.png',
+    path: '/lottery',
+    label: 'Lottery — open lottery dashboard',
+  },
+  {
+    src: '/Lottery%20(2).png',
+    path: '/games',
+    label: 'Games — open games hub',
+  },
+];
+
 const Home = () => {
   const navigate = useNavigate();
 
@@ -10,36 +23,26 @@ const Home = () => {
     <div className="min-h-screen min-h-ios-screen bg-gray-200 w-full max-w-full overflow-x-hidden">
       <HeroSection />
       <section className="w-full max-w-full px-3 sm:px-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => navigate('/lottery')}
-          className="w-full flex items-center justify-between gap-3 py-3 px-4 rounded-xl bg-gradient-to-r from-[#6b1f1f] to-[#7f1d1d] border border-rose-300/60 text-white shadow-lg hover:from-[#7f1d1d] hover:to-[#991b1b] active:scale-[0.99] transition-all"
+        <div
+          className="flex w-full flex-row flex-nowrap gap-2 sm:gap-2.5 justify-start overflow-x-auto overflow-y-visible snap-x snap-mandatory scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="Quick links"
         >
-          <span className="flex items-center gap-2">
-            <span className="w-10 h-10 rounded-full bg-rose-400/30 flex items-center justify-center text-xl" aria-hidden>🎟️</span>
-            <span className="text-left">
-              <span className="block font-bold text-sm sm:text-base">Lottery</span>
-              <span className="block text-xs text-rose-100/90">Open lottery dashboard</span>
-            </span>
-          </span>
-          <span className="text-rose-200 shrink-0">→</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate('/games')}
-          className="w-full flex items-center justify-between gap-3 py-3 px-4 rounded-xl bg-gradient-to-r from-[#1B3150] to-[#22406a] border border-blue-300/60 text-white shadow-lg hover:from-[#22406a] hover:to-[#2b4d7d] active:scale-[0.99] transition-all"
-        >
-          <span className="flex items-center gap-2">
-            <span className="w-10 h-10 rounded-full bg-blue-300/30 flex items-center justify-center text-xl" aria-hidden>🎮</span>
-            <span className="text-left">
-              <span className="block font-bold text-sm sm:text-base">Games</span>
-              <span className="block text-xs text-blue-100/90">Open games hub</span>
-            </span>
-          </span>
-          <span className="text-blue-200 shrink-0">→</span>
-        </button>
+          {BANNER_TILES.map(({ src, path, label }) => (
+            <button
+              key={path}
+              type="button"
+              onClick={() => navigate(path)}
+              className="snap-start shrink-0 w-[calc(50%-4px)] sm:w-auto max-w-[104px] sm:max-w-[118px] md:max-w-[148px] lg:max-w-[156px] overflow-hidden rounded-lg shadow-md ring-1 ring-black/5 hover:opacity-95 active:scale-[0.99] transition-all p-0 border-0 bg-transparent cursor-pointer"
+              aria-label={label}
+            >
+              <img
+                src={src}
+                alt=""
+                className="w-full h-12 sm:h-14 md:h-[4.5rem] lg:h-[4.75rem] object-contain object-center block select-none pointer-events-none"
+                draggable={false}
+              />
+            </button>
+          ))}
         </div>
       </section>
       <Section1 />
