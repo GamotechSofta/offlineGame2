@@ -169,9 +169,9 @@ const Section1 = () => {
   };
 
   return (
-    <section className="w-full bg-gray-200 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
+    <section className="w-full bg-gray-200 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 md:pt-2 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
       {/* ═══ Desktop: MARKETS header ── */}
-      <div className="hidden md:flex items-center gap-4 mt-4 mb-5 w-full max-w-7xl mx-auto px-4">
+      <div className="hidden md:flex items-center gap-4 mt-1 mb-4 w-full max-w-7xl mx-auto px-4">
         {/* ── Left navy line ── */}
         <div className="flex-1 h-[1px] bg-gradient-to-r from-gray-300 via-[#1B3150] to-[#1B3150] min-w-[20px]" />
 

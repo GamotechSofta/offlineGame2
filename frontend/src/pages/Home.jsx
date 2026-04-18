@@ -5,12 +5,16 @@ import Section1 from '../components/Section1';
 
 const BANNER_TILES = [
   {
-    src: '/Lottery.png',
+    srcMobile: '/Lottery%20(1200%20x%20600%20px)%20(1).png',
+    srcDesktop:
+      '/Lottery%20(1200%20x%20600%20px)%20(2400%20x%20600%20px).png',
     path: '/lottery',
     label: 'Lottery — open lottery dashboard',
   },
   {
-    src: '/Lottery%20(2).png',
+    srcMobile: '/Lottery%20(1200%20x%20600%20px).png',
+    srcDesktop:
+      '/Lottery%20(1200%20x%20600%20px)%20(2400%20x%20600%20px)%20(1).png',
     path: '/games',
     label: 'Games — open games hub',
   },
@@ -22,25 +26,29 @@ const Home = () => {
   return (
     <div className="min-h-screen min-h-ios-screen bg-gray-200 w-full max-w-full overflow-x-hidden">
       <HeroSection />
-      <section className="w-full max-w-full px-3 sm:px-4 mb-4">
+      <section className="w-full max-w-full px-3 sm:px-4 mb-2 md:mb-1.5">
         <div
-          className="flex w-full flex-row flex-nowrap gap-2 sm:gap-2.5 justify-start overflow-x-auto overflow-y-visible snap-x snap-mandatory scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex w-full flex-row flex-nowrap items-stretch gap-2 sm:gap-3 md:gap-4"
           aria-label="Quick links"
         >
-          {BANNER_TILES.map(({ src, path, label }) => (
+          {BANNER_TILES.map(({ srcMobile, srcDesktop, path, label }) => (
             <button
               key={path}
               type="button"
               onClick={() => navigate(path)}
-              className="snap-start shrink-0 w-[calc(50%-4px)] sm:w-auto max-w-[104px] sm:max-w-[118px] md:max-w-[148px] lg:max-w-[156px] overflow-hidden rounded-lg shadow-md ring-1 ring-black/5 hover:opacity-95 active:scale-[0.99] transition-all p-0 border-0 bg-transparent cursor-pointer"
+              className="group flex min-h-0 min-w-0 flex-1 basis-0 overflow-hidden rounded-xl border-0 bg-zinc-950 p-0 shadow-md ring-1 ring-black/40 transition hover:brightness-[1.04] hover:ring-black/55 active:scale-[0.995] md:rounded-lg"
               aria-label={label}
             >
-              <img
-                src={src}
-                alt=""
-                className="w-full h-12 sm:h-14 md:h-[4.5rem] lg:h-[4.75rem] object-contain object-center block select-none pointer-events-none"
-                draggable={false}
-              />
+              {/* Mobile: 1200×600 → 2:1 | Desktop: 2400×600 → 4:1 — cover fills frame (no gray pillarboxing) */}
+              <picture className="relative block w-full overflow-hidden aspect-[2/1] md:aspect-auto md:h-[88px] lg:h-[96px] xl:h-[104px]">
+                <source media="(min-width: 768px)" srcSet={srcDesktop} />
+                <img
+                  src={srcMobile}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover object-center select-none pointer-events-none"
+                  draggable={false}
+                />
+              </picture>
             </button>
           ))}
         </div>
