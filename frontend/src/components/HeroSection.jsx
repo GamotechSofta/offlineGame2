@@ -141,35 +141,6 @@ const HeroSection = () => {
             />
           ))}
         </div>
-        <button
-          type="button"
-          onClick={goToPrevMobileSlide}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-black/40 text-white active:bg-black/60 transition"
-          aria-label="Previous mobile banner"
-        >
-          ‹
-        </button>
-        <button
-          type="button"
-          onClick={goToNextMobileSlide}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-black/40 text-white active:bg-black/60 transition"
-          aria-label="Next mobile banner"
-        >
-          ›
-        </button>
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
-          {mobileSlides.map((slideUrl, idx) => (
-            <button
-              key={`mobile-dot-${slideUrl}`}
-              type="button"
-              onClick={() => setCurrentMobileIndex(idx)}
-              className={`h-2.5 w-2.5 rounded-full transition ${
-                currentMobileIndex === idx ? 'bg-white' : 'bg-white/50'
-              }`}
-              aria-label={`Go to mobile banner ${idx + 1}`}
-            />
-          ))}
-        </div>
       </section>
     </>
   );
