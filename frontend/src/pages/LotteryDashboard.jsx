@@ -16,6 +16,9 @@ import { formatTimer, getCellKey, getLotterySetTotals, getTotals } from '../util
 import { getCurrentUser, isUserLoggedIn, subscribeUserSession } from '../session/userSession';
 
 const MAX_QUIZ_NUMBERS_PER_SLOT = 100;
+/** Keypad stake entry: max 3 digits (1–999). */
+const MAX_LOTTERY_AMOUNT = 999;
+const MAX_LOTTERY_AMOUNT_DIGITS = 3;
 
 const LotteryDashboard = () => {
   const navigate = useNavigate();
@@ -325,7 +328,7 @@ const LotteryDashboard = () => {
   }, [ALL_QUIZZES, activeQuiz]);
 
   const setAmountFromNumber = useCallback((num) => {
-    const safeAmount = Math.max(1, Number(num) || 1);
+    const safeAmount = Math.min(MAX_LOTTERY_AMOUNT, Math.max(1, Number(num) || 1));
     setEnteredAmount(safeAmount);
     setAmountDraft(String(safeAmount));
   }, []);
@@ -357,6 +360,7 @@ const LotteryDashboard = () => {
             const key = getCellKey(quizNo, target.index);
             existing = Math.max(existing, Number(selectedMap[key] || 0));
           });
+          existing = Math.min(MAX_LOTTERY_AMOUNT, Math.max(0, Math.floor(existing)));
           if (existing > 0) {
             draftToSet = String(existing);
             enteredToSet = existing;
@@ -364,14 +368,20 @@ const LotteryDashboard = () => {
           }
         } else if (target?.type === 'row') {
           // After ENTER the ref map is cleared but stakes remain; restore delta baseline from the blue box / board.
-          const existing = Math.max(0, Math.floor(Number(rowPointDisplay[target.index] || 0)));
+          const existing = Math.min(
+            MAX_LOTTERY_AMOUNT,
+            Math.max(0, Math.floor(Number(rowPointDisplay[target.index] || 0))),
+          );
           appliedAmountByTargetRef.current[nextKey] = existing;
           if (existing > 0) {
             draftToSet = String(existing);
             enteredToSet = existing;
           }
         } else if (target?.type === 'col') {
-          const existing = Math.max(0, Math.floor(Number(colPointDisplay[target.index] || 0)));
+          const existing = Math.min(
+            MAX_LOTTERY_AMOUNT,
+            Math.max(0, Math.floor(Number(colPointDisplay[target.index] || 0))),
+          );
           appliedAmountByTargetRef.current[nextKey] = existing;
           if (existing > 0) {
             draftToSet = String(existing);
@@ -399,7 +409,7 @@ const LotteryDashboard = () => {
       // Cells: keypad amount is the absolute stake on this number (per selected quiz). Supports decrease and clear.
       if (target.type === 'cell') {
         if (!isNumberVisible(target.index)) return;
-        const amt = Math.max(0, Math.floor(Number(amount || 0)));
+        const amt = Math.max(0, Math.min(MAX_LOTTERY_AMOUNT, Math.floor(Number(amount || 0))));
         const targetKey = getTargetKey(target);
         setSelectedMap((prev) => {
           const next = { ...prev };
@@ -415,7 +425,7 @@ const LotteryDashboard = () => {
         return;
       }
 
-      const safeAmount = Math.max(0, Number(amount || 0));
+      const safeAmount = Math.max(0, Math.min(MAX_LOTTERY_AMOUNT, Math.floor(Number(amount || 0))));
       if (target.type === 'col') {
         const hasVisibleInColumn = Array.from({ length: 10 }, (_, row) => row * 10 + target.index).some((n) =>
           isNumberVisible(n),
@@ -565,7 +575,7 @@ const LotteryDashboard = () => {
         return;
       }
       setAmountDraft((prev) => {
-        const nextValue = (prev === '0' ? key : `${prev}${key}`).slice(0, 4);
+        const nextValue = (prev === '0' ? key : `${prev}${key}`).slice(0, MAX_LOTTERY_AMOUNT_DIGITS);
         return nextValue;
       });
     },
@@ -623,7 +633,7 @@ const LotteryDashboard = () => {
         if (!Number.isFinite(amount) || amount <= 0) return null;
         if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) return null;
         if (!Number.isInteger(num) || num < 0 || num > 99) return null;
-        return { quizId, num, amount: Math.floor(amount) };
+        return { quizId, num, amount: Math.min(MAX_LOTTERY_AMOUNT, Math.floor(amount)) };
       })
       .filter(Boolean);
     if (!stakes.length) {
