@@ -56,6 +56,10 @@ function toSlotSummary(slotStartIso, slotEndMs, bets, picksByQuiz, winMultiplier
   let winnerPayout = 0;
 
   for (const bet of bets) {
+    if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     ticketCount += 1;
     revenue += Number(bet.amount || 0);
     if (bet.userId) users.add(String(bet.userId));
@@ -112,6 +116,9 @@ async function verifySecretDeclarePassword(req) {
 const getQuizLabelByQuizId2d = (quizId) => `QUIZ${String(quizId).padStart(2, '0')}`;
 
 function getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier }) {
+  if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+    return { outcome: 'cancelled', payout: 0, net: 0 };
+  }
   if (!isCompleted) {
     return { outcome: 'pending', payout: 0, net: -Number(bet.amount || 0) };
   }
@@ -153,7 +160,13 @@ async function buildPlayersForSlot(slotStartIso) {
   const userById = new Map(users.map((u) => [String(u._id), u]));
   const overallStatsRaw = userIds.length
     ? await QuizBet.aggregate([
-      { $match: { gameMode: GAME_MODE, userId: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) } } },
+      {
+        $match: {
+          gameMode: GAME_MODE,
+          userId: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) },
+          status: { $ne: 'cancelled' },
+        },
+      },
       {
         $group: {
           _id: '$userId',
@@ -197,6 +210,21 @@ async function buildPlayersForSlot(slotStartIso) {
     const amount = Number(bet.amount || 0);
     const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier });
     row.betCount += 1;
+    if (result.outcome === 'cancelled') {
+      row.bets.push({
+        betId: String(bet._id),
+        quizId: bet.quizId,
+        setLabel: getQuizLabelByQuizId2d(bet.quizId),
+        number: String(bet.number).padStart(2, '0'),
+        amount,
+        outcome: 'cancelled',
+        payout: 0,
+        netProfitLoss: 0,
+        createdAt: bet.createdAt,
+      });
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     row.totalStake += amount;
     row.totalPayout += result.payout;
     row.netProfitLoss += result.net;
@@ -316,6 +344,28 @@ export const getLottery2DPlayerHistory = async (req, res) => {
           bets: [],
         });
       }
+
+      if (result.outcome === 'cancelled') {
+        summary.totalBets += 1;
+        if (includeInSlots) {
+          const slotRow = slotsMap.get(bet.slotStartIso);
+          slotRow.betCount += 1;
+          slotRow.bets.push({
+            betId: String(bet._id),
+            quizId: bet.quizId,
+            setLabel: getQuizLabelByQuizId2d(bet.quizId),
+            number: String(bet.number).padStart(2, '0'),
+            amount,
+            outcome: 'cancelled',
+            payout: 0,
+            netProfitLoss: 0,
+            createdAt: bet.createdAt,
+          });
+        }
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
       if (includeInSlots) {
         const slotRow = slotsMap.get(bet.slotStartIso);
         slotRow.betCount += 1;
@@ -372,7 +422,7 @@ export const getLottery2DCurrentSlot = async (req, res) => {
     const slotEndMs = ctx.slotEndMs;
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount status winPayout').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
@@ -394,6 +444,10 @@ export const getLottery2DCurrentSlot = async (req, res) => {
     }
 
     for (const bet of bets) {
+      if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       const row = perQuiz.get(bet.quizId);
       if (!row) continue;
       row.ticketCount += 1;
@@ -496,7 +550,9 @@ export const getLottery2DSlotHistory = async (req, res) => {
     }
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId userId number amount winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } })
+        .select('slotStartIso quizId userId number amount status winPayout')
+        .lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
@@ -539,7 +595,7 @@ export const getLottery2DSlotDetail = async (req, res) => {
     }
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount status winPayout').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
@@ -561,6 +617,10 @@ export const getLottery2DSlotDetail = async (req, res) => {
     }
 
     for (const bet of bets) {
+      if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       const row = perQuiz.get(bet.quizId);
       if (!row) continue;
       row.ticketCount += 1;
@@ -679,7 +739,7 @@ export const getLottery2DQuizStakeByNumber = async (req, res) => {
     const slotEndMs = slotStartMs + SLOT_MS;
 
     const [bets, pick, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, quizId }).select('number amount').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, quizId }).select('number amount status').lean(),
       QuizSlotPick.findOne({ gameMode: GAME_MODE, slotStartIso, quizId }).select('hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
@@ -690,6 +750,10 @@ export const getLottery2DQuizStakeByNumber = async (req, res) => {
     let totalTickets = 0;
 
     for (const bet of bets) {
+      if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       const n = Number(bet.number);
       if (!Number.isInteger(n) || n < 0 || n > 99) continue;
       const amt = Number(bet.amount || 0);

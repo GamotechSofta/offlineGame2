@@ -340,79 +340,122 @@ const LotteryDashboard = () => {
     return true;
   }, [activeFilter]);
 
-  const handleSelectTarget = useCallback((target) => {
-    const currentKey = getTargetKey(pendingTarget);
-    const nextKey = getTargetKey(target);
-    // Reset keypad only when switching to a different target.
-    if (currentKey !== nextKey) {
-      setEnteredAmount(0);
-      setAmountDraft('');
-      if (autoApplyTimerRef.current) {
-        clearTimeout(autoApplyTimerRef.current);
-        autoApplyTimerRef.current = null;
-      }
-    }
-    setPendingTarget(target);
-  }, [getTargetKey, pendingTarget]);
+  const handleSelectTarget = useCallback(
+    (target) => {
+      const currentKey = getTargetKey(pendingTarget);
+      const nextKey = getTargetKey(target);
 
-  const applyAmountToTarget = useCallback((amount, target) => {
-    const safeAmount = Number(amount || 0);
-    if (safeAmount <= 0 || !target) return;
-    if (target.type === 'cell' && !isNumberVisible(target.index)) return;
-    if (target.type === 'col') {
-      const hasVisibleInColumn = Array.from({ length: 10 }, (_, row) => row * 10 + target.index).some((n) => isNumberVisible(n));
-      if (!hasVisibleInColumn) return;
-    }
-    const targetKey = getTargetKey(target);
-    const prevApplied = Number(appliedAmountByTargetRef.current[targetKey] || 0);
-    const deltaAmount = safeAmount - prevApplied;
-    if (deltaAmount <= 0) {
-      appliedAmountByTargetRef.current[targetKey] = safeAmount;
-      return;
-    }
-    setSelectedMap((prev) => {
-      const next = { ...prev };
-      const quizzesToApply = multi ? selectedQuizzes : [activeQuiz];
-      if (target.type === 'cell') {
-        quizzesToApply.forEach((quizNo) => {
-          const key = getCellKey(quizNo, target.index);
-          next[key] = Number(next[key] || 0) + deltaAmount;
-        });
-      } else if (target.type === 'row') {
-        setRowPointDisplay((prev) => {
-          const next = [...prev];
-          next[target.index] = String(safeAmount);
-          return next;
-        });
-        for (let col = 0; col < 10; col += 1) {
-          const num = target.index * 10 + col;
-          if (!isNumberVisible(num)) continue;
+      if (currentKey !== nextKey) {
+        let draftToSet = '';
+        let enteredToSet = 0;
+        if (target?.type === 'cell') {
+          const quizzesToApply = multi ? selectedQuizzes : [activeQuiz];
+          let existing = 0;
           quizzesToApply.forEach((quizNo) => {
-            const key = getCellKey(quizNo, num);
-            next[key] = Number(next[key] || 0) + deltaAmount;
+            const key = getCellKey(quizNo, target.index);
+            existing = Math.max(existing, Number(selectedMap[key] || 0));
           });
+          if (existing > 0) {
+            draftToSet = String(existing);
+            enteredToSet = existing;
+            appliedAmountByTargetRef.current[nextKey] = existing;
+          }
         }
-      } else if (target.type === 'col') {
-        const hasVisibleInColumn = Array.from({ length: 10 }, (_, row) => row * 10 + target.index).some((n) => isNumberVisible(n));
-        if (!hasVisibleInColumn) return next;
-        setColPointDisplay((prev) => {
-          const next = [...prev];
-          next[target.index] = String(safeAmount);
-          return next;
-        });
-        for (let row = 0; row < 10; row += 1) {
-          const num = row * 10 + target.index;
-          if (!isNumberVisible(num)) continue;
-          quizzesToApply.forEach((quizNo) => {
-            const key = getCellKey(quizNo, num);
-            next[key] = Number(next[key] || 0) + deltaAmount;
-          });
+
+        setEnteredAmount(enteredToSet);
+        setAmountDraft(draftToSet);
+        if (autoApplyTimerRef.current) {
+          clearTimeout(autoApplyTimerRef.current);
+          autoApplyTimerRef.current = null;
         }
       }
-      return next;
-    });
-    appliedAmountByTargetRef.current[targetKey] = safeAmount;
-  }, [activeQuiz, getTargetKey, isNumberVisible, multi, selectedQuizzes]);
+
+      setPendingTarget(target);
+    },
+    [activeQuiz, getTargetKey, multi, pendingTarget, selectedMap, selectedQuizzes],
+  );
+
+  const applyAmountToTarget = useCallback(
+    (amount, target) => {
+      if (!target) return;
+
+      // Cells: keypad amount is the absolute stake on this number (per selected quiz). Supports decrease and clear.
+      if (target.type === 'cell') {
+        if (!isNumberVisible(target.index)) return;
+        const amt = Math.max(0, Math.floor(Number(amount || 0)));
+        const targetKey = getTargetKey(target);
+        setSelectedMap((prev) => {
+          const next = { ...prev };
+          const quizzesToApply = multi ? selectedQuizzes : [activeQuiz];
+          quizzesToApply.forEach((quizNo) => {
+            const key = getCellKey(quizNo, target.index);
+            if (amt <= 0) delete next[key];
+            else next[key] = amt;
+          });
+          return next;
+        });
+        appliedAmountByTargetRef.current[targetKey] = amt;
+        return;
+      }
+
+      const safeAmount = Math.max(0, Number(amount || 0));
+      if (target.type === 'col') {
+        const hasVisibleInColumn = Array.from({ length: 10 }, (_, row) => row * 10 + target.index).some((n) =>
+          isNumberVisible(n),
+        );
+        if (!hasVisibleInColumn) return;
+      }
+
+      const targetKey = getTargetKey(target);
+      const prevApplied = Number(appliedAmountByTargetRef.current[targetKey] || 0);
+      const deltaAmount = safeAmount - prevApplied;
+      if (deltaAmount === 0) {
+        appliedAmountByTargetRef.current[targetKey] = safeAmount;
+        return;
+      }
+
+      setSelectedMap((prev) => {
+        const next = { ...prev };
+        const quizzesToApply = multi ? selectedQuizzes : [activeQuiz];
+        if (target.type === 'row') {
+          setRowPointDisplay((rp) => {
+            const rowNext = [...rp];
+            rowNext[target.index] = String(Math.floor(safeAmount));
+            return rowNext;
+          });
+          for (let col = 0; col < 10; col += 1) {
+            const num = target.index * 10 + col;
+            if (!isNumberVisible(num)) continue;
+            quizzesToApply.forEach((quizNo) => {
+              const key = getCellKey(quizNo, num);
+              next[key] = Math.max(0, Number(next[key] || 0) + deltaAmount);
+            });
+          }
+        } else if (target.type === 'col') {
+          const hasVisibleInColumn = Array.from({ length: 10 }, (_, row) => row * 10 + target.index).some((n) =>
+            isNumberVisible(n),
+          );
+          if (!hasVisibleInColumn) return next;
+          setColPointDisplay((cp) => {
+            const colNext = [...cp];
+            colNext[target.index] = String(Math.floor(safeAmount));
+            return colNext;
+          });
+          for (let row = 0; row < 10; row += 1) {
+            const num = row * 10 + target.index;
+            if (!isNumberVisible(num)) continue;
+            quizzesToApply.forEach((quizNo) => {
+              const key = getCellKey(quizNo, num);
+              next[key] = Math.max(0, Number(next[key] || 0) + deltaAmount);
+            });
+          }
+        }
+        return next;
+      });
+      appliedAmountByTargetRef.current[targetKey] = safeAmount;
+    },
+    [activeQuiz, getTargetKey, isNumberVisible, multi, selectedQuizzes],
+  );
 
   useEffect(() => {
     if (!pendingTarget) return;
@@ -426,6 +469,13 @@ const LotteryDashboard = () => {
     return () => {
       if (autoApplyTimerRef.current) clearTimeout(autoApplyTimerRef.current);
     };
+  }, [amountDraft, applyAmountToTarget, pendingTarget]);
+
+  /** After backspace (X) clears the keypad, sync empty draft to zero stake on the focused cell. */
+  useEffect(() => {
+    if (!pendingTarget || pendingTarget.type !== 'cell') return;
+    if (amountDraft !== '') return;
+    applyAmountToTarget(0, pendingTarget);
   }, [amountDraft, applyAmountToTarget, pendingTarget]);
 
   const applyFilter = useCallback((filterType) => {
@@ -461,12 +511,27 @@ const LotteryDashboard = () => {
     if (!checked) setSelectedQuizzes([activeQuiz]);
   }, [activeQuiz]);
 
-  const handleKeypad = useCallback((key) => {
-    if (key === 'C') return setAmountDraft('');
-    if (key === 'X') return setAmountDraft((prev) => prev.slice(0, -1));
-    const nextValue = (amountDraft === '0' ? key : `${amountDraft}${key}`).slice(0, 4);
-    setAmountDraft(nextValue);
-  }, [amountDraft]);
+  const handleKeypad = useCallback(
+    (key) => {
+      if (key === 'C') {
+        setAmountDraft('');
+        if (pendingTarget?.type === 'cell') {
+          applyAmountToTarget(0, pendingTarget);
+        }
+        return;
+      }
+      if (key === 'X') {
+        setAmountDraft((prev) => {
+          const next = prev.slice(0, -1);
+          return next;
+        });
+        return;
+      }
+      const nextValue = (amountDraft === '0' ? key : `${amountDraft}${key}`).slice(0, 4);
+      setAmountDraft(nextValue);
+    },
+    [amountDraft, applyAmountToTarget, pendingTarget],
+  );
 
   const openResults = useCallback(() => {
     setShowResults(true);

@@ -18,7 +18,7 @@ const quizBetSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ['pending', 'win', 'lose'],
+      enum: ['pending', 'win', 'lose', 'cancelled'],
       default: 'pending',
     },
     /** Gross payout on win (stake × multiplier). Zero on lose. */
@@ -27,7 +27,14 @@ const quizBetSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-quizBetSchema.index({ gameMode: 1, betOwnerKey: 1, quizId: 1, slotStartIso: 1, number: 1, betMode: 1 }, { unique: true });
+/** Unique for non-cancelled tickets only. Cancelled rows are excluded from this index so the same key can be reused (MongoDB partial indexes do not support `$ne`). */
+quizBetSchema.index(
+  { gameMode: 1, betOwnerKey: 1, quizId: 1, slotStartIso: 1, number: 1, betMode: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ['pending', 'win', 'lose'] } },
+  },
+);
 quizBetSchema.index({ gameMode: 1, slotStartIso: 1, quizId: 1, status: 1 });
 
 const QuizBet = mongoose.model('QuizBet', quizBetSchema);

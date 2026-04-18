@@ -132,6 +132,23 @@ export async function getMyQuizBets(limit = 120, mode = '2d') {
   return json;
 }
 
+/** Cancel one pending quiz ticket before the draw closes (wallet refund). */
+export async function cancelMyQuizBet(betId, mode = '2d') {
+  const res = await fetch(`${base}/my-quiz-bets/${encodeURIComponent(String(betId))}?mode=${encodeURIComponent(mode)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { ...getAuthHeaders() },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json.message || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.code = json.code;
+    throw err;
+  }
+  return json;
+}
+
 export async function getQuizResult(quizId, slotStartIso, mode = '2d') {
   const params = new URLSearchParams();
   if (slotStartIso) params.set('slotStartIso', slotStartIso);

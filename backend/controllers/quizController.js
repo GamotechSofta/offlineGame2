@@ -383,7 +383,13 @@ export const postQuizBet = async (req, res) => {
     }
 
     const owner = getBetOwnerKey(req);
-    const existing = await QuizBet.find({ gameMode, betOwnerKey: owner, quizId, slotStartIso }).lean();
+    const existing = await QuizBet.find({
+      gameMode,
+      betOwnerKey: owner,
+      quizId,
+      slotStartIso,
+      status: { $ne: 'cancelled' },
+    }).lean();
     const existingByKey = new Map(existing.map((e) => [`${e.number}|${normalizeQuizBetMode(e.betMode || 'str') || 'str'}`, e]));
     const uid = new mongoose.Types.ObjectId(userId);
     const incs = [];
@@ -551,7 +557,13 @@ export const postQuizBetsBatch = async (req, res) => {
 
     const quizIds = [...normalizedByQuiz.keys()];
     const existingAll = quizIds.length
-      ? await QuizBet.find({ gameMode, betOwnerKey: owner, slotStartIso, quizId: { $in: quizIds } }).lean()
+      ? await QuizBet.find({
+          gameMode,
+          betOwnerKey: owner,
+          slotStartIso,
+          quizId: { $in: quizIds },
+          status: { $ne: 'cancelled' },
+        }).lean()
       : [];
     const existingByCompositeKey = new Map(
       existingAll.map((e) => [
@@ -728,6 +740,94 @@ export const getMyQuizBets = async (req, res) => {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('getMyQuizBets', err);
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
+
+/**
+ * DELETE /api/v1/quiz/my-quiz-bets/:betId?mode=
+ * Cancels own pending quiz ticket before the slot ends (result not finalized); refunds stake to wallet.
+ */
+export const cancelMyQuizBet = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
+    const rawId = req.params?.betId;
+    if (!rawId || !mongoose.Types.ObjectId.isValid(String(rawId))) {
+      return res.status(400).json({ success: false, message: 'Invalid bet id.' });
+    }
+
+    const gameMode = resolveGameMode(req);
+    const uid = new mongoose.Types.ObjectId(userId);
+    const betId = new mongoose.Types.ObjectId(String(rawId));
+
+    await ensureQuizBetIndexes();
+
+    const bet = await QuizBet.findOne({
+      _id: betId,
+      userId: uid,
+      gameMode,
+      status: 'pending',
+    }).lean();
+
+    if (!bet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bet not found or already settled.',
+      });
+    }
+
+    const slotStartMs = new Date(bet.slotStartIso).getTime();
+    if (!Number.isFinite(slotStartMs)) {
+      return res.status(400).json({ success: false, message: 'Invalid slot on bet.' });
+    }
+    const slotEndMs = slotStartMs + SLOT_MS;
+    if (Date.now() >= slotEndMs) {
+      return res.status(403).json({
+        success: false,
+        code: 'SLOT_CLOSED',
+        message: 'This draw has closed — pending tickets cannot be cancelled.',
+      });
+    }
+
+    const refund = Math.floor(Number(bet.amount || 0));
+    if (!Number.isFinite(refund) || refund <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid stake amount.' });
+    }
+
+    const updated = await QuizBet.findOneAndUpdate(
+      {
+        _id: betId,
+        userId: uid,
+        gameMode,
+        status: 'pending',
+      },
+      { $set: { status: 'cancelled', winPayout: 0 } },
+      { new: true },
+    ).lean();
+
+    if (!updated) {
+      return res.status(409).json({
+        success: false,
+        message: 'Could not cancel — bet may have been settled.',
+      });
+    }
+
+    const walletUpdate = await Wallet.findOneAndUpdate({ userId: uid }, { $inc: { balance: refund } }, { new: true }).lean();
+
+    res.json({
+      success: true,
+      data: {
+        refunded: refund,
+        balance: walletUpdate?.balance ?? null,
+      },
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('cancelMyQuizBet', err);
     res.status(500).json({ success: false, message: err.message || 'Server error' });
   }
 };

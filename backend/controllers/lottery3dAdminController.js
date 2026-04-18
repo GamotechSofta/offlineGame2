@@ -56,6 +56,10 @@ function toSlotSummary(slotStartIso, slotEndMs, bets, picksByQuiz, winMultiplier
   let winnerPayout = 0;
 
   for (const bet of bets) {
+    if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     ticketCount += 1;
     revenue += Number(bet.amount || 0);
     if (bet.userId) users.add(String(bet.userId));
@@ -123,6 +127,9 @@ const getSetLabelByQuizId = (quizId) => {
 };
 
 function getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier }) {
+  if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+    return { outcome: 'cancelled', payout: 0, net: 0 };
+  }
   if (!isCompleted) {
     return { outcome: 'pending', payout: 0, net: -Number(bet.amount || 0) };
   }
@@ -164,7 +171,13 @@ async function buildPlayersForSlot(slotStartIso) {
   const userById = new Map(users.map((u) => [String(u._id), u]));
   const overallStatsRaw = userIds.length
     ? await QuizBet.aggregate([
-      { $match: { gameMode: GAME_MODE, userId: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) } } },
+      {
+        $match: {
+          gameMode: GAME_MODE,
+          userId: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) },
+          status: { $ne: 'cancelled' },
+        },
+      },
       {
         $group: {
           _id: '$userId',
@@ -208,6 +221,21 @@ async function buildPlayersForSlot(slotStartIso) {
     const amount = Number(bet.amount || 0);
     const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier });
     row.betCount += 1;
+    if (result.outcome === 'cancelled') {
+      row.bets.push({
+        betId: String(bet._id),
+        quizId: bet.quizId,
+        setLabel: getSetLabelByQuizId(bet.quizId),
+        number: String(bet.number).padStart(3, '0'),
+        amount,
+        outcome: 'cancelled',
+        payout: 0,
+        netProfitLoss: 0,
+        createdAt: bet.createdAt,
+      });
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     row.totalStake += amount;
     row.totalPayout += result.payout;
     row.netProfitLoss += result.net;
@@ -273,6 +301,10 @@ export const getLottery3DCurrentSlot = async (req, res) => {
     }
 
     for (const bet of bets) {
+      if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       const row = perQuiz.get(bet.quizId);
       if (!row) continue;
       row.ticketCount += 1;
@@ -452,6 +484,10 @@ export const getLottery3DSlotDetail = async (req, res) => {
     }
 
     for (const bet of bets) {
+      if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       const row = perQuiz.get(bet.quizId);
       if (!row) continue;
       row.ticketCount += 1;
@@ -575,6 +611,28 @@ export const getLottery3DPlayerHistory = async (req, res) => {
           bets: [],
         });
       }
+
+      if (result.outcome === 'cancelled') {
+        summary.totalBets += 1;
+        if (includeInSlots) {
+          const slotRow = slotsMap.get(bet.slotStartIso);
+          slotRow.betCount += 1;
+          slotRow.bets.push({
+            betId: String(bet._id),
+            quizId: bet.quizId,
+            setLabel: getSetLabelByQuizId(bet.quizId),
+            number: String(bet.number).padStart(3, '0'),
+            amount,
+            outcome: 'cancelled',
+            payout: 0,
+            netProfitLoss: 0,
+            createdAt: bet.createdAt,
+          });
+        }
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
       if (includeInSlots) {
         const slotRow = slotsMap.get(bet.slotStartIso);
         slotRow.betCount += 1;
