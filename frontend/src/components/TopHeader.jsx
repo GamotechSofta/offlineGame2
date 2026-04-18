@@ -46,7 +46,7 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
 
   return (
     <div className="bg-black border-b border-[#3f3f3f] px-2 h-[58px] text-[11px]">
-      <div className="grid grid-cols-[120px_160px_240px_1fr] gap-2 items-center h-full">
+      <div className="grid grid-cols-[120px_160px_1fr] gap-2 items-center h-full">
         <div className="leading-tight">
           <div className="text-[#e5e5e5] text-[13px] font-extrabold">DR DATE</div>
           <div className="text-[16px] font-extrabold leading-none mt-[1px]">{formattedDate}</div>
@@ -54,10 +54,6 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
         <div className="leading-tight">
           <div className="text-[#e5e5e5] text-[13px] font-extrabold">Time To Draw</div>
           <div className="text-[16px] font-extrabold leading-none mt-[1px]">{formattedTimeToDraw}</div>
-        </div>
-        <div className="leading-tight text-[14px] font-extrabold">
-          <div className="leading-none">Last Tr. GM26032818006025</div>
-          <div className="leading-none mt-[3px]">Last Sale. 180</div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 h-full">
           {typeof onOpenQuiz === 'function' && (
