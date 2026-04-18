@@ -25,6 +25,8 @@ const LotteryDashboard = () => {
   const colApplyTimersRef = useRef({});
   const rowApplyTimersRef = useRef({});
   const autoApplyTimerRef = useRef(null);
+  const prevKeypadDraftRef = useRef('2');
+  const prevPendingTargetKeyRef = useRef('');
   const appliedAmountByTargetRef = useRef({});
   const lastLandscapeAutoFsAttemptRef = useRef(0);
   const [viewport, setViewport] = useState(() => ({
@@ -360,6 +362,21 @@ const LotteryDashboard = () => {
             enteredToSet = existing;
             appliedAmountByTargetRef.current[nextKey] = existing;
           }
+        } else if (target?.type === 'row') {
+          // After ENTER the ref map is cleared but stakes remain; restore delta baseline from the blue box / board.
+          const existing = Math.max(0, Math.floor(Number(rowPointDisplay[target.index] || 0)));
+          appliedAmountByTargetRef.current[nextKey] = existing;
+          if (existing > 0) {
+            draftToSet = String(existing);
+            enteredToSet = existing;
+          }
+        } else if (target?.type === 'col') {
+          const existing = Math.max(0, Math.floor(Number(colPointDisplay[target.index] || 0)));
+          appliedAmountByTargetRef.current[nextKey] = existing;
+          if (existing > 0) {
+            draftToSet = String(existing);
+            enteredToSet = existing;
+          }
         }
 
         setEnteredAmount(enteredToSet);
@@ -372,7 +389,7 @@ const LotteryDashboard = () => {
 
       setPendingTarget(target);
     },
-    [activeQuiz, getTargetKey, multi, pendingTarget, selectedMap, selectedQuizzes],
+    [activeQuiz, colPointDisplay, getTargetKey, multi, pendingTarget, rowPointDisplay, selectedMap, selectedQuizzes],
   );
 
   const applyAmountToTarget = useCallback(
@@ -465,7 +482,7 @@ const LotteryDashboard = () => {
     autoApplyTimerRef.current = setTimeout(() => {
       applyAmountToTarget(amount, pendingTarget);
       autoApplyTimerRef.current = null;
-    }, 180);
+    }, 100);
     return () => {
       if (autoApplyTimerRef.current) clearTimeout(autoApplyTimerRef.current);
     };
@@ -477,6 +494,21 @@ const LotteryDashboard = () => {
     if (amountDraft !== '') return;
     applyAmountToTarget(0, pendingTarget);
   }, [amountDraft, applyAmountToTarget, pendingTarget]);
+
+  /** Same for row/column targets: absolute draft maps to applied delta; skip when target just changed (draft cleared by navigation). */
+  useEffect(() => {
+    const targetKey = pendingTarget ? getTargetKey(pendingTarget) : '';
+    const prevDraft = prevKeypadDraftRef.current;
+    const prevTargetKey = prevPendingTargetKeyRef.current;
+    prevKeypadDraftRef.current = amountDraft;
+    prevPendingTargetKeyRef.current = targetKey;
+
+    if (!pendingTarget || (pendingTarget.type !== 'row' && pendingTarget.type !== 'col')) return;
+    if (amountDraft !== '') return;
+    if (prevDraft === '') return;
+    if (targetKey !== prevTargetKey) return;
+    applyAmountToTarget(0, pendingTarget);
+  }, [amountDraft, applyAmountToTarget, pendingTarget, getTargetKey]);
 
   const applyFilter = useCallback((filterType) => {
     setActiveFilter(filterType || FILTER_TYPES.ALL);
@@ -514,23 +546,30 @@ const LotteryDashboard = () => {
   const handleKeypad = useCallback(
     (key) => {
       if (key === 'C') {
+        if (autoApplyTimerRef.current) {
+          clearTimeout(autoApplyTimerRef.current);
+          autoApplyTimerRef.current = null;
+        }
         setAmountDraft('');
-        if (pendingTarget?.type === 'cell') {
+        if (pendingTarget) {
           applyAmountToTarget(0, pendingTarget);
         }
         return;
       }
       if (key === 'X') {
-        setAmountDraft((prev) => {
-          const next = prev.slice(0, -1);
-          return next;
-        });
+        if (autoApplyTimerRef.current) {
+          clearTimeout(autoApplyTimerRef.current);
+          autoApplyTimerRef.current = null;
+        }
+        setAmountDraft((prev) => prev.slice(0, -1));
         return;
       }
-      const nextValue = (amountDraft === '0' ? key : `${amountDraft}${key}`).slice(0, 4);
-      setAmountDraft(nextValue);
+      setAmountDraft((prev) => {
+        const nextValue = (prev === '0' ? key : `${prev}${key}`).slice(0, 4);
+        return nextValue;
+      });
     },
-    [amountDraft, applyAmountToTarget, pendingTarget],
+    [applyAmountToTarget, pendingTarget],
   );
 
   const openResults = useCallback(() => {
@@ -635,7 +674,11 @@ const LotteryDashboard = () => {
       setRowPointDisplay(Array.from({ length: 10 }, () => ''));
       setColPointDisplay(Array.from({ length: 10 }, () => ''));
       const n = j?.data?.linesProcessed ?? j?.data?.totalBetsPlaced ?? 0;
-      setUiNotice(`Ticket submitted (${n} lines). Check all numbers in My Bets -> Quiz Tickets.`);
+      setUiNotice(
+        n === 1
+          ? 'Your ticket is in! You can see it under My Bets → Quiz Tickets.'
+          : `All set — ${n} lines placed. Open My Bets → Quiz Tickets anytime to review your picks.`,
+      );
     } catch (e) {
       const msg =
         e.status === 401
