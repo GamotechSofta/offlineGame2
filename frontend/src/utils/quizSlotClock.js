@@ -1,7 +1,25 @@
-/** 2D Quiz: 15 minutes = one game; first 13 minutes study phase, then hint only (one question, no number). All time in IST. */
+/** 2D Quiz: 15 minutes = one game; first 13.5 minutes study phase, then hint only (one question, no number). All time in IST. */
 
 export const SLOT_MINUTES = 15;
-export const STUDY_MINUTES = 13;
+export const STUDY_MINUTES = 13.5;
+
+/** 2D study list: first row at slot start, each following row after this delay (same clock for every user). */
+export const QUESTION_REVEAL_STAGGER_MS = 8100;
+
+/** 3D study list stagger (0.81 s between rows). */
+export const QUESTION_REVEAL_STAGGER_MS_3D = 810;
+
+/**
+ * Rows visible for the current wall time vs server slot start (ISO UTC).
+ * All users in the same slot see the same row count at the same moment.
+ */
+export function getVisibleQuestionCountFromSlotStart(slotStartIso, totalQuestions, staggerMs = QUESTION_REVEAL_STAGGER_MS) {
+  if (!totalQuestions || typeof slotStartIso !== 'string' || !slotStartIso) return 0;
+  const slotStartMs = new Date(slotStartIso).getTime();
+  if (!Number.isFinite(slotStartMs)) return 0;
+  const elapsed = Math.max(0, Date.now() - slotStartMs);
+  return Math.min(totalQuestions, Math.max(1, Math.floor(elapsed / staggerMs) + 1));
+}
 export const SLOT_SECONDS = SLOT_MINUTES * 60;
 export const STUDY_SECONDS = STUDY_MINUTES * 60;
 

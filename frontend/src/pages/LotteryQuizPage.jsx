@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
@@ -6,9 +6,7 @@ import AppLayout from '../components/AppLayout';
 import { getQuizHint, getQuizQuestions, getQuizResult, getQuizSlot, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { verifyFairness } from '../utils/quizFairness';
-
-const STUDY_MINUTES = 13;
-const SLOT_MINUTES = 15;
+import { getVisibleQuestionCountFromSlotStart, QUESTION_REVEAL_STAGGER_MS, STUDY_MINUTES } from '../utils/quizSlotClock';
 const QUIZ_MODE = '2d';
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -38,6 +36,7 @@ const LotteryQuizPage = () => {
   const [slotData, setSlotData] = useState(null);
   const [slotErr, setSlotErr] = useState('');
   const [questions, setQuestions] = useState([]);
+  const [visibleQuestionCount, setVisibleQuestionCount] = useState(0);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionsErr, setQuestionsErr] = useState('');
   const [answerRevealed, setAnswerRevealed] = useState({});
@@ -202,6 +201,21 @@ const LotteryQuizPage = () => {
       cancelled = true;
     };
   }, [selectedQuiz, slotData?.phase, slotData?.slotStartIso]);
+
+  useLayoutEffect(() => {
+    if (!questions.length || !slotData?.slotStartIso) {
+      setVisibleQuestionCount(0);
+      return undefined;
+    }
+    const tick = () => {
+      setVisibleQuestionCount(
+        getVisibleQuestionCountFromSlotStart(slotData.slotStartIso, questions.length, QUESTION_REVEAL_STAGGER_MS),
+      );
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [questions, slotData?.slotStartIso]);
 
   useEffect(() => {
     setAnswerRevealed({});
@@ -485,7 +499,7 @@ const LotteryQuizPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {questions.map((row, position) => (
+                    {questions.slice(0, visibleQuestionCount).map((row, position) => (
                       <tr key={row.id}>
                         <td
                           className="align-top border border-[#7a9e5c] px-3 py-5 font-semibold leading-snug"
@@ -549,7 +563,7 @@ const LotteryQuizPage = () => {
                   <div className="min-w-0 flex-1">
                     <div className="border-b border-[#dcb] px-3 py-2 text-sm leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
                       <p className="mb-2 font-medium text-[#4a1515]">
-                        Only the question text is shown here (A-D options appear in Study list). Question index stays hidden on server.
+                        इस प्रश्न का उत्तर इस प्रश्न का क्रमांक है
                       </p>
                       <p className="text-[14px] font-semibold text-black">{hintData.questionText}</p>
                     </div>

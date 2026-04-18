@@ -1,10 +1,10 @@
 /**
  * 15-minute quiz slots in Asia/Kolkata (IST, UTC+05:30).
- * Boundaries: :00, :15, :30, :45 — study = first 13 minutes; hint = last 2 minutes.
+ * Boundaries: :00, :15, :30, :45 — study = first 13.5 minutes; hint = last 1.5 minutes.
  * Server clock only; never trust client time for slot boundaries.
  */
 export const SLOT_MINUTES = 15;
-export const STUDY_MINUTES = 13;
+export const STUDY_MINUTES = 13.5;
 export const SLOT_MS = SLOT_MINUTES * 60 * 1000;
 export const STUDY_MS = STUDY_MINUTES * 60 * 1000;
 export const STUDY_SECONDS = STUDY_MINUTES * 60;

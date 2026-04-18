@@ -7,7 +7,9 @@ import User from '../models/user/user.js';
 import { Wallet } from '../models/wallet/wallet.js';
 import { getCachedSlotContext } from '../services/quizCacheService.js';
 import {
+  SLOT_MINUTES,
   SLOT_MS,
+  STUDY_MINUTES,
   STUDY_SECONDS,
   formatDrawLabel,
   isValidISTSlotStartIso,
@@ -148,7 +150,7 @@ export const getQuestions = async (req, res) => {
       return res.status(403).json({
         success: false,
         code: 'NOT_STUDY_PHASE',
-        message: 'Questions list is only available during the study phase (first 13 minutes of the slot, IST).',
+        message: `Questions list is only available during the study phase (first ${STUDY_MINUTES} minutes of the slot, IST).`,
         phase: ctx.phase,
       });
     }
@@ -191,7 +193,7 @@ export const getHint = async (req, res) => {
       return res.status(403).json({
         success: false,
         code: 'NOT_HINT_PHASE',
-        message: 'Hint is only available during the last 2 minutes of the slot (IST).',
+        message: `Hint is only available during the last ${SLOT_MINUTES - STUDY_MINUTES} minutes of the slot (IST).`,
         phase: ctx.phase,
       });
     }

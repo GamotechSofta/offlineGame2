@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
@@ -6,8 +6,7 @@ import AppLayout from '../components/AppLayout';
 import { getQuizHint, getQuizQuestions, getQuizResult, getQuizSlot, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { verifyFairness } from '../utils/quizFairness';
-
-const STUDY_MINUTES = 13;
+import { getVisibleQuestionCountFromSlotStart, QUESTION_REVEAL_STAGGER_MS_3D, STUDY_MINUTES } from '../utils/quizSlotClock';
 const pad2 = (n) => String(n).padStart(2, '0');
 const pad3 = (n) => String(n).padStart(3, '0');
 const toDisplayQuestionNumber = (value) => pad3(Number.parseInt(String(value), 10) || 0);
@@ -113,6 +112,7 @@ const ThreeDQuizPage = () => {
   const [slotErr, setSlotErr] = useState('');
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [questions, setQuestions] = useState([]);
+  const [visibleQuestionCount, setVisibleQuestionCount] = useState(0);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionsErr, setQuestionsErr] = useState('');
   const [answerRevealed, setAnswerRevealed] = useState({});
@@ -301,6 +301,21 @@ const ThreeDQuizPage = () => {
       cancelled = true;
     };
   }, [selectedQuiz, slotData?.phase, slotData?.slotStartIso]);
+
+  useLayoutEffect(() => {
+    if (!questions.length || !slotData?.slotStartIso) {
+      setVisibleQuestionCount(0);
+      return undefined;
+    }
+    const tick = () => {
+      setVisibleQuestionCount(
+        getVisibleQuestionCountFromSlotStart(slotData.slotStartIso, questions.length, QUESTION_REVEAL_STAGGER_MS_3D),
+      );
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [questions, slotData?.slotStartIso]);
 
   useEffect(() => setAnswerRevealed({}), [questions]);
 
@@ -546,7 +561,7 @@ const ThreeDQuizPage = () => {
                     slotLabel={slotData?.drawLabelCurrent ?? ''}
                     questionsLoading={questionsLoading}
                     questionsErr={questionsErr}
-                    questions={questions}
+                    questions={questions.slice(0, visibleQuestionCount)}
                     answerRevealed={answerRevealed}
                     toggleAnswer={toggleAnswer}
                   />
