@@ -53,6 +53,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
     ];
 
     if (adminRole === 'super_admin') {
+        menuItems.splice(9, 0, { path: '/bookie-commissions', label: 'Bookie Commissions', icon: FaMoneyBillWave });
         menuItems.splice(10, 0, { path: '/help-desk', label: 'Help Desk Issues', icon: FaLifeRing });
     }
 
@@ -62,6 +63,9 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         }
         if (path === '/revenue') {
             return location.pathname === '/revenue' || location.pathname.startsWith('/revenue/');
+        }
+        if (path === '/bookie-commissions') {
+            return location.pathname === '/bookie-commissions';
         }
         if (path === '/reports') {
             return location.pathname === '/reports';

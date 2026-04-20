@@ -29,6 +29,32 @@ const dailyCommissionSchema = new mongoose.Schema({
         default: 0,
         min: 0,
     },
+    paidAmount: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    pendingAmount: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'partial', 'paid'],
+        default: 'pending',
+    },
+    lastPaidAt: {
+        type: Date,
+    },
+    lastPaidBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Admin',
+    },
+    paymentNotes: {
+        type: String,
+        trim: true,
+    },
     totalBets: {
         type: Number,
         default: 0,
@@ -59,6 +85,7 @@ const dailyCommissionSchema = new mongoose.Schema({
 dailyCommissionSchema.index({ bookieId: 1, date: 1 }, { unique: true });
 dailyCommissionSchema.index({ date: -1 });
 dailyCommissionSchema.index({ status: 1 });
+dailyCommissionSchema.index({ paymentStatus: 1 });
 
 const DailyCommission = mongoose.model('DailyCommission', dailyCommissionSchema);
 export default DailyCommission;

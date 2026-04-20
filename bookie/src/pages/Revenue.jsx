@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 
 const getPresets = (t) => [
+    { id: 'all', label: t('all'), getRange: () => ({ from: '', to: '' }) },
     { id: 'today', label: t('today'), getRange: () => {
         const d = new Date();
         const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -162,9 +163,16 @@ const Revenue = () => {
                                 <p className="mt-1 text-xs text-gray-500">Total bet amount</p>
                             </div>
                             <div className="bg-white rounded-xl border border-gray-200 p-4">
-                                <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Winning Amount</p>
-                                <p className="mt-2 text-2xl font-bold text-red-500">{formatCurrency(data.totalPayouts)}</p>
-                                <p className="mt-1 text-xs text-gray-500">Total payout to winners</p>
+                                <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Paid / Pending</p>
+                                <div className="mt-2 space-y-1">
+                                    <p className="text-lg font-bold text-green-600">
+                                        Paid: {formatCurrency(data.paidAmount || 0)}
+                                    </p>
+                                    <p className="text-lg font-bold text-red-500">
+                                        Pending: {formatCurrency(data.pendingAmount || 0)}
+                                    </p>
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">All-time commission settlement</p>
                             </div>
                             <div className="bg-[#1B3150] rounded-xl border border-[#1B3150] p-4">
                                 <div className="flex items-center justify-between">
@@ -196,6 +204,18 @@ const Revenue = () => {
                                     <span className="text-sm text-gray-600">Win/Loss Bets</span>
                                     <span className="text-sm font-semibold text-gray-800">
                                         {formatNumber(data.winningBets || 0)} W / {formatNumber(data.losingBets || 0)} L
+                                    </span>
+                                </div>
+                                <div className="px-4 py-3 flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">Paid Amount</span>
+                                    <span className="text-sm font-semibold text-green-600">
+                                        {formatCurrency(data.paidAmount || 0)}
+                                    </span>
+                                </div>
+                                <div className="px-4 py-3 flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">Pending Amount</span>
+                                    <span className="text-sm font-semibold text-orange-500">
+                                        {formatCurrency(data.pendingAmount || 0)}
                                     </span>
                                 </div>
                                 <button

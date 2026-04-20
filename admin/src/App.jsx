@@ -27,6 +27,7 @@ import TopWinners from './pages/TopWinners';
 import TwoDManagement from './pages/TwoDManagement';
 import TwoDQuizStakeDetail from './pages/TwoDQuizStakeDetail';
 import ThreeDManagement from './pages/ThreeDManagement';
+import BookieCommissions from './pages/BookieCommissions';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -147,6 +148,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <Revenue />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/bookie-commissions"
+                    element={
+                        <PrivateRoute>
+                            <BookieCommissions />
                         </PrivateRoute>
                     }
                 />

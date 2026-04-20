@@ -4,6 +4,7 @@ import User from '../models/user/user.js';
 import Admin from '../models/admin/admin.js';
 import { Wallet } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import CommissionPayment from '../models/commission/commissionPayment.js';
 
 export const getReport = async (req, res) => {
     try {
@@ -131,6 +132,20 @@ export const getRevenueReport = async (req, res) => {
             const winningBets = await Bet.countDocuments({ status: 'won', ...betFilter });
             const losingBets = await Bet.countDocuments({ status: 'lost', ...betFilter });
 
+            // Payment tracking is calculated against all-time commission.
+            const [allTimeBetAgg] = await Bet.aggregate([
+                { $match: { userId: { $in: userIds } } },
+                { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+            ]);
+            const allTimeBetAmount = allTimeBetAgg?.totalAmount || 0;
+            const allTimeCommission = Math.round((allTimeBetAmount * commissionPct / 100) * 100) / 100;
+            const [paidAgg] = await CommissionPayment.aggregate([
+                { $match: { bookieId: admin._id } },
+                { $group: { _id: null, totalPaid: { $sum: '$amount' } } },
+            ]);
+            const paidAmount = Math.round((paidAgg?.totalPaid || 0) * 100) / 100;
+            const pendingAmount = Math.round(Math.max(0, allTimeCommission - paidAmount) * 100) / 100;
+
             return res.status(200).json({
                 success: true,
                 data: {
@@ -142,6 +157,8 @@ export const getRevenueReport = async (req, res) => {
                     totalBets,
                     winningBets,
                     losingBets,
+                    paidAmount,
+                    pendingAmount,
                 },
             });
         }
