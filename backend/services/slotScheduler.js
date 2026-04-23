@@ -82,10 +82,15 @@ async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
     emittedQuizResultSlots.delete(first);
   }
 
+  const declared = await markSlotDeclared(slotStartIso, gameMode, null, { force: false });
+  if (!declared) {
+    // Slot was held while scheduler was processing; skip auto declaration.
+    return;
+  }
+
   io.emit('quiz:result', { gameMode, slotStartIso, results });
   // eslint-disable-next-line no-console
   console.log(JSON.stringify({ tag: '[socket:emit]', event: 'quiz:result', gameMode, slotStartIso }));
-  await markSlotDeclared(slotStartIso, gameMode, null);
 
   settleQuizBetsForSlot(slotStartIso, gameMode).catch((err) => {
     // eslint-disable-next-line no-console

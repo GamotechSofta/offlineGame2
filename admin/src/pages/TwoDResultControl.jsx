@@ -24,6 +24,10 @@ const TwoDResultControl = () => {
     const [unlockingPage, setUnlockingPage] = useState(false);
     const [pageUnlockError, setPageUnlockError] = useState('');
     const [currentHintRows, setCurrentHintRows] = useState([]);
+    const [manualModal, setManualModal] = useState({ open: false, slotStartIso: '', quizId: '1', result: '' });
+    const [manualSetModeSlots, setManualSetModeSlots] = useState({});
+    const [manualSaving, setManualSaving] = useState(false);
+    const [manualError, setManualError] = useState('');
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState('');
@@ -183,6 +187,9 @@ const TwoDResultControl = () => {
                     }
                     : slot
             )));
+            if (action !== 'hold') {
+                setManualSetModeSlots((prev) => ({ ...prev, [slotStartIso]: false }));
+            }
             setNotice(action === 'declare' ? 'Result declared successfully.' : 'Auto declare preference updated.');
         } catch (err) {
             setError(err.message || 'Failed to update declaration');
@@ -190,6 +197,86 @@ const TwoDResultControl = () => {
             setUpdating(false);
         }
     }, []);
+
+    const openManualModal = useCallback((slotStartIso, quizId = '1', currentResultLabel = '') => {
+        const normalizedQuizId = String(quizId || '1');
+        const normalizedResult = typeof currentResultLabel === 'string' && currentResultLabel !== '--'
+            ? currentResultLabel
+            : '';
+        setManualModal({ open: true, slotStartIso, quizId: normalizedQuizId, result: normalizedResult });
+        setManualError('');
+    }, []);
+
+    const closeManualModal = useCallback(() => {
+        setManualModal({ open: false, slotStartIso: '', quizId: '1', result: '' });
+        setManualError('');
+    }, []);
+
+    const enableManualSetMode = useCallback((slotStartIso) => {
+        if (!slotStartIso) return;
+        setManualSetModeSlots((prev) => ({ ...prev, [slotStartIso]: true }));
+        setNotice('Select "Set" under quiz columns to add manual results.');
+    }, []);
+
+    const submitManualResult = useCallback(async (e) => {
+        e.preventDefault();
+        const slotStartIso = String(manualModal.slotStartIso || '').trim();
+        const quizId = Number(manualModal.quizId);
+        const resultText = String(manualModal.result || '').trim();
+        const result = Number(resultText);
+        if (!slotStartIso) {
+            setManualError('Invalid slot.');
+            return;
+        }
+        if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) {
+            setManualError('Quiz ID must be between 1 and 30.');
+            return;
+        }
+        if (!/^\d{1,2}$/.test(resultText) || !Number.isInteger(result) || result < 0 || result > 99) {
+            setManualError('Result must be between 00 and 99.');
+            return;
+        }
+
+        setManualSaving(true);
+        setManualError('');
+        setError('');
+        setNotice('');
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(slotStartIso)}/result`, {
+                method: 'PATCH',
+                body: JSON.stringify({ quizId, result }),
+            });
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to set manual result');
+
+            const padded = String(result).padStart(2, '0');
+            setSlots((prev) => prev.map((slot) => {
+                if (slot.slotStartIso !== slotStartIso) return slot;
+                return {
+                    ...slot,
+                    perQuiz: Array.isArray(slot.perQuiz)
+                        ? slot.perQuiz.map((q) => (
+                            Number(q.quizId) === quizId
+                                ? { ...q, result, resultLabel: padded }
+                                : q
+                        ))
+                        : slot.perQuiz,
+                };
+            }));
+            if (currentSlotStartIso && currentSlotStartIso === slotStartIso) {
+                setCurrentHintRows((prev) => prev.map((r) => (
+                    Number(r.quizId) === quizId ? { ...r, hint: padded } : r
+                )));
+            }
+            setNotice(`Manual result set for Q${String(quizId).padStart(2, '0')} = ${padded}.`);
+            closeManualModal();
+        } catch (err) {
+            setManualError(err?.message || 'Failed to set manual result');
+        } finally {
+            setManualSaving(false);
+        }
+    }, [manualModal, currentSlotStartIso, closeManualModal]);
 
     return (
         <AdminLayout onLogout={handleLogout} title="2D Result Control">
@@ -305,8 +392,9 @@ const TwoDResultControl = () => {
                                 {slots.map((slot) => {
                                     const declared = Boolean(slot?.declaration?.declared);
                                     const paused = Boolean(slot?.declaration?.autoDeclareBlocked) && !declared;
+                                    const showManualSetOptions = (paused || manualSetModeSlots[slot.slotStartIso]) && !declared;
                                     return (
-                                        <tr key={slot.slotStartIso} className="border-b border-gray-100">
+                                        <tr key={slot.slotStartIso} className="border-b border-black">
                                             <td className="p-2">
                                                 <div className="font-semibold text-gray-800">{slot.drawLabelEnd || slot.slotStartIso}</div>
                                                 <div className="text-gray-500">{slot.slotStartIso}</div>
@@ -348,6 +436,14 @@ const TwoDResultControl = () => {
                                                         >
                                                         {slot?.isCompleted ? 'Declare' : 'Wait'}
                                                         </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => enableManualSetMode(slot.slotStartIso)}
+                                                            disabled={updating}
+                                                            className="px-2 py-1 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold disabled:opacity-60"
+                                                        >
+                                                            Manual Result
+                                                        </button>
                                                     </div>
                                                 )}
                                             </td>
@@ -359,6 +455,16 @@ const TwoDResultControl = () => {
                                                         <div className={`text-[10px] ${q?.declared ? 'text-green-600' : 'text-red-500'}`}>
                                                             {q?.declared ? 'Declared' : 'Not'}
                                                         </div>
+                                                        {showManualSetOptions && (!q?.resultLabel || q.resultLabel === '--') ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openManualModal(slot.slotStartIso, String(quizId), q?.resultLabel || '--')}
+                                                                className="mt-1 px-1.5 py-0.5 rounded border border-purple-300 text-[10px] leading-none font-semibold text-purple-700 hover:bg-purple-50"
+                                                                title="Set manual result for this quiz"
+                                                            >
+                                                                Set
+                                                            </button>
+                                                        ) : null}
                                                     </td>
                                                 );
                                             })}
@@ -372,6 +478,57 @@ const TwoDResultControl = () => {
                     </>
                 )}
             </div>
+            {manualModal.open ? (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
+                        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-gray-800">Set Manual Result</h3>
+                            <button type="button" onClick={closeManualModal} className="text-gray-400 hover:text-gray-800 p-1">x</button>
+                        </div>
+                        <form onSubmit={submitManualResult} className="p-4 space-y-3">
+                            <p className="text-xs text-gray-500 break-all">Slot: {manualModal.slotStartIso}</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <label className="text-sm text-gray-700">
+                                    <span className="block mb-1 font-medium">Quiz ID</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="30"
+                                        value={manualModal.quizId}
+                                        onChange={(e) => setManualModal((prev) => ({ ...prev, quizId: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                                    />
+                                </label>
+                                <label className="text-sm text-gray-700">
+                                    <span className="block mb-1 font-medium">Result (00-99)</span>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={2}
+                                        value={manualModal.result}
+                                        onChange={(e) => setManualModal((prev) => ({ ...prev, result: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                                        placeholder="00"
+                                    />
+                                </label>
+                            </div>
+                            {manualError ? <p className="text-sm text-red-600">{manualError}</p> : null}
+                            <div className="flex justify-end gap-2 pt-1">
+                                <button type="button" onClick={closeManualModal} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold">
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={manualSaving}
+                                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold disabled:bg-purple-400"
+                                >
+                                    {manualSaving ? 'Saving...' : 'Save Manual'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            ) : null}
         </AdminLayout>
     );
 };

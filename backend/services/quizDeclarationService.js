@@ -13,12 +13,11 @@ export async function getSlotDeclarationRow(slotStartIso, gameMode = '2d') {
 
 export async function getSlotDeclarationState(slotStartIso, gameMode = '2d', slotEndMs = null) {
   const row = await getSlotDeclarationRow(slotStartIso, gameMode);
-  const slotEnded = Number.isFinite(slotEndMs) ? Date.now() >= slotEndMs : false;
   if (!row) {
     return {
       autoDeclareBlocked: false,
-      declared: slotEnded,
-      declaredAt: slotEnded ? new Date(slotEndMs) : null,
+      declared: false,
+      declaredAt: null,
     };
   }
   return {
@@ -59,13 +58,18 @@ export async function enableAutoDeclare(slotStartIso, gameMode = '2d', adminId =
   );
 }
 
-export async function markSlotDeclared(slotStartIso, gameMode = '2d', adminId = null) {
+export async function markSlotDeclared(slotStartIso, gameMode = '2d', adminId = null, options = {}) {
   const mode = normalizeMode(gameMode);
   const updatedBy = toObjectIdOrNull(adminId);
-  await QuizSlotDeclaration.findOneAndUpdate(
-    { gameMode: mode, slotStartIso },
+  const force = Boolean(options?.force);
+  const filter = force
+    ? { gameMode: mode, slotStartIso }
+    : { gameMode: mode, slotStartIso, autoDeclareBlocked: { $ne: true } };
+  const updated = await QuizSlotDeclaration.findOneAndUpdate(
+    filter,
     { $set: { autoDeclareBlocked: false, declaredAt: new Date(), updatedBy } },
     { upsert: true, new: true },
   );
+  return Boolean(updated);
 }
 

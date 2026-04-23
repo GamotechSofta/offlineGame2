@@ -641,7 +641,7 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
       const row = declarationBySlot.get(slotStartIso);
       const declaration = {
         autoDeclareBlocked: Boolean(row?.autoDeclareBlocked) && !row?.declaredAt,
-        declared: row?.declaredAt ? true : slotEnded,
+        declared: Boolean(row?.declaredAt),
         declaredAt: row?.declaredAt || null,
       };
       const byQuiz = picksBySlot.get(slotStartIso) || new Map();
@@ -762,18 +762,22 @@ export const updateLottery2DSlotResult = async (req, res) => {
       return res.status(400).json({ success: false, message: 'result must be between 00 and 99.' });
     }
 
-    const ctx = getSlotContext(new Date(), '2d');
-    if (slotStartIso !== ctx.slotStartIso) {
+    const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+    const declarationState = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
+    if (declarationState?.declared) {
       return res.status(400).json({
         success: false,
-        message: 'Manual hint changes are allowed only for the current running slot.',
+        message: 'This slot is already declared. Manual result update is not allowed.',
       });
     }
 
-    if (Date.now() >= ctx.slotEndMs) {
+    const ctx = getSlotContext(new Date(), '2d');
+    const isCurrentRunningSlot = slotStartIso === ctx.slotStartIso && Date.now() < ctx.slotEndMs;
+    const isHeldSlot = Boolean(declarationState?.autoDeclareBlocked);
+    if (!isCurrentRunningSlot && !isHeldSlot) {
       return res.status(400).json({
         success: false,
-        message: 'This slot has already closed. Hint changes are no longer allowed.',
+        message: 'Manual result update is allowed for running slot or held slot only.',
       });
     }
 
@@ -919,7 +923,7 @@ export const updateLottery2DSlotDeclaration = async (req, res) => {
           message: 'Result can be declared only after the slot is completed.',
         });
       }
-      await markSlotDeclared(slotStartIso, GAME_MODE, req.admin?._id);
+      await markSlotDeclared(slotStartIso, GAME_MODE, req.admin?._id, { force: true });
       const io = getQuizSocketIo();
       if (io) {
         const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }, { quizId: 1, hintPosition: 1, _id: 0 }).lean();
