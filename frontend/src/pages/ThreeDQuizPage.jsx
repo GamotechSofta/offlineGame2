@@ -9,7 +9,6 @@ import { verifyFairness } from '../utils/quizFairness';
 import { getVisibleQuestionCountFromSlotStart, QUESTION_REVEAL_STAGGER_MS_3D, STUDY_MINUTES } from '../utils/quizSlotClock';
 const pad2 = (n) => String(n).padStart(2, '0');
 const pad3 = (n) => String(n).padStart(3, '0');
-const toDisplayQuestionNumber = (value) => pad3(Number.parseInt(String(value), 10) || 0);
 
 const btnInactive = 'bg-[#5c2222] text-white border-2 border-[#3d1515] shadow-inner';
 const btnActive = 'bg-[#f5e14a] text-black border-2 border-[#c9b429] shadow-sm';
@@ -213,9 +212,7 @@ const ThreeDQuizPage = () => {
       if (!targetSlot || data.slotStartIso !== targetSlot) return;
       const qid = selectedQuizRef.current;
       const row = data.results.find((r) => r.quizId === qid);
-      if (!row || row.result == null) return;
-
-      const idx3 = pad3(row.result);
+      if (!row || row.ready !== true) return;
       try {
         const j = await getQuizResult(qid, data.slotStartIso, QUIZ_MODE);
         if (j.success && j.data) {
@@ -223,18 +220,13 @@ const ThreeDQuizPage = () => {
             quizId: qid,
             seed: j.data?.seed,
             seedHash: j.data?.seedHash,
-            questionIndex: toDisplayQuestionNumber(j.data?.questionIndex ?? idx3),
           });
           setFairnessCheck(null);
         }
       } catch {
         // fairness payload optional
       }
-
-      const nums = lastBetNumbersRef.current;
-      const hit = nums.some((n) => pad3(n) === idx3);
-      const winNum = toDisplayQuestionNumber(idx3);
-      setGuessFeedback(nums.length ? (hit ? `Correct - one or more bets won - winning number ${winNum}` : `Wrong - winning number ${winNum}`) : `Winning number: ${winNum}`);
+      setGuessFeedback('Result declared for this slot. Winning number is hidden.');
     };
 
     socket.on('quiz:result', onQuizResult);
@@ -447,18 +439,13 @@ const ThreeDQuizPage = () => {
 
     try {
       const j = await getQuizResult(selectedQuiz, slotStartIso, QUIZ_MODE);
-      const correct = j.data?.questionIndex;
       setFairnessResult({
         quizId: selectedQuiz,
         seed: j.data?.seed,
         seedHash: j.data?.seedHash,
-        questionIndex: toDisplayQuestionNumber(correct),
       });
       setFairnessCheck(null);
-      const idx3 = pad3(correct);
-      const hit = parsed.some((p) => pad3(p.number) === idx3);
-      const shown = toDisplayQuestionNumber(correct);
-      setGuessFeedback(hit ? `Bet submitted. Correct number ${shown} (winnings credited after slot closes).` : `Bet submitted. Winning number ${shown}.`);
+      setGuessFeedback('Bet submitted. Result declared; winning number is hidden.');
     } catch (e) {
       if (e.status === 403 && e.code === 'SLOT_NOT_ENDED') {
         setGuessFeedback('Bet submitted. Result and fairness (seed) will appear after slot ends.');
@@ -580,7 +567,6 @@ const ThreeDQuizPage = () => {
                 {fairnessResult?.seed && (
                   <div className="mx-auto mt-3 w-full max-w-[1100px] rounded-sm border border-[#7a9e5c] bg-[#eef8f0] px-3 py-3 text-sm shadow-sm">
                     <p className="mb-1 font-bold text-[#1a4d2e]">Fairness (after slot closes)</p>
-                    <p className="mb-1 text-xs text-[#333]">Winning number: <span className="font-mono font-bold">{fairnessResult.questionIndex}</span></p>
                     <textarea readOnly className="mb-2 mt-1 w-full resize-none rounded border border-[#7a9e5c] bg-white p-1 font-mono text-[10px] text-black" rows={2} value={fairnessResult.seed} />
                     <button type="button" onClick={runFairnessVerify} className="rounded border-2 border-[#2d6b3a] bg-[#3d8b4a] px-3 py-1.5 text-xs font-bold text-white">Verify Fairness</button>
                     {fairnessCheck && <p className="mt-2 text-xs font-semibold text-[#222]">{fairnessCheck}</p>}

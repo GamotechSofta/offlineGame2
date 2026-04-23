@@ -121,9 +121,7 @@ const LotteryQuizPage = () => {
 
       const qid = selectedQuizRef.current;
       const row = data.results.find((r) => r.quizId === qid);
-      if (!row || row.result == null) return;
-
-      const idx = String(row.result).padStart(2, '0');
+      if (!row || row.ready !== true) return;
 
       try {
           const j = await getQuizResult(qid, data.slotStartIso, QUIZ_MODE);
@@ -132,7 +130,6 @@ const LotteryQuizPage = () => {
             quizId: qid,
             seed: j.data?.seed,
             seedHash: j.data?.seedHash,
-            questionIndex: j.data?.questionIndex ?? idx,
           });
           setFairnessCheck(null);
         }
@@ -140,13 +137,7 @@ const LotteryQuizPage = () => {
         /* fairness payload optional */
       }
 
-      const nums = lastBetNumbersRef.current;
-      const hit = nums.some((n) => String(n).padStart(2, '0') === idx);
-      if (nums.length) {
-        setGuessFeedback(hit ? `Correct - one or more bets won - winning number ${idx}` : `Wrong - winning number ${idx}`);
-      } else {
-        setGuessFeedback(`Winning number: ${idx}`);
-      }
+      setGuessFeedback('Result declared for this slot. Winning number is hidden.');
     };
 
     socket.on('quiz:result', onQuizResult);
@@ -337,23 +328,13 @@ const LotteryQuizPage = () => {
 
     try {
       const j = await getQuizResult(selectedQuiz, slotStartIso, QUIZ_MODE);
-      const correct = j.data?.questionIndex;
       setFairnessResult({
         quizId: selectedQuiz,
         seed: j.data?.seed,
         seedHash: j.data?.seedHash,
-        questionIndex: correct,
       });
       setFairnessCheck(null);
-      const idx = correct;
-      const hit = parsed.some((p) => String(p.number).padStart(2, '0') === idx);
-      if (idx != null) {
-        setGuessFeedback(
-          hit ? `Bet submitted. Correct number ${idx} (winnings credited after slot closes).` : `Bet submitted. Winning number ${idx}.`,
-        );
-      } else {
-        setGuessFeedback('Bet submitted. Result will be shown after slot ends.');
-      }
+      setGuessFeedback('Bet submitted. Result declared; winning number is hidden.');
     } catch (e) {
       if (e.status === 403 && e.code === 'SLOT_NOT_ENDED') {
         setGuessFeedback('Bet submitted. Result and fairness (seed) will appear after slot ends.');
@@ -598,9 +579,6 @@ const LotteryQuizPage = () => {
                 {fairnessResult.quizId != null && (
                   <span className="ml-1 font-mono text-[#0f3558]">· QUIZ{pad2(fairnessResult.quizId)}</span>
                 )}
-              </p>
-              <p className="mb-1 text-xs text-[#333]">
-                Winning number: <span className="font-mono font-bold">{fairnessResult.questionIndex}</span>
               </p>
               <p className="mb-0.5 text-xs font-semibold text-[#333]">Revealed seed (sha256(quizId+slotStart) hex):</p>
               <textarea

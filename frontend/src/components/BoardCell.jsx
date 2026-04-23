@@ -20,7 +20,7 @@ const BoardCell = ({ quizNo, num, value, selected, targetSelected, onSelectTarge
         {selected ? <span>{value}</span> : null}
         {targetSelected ? <span className="blink-caret font-normal">|</span> : null}
       </div>
-      <div className="text-[#111] font-semibold tracking-tight text-[clamp(12px,1.16vw,15px)] leading-none">
+      <div className="text-[#111] font-extrabold tracking-tight text-[clamp(13px,1.24vw,16px)] leading-none">
         Q{formatQuizNumber(quizNo)}-{formatQuizNumber(num)}
       </div>
     </button>

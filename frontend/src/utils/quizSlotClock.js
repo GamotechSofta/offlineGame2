@@ -1,10 +1,10 @@
-/** 2D Quiz: 15 minutes = one game; first 13.5 minutes study phase, then hint only (one question, no number). All time in IST. */
+/** 2D Quiz: 15 minutes = one game; first 14.5 minutes study phase, then hint only (one question, no number). All time in IST. */
 
 export const SLOT_MINUTES = 15;
-export const STUDY_MINUTES = 13.5;
+export const STUDY_MINUTES = 14.5;
 
 /** 2D study list: first row at slot start, each following row after this delay (same clock for every user). */
-export const QUESTION_REVEAL_STAGGER_MS = 8100;
+export const QUESTION_REVEAL_STAGGER_MS = 8700;
 
 /** 3D study list stagger (0.81 s between rows). */
 export const QUESTION_REVEAL_STAGGER_MS_3D = 810;

@@ -60,7 +60,7 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
             <button
               type="button"
               onClick={onOpenQuiz}
-              className="bg-[#2d9de8] border border-[#1c87cd] text-white px-3 h-10 text-[16px] font-extrabold leading-none shrink-0"
+              className="bg-[#2d9de8] border border-[#1c87cd] text-white px-3 h-10 text-[17px] font-extrabold leading-none shrink-0"
             >
               Check Here Quiz To Play
             </button>
@@ -69,7 +69,7 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
             <button
               type="button"
               onClick={onOpenMyBets}
-              className="shrink-0 border border-[#2a7a4a] bg-[#3d9b5c] px-2.5 py-0 text-[13px] font-extrabold leading-none text-white h-10"
+              className="shrink-0 border border-[#2a7a4a] bg-[#3d9b5c] px-2.5 py-0 text-[15px] font-extrabold leading-none text-white h-10"
             >
               My Bets / Ticket
             </button>
@@ -77,7 +77,7 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
           <button
             type="button"
             onClick={onOpenThreeD}
-            className="bg-[#f28b1d] border border-[#d97816] text-white px-3 h-10 text-[16px] font-extrabold leading-none shrink-0"
+            className="bg-[#f28b1d] border border-[#d97816] text-white px-3 h-10 text-[17px] font-extrabold leading-none shrink-0"
           >
             Play 3D Quiz
           </button>
