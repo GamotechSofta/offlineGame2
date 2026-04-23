@@ -193,7 +193,7 @@ const ThreeDGame = () => {
   const hasSettledRef = useRef(false);
   const isBuyingRef = useRef(false);
   const rangeAutoNextLockRef = useRef(false);
-  const [activeInputIndex, setActiveInputIndex] = useState(-1);
+  const [activeInputIndex, setActiveInputIndex] = useState(0);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : BASE_WIDTH,
     height: typeof window !== 'undefined' ? window.innerHeight : BASE_HEIGHT,
@@ -534,11 +534,12 @@ const ThreeDGame = () => {
     [activeInputIndex, qty],
   );
   const keypadCenterDisplay = useMemo(() => {
+    if (activeInputIndex === -1) return String(pointValue);
     if (activeInputIndex === 1) return rangeFromDisplay || '0';
     if (activeInputIndex === 2) return rangeToDisplay || '0';
     if (activeInputIndex === 3) return qtyDisplay || '0';
     return inputNumberDisplay || '0';
-  }, [activeInputIndex, inputNumberDisplay, qtyDisplay, rangeFromDisplay, rangeToDisplay]);
+  }, [activeInputIndex, inputNumberDisplay, pointValue, qtyDisplay, rangeFromDisplay, rangeToDisplay]);
 
   const applyFreshResult = useCallback((newResult) => {
     setResults(newResult);
@@ -787,8 +788,7 @@ const ThreeDGame = () => {
     // Points should change only when the points box is active.
     if (focusedIndex === -1) {
       setPoints((prev) => appendPointDigit(prev));
-    }
-    if (focusedIndex === -1 || focusedIndex === 0) {
+    } else if (focusedIndex === 0) {
       setInputNumber((prev) => appendDigit(prev));
     } else if (focusedIndex === 1) setRangeFrom((prev) => appendDigit(prev));
     else if (focusedIndex === 2) setRangeTo((prev) => appendDigit(prev));
@@ -798,6 +798,34 @@ const ThreeDGame = () => {
     }
     if (validationMsg) setValidationMsg('');
   }, [resolveKeypadTargetIndex, validationMsg]);
+
+  const handleAdjustFocusedValue = useCallback((delta) => {
+    const focusedIndex = activeInputIndex;
+    const step = Number(delta) || 0;
+    const adjust = (value) => {
+      const current = parseInt(String(value || '').replace(/\D/g, ''), 10);
+      const base = Number.isFinite(current) ? current : 0;
+      const next = Math.max(0, Math.min(999, base + step));
+      return String(next);
+    };
+
+    if (focusedIndex === -1) {
+      setPoints((prev) => adjust(prev));
+    } else if (focusedIndex === 0) {
+      setInputNumber((prev) => adjust(prev));
+    } else if (focusedIndex === 1) {
+      setRangeFrom((prev) => adjust(prev));
+    } else if (focusedIndex === 2) {
+      setRangeTo((prev) => adjust(prev));
+    } else if (focusedIndex === 3) {
+      setQty((prev) => adjust(prev));
+    } else {
+      setInputNumber((prev) => adjust(prev));
+      setActiveInputIndex(0);
+    }
+
+    if (validationMsg) setValidationMsg('');
+  }, [activeInputIndex, validationMsg]);
 
   const toggleMode = useCallback((mode) => {
     setSelectedModes((prev) => {
@@ -1390,7 +1418,7 @@ const ThreeDGame = () => {
     setValidationMsg('');
     setToast('');
     setBuySummary(null);
-    setActiveInputIndex(-1);
+    setActiveInputIndex(0);
   }, []);
   const handleRemoveBet = useCallback((betId) => {
     setBets((prev) => prev.filter((x) => x.id !== betId));
@@ -2089,12 +2117,10 @@ const ThreeDGame = () => {
                 if (validationMsg) setValidationMsg('');
               }}
               onIncreasePoint={() => {
-                setActiveInputIndex(-1);
-                setPoints(String(pointValue + 1));
+                handleAdjustFocusedValue(1);
               }}
               onDecreasePoint={() => {
-                setActiveInputIndex(-1);
-                setPoints(String(Math.max(0, pointValue - 1)));
+                handleAdjustFocusedValue(-1);
               }}
               onSelectPointBox={() => setActiveInputIndex(-1)}
               isPointBoxActive={activeInputIndex === -1}
