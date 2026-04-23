@@ -12,6 +12,8 @@ const TicketListModal = ({
   tickets = [],
   onView,
   title = 'TICKET',
+  loading = false,
+  loadingMessage = 'Loading...',
   emptyMessage = 'No tickets available yet.',
 }) => {
   const normalizedTickets = useMemo(() => {
@@ -66,7 +68,12 @@ const TicketListModal = ({
           </button>
         </div>
         <div className="space-y-3 overflow-y-auto bg-[#b5b5b5] p-3 sm:p-4">
-          {normalizedTickets.length ? (
+          {loading ? (
+            <div className="rounded-lg bg-[#4f4f4f] px-4 py-8 text-center text-[18px] font-semibold text-white">
+              <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+              {loadingMessage}
+            </div>
+          ) : normalizedTickets.length ? (
             normalizedTickets.map((ticket) => (
               <div
                 key={ticket.id}

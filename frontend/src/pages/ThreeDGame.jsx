@@ -37,7 +37,6 @@ const ALL_SHORTCUT_MODES = ['box', 'str', 'sp', 'fp', 'bp', 'ap'];
 const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
 /** Progress bar turns red when remaining time is at or below this many seconds (5 minutes). */
 const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
-const MAX_VISIBLE_BET_CARDS = 350;
 const HISTORY_FETCH_LIMIT = 5000;
 const HEADER_MENU_ITEMS = [
   { label: 'Result', Icon: Trophy },
@@ -223,6 +222,7 @@ const ThreeDGame = () => {
   const [isTicketListOpen, setIsTicketListOpen] = useState(false);
   const [isHistoryListOpen, setIsHistoryListOpen] = useState(false);
   const [backendHistoryTickets, setBackendHistoryTickets] = useState([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [resultDateDay, setResultDateDay] = useState(() => String(new Date().getDate()).padStart(2, '0'));
@@ -258,6 +258,14 @@ const ThreeDGame = () => {
   );
   const canUsePortal = typeof document !== 'undefined';
   const lastTicket = useMemo(() => (ticketHistory.length ? ticketHistory[0] : null), [ticketHistory]);
+  const lastWinAmount = useMemo(() => {
+    const latestWinningTicket = (Array.isArray(ticketHistory) ? ticketHistory : []).find((ticket) => {
+      const outcome = String(ticket?.outcome || '').toLowerCase();
+      const win = Number(ticket?.totalWin || 0);
+      return outcome === 'win' && win > 0;
+    });
+    return Number(latestWinningTicket?.totalWin || 0);
+  }, [ticketHistory]);
   const historyTicketsForModal = useMemo(
     () => (Array.isArray(backendHistoryTickets) ? backendHistoryTickets : []),
     [backendHistoryTickets],
@@ -266,15 +274,11 @@ const ThreeDGame = () => {
     () => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Number(walletBalance) || 0),
     [walletBalance],
   );
-  const visibleBetCards = useMemo(() => {
-    const list = Array.isArray(bets) ? bets : [];
-    if (list.length <= MAX_VISIBLE_BET_CARDS) return list;
-    return list.slice(-MAX_VISIBLE_BET_CARDS);
-  }, [bets]);
-  const hiddenBetCardCount = useMemo(
-    () => Math.max(0, (Array.isArray(bets) ? bets.length : 0) - visibleBetCards.length),
-    [bets, visibleBetCards.length],
+  const visibleBetCards = useMemo(
+    () => (Array.isArray(bets) ? [...bets].reverse() : []),
+    [bets],
   );
+  const hiddenBetCardCount = 0;
   const accountDetails = useMemo(() => {
     const user = getCurrentUser() || {};
     const userId = user?.id || user?._id || '-';
@@ -338,6 +342,7 @@ const ThreeDGame = () => {
   }, [loadStoredBalance]);
 
   const loadBackendHistoryTickets = useCallback(async () => {
+    setIsHistoryLoading(true);
     try {
       const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
       const rows = Array.isArray(j?.data) ? j.data : [];
@@ -413,6 +418,8 @@ const ThreeDGame = () => {
       await refreshWalletBalance();
     } catch (_) {
       setBackendHistoryTickets([]);
+    } finally {
+      setIsHistoryLoading(false);
     }
   }, [playerIdentity, refreshWalletBalance]);
 
@@ -1536,14 +1543,15 @@ const ThreeDGame = () => {
         });
       });
     });
+    const singleCombos = allCombos.filter((num) => new Set(num.split('')).size === 3);
     const duplicateCombos = allCombos.filter((num) => new Set(num.split('')).size === 2);
-    const tripleCombos = digitPool.map((d) => `${d}${d}${d}`);
+    const tripleCombos = allCombos.filter((num) => new Set(num.split('')).size === 1);
     const pts = Number(pointValue) > 0 ? Number(pointValue) : 10;
 
     const motorTasks = [];
-    if (wantsStrLike) motorTasks.push({ mode: 'str', nums: allCombos });
+    if (wantsStrLike) motorTasks.push({ mode: 'str', nums: singleCombos });
     if (wantsDuplicates) motorTasks.push({ mode: 'duplicates', nums: duplicateCombos });
-    if (wantsTriples) motorTasks.push({ mode: 'box', nums: tripleCombos });
+    if (wantsTriples) motorTasks.push({ mode: 'triples', nums: tripleCombos });
 
     let createdCount = 0;
     let skippedCount = 0;
@@ -1663,8 +1671,8 @@ const ThreeDGame = () => {
           </div>
         ) : null}
 
-        <div className="grid min-h-0 grid-cols-[minmax(0,11rem)_minmax(0,1fr)_minmax(0,5.5rem)] items-stretch gap-1.5 pb-0.5 sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)_minmax(0,6rem)] sm:gap-2">
-          <div className="flex h-full min-h-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-200/50 bg-gradient-to-br from-amber-50/95 via-white to-rose-50/30 px-2 py-1.5 text-center shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-white/90 sm:px-2.5 sm:py-2">
+        <div className="grid min-h-0 grid-cols-[minmax(0,11rem)_minmax(0,1fr)_minmax(0,5.5rem)] items-stretch gap-1 pb-0 sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)_minmax(0,6rem)] sm:gap-1.5">
+          <div className="flex h-full min-h-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-200/50 bg-gradient-to-br from-amber-50/95 via-white to-rose-50/30 px-2 py-1 text-center shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-white/90 sm:px-2.5 sm:py-1.5">
             <div className="bg-gradient-to-r from-rose-700 via-red-600 to-rose-700 bg-clip-text text-[clamp(1.35rem,3.5vw,1.75rem)] font-extrabold leading-none tracking-tight text-transparent">
               3D Quiz
             </div>
@@ -1684,7 +1692,7 @@ const ThreeDGame = () => {
           <button
             type="button"
             onClick={handleGoHome}
-            className="inline-flex h-full min-h-0 items-center justify-center gap-2 rounded-lg border border-amber-200/40 bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 px-3 text-[15px] font-bold uppercase tracking-wide text-white shadow-[0_3px_12px_rgba(120,53,15,0.35)] ring-1 ring-amber-200/35 transition hover:brightness-110 active:scale-[0.99] sm:text-[16px]"
+            className="inline-flex h-full min-h-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200/40 bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 px-2.5 text-[15px] font-bold uppercase tracking-wide text-white shadow-[0_3px_12px_rgba(120,53,15,0.35)] ring-1 ring-amber-200/35 transition hover:brightness-110 active:scale-[0.99] sm:text-[16px]"
           >
             <House className="h-[18px] w-[18px] shrink-0 sm:h-5 sm:w-5" strokeWidth={2.5} aria-hidden />
             <span>Home</span>
@@ -1692,25 +1700,25 @@ const ThreeDGame = () => {
         </div>
 
         <div className="flex w-full min-h-0 items-center justify-center rounded-lg border border-[#8b9ab3] bg-[#dfe6f2] px-2 py-0.5">
-          <div className="grid w-full min-w-0 grid-cols-7 gap-1.5 text-center min-h-0">
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2f6ff] to-[#e3ecff] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[12px] uppercase tracking-wide text-[#4a5b86] font-semibold sm:text-[13px]">Time To Draw</div>
-            <div className={`text-[24px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#18233f]'}`}>{formatTimer(timerSeconds)}</div>
+          <div className="grid w-full min-w-0 grid-cols-7 gap-1 text-center min-h-0">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2f6ff] to-[#e3ecff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[13px] uppercase tracking-wide text-[#4a5b86] font-semibold sm:text-[14px]">Time To Draw</div>
+            <div className={`text-[21px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#18233f]'}`}>{formatTimer(timerSeconds)}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f9ff] to-[#edf1ff] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[12px] uppercase tracking-wide text-[#5e6787] font-semibold sm:text-[13px]">Dr.Time</div>
-            <div className="text-[18px] font-semibold leading-none text-[#1f2a44] sm:text-[19px]">{timeToDrawText}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f9ff] to-[#edf1ff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[13px] uppercase tracking-wide text-[#5e6787] font-semibold sm:text-[14px]">Dr.Time</div>
+            <div className="text-[17px] font-semibold leading-none text-[#1f2a44] sm:text-[18px]">{timeToDrawText}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f6f8fc] to-[#ebeff7] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[12px] uppercase tracking-wide text-[#636b7d] font-semibold sm:text-[13px]">Id</div>
-            <div className="truncate text-[17px] font-semibold leading-none text-[#1f2738]" title={playerIdentity}>{playerIdentity}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f6f8fc] to-[#ebeff7] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[13px] uppercase tracking-wide text-[#636b7d] font-semibold sm:text-[14px]">Id</div>
+            <div className="truncate text-[16px] font-semibold leading-none text-[#1f2738]" title={playerIdentity}>{playerIdentity}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f3f8ff] to-[#e7f0ff] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[12px] uppercase tracking-wide text-[#5a6784] font-semibold sm:text-[13px]">Time</div>
-            <div className="text-[17px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f3f8ff] to-[#e7f0ff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[13px] uppercase tracking-wide text-[#5a6784] font-semibold sm:text-[14px]">Time</div>
+            <div className="text-[16px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[12px] uppercase tracking-wide text-[#6a6284] font-semibold sm:text-[13px]">Last Ticket</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[13px] uppercase tracking-wide text-[#6a6284] font-semibold sm:text-[14px]">Last Ticket</div>
             <div className={`text-[15px] font-bold leading-none sm:text-[16px] ${
               lastTicket?.outcome === 'win'
                 ? 'text-[#15803d]'
@@ -1721,13 +1729,13 @@ const ThreeDGame = () => {
               {lastTicket ? lastTicket.outcome.toUpperCase() : '-'}
             </div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[12px] uppercase tracking-wide text-[#8a6950] font-semibold sm:text-[13px]">Last Trn</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[13px] uppercase tracking-wide text-[#8a6950] font-semibold sm:text-[14px]">Last Trn</div>
             <div className="text-[14px] font-semibold leading-none text-[#3f2a1c] truncate sm:text-[15px]" title={lastTxnId}>{lastTxnId}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[12px] uppercase tracking-wide text-[#4e7760] font-semibold sm:text-[13px]">Last Win</div>
-            <div className="text-[18px] font-semibold leading-none text-[#1f3a2b]">{lastTicket?.totalWin ?? 0}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[13px] uppercase tracking-wide text-[#4e7760] font-semibold sm:text-[14px]">Last Win</div>
+            <div className="text-[17px] font-semibold leading-none text-[#1f3a2b]">{lastWinAmount}</div>
           </div>
           </div>
         </div>
@@ -1739,7 +1747,7 @@ const ThreeDGame = () => {
                 key={label}
                 type="button"
                 onClick={() => handleHeaderAction(label)}
-                className="inline-flex min-w-0 touch-manipulation items-center justify-center gap-2 rounded-lg border border-black bg-[#f7ecde] px-2.5 py-2.5 text-[16px] font-bold text-[#6b4423] transition-colors hover:bg-[#eedfc8] active:scale-[0.99] sm:text-[17px]"
+                className="inline-flex min-w-0 touch-manipulation items-center justify-center gap-2 rounded-lg border border-black bg-[#f7ecde] px-2.5 py-2.5 text-[17px] font-bold text-[#6b4423] transition-colors hover:bg-[#eedfc8] active:scale-[0.99] sm:text-[18px]"
               >
                 <Icon className="h-5 w-5 shrink-0 sm:h-[20px] sm:w-[20px]" strokeWidth={2.25} aria-hidden />
                 <span className="truncate">{label}</span>
@@ -1766,19 +1774,25 @@ const ThreeDGame = () => {
         <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
             <div className="w-full min-w-0 rounded-xl border border-[#d4b896] bg-gradient-to-br from-[#fffbeb] via-[#fef3c7] to-[#fde68a] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_1px_3px_rgba(180,130,40,0.12)]">
               <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-1">
-                <label className="inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border border-[#475569] bg-[#334155] px-3.5 text-[16px] font-semibold uppercase tracking-wide text-white shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#64748b] has-[:focus-visible]:ring-offset-2">
+                <label className={`inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3.5 text-[17px] font-semibold uppercase tracking-wide shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
+                  selectedPanels.length === 3
+                    ? 'border-[#475569] bg-[#334155] text-white has-[:focus-visible]:ring-[#64748b]'
+                    : 'border-[#cbd5e1] bg-white text-[#334155] has-[:focus-visible]:ring-[#94a3b8]'
+                }`}>
                   <input className="size-4 accent-white" type="checkbox" checked={selectedPanels.length === 3} onChange={() => setSelectedPanels(selectedPanels.length === 3 ? [] : [...PANEL_OPTIONS])} />
                   All
                 </label>
                 {PANEL_OPTIONS.map((panel) => (
                   <label
                     key={panel}
-                    className={`inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3.5 text-[17px] font-bold text-white shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
-                      panel === 'A'
-                        ? 'border-[#1d4ed8] bg-[#2563eb] has-[:focus-visible]:ring-[#3b82f6]'
-                        : panel === 'B'
-                          ? 'border-[#b91c1c] bg-[#dc2626] has-[:focus-visible]:ring-[#f87171]'
-                          : 'border-[#047857] bg-[#059669] has-[:focus-visible]:ring-[#34d399]'
+                    className={`inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3.5 text-[18px] font-bold shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
+                      selectedPanels.includes(panel)
+                        ? panel === 'A'
+                          ? 'border-[#1d4ed8] bg-[#2563eb] text-white has-[:focus-visible]:ring-[#3b82f6]'
+                          : panel === 'B'
+                            ? 'border-[#b91c1c] bg-[#dc2626] text-white has-[:focus-visible]:ring-[#f87171]'
+                            : 'border-[#047857] bg-[#059669] text-white has-[:focus-visible]:ring-[#34d399]'
+                        : 'border-[#cbd5e1] bg-white text-[#334155] has-[:focus-visible]:ring-[#94a3b8]'
                     }`}
                   >
                     <input className="size-4 accent-white" type="checkbox" checked={selectedPanels.includes(panel)} onChange={() => togglePanel(panel)} />
@@ -1814,7 +1828,7 @@ const ThreeDGame = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/lottery')}
-                  className="ml-auto shrink-0 rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2.5 text-[15px] font-bold tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98] sm:text-[16px]"
+                  className="ml-auto shrink-0 rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2.5 text-[16px] font-bold tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98] sm:text-[17px]"
                 >
                   Go back to 2D game
                 </button>
@@ -1825,11 +1839,15 @@ const ThreeDGame = () => {
           <div className="grid h-full max-h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
             <div className="overflow-hidden rounded-lg border border-[#d9d9d9] bg-white">
               <div className="flex min-w-0 flex-col sm:flex-row sm:items-stretch">
-                <div className="flex min-w-0 w-full flex-[7] flex-nowrap items-stretch gap-1.5 overflow-x-auto bg-gradient-to-br from-[#dbeafe] to-[#e0f2fe] px-2 py-2 sm:min-w-0 sm:gap-2 sm:px-2.5 sm:py-2.5">
+                <div className="flex min-w-0 w-full flex-[7] flex-nowrap items-stretch gap-1.5 overflow-x-auto bg-gradient-to-br from-[#dbeafe] to-[#e0f2fe] px-2 py-2.5 sm:min-w-0 sm:gap-2 sm:px-2.5 sm:py-3">
                   {MODE_GROUP_COMBO.map((mode) => (
                     <label
                       key={mode}
-                      className="flex h-10 min-h-10 min-w-[3.25rem] flex-1 basis-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#bfdbfe] bg-white/90 px-1 text-[13px] font-semibold uppercase shadow-sm sm:min-w-0 sm:px-2 sm:text-[14px] md:text-[15px]"
+                      className={`flex min-w-[3.25rem] flex-1 basis-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-1 text-[16px] font-extrabold uppercase shadow-sm transition sm:min-w-0 sm:px-2 sm:text-[17px] md:text-[18px] ${
+                        selectedModes.includes(mode)
+                          ? 'h-12 min-h-12 border-[#1d4ed8] bg-[#2563eb] text-white'
+                          : 'h-12 min-h-12 border-[#bfdbfe] bg-white/90 text-[#0f172a]'
+                      }`}
                     >
                       <input type="checkbox" className="size-4 shrink-0 accent-[#2563eb]" checked={selectedModes.includes(mode)} onChange={() => toggleMode(mode)} />
                       <span className="truncate">{mode}</span>
@@ -1837,11 +1855,15 @@ const ThreeDGame = () => {
                   ))}
                 </div>
                 <div className="h-px w-full shrink-0 bg-[#d1d5db] sm:h-auto sm:w-px sm:self-stretch" aria-hidden />
-                <div className="flex min-w-0 w-full flex-[3] flex-nowrap items-stretch gap-1.5 overflow-x-auto bg-gradient-to-br from-[#d1fae5] to-[#ecfdf5] px-2 py-2 sm:min-w-0 sm:gap-2 sm:px-2.5 sm:py-2.5">
+                <div className="flex min-w-0 w-full flex-[3] flex-nowrap items-stretch gap-1.5 overflow-x-auto bg-gradient-to-br from-[#d1fae5] to-[#ecfdf5] px-2 py-2.5 sm:min-w-0 sm:gap-2 sm:px-2.5 sm:py-3">
                   {MODE_GROUP_SPECIAL.map((mode) => (
                     <label
                       key={mode}
-                      className={`flex h-10 min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#a7f3d0] bg-white/90 px-1.5 text-[12px] font-semibold uppercase leading-tight shadow-sm sm:px-2 sm:text-[13px] md:text-[14px] ${
+                      className={`flex h-12 min-h-12 cursor-pointer items-center justify-center gap-1 rounded-md border px-1 text-[13px] font-extrabold uppercase leading-tight shadow-sm transition sm:px-1.5 sm:text-[14px] md:text-[15px] ${
+                        selectedModes.includes(mode)
+                          ? 'border-[#059669] bg-[#059669] text-white'
+                          : 'border-[#a7f3d0] bg-white/90 text-[#0f172a]'
+                      } ${
                         mode === 'duplicates'
                           ? 'min-w-[9.5rem] shrink-0 flex-[1.65] basis-auto sm:min-w-[10.5rem] md:min-w-[11rem] md:text-[15px]'
                           : 'min-w-[4.75rem] flex-1 basis-0 sm:min-w-[5.25rem]'
@@ -1859,7 +1881,7 @@ const ThreeDGame = () => {
             <div className={`order-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-[#d9d9d9] bg-white ${isZoomCompactView ? 'p-2.5' : 'p-3 sm:p-4'}`}>
               <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${isZoomCompactView ? 'space-y-2' : 'space-y-3 sm:space-y-4'}`}>
               <header className={`space-y-1 border-b border-slate-200/80 ${isZoomCompactView ? 'pb-2' : 'pb-3'}`}>
-                <h2 className={`bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 bg-clip-text font-extrabold leading-tight tracking-tight text-transparent ${isZoomCompactView ? 'text-[17px] sm:text-[18px]' : 'text-[18px] sm:text-[20px]'}`}>
+                <h2 className={`bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 bg-clip-text font-extrabold leading-tight tracking-tight text-transparent ${isZoomCompactView ? 'text-[18px] sm:text-[19px]' : 'text-[19px] sm:text-[21px]'}`}>
                   Play &amp; stake — 3D Quiz
                 </h2>
               </header>
@@ -1888,7 +1910,7 @@ const ThreeDGame = () => {
                   placeholder="ADD NUMBER"
                   className="h-12 w-[min(12.5rem,40vw)] shrink-0 rounded-full border-2 border-[#2e59c6] px-3 text-center text-[18px] font-semibold tracking-wide sm:h-14 sm:w-[220px] sm:text-[20px]"
                 />
-                <span className="shrink-0 font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">Range:</span>
+                <span className="shrink-0 font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">Range:</span>
                 <input
                   ref={rangeFromRef}
                   onFocus={() => setActiveInputIndex(1)}
@@ -1912,7 +1934,7 @@ const ThreeDGame = () => {
                   placeholder="NUM."
                   className="h-11 w-[5rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[17px] sm:h-12 sm:w-[92px] sm:text-[18px]"
                 />
-                <span className="shrink-0 font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">To</span>
+                <span className="shrink-0 font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">To</span>
                 <input
                   ref={rangeToRef}
                   onFocus={() => setActiveInputIndex(2)}
@@ -1938,7 +1960,7 @@ const ThreeDGame = () => {
               <div className={`${isZoomCompactView ? 'my-2' : 'my-2.5'} border-t border-[#d8dee9]`} aria-hidden />
               {/* Line 2: L-Pick + Qty + ADD */}
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                <span className="shrink-0 font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">L-Pick:</span>
+                <span className="shrink-0 font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">L-Pick:</span>
                 <select
                   value={lPickType}
                   onChange={(e) => setLPickType(e.target.value)}
@@ -1950,7 +1972,7 @@ const ThreeDGame = () => {
                     </option>
                   ))}
                 </select>
-                <span className="shrink-0 font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">Qty</span>
+                <span className="shrink-0 font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">Qty</span>
                 <input
                   ref={qtyRef}
                   onFocus={() => setActiveInputIndex(3)}
@@ -1985,7 +2007,7 @@ const ThreeDGame = () => {
               </div>
               {/* Line 3: Rate — fixed grid (no scroller) */}
               <div className="min-w-0 rounded-lg bg-[#f8fafc] px-2 py-2.5 sm:px-3 sm:py-3">
-                <span className="block font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">Rate:</span>
+                <span className="block font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">Rate:</span>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
                   {RATE_OPTIONS.map((rate) => (
                     <label
@@ -1999,7 +2021,7 @@ const ThreeDGame = () => {
                 </div>
               </div>
               </div>
-              {validationMsg ? <div className="mt-1 shrink-0 text-[12px] font-semibold text-[#d4372f] sm:text-[13px]">{validationMsg}</div> : null}
+              {validationMsg ? <div className="mt-1 shrink-0 text-[13px] font-semibold text-[#d4372f] sm:text-[14px]">{validationMsg}</div> : null}
             </div>
 
             <div className="order-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border-2 border-[#d9d9d9] bg-white p-3">
@@ -2023,21 +2045,21 @@ const ThreeDGame = () => {
                       <button
                         type="button"
                         onClick={handleBuy}
-                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4.5rem] px-2 py-1.5 text-[15px] sm:min-h-[2.5rem] sm:text-[16px]' : 'min-h-[2.75rem] basis-[5.25rem] px-3 py-2 text-[18px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[22px]'} flex-1 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
+                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4.5rem] px-2 py-1.5 text-[16px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[2.75rem] basis-[5.25rem] px-3 py-2 text-[19px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         BUY
                       </button>
                       <button
                         type="button"
                         onClick={handleClearAll}
-                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4rem] px-2 py-1.5 text-[14px] sm:min-h-[2.5rem] sm:text-[16px]' : 'min-h-[2.75rem] basis-[4.25rem] px-3 py-2 text-[17px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[22px]'} flex-1 rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(225,29,72,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98]`}
+                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4rem] px-2 py-1.5 text-[15px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[2.75rem] basis-[4.25rem] px-3 py-2 text-[18px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(225,29,72,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         Clear
                       </button>
                       <button
                         type="button"
                         onClick={handleAdvance}
-                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4.25rem] px-2 py-1.5 text-[14px] sm:min-h-[2.5rem] sm:text-[16px]' : 'min-h-[2.75rem] basis-[4.75rem] px-3 py-2 text-[17px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[22px]'} flex-1 rounded-xl bg-gradient-to-b from-violet-500 via-indigo-600 to-indigo-800 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(79,70,229,0.4)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
+                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4.25rem] px-2 py-1.5 text-[15px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[2.75rem] basis-[4.75rem] px-3 py-2 text-[18px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-violet-500 via-indigo-600 to-indigo-800 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(79,70,229,0.4)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         Advance
                       </button>
@@ -2060,14 +2082,14 @@ const ThreeDGame = () => {
               <button
                 type="button"
                 onClick={handleMotorPick}
-                className="h-12 rounded-xl bg-gradient-to-b from-orange-600 via-red-600 to-red-800 text-[21px] font-bold tracking-wide text-white shadow-[0_4px_14px_rgba(220,38,38,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98] sm:text-[23px]"
+                className="h-12 rounded-xl bg-gradient-to-b from-orange-600 via-red-600 to-red-800 text-[22px] font-bold tracking-wide text-white shadow-[0_4px_14px_rgba(220,38,38,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98] sm:text-[24px]"
               >
                 Motor
               </button>
               <button
                 type="button"
                 onClick={handleLuckyPick}
-                className="h-12 rounded-xl bg-gradient-to-b from-amber-300 via-amber-400 to-yellow-500 text-[19px] font-bold tracking-wide text-amber-950 shadow-[0_4px_14px_rgba(245,158,11,0.45)] ring-1 ring-amber-100/60 transition hover:brightness-110 active:scale-[0.98] sm:text-[21px]"
+                className="h-12 rounded-xl bg-gradient-to-b from-amber-300 via-amber-400 to-yellow-500 text-[20px] font-bold tracking-wide text-amber-950 shadow-[0_4px_14px_rgba(245,158,11,0.45)] ring-1 ring-amber-100/60 transition hover:brightness-110 active:scale-[0.98] sm:text-[22px]"
               >
                 Lucky Pick
               </button>
@@ -2153,6 +2175,8 @@ const ThreeDGame = () => {
           onClose={() => setIsHistoryListOpen(false)}
           tickets={historyTicketsForModal}
           title="HISTORY"
+          loading={isHistoryLoading}
+          loadingMessage="Loading history..."
           emptyMessage="No history available yet."
           onView={(ticket) => {
             setSelectedTicket(ticket);
