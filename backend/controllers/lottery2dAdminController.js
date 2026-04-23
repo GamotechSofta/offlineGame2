@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import Quiz from '../models/quiz/Quiz.js';
 import QuizBet from '../models/quiz/QuizBet.js';
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
 import QuizSlotDeclaration from '../models/quiz/QuizSlotDeclaration.js';
@@ -16,6 +17,8 @@ import {
   listSlotStartIsoForISTDay,
 } from '../services/slotService.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
+import { getShuffleOrderIndices } from '../services/quizShuffleService.js';
+import { stripQuestionMetaForHint } from '../services/randomService.js';
 import {
   blockAutoDeclare,
   enableAutoDeclare,
@@ -773,18 +776,35 @@ export const updateLottery2DSlotResult = async (req, res) => {
 
     const ctx = getSlotContext(new Date(), '2d');
     const isCurrentRunningSlot = slotStartIso === ctx.slotStartIso && Date.now() < ctx.slotEndMs;
-    const isHeldSlot = Boolean(declarationState?.autoDeclareBlocked);
-    if (!isCurrentRunningSlot && !isHeldSlot) {
+    const isBeforeHintReveal = ctx.phase === 'study';
+    if (!isCurrentRunningSlot || !isBeforeHintReveal) {
       return res.status(400).json({
         success: false,
-        message: 'Manual result update is allowed for running slot or held slot only.',
+        message: 'Manual result update is allowed only for the current slot before hint questions are visible.',
       });
     }
 
-    await getOrCreatePick(quizId, slotStartIso, GAME_MODE);
+    const existingPick = await getOrCreatePick(quizId, slotStartIso, GAME_MODE);
+    const quiz = await Quiz.findOne({ gameMode: GAME_MODE, quizId }).select('questions').lean();
+    const canBuildShuffledQuestion = Array.isArray(quiz?.questions) && quiz.questions.length === 100 && existingPick?.seedHex;
+    let chosenIndex = null;
+    let hintQuestionText = null;
+    if (canBuildShuffledQuestion) {
+      const order = await getShuffleOrderIndices(quizId, slotStartIso, existingPick.seedHex, GAME_MODE, 100);
+      chosenIndex = Number.isInteger(order?.[result]) ? order[result] : null;
+      if (Number.isInteger(chosenIndex) && chosenIndex >= 0 && chosenIndex < quiz.questions.length) {
+        const q = quiz.questions[chosenIndex];
+        hintQuestionText = stripQuestionMetaForHint(q?.question);
+      }
+    }
+
+    const setDoc = { hintPosition: result };
+    if (Number.isInteger(chosenIndex)) setDoc.chosenIndex = chosenIndex;
+    if (typeof hintQuestionText === 'string' && hintQuestionText.length > 0) setDoc.hintQuestionText = hintQuestionText;
+
     const updated = await QuizSlotPick.findOneAndUpdate(
       { gameMode: GAME_MODE, quizId, slotStartIso },
-      { $set: { hintPosition: result } },
+      { $set: setDoc },
       { new: true },
     ).select('quizId slotStartIso hintPosition updatedAt').lean();
 

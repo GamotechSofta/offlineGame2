@@ -15,6 +15,9 @@ import {
   listSlotStartIsoForISTDay,
 } from '../services/slotService.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
+import { getShuffleOrderIndices } from '../services/quizShuffleService.js';
+import { stripQuestionMetaForHint } from '../services/randomService.js';
+import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js';
 import {
   blockAutoDeclare,
   enableAutoDeclare,
@@ -747,10 +750,27 @@ export const updateLottery3DSlotResult = async (req, res) => {
       });
     }
 
-    await getOrCreatePick(quizId, slotStartIso, GAME_MODE);
+    const existingPick = await getOrCreatePick(quizId, slotStartIso, GAME_MODE);
+    const quiz = await ensure3DQuizQuestionBank(quizId);
+    const canBuildShuffledQuestion = Array.isArray(quiz?.questions) && quiz.questions.length === 1000 && existingPick?.seedHex;
+    let chosenIndex = null;
+    let hintQuestionText = null;
+    if (canBuildShuffledQuestion) {
+      const order = await getShuffleOrderIndices(quizId, slotStartIso, existingPick.seedHex, GAME_MODE, 1000);
+      chosenIndex = Number.isInteger(order?.[result]) ? order[result] : null;
+      if (Number.isInteger(chosenIndex) && chosenIndex >= 0 && chosenIndex < quiz.questions.length) {
+        const q = quiz.questions[chosenIndex];
+        hintQuestionText = stripQuestionMetaForHint(q?.question);
+      }
+    }
+
+    const setDoc = { hintPosition: result };
+    if (Number.isInteger(chosenIndex)) setDoc.chosenIndex = chosenIndex;
+    if (typeof hintQuestionText === 'string' && hintQuestionText.length > 0) setDoc.hintQuestionText = hintQuestionText;
+
     const updated = await QuizSlotPick.findOneAndUpdate(
       { gameMode: GAME_MODE, quizId, slotStartIso },
-      { $set: { hintPosition: result } },
+      { $set: setDoc },
       { new: true },
     ).select('quizId slotStartIso hintPosition updatedAt').lean();
 
@@ -766,6 +786,87 @@ export const updateLottery3DSlotResult = async (req, res) => {
         slotStartIso: updated.slotStartIso,
         result: updated.hintPosition,
         updatedAt: updated.updatedAt,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+/**
+ * GET /admin/lottery3d/quizzes/:quizId/stake-by-number?slotStartIso=...
+ * Per-number stakes for one set in a slot; house net if that number wins (pool − payout).
+ */
+export const getLottery3DQuizStakeByNumber = async (req, res) => {
+  try {
+    const quizId = Number(req.params.quizId);
+    const slotStartIso = typeof req.query.slotStartIso === 'string' ? req.query.slotStartIso.trim() : '';
+    if (!Number.isInteger(quizId) || !QUIZ_IDS.includes(quizId)) {
+      return res.status(400).json({ success: false, message: 'quizId must be one of 1, 2, 3.' });
+    }
+    if (!isValidISTSlotStartIso(slotStartIso)) {
+      return res.status(400).json({ success: false, message: 'Valid slotStartIso query parameter is required.' });
+    }
+
+    const slotStartMs = new Date(slotStartIso).getTime();
+    const slotEndMs = slotStartMs + SLOT_MS;
+
+    const [bets, pick, winMultiplier] = await Promise.all([
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, quizId }).select('number amount status').lean(),
+      QuizSlotPick.findOne({ gameMode: GAME_MODE, slotStartIso, quizId }).select('hintPosition').lean(),
+      getQuiz3DMultiplier(),
+    ]);
+
+    const stakeByNumber = new Map();
+    const ticketCountByNumber = new Map();
+    let totalStake = 0;
+    let totalTickets = 0;
+
+    for (const bet of bets) {
+      if (String(bet?.status || '').toLowerCase() === 'cancelled') continue;
+      const n = Number(bet.number);
+      if (!Number.isInteger(n) || n < 0 || n > 999) continue;
+      const amt = Number(bet.amount || 0);
+      totalStake += amt;
+      totalTickets += 1;
+      stakeByNumber.set(n, (stakeByNumber.get(n) || 0) + amt);
+      ticketCountByNumber.set(n, (ticketCountByNumber.get(n) || 0) + 1);
+    }
+
+    const rows = [];
+    let uniqueNumbersWithBets = 0;
+    for (let num = 0; num <= 999; num += 1) {
+      const stake = stakeByNumber.get(num) || 0;
+      const tickets = ticketCountByNumber.get(num) || 0;
+      if (stake > 0) uniqueNumbersWithBets += 1;
+      const payoutIfWin = Math.round(stake * winMultiplier);
+      const houseNetIfWins = totalStake - payoutIfWin;
+      rows.push({
+        number: num,
+        numberLabel: String(num).padStart(3, '0'),
+        stake,
+        tickets,
+        payoutIfWin,
+        houseNetIfWins,
+      });
+    }
+
+    const hintPosition = Number.isInteger(pick?.hintPosition) ? pick.hintPosition : null;
+
+    return res.json({
+      success: true,
+      data: {
+        quizId,
+        setLabel: getSetLabelByQuizId(quizId),
+        slotStartIso,
+        drawLabelEnd: formatDrawLabel(slotEndMs),
+        slotEndIso: new Date(slotEndMs).toISOString(),
+        winMultiplier,
+        hintPosition,
+        totalStake,
+        totalTickets,
+        uniqueNumbersWithBets,
+        rows,
       },
     });
   } catch (error) {

@@ -29,6 +29,7 @@ import TwoDQuizStakeDetail from './pages/TwoDQuizStakeDetail';
 import TwoDCurrentSlotPlayers from './pages/TwoDCurrentSlotPlayers';
 import TwoDOldSlotsStats from './pages/TwoDOldSlotsStats';
 import ThreeDManagement from './pages/ThreeDManagement';
+import ThreeDQuizStakeDetail from './pages/ThreeDQuizStakeDetail';
 import TwoDResultControl from './pages/TwoDResultControl';
 import ThreeDResultControl from './pages/ThreeDResultControl';
 import ThreeDCurrentSlotPlayers from './pages/ThreeDCurrentSlotPlayers';
@@ -268,6 +269,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <TwoDOldSlotsStats />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/3d-management/set/:quizId/stake"
+                    element={
+                        <PrivateRoute>
+                            <ThreeDQuizStakeDetail />
                         </PrivateRoute>
                     }
                 />

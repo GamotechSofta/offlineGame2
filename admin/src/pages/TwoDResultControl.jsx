@@ -18,6 +18,7 @@ const TwoDResultControl = () => {
     const [date, setDate] = useState(todayDate());
     const [slots, setSlots] = useState([]);
     const [currentSlotStartIso, setCurrentSlotStartIso] = useState('');
+    const [currentSlotPhase, setCurrentSlotPhase] = useState('');
     const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
     const [pagePassword, setPagePassword] = useState('');
     const [pageUnlocked, setPageUnlocked] = useState(false);
@@ -38,8 +39,11 @@ const TwoDResultControl = () => {
         navigate('/');
     }, [navigate]);
 
-    const fetchSlots = useCallback(async (targetDate = date) => {
-        setLoading(true);
+    const fetchSlots = useCallback(async (targetDate = date, options = {}) => {
+        const silent = Boolean(options?.silent);
+        if (!silent) {
+            setLoading(true);
+        }
         setError('');
         try {
             const params = new URLSearchParams({ date: targetDate, limit: '96' });
@@ -52,7 +56,9 @@ const TwoDResultControl = () => {
             setError(err.message || 'Failed to load slots');
             setSlots([]);
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     }, [date]);
 
@@ -88,7 +94,9 @@ const TwoDResultControl = () => {
             const json = await res.json();
             if (json?.success) {
                 const iso = json?.data?.slot?.slotStartIso || '';
+                const phase = json?.data?.slot?.phase || '';
                 setCurrentSlotStartIso(iso);
+                setCurrentSlotPhase(phase);
                 if (!iso) {
                     setCurrentHintRows([]);
                     return;
@@ -110,6 +118,7 @@ const TwoDResultControl = () => {
             }
         } catch {
             setCurrentSlotStartIso('');
+            setCurrentSlotPhase('');
             setCurrentHintRows([]);
         }
     }, []);
@@ -119,6 +128,15 @@ const TwoDResultControl = () => {
             fetchCurrentSlotForHints();
         }
     }, [fetchCurrentSlotForHints, hasSecretDeclarePassword, pageUnlocked]);
+
+    useEffect(() => {
+        if (hasSecretDeclarePassword && !pageUnlocked) return undefined;
+        const timer = setInterval(() => {
+            fetchSlots(date, { silent: true });
+            fetchCurrentSlotForHints();
+        }, 15000);
+        return () => clearInterval(timer);
+    }, [fetchSlots, fetchCurrentSlotForHints, date, hasSecretDeclarePassword, pageUnlocked]);
 
     const unlockPage = useCallback(async () => {
         const secret = pagePassword.trim();
@@ -392,7 +410,9 @@ const TwoDResultControl = () => {
                                 {slots.map((slot) => {
                                     const declared = Boolean(slot?.declaration?.declared);
                                     const paused = Boolean(slot?.declaration?.autoDeclareBlocked) && !declared;
-                                    const showManualSetOptions = (paused || manualSetModeSlots[slot.slotStartIso]) && !declared;
+                                    const isCurrentRunningSlot = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
+                                    const canManualResult = !declared && isCurrentRunningSlot && currentSlotPhase === 'study';
+                                    const showManualSetOptions = canManualResult && manualSetModeSlots[slot.slotStartIso];
                                     return (
                                         <tr key={slot.slotStartIso} className="border-b border-black">
                                             <td className="p-2">
@@ -436,14 +456,16 @@ const TwoDResultControl = () => {
                                                         >
                                                         {slot?.isCompleted ? 'Declare' : 'Wait'}
                                                         </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => enableManualSetMode(slot.slotStartIso)}
-                                                            disabled={updating}
-                                                            className="px-2 py-1 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold disabled:opacity-60"
-                                                        >
-                                                            Manual Result
-                                                        </button>
+                                                        {canManualResult ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => enableManualSetMode(slot.slotStartIso)}
+                                                                disabled={updating}
+                                                                className="px-2 py-1 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold disabled:opacity-60"
+                                                            >
+                                                                Manual Result
+                                                            </button>
+                                                        ) : null}
                                                     </div>
                                                 )}
                                             </td>
@@ -455,7 +477,7 @@ const TwoDResultControl = () => {
                                                         <div className={`text-[10px] ${q?.declared ? 'text-green-600' : 'text-red-500'}`}>
                                                             {q?.declared ? 'Declared' : 'Not'}
                                                         </div>
-                                                        {showManualSetOptions && (!q?.resultLabel || q.resultLabel === '--') ? (
+                                                        {showManualSetOptions ? (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => openManualModal(slot.slotStartIso, String(quizId), q?.resultLabel || '--')}
