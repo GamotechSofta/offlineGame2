@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AppLayout from '../components/AppLayout';
-import { getQuizHint, getQuizQuestions, getQuizResult, getQuizSlot, postQuizBet } from '../api/quizApi';
+import { getQuizHint, getQuizQuestions, getQuizResult, getQuizSettings, getQuizSlot, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { verifyFairness } from '../utils/quizFairness';
-import { getVisibleQuestionCountFromSlotStart, QUESTION_REVEAL_STAGGER_MS_3D, STUDY_MINUTES } from '../utils/quizSlotClock';
+import { getVisibleQuestionCountFromSlotStart } from '../utils/quizSlotClock';
 const pad2 = (n) => String(n).padStart(2, '0');
 const pad3 = (n) => String(n).padStart(3, '0');
 
@@ -22,6 +22,8 @@ const formatCountdown = (totalSeconds) => {
 const cleanQuestionText = (text) =>
   String(text || '').replace(/^(?:प्रश्न|Question)\s*\(\d{1,2}-\d{2,3}\)\s*:\s*/iu, '');
 const QUIZ_MODE = '3d';
+const DEFAULT_STUDY_MINUTES = 14.5;
+const DEFAULT_REVEAL_STAGGER_MS_3D = 810;
 const QUIZ_SELECTOR_COUNT = 3;
 const SLOT_POLL_VISIBLE_MS = 3000;
 const SLOT_POLL_HIDDEN_MS = 7000;
@@ -120,6 +122,10 @@ const ThreeDQuizPage = () => {
   const [guessFeedback, setGuessFeedback] = useState(null);
   const [fairnessResult, setFairnessResult] = useState(null);
   const [fairnessCheck, setFairnessCheck] = useState(null);
+  const [timingSettings, setTimingSettings] = useState({
+    studyMinutes: DEFAULT_STUDY_MINUTES,
+    questionRevealStaggerMs: DEFAULT_REVEAL_STAGGER_MS_3D,
+  });
 
   const lastBetNumbersRef = useRef([]);
   const selectedQuizRef = useRef(selectedQuiz);
@@ -138,6 +144,24 @@ const ThreeDQuizPage = () => {
     const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getQuizSettings(QUIZ_MODE)
+      .then((j) => {
+        if (cancelled || !j?.success || !j?.data) return;
+        setTimingSettings({
+          studyMinutes: Number(j.data.studyMinutes) || DEFAULT_STUDY_MINUTES,
+          questionRevealStaggerMs: Number(j.data.questionRevealStaggerMs) || DEFAULT_REVEAL_STAGGER_MS_3D,
+        });
+      })
+      .catch(() => {
+        // Keep defaults if settings endpoint is unavailable.
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -301,13 +325,17 @@ const ThreeDQuizPage = () => {
     }
     const tick = () => {
       setVisibleQuestionCount(
-        getVisibleQuestionCountFromSlotStart(slotData.slotStartIso, questions.length, QUESTION_REVEAL_STAGGER_MS_3D),
+        getVisibleQuestionCountFromSlotStart(
+          slotData.slotStartIso,
+          questions.length,
+          timingSettings.questionRevealStaggerMs || DEFAULT_REVEAL_STAGGER_MS_3D,
+        ),
       );
     };
     tick();
     const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [questions, slotData?.slotStartIso]);
+  }, [questions, slotData?.slotStartIso, timingSettings.questionRevealStaggerMs]);
 
   useEffect(() => setAnswerRevealed({}), [questions]);
 
@@ -506,7 +534,7 @@ const ThreeDQuizPage = () => {
                   3D
                 </button>
                 <span className="text-[15px] font-extrabold leading-snug text-[#5c2222] sm:text-lg">
-                  {slotErr ? `Server: ${slotErr}` : hintPhase ? `Hint phase - Draw: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(slotData?.secondsUntilSlotEnd ?? 0)})` : `Hint in ${STUDY_MINUTES} min (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
+                  {slotErr ? `Server: ${slotErr}` : hintPhase ? `Hint phase - Draw: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(slotData?.secondsUntilSlotEnd ?? 0)})` : `Hint in ${timingSettings.studyMinutes} min (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
                 </span>
               </div>
 

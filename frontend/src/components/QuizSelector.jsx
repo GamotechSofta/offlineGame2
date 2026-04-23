@@ -17,6 +17,7 @@ const QuizSelector = ({
   lastDrawByQuiz,
   previousSlotTimeLabel,
   onToggleQuiz,
+  onToggleSet,
   onToggleMulti,
   onToggleAll,
   onOpenResult,
@@ -40,14 +41,24 @@ const QuizSelector = ({
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
       {QUIZ_GROUPS.map((group) => (
+        (() => {
+          const setQuizNos = Array.from({ length: group.end - group.start + 1 }, (_, idx) => group.start + idx);
+          const setChecked = setQuizNos.every((quizNo) => selectedQuizzes.includes(quizNo));
+          return (
         <div key={group.setName} className="grid grid-cols-[86px_1fr_136px] items-stretch">
-          <div
-            className={`bg-[#e95757] text-white text-center min-h-[48px] flex items-center justify-center border border-[#d1d1d1] px-1 py-0.5 ${selectorTextClass}`}
+          <label
+            className={`bg-[#e95757] text-white min-h-[48px] flex items-center justify-center border border-[#d1d1d1] px-1 py-0.5 gap-2 cursor-pointer ${selectorTextClass}`}
           >
-            {group.setName}
-          </div>
+            <input
+              type="checkbox"
+              checked={setChecked}
+              onChange={(e) => onToggleSet(group.setName, e.target.checked)}
+              className="w-4 h-4 accent-slate-900 bg-white border border-[#d9d9d9] rounded-[2px] shrink-0"
+            />
+            <span>{group.setName}</span>
+          </label>
           <div className="grid grid-cols-10">
-            {Array.from({ length: group.end - group.start + 1 }, (_, idx) => group.start + idx).map((quizNo) => {
+            {setQuizNos.map((quizNo) => {
               const isActive = multi ? selectedQuizzes.includes(quizNo) : activeQuiz === quizNo;
               const prev = lastDrawByQuiz?.[quizNo];
               return (
@@ -108,6 +119,8 @@ const QuizSelector = ({
             )}
           </div>
         </div>
+          );
+        })()
       ))}
       </div>
     </div>

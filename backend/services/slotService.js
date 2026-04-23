@@ -1,13 +1,12 @@
 /**
  * 15-minute quiz slots in Asia/Kolkata (IST, UTC+05:30).
- * Boundaries: :00, :15, :30, :45 — study = first 14.5 minutes; hint = last 0.5 minutes.
+ * Boundaries: :00, :15, :30, :45 — study/hint split is mode-configurable.
  * Server clock only; never trust client time for slot boundaries.
  */
+import { getQuizTimingSettingsSnapshot } from './quizTimingSettingsService.js';
+
 export const SLOT_MINUTES = 15;
-export const STUDY_MINUTES = 14.5;
 export const SLOT_MS = SLOT_MINUTES * 60 * 1000;
-export const STUDY_MS = STUDY_MINUTES * 60 * 1000;
-export const STUDY_SECONDS = STUDY_MINUTES * 60;
 
 const TZ = 'Asia/Kolkata';
 
@@ -89,6 +88,14 @@ export function istPreviousDayKey(istYmd) {
   return istDayKey(anchor);
 }
 
+export function getStudyMinutesForMode(gameMode = '2d') {
+  return Number(getQuizTimingSettingsSnapshot(gameMode)?.studyMinutes || 14.5);
+}
+
+export function getStudySecondsForMode(gameMode = '2d') {
+  return getStudyMinutesForMode(gameMode) * 60;
+}
+
 /**
  * Full slot context for `now`.
  * @returns {{
@@ -104,11 +111,12 @@ export function istPreviousDayKey(istYmd) {
  *  nextSlotEndMs: number,
  * }}
  */
-export function getSlotContext(now = new Date()) {
+export function getSlotContext(now = new Date(), gameMode = '2d') {
   const day = istDayKey(now);
   const sec = istSecondsSinceMidnight(now);
   const slotIndex = Math.floor(sec / (15 * 60));
   const secIntoSlot = sec % (15 * 60);
+  const studySeconds = getStudySecondsForMode(gameMode);
 
   let slotDay = day;
   let idx = slotIndex;
@@ -134,7 +142,7 @@ export function getSlotContext(now = new Date()) {
     prevEndMs = prevStart.getTime() + SLOT_MS;
   }
 
-  const phase = secIntoSlot >= STUDY_SECONDS ? 'hint' : 'study';
+  const phase = secIntoSlot >= studySeconds ? 'hint' : 'study';
 
   const nextSlotEndMs = slotEndMs + SLOT_MS;
 
@@ -145,6 +153,7 @@ export function getSlotContext(now = new Date()) {
     slotEndMs,
     slotStartIso,
     secIntoSlot,
+    studySeconds,
     phase,
     previousSlotStartIso: prevStartIso,
     previousSlotEndMs: prevEndMs,

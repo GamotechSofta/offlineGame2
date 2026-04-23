@@ -369,6 +369,29 @@ const LotteryDashboard = () => {
     setSelectedQuizzes([activeQuiz]);
   }, [ALL_QUIZZES, activeQuiz]);
 
+  const handleSetToggle = useCallback((setName, checked) => {
+    const setRanges = {
+      'Set A': [1, 10],
+      'Set B': [11, 20],
+      'Set C': [21, 30],
+    };
+    const [start, end] = setRanges[setName] || [];
+    if (!Number.isInteger(start) || !Number.isInteger(end)) return;
+    const setQuizNos = Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
+
+    appliedAmountByTargetRef.current = {};
+    setMulti(true);
+    setSelectedQuizzes((prev) => {
+      if (checked) {
+        const merged = new Set([...(Array.isArray(prev) ? prev : []), ...setQuizNos]);
+        return [...merged].sort((a, b) => a - b);
+      }
+      const next = (Array.isArray(prev) ? prev : []).filter((q) => !setQuizNos.includes(q));
+      return next.length ? next : [activeQuiz];
+    });
+    if (checked) setActiveQuiz(start);
+  }, [activeQuiz]);
+
   const setAmountFromNumber = useCallback((num) => {
     const safeAmount = Math.min(MAX_LOTTERY_AMOUNT, Math.max(1, Number(num) || 1));
     setEnteredAmount(safeAmount);
@@ -820,6 +843,7 @@ const LotteryDashboard = () => {
               lastDrawByQuiz={lastSlotByQuiz}
               previousSlotTimeLabel={prevSlotDrawEndLabel}
               onToggleQuiz={handleQuizToggle}
+              onToggleSet={handleSetToggle}
               onToggleMulti={handleMultiToggle}
               onToggleAll={handleAllToggle}
               onOpenResult={openResults}

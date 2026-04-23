@@ -9,9 +9,9 @@ import { getCachedSlotContext } from '../services/quizCacheService.js';
 import {
   SLOT_MINUTES,
   SLOT_MS,
-  STUDY_MINUTES,
-  STUDY_SECONDS,
   formatDrawLabel,
+  getStudyMinutesForMode,
+  getStudySecondsForMode,
   isValidISTSlotStartIso,
   isSlotStartInFuture,
 } from '../services/slotService.js';
@@ -22,6 +22,7 @@ import { resolveWinningShuffledPosition } from '../services/quizPickPositionServ
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBetOwnerKey } from '../utils/betOwnerKey.js';
 import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js';
+import { getQuizTimingSettingsSnapshot } from '../services/quizTimingSettingsService.js';
 
 const QUIZ_BET_MIN_STAKE = 1;
 const QUIZ_BET_MAX_STAKE = 1_000_000;
@@ -111,8 +112,10 @@ async function applyMergesAndInsertsOrRefund(userId, totalStake, incs, insertDoc
 export const getSlot = async (req, res) => {
   try {
     const now = Date.now();
-    const ctx = getCachedSlotContext(new Date(now));
-    const secondsUntilHint = Math.max(0, STUDY_SECONDS - ctx.secIntoSlot);
+    const gameMode = resolveGameMode(req);
+    const ctx = getCachedSlotContext(new Date(now), gameMode);
+    const studySeconds = getStudySecondsForMode(gameMode);
+    const secondsUntilHint = Math.max(0, studySeconds - ctx.secIntoSlot);
     const secondsUntilSlotEnd = Math.max(0, Math.floor((ctx.slotEndMs - now) / 1000));
     const acceptsBets = slotAcceptsBets(ctx, now);
 
@@ -145,12 +148,13 @@ export const getQuestions = async (req, res) => {
   try {
     const quizId = req.quizId;
     const gameMode = resolveGameMode(req);
-    const ctx = getCachedSlotContext();
+    const ctx = getCachedSlotContext(new Date(), gameMode);
+    const studyMinutes = getStudyMinutesForMode(gameMode);
     if (ctx.phase !== 'study') {
       return res.status(403).json({
         success: false,
         code: 'NOT_STUDY_PHASE',
-        message: `Questions list is only available during the study phase (first ${STUDY_MINUTES} minutes of the slot, IST).`,
+        message: `Questions list is only available during the study phase (first ${studyMinutes} minutes of the slot, IST).`,
         phase: ctx.phase,
       });
     }
@@ -188,12 +192,13 @@ export const getHint = async (req, res) => {
   try {
     const quizId = req.quizId;
     const gameMode = resolveGameMode(req);
-    const ctx = getCachedSlotContext();
+    const ctx = getCachedSlotContext(new Date(), gameMode);
+    const studyMinutes = getStudyMinutesForMode(gameMode);
     if (ctx.phase !== 'hint') {
       return res.status(403).json({
         success: false,
         code: 'NOT_HINT_PHASE',
-        message: `Hint is only available during the last ${SLOT_MINUTES - STUDY_MINUTES} minutes of the slot (IST).`,
+        message: `Hint is only available during the last ${SLOT_MINUTES - studyMinutes} minutes of the slot (IST).`,
         phase: ctx.phase,
       });
     }
@@ -293,6 +298,16 @@ export const getResult = async (req, res) => {
   }
 };
 
+export const getQuizSettings = async (req, res) => {
+  try {
+    const mode = resolveGameMode(req);
+    const settings = getQuizTimingSettingsSnapshot(mode);
+    return res.json({ success: true, data: { mode, ...settings } });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
+
 /**
  * POST /api/v1/quiz/bet
  * Body: { quizId, bets: [{ number, amount }] } — any time while current 15m IST slot is open;
@@ -319,7 +334,7 @@ export const postQuizBet = async (req, res) => {
     }
 
     const now = Date.now();
-    const ctx = getCachedSlotContext(new Date(now));
+    const ctx = getCachedSlotContext(new Date(now), gameMode);
     const slotStartIso = ctx.slotStartIso;
     if (!isValidISTSlotStartIso(slotStartIso)) {
       return res.status(400).json({ success: false, code: 'INVALID_SLOT', message: 'Invalid slot' });
@@ -478,7 +493,7 @@ export const postQuizBetsBatch = async (req, res) => {
     }
 
     const now = Date.now();
-    const ctx = getCachedSlotContext(new Date(now));
+    const ctx = getCachedSlotContext(new Date(now), gameMode);
     const slotStartIso = ctx.slotStartIso;
     if (!isValidISTSlotStartIso(slotStartIso)) {
       return res.status(400).json({ success: false, code: 'INVALID_SLOT', message: 'Invalid slot' });

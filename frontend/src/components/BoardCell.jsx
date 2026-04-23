@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { formatQuizNumber } from '../utils/boardHelpers';
 
 const BoardCell = ({ quizNo, num, value, selected, targetSelected, onSelectTarget }) => {
+  const cellCode = `Q${formatQuizNumber(quizNo)}-${formatQuizNumber(num)}`;
   return (
     <button
       type="button"
@@ -13,15 +14,15 @@ const BoardCell = ({ quizNo, num, value, selected, targetSelected, onSelectTarge
           selected
             ? 'border-[#2ea73f] bg-[#dcffd1] text-[#0f172a] font-bold'
             : targetSelected
-              ? 'border-[#4aba4f] bg-[#f7fff4] text-[#0f172a]'
-              : 'border-[#1f1f1f] bg-[#fbfbfb] text-transparent'
+              ? 'border-[#4aba4f] bg-[#f7fff4] text-transparent'
+              : 'border-[#1f1f1f] bg-[#fbfbfb] text-[#9ca3af]'
         }`}
       >
-        {selected ? <span>{value}</span> : null}
+        {selected ? <span>{value}</span> : !targetSelected ? <span className="font-semibold">{cellCode}</span> : null}
         {targetSelected ? <span className="blink-caret font-normal">|</span> : null}
       </div>
       <div className="text-[#111] font-extrabold tracking-tight text-[clamp(13px,1.24vw,16px)] leading-none">
-        Q{formatQuizNumber(quizNo)}-{formatQuizNumber(num)}
+        {cellCode}
       </div>
     </button>
   );

@@ -11,6 +11,13 @@ export async function getQuizSlot() {
   return json;
 }
 
+export async function getQuizSettings(mode = '2d') {
+  const res = await fetch(`${base}/settings?mode=${encodeURIComponent(mode)}`, cred);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+  return json;
+}
+
 export async function getQuizQuestions(quizId, mode = '2d') {
   const res = await fetch(`${base}/questions/${quizId}?mode=${encodeURIComponent(mode)}`, cred);
   const json = await res.json().catch(() => ({}));

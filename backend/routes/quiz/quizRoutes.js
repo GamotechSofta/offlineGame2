@@ -6,6 +6,7 @@ import {
   getHint,
   getMyQuizBets,
   getQuestions,
+  getQuizSettings,
   getResult,
   getSlot,
   postQuizBet,
@@ -57,6 +58,7 @@ const guessLimiter = rateLimit({
 });
 
 router.get('/slot', quizLimiter, getSlot);
+router.get('/settings', quizLimiter, getQuizSettings);
 router.get('/slot-results', quizLimiter, getSlotResultsHistory);
 router.get('/my-board-bets', quizLimiter, getMyBoardBets);
 router.get('/my-quiz-bets', quizLimiter, verifyUser, getMyQuizBets);

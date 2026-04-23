@@ -8,7 +8,8 @@ const SLOT_CACHE_MS = 1500;
 const PICK_CACHE_MS = 60_000;
 const PICK_CACHE_MAX = 80;
 
-let slotCache = { at: 0, ctx: null };
+/** @type {Map<string, { at: number, ctx: object|null }>} */
+const slotCacheByMode = new Map();
 /** @type {Map<string, { at: number, pick: object }>} */
 const pickCache = new Map();
 
@@ -16,15 +17,17 @@ export function clearPickCache() {
   pickCache.clear();
 }
 
-export function getCachedSlotContext(now = new Date()) {
+export function getCachedSlotContext(now = new Date(), gameMode = '2d') {
+  const mode = String(gameMode || '2d').toLowerCase() === '3d' ? '3d' : '2d';
   const t = Date.now();
-  const fresh = getSlotContext(now);
+  const fresh = getSlotContext(now, mode);
+  const slotCache = slotCacheByMode.get(mode) || { at: 0, ctx: null };
 
   if (t - slotCache.at < SLOT_CACHE_MS && slotCache.ctx) {
     if (slotCache.ctx.slotStartIso !== fresh.slotStartIso) {
       clearPickCache();
       clearShuffleOrderCache();
-      slotCache = { at: t, ctx: fresh };
+      slotCacheByMode.set(mode, { at: t, ctx: fresh });
       return fresh;
     }
     return slotCache.ctx;
@@ -35,7 +38,7 @@ export function getCachedSlotContext(now = new Date()) {
     clearPickCache();
     clearShuffleOrderCache();
   }
-  slotCache = { at: t, ctx: fresh };
+  slotCacheByMode.set(mode, { at: t, ctx: fresh });
   return fresh;
 }
 
@@ -71,7 +74,7 @@ export function setCachedPick(quizId, slotStartIso, pick, gameMode = '2d') {
 }
 
 export function invalidateSlotCache() {
-  slotCache = { at: 0, ctx: null };
+  slotCacheByMode.clear();
   clearPickCache();
   clearShuffleOrderCache();
 }

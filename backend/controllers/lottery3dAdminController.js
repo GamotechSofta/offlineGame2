@@ -274,7 +274,7 @@ async function buildPlayersForSlot(slotStartIso) {
 
 export const getLottery3DCurrentSlot = async (req, res) => {
   try {
-    const ctx = getSlotContext(new Date());
+    const ctx = getSlotContext(new Date(), '3d');
     const slotStartIso = ctx.slotStartIso;
     const slotEndMs = ctx.slotEndMs;
 
@@ -350,7 +350,7 @@ export const getLottery3DCurrentSlotHints = async (req, res) => {
       return res.status(verification.error.status).json(verification.error.body);
     }
 
-    const ctx = getSlotContext(new Date());
+    const ctx = getSlotContext(new Date(), '3d');
     const slotStartIso = ctx.slotStartIso;
 
     // Ensure all 3D sets (Q01/Q02/Q03 => A/B/C) exist for running slot.
@@ -702,7 +702,7 @@ export const updateLottery3DSlotResult = async (req, res) => {
       return res.status(400).json({ success: false, message: 'result must be between 000 and 999.' });
     }
 
-    const ctx = getSlotContext(new Date());
+    const ctx = getSlotContext(new Date(), '3d');
     if (slotStartIso !== ctx.slotStartIso) {
       return res.status(400).json({
         success: false,

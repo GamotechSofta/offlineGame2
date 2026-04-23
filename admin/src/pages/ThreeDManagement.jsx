@@ -56,6 +56,13 @@ const ThreeDManagement = () => {
     const [historyPlayersMap, setHistoryPlayersMap] = useState({});
     const [loadingAllHistoryDetails, setLoadingAllHistoryDetails] = useState(false);
     const [loadingAllHistoryPlayers, setLoadingAllHistoryPlayers] = useState(false);
+    const [timingForm, setTimingForm] = useState({ studyMinutes: '14.5', questionRevealStaggerMs: '810' });
+    const [loadingTiming, setLoadingTiming] = useState(false);
+    const [savingTiming, setSavingTiming] = useState(false);
+    const [timingError, setTimingError] = useState('');
+    const [timingPassword, setTimingPassword] = useState('');
+    const [timingUnlocked, setTimingUnlocked] = useState(false);
+    const [timingUnlockedSecret, setTimingUnlockedSecret] = useState('');
     const detailSectionRef = useRef(null);
     const timeDropdownRef = useRef(null);
     const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
@@ -92,6 +99,40 @@ const ThreeDManagement = () => {
             setError(err.message || 'Failed to load current slot');
         } finally {
             setLoadingCurrent(false);
+        }
+    }, [API_BASE_URL]);
+
+    const fetchTimingSettings = useCallback(async (secretDeclarePasswordValue = '') => {
+        setLoadingTiming(true);
+        setTimingError('');
+        try {
+            const params = new URLSearchParams();
+            if (secretDeclarePasswordValue) params.set('secretDeclarePassword', secretDeclarePasswordValue);
+            const q = params.toString() ? `?${params.toString()}` : '';
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/quiz-settings/3d${q}`);
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) {
+                if (data?.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    setHasSecretDeclarePassword(true);
+                    setTimingUnlocked(false);
+                    setTimingUnlockedSecret('');
+                    setTimingError(data?.message || 'Invalid secret password');
+                    return;
+                }
+                throw new Error(data?.message || 'Failed to load timing settings');
+            }
+            setTimingForm({
+                studyMinutes: String(data.data.studyMinutes ?? '14.5'),
+                questionRevealStaggerMs: String(data.data.questionRevealStaggerMs ?? '810'),
+            });
+            setTimingUnlocked(true);
+            setTimingUnlockedSecret(secretDeclarePasswordValue || '');
+            setTimingPassword('');
+        } catch (err) {
+            setTimingError(err.message || 'Failed to load timing settings');
+        } finally {
+            setLoadingTiming(false);
         }
     }, [API_BASE_URL]);
 
@@ -338,7 +379,62 @@ const ThreeDManagement = () => {
             })
             .catch(() => setHasSecretDeclarePassword(false));
         fetchCurrent();
-    }, [API_BASE_URL, fetchCurrent, navigate]);
+    }, [API_BASE_URL, fetchCurrent, fetchTimingSettings, navigate]);
+
+    useEffect(() => {
+        if (hasSecretDeclarePassword) {
+            setTimingUnlocked(false);
+            setTimingUnlockedSecret('');
+            return;
+        }
+        fetchTimingSettings('');
+    }, [API_BASE_URL, fetchCurrent, fetchTimingSettings, navigate]);
+
+    const saveTimingSettings = async () => {
+        setSavingTiming(true);
+        setTimingError('');
+        try {
+            const studyMinutes = Number(timingForm.studyMinutes);
+            const questionRevealStaggerMs = Number(timingForm.questionRevealStaggerMs);
+            if (!Number.isFinite(studyMinutes) || studyMinutes <= 0 || studyMinutes >= 15) {
+                throw new Error('Study minutes must be between 0 and 15.');
+            }
+            if (!Number.isFinite(questionRevealStaggerMs) || questionRevealStaggerMs < 100) {
+                throw new Error('Question loading delay must be at least 100 ms.');
+            }
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/quiz-settings/3d`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    studyMinutes,
+                    questionRevealStaggerMs,
+                    secretDeclarePassword: timingUnlockedSecret,
+                }),
+            });
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) {
+                if (data?.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                    setTimingUnlocked(false);
+                    setTimingUnlockedSecret('');
+                }
+                throw new Error(data?.message || 'Failed to update timing settings');
+            }
+            setNotice('3D quiz timing settings updated successfully.');
+            await fetchTimingSettings(timingUnlockedSecret);
+        } catch (err) {
+            setTimingError(err.message || 'Failed to update timing settings');
+        } finally {
+            setSavingTiming(false);
+        }
+    };
+
+    const unlockTimingSettings = async () => {
+        if (hasSecretDeclarePassword && !timingPassword.trim()) {
+            setTimingError('Please enter the secret declare password');
+            return;
+        }
+        await fetchTimingSettings(timingPassword.trim());
+    };
 
     useEffect(() => {
         fetchHistory(date);
@@ -534,6 +630,75 @@ const ThreeDManagement = () => {
 
                 {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div> : null}
                 {notice ? <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700">{notice}</div> : null}
+                <div className="bg-white border border-gray-200 rounded-xl p-5">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                        <h3 className="text-lg font-semibold text-gray-800">3D Quiz Timing Settings</h3>
+                        {loadingTiming ? <span className="text-xs text-gray-500">Loading...</span> : null}
+                    </div>
+                    {hasSecretDeclarePassword && !timingUnlocked ? (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <label className="text-sm text-gray-700 md:col-span-2">
+                                <span className="block mb-1 font-medium">Secret Declare Password</span>
+                                <input
+                                    type="password"
+                                    value={timingPassword}
+                                    onChange={(e) => {
+                                        setTimingPassword(e.target.value);
+                                        setTimingError('');
+                                    }}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                                    placeholder="Enter password to unlock 3D settings"
+                                />
+                            </label>
+                            <div className="flex items-end">
+                                <button
+                                    type="button"
+                                    onClick={unlockTimingSettings}
+                                    disabled={loadingTiming}
+                                    className="w-full px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:bg-orange-300"
+                                >
+                                    {loadingTiming ? 'Unlocking...' : 'Unlock 3D Settings'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <label className="text-sm text-gray-700">
+                                <span className="block mb-1 font-medium">Hint Time (Study Minutes)</span>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="15"
+                                    value={timingForm.studyMinutes}
+                                    onChange={(e) => setTimingForm((prev) => ({ ...prev, studyMinutes: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                                />
+                            </label>
+                            <label className="text-sm text-gray-700">
+                                <span className="block mb-1 font-medium">Question Loading Delay (ms)</span>
+                                <input
+                                    type="number"
+                                    min="100"
+                                    value={timingForm.questionRevealStaggerMs}
+                                    onChange={(e) => setTimingForm((prev) => ({ ...prev, questionRevealStaggerMs: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                                />
+                            </label>
+                            <div className="flex items-end">
+                                <button
+                                    type="button"
+                                    onClick={saveTimingSettings}
+                                    disabled={savingTiming}
+                                    className="w-full px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:bg-orange-300"
+                                >
+                                    {savingTiming ? 'Saving...' : 'Save 3D Settings'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {timingError ? <p className="mt-3 text-sm text-red-600">{timingError}</p> : null}
+                </div>
 
                 <CurrentSlotOverview
                     data={currentSlotData}

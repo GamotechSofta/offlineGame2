@@ -32,9 +32,9 @@ const SummaryPanel = ({ totalAmount, setTotals, onBuy, buyDisabled, buyHelpLines
         type="button"
         onClick={onBuy}
         disabled={buyDisabled || !onBuy}
-        className="w-full h-[62px] border-t border-[#d3372f] bg-[#ef3f34] text-[38px] font-semibold leading-none text-white disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full h-[62px] border-t border-[#b91c1c] bg-[#dc2626] flex items-center justify-center whitespace-nowrap text-[26px] tracking-tight font-bold leading-none text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
-        BUY
+        BUY NOW
       </button>
       {Array.isArray(buyHelpLines) && buyHelpLines.length > 0 && (
         <div className="border-t border-[#c9a227] bg-[#fff8dc] px-1 py-1.5 text-[9px] font-semibold leading-snug text-[#5c2222]">

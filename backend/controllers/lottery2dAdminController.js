@@ -417,7 +417,7 @@ export const getLottery2DPlayerHistory = async (req, res) => {
 
 export const getLottery2DCurrentSlot = async (req, res) => {
   try {
-    const ctx = getSlotContext(new Date());
+    const ctx = getSlotContext(new Date(), '2d');
     const slotStartIso = ctx.slotStartIso;
     const slotEndMs = ctx.slotEndMs;
 
@@ -493,7 +493,7 @@ export const getLottery2DCurrentSlotHints = async (req, res) => {
       return res.status(verification.error.status).json(verification.error.body);
     }
 
-    const ctx = getSlotContext(new Date());
+    const ctx = getSlotContext(new Date(), '2d');
     const slotStartIso = ctx.slotStartIso;
 
     // Ensure all Q01-Q30 picks exist for the running slot so hints grid is fully populated.
@@ -679,7 +679,7 @@ export const updateLottery2DSlotResult = async (req, res) => {
       return res.status(400).json({ success: false, message: 'result must be between 00 and 99.' });
     }
 
-    const ctx = getSlotContext(new Date());
+    const ctx = getSlotContext(new Date(), '2d');
     if (slotStartIso !== ctx.slotStartIso) {
       return res.status(400).json({
         success: false,

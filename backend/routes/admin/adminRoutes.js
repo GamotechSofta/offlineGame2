@@ -34,6 +34,10 @@ import {
     getLottery3DPlayerHistory,
     updateLottery3DSlotResult,
 } from '../../controllers/lottery3dAdminController.js';
+import {
+  getAdminQuizTimingSettings,
+  updateAdminQuizTimingSettings,
+} from '../../controllers/quizTimingAdminController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -68,6 +72,10 @@ router.get('/lottery3d/slots/:slotStartIso/detail', verifyAdmin, getLottery3DSlo
 router.get('/lottery3d/slots/:slotStartIso/players', verifyAdmin, getLottery3DSlotPlayers);
 router.get('/lottery3d/players/:userId/history', verifyAdmin, getLottery3DPlayerHistory);
 router.patch('/lottery3d/slots/:slotStartIso/result', verifyAdmin, updateLottery3DSlotResult);
+
+// Quiz timing settings (study/hint split + reveal stagger)
+router.get('/quiz-settings/:mode', verifyAdmin, getAdminQuizTimingSettings);
+router.patch('/quiz-settings/:mode', verifyAdmin, updateAdminQuizTimingSettings);
 
 // Super Admin management routes (Super Admin only)
 router.get('/super-admins', verifyAdmin, getAllSuperAdmins); // Get all super admins

@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AppLayout from '../components/AppLayout';
-import { getQuizHint, getQuizQuestions, getQuizResult, getQuizSlot, postQuizBet } from '../api/quizApi';
+import { getQuizHint, getQuizQuestions, getQuizResult, getQuizSettings, getQuizSlot, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { verifyFairness } from '../utils/quizFairness';
-import { getVisibleQuestionCountFromSlotStart, QUESTION_REVEAL_STAGGER_MS, STUDY_MINUTES } from '../utils/quizSlotClock';
+import { getVisibleQuestionCountFromSlotStart } from '../utils/quizSlotClock';
 const QUIZ_MODE = '2d';
+const DEFAULT_STUDY_MINUTES = 14.5;
+const DEFAULT_REVEAL_STAGGER_MS = 8700;
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -45,6 +47,10 @@ const LotteryQuizPage = () => {
   const [guessFeedback, setGuessFeedback] = useState(null);
   const [fairnessResult, setFairnessResult] = useState(null);
   const [fairnessCheck, setFairnessCheck] = useState(null);
+  const [timingSettings, setTimingSettings] = useState({
+    studyMinutes: DEFAULT_STUDY_MINUTES,
+    questionRevealStaggerMs: DEFAULT_REVEAL_STAGGER_MS,
+  });
 
   const lastBetNumbersRef = useRef([]);
   const selectedQuizRef = useRef(selectedQuiz);
@@ -65,6 +71,24 @@ const LotteryQuizPage = () => {
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getQuizSettings(QUIZ_MODE)
+      .then((j) => {
+        if (cancelled || !j?.success || !j?.data) return;
+        setTimingSettings({
+          studyMinutes: Number(j.data.studyMinutes) || DEFAULT_STUDY_MINUTES,
+          questionRevealStaggerMs: Number(j.data.questionRevealStaggerMs) || DEFAULT_REVEAL_STAGGER_MS,
+        });
+      })
+      .catch(() => {
+        // Keep defaults if settings endpoint is unavailable.
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -200,13 +224,17 @@ const LotteryQuizPage = () => {
     }
     const tick = () => {
       setVisibleQuestionCount(
-        getVisibleQuestionCountFromSlotStart(slotData.slotStartIso, questions.length, QUESTION_REVEAL_STAGGER_MS),
+        getVisibleQuestionCountFromSlotStart(
+          slotData.slotStartIso,
+          questions.length,
+          timingSettings.questionRevealStaggerMs || DEFAULT_REVEAL_STAGGER_MS,
+        ),
       );
     };
     tick();
     const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [questions, slotData?.slotStartIso]);
+  }, [questions, slotData?.slotStartIso, timingSettings.questionRevealStaggerMs]);
 
   useEffect(() => {
     setAnswerRevealed({});
@@ -417,7 +445,7 @@ const LotteryQuizPage = () => {
               ? `Server: ${slotErr}`
               : hintPhase
                 ? `Hint phase - Draw: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(slotData?.secondsUntilSlotEnd ?? 0)})`
-                : `Hint in ${STUDY_MINUTES} min (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
+                : `Hint in ${timingSettings.studyMinutes} min (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
           </span>
               </div>
 
