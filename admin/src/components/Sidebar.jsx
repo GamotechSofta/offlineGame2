@@ -48,6 +48,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             children: [
                 { path: '/2d-management/current-slot-players', label: 'Current Slot Players' },
                 { path: '/2d-management/result-control', label: 'Result Control' },
+                { path: '/2d-management/old-slots', label: 'Old Slots Stats' },
             ],
         },
         {
@@ -55,8 +56,9 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             label: '3D Management',
             icon: FaDice,
             children: [
-                { path: '/3d-management', label: 'Overview' },
+                { path: '/3d-management/current-slot-players', label: 'Current Slot Players' },
                 { path: '/3d-management/result-control', label: 'Result Control' },
+                { path: '/3d-management/old-slots', label: 'Old Slots Stats' },
             ],
         },
         { path: '/add-result', label: 'Add Result', icon: FaEdit },
@@ -109,7 +111,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         savedScrollTop.current = navRef.current?.scrollTop ?? 0;
         navigate(path);
         if (hasChildren) {
-            setExpandedMenus((prev) => ({ ...prev, [path]: true }));
+            setExpandedMenus((prev) => ({ ...prev, [path]: !prev[path] }));
         }
         onClose?.();
     };

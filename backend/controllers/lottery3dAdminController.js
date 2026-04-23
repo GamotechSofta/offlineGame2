@@ -418,19 +418,17 @@ export const getLottery3DSlotHistory = async (req, res) => {
     }
 
     const limit = Math.min(96, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
-    const now = Date.now();
-    const completedSlots = listSlotStartIsoForISTDay(date)
-      .filter((iso) => new Date(iso).getTime() + SLOT_MS <= now)
+    const daySlots = listSlotStartIsoForISTDay(date)
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
       .slice(0, limit);
 
-    if (!completedSlots.length) {
+    if (!daySlots.length) {
       return res.json({ success: true, data: { date, slots: [] } });
     }
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId userId number amount status winPayout').lean(),
-      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId hintPosition').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } }).select('slotStartIso quizId userId number amount status winPayout').lean(),
+      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } }).select('slotStartIso quizId hintPosition').lean(),
       getQuiz3DMultiplier(),
     ]);
 
@@ -441,13 +439,13 @@ export const getLottery3DSlotHistory = async (req, res) => {
     }
 
     const betsBySlot = new Map();
-    for (const slotIso of completedSlots) betsBySlot.set(slotIso, []);
+    for (const slotIso of daySlots) betsBySlot.set(slotIso, []);
     for (const b of bets) {
       if (!betsBySlot.has(b.slotStartIso)) betsBySlot.set(b.slotStartIso, []);
       betsBySlot.get(b.slotStartIso).push(b);
     }
 
-    const slots = completedSlots.map((slotStartIso) => {
+    const slotsBase = daySlots.map((slotStartIso) => {
       const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
       return toSlotSummary(
         slotStartIso,
@@ -457,6 +455,28 @@ export const getLottery3DSlotHistory = async (req, res) => {
         winMultiplier,
       );
     });
+    const slots = await Promise.all(
+      slotsBase.map(async (slot) => {
+        const slotStartIso = slot.slotStartIso;
+        const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+        const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
+        const pickByQuiz = picksBySlot.get(slotStartIso) || new Map();
+        const perQuiz = QUIZ_IDS.map((quizId) => {
+          const result = pickByQuiz.get(quizId);
+          return {
+            quizId,
+            result: Number.isInteger(result) ? result : null,
+            resultLabel: Number.isInteger(result) ? String(result).padStart(3, '0') : '--',
+            declared: Boolean(declaration?.declared),
+          };
+        });
+        return {
+          ...slot,
+          declaration,
+          perQuiz,
+        };
+      }),
+    );
 
     return res.json({ success: true, data: { date, slots } });
   } catch (error) {

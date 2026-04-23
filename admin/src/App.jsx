@@ -27,9 +27,12 @@ import TopWinners from './pages/TopWinners';
 import TwoDManagement from './pages/TwoDManagement';
 import TwoDQuizStakeDetail from './pages/TwoDQuizStakeDetail';
 import TwoDCurrentSlotPlayers from './pages/TwoDCurrentSlotPlayers';
+import TwoDOldSlotsStats from './pages/TwoDOldSlotsStats';
 import ThreeDManagement from './pages/ThreeDManagement';
 import TwoDResultControl from './pages/TwoDResultControl';
 import ThreeDResultControl from './pages/ThreeDResultControl';
+import ThreeDCurrentSlotPlayers from './pages/ThreeDCurrentSlotPlayers';
+import ThreeDOldSlotsStats from './pages/ThreeDOldSlotsStats';
 import BookieCommissions from './pages/BookieCommissions';
 
 // Scroll to top on route change
@@ -261,6 +264,14 @@ const App = () => {
                     }
                 />
                 <Route
+                    path="/2d-management/old-slots"
+                    element={
+                        <PrivateRoute>
+                            <TwoDOldSlotsStats />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
                     path="/3d-management"
                     element={
                         <PrivateRoute>
@@ -289,6 +300,22 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <ThreeDResultControl />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/3d-management/current-slot-players"
+                    element={
+                        <PrivateRoute>
+                            <ThreeDCurrentSlotPlayers />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/3d-management/old-slots"
+                    element={
+                        <PrivateRoute>
+                            <ThreeDOldSlotsStats />
                         </PrivateRoute>
                     }
                 />

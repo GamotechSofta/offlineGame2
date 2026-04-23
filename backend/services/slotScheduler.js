@@ -71,6 +71,10 @@ async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
     results.push({ quizId, ready });
   }
 
+  // Re-check right before emit/declare to avoid race:
+  // admin may click "Hold" while this tick is still in progress.
+  if (await isAutoDeclareBlocked(slotStartIso, gameMode)) return;
+
   emittedQuizResultSlots.add(emitKey);
   while (emittedQuizResultSlots.size > 500) {
     const first = emittedQuizResultSlots.values().next().value;
