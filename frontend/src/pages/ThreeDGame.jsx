@@ -1458,7 +1458,7 @@ const ThreeDGame = () => {
     }
     if (label.toLowerCase() === 'quiz') {
       // Keep mobile in landscape while moving from 3D board to 3D quiz.
-      await handleRotateLandscape();
+      handleRotateLandscape();
       navigate('/lottery/3d/quiz');
       return;
     }
@@ -1472,9 +1472,9 @@ const ThreeDGame = () => {
       return;
     }
     if (label.toLowerCase() === 'history') {
-      await loadBackendHistoryTickets();
       setIsHistoryListOpen(true);
       setIsTicketListOpen(false);
+      loadBackendHistoryTickets();
       return;
     }
     if (label.toLowerCase() === 'account') {
@@ -1739,7 +1739,7 @@ const ThreeDGame = () => {
                 key={label}
                 type="button"
                 onClick={() => handleHeaderAction(label)}
-                className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-[#e2c8aa] bg-[#f7ecde] px-2.5 py-2.5 text-[16px] font-bold text-[#6b4423] transition-colors hover:bg-[#eedfc8] active:scale-[0.99] sm:text-[17px]"
+                className="inline-flex min-w-0 touch-manipulation items-center justify-center gap-2 rounded-lg border border-black bg-[#f7ecde] px-2.5 py-2.5 text-[16px] font-bold text-[#6b4423] transition-colors hover:bg-[#eedfc8] active:scale-[0.99] sm:text-[17px]"
               >
                 <Icon className="h-5 w-5 shrink-0 sm:h-[20px] sm:w-[20px]" strokeWidth={2.25} aria-hidden />
                 <span className="truncate">{label}</span>
