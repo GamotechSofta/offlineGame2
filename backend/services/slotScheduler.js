@@ -7,6 +7,7 @@ import { getQuizSocketIo } from '../socket/socketHub.js';
 import { getSlotContext, SLOT_MS } from './slotService.js';
 import { getOrCreatePick } from './quizPickService.js';
 import { settleQuizBetsForSlot } from './quizBetSettlement.js';
+import { isAutoDeclareBlocked, markSlotDeclared } from './quizDeclarationService.js';
 const TICK_MS = 60_000;
 const INITIAL_DELAY_MS = 3_000;
 
@@ -53,6 +54,7 @@ async function ensureAllPicksForSlot(slotStartIso, gameMode = '2d') {
 async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
   const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
   if (Date.now() < slotEndMs) return;
+  if (await isAutoDeclareBlocked(slotStartIso, gameMode)) return;
 
   const io = getQuizSocketIo();
   if (!io) return;
@@ -79,6 +81,7 @@ async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
   io.emit('quiz:result', { gameMode, slotStartIso, results });
   // eslint-disable-next-line no-console
   console.log(JSON.stringify({ tag: '[socket:emit]', event: 'quiz:result', gameMode, slotStartIso }));
+  await markSlotDeclared(slotStartIso, gameMode, null);
 
   settleQuizBetsForSlot(slotStartIso, gameMode).catch((err) => {
     // eslint-disable-next-line no-console

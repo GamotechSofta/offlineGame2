@@ -129,6 +129,7 @@ const TwoDManagement = () => {
         }
     }, [fetchSlotPlayers]);
 
+
     const fetchTimingSettings = useCallback(async (secretDeclarePasswordValue = '') => {
         setLoadingTiming(true);
         setTimingError('');
@@ -642,7 +643,6 @@ const TwoDManagement = () => {
                     )}
                     {timingError ? <p className="mt-3 text-sm text-red-600">{timingError}</p> : null}
                 </div>
-
                 <CurrentSlotOverview
                     data={currentSlotData}
                     loading={loadingCurrent}
@@ -666,65 +666,6 @@ const TwoDManagement = () => {
                         navigate(`/2d-management/quiz/${qid}/stake?slotStartIso=${encodeURIComponent(iso)}`);
                     }}
                 />
-
-                <div className="bg-white border border-gray-200 rounded-xl p-5">
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                        <h3 className="text-lg font-semibold text-gray-800">Current Slot Playing Players</h3>
-                        {loadingCurrentPlayers ? <span className="text-xs text-gray-500">Loading...</span> : null}
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                            <thead>
-                                <tr className="text-left text-gray-500 border-b border-gray-200">
-                                    <th className="py-2 pr-3">Player</th>
-                                    <th className="py-2 pr-3 text-right">Total Bets (This Slot)</th>
-                                    <th className="py-2 pr-3 text-right">All-time Bets</th>
-                                    <th className="py-2 pr-3 text-right">Stake</th>
-                                    <th className="py-2 pr-3 text-right">Payout</th>
-                                    <th className="py-2 pr-3 text-right">P/L</th>
-                                    <th className="py-2 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {!currentPlayers.length && !loadingCurrentPlayers ? (
-                                    <tr>
-                                        <td colSpan={7} className="py-4 text-center text-gray-500">No players in current slot yet.</td>
-                                    </tr>
-                                ) : null}
-                                {currentPlayers.map((player) => (
-                                    <tr key={`current-${player.userId}`} className="border-b border-gray-100">
-                                        <td className="py-2 pr-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleOpenPlayerHistory(player)}
-                                                className="text-blue-600 hover:text-blue-800 font-semibold"
-                                            >
-                                                {player.username || 'unknown'}
-                                            </button>
-                                            {player.phone ? <div className="text-xs text-gray-500">{player.phone}</div> : null}
-                                        </td>
-                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.currentSlotBetCount ?? player.batchBetCount ?? player.betCount ?? 0)}</td>
-                                        <td className="py-2 pr-3 text-right font-mono">{Number(player.totalBetCountAllTime ?? player.totalBetCount ?? player.betCount ?? 0)}</td>
-                                        <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalStake || 0).toLocaleString('en-IN')}</td>
-                                        <td className="py-2 pr-3 text-right font-mono">₹{Number(player.totalPayout || 0).toLocaleString('en-IN')}</td>
-                                        <td className={`py-2 pr-3 text-right font-mono ${Number(player.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            ₹{Number(player.netProfitLoss || 0).toLocaleString('en-IN')}
-                                        </td>
-                                        <td className="py-2 text-right">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleOpenPlayerHistory(player)}
-                                                className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-xs font-semibold text-gray-700"
-                                            >
-                                                View Full History
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
                 <div className="bg-white border border-gray-200 rounded-xl p-2">
                     <div className="flex flex-wrap gap-2">

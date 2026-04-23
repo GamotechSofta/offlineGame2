@@ -4,6 +4,7 @@ import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
 import { getRatesMap } from '../models/rate/rate.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { resolveWinningShuffledPosition } from './quizPickPositionService.js';
+import { isSlotDeclared } from './quizDeclarationService.js';
 
 async function winMultiplier(gameMode = '2d') {
   try {
@@ -26,6 +27,7 @@ async function winMultiplier(gameMode = '2d') {
  * Settle all pending quiz bets for a completed slot (idempotent per bet via status: pending).
  */
 export async function settleQuizBetsForSlot(slotStartIso, gameMode = '2d') {
+  if (!(await isSlotDeclared(slotStartIso, gameMode))) return { settled: 0 };
   const pending = await QuizBet.find({ gameMode, slotStartIso, status: 'pending' }).lean();
   if (!pending.length) return { settled: 0 };
 

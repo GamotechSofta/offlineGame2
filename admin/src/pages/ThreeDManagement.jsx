@@ -102,6 +102,7 @@ const ThreeDManagement = () => {
         }
     }, [API_BASE_URL]);
 
+
     const fetchTimingSettings = useCallback(async (secretDeclarePasswordValue = '') => {
         setLoadingTiming(true);
         setTimingError('');
@@ -388,7 +389,7 @@ const ThreeDManagement = () => {
             return;
         }
         fetchTimingSettings('');
-    }, [API_BASE_URL, fetchCurrent, fetchTimingSettings, navigate]);
+    }, [hasSecretDeclarePassword, fetchTimingSettings]);
 
     const saveTimingSettings = async () => {
         setSavingTiming(true);
@@ -699,7 +700,6 @@ const ThreeDManagement = () => {
                     )}
                     {timingError ? <p className="mt-3 text-sm text-red-600">{timingError}</p> : null}
                 </div>
-
                 <CurrentSlotOverview
                     data={currentSlotData}
                     loading={loadingCurrent}

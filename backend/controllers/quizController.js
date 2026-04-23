@@ -23,6 +23,7 @@ import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBetOwnerKey } from '../utils/betOwnerKey.js';
 import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js';
 import { getQuizTimingSettingsSnapshot } from '../services/quizTimingSettingsService.js';
+import { isSlotDeclared } from '../services/quizDeclarationService.js';
 
 const QUIZ_BET_MIN_STAKE = 1;
 const QUIZ_BET_MAX_STAKE = 1_000_000;
@@ -256,6 +257,13 @@ export const getResult = async (req, res) => {
         success: false,
         code: 'SLOT_NOT_ENDED',
         message: 'Result is published only after this slot ends (IST).',
+      });
+    }
+    if (!(await isSlotDeclared(slotStartIso, gameMode, slotEndMs))) {
+      return res.status(403).json({
+        success: false,
+        code: 'RESULT_NOT_DECLARED',
+        message: 'Result is not declared yet for this slot.',
       });
     }
 
@@ -690,9 +698,15 @@ export const getMyQuizBets = async (req, res) => {
         if (!Number.isFinite(slotStartMs)) return false;
         return Date.now() >= (slotStartMs + SLOT_MS);
       });
-      if (endedPendingSlotStarts.length) {
+      const declaredSlotStarts = [];
+      for (const slotStartIso of endedPendingSlotStarts) {
+        // eslint-disable-next-line no-await-in-loop
+        const declared = await isSlotDeclared(slotStartIso, gameMode, new Date(slotStartIso).getTime() + SLOT_MS);
+        if (declared) declaredSlotStarts.push(slotStartIso);
+      }
+      if (declaredSlotStarts.length) {
         await Promise.allSettled(
-          endedPendingSlotStarts.map((slotStartIso) => settleQuizBetsForSlot(slotStartIso, gameMode)),
+          declaredSlotStarts.map((slotStartIso) => settleQuizBetsForSlot(slotStartIso, gameMode)),
         );
       }
     } catch {

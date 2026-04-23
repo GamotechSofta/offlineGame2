@@ -26,7 +26,10 @@ import Settings from './pages/Settings';
 import TopWinners from './pages/TopWinners';
 import TwoDManagement from './pages/TwoDManagement';
 import TwoDQuizStakeDetail from './pages/TwoDQuizStakeDetail';
+import TwoDCurrentSlotPlayers from './pages/TwoDCurrentSlotPlayers';
 import ThreeDManagement from './pages/ThreeDManagement';
+import TwoDResultControl from './pages/TwoDResultControl';
+import ThreeDResultControl from './pages/ThreeDResultControl';
 import BookieCommissions from './pages/BookieCommissions';
 
 // Scroll to top on route change
@@ -262,6 +265,30 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <ThreeDManagement />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/2d-management/result-control"
+                    element={
+                        <PrivateRoute>
+                            <TwoDResultControl />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/2d-management/current-slot-players"
+                    element={
+                        <PrivateRoute>
+                            <TwoDCurrentSlotPlayers />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/3d-management/result-control"
+                    element={
+                        <PrivateRoute>
+                            <ThreeDResultControl />
                         </PrivateRoute>
                     }
                 />

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     FaTachometerAlt,
@@ -24,6 +24,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
     const location = useLocation();
     const navRef = useRef(null);
     const savedScrollTop = useRef(0);
+    const [expandedMenus, setExpandedMenus] = useState({});
 
     // Hide Help Desk issues from non-super-admin users.
     let adminRole = '';
@@ -40,8 +41,24 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/all-users', label: 'All Players', icon: FaUserFriends },
         { path: '/bookie-management', label: 'Bookie Accounts', icon: FaUsers },
         { path: '/markets', label: 'Markets', icon: FaChartBar },
-        { path: '/2d-management', label: '2D Management', icon: FaDice },
-        { path: '/3d-management', label: '3D Management', icon: FaDice },
+        {
+            path: '/2d-management',
+            label: '2D Management',
+            icon: FaDice,
+            children: [
+                { path: '/2d-management/current-slot-players', label: 'Current Slot Players' },
+                { path: '/2d-management/result-control', label: 'Result Control' },
+            ],
+        },
+        {
+            path: '/3d-management',
+            label: '3D Management',
+            icon: FaDice,
+            children: [
+                { path: '/3d-management', label: 'Overview' },
+                { path: '/3d-management/result-control', label: 'Result Control' },
+            ],
+        },
         { path: '/add-result', label: 'Add Result', icon: FaEdit },
         { path: '/update-rate', label: 'Update Rate', icon: FaCoins },
         { path: '/reports', label: 'Report', icon: FaChartLine },
@@ -76,10 +93,29 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         return location.pathname === path;
     };
 
-    const handleNav = (path) => {
+    const isChildActive = (path) => {
+        if (location.pathname === path) return true;
+        // Treat 2D quiz stake detail as part of Result Control flow.
+        if (
+            path === '/2d-management/result-control' &&
+            location.pathname.startsWith('/2d-management/quiz/')
+        ) {
+            return true;
+        }
+        return false;
+    };
+
+    const handleNav = (path, hasChildren = false) => {
         savedScrollTop.current = navRef.current?.scrollTop ?? 0;
         navigate(path);
+        if (hasChildren) {
+            setExpandedMenus((prev) => ({ ...prev, [path]: true }));
+        }
         onClose?.();
+    };
+
+    const handleToggleParent = (path) => {
+        setExpandedMenus((prev) => ({ ...prev, [path]: !prev[path] }));
     };
 
     useEffect(() => {
@@ -87,6 +123,14 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             navRef.current.scrollTop = savedScrollTop.current;
             savedScrollTop.current = 0;
         }
+    }, [location.pathname]);
+
+    useEffect(() => {
+        setExpandedMenus((prev) => ({
+            ...prev,
+            '/2d-management': prev['/2d-management'] ?? location.pathname.startsWith('/2d-management'),
+            '/3d-management': prev['/3d-management'] ?? location.pathname.startsWith('/3d-management'),
+        }));
     }, [location.pathname]);
 
     return (
@@ -112,19 +156,62 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
 
             {/* Menu Items */}
             <nav ref={navRef} className="flex-1 p-3 sm:p-4 space-y-1 overflow-y-auto">
-                {menuItems.map((item) => (
-                    <button
-                        key={item.path}
-                        onClick={() => handleNav(item.path)}
-                        className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl transition-all duration-200 text-sm sm:text-base ${isActive(item.path)
-                            ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold shadow-lg shadow-orange-500/20'
-                            : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:-translate-y-0.5'
-                            }`}
-                    >
-                        <item.icon className="w-5 h-5 sm:text-xl shrink-0" />
-                        <span className="truncate">{item.label}</span>
-                    </button>
-                ))}
+                {menuItems.map((item) => {
+                    const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+                    const expanded = Boolean(expandedMenus[item.path]);
+                    return (
+                        <div key={item.path}>
+                            <button
+                                onClick={() => handleNav(item.path, hasChildren)}
+                                className={`w-full flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl transition-all duration-200 text-sm sm:text-base ${isActive(item.path)
+                                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold shadow-lg shadow-orange-500/20'
+                                    : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:-translate-y-0.5'
+                                    }`}
+                            >
+                                <span className="flex items-center gap-3 min-w-0">
+                                    <item.icon className="w-5 h-5 sm:text-xl shrink-0" />
+                                    <span className="truncate">{item.label}</span>
+                                </span>
+                                {hasChildren ? (
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        className="text-xs opacity-80 px-1"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleParent(item.path);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleToggleParent(item.path);
+                                            }
+                                        }}
+                                    >
+                                        {expanded ? '▼' : '▶'}
+                                    </span>
+                                ) : null}
+                            </button>
+                            {hasChildren && expanded ? (
+                                <div className="mt-1 space-y-1">
+                                    {item.children.map((child) => (
+                                        <button
+                                            key={child.path}
+                                            onClick={() => handleNav(child.path)}
+                                            className={`w-full text-left pl-12 pr-3 py-2 rounded-lg text-sm transition ${isChildActive(child.path)
+                                                ? 'bg-orange-100 text-orange-700 font-semibold'
+                                                : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600'
+                                                }`}
+                                        >
+                                            {child.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
+                    );
+                })}
             </nav>
 
             {/* Logout */}

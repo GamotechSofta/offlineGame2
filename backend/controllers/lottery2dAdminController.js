@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import QuizBet from '../models/quiz/QuizBet.js';
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
+import QuizSlotDeclaration from '../models/quiz/QuizSlotDeclaration.js';
 import User from '../models/user/user.js';
 import { getRatesMap } from '../models/rate/rate.js';
 import Admin from '../models/admin/admin.js';
@@ -15,6 +16,14 @@ import {
   listSlotStartIsoForISTDay,
 } from '../services/slotService.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
+import {
+  blockAutoDeclare,
+  enableAutoDeclare,
+  getSlotDeclarationState,
+  markSlotDeclared,
+} from '../services/quizDeclarationService.js';
+import { getQuizSocketIo } from '../socket/socketHub.js';
+import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 
 const QUIZ_IDS = Array.from({ length: 30 }, (_, i) => i + 1);
 const GAME_MODE = '2d';
@@ -468,6 +477,7 @@ export const getLottery2DCurrentSlot = async (req, res) => {
     }
 
     const slotSummary = toSlotSummary(slotStartIso, slotEndMs, bets, pickByQuiz, winMultiplier);
+    const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
     return res.json({
       success: true,
       data: {
@@ -477,6 +487,7 @@ export const getLottery2DCurrentSlot = async (req, res) => {
           drawLabelEnd: formatDrawLabel(slotEndMs),
           phase: ctx.phase,
           istDayKey: ctx.istDayKey,
+          declaration,
         },
         summary: slotSummary,
       },
@@ -579,6 +590,78 @@ export const getLottery2DSlotHistory = async (req, res) => {
         picksBySlot.get(slotStartIso) || new Map(),
         winMultiplier,
       );
+    });
+
+    return res.json({ success: true, data: { date, slots } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+export const getLottery2DDeclarationMatrix = async (req, res) => {
+  try {
+    const date = typeof req.query.date === 'string' ? req.query.date.trim() : istDayKey();
+    if (!isValidISTDayKey(date)) {
+      return res.status(400).json({ success: false, message: 'Invalid date. Use YYYY-MM-DD (IST).' });
+    }
+    const today = istDayKey();
+    if (date > today) {
+      return res.status(400).json({ success: false, message: 'Future date is not allowed.' });
+    }
+    const limit = Math.min(96, Math.max(1, parseInt(String(req.query.limit || '96'), 10) || 96));
+
+    const slotStartIsos = listSlotStartIsoForISTDay(date)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+      .slice(0, limit);
+
+    if (!slotStartIsos.length) {
+      return res.json({ success: true, data: { date, slots: [] } });
+    }
+
+    const [picks, declarations] = await Promise.all([
+      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
+        .select('slotStartIso quizId hintPosition')
+        .lean(),
+      QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
+        .select('slotStartIso autoDeclareBlocked declaredAt')
+        .lean(),
+    ]);
+
+    const picksBySlot = new Map();
+    for (const p of picks) {
+      if (!picksBySlot.has(p.slotStartIso)) picksBySlot.set(p.slotStartIso, new Map());
+      picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
+    }
+    const declarationBySlot = new Map(declarations.map((d) => [d.slotStartIso, d]));
+
+    const slots = slotStartIsos.map((slotStartIso) => {
+      const slotStartMs = new Date(slotStartIso).getTime();
+      const slotEndMs = slotStartMs + SLOT_MS;
+      const slotEnded = Date.now() >= slotEndMs;
+      const row = declarationBySlot.get(slotStartIso);
+      const declaration = {
+        autoDeclareBlocked: Boolean(row?.autoDeclareBlocked) && !row?.declaredAt,
+        declared: row?.declaredAt ? true : slotEnded,
+        declaredAt: row?.declaredAt || null,
+      };
+      const byQuiz = picksBySlot.get(slotStartIso) || new Map();
+      const perQuiz = QUIZ_IDS.map((quizId) => {
+        const result = byQuiz.get(quizId);
+        return {
+          quizId,
+          result: Number.isInteger(result) ? result : null,
+          resultLabel: Number.isInteger(result) ? String(result).padStart(2, '0') : '--',
+          declared: declaration.declared,
+        };
+      });
+      return {
+        slotStartIso,
+        slotEndIso: new Date(slotEndMs).toISOString(),
+        drawLabelEnd: formatDrawLabel(slotEndMs),
+        isCompleted: slotEnded,
+        declaration,
+        perQuiz,
+      };
     });
 
     return res.json({ success: true, data: { date, slots } });
@@ -798,6 +881,57 @@ export const getLottery2DQuizStakeByNumber = async (req, res) => {
         rows,
       },
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+export const updateLottery2DSlotDeclaration = async (req, res) => {
+  try {
+    if (req.admin?.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Super admin access required.' });
+    }
+    const slotStartIso = String(req.body?.slotStartIso || '').trim() || getSlotContext(new Date(), '2d').slotStartIso;
+    const action = String(req.body?.action || '').trim().toLowerCase();
+    if (!isValidISTSlotStartIso(slotStartIso)) {
+      return res.status(400).json({ success: false, message: 'Invalid slotStartIso.' });
+    }
+    if (!['hold', 'auto', 'declare'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'action must be hold, auto, or declare.' });
+    }
+    const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+    const existingDeclaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
+    if (existingDeclaration.declared) {
+      return res.status(400).json({
+        success: false,
+        message: 'Result already declared for this slot. It can be declared only once.',
+      });
+    }
+
+    if (action === 'hold') {
+      await blockAutoDeclare(slotStartIso, GAME_MODE, req.admin?._id);
+    } else if (action === 'auto') {
+      await enableAutoDeclare(slotStartIso, GAME_MODE, req.admin?._id);
+    } else {
+      if (Date.now() < slotEndMs) {
+        return res.status(400).json({
+          success: false,
+          message: 'Result can be declared only after the slot is completed.',
+        });
+      }
+      await markSlotDeclared(slotStartIso, GAME_MODE, req.admin?._id);
+      const io = getQuizSocketIo();
+      if (io) {
+        const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }, { quizId: 1, hintPosition: 1, _id: 0 }).lean();
+        const byQuiz = new Map(picks.map((p) => [p.quizId, p.hintPosition]));
+        const results = QUIZ_IDS.map((quizId) => ({ quizId, ready: Number.isInteger(byQuiz.get(quizId)) }));
+        io.emit('quiz:result', { gameMode: GAME_MODE, slotStartIso, results });
+      }
+      await settleQuizBetsForSlot(slotStartIso, GAME_MODE);
+    }
+
+    const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
+    return res.json({ success: true, data: { slotStartIso, declaration } });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }

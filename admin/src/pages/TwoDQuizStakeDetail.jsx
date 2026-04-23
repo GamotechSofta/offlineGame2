@@ -151,11 +151,11 @@ const TwoDQuizStakeDetail = () => {
                 <div className="flex flex-wrap items-center gap-3">
                     <button
                         type="button"
-                        onClick={() => navigate('/2d-management')}
+                        onClick={() => navigate('/2d-management/result-control')}
                         className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                     >
                         <FaArrowLeft className="h-3.5 w-3.5" />
-                        Back to 2D Management
+                        Back to Result Control
                     </button>
                 </div>
 

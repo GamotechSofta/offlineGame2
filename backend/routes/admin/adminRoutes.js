@@ -23,7 +23,9 @@ import {
     getLottery2DSlotPlayers,
     getLottery2DPlayerHistory,
     getLottery2DQuizStakeByNumber,
+    getLottery2DDeclarationMatrix,
     updateLottery2DSlotResult,
+    updateLottery2DSlotDeclaration,
 } from '../../controllers/lottery2dAdminController.js';
 import {
     getLottery3DCurrentSlot,
@@ -33,6 +35,7 @@ import {
     getLottery3DSlotHistory,
     getLottery3DPlayerHistory,
     updateLottery3DSlotResult,
+    updateLottery3DSlotDeclaration,
 } from '../../controllers/lottery3dAdminController.js';
 import {
   getAdminQuizTimingSettings,
@@ -62,7 +65,9 @@ router.get('/lottery2d/slots/:slotStartIso/detail', verifyAdmin, getLottery2DSlo
 router.get('/lottery2d/quizzes/:quizId/stake-by-number', verifyAdmin, getLottery2DQuizStakeByNumber);
 router.get('/lottery2d/slots/:slotStartIso/players', verifyAdmin, getLottery2DSlotPlayers);
 router.get('/lottery2d/players/:userId/history', verifyAdmin, getLottery2DPlayerHistory);
+router.get('/lottery2d/slots/declaration-matrix', verifyAdmin, getLottery2DDeclarationMatrix);
 router.patch('/lottery2d/slots/:slotStartIso/result', verifyAdmin, updateLottery2DSlotResult);
+router.patch('/lottery2d/slots/declaration', verifyAdmin, updateLottery2DSlotDeclaration);
 
 // 3D lottery admin management
 router.get('/lottery3d/current-slot', verifyAdmin, getLottery3DCurrentSlot);
@@ -72,6 +77,7 @@ router.get('/lottery3d/slots/:slotStartIso/detail', verifyAdmin, getLottery3DSlo
 router.get('/lottery3d/slots/:slotStartIso/players', verifyAdmin, getLottery3DSlotPlayers);
 router.get('/lottery3d/players/:userId/history', verifyAdmin, getLottery3DPlayerHistory);
 router.patch('/lottery3d/slots/:slotStartIso/result', verifyAdmin, updateLottery3DSlotResult);
+router.patch('/lottery3d/slots/declaration', verifyAdmin, updateLottery3DSlotDeclaration);
 
 // Quiz timing settings (study/hint split + reveal stagger)
 router.get('/quiz-settings/:mode', verifyAdmin, getAdminQuizTimingSettings);
