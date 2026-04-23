@@ -35,13 +35,13 @@ const ResultPanel = ({ title, digits, isUpdated }) => {
       <div
         className={`flex shrink-0 items-center justify-center rounded-lg py-1 text-white transition hover:brightness-[1.03] ${styles.header}`}
       >
-        <span className="text-[22px] font-bold leading-none drop-shadow-sm sm:text-[24px]">{title}</span>
+        <span className="text-[24px] font-bold leading-none drop-shadow-sm sm:text-[26px]">{title}</span>
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-3 gap-1">
         {digits.map((digit, idx) => (
           <div
             key={`${title}-${idx}`}
-            className={`flex min-h-[32px] items-center justify-center rounded-lg text-[20px] font-bold leading-none text-white transition hover:brightness-[1.04] active:scale-[0.98] sm:min-h-[34px] sm:text-[22px] ${styles.cell}`}
+            className={`flex min-h-[38px] items-center justify-center rounded-lg text-[24px] font-bold leading-none text-white transition hover:brightness-[1.04] active:scale-[0.98] sm:min-h-[40px] sm:text-[25px] ${styles.cell}`}
           >
             {digit}
           </div>

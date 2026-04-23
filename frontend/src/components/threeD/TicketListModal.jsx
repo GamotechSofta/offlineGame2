@@ -72,7 +72,7 @@ const TicketListModal = ({
                 key={ticket.id}
                 className="flex flex-col items-start justify-between gap-3 rounded-xl border border-[#6f6f6f] bg-[#4f4f4f] px-3 py-3 text-white sm:flex-row sm:items-center sm:gap-4 sm:px-4"
               >
-                <div className="grid w-full grid-cols-1 gap-x-8 gap-y-1 text-[14px] sm:grid-cols-2 sm:text-[15px]">
+                <div className="grid w-full grid-cols-1 gap-x-8 gap-y-1.5 text-[16px] sm:grid-cols-2 sm:text-[17px]">
                   <div>User Name : <span className="font-semibold">{ticket.userName}</span></div>
                   <div>Dr Time : <span className="font-semibold">{ticket.drawTime}</span></div>
                   <div>Dr Date : <span className="font-semibold">{ticket.drawDate}</span></div>
@@ -82,7 +82,7 @@ const TicketListModal = ({
                 </div>
                 <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
                   <span
-                    className={`rounded-md px-4 py-2 text-[15px] font-bold text-white shadow ${
+                    className={`rounded-md px-4 py-2.5 text-[16px] font-bold text-white shadow sm:text-[17px] ${
                       ticket.outcome === 'win'
                         ? 'bg-[#19a34a]'
                         : ticket.outcome === 'pending'
@@ -97,7 +97,7 @@ const TicketListModal = ({
                   <button
                     type="button"
                     onClick={() => onView?.(ticket)}
-                    className="rounded-md bg-[#db2f2f] px-4 py-2 text-[15px] font-bold text-white shadow hover:brightness-110"
+                    className="rounded-md bg-[#db2f2f] px-4 py-2.5 text-[16px] font-bold text-white shadow hover:brightness-110 sm:text-[17px]"
                   >
                     View
                   </button>
@@ -105,7 +105,7 @@ const TicketListModal = ({
               </div>
             ))
           ) : (
-            <div className="rounded-lg bg-[#4f4f4f] px-4 py-8 text-center text-[16px] font-semibold text-white">
+            <div className="rounded-lg bg-[#4f4f4f] px-4 py-8 text-center text-[18px] font-semibold text-white">
               {emptyMessage}
             </div>
           )}

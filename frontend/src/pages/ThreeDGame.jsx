@@ -7,7 +7,6 @@ import {
   HelpCircle,
   House,
   KeyRound,
-  LogOut,
   RefreshCw,
   Trophy,
   UserCircle,
@@ -45,9 +44,8 @@ const HEADER_MENU_ITEMS = [
   { label: 'Account', Icon: UserCircle },
   { label: 'Quiz', Icon: HelpCircle },
   { label: 'Ticket List', Icon: ClipboardList },
-  { label: 'Cancel', Icon: CircleX },
+  { label: 'Cancel Bet', Icon: CircleX },
   { label: 'Refresh', Icon: RefreshCw },
-  { label: 'Logout', Icon: LogOut },
   { label: 'History', Icon: History },
 ];
 const PANEL_OPTIONS = ['A', 'B', 'C'];
@@ -119,7 +117,7 @@ const BetCardsGrid = React.memo(function BetCardsGrid({
   return (
     <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto">
       {hiddenBetCardCount > 0 ? (
-        <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">
+        <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[13px] font-semibold text-amber-800 sm:text-[14px]">
           Showing latest {visibleBetCards.length} bets for fast view. {hiddenBetCardCount} older bets are hidden from grid but included in BUY.
         </div>
       ) : null}
@@ -140,24 +138,24 @@ const BetCardsGrid = React.memo(function BetCardsGrid({
               key={bet.id}
               className={`min-w-0 w-full max-w-full overflow-hidden rounded-xl ${shellClass} ${bet.justAdded ? 'animate-pulse' : ''}`}
             >
-              <div className={`flex h-8 items-center justify-center text-[15px] font-bold tracking-wide text-white drop-shadow-sm ${panelHeaderClass}`}>
+              <div className={`flex h-9 items-center justify-center text-[18px] font-bold tracking-wide text-white drop-shadow-sm ${panelHeaderClass}`}>
                 {panelKey || '-'}
               </div>
               <div className="px-2.5 py-2.5 text-center">
-                <div className="text-[22px] font-bold leading-none tracking-tight text-slate-900">{getDisplayBetNumber(bet)}</div>
-                <div className="mt-1 text-[13px] font-bold uppercase leading-none tracking-wide text-slate-500">{bet.mode}</div>
-                <div className="mt-1 text-[12px] font-semibold leading-none text-slate-500">Price {bet.rate}</div>
+                <div className="text-[26px] font-bold leading-none tracking-tight text-slate-900 sm:text-[28px]">{getDisplayBetNumber(bet)}</div>
+                <div className="mt-1 text-[15px] font-bold uppercase leading-none tracking-wide text-slate-500 sm:text-[16px]">{bet.mode}</div>
+                <div className="mt-1 text-[14px] font-semibold leading-none text-slate-500">Price {bet.rate}</div>
                 <button
                   type="button"
                   onClick={() => onRemoveBet(bet.id)}
-                  className="mx-auto mt-2 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-b from-rose-500 to-red-700 text-[16px] font-bold leading-none text-white shadow-[0_2px_10px_rgba(220,38,38,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-95"
+                  className="mx-auto mt-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-b from-rose-500 to-red-700 text-[18px] font-bold leading-none text-white shadow-[0_2px_10px_rgba(220,38,38,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-95"
                   aria-label="Remove bet"
                 >
                   ×
                 </button>
               </div>
               {bet.outcome ? (
-                <div className="border-t border-slate-200/70 bg-slate-50/80 px-2 pb-2 pt-1.5 text-[10px] text-center sm:text-[11px]">
+                <div className="border-t border-slate-200/70 bg-slate-50/80 px-2 pb-2 pt-1.5 text-[12px] text-center sm:text-[13px]">
                   <span className={`font-bold ${
                     bet.outcome === 'win' ? 'text-emerald-600' : bet.outcome === 'cancelled' ? 'text-slate-600' : 'text-rose-600'
                   }`}
@@ -1483,11 +1481,7 @@ const ThreeDGame = () => {
       setIsAccountModalOpen(true);
       return;
     }
-    if (label.toLowerCase() === 'logout') {
-      window.alert('Demo logout action triggered.');
-      return;
-    }
-    if (label.toLowerCase() === 'cancel') {
+    if (label.toLowerCase() === 'cancel bet') {
       handleCancelPendingTicket();
       return;
     }
@@ -1674,11 +1668,11 @@ const ThreeDGame = () => {
             <div className="bg-gradient-to-r from-rose-700 via-red-600 to-rose-700 bg-clip-text text-[clamp(1.35rem,3.5vw,1.75rem)] font-extrabold leading-none tracking-tight text-transparent">
               3D Quiz
             </div>
-            <div className="text-[13px] font-bold leading-tight text-slate-600 sm:text-[15px] md:text-[16px]">
+            <div className="text-[15px] font-bold leading-tight text-slate-600 sm:text-[16px] md:text-[17px]">
               Last Draw:{' '}
               <span className="font-extrabold tabular-nums text-slate-900">{lastDrawResult?.timeLabel || '-'}</span>
             </div>
-            <div className="text-[12px] font-bold leading-tight text-slate-700 sm:text-[14px] md:text-[15px]">
+            <div className="text-[14px] font-bold leading-tight text-slate-700 sm:text-[15px] md:text-[16px]">
               Wallet: <span className="font-extrabold tabular-nums text-emerald-700">₹{formattedWalletBalance}</span>
             </div>
           </div>
@@ -1690,34 +1684,34 @@ const ThreeDGame = () => {
           <button
             type="button"
             onClick={handleGoHome}
-            className="inline-flex h-full min-h-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200/40 bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 px-2 text-[13px] font-bold uppercase tracking-wide text-white shadow-[0_3px_12px_rgba(120,53,15,0.35)] ring-1 ring-amber-200/35 transition hover:brightness-110 active:scale-[0.99]"
+            className="inline-flex h-full min-h-0 items-center justify-center gap-2 rounded-lg border border-amber-200/40 bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 px-3 text-[15px] font-bold uppercase tracking-wide text-white shadow-[0_3px_12px_rgba(120,53,15,0.35)] ring-1 ring-amber-200/35 transition hover:brightness-110 active:scale-[0.99] sm:text-[16px]"
           >
-            <House className="h-4 w-4 shrink-0" strokeWidth={2.5} aria-hidden />
+            <House className="h-[18px] w-[18px] shrink-0 sm:h-5 sm:w-5" strokeWidth={2.5} aria-hidden />
             <span>Home</span>
           </button>
         </div>
 
         <div className="flex w-full min-h-0 items-center justify-center rounded-lg border border-[#8b9ab3] bg-[#dfe6f2] px-2 py-0.5">
-          <div className="grid w-full min-w-0 grid-cols-7 gap-1 text-center min-h-0">
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2f6ff] to-[#e3ecff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[11px] uppercase tracking-wide text-[#4a5b86] font-semibold">Time To Draw</div>
-            <div className={`text-[20px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#18233f]'}`}>{formatTimer(timerSeconds)}</div>
+          <div className="grid w-full min-w-0 grid-cols-7 gap-1.5 text-center min-h-0">
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2f6ff] to-[#e3ecff] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[12px] uppercase tracking-wide text-[#4a5b86] font-semibold sm:text-[13px]">Time To Draw</div>
+            <div className={`text-[24px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#18233f]'}`}>{formatTimer(timerSeconds)}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f9ff] to-[#edf1ff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[11px] uppercase tracking-wide text-[#5e6787] font-semibold">Dr.Time</div>
-            <div className="text-[17px] font-semibold leading-none text-[#1f2a44]">{timeToDrawText}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f9ff] to-[#edf1ff] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[12px] uppercase tracking-wide text-[#5e6787] font-semibold sm:text-[13px]">Dr.Time</div>
+            <div className="text-[18px] font-semibold leading-none text-[#1f2a44] sm:text-[19px]">{timeToDrawText}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f6f8fc] to-[#ebeff7] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[11px] uppercase tracking-wide text-[#636b7d] font-semibold">Id</div>
-            <div className="truncate text-[16px] font-semibold leading-none text-[#1f2738]" title={playerIdentity}>{playerIdentity}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f6f8fc] to-[#ebeff7] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[12px] uppercase tracking-wide text-[#636b7d] font-semibold sm:text-[13px]">Id</div>
+            <div className="truncate text-[17px] font-semibold leading-none text-[#1f2738]" title={playerIdentity}>{playerIdentity}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f3f8ff] to-[#e7f0ff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[11px] uppercase tracking-wide text-[#5a6784] font-semibold">Time</div>
-            <div className="text-[16px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f3f8ff] to-[#e7f0ff] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[12px] uppercase tracking-wide text-[#5a6784] font-semibold sm:text-[13px]">Time</div>
+            <div className="text-[17px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[11px] uppercase tracking-wide text-[#6a6284] font-semibold">Last Ticket</div>
-            <div className={`text-[14px] font-bold leading-none ${
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[12px] uppercase tracking-wide text-[#6a6284] font-semibold sm:text-[13px]">Last Ticket</div>
+            <div className={`text-[15px] font-bold leading-none sm:text-[16px] ${
               lastTicket?.outcome === 'win'
                 ? 'text-[#15803d]'
                 : lastTicket?.outcome === 'cancelled'
@@ -1727,31 +1721,27 @@ const ThreeDGame = () => {
               {lastTicket ? lastTicket.outcome.toUpperCase() : '-'}
             </div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[11px] uppercase tracking-wide text-[#8a6950] font-semibold">Last Trn</div>
-            <div className="text-[13px] font-semibold leading-none text-[#3f2a1c] truncate" title={lastTxnId}>{lastTxnId}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[12px] uppercase tracking-wide text-[#8a6950] font-semibold sm:text-[13px]">Last Trn</div>
+            <div className="text-[14px] font-semibold leading-none text-[#3f2a1c] truncate sm:text-[15px]" title={lastTxnId}>{lastTxnId}</div>
           </div>
-          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[11px] uppercase tracking-wide text-[#4e7760] font-semibold">Last Win</div>
-            <div className="text-[16px] font-semibold leading-none text-[#1f3a2b]">{lastTicket?.totalWin ?? 0}</div>
+          <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[50px] flex-col justify-center gap-0.5 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+            <div className="text-[12px] uppercase tracking-wide text-[#4e7760] font-semibold sm:text-[13px]">Last Win</div>
+            <div className="text-[18px] font-semibold leading-none text-[#1f3a2b]">{lastTicket?.totalWin ?? 0}</div>
           </div>
           </div>
         </div>
 
         <div className="w-full min-h-0 rounded-lg border border-[#d6c2a5] bg-[#fff7ec] px-2 py-2">
-          <nav className="grid w-full grid-cols-8 gap-1" aria-label="Main menu">
+          <nav className="grid w-full grid-cols-7 gap-1" aria-label="Main menu">
             {HEADER_MENU_ITEMS.map(({ label, Icon }) => (
               <button
                 key={label}
                 type="button"
                 onClick={() => handleHeaderAction(label)}
-                className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border px-1.5 py-1.5 text-[11px] font-semibold transition-colors active:scale-[0.99] ${
-                  label === 'Logout'
-                    ? 'border-[#f2be9f] bg-[#ffedd5] text-[#c2410c] hover:bg-[#fed7aa]'
-                    : 'border-[#e2c8aa] bg-[#f7ecde] text-[#6b4423] hover:bg-[#eedfc8]'
-                }`}
+                className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-[#e2c8aa] bg-[#f7ecde] px-2.5 py-2.5 text-[16px] font-bold text-[#6b4423] transition-colors hover:bg-[#eedfc8] active:scale-[0.99] sm:text-[17px]"
               >
-                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
+                <Icon className="h-5 w-5 shrink-0 sm:h-[20px] sm:w-[20px]" strokeWidth={2.25} aria-hidden />
                 <span className="truncate">{label}</span>
               </button>
             ))}
@@ -1774,57 +1764,57 @@ const ThreeDGame = () => {
         </div>
 
         <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
-            <div className="flex w-full min-w-0 flex-wrap items-center gap-2 rounded-xl border border-[#d4b896] bg-gradient-to-br from-[#fffbeb] via-[#fef3c7] to-[#fde68a] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_1px_3px_rgba(180,130,40,0.12)]">
-              <label className="inline-flex cursor-pointer select-none items-center gap-2 rounded-lg border border-[#475569] bg-[#334155] px-3 py-2 text-[14px] font-semibold uppercase tracking-wide text-white shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#64748b] has-[:focus-visible]:ring-offset-2">
-                <input className="size-4 accent-white" type="checkbox" checked={selectedPanels.length === 3} onChange={() => setSelectedPanels(selectedPanels.length === 3 ? [] : [...PANEL_OPTIONS])} />
-                All
-              </label>
-              {PANEL_OPTIONS.map((panel) => (
-                <label
-                  key={panel}
-                  className={`inline-flex cursor-pointer select-none items-center gap-2 rounded-lg border px-3 py-2 text-[15px] font-bold text-white shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
-                    panel === 'A'
-                      ? 'border-[#1d4ed8] bg-[#2563eb] has-[:focus-visible]:ring-[#3b82f6]'
-                      : panel === 'B'
-                        ? 'border-[#b91c1c] bg-[#dc2626] has-[:focus-visible]:ring-[#f87171]'
-                        : 'border-[#047857] bg-[#059669] has-[:focus-visible]:ring-[#34d399]'
-                  }`}
-                >
-                  <input className="size-4 accent-white" type="checkbox" checked={selectedPanels.includes(panel)} onChange={() => togglePanel(panel)} />
-                  {panel}
+            <div className="w-full min-w-0 rounded-xl border border-[#d4b896] bg-gradient-to-br from-[#fffbeb] via-[#fef3c7] to-[#fde68a] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_1px_3px_rgba(180,130,40,0.12)]">
+              <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-1">
+                <label className="inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border border-[#475569] bg-[#334155] px-3.5 text-[16px] font-semibold uppercase tracking-wide text-white shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#64748b] has-[:focus-visible]:ring-offset-2">
+                  <input className="size-4 accent-white" type="checkbox" checked={selectedPanels.length === 3} onChange={() => setSelectedPanels(selectedPanels.length === 3 ? [] : [...PANEL_OPTIONS])} />
+                  All
                 </label>
-              ))}
-              <span className="mx-1 hidden h-7 w-px bg-[#c9a66b]/70 sm:inline-block" aria-hidden />
-              <button
-                type="button"
-                onClick={handleToggleAllDigits}
-                className={`rounded-full border-2 px-3.5 py-2 text-[13px] font-bold tracking-wide transition ${
-                  selectedDigits.length === DIGIT_OPTIONS.length
-                    ? 'border-[#4f46e5] bg-[#4f46e5] text-white shadow-md'
-                    : 'border-[#cbd5e1] bg-white text-[#334155] shadow-sm hover:border-[#94a3b8] hover:bg-[#f8fafc]'
-                }`}
-              >
-                All
-              </button>
-              {DIGIT_OPTIONS.map((digit) => (
+                {PANEL_OPTIONS.map((panel) => (
+                  <label
+                    key={panel}
+                    className={`inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3.5 text-[17px] font-bold text-white shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
+                      panel === 'A'
+                        ? 'border-[#1d4ed8] bg-[#2563eb] has-[:focus-visible]:ring-[#3b82f6]'
+                        : panel === 'B'
+                          ? 'border-[#b91c1c] bg-[#dc2626] has-[:focus-visible]:ring-[#f87171]'
+                          : 'border-[#047857] bg-[#059669] has-[:focus-visible]:ring-[#34d399]'
+                    }`}
+                  >
+                    <input className="size-4 accent-white" type="checkbox" checked={selectedPanels.includes(panel)} onChange={() => togglePanel(panel)} />
+                    {panel}
+                  </label>
+                ))}
+                <span className="mx-1 h-7 w-px shrink-0 bg-[#c9a66b]/70" aria-hidden />
                 <button
-                  key={digit}
                   type="button"
-                  onClick={() => toggleDigit(digit)}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[15px] font-bold transition ${
-                    selectedDigits.includes(digit)
-                      ? 'scale-[1.03] border-[#4f46e5] bg-[#4f46e5] text-white shadow-md'
-                      : 'border-[#e2e8f0] bg-white text-[#334155] shadow-sm hover:border-[#94a3b8] hover:bg-[#f8fafc]'
+                  onClick={handleToggleAllDigits}
+                  className={`flex h-12 w-[5.25rem] shrink-0 items-center justify-center rounded-xl border-2 px-3 text-[18px] font-bold tracking-wide transition sm:h-[3.25rem] sm:w-[5.75rem] sm:text-[19px] ${
+                    selectedDigits.length === DIGIT_OPTIONS.length
+                      ? 'border-[#4f46e5] bg-[#4f46e5] text-white shadow-md'
+                      : 'border-[#cbd5e1] bg-white text-[#334155] shadow-sm hover:border-[#94a3b8] hover:bg-[#f8fafc]'
                   }`}
                 >
-                  {digit}
+                  All
                 </button>
-              ))}
-              <div className="ml-auto flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 pl-2 sm:gap-x-3">
+                {DIGIT_OPTIONS.map((digit) => (
+                  <button
+                    key={digit}
+                    type="button"
+                    onClick={() => toggleDigit(digit)}
+                    className={`flex h-12 w-[4rem] shrink-0 items-center justify-center rounded-xl border-2 px-2 text-[24px] font-bold transition sm:h-[3.25rem] sm:w-[4.25rem] sm:text-[25px] ${
+                      selectedDigits.includes(digit)
+                        ? 'scale-[1.03] border-[#4f46e5] bg-[#4f46e5] text-white shadow-md'
+                        : 'border-[#e2e8f0] bg-white text-[#334155] shadow-sm hover:border-[#94a3b8] hover:bg-[#f8fafc]'
+                    }`}
+                  >
+                    {digit}
+                  </button>
+                ))}
                 <button
                   type="button"
                   onClick={() => navigate('/lottery')}
-                  className="rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2 text-[14px] font-bold tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98] sm:text-[15px]"
+                  className="ml-auto shrink-0 rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2.5 text-[15px] font-bold tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98] sm:text-[16px]"
                 >
                   Go back to 2D game
                 </button>
@@ -1869,12 +1859,9 @@ const ThreeDGame = () => {
             <div className={`order-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-[#d9d9d9] bg-white ${isZoomCompactView ? 'p-2.5' : 'p-3 sm:p-4'}`}>
               <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${isZoomCompactView ? 'space-y-2' : 'space-y-3 sm:space-y-4'}`}>
               <header className={`space-y-1 border-b border-slate-200/80 ${isZoomCompactView ? 'pb-2' : 'pb-3'}`}>
-                <h2 className={`bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 bg-clip-text font-extrabold leading-tight tracking-tight text-transparent ${isZoomCompactView ? 'text-[15px] sm:text-[16px]' : 'text-[17px] sm:text-[19px]'}`}>
+                <h2 className={`bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 bg-clip-text font-extrabold leading-tight tracking-tight text-transparent ${isZoomCompactView ? 'text-[17px] sm:text-[18px]' : 'text-[18px] sm:text-[20px]'}`}>
                   Play &amp; stake — 3D Quiz
                 </h2>
-                <p className={`font-semibold leading-snug text-slate-500 ${isZoomCompactView ? 'text-[11px] sm:text-[12px]' : 'text-[12px] sm:text-[13px]'}`}>
-                  Add number or range, L-Pick &amp; qty, set rate, then BUY / Clear / Advance
-                </p>
               </header>
               <div className={`rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#f1f5f9] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.06)] ${isZoomCompactView ? 'p-2' : 'p-2.5 sm:p-3'}`}>
               {/* Line 1: ADD NUMBER + Range + NUM To NUM (single row, scroll if narrow) */}
@@ -1899,9 +1886,9 @@ const ThreeDGame = () => {
                     if (validationMsg) setValidationMsg('');
                   }}
                   placeholder="ADD NUMBER"
-                  className="h-11 w-[min(11rem,36vw)] shrink-0 rounded-full border-2 border-[#2e59c6] px-3 text-center text-[16px] font-semibold tracking-wide sm:h-12 sm:w-[190px] sm:text-[18px]"
+                  className="h-12 w-[min(12.5rem,40vw)] shrink-0 rounded-full border-2 border-[#2e59c6] px-3 text-center text-[18px] font-semibold tracking-wide sm:h-14 sm:w-[220px] sm:text-[20px]"
                 />
-                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">Range:</span>
+                <span className="shrink-0 font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">Range:</span>
                 <input
                   ref={rangeFromRef}
                   onFocus={() => setActiveInputIndex(1)}
@@ -1923,9 +1910,9 @@ const ThreeDGame = () => {
                     if (validationMsg) setValidationMsg('');
                   }}
                   placeholder="NUM."
-                  className="h-10 w-[4.25rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[15px] sm:h-11 sm:w-[76px] sm:text-[16px]"
+                  className="h-11 w-[5rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[17px] sm:h-12 sm:w-[92px] sm:text-[18px]"
                 />
-                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">To</span>
+                <span className="shrink-0 font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">To</span>
                 <input
                   ref={rangeToRef}
                   onFocus={() => setActiveInputIndex(2)}
@@ -1945,17 +1932,17 @@ const ThreeDGame = () => {
                     setRangeTo(e.target.value.replace(/\D/g, '').slice(0, 3));
                   }}
                   placeholder="NUM."
-                  className="h-10 w-[4.25rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[15px] sm:h-11 sm:w-[76px] sm:text-[16px]"
+                  className="h-11 w-[5rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[17px] sm:h-12 sm:w-[92px] sm:text-[18px]"
                 />
               </div>
               <div className={`${isZoomCompactView ? 'my-2' : 'my-2.5'} border-t border-[#d8dee9]`} aria-hidden />
               {/* Line 2: L-Pick + Qty + ADD */}
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">L-Pick:</span>
+                <span className="shrink-0 font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">L-Pick:</span>
                 <select
                   value={lPickType}
                   onChange={(e) => setLPickType(e.target.value)}
-                  className="h-10 min-w-[7.5rem] rounded-full border border-[#d1d1d1] px-3 text-[15px] sm:h-11 sm:px-4 sm:text-[16px]"
+                  className="h-11 min-w-[8.5rem] rounded-full border border-[#d1d1d1] px-3 text-[17px] sm:h-12 sm:px-4 sm:text-[18px]"
                 >
                   {LPICK_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
@@ -1963,7 +1950,7 @@ const ThreeDGame = () => {
                     </option>
                   ))}
                 </select>
-                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">Qty</span>
+                <span className="shrink-0 font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">Qty</span>
                 <input
                   ref={qtyRef}
                   onFocus={() => setActiveInputIndex(3)}
@@ -1983,36 +1970,47 @@ const ThreeDGame = () => {
                     setQty(e.target.value.replace(/\D/g, '').slice(0, 3));
                   }}
                   placeholder="Qty"
-                  className="h-10 w-[4.25rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[15px] sm:h-11 sm:w-[76px] sm:text-[16px]"
+                  className="h-11 w-[5rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[17px] sm:h-12 sm:w-[92px] sm:text-[18px]"
                 />
                 {qty ? (
                   <button
                     type="button"
                     onClick={addBet}
-                    className="h-10 shrink-0 rounded-full border border-[#2e59c6] bg-white px-4 text-[15px] font-semibold text-[#2e59c6] sm:h-11 sm:px-5 sm:text-[16px]"
+                    className="h-11 shrink-0 rounded-full border border-[#2e59c6] bg-white px-5 text-[17px] font-semibold text-[#2e59c6] sm:h-12 sm:px-6 sm:text-[18px]"
                   >
                     ADD
                   </button>
                 ) : null}
               </div>
               </div>
-              {/* Line 3: Rate — one clear row */}
-              <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto rounded-lg bg-[#f8fafc] px-2 py-2 sm:gap-3 sm:px-3">
-                <span className="shrink-0 font-semibold text-[16px] text-[#1d2b4d] sm:text-[18px]">Rate:</span>
-                <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+              {/* Line 3: Rate — fixed grid (no scroller) */}
+              <div className="min-w-0 rounded-lg bg-[#f8fafc] px-2 py-2.5 sm:px-3 sm:py-3">
+                <span className="block font-semibold text-[18px] text-[#1d2b4d] sm:text-[20px]">Rate:</span>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
                   {RATE_OPTIONS.map((rate) => (
                     <label
                       key={rate}
-                      className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#cbd5e1] bg-white px-2.5 shadow-sm sm:h-10 sm:px-3"
+                      className="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#cbd5e1] bg-white px-2.5 shadow-sm sm:h-11 sm:px-3"
                     >
-                      <input type="radio" className="size-4 accent-[#2e59c6]" checked={selectedRate === rate} onChange={() => setSelectedRate(rate)} />
-                      <span className="text-[15px] font-bold leading-none text-[#1e293b] sm:text-[17px]">{rate}</span>
+                      <input type="radio" className="size-5 accent-[#2e59c6]" checked={selectedRate === rate} onChange={() => setSelectedRate(rate)} />
+                      <span className="text-[20px] font-bold leading-none text-[#1e293b] sm:text-[22px]">{rate}</span>
                     </label>
                   ))}
                 </div>
               </div>
               </div>
-              <div className="w-full min-w-0 shrink-0 border-t border-[#e5e7eb] pt-1">
+              {validationMsg ? <div className="mt-1 shrink-0 text-[12px] font-semibold text-[#d4372f] sm:text-[13px]">{validationMsg}</div> : null}
+            </div>
+
+            <div className="order-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border-2 border-[#d9d9d9] bg-white p-3">
+              <BetCardsGrid
+                bets={bets}
+                visibleBetCards={visibleBetCards}
+                hiddenBetCardCount={hiddenBetCardCount}
+                getDisplayBetNumber={getDisplayBetNumber}
+                onRemoveBet={handleRemoveBet}
+              />
+              <div className="w-full min-w-0 shrink-0 border-t border-[#e5e7eb] pt-2 mt-2">
                 <div className={`w-full min-w-0 rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#eef2f7] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_10px_rgba(15,23,42,0.06)] ${isZoomCompactView ? 'p-2.5' : 'p-3 sm:p-4'}`}>
                   <div className={`flex w-full justify-end border-b border-slate-200/80 ${isZoomCompactView ? 'mb-2 pb-2' : 'mb-2.5 pb-2.5 sm:mb-3 sm:pb-3'}`}>
                     <div className={`font-bold leading-tight text-slate-600 ${isZoomCompactView ? 'text-[14px] sm:text-[16px]' : 'text-[16px] sm:text-[19px] md:text-[22px]'}`}>
@@ -2052,17 +2050,6 @@ const ThreeDGame = () => {
                   </div>
                 </div>
               </div>
-              {validationMsg ? <div className="mt-1 shrink-0 text-[12px] font-semibold text-[#d4372f] sm:text-[13px]">{validationMsg}</div> : null}
-            </div>
-
-            <div className="order-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border-2 border-[#d9d9d9] bg-white p-3">
-              <BetCardsGrid
-                bets={bets}
-                visibleBetCards={visibleBetCards}
-                hiddenBetCardCount={hiddenBetCardCount}
-                getDisplayBetNumber={getDisplayBetNumber}
-                onRemoveBet={handleRemoveBet}
-              />
             </div>
             </div>
 

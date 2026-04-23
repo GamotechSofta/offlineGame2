@@ -117,7 +117,7 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
               <div className="text-[20px] font-bold leading-tight sm:text-[24px]">Diamond Coupon</div>
               <div className="text-[14px] font-semibold text-white/90 sm:text-[16px]">For Amusement Only</div>
             </div>
-            <div className="space-y-2 text-[14px] sm:text-[16px]">
+            <div className="space-y-2 text-[16px] sm:text-[17px]">
               <div>Agent ID : <span className="font-semibold">{ticket?.userName || 'user'}</span></div>
               <div>Quiz : <span className="font-semibold">{overview.quizLabel}</span></div>
               <div>Coupon Dr Time : <span className="font-semibold">{ticket.drawTime || '-'}</span></div>
@@ -128,8 +128,8 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
               <div>Game ID : <span className="font-semibold">{ticket.gameId || '-'}</span></div>
             </div>
             <div className="mt-4 rounded-lg border border-white/20 bg-black/15 p-3">
-              <div className="mb-2 text-[14px] font-bold uppercase tracking-wide text-white/90">Overview</div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px] sm:text-[14px]">
+              <div className="mb-2 text-[16px] font-bold uppercase tracking-wide text-white/90">Overview</div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[15px] sm:text-[16px]">
                 <div>Total Bets : <span className="font-semibold">{overview.totalBets}</span></div>
                 <div>Win Bets : <span className="font-semibold text-emerald-300">{overview.winBets}</span></div>
                 <div>Loss Bets : <span className="font-semibold text-rose-300">{overview.lossBets}</span></div>
@@ -142,13 +142,13 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
             </div>
           </div>
           <div className="min-h-0 overflow-hidden rounded-xl border border-[#6d6d6d] bg-[#4f4f4f] p-4">
-            <div className="mb-3 text-[20px] font-bold text-white sm:text-[22px]">Ticket Items</div>
+            <div className="mb-3 text-[22px] font-bold text-white sm:text-[24px]">Ticket Items</div>
             <div className="grid max-h-[52vh] grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
               <div className="space-y-2">
                 {leftCol.map((item) => (
                   <div
                     key={item.id}
-                    className={`rounded-md px-3 py-2 text-[13px] font-bold sm:text-[14px] ${
+                    className={`rounded-md px-3 py-2.5 text-[15px] font-bold sm:text-[16px] ${
                       item.outcome === 'win'
                         ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
                         : item.outcome === 'cancelled'
@@ -162,11 +162,11 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
                         {item.outcome.toUpperCase()}
                       </span>
                     </div>
-                    <div className="mt-1 text-[12px] font-semibold text-slate-700">
+                    <div className="mt-1 text-[14px] font-semibold text-slate-700">
                       Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
                     </div>
                     {item.payoutLabel ? (
-                      <div className="mt-0.5 text-[11px] font-semibold text-emerald-700">Payout: {item.payoutLabel}</div>
+                      <div className="mt-0.5 text-[13px] font-semibold text-emerald-700">Payout: {item.payoutLabel}</div>
                     ) : null}
                   </div>
                 ))}
@@ -175,7 +175,7 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
                 {rightCol.map((item) => (
                   <div
                     key={item.id}
-                    className={`rounded-md px-3 py-2 text-[13px] font-bold sm:text-[14px] ${
+                    className={`rounded-md px-3 py-2.5 text-[15px] font-bold sm:text-[16px] ${
                       item.outcome === 'win'
                         ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
                         : item.outcome === 'cancelled'
@@ -189,11 +189,11 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
                         {item.outcome.toUpperCase()}
                       </span>
                     </div>
-                    <div className="mt-1 text-[12px] font-semibold text-slate-700">
+                    <div className="mt-1 text-[14px] font-semibold text-slate-700">
                       Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
                     </div>
                     {item.payoutLabel ? (
-                      <div className="mt-0.5 text-[11px] font-semibold text-emerald-700">Payout: {item.payoutLabel}</div>
+                      <div className="mt-0.5 text-[13px] font-semibold text-emerald-700">Payout: {item.payoutLabel}</div>
                     ) : null}
                   </div>
                 ))}
