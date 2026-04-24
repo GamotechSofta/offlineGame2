@@ -9,8 +9,6 @@ import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signUserToken } from '../utils/userJwt.js';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_FAILED_LOGIN_ATTEMPTS = 5;
-const LOGIN_BLOCK_DURATION_MS = 15 * 60 * 1000;
 
 const addWalletBalanceToUsers = async (users) => {
     if (!users || users.length === 0) return users;
@@ -33,7 +31,6 @@ export const userLogin = async (req, res) => {
     try {
         const isProduction = process.env.NODE_ENV === 'production';
         const { username, phone, password, deviceId } = req.body;
-        const now = Date.now();
 
         // Support both username and phone for login (admin-created players use phone + password)
         const loginIdentifier = phone || username;
@@ -61,24 +58,6 @@ export const userLogin = async (req, res) => {
             });
         }
 
-        const blockedUntilTs = user.loginBlockedUntil ? new Date(user.loginBlockedUntil).getTime() : 0;
-        if (blockedUntilTs > now) {
-            const remainingMinutes = Math.ceil((blockedUntilTs - now) / (60 * 1000));
-            return res.status(429).json({
-                success: false,
-                message: `Too many wrong attempts. Account is blocked for ${remainingMinutes} minute(s).`,
-                code: 'ACCOUNT_TEMP_BLOCKED',
-            });
-        }
-        if (blockedUntilTs && blockedUntilTs <= now) {
-            user.failedLoginAttempts = 0;
-            user.loginBlockedUntil = null;
-            await User.updateOne(
-                { _id: user._id },
-                { $set: { failedLoginAttempts: 0, loginBlockedUntil: null } }
-            );
-        }
-
         if (!user.isActive) {
             return res.status(403).json({
                 success: false,
@@ -89,38 +68,10 @@ export const userLogin = async (req, res) => {
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            const nextFailedAttempts = (user.failedLoginAttempts || 0) + 1;
-            if (nextFailedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
-                user.failedLoginAttempts = 0;
-                user.loginBlockedUntil = new Date(now + LOGIN_BLOCK_DURATION_MS);
-                await User.updateOne(
-                    { _id: user._id },
-                    { $set: { failedLoginAttempts: 0, loginBlockedUntil: user.loginBlockedUntil } }
-                );
-                return res.status(429).json({
-                    success: false,
-                    message: 'Too many wrong attempts. Account is blocked for 15 minutes.',
-                    code: 'ACCOUNT_TEMP_BLOCKED',
-                });
-            }
-            user.failedLoginAttempts = nextFailedAttempts;
-            user.loginBlockedUntil = null;
-            await User.updateOne(
-                { _id: user._id },
-                { $set: { failedLoginAttempts: nextFailedAttempts, loginBlockedUntil: null } }
-            );
             return res.status(401).json({
                 success: false,
-                message: `Invalid credentials. ${MAX_FAILED_LOGIN_ATTEMPTS - nextFailedAttempts} attempt(s) left.`,
+                message: 'Invalid credentials',
             });
-        }
-        if (user.failedLoginAttempts || user.loginBlockedUntil) {
-            user.failedLoginAttempts = 0;
-            user.loginBlockedUntil = null;
-            await User.updateOne(
-                { _id: user._id },
-                { $set: { failedLoginAttempts: 0, loginBlockedUntil: null } }
-            );
         }
 
         const clientIp = getClientIp(req);

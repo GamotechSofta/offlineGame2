@@ -96,33 +96,6 @@ const apiLimiter = rateLimit({
     /** Admin dashboard is JWT-protected; skip global burst limit so hints / refresh are not throttled. */
     skip: (req) => typeof req.originalUrl === 'string' && req.originalUrl.startsWith('/api/v1/admin'),
 });
-const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 25,
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (req, res) => {
-        const retryAfterMs = req.rateLimit?.resetTime
-            ? Math.max(0, new Date(req.rateLimit.resetTime).getTime() - Date.now())
-            : 15 * 60 * 1000;
-        const retryAfterMinutes = Math.max(1, Math.ceil(retryAfterMs / (60 * 1000)));
-        return res.status(429).json({
-            success: false,
-            message: `Too many login attempts. Try again after ${retryAfterMinutes} minute(s).`,
-            code: 'LOGIN_RATE_LIMITED',
-            retryAfterMinutes,
-        });
-    },
-});
-app.use('/api/v1', (req, res, next) => {
-    if (
-        req.method === 'POST' &&
-        /\/(users|admin|bookie)\/login$/.test(req.originalUrl)
-    ) {
-        return loginLimiter(req, res, next);
-    }
-    next();
-});
 
 // Inbound webhook relay — mounted before global /api/v1 rate limit (partner retries / bursts)
 app.use('/api/v1', webhookRoutes);
