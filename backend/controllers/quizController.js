@@ -64,6 +64,20 @@ function slotAcceptsBets(ctx, nowMs = Date.now()) {
   return nowMs >= ctx.slotStartMs && nowMs < ctx.slotEndMs;
 }
 
+function resolveRequestedSlotStartIso(ctx, requestedSlotRaw, nowMs = Date.now()) {
+  const requested = String(requestedSlotRaw || '').trim();
+  if (!requested) {
+    if (!slotAcceptsBets(ctx, nowMs)) return { ok: false, code: 'SLOT_CLOSED' };
+    return { ok: true, slotStartIso: ctx.slotStartIso };
+  }
+  if (!isValidISTSlotStartIso(requested)) return { ok: false, code: 'INVALID_SLOT' };
+  const slotStartMs = new Date(requested).getTime();
+  if (!Number.isFinite(slotStartMs)) return { ok: false, code: 'INVALID_SLOT' };
+  const slotEndMs = slotStartMs + SLOT_MS;
+  if (nowMs >= slotEndMs) return { ok: false, code: 'SLOT_CLOSED' };
+  return { ok: true, slotStartIso: requested };
+}
+
 /**
  * Apply amount increases + new QuizBet rows. On failure, reverse applied ops and refund wallet once.
  */
@@ -343,16 +357,20 @@ export const postQuizBet = async (req, res) => {
 
     const now = Date.now();
     const ctx = getCachedSlotContext(new Date(now), gameMode);
-    const slotStartIso = ctx.slotStartIso;
-    if (!isValidISTSlotStartIso(slotStartIso)) {
-      return res.status(400).json({ success: false, code: 'INVALID_SLOT', message: 'Invalid slot' });
-    }
-    if (!slotAcceptsBets(ctx, now)) {
+    const slotResolution = resolveRequestedSlotStartIso(ctx, req.body?.slotStartIso, now);
+    if (!slotResolution.ok) {
+      if (slotResolution.code === 'INVALID_SLOT') {
+        return res.status(400).json({ success: false, code: 'INVALID_SLOT', message: 'Invalid slotStartIso.' });
+      }
       return res.status(403).json({
         success: false,
         code: 'SLOT_CLOSED',
-        message: 'Quiz bets are only accepted during the current open draw slot (IST).',
+        message: 'Selected draw slot is closed.',
       });
+    }
+    const slotStartIso = slotResolution.slotStartIso;
+    if (!isValidISTSlotStartIso(slotStartIso)) {
+      return res.status(400).json({ success: false, code: 'INVALID_SLOT', message: 'Invalid slot' });
     }
 
     const user = await User.findById(userId).select('isActive').lean();
@@ -502,16 +520,20 @@ export const postQuizBetsBatch = async (req, res) => {
 
     const now = Date.now();
     const ctx = getCachedSlotContext(new Date(now), gameMode);
-    const slotStartIso = ctx.slotStartIso;
-    if (!isValidISTSlotStartIso(slotStartIso)) {
-      return res.status(400).json({ success: false, code: 'INVALID_SLOT', message: 'Invalid slot' });
-    }
-    if (!slotAcceptsBets(ctx, now)) {
+    const slotResolution = resolveRequestedSlotStartIso(ctx, req.body?.slotStartIso, now);
+    if (!slotResolution.ok) {
+      if (slotResolution.code === 'INVALID_SLOT') {
+        return res.status(400).json({ success: false, code: 'INVALID_SLOT', message: 'Invalid slotStartIso.' });
+      }
       return res.status(403).json({
         success: false,
         code: 'SLOT_CLOSED',
-        message: 'Quiz bets are only accepted during the current open draw slot (IST).',
+        message: 'Selected draw slot is closed.',
       });
+    }
+    const slotStartIso = slotResolution.slotStartIso;
+    if (!isValidISTSlotStartIso(slotStartIso)) {
+      return res.status(400).json({ success: false, code: 'INVALID_SLOT', message: 'Invalid slot' });
     }
 
     const user = await User.findById(userId).select('isActive').lean();

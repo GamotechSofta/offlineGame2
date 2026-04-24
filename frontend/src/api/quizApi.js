@@ -56,12 +56,13 @@ export async function postQuizBet(quizId, bets, mode = '2d') {
 }
 
 /** @param {{ quizId: number, bets: { number: number, amount: number }[] }[]} rounds */
-export async function postQuizBetsBatch(rounds, mode = '2d') {
+export async function postQuizBetsBatch(rounds, mode = '2d', options = {}) {
+  const slotStartIso = typeof options?.slotStartIso === 'string' ? options.slotStartIso.trim() : '';
   const res = await fetch(`${base}/bet-batch`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify({ rounds, mode }),
+    body: JSON.stringify({ rounds, mode, ...(slotStartIso ? { slotStartIso } : {}) }),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {

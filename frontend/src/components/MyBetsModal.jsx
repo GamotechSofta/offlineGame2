@@ -31,10 +31,17 @@ const groupQuizRows = (items) => {
         drawLabelEnd: row.drawLabelEnd,
         slotEnded: row.slotEnded,
         winningNumber: row.winningNumber,
+        isAdvanceDraw: false,
         lines: [],
       });
     }
-    map.get(k).lines.push(row);
+    const group = map.get(k);
+    const createdAtMs = new Date(row?.createdAt || 0).getTime();
+    const slotStartMs = new Date(row?.slotStartIso || 0).getTime();
+    if (Number.isFinite(createdAtMs) && Number.isFinite(slotStartMs) && slotStartMs - createdAtMs > 60 * 1000) {
+      group.isAdvanceDraw = true;
+    }
+    group.lines.push(row);
   }
   return [...map.values()].map((g) => ({
     ...g,
@@ -149,6 +156,9 @@ const MyBetsModal = ({ open, onClose }) => {
               <div key={`${g.slotStartIso}-${g.quizId}`} className="mb-3 rounded border border-[#bbb] bg-white p-2.5 shadow-sm">
                 <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-bold text-[#1a4d6e]">
                   QUIZ{String(g.quizId).padStart(2, '0')} · Draw: {g.drawLabelEnd ?? '—'}
+                  {g.isAdvanceDraw ? (
+                    <span className="rounded bg-[#1d4ed8] px-2 py-0.5 text-white">Advance Draw</span>
+                  ) : null}
                   {g.slotEnded && g.winningNumber != null && (
                     <span className="rounded bg-[#f2f6ff] px-2 py-0.5 font-mono text-[#333]">Winning No.: {g.winningNumber}</span>
                   )}

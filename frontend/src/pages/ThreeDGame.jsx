@@ -26,6 +26,7 @@ import {
 } from '../components/threeD/helpers';
 import TicketListModal from '../components/threeD/TicketListModal';
 import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
+import AdvanceDrawModal from '../components/AdvanceDrawModal';
 import { getBalance, updateUserBalance } from '../api/bets';
 import { getMyQuizBets, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
 import { getCurrentUser, subscribeUserSession } from '../session/userSession';
@@ -223,6 +224,10 @@ const ThreeDGame = () => {
   const [isHistoryListOpen, setIsHistoryListOpen] = useState(false);
   const [backendHistoryTickets, setBackendHistoryTickets] = useState([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isAdvanceDrawOpen, setIsAdvanceDrawOpen] = useState(false);
+  const [selectedAdvanceSlots, setSelectedAdvanceSlots] = useState([]);
+  const [advanceBuySuccess, setAdvanceBuySuccess] = useState(null);
+  const [advanceSelectionNotice, setAdvanceSelectionNotice] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [resultDateDay, setResultDateDay] = useState(() => String(new Date().getDate()).padStart(2, '0'));
@@ -678,6 +683,11 @@ const ThreeDGame = () => {
     const t = setTimeout(() => setToast(''), 1800);
     return () => clearTimeout(t);
   }, [toast]);
+  useEffect(() => {
+    if (!advanceSelectionNotice) return undefined;
+    const t = setTimeout(() => setAdvanceSelectionNotice(''), 1400);
+    return () => clearTimeout(t);
+  }, [advanceSelectionNotice]);
 
   useEffect(() => {
     if (!isResultModalOpen || !resultFilterKey) return undefined;
@@ -739,6 +749,21 @@ const ThreeDGame = () => {
         .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`),
     [nextDrawAt],
   );
+  const formatAdvanceSlotLabel = useCallback((iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '-';
+    return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+      .format(d)
+      .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
+  }, []);
+  const advanceDrawSlots = useMemo(() => {
+    const baseMs = new Date(nextDrawAt).getTime();
+    if (!Number.isFinite(baseMs)) return [];
+    return Array.from({ length: 47 }, (_, idx) => {
+      const slotStartIso = new Date(baseMs + (idx * 15 * 60 * 1000)).toISOString();
+      return { slotStartIso, label: formatAdvanceSlotLabel(slotStartIso) };
+    });
+  }, [formatAdvanceSlotLabel, nextDrawAt]);
   const generateGameId = useCallback(() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -1209,19 +1234,30 @@ const ThreeDGame = () => {
       return;
     }
 
+    const targetSlots = selectedAdvanceSlots.length
+      ? [...selectedAdvanceSlots]
+      : [new Date(nextDrawAt).toISOString()];
+    const totalPerSlot = Number(investedAmount) || 0;
+    const requiredBalance = totalPerSlot * targetSlots.length;
+    if ((Number(walletBalance) || 0) < requiredBalance) {
+      setValidationMsg(`Insufficient balance for ${targetSlots.length} slot(s). Need ₹${requiredBalance}.`);
+      return;
+    }
+
     let backendBalance = null;
     try {
-      const saved = await postQuizBetsBatch(rounds, '3d');
-      const b = Number(saved?.data?.balance);
-      if (Number.isFinite(b)) backendBalance = b;
+      for (const slotStartIso of targetSlots) {
+        // eslint-disable-next-line no-await-in-loop
+        const saved = await postQuizBetsBatch(rounds, '3d', { slotStartIso });
+        const b = Number(saved?.data?.balance);
+        if (Number.isFinite(b)) backendBalance = b;
+      }
     } catch (e) {
       setValidationMsg(e?.message || 'Failed to save bet in database.');
       return;
     }
 
     const drawDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const gameId = generateGameId();
-    const settleAtMs = new Date(nextDrawAt).getTime();
     if (backendBalance != null) {
       updateUserBalance(backendBalance);
       setWalletBalance(backendBalance);
@@ -1243,33 +1279,55 @@ const ThreeDGame = () => {
     const resolvedQuizId = Number.isInteger(Number(selectedQuizId)) && Number(selectedQuizId) > 0
       ? Number(selectedQuizId)
       : null;
-    const ticket = {
-      id: Date.now(),
-      userName: 'user',
-      quizId: resolvedQuizId,
-      drawTime: timeToDrawText,
-      drawDate,
-      gameId,
-      slotKey: slotRef.current,
-      settleAtMs: Number.isFinite(settleAtMs) ? settleAtMs : null,
-      bets: pendingBets,
-      totalPoints: investedAmount,
-      totalWin: 0,
-      outcome: 'pending',
-      settled: false,
-      createdAt: new Date().toISOString(),
-    };
-    setTicketHistory((prev) => [ticket, ...prev].slice(0, 200));
-    setLastTxnId(gameId);
-    setLastPoints(investedAmount);
-    setToast('Bet placed successfully');
+    const createdTickets = targetSlots.map((slotStartIso, idx) => {
+      const settleAtMs = new Date(slotStartIso).getTime() + (15 * 60 * 1000);
+      const slotDate = new Date(slotStartIso);
+      const slotDrawDate = `${slotDate.getFullYear()}-${String(slotDate.getMonth() + 1).padStart(2, '0')}-${String(slotDate.getDate()).padStart(2, '0')}`;
+      const gameId = generateGameId();
+      return {
+        id: Date.now() + idx,
+        userName: 'user',
+        quizId: resolvedQuizId,
+        drawTime: formatAdvanceSlotLabel(slotStartIso),
+        drawDate: slotDrawDate || drawDate,
+        gameId,
+        slotKey: slotRef.current,
+        settleAtMs: Number.isFinite(settleAtMs) ? settleAtMs : null,
+        bets: pendingBets,
+        totalPoints: investedAmount,
+        totalWin: 0,
+        outcome: 'pending',
+        settled: false,
+        isAdvanceDraw: selectedAdvanceSlots.length > 0,
+        createdAt: new Date().toISOString(),
+      };
+    });
+    setTicketHistory((prev) => [...createdTickets, ...prev].slice(0, 500));
+    setLastTxnId(createdTickets[0]?.gameId || '');
+    setLastPoints((Number(investedAmount) || 0) * targetSlots.length);
+    setToast(targetSlots.length > 1 ? 'Advance draw bets scheduled successfully' : 'Bet placed successfully');
+    if (targetSlots.length > 1) {
+      setAdvanceBuySuccess({
+        slotCount: targetSlots.length,
+        totalPoints: (Number(investedAmount) || 0) * targetSlots.length,
+        perSlotPoints: Number(investedAmount) || 0,
+        slots: targetSlots.map((slotStartIso) => formatAdvanceSlotLabel(slotStartIso)),
+      });
+    } else {
+      setAdvanceBuySuccess(null);
+    }
     setBuySummary(null);
-    setValidationMsg('Status: pending. Result will be shown after draw time.');
+    setValidationMsg(
+      targetSlots.length > 1
+        ? `Status: pending. Scheduled for ${targetSlots.length} future slots.`
+        : 'Status: pending. Result will be shown after draw time.',
+    );
     setBets([]);
+    setSelectedAdvanceSlots([]);
     } finally {
       isBuyingRef.current = false;
     }
-  }, [bets, generateGameId, nextDrawAt, now, refreshWalletBalance, selectedQuizId, timeToDrawText, totalPoints, walletBalance]);
+  }, [bets, formatAdvanceSlotLabel, generateGameId, nextDrawAt, now, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
 
   const handleCancelPendingTicket = useCallback(() => {
     const nowMs = Date.now();
@@ -1430,11 +1488,8 @@ const ThreeDGame = () => {
   }, []);
 
   const handleAdvance = useCallback(() => {
-    if (!window.confirm('Are you sure to generate next result?')) return;
-    applyFreshResult(generate3DResult());
-    setTimerSeconds(GAME_INTERVAL_SECONDS);
-    setNextDrawAt(getNextDrawTime(new Date()));
-  }, [applyFreshResult]);
+    setIsAdvanceDrawOpen(true);
+  }, []);
 
   const handleRotateLandscape = useCallback(async () => {
     try {
@@ -2147,10 +2202,10 @@ const ThreeDGame = () => {
         </div>
 
         {buySummary ? (
-          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-            <div className="w-full max-w-md bg-white rounded-lg border border-[#d9d9d9] shadow-xl p-4">
-              <h3 className="text-[22px] font-bold text-[#1d2b4d]">Bet Summary</h3>
-              <div className="mt-3 space-y-1 text-[15px]">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/65 p-4 backdrop-blur-[2px]">
+            <div className="w-full max-w-md rounded-2xl border border-[#bfdbfe] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_20px_55px_rgba(2,6,23,0.45)]">
+              <h3 className="text-[24px] font-black text-[#1d2b4d]">Bet Summary</h3>
+              <div className="mt-3 space-y-1.5 text-[15px]">
                 <div>Total Bets: <span className="font-semibold">{buySummary.totalBets}</span></div>
                 <div>Winning Bets: <span className="font-semibold text-[#2ca44f]">{buySummary.matched}</span></div>
                 <div>Total Win: <span className="font-semibold text-[#2ca44f]">{buySummary.totalWinPoints}</span></div>
@@ -2159,8 +2214,33 @@ const ThreeDGame = () => {
                 <div>Ticket Outcome: <span className={`font-semibold ${buySummary.outcome === 'win' ? 'text-[#2ca44f]' : 'text-[#d4372f]'}`}>{buySummary.outcome?.toUpperCase?.() || '-'}</span></div>
                 <div>Last Win Amount: <span className="font-semibold text-[#2ca44f]">{buySummary.lastWinAmount}</span></div>
               </div>
-              <button type="button" onClick={() => setBuySummary(null)} className="mt-4 w-full h-11 bg-[#2e59c6] border border-[#264ca7] rounded text-white font-semibold">
+              <button type="button" onClick={() => setBuySummary(null)} className="mt-5 h-11 w-full rounded-lg border border-[#264ca7] bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(37,99,235,0.35)]">
                 Close
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {advanceBuySuccess ? (
+          <div className="fixed inset-0 z-[86] flex items-center justify-center bg-[#020617]/70 p-4 backdrop-blur-[2px]">
+            <div className="w-full max-w-md rounded-2xl border border-[#93c5fd] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_20px_55px_rgba(2,6,23,0.45)]">
+              <h3 className="text-[24px] font-black text-[#1d4ed8]">Advance Draw Success</h3>
+              <div className="mt-3 space-y-1.5 text-[15px] text-[#1f2937]">
+                <div>Scheduled Slots: <span className="font-bold">{advanceBuySuccess.slotCount}</span></div>
+                <div>Points Per Slot: <span className="font-bold">{advanceBuySuccess.perSlotPoints}</span></div>
+                <div>Total Points: <span className="font-bold">{advanceBuySuccess.totalPoints}</span></div>
+                <div className="pt-1 font-semibold">Slot Times:</div>
+              </div>
+              <div className="mt-2 max-h-36 space-y-1 overflow-y-auto rounded-xl border border-[#dbe4ff] bg-[#eff6ff] p-2.5 text-[14px] font-semibold text-[#1e3a8a]">
+                {advanceBuySuccess.slots.map((slot, idx) => (
+                  <div key={`${slot}-${idx}`}>{slot}</div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdvanceBuySuccess(null)}
+                className="mt-5 h-11 w-full rounded-lg border border-[#1d4ed8] bg-gradient-to-b from-[#3b82f6] to-[#1d4ed8] text-[15px] font-extrabold text-white shadow-[0_8px_20px_rgba(37,99,235,0.35)]"
+              >
+                OK
               </button>
             </div>
           </div>
@@ -2192,6 +2272,43 @@ const ThreeDGame = () => {
           ticket={selectedTicket}
           onClose={() => setSelectedTicket(null)}
         />
+        <AdvanceDrawModal
+          open={isAdvanceDrawOpen}
+          title="ADVANCE DRAW"
+          currentLabel={currentTimeText}
+          nextLabel={timeToDrawText}
+          slotOptions={advanceDrawSlots}
+          selectedSlots={selectedAdvanceSlots}
+          onToggleSlot={(slotStartIso) => {
+            setSelectedAdvanceSlots((prev) => (
+              prev.includes(slotStartIso)
+                ? prev.filter((x) => x !== slotStartIso)
+                : [...prev, slotStartIso]
+            ));
+          }}
+          onToggleAll={() => {
+            setSelectedAdvanceSlots((prev) => (
+              prev.length === advanceDrawSlots.length ? [] : advanceDrawSlots.map((x) => x.slotStartIso)
+            ));
+          }}
+          onApply={() => {
+            setIsAdvanceDrawOpen(false);
+            if (selectedAdvanceSlots.length > 0) {
+              setAdvanceSelectionNotice(`Advance slot selected (${selectedAdvanceSlots.length})`);
+            } else {
+              setAdvanceSelectionNotice('No advance slot selected');
+            }
+          }}
+          onClose={() => setIsAdvanceDrawOpen(false)}
+        />
+        {advanceSelectionNotice ? (
+          <div className="fixed inset-0 z-[87] flex items-center justify-center bg-[#020617]/60 p-4 backdrop-blur-[2px]">
+            <div className="w-full max-w-sm rounded-2xl border border-[#93c5fd] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_18px_45px_rgba(2,6,23,0.45)]">
+              <h3 className="text-[22px] font-black text-[#1d4ed8]">Advance Draw</h3>
+              <p className="mt-2 text-[16px] font-bold text-[#1e293b]">{advanceSelectionNotice}</p>
+            </div>
+          </div>
+        ) : null}
         {canUsePortal && isResultModalOpen ? createPortal(
           <div className="fixed inset-0 z-[88] flex items-center justify-center bg-black/55 p-3 sm:p-4">
             <div className="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#8d8d8d] bg-[#d4d7dd] shadow-2xl">

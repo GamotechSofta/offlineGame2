@@ -7,6 +7,7 @@ import StatusStrip from '../components/StatusStrip';
 import NumberBoard from '../components/NumberBoard';
 import SummaryPanel from '../components/SummaryPanel';
 import ControlPanel from '../components/ControlPanel';
+import AdvanceDrawModal from '../components/AdvanceDrawModal';
 import ResultHistoryModal from '../components/ResultHistoryModal';
 import MyBetsModal from '../components/MyBetsModal';
 import { getBalance, updateUserBalance } from '../api/bets';
@@ -42,6 +43,9 @@ const LotteryDashboard = () => {
   const [multi, setMulti] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showMyBets, setShowMyBets] = useState(false);
+  const [showAdvanceDrawModal, setShowAdvanceDrawModal] = useState(false);
+  const [selectedAdvanceSlots, setSelectedAdvanceSlots] = useState([]);
+  const [advanceSelectionNotice, setAdvanceSelectionNotice] = useState('');
   const [serverSlot, setServerSlot] = useState(null);
   const [slotSyncErr, setSlotSyncErr] = useState('');
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
@@ -219,6 +223,11 @@ const LotteryDashboard = () => {
       clearInterval(id);
     };
   }, []);
+  useEffect(() => {
+    if (!advanceSelectionNotice) return undefined;
+    const t = setTimeout(() => setAdvanceSelectionNotice(''), 1400);
+    return () => clearTimeout(t);
+  }, [advanceSelectionNotice]);
 
   useEffect(() => {
     let stop = false;
@@ -334,14 +343,38 @@ const LotteryDashboard = () => {
     if (exceedsMaxNumbersPerQuiz) {
       lines.push(`Max ${MAX_QUIZ_NUMBERS_PER_SLOT} unique numbers (00-99) per quiz - reduce selection or RESET.`);
     }
+    if (selectedAdvanceSlots.length) {
+      lines.push(`Advance Draw: ${selectedAdvanceSlots.length} future slot(s) selected.`);
+    }
     return lines;
-  }, [slotSyncErr, serverSlot, exceedsMaxNumbersPerQuiz, slotOpenForBuy]);
+  }, [slotSyncErr, serverSlot, exceedsMaxNumbersPerQuiz, slotOpenForBuy, selectedAdvanceSlots.length]);
+
+  const formatAdvanceSlotLabel = useCallback((iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '-';
+    return new Intl.DateTimeFormat('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(d).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
+  }, []);
+
+  const advanceDrawSlots = useMemo(() => {
+    const base = serverSlot?.slotStartIso ? new Date(serverSlot.slotStartIso) : new Date();
+    if (Number.isNaN(base.getTime())) return [];
+    const startMs = base.getTime() + (15 * 60 * 1000);
+    return Array.from({ length: 47 }, (_, idx) => {
+      const slotStartMs = startMs + (idx * 15 * 60 * 1000);
+      const slotStartIso = new Date(slotStartMs).toISOString();
+      return { slotStartIso, label: formatAdvanceSlotLabel(slotStartIso) };
+    });
+  }, [formatAdvanceSlotLabel, serverSlot?.slotStartIso]);
 
   const buyDisabled =
     totals.totalAmount <= 0 ||
     !!slotSyncErr ||
     !serverSlot?.slotStartIso ||
-    !slotOpenForBuy ||
+    (!slotOpenForBuy && selectedAdvanceSlots.length === 0) ||
     exceedsMaxNumbersPerQuiz;
 
   const handleQuizToggle = useCallback((quizNo) => {
@@ -590,18 +623,7 @@ const LotteryDashboard = () => {
   }, []);
 
   const handleAdvanceDraw = useCallback(() => {
-    setActiveQuiz((prev) => {
-      const next = prev >= 30 ? 1 : prev + 1;
-      setSelectedQuizzes([next]);
-      return next;
-    });
-    setSelectedMap({});
-    setPendingTarget(null);
-    setAmountDraft('');
-    setEnteredAmount(0);
-    appliedAmountByTargetRef.current = {};
-    setRowPointDisplay(Array.from({ length: 10 }, () => ''));
-    setColPointDisplay(Array.from({ length: 10 }, () => ''));
+    setShowAdvanceDrawModal(true);
   }, []);
 
   const handleReset = useCallback(() => {
@@ -684,7 +706,7 @@ const LotteryDashboard = () => {
       setUiNotice('Server slot not available. Please try again.');
       return;
     }
-    if (!slotOpenForBuy) {
+    if (!slotOpenForBuy && selectedAdvanceSlots.length === 0) {
       setUiNotice('BUY works only while the current 15-minute draw slot is open. Wait for next slot if closed.');
       return;
     }
@@ -734,12 +756,28 @@ const LotteryDashboard = () => {
         const bets = [...amountByNum.entries()].map(([number, amount]) => ({ number, amount }));
         return { quizId, bets };
       });
-      const j = await postQuizBetsBatch(rounds);
-      const lastBalance = j?.data?.balance;
-      if (lastBalance != null) {
-        updateUserBalance(lastBalance);
-        setWalletBalance(Number(lastBalance));
-        window.dispatchEvent(new CustomEvent('balanceUpdated', { detail: { balance: lastBalance } }));
+      const targetSlots = selectedAdvanceSlots.length ? [...selectedAdvanceSlots] : [serverSlot.slotStartIso];
+      const totalStakePerTicket = rounds.reduce(
+        (sum, round) => sum + round.bets.reduce((s, bet) => s + Number(bet.amount || 0), 0),
+        0,
+      );
+      const requiredBalance = totalStakePerTicket * targetSlots.length;
+      if ((Number(walletBalance) || 0) < requiredBalance) {
+        setUiNotice(`Insufficient balance for ${targetSlots.length} slot(s). Need ₹${requiredBalance}.`);
+        return;
+      }
+
+      let latestBalance = null;
+      for (const slotStartIso of targetSlots) {
+        // eslint-disable-next-line no-await-in-loop
+        const j = await postQuizBetsBatch(rounds, '2d', { slotStartIso });
+        const bal = Number(j?.data?.balance);
+        if (Number.isFinite(bal)) latestBalance = bal;
+      }
+      if (latestBalance != null) {
+        updateUserBalance(latestBalance);
+        setWalletBalance(Number(latestBalance));
+        window.dispatchEvent(new CustomEvent('balanceUpdated', { detail: { balance: latestBalance } }));
       }
       setSelectedMap({});
       setPendingTarget(null);
@@ -748,11 +786,14 @@ const LotteryDashboard = () => {
       appliedAmountByTargetRef.current = {};
       setRowPointDisplay(Array.from({ length: 10 }, () => ''));
       setColPointDisplay(Array.from({ length: 10 }, () => ''));
-      const n = j?.data?.linesProcessed ?? j?.data?.totalBetsPlaced ?? 0;
+      setSelectedAdvanceSlots([]);
+      const n = rounds.reduce((sum, r) => sum + r.bets.length, 0);
       setUiNotice(
-        n === 1
-          ? 'Your ticket is in! You can see it under My Bets → Quiz Tickets.'
-          : `All set — ${n} lines placed. Open My Bets → Quiz Tickets anytime to review your picks.`,
+        targetSlots.length === 1
+          ? (n === 1
+            ? 'Your ticket is in! You can see it under My Bets → Quiz Tickets.'
+            : `All set — ${n} lines placed. Open My Bets → Quiz Tickets anytime to review your picks.`)
+          : `All set — scheduled ${n} line(s) for ${targetSlots.length} future slot(s).`,
       );
     } catch (e) {
       const msg =
@@ -765,7 +806,7 @@ const LotteryDashboard = () => {
               : e.message || 'BUY failed';
       setUiNotice(msg);
     }
-  }, [selectedMap, serverSlot, slotOpenForBuy]);
+  }, [selectedAdvanceSlots, selectedMap, serverSlot, slotOpenForBuy, walletBalance]);
   const handleIncrease = useCallback(() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleDecrease = useCallback(() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1)), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleEnterAmount = useCallback(() => {
@@ -890,9 +931,46 @@ const LotteryDashboard = () => {
         defaultIstDay={serverSlot?.istDayKey}
       />
       <MyBetsModal open={showMyBets} onClose={() => setShowMyBets(false)} />
+      <AdvanceDrawModal
+        open={showAdvanceDrawModal}
+        title="ADVANCE DRAW"
+        currentLabel={formatAdvanceSlotLabel(serverSlot?.slotStartIso || new Date().toISOString())}
+        nextLabel={serverSlot?.drawLabelNext || '-'}
+        slotOptions={advanceDrawSlots}
+        selectedSlots={selectedAdvanceSlots}
+        onToggleSlot={(slotStartIso) => {
+          setSelectedAdvanceSlots((prev) => (
+            prev.includes(slotStartIso)
+              ? prev.filter((x) => x !== slotStartIso)
+              : [...prev, slotStartIso]
+          ));
+        }}
+        onToggleAll={() => {
+          setSelectedAdvanceSlots((prev) => (
+            prev.length === advanceDrawSlots.length ? [] : advanceDrawSlots.map((x) => x.slotStartIso)
+          ));
+        }}
+        onApply={() => {
+          setShowAdvanceDrawModal(false);
+          if (selectedAdvanceSlots.length > 0) {
+            setAdvanceSelectionNotice(`Advance slot selected (${selectedAdvanceSlots.length})`);
+          } else {
+            setAdvanceSelectionNotice('No advance slot selected');
+          }
+        }}
+        onClose={() => setShowAdvanceDrawModal(false)}
+      />
+      {advanceSelectionNotice ? (
+        <div className="fixed inset-0 z-[87] flex items-center justify-center bg-[#020617]/60 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm rounded-2xl border border-[#93c5fd] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_18px_45px_rgba(2,6,23,0.45)]">
+            <h3 className="text-[22px] font-black text-[#1d4ed8]">Advance Draw</h3>
+            <p className="mt-2 text-[16px] font-bold text-[#1e293b]">{advanceSelectionNotice}</p>
+          </div>
+        </div>
+      ) : null}
       {showRotatePrompt && (
-        <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[#111] border border-[#3b3b3b] text-white p-4 text-center">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 backdrop-blur-[1px]">
+          <div className="w-full max-w-sm rounded-xl border border-[#3b3b3b] bg-[#111] p-4 text-center text-white shadow-2xl">
             <div className="phone-rotate-wrap phone-rotate-wrap--tap" aria-hidden>
               <div className="phone-rotate-icon" />
             </div>
@@ -904,7 +982,7 @@ const LotteryDashboard = () => {
             <button
               type="button"
               onClick={handleRotateLandscape}
-              className="w-full h-11 bg-[#ef3f34] border border-[#d4372f] font-extrabold text-[15px]"
+              className="h-11 w-full rounded-lg border border-[#d4372f] bg-gradient-to-b from-[#ef3f34] to-[#d83028] font-extrabold text-[15px] shadow-[0_8px_20px_rgba(239,63,52,0.35)]"
             >
               Tap Here
             </button>
@@ -912,13 +990,13 @@ const LotteryDashboard = () => {
         </div>
       )}
       {uiNotice && (
-        <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-sm border border-[#3b3b3b] bg-[#111] p-4 text-center text-white">
-            <p className="mb-4 text-sm font-semibold">{uiNotice}</p>
+        <div className="fixed inset-0 z-[85] flex items-center justify-center bg-[#020617]/75 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-5 text-center text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)]">
+            <p className="mb-4 text-[15px] font-bold leading-relaxed">{uiNotice}</p>
             <button
               type="button"
               onClick={() => setUiNotice('')}
-              className="h-10 w-full border border-[#1c87cd] bg-[#2d9de8] font-semibold"
+              className="h-11 w-full rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-[15px] font-extrabold shadow-[0_8px_20px_rgba(14,165,233,0.35)]"
             >
               OK
             </button>

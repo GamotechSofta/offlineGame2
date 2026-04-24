@@ -46,6 +46,18 @@ const TicketListModal = ({
                   : 'loss',
           totalPoints: Number(ticket?.totalPoints || 0),
           totalWin: Number(ticket?.totalWin || 0),
+          isAdvanceDraw: (() => {
+            if (ticket?.isAdvanceDraw === true) return true;
+            const slotStartMs = new Date(ticket?.slotStartIso || 0).getTime();
+            if (Number.isFinite(slotStartMs) && slotStartMs > 0) {
+              return slotStartMs - (Number.isNaN(createdAt.getTime()) ? Date.now() : createdAt.getTime()) > 60 * 1000;
+            }
+            const settleAtMs = Number(ticket?.settleAtMs || 0);
+            if (Number.isFinite(settleAtMs) && settleAtMs > 0 && !Number.isNaN(createdAt.getTime())) {
+              return settleAtMs - createdAt.getTime() > 15 * 60 * 1000;
+            }
+            return false;
+          })(),
         };
       })
       .sort((a, b) => b.createdAtMs - a.createdAtMs);
@@ -88,6 +100,11 @@ const TicketListModal = ({
                   <div>Total Win : <span className="font-semibold">{ticket.totalWin}</span></div>
                 </div>
                 <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+                  {ticket.isAdvanceDraw ? (
+                    <span className="rounded-md bg-[#1d4ed8] px-3 py-2.5 text-[15px] font-extrabold text-white shadow sm:text-[16px]">
+                      Advance Draw
+                    </span>
+                  ) : null}
                   <span
                     className={`rounded-md px-4 py-2.5 text-[16px] font-bold text-white shadow sm:text-[17px] ${
                       ticket.outcome === 'win'
