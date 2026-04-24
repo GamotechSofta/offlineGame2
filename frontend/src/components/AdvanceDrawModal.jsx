@@ -34,7 +34,7 @@ const AdvanceDrawModal = ({
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-1 top-0.5 rounded-sm border border-[#7c3f00] bg-[#a85a00] px-1 py-0 text-[13px] font-bold leading-none text-black hover:brightness-110 md:top-1 md:px-2 md:py-0.5 md:text-xl"
+            className="absolute right-1 top-0.5 inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#7c3f00] bg-[#a85a00] text-[22px] font-black leading-none text-black hover:brightness-110 md:top-1 md:h-10 md:w-10 md:text-[30px]"
             aria-label="Close advance draw modal"
           >
             ×
@@ -49,13 +49,6 @@ const AdvanceDrawModal = ({
             <div className="text-[9px] font-medium md:text-[14px]">
               Next Draw in: <span className="font-semibold">{nextLabel || '-'}</span>
             </div>
-            <button
-              type="button"
-              onClick={onApply}
-              className="h-6 min-w-[64px] rounded-sm border border-[#1748b7] bg-[#0d2be3] px-2 text-[9px] font-semibold text-white md:h-9 md:min-w-[82px] md:px-3 md:text-[12px]"
-            >
-              OKAY
-            </button>
           </div>
 
           <div className="mt-0.5 grid grid-cols-[1fr_auto] items-center gap-1">

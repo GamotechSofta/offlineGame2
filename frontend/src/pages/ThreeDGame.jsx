@@ -2272,43 +2272,88 @@ const ThreeDGame = () => {
           ticket={selectedTicket}
           onClose={() => setSelectedTicket(null)}
         />
-        <AdvanceDrawModal
-          open={isAdvanceDrawOpen}
-          title="ADVANCE DRAW"
-          currentLabel={currentTimeText}
-          nextLabel={timeToDrawText}
-          slotOptions={advanceDrawSlots}
-          selectedSlots={selectedAdvanceSlots}
-          onToggleSlot={(slotStartIso) => {
-            setSelectedAdvanceSlots((prev) => (
-              prev.includes(slotStartIso)
-                ? prev.filter((x) => x !== slotStartIso)
-                : [...prev, slotStartIso]
-            ));
-          }}
-          onToggleAll={() => {
-            setSelectedAdvanceSlots((prev) => (
-              prev.length === advanceDrawSlots.length ? [] : advanceDrawSlots.map((x) => x.slotStartIso)
-            ));
-          }}
-          onApply={() => {
-            setIsAdvanceDrawOpen(false);
-            if (selectedAdvanceSlots.length > 0) {
-              setAdvanceSelectionNotice(`Advance slot selected (${selectedAdvanceSlots.length})`);
-            } else {
-              setAdvanceSelectionNotice('No advance slot selected');
-            }
-          }}
-          onClose={() => setIsAdvanceDrawOpen(false)}
-        />
-        {advanceSelectionNotice ? (
-          <div className="fixed inset-0 z-[87] flex items-center justify-center bg-[#020617]/60 p-4 backdrop-blur-[2px]">
-            <div className="w-full max-w-sm rounded-2xl border border-[#93c5fd] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_18px_45px_rgba(2,6,23,0.45)]">
-              <h3 className="text-[22px] font-black text-[#1d4ed8]">Advance Draw</h3>
-              <p className="mt-2 text-[16px] font-bold text-[#1e293b]">{advanceSelectionNotice}</p>
-            </div>
-          </div>
-        ) : null}
+        {canUsePortal ? createPortal(
+          <>
+            <AdvanceDrawModal
+              open={isAdvanceDrawOpen}
+              title="ADVANCE DRAW"
+              currentLabel={currentTimeText}
+              nextLabel={timeToDrawText}
+              slotOptions={advanceDrawSlots}
+              selectedSlots={selectedAdvanceSlots}
+              onToggleSlot={(slotStartIso) => {
+                setSelectedAdvanceSlots((prev) => (
+                  prev.includes(slotStartIso)
+                    ? prev.filter((x) => x !== slotStartIso)
+                    : [...prev, slotStartIso]
+                ));
+              }}
+              onToggleAll={() => {
+                setSelectedAdvanceSlots((prev) => (
+                  prev.length === advanceDrawSlots.length ? [] : advanceDrawSlots.map((x) => x.slotStartIso)
+                ));
+              }}
+              onApply={() => {
+                setIsAdvanceDrawOpen(false);
+                if (selectedAdvanceSlots.length > 0) {
+                  setAdvanceSelectionNotice(`Advance slot selected (${selectedAdvanceSlots.length})`);
+                } else {
+                  setAdvanceSelectionNotice('No advance slot selected');
+                }
+              }}
+              onClose={() => setIsAdvanceDrawOpen(false)}
+            />
+            {advanceSelectionNotice ? (
+              <div className="fixed inset-0 z-[87] flex items-center justify-center bg-[#020617]/60 p-4 backdrop-blur-[2px]">
+                <div className="w-full max-w-sm rounded-2xl border border-[#93c5fd] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_18px_45px_rgba(2,6,23,0.45)]">
+                  <h3 className="text-[22px] font-black text-[#1d4ed8]">Advance Draw</h3>
+                  <p className="mt-2 text-[16px] font-bold text-[#1e293b]">{advanceSelectionNotice}</p>
+                </div>
+              </div>
+            ) : null}
+          </>,
+          document.body,
+        ) : (
+          <>
+            <AdvanceDrawModal
+              open={isAdvanceDrawOpen}
+              title="ADVANCE DRAW"
+              currentLabel={currentTimeText}
+              nextLabel={timeToDrawText}
+              slotOptions={advanceDrawSlots}
+              selectedSlots={selectedAdvanceSlots}
+              onToggleSlot={(slotStartIso) => {
+                setSelectedAdvanceSlots((prev) => (
+                  prev.includes(slotStartIso)
+                    ? prev.filter((x) => x !== slotStartIso)
+                    : [...prev, slotStartIso]
+                ));
+              }}
+              onToggleAll={() => {
+                setSelectedAdvanceSlots((prev) => (
+                  prev.length === advanceDrawSlots.length ? [] : advanceDrawSlots.map((x) => x.slotStartIso)
+                ));
+              }}
+              onApply={() => {
+                setIsAdvanceDrawOpen(false);
+                if (selectedAdvanceSlots.length > 0) {
+                  setAdvanceSelectionNotice(`Advance slot selected (${selectedAdvanceSlots.length})`);
+                } else {
+                  setAdvanceSelectionNotice('No advance slot selected');
+                }
+              }}
+              onClose={() => setIsAdvanceDrawOpen(false)}
+            />
+            {advanceSelectionNotice ? (
+              <div className="fixed inset-0 z-[87] flex items-center justify-center bg-[#020617]/60 p-4 backdrop-blur-[2px]">
+                <div className="w-full max-w-sm rounded-2xl border border-[#93c5fd] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_18px_45px_rgba(2,6,23,0.45)]">
+                  <h3 className="text-[22px] font-black text-[#1d4ed8]">Advance Draw</h3>
+                  <p className="mt-2 text-[16px] font-bold text-[#1e293b]">{advanceSelectionNotice}</p>
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
         {canUsePortal && isResultModalOpen ? createPortal(
           <div className="fixed inset-0 z-[88] flex items-center justify-center bg-black/55 p-3 sm:p-4">
             <div className="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#8d8d8d] bg-[#d4d7dd] shadow-2xl">
