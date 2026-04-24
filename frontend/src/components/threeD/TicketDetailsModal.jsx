@@ -99,7 +99,7 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-2 sm:p-4">
-      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-[#787878] bg-[#c8c8c8] shadow-2xl">
+      <div className="flex max-h-[100vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-[#787878] bg-[#c8c8c8] shadow-2xl sm:max-h-[92vh]">
         <div className="flex items-center justify-between bg-[#c71616] px-3 py-2 text-white sm:px-5 sm:py-3">
           <h3 className="text-[22px] font-extrabold tracking-wide sm:text-[28px]">TICKET DATA</h3>
           <button
@@ -111,8 +111,8 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
             ×
           </button>
         </div>
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden bg-[#b5b5b5] p-3 sm:gap-4 sm:p-4 lg:grid-cols-2">
-          <div className="overflow-hidden rounded-xl border border-[#6d6d6d] bg-[#4f4f4f] p-4 text-white">
+        <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-hidden bg-[#b5b5b5] p-2.5 sm:gap-4 sm:p-4">
+          <div className="min-h-0 overflow-y-auto rounded-xl border border-[#6d6d6d] bg-[#4f4f4f] p-4 text-white">
             <div className="mb-3 border-b border-white/20 pb-3">
               <div className="text-[20px] font-bold leading-tight sm:text-[24px]">Diamond Coupon</div>
               <div className="text-[14px] font-semibold text-white/90 sm:text-[16px]">For Amusement Only</div>
@@ -129,7 +129,7 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
             </div>
             <div className="mt-4 rounded-lg border border-white/20 bg-black/15 p-3">
               <div className="mb-2 text-[16px] font-bold uppercase tracking-wide text-white/90">Overview</div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[15px] sm:text-[16px]">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-[15px] sm:grid-cols-2 sm:text-[16px]">
                 <div>Total Bets : <span className="font-semibold">{overview.totalBets}</span></div>
                 <div>Win Bets : <span className="font-semibold text-emerald-300">{overview.winBets}</span></div>
                 <div>Loss Bets : <span className="font-semibold text-rose-300">{overview.lossBets}</span></div>
@@ -143,7 +143,57 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
           </div>
           <div className="min-h-0 overflow-hidden rounded-xl border border-[#6d6d6d] bg-[#4f4f4f] p-4">
             <div className="mb-3 text-[22px] font-bold text-white sm:text-[24px]">Ticket Items</div>
-            <div className="grid max-h-[52vh] grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
+            <div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-y-auto sm:hidden">
+              <div className="space-y-2">
+                {leftCol.map((item) => (
+                  <div
+                    key={`mobile-left-${item.id}`}
+                    className={`rounded-md px-2.5 py-2 text-[13px] font-bold ${
+                      item.outcome === 'win'
+                        ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
+                        : item.outcome === 'cancelled'
+                          ? 'border border-slate-300 bg-slate-100 text-slate-700'
+                        : 'bg-[#d0d0d0] text-[#c71616]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
+                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
+                        {item.outcome.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[12px] font-semibold text-slate-700">
+                      Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2">
+                {rightCol.map((item) => (
+                  <div
+                    key={`mobile-right-${item.id}`}
+                    className={`rounded-md px-2.5 py-2 text-[13px] font-bold ${
+                      item.outcome === 'win'
+                        ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
+                        : item.outcome === 'cancelled'
+                          ? 'border border-slate-300 bg-slate-100 text-slate-700'
+                        : 'bg-[#d0d0d0] text-[#c71616]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
+                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
+                        {item.outcome.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[12px] font-semibold text-slate-700">
+                      Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="hidden max-h-[52vh] grid-cols-1 gap-3 overflow-y-auto sm:grid sm:grid-cols-2">
               <div className="space-y-2">
                 {leftCol.map((item) => (
                   <div
