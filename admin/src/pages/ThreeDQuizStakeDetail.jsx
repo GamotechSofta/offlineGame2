@@ -115,7 +115,7 @@ const ThreeDQuizStakeDetail = () => {
         if (adminRole !== 'super_admin') return false;
         if (!slotStartIso || !currentSlotInfo?.slot?.slotStartIso) return false;
         if (currentSlotInfo.slot.slotStartIso !== slotStartIso) return false;
-        return currentSlotInfo.phase === 'study';
+        return currentSlotInfo?.slot?.phase === 'study';
     }, [adminRole, slotStartIso, currentSlotInfo]);
 
     const openHintEdit = () => {

@@ -46,7 +46,6 @@ const ThreeDResultControl = () => {
     const [currentSlotPhase, setCurrentSlotPhase] = useState('');
     const [currentHintRows, setCurrentHintRows] = useState([]);
     const [manualModal, setManualModal] = useState({ open: false, slotStartIso: '', quizId: '1', result: '' });
-    const [manualSetModeSlots, setManualSetModeSlots] = useState({});
     const [manualSaving, setManualSaving] = useState(false);
     const [manualError, setManualError] = useState('');
     const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
@@ -222,12 +221,6 @@ const ThreeDResultControl = () => {
         setManualError('');
     }, []);
 
-    const enableManualSetMode = useCallback((slotStartIso) => {
-        if (!slotStartIso) return;
-        setManualSetModeSlots((prev) => ({ ...prev, [slotStartIso]: true }));
-        setNotice('Select "Set" under Set A/B/C columns to add manual results.');
-    }, []);
-
     const submitManualResult = useCallback(async (e) => {
         e.preventDefault();
         const slotStartIso = String(manualModal.slotStartIso || '').trim();
@@ -393,7 +386,6 @@ const ThreeDResultControl = () => {
                                         <tr className="border-b border-gray-200 text-gray-600 bg-gray-50">
                                             <th className="text-left p-2">Slot</th>
                                             <th className="text-left p-2">Declared</th>
-                                            <th className="text-left p-2">Actions</th>
                                             {[1, 2, 3].map((quizId) => (
                                                 <th key={quizId} className="text-center p-2 whitespace-nowrap">{setLabelByQuizId[quizId]}</th>
                                             ))}
@@ -402,14 +394,15 @@ const ThreeDResultControl = () => {
                                     <tbody>
                                         {!slots.length && !loading ? (
                                             <tr>
-                                                <td colSpan={6} className="text-center p-4 text-gray-500">No slots found for selected date.</td>
+                                                <td colSpan={5} className="text-center p-4 text-gray-500">No slots found for selected date.</td>
                                             </tr>
                                         ) : null}
                                         {slots.map((slot) => {
                                             const declared = Boolean(slot?.declaration?.declared);
                                             const isCurrentRunningSlot = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
                                             const canManualResult = !declared && isCurrentRunningSlot && currentSlotPhase === 'study';
-                                            const showManualSetOptions = canManualResult && manualSetModeSlots[slot.slotStartIso];
+                                            const showManualSetOptions = canManualResult;
+                                            const shouldShowSlotResultNumbers = Boolean(slot?.isCompleted) || isCurrentRunningSlot;
                                             return (
                                                 <tr key={slot.slotStartIso} className="border-b border-black">
                                                     <td className="p-2">
@@ -424,26 +417,12 @@ const ThreeDResultControl = () => {
                                                             {declared ? 'Declared' : 'Not'}
                                                         </span>
                                                     </td>
-                                                    <td className="p-2">
-                                                        {declared ? (
-                                                            <span className="text-[11px] text-gray-500 font-medium">Locked</span>
-                                                        ) : canManualResult ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => enableManualSetMode(slot.slotStartIso)}
-                                                                className="px-2 py-1 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold"
-                                                            >
-                                                                Manual Result
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-[11px] text-gray-400">—</span>
-                                                        )}
-                                                    </td>
                                                     {[1, 2, 3].map((quizId) => {
                                                         const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
+                                                        const visibleResultLabel = shouldShowSlotResultNumbers ? (q?.resultLabel || '--') : '--';
                                                         return (
                                                             <td key={`${slot.slotStartIso}-${quizId}`} className="p-2 text-center">
-                                                                <div className="font-mono text-gray-800">{q?.resultLabel || '--'}</div>
+                                                                <div className="font-mono text-gray-800">{visibleResultLabel}</div>
                                                                 <div className={`text-[9px] leading-tight ${q?.declared ? 'text-green-600' : 'text-gray-600'}`}>
                                                                     {q?.declared ? 'Declared' : 'Not'}
                                                                 </div>
