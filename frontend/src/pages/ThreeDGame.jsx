@@ -2104,21 +2104,21 @@ const ThreeDGame = () => {
                       <button
                         type="button"
                         onClick={handleBuy}
-                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4.5rem] px-2 py-1.5 text-[16px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[2.75rem] basis-[5.25rem] px-3 py-2 text-[19px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
+                        className={`${isZoomCompactView ? 'min-h-[3.55rem] basis-[4.5rem] px-2 py-3 text-[18px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[3.95rem] basis-[5.25rem] px-3 py-3.5 text-[21px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         BUY
                       </button>
                       <button
                         type="button"
                         onClick={handleClearAll}
-                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4rem] px-2 py-1.5 text-[15px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[2.75rem] basis-[4.25rem] px-3 py-2 text-[18px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(225,29,72,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98]`}
+                        className={`${isZoomCompactView ? 'min-h-[3.55rem] basis-[4rem] px-2 py-3 text-[17px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[3.95rem] basis-[4.25rem] px-3 py-3.5 text-[20px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(225,29,72,0.4)] ring-1 ring-white/30 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         Clear
                       </button>
                       <button
                         type="button"
                         onClick={handleAdvance}
-                        className={`${isZoomCompactView ? 'min-h-[2.3rem] basis-[4.25rem] px-2 py-1.5 text-[15px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[2.75rem] basis-[4.75rem] px-3 py-2 text-[18px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-violet-500 via-indigo-600 to-indigo-800 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(79,70,229,0.4)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
+                        className={`${isZoomCompactView ? 'min-h-[3.55rem] basis-[4.25rem] px-2 py-3 text-[17px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[3.95rem] basis-[4.75rem] px-3 py-3.5 text-[20px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-violet-500 via-indigo-600 to-indigo-800 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(79,70,229,0.4)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         Advance
                       </button>
