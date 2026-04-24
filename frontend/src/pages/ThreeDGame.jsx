@@ -1676,11 +1676,11 @@ const ThreeDGame = () => {
             <div className="bg-gradient-to-r from-rose-700 via-red-600 to-rose-700 bg-clip-text text-[clamp(1.35rem,3.5vw,1.75rem)] font-extrabold leading-none tracking-tight text-transparent">
               3D Quiz
             </div>
-            <div className="text-[15px] font-bold leading-tight text-slate-600 sm:text-[16px] md:text-[17px]">
+            <div className="text-[16px] font-bold leading-tight text-slate-600 sm:text-[17px] md:text-[18px]">
               Last Draw:{' '}
               <span className="font-extrabold tabular-nums text-slate-900">{lastDrawResult?.timeLabel || '-'}</span>
             </div>
-            <div className="text-[14px] font-bold leading-tight text-slate-700 sm:text-[15px] md:text-[16px]">
+            <div className="text-[15px] font-bold leading-tight text-slate-700 sm:text-[16px] md:text-[17px]">
               Wallet: <span className="font-extrabold tabular-nums text-emerald-700">₹{formattedWalletBalance}</span>
             </div>
           </div>
@@ -1692,7 +1692,7 @@ const ThreeDGame = () => {
           <button
             type="button"
             onClick={handleGoHome}
-            className="inline-flex h-full min-h-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200/40 bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 px-2.5 text-[15px] font-bold uppercase tracking-wide text-white shadow-[0_3px_12px_rgba(120,53,15,0.35)] ring-1 ring-amber-200/35 transition hover:brightness-110 active:scale-[0.99] sm:text-[16px]"
+            className="inline-flex h-full min-h-0 items-center justify-center gap-1.5 rounded-lg border border-amber-200/40 bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 px-2.5 text-[16px] font-bold uppercase tracking-wide text-white shadow-[0_3px_12px_rgba(120,53,15,0.35)] ring-1 ring-amber-200/35 transition hover:brightness-110 active:scale-[0.99] sm:text-[17px]"
           >
             <House className="h-[18px] w-[18px] shrink-0 sm:h-5 sm:w-5" strokeWidth={2.5} aria-hidden />
             <span>Home</span>
@@ -1702,24 +1702,24 @@ const ThreeDGame = () => {
         <div className="flex w-full min-h-0 items-center justify-center rounded-lg border border-[#8b9ab3] bg-[#dfe6f2] px-2 py-0.5">
           <div className="grid w-full min-w-0 grid-cols-7 gap-1 text-center min-h-0">
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2f6ff] to-[#e3ecff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[13px] uppercase tracking-wide text-[#4a5b86] font-semibold sm:text-[14px]">Time To Draw</div>
-            <div className={`text-[21px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#18233f]'}`}>{formatTimer(timerSeconds)}</div>
+            <div className="text-[14px] uppercase tracking-wide text-[#4a5b86] font-semibold sm:text-[15px]">Time To Draw</div>
+            <div className={`text-[22px] font-bold leading-none ${timerSeconds <= 10 ? 'text-[#d4372f] animate-pulse' : 'text-[#18233f]'}`}>{formatTimer(timerSeconds)}</div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f9ff] to-[#edf1ff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[13px] uppercase tracking-wide text-[#5e6787] font-semibold sm:text-[14px]">Dr.Time</div>
-            <div className="text-[17px] font-semibold leading-none text-[#1f2a44] sm:text-[18px]">{timeToDrawText}</div>
+            <div className="text-[14px] uppercase tracking-wide text-[#5e6787] font-semibold sm:text-[15px]">Dr.Time</div>
+            <div className="text-[18px] font-semibold leading-none text-[#1f2a44] sm:text-[19px]">{timeToDrawText}</div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f6f8fc] to-[#ebeff7] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[13px] uppercase tracking-wide text-[#636b7d] font-semibold sm:text-[14px]">Id</div>
-            <div className="truncate text-[16px] font-semibold leading-none text-[#1f2738]" title={playerIdentity}>{playerIdentity}</div>
+            <div className="text-[14px] uppercase tracking-wide text-[#636b7d] font-semibold sm:text-[15px]">Id</div>
+            <div className="truncate text-[17px] font-semibold leading-none text-[#1f2738]" title={playerIdentity}>{playerIdentity}</div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f3f8ff] to-[#e7f0ff] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[13px] uppercase tracking-wide text-[#5a6784] font-semibold sm:text-[14px]">Time</div>
-            <div className="text-[16px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
+            <div className="text-[14px] uppercase tracking-wide text-[#5a6784] font-semibold sm:text-[15px]">Time</div>
+            <div className="text-[17px] font-semibold leading-none text-[#1f2d46]">{currentTimeText}</div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f8f7ff] to-[#edeafc] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[13px] uppercase tracking-wide text-[#6a6284] font-semibold sm:text-[14px]">Last Ticket</div>
-            <div className={`text-[15px] font-bold leading-none sm:text-[16px] ${
+            <div className="text-[14px] uppercase tracking-wide text-[#6a6284] font-semibold sm:text-[15px]">Last Ticket</div>
+            <div className={`text-[16px] font-bold leading-none sm:text-[17px] ${
               lastTicket?.outcome === 'win'
                 ? 'text-[#15803d]'
                 : lastTicket?.outcome === 'cancelled'
@@ -1730,12 +1730,12 @@ const ThreeDGame = () => {
             </div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[13px] uppercase tracking-wide text-[#8a6950] font-semibold sm:text-[14px]">Last Trn</div>
-            <div className="text-[14px] font-semibold leading-none text-[#3f2a1c] truncate sm:text-[15px]" title={lastTxnId}>{lastTxnId}</div>
+            <div className="text-[14px] uppercase tracking-wide text-[#8a6950] font-semibold sm:text-[15px]">Last Trn</div>
+            <div className="text-[15px] font-semibold leading-none text-[#3f2a1c] truncate sm:text-[16px]" title={lastTxnId}>{lastTxnId}</div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[13px] uppercase tracking-wide text-[#4e7760] font-semibold sm:text-[14px]">Last Win</div>
-            <div className="text-[17px] font-semibold leading-none text-[#1f3a2b]">{lastWinAmount}</div>
+            <div className="text-[14px] uppercase tracking-wide text-[#4e7760] font-semibold sm:text-[15px]">Last Win</div>
+            <div className="text-[18px] font-semibold leading-none text-[#1f3a2b]">{lastWinAmount}</div>
           </div>
           </div>
         </div>
@@ -1747,7 +1747,7 @@ const ThreeDGame = () => {
                 key={label}
                 type="button"
                 onClick={() => handleHeaderAction(label)}
-                className="inline-flex min-w-0 touch-manipulation items-center justify-center gap-2 rounded-lg border border-black bg-[#f7ecde] px-2.5 py-2.5 text-[17px] font-bold text-[#6b4423] transition-colors hover:bg-[#eedfc8] active:scale-[0.99] sm:text-[18px]"
+                className="inline-flex min-w-0 touch-manipulation items-center justify-center gap-2 rounded-lg border border-black bg-[#f7ecde] px-2.5 py-2.5 text-[18px] font-bold text-[#6b4423] transition-colors hover:bg-[#eedfc8] active:scale-[0.99] sm:text-[19px]"
               >
                 <Icon className="h-5 w-5 shrink-0 sm:h-[20px] sm:w-[20px]" strokeWidth={2.25} aria-hidden />
                 <span className="truncate">{label}</span>
@@ -1774,7 +1774,7 @@ const ThreeDGame = () => {
         <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
             <div className="w-full min-w-0 rounded-xl border border-[#d4b896] bg-gradient-to-br from-[#fffbeb] via-[#fef3c7] to-[#fde68a] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_1px_3px_rgba(180,130,40,0.12)]">
               <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-1">
-                <label className={`inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3.5 text-[17px] font-semibold uppercase tracking-wide shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
+                <label className={`inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3.5 text-[18px] font-semibold uppercase tracking-wide shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
                   selectedPanels.length === 3
                     ? 'border-[#475569] bg-[#334155] text-white has-[:focus-visible]:ring-[#64748b]'
                     : 'border-[#cbd5e1] bg-white text-[#334155] has-[:focus-visible]:ring-[#94a3b8]'
@@ -1785,7 +1785,7 @@ const ThreeDGame = () => {
                 {PANEL_OPTIONS.map((panel) => (
                   <label
                     key={panel}
-                    className={`inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3.5 text-[18px] font-bold shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
+                    className={`inline-flex h-11 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3.5 text-[19px] font-bold shadow-sm transition hover:brightness-110 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 ${
                       selectedPanels.includes(panel)
                         ? panel === 'A'
                           ? 'border-[#1d4ed8] bg-[#2563eb] text-white has-[:focus-visible]:ring-[#3b82f6]'
@@ -1828,7 +1828,7 @@ const ThreeDGame = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/lottery')}
-                  className="ml-auto shrink-0 rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2.5 text-[16px] font-bold tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98] sm:text-[17px]"
+                  className="ml-auto shrink-0 rounded-lg border border-[#0f172a] bg-[#0f172a] px-4 py-2.5 text-[17px] font-bold tracking-wide text-white shadow-md transition hover:bg-[#1e293b] active:scale-[0.98] sm:text-[18px]"
                 >
                   Go back to 2D game
                 </button>
@@ -1843,7 +1843,7 @@ const ThreeDGame = () => {
                   {MODE_GROUP_COMBO.map((mode) => (
                     <label
                       key={mode}
-                      className={`flex min-w-[3.25rem] flex-1 basis-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-1 text-[16px] font-extrabold uppercase shadow-sm transition sm:min-w-0 sm:px-2 sm:text-[17px] md:text-[18px] ${
+                      className={`flex min-w-[3.25rem] flex-1 basis-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-1 text-[17px] font-extrabold uppercase shadow-sm transition sm:min-w-0 sm:px-2 sm:text-[18px] md:text-[19px] ${
                         selectedModes.includes(mode)
                           ? 'h-12 min-h-12 border-[#1d4ed8] bg-[#2563eb] text-white'
                           : 'h-12 min-h-12 border-[#bfdbfe] bg-white/90 text-[#0f172a]'
@@ -1859,13 +1859,13 @@ const ThreeDGame = () => {
                   {MODE_GROUP_SPECIAL.map((mode) => (
                     <label
                       key={mode}
-                      className={`flex h-12 min-h-12 cursor-pointer items-center justify-center gap-1 rounded-md border px-1 text-[13px] font-extrabold uppercase leading-tight shadow-sm transition sm:px-1.5 sm:text-[14px] md:text-[15px] ${
+                      className={`flex h-12 min-h-12 cursor-pointer items-center justify-center gap-1 rounded-md border px-1 text-[14px] font-extrabold uppercase leading-tight shadow-sm transition sm:px-1.5 sm:text-[15px] md:text-[16px] ${
                         selectedModes.includes(mode)
                           ? 'border-[#059669] bg-[#059669] text-white'
                           : 'border-[#a7f3d0] bg-white/90 text-[#0f172a]'
                       } ${
                         mode === 'duplicates'
-                          ? 'min-w-[9.5rem] shrink-0 flex-[1.65] basis-auto sm:min-w-[10.5rem] md:min-w-[11rem] md:text-[15px]'
+                          ? 'min-w-[9.5rem] shrink-0 flex-[1.65] basis-auto sm:min-w-[10.5rem] md:min-w-[11rem] md:text-[16px]'
                           : 'min-w-[4.75rem] flex-1 basis-0 sm:min-w-[5.25rem]'
                       }`}
                     >
@@ -1881,7 +1881,7 @@ const ThreeDGame = () => {
             <div className={`order-2 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-[#d9d9d9] bg-white ${isZoomCompactView ? 'p-2.5' : 'p-3 sm:p-4'}`}>
               <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${isZoomCompactView ? 'space-y-2' : 'space-y-3 sm:space-y-4'}`}>
               <header className={`space-y-1 border-b border-slate-200/80 ${isZoomCompactView ? 'pb-2' : 'pb-3'}`}>
-                <h2 className={`bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 bg-clip-text font-extrabold leading-tight tracking-tight text-transparent ${isZoomCompactView ? 'text-[18px] sm:text-[19px]' : 'text-[19px] sm:text-[21px]'}`}>
+                <h2 className={`bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 bg-clip-text font-extrabold leading-tight tracking-tight text-transparent ${isZoomCompactView ? 'text-[19px] sm:text-[20px]' : 'text-[20px] sm:text-[22px]'}`}>
                   Play &amp; stake — 3D Quiz
                 </h2>
               </header>
@@ -1910,7 +1910,7 @@ const ThreeDGame = () => {
                   placeholder="ADD NUMBER"
                   className="h-12 w-[min(12.5rem,40vw)] shrink-0 rounded-full border-2 border-[#2e59c6] px-3 text-center text-[18px] font-semibold tracking-wide sm:h-14 sm:w-[220px] sm:text-[20px]"
                 />
-                <span className="shrink-0 font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">Range:</span>
+                <span className="shrink-0 font-semibold text-[20px] text-[#1d2b4d] sm:text-[22px]">Range:</span>
                 <input
                   ref={rangeFromRef}
                   onFocus={() => setActiveInputIndex(1)}
@@ -1934,7 +1934,7 @@ const ThreeDGame = () => {
                   placeholder="NUM."
                   className="h-11 w-[5rem] shrink-0 rounded-full border border-[#d1d1d1] px-2 text-center text-[17px] sm:h-12 sm:w-[92px] sm:text-[18px]"
                 />
-                <span className="shrink-0 font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">To</span>
+                <span className="shrink-0 font-semibold text-[20px] text-[#1d2b4d] sm:text-[22px]">To</span>
                 <input
                   ref={rangeToRef}
                   onFocus={() => setActiveInputIndex(2)}
@@ -1960,7 +1960,7 @@ const ThreeDGame = () => {
               <div className={`${isZoomCompactView ? 'my-2' : 'my-2.5'} border-t border-[#d8dee9]`} aria-hidden />
               {/* Line 2: L-Pick + Qty + ADD */}
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                <span className="shrink-0 font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">L-Pick:</span>
+                <span className="shrink-0 font-semibold text-[20px] text-[#1d2b4d] sm:text-[22px]">L-Pick:</span>
                 <select
                   value={lPickType}
                   onChange={(e) => setLPickType(e.target.value)}
@@ -1972,7 +1972,7 @@ const ThreeDGame = () => {
                     </option>
                   ))}
                 </select>
-                <span className="shrink-0 font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">Qty</span>
+                <span className="shrink-0 font-semibold text-[20px] text-[#1d2b4d] sm:text-[22px]">Qty</span>
                 <input
                   ref={qtyRef}
                   onFocus={() => setActiveInputIndex(3)}
@@ -2007,15 +2007,19 @@ const ThreeDGame = () => {
               </div>
               {/* Line 3: Rate — fixed grid (no scroller) */}
               <div className="min-w-0 rounded-lg bg-[#f8fafc] px-2 py-2.5 sm:px-3 sm:py-3">
-                <span className="block font-semibold text-[19px] text-[#1d2b4d] sm:text-[21px]">Rate:</span>
+                <span className="block font-semibold text-[20px] text-[#1d2b4d] sm:text-[22px]">Rate:</span>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
                   {RATE_OPTIONS.map((rate) => (
                     <label
                       key={rate}
-                      className="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#cbd5e1] bg-white px-2.5 shadow-sm sm:h-11 sm:px-3"
+                      className={`inline-flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-2.5 shadow-sm sm:h-10 sm:px-3 ${
+                        selectedRate === rate
+                          ? 'border-[#2563eb] bg-[#2563eb] text-white'
+                          : 'border-[#cbd5e1] bg-white text-[#1e293b]'
+                      }`}
                     >
                       <input type="radio" className="size-5 accent-[#2e59c6]" checked={selectedRate === rate} onChange={() => setSelectedRate(rate)} />
-                      <span className="text-[20px] font-bold leading-none text-[#1e293b] sm:text-[22px]">{rate}</span>
+                      <span className="text-[20px] font-bold leading-none sm:text-[22px]">{rate}</span>
                     </label>
                   ))}
                 </div>
