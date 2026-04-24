@@ -697,6 +697,7 @@ export const getLottery2DSlotDetail = async (req, res) => {
 
     const usersByQuiz = new Map();
     const winnerUsersByQuiz = new Map();
+    const stakeOnHintByQuiz = new Map(QUIZ_IDS.map((q) => [q, 0]));
     for (const quizId of QUIZ_IDS) {
       usersByQuiz.set(quizId, new Set());
       winnerUsersByQuiz.set(quizId, new Set());
@@ -715,6 +716,10 @@ export const getLottery2DSlotDetail = async (req, res) => {
 
       const hp = pickByQuiz.get(bet.quizId);
       if (Number.isInteger(hp) && hp === bet.number) {
+        stakeOnHintByQuiz.set(
+          bet.quizId,
+          (stakeOnHintByQuiz.get(bet.quizId) || 0) + Number(bet.amount || 0),
+        );
         row.winnerTickets += 1;
         if (bet.userId) winnerUsersByQuiz.get(bet.quizId).add(String(bet.userId));
       }
@@ -724,6 +729,15 @@ export const getLottery2DSlotDetail = async (req, res) => {
       const row = perQuiz.get(quizId);
       row.uniqueUsers = usersByQuiz.get(quizId).size;
       row.winnerUsers = winnerUsersByQuiz.get(quizId).size;
+      const hp = pickByQuiz.get(quizId);
+      const totalStake = Number(row.totalBetAmount || 0);
+      if (!Number.isInteger(hp)) {
+        row.houseNetIfHintWins = null;
+      } else {
+        const stakeOnHint = stakeOnHintByQuiz.get(quizId) || 0;
+        const payoutIfHintWins = Math.round(stakeOnHint * winMultiplier);
+        row.houseNetIfHintWins = totalStake - payoutIfHintWins;
+      }
     }
 
     const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;

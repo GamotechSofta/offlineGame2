@@ -28,6 +28,26 @@ const ThreeDQuizStakeDetail = () => {
     const [hintDraft, setHintDraft] = useState('');
     const [hintEditError, setHintEditError] = useState('');
     const [savingHint, setSavingHint] = useState(false);
+    const [houseNetSort, setHouseNetSort] = useState('default');
+
+    const sortedRows = useMemo(() => {
+        if (!data?.rows?.length) return [];
+        const rows = [...data.rows];
+        if (houseNetSort === 'desc') {
+            rows.sort(
+                (a, b) =>
+                    (Number(b.houseNetIfWins) || 0) - (Number(a.houseNetIfWins) || 0)
+                    || (Number(a.number) - Number(b.number)),
+            );
+        } else if (houseNetSort === 'asc') {
+            rows.sort(
+                (a, b) =>
+                    (Number(a.houseNetIfWins) || 0) - (Number(b.houseNetIfWins) || 0)
+                    || (Number(a.number) - Number(b.number)),
+            );
+        }
+        return rows;
+    }, [data, houseNetSort]);
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -262,11 +282,26 @@ const ThreeDQuizStakeDetail = () => {
                                         <th className="px-3 py-2.5 font-semibold text-right">Tickets</th>
                                         <th className="px-3 py-2.5 font-semibold text-right">Stake (₹)</th>
                                         <th className="px-3 py-2.5 font-semibold text-right">Payout if wins (₹)</th>
-                                        <th className="px-3 py-2.5 font-semibold text-right">House net if wins (₹)</th>
+                                        <th className="px-3 py-2.5 font-semibold text-right align-top">
+                                            <div className="flex flex-col items-end gap-1.5">
+                                                <span>House net if wins (₹)</span>
+                                                <label className="sr-only" htmlFor="three-d-house-net-sort">Sort by house net</label>
+                                                <select
+                                                    id="three-d-house-net-sort"
+                                                    value={houseNetSort}
+                                                    onChange={(e) => setHouseNetSort(e.target.value)}
+                                                    className="max-w-[11rem] rounded-md border border-gray-300 bg-white px-2 py-1 text-[11px] font-medium text-gray-800 shadow-sm"
+                                                >
+                                                    <option value="default">Number order (000–999)</option>
+                                                    <option value="desc">High to low (house net)</option>
+                                                    <option value="asc">Low to high (house net)</option>
+                                                </select>
+                                            </div>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {(data.rows || []).map((row) => {
+                                    {sortedRows.map((row) => {
                                         const noBet = Number(row.stake || 0) <= 0;
                                         const isHint =
                                             data.hintPosition != null && Number(data.hintPosition) === Number(row.number);

@@ -53,12 +53,14 @@ const TwoDOldSlotsStats = () => {
     const fetchHistory = useCallback(async (targetDate) => {
         setLoadingHistory(true);
         try {
-            const params = new URLSearchParams({ date: targetDate, limit: '40' });
+            const params = new URLSearchParams({ date: targetDate, limit: '96' });
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots?${params.toString()}`);
             if (res.status === 401) return;
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to load slot history');
-            const slots = data?.data?.slots || [];
+            const slots = Array.isArray(data?.data?.slots)
+                ? [...data.data.slots].sort((a, b) => new Date(a.slotStartIso).getTime() - new Date(b.slotStartIso).getTime())
+                : [];
             setHistorySlots(slots);
             if (slots.length) {
                 setSelectedSlot((prev) => (prev && slots.some((slot) => slot.slotStartIso === prev) ? prev : slots[0].slotStartIso));
@@ -127,7 +129,7 @@ const TwoDOldSlotsStats = () => {
         setLoadingPlayerHistory(true);
         setPlayerHistoryError('');
         try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/players/${encodeURIComponent(userId)}/history?limit=40`);
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/players/${encodeURIComponent(userId)}/history?limit=100`);
             if (res.status === 401) return;
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to load player history');
@@ -218,6 +220,26 @@ const TwoDOldSlotsStats = () => {
         await fetchPlayerHistory(player.userId);
     };
 
+    const playerHistoryBetRows = useMemo(() => {
+        const slots = Array.isArray(playerHistoryData?.slots) ? playerHistoryData.slots : [];
+        const rows = [];
+        slots.forEach((slot) => {
+            const draw = slot?.drawLabelEnd || slot?.slotStartIso || '-';
+            const drawDate = slot?.slotStartIso
+                ? new Date(slot.slotStartIso).toLocaleDateString('en-GB')
+                : '-';
+            const bets = Array.isArray(slot?.bets) ? slot.bets : [];
+            bets.forEach((bet) => {
+                rows.push({
+                    ...bet,
+                    drawDate,
+                    drawLabelEnd: draw,
+                });
+            });
+        });
+        return rows;
+    }, [playerHistoryData]);
+
     return (
         <AdminLayout onLogout={handleLogout} title="2D Old Slots Stats">
             <div className="space-y-5">
@@ -266,8 +288,8 @@ const TwoDOldSlotsStats = () => {
             </div>
 
             {showPlayerHistoryModal && (
-                <div className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/40">
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-5xl max-h-[88vh] overflow-hidden">
+                <div className="fixed inset-0 z-[95] flex items-center justify-center p-3 bg-black/40">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-[96vw] h-[92vh] overflow-hidden">
                         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                             <div>
                                 <h3 className="text-lg font-semibold text-blue-700">
@@ -279,7 +301,7 @@ const TwoDOldSlotsStats = () => {
                             </div>
                             <button type="button" onClick={closePlayerHistoryModal} className="text-gray-400 hover:text-gray-800 p-1">x</button>
                         </div>
-                        <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(88vh-64px)]">
+                        <div className="p-4 space-y-4 overflow-y-auto h-[calc(92vh-64px)]">
                             {loadingPlayerHistory ? (
                                 <div className="text-sm text-gray-500">Loading player history...</div>
                             ) : playerHistoryError ? (
@@ -307,6 +329,71 @@ const TwoDOldSlotsStats = () => {
                                                 Rs {Number(playerHistoryData.summary?.netProfitLoss || 0).toLocaleString('en-IN')}
                                             </p>
                                         </div>
+                                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                            <p className="text-xs text-gray-500">Wins</p>
+                                            <p className="text-lg font-bold text-green-700">{playerHistoryData.summary?.wins || 0}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                            <p className="text-xs text-gray-500">Losses</p>
+                                            <p className="text-lg font-bold text-red-700">{playerHistoryData.summary?.losses || 0}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                            <p className="text-xs text-gray-500">Pending</p>
+                                            <p className="text-lg font-bold text-amber-700">{playerHistoryData.summary?.pending || 0}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-xl border border-gray-200 overflow-auto max-h-[58vh]">
+                                        <table className="min-w-full text-xs">
+                                            <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 text-gray-600">
+                                                <tr>
+                                                    <th className="text-left px-3 py-2">Date</th>
+                                                    <th className="text-left px-3 py-2">Draw Time</th>
+                                                    <th className="text-left px-3 py-2">Set</th>
+                                                    <th className="text-left px-3 py-2">Number</th>
+                                                    <th className="text-right px-3 py-2">Stake (Rs)</th>
+                                                    <th className="text-left px-3 py-2">Result</th>
+                                                    <th className="text-right px-3 py-2">Payout (Rs)</th>
+                                                    <th className="text-right px-3 py-2">Net (Rs)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {playerHistoryBetRows.length ? playerHistoryBetRows.map((bet) => (
+                                                    <tr key={bet.betId} className="border-b border-gray-100">
+                                                        <td className="px-3 py-2 whitespace-nowrap">{bet.drawDate}</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap">{bet.drawLabelEnd}</td>
+                                                        <td className="px-3 py-2 whitespace-nowrap">{bet.setLabel}</td>
+                                                        <td className="px-3 py-2 font-mono">{bet.number}</td>
+                                                        <td className="px-3 py-2 text-right">Rs {Number(bet.amount || 0).toLocaleString('en-IN')}</td>
+                                                        <td className="px-3 py-2">
+                                                            <span className={`font-semibold ${
+                                                                bet.outcome === 'win'
+                                                                    ? 'text-green-700'
+                                                                    : bet.outcome === 'lose'
+                                                                      ? 'text-red-700'
+                                                                      : bet.outcome === 'pending'
+                                                                        ? 'text-amber-700'
+                                                                        : 'text-gray-600'
+                                                            }`}
+                                                            >
+                                                                {String(bet.outcome || '').toUpperCase()}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right">Rs {Number(bet.payout || 0).toLocaleString('en-IN')}</td>
+                                                        <td className={`px-3 py-2 text-right font-semibold ${
+                                                            Number(bet.netProfitLoss || 0) >= 0 ? 'text-green-700' : 'text-red-700'
+                                                        }`}
+                                                        >
+                                                            Rs {Number(bet.netProfitLoss || 0).toLocaleString('en-IN')}
+                                                        </td>
+                                                    </tr>
+                                                )) : (
+                                                    <tr>
+                                                        <td colSpan={8} className="px-3 py-4 text-center text-gray-500">No bets found.</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </>
                             ) : null}

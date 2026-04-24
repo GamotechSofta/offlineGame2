@@ -18,6 +18,26 @@ const todayDate = () => {
     return `${y}-${m}-${d}`;
 };
 
+/** House P/L if the current hint number wins (total stake on set − payout on that number). */
+function hintHouseNetMeta(value) {
+    if (value == null || !Number.isFinite(Number(value))) {
+        return { text: 'P/L: —', className: 'text-gray-400', title: '' };
+    }
+    const n = Math.round(Number(value));
+    if (n >= 0) {
+        return {
+            text: `P/L: +₹${n.toLocaleString('en-IN')}`,
+            className: 'text-green-700',
+            title: 'House keeps this much if this hint number wins (after paying winners on this number).',
+        };
+    }
+    return {
+        text: `P/L: −₹${Math.abs(n).toLocaleString('en-IN')}`,
+        className: 'text-red-700',
+        title: 'House pays out more than collected on this number if it wins.',
+    };
+}
+
 const ThreeDResultControl = () => {
     const navigate = useNavigate();
     const [date, setDate] = useState(todayDate());
@@ -35,7 +55,8 @@ const ThreeDResultControl = () => {
     const [unlockingPage, setUnlockingPage] = useState(false);
     const [pageUnlockError, setPageUnlockError] = useState('');
     const [loading, setLoading] = useState(true);
-    const [updating, setUpdating] = useState(false);
+    const [hintsLoading, setHintsLoading] = useState(true);
+    const [secretCheckComplete, setSecretCheckComplete] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
 
@@ -44,11 +65,15 @@ const ThreeDResultControl = () => {
         navigate('/');
     }, [navigate]);
 
-    const fetchSlots = useCallback(async (targetDate = date) => {
-        setLoading(true);
+    const fetchSlots = useCallback(async (targetDate = date, options = {}) => {
+        const silent = Boolean(options?.silent);
+        const limit = Math.min(96, Math.max(1, Number(options?.limit || 96)));
+        if (!silent) {
+            setLoading(true);
+        }
         setError('');
         try {
-            const params = new URLSearchParams({ date: targetDate, limit: '96' });
+            const params = new URLSearchParams({ date: targetDate, limit: String(limit) });
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots?${params.toString()}`);
             if (res.status === 401) return;
             const data = await res.json();
@@ -58,7 +83,9 @@ const ThreeDResultControl = () => {
             setError(err.message || 'Failed to load slots');
             setSlots([]);
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     }, [date]);
 
@@ -78,10 +105,15 @@ const ThreeDResultControl = () => {
                     setPageUnlocked(!hasPassword || restoredUnlock);
                 }
             })
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => {
+                setSecretCheckComplete(true);
+            });
     }, []);
 
-    const fetchCurrentSlotForHints = useCallback(async () => {
+    const fetchCurrentSlotForHints = useCallback(async (options = {}) => {
+        const silent = Boolean(options?.silent);
+        if (!silent) setHintsLoading(true);
         try {
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/current-slot`);
             if (res.status === 401) return;
@@ -110,6 +142,7 @@ const ThreeDResultControl = () => {
                 ? detailJson.data.perQuiz.map((row) => ({
                     quizId: row.quizId,
                     hint: row.result == null ? '--' : String(row.result).padStart(3, '0'),
+                    houseNetIfHintWins: row.houseNetIfHintWins,
                 }))
                 : [];
             setCurrentHintRows(rows);
@@ -117,15 +150,31 @@ const ThreeDResultControl = () => {
             setCurrentSlotStartIso('');
             setCurrentSlotPhase('');
             setCurrentHintRows([]);
+        } finally {
+            if (!silent) setHintsLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        if (!hasSecretDeclarePassword || pageUnlocked) {
-            fetchSlots(date);
-            fetchCurrentSlotForHints();
+        if (!secretCheckComplete) return;
+        if (hasSecretDeclarePassword && !pageUnlocked) return;
+        // Quick initial load for faster first paint, then hydrate full day rows in background.
+        fetchSlots(date, { limit: 24 });
+        fetchSlots(date, { silent: true, limit: 96 });
+    }, [fetchSlots, date, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
+
+    useEffect(() => {
+        if (!secretCheckComplete) return;
+        if (hasSecretDeclarePassword && !pageUnlocked) return;
+        fetchCurrentSlotForHints();
+    }, [fetchCurrentSlotForHints, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
+
+    useEffect(() => {
+        if (secretCheckComplete && hasSecretDeclarePassword && !pageUnlocked) {
+            setHintsLoading(false);
+            setLoading(false);
         }
-    }, [fetchSlots, fetchCurrentSlotForHints, date, hasSecretDeclarePassword, pageUnlocked]);
+    }, [secretCheckComplete, hasSecretDeclarePassword, pageUnlocked]);
 
     const unlockPage = useCallback(async () => {
         const secret = pagePassword.trim();
@@ -150,51 +199,14 @@ const ThreeDResultControl = () => {
             } catch {
                 // ignore storage write errors
             }
+            await fetchCurrentSlotForHints();
         } catch (err) {
             setPageUnlocked(false);
             setPageUnlockError(err?.message || 'Invalid security password');
         } finally {
             setUnlockingPage(false);
         }
-    }, [pagePassword]);
-
-    const updateDeclaration = useCallback(async (slotStartIso, action) => {
-        if (!slotStartIso) return;
-        setUpdating(true);
-        setError('');
-        setNotice('');
-        try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/declaration`, {
-                method: 'PATCH',
-                body: JSON.stringify({ slotStartIso, action }),
-            });
-            if (res.status === 401) return;
-            const data = await res.json();
-            if (!data?.success) throw new Error(data?.message || 'Failed to update declaration');
-            setSlots((prev) => prev.map((slot) => (
-                slot.slotStartIso === slotStartIso
-                    ? {
-                        ...slot,
-                        declaration: data?.data?.declaration || slot.declaration || null,
-                        perQuiz: Array.isArray(slot.perQuiz)
-                            ? slot.perQuiz.map((q) => ({
-                                ...q,
-                                declared: Boolean(data?.data?.declaration?.declared),
-                            }))
-                            : slot.perQuiz,
-                    }
-                    : slot
-            )));
-            if (action !== 'hold') {
-                setManualSetModeSlots((prev) => ({ ...prev, [slotStartIso]: false }));
-            }
-            setNotice(action === 'declare' ? 'Result declared successfully.' : 'Auto declare preference updated.');
-        } catch (err) {
-            setError(err.message || 'Failed to update declaration');
-        } finally {
-            setUpdating(false);
-        }
-    }, []);
+    }, [pagePassword, fetchCurrentSlotForHints]);
 
     const openManualModal = useCallback((slotStartIso, quizId = '1', currentResultLabel = '') => {
         const normalizedQuizId = String(quizId || '1');
@@ -262,23 +274,20 @@ const ThreeDResultControl = () => {
                         : slot.perQuiz,
                 };
             }));
-            if (currentSlotStartIso && currentSlotStartIso === slotStartIso) {
-                setCurrentHintRows((prev) => prev.map((r) => (
-                    Number(r.quizId) === quizId ? { ...r, hint: padded } : r
-                )));
-            }
             setNotice(`Manual result set for ${setLabelByQuizId[quizId] || `Set ${quizId}`} = ${padded}.`);
+            await fetchCurrentSlotForHints({ silent: true });
             closeManualModal();
         } catch (err) {
             setManualError(err?.message || 'Failed to set manual result');
         } finally {
             setManualSaving(false);
         }
-    }, [manualModal, currentSlotStartIso, closeManualModal]);
+    }, [manualModal, closeManualModal, fetchCurrentSlotForHints]);
 
     return (
         <AdminLayout onLogout={handleLogout} title="3D Result Control">
-            <div className="space-y-5">
+            <div className="relative min-h-[60vh] space-y-5">
+                <div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800">3D Result Declaration Control</h1>
@@ -345,24 +354,32 @@ const ThreeDResultControl = () => {
                             <p className="text-xs text-gray-500 mb-3 break-all">Slot Start: {currentSlotStartIso || '-'}</p>
                             {currentHintRows.length ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                    {currentHintRows.map((item) => (
-                                        <button
-                                            key={item.quizId}
-                                            type="button"
-                                            onClick={() => {
-                                                if (!currentSlotStartIso) return;
-                                                navigate(
-                                                    `/3d-management/set/${encodeURIComponent(item.quizId)}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`,
-                                                );
-                                            }}
-                                            disabled={!currentSlotStartIso}
-                                            className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-left hover:border-orange-400 hover:bg-orange-50/50 hover:shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-                                            title={currentSlotStartIso ? 'Open set-wise stake details' : 'Current slot unavailable'}
-                                        >
-                                            <span className="text-gray-500">{setLabelByQuizId[Number(item.quizId)] || `Set ${item.quizId}`}</span>
-                                            <span className="float-right font-mono font-semibold text-gray-800">{item.hint}</span>
-                                        </button>
-                                    ))}
+                                    {currentHintRows.map((item) => {
+                                        const pl = hintHouseNetMeta(item.houseNetIfHintWins);
+                                        return (
+                                            <button
+                                                key={item.quizId}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (!currentSlotStartIso) return;
+                                                    navigate(
+                                                        `/3d-management/set/${encodeURIComponent(item.quizId)}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`,
+                                                    );
+                                                }}
+                                                disabled={!currentSlotStartIso}
+                                                className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-left hover:border-orange-400 hover:bg-orange-50/50 hover:shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                                                title={currentSlotStartIso ? 'Open set-wise stake / P/L' : 'Current slot unavailable'}
+                                            >
+                                                <div className="flex justify-between gap-1 items-baseline">
+                                                    <span className="text-gray-500 shrink-0">{setLabelByQuizId[Number(item.quizId)] || `Set ${item.quizId}`}</span>
+                                                    <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
+                                                </div>
+                                                <div className={`mt-1 text-[10px] font-semibold leading-tight ${pl.className}`} title={pl.title || undefined}>
+                                                    {pl.text}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <p className="text-xs text-gray-500">Hint numbers unavailable for current slot.</p>
@@ -370,8 +387,8 @@ const ThreeDResultControl = () => {
                         </div>
 
                         <div className="bg-white border border-gray-200 rounded-xl p-5">
-                            <div className="overflow-x-auto">
-                                <table className="min-w-[900px] w-full text-xs">
+                            <div className="max-h-[calc(100vh-100px)] overflow-y-auto">
+                                <table className="w-full text-xs table-fixed">
                                     <thead>
                                         <tr className="border-b border-gray-200 text-gray-600 bg-gray-50">
                                             <th className="text-left p-2">Slot</th>
@@ -390,12 +407,11 @@ const ThreeDResultControl = () => {
                                         ) : null}
                                         {slots.map((slot) => {
                                             const declared = Boolean(slot?.declaration?.declared);
-                                            const paused = Boolean(slot?.declaration?.autoDeclareBlocked) && !declared;
                                             const isCurrentRunningSlot = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
                                             const canManualResult = !declared && isCurrentRunningSlot && currentSlotPhase === 'study';
                                             const showManualSetOptions = canManualResult && manualSetModeSlots[slot.slotStartIso];
                                             return (
-                                                <tr key={slot.slotStartIso} className="border-b border-gray-100">
+                                                <tr key={slot.slotStartIso} className="border-b border-black">
                                                     <td className="p-2">
                                                         <div className="font-semibold text-gray-800">{slot.drawLabelEnd || slot.slotStartIso}</div>
                                                         <div className="text-gray-500">{slot.slotStartIso}</div>
@@ -403,51 +419,24 @@ const ThreeDResultControl = () => {
                                                     <td className="p-2">
                                                         <span className={`px-2 py-1 rounded-full text-[11px] font-semibold ${declared
                                                             ? 'bg-green-100 text-green-700'
-                                                            : (paused ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}`}
+                                                            : 'bg-gray-100 text-gray-700'}`}
                                                         >
-                                                            {declared ? 'Declared' : (paused ? 'Paused' : 'Auto')}
+                                                            {declared ? 'Declared' : 'Not'}
                                                         </span>
                                                     </td>
                                                     <td className="p-2">
                                                         {declared ? (
                                                             <span className="text-[11px] text-gray-500 font-medium">Locked</span>
+                                                        ) : canManualResult ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => enableManualSetMode(slot.slotStartIso)}
+                                                                className="px-2 py-1 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold"
+                                                            >
+                                                                Manual Result
+                                                            </button>
                                                         ) : (
-                                                            <div className="flex flex-col gap-1">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => updateDeclaration(slot.slotStartIso, 'hold')}
-                                                                    disabled={updating}
-                                                                    className="px-2 py-1 rounded border border-amber-300 text-amber-700 hover:bg-amber-50 font-semibold disabled:opacity-60"
-                                                                >
-                                                                    Hold Auto Declare
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => updateDeclaration(slot.slotStartIso, 'auto')}
-                                                                    disabled={updating}
-                                                                    className="px-2 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50 font-semibold disabled:opacity-60"
-                                                                >
-                                                                    Enable Auto Declare
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => updateDeclaration(slot.slotStartIso, 'declare')}
-                                                                    disabled={updating || !slot?.isCompleted}
-                                                                    className="px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white font-semibold disabled:bg-green-400"
-                                                                >
-                                                                    {slot?.isCompleted ? 'Declare' : 'Wait Slot End'}
-                                                                </button>
-                                                                {canManualResult ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => enableManualSetMode(slot.slotStartIso)}
-                                                                        disabled={updating}
-                                                                        className="px-2 py-1 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold disabled:opacity-60"
-                                                                    >
-                                                                        Manual Result
-                                                                    </button>
-                                                                ) : null}
-                                                            </div>
+                                                            <span className="text-[11px] text-gray-400">—</span>
                                                         )}
                                                     </td>
                                                     {[1, 2, 3].map((quizId) => {
@@ -455,7 +444,7 @@ const ThreeDResultControl = () => {
                                                         return (
                                                             <td key={`${slot.slotStartIso}-${quizId}`} className="p-2 text-center">
                                                                 <div className="font-mono text-gray-800">{q?.resultLabel || '--'}</div>
-                                                                <div className={`text-[10px] ${q?.declared ? 'text-green-600' : 'text-red-500'}`}>
+                                                                <div className={`text-[9px] leading-tight ${q?.declared ? 'text-green-600' : 'text-gray-600'}`}>
                                                                     {q?.declared ? 'Declared' : 'Not'}
                                                                 </div>
                                                                 {showManualSetOptions ? (
@@ -480,6 +469,7 @@ const ThreeDResultControl = () => {
                         </div>
                     </>
                 )}
+                </div>
             </div>
             {manualModal.open ? (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40">

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -13,6 +13,26 @@ const todayDate = () => {
     return `${y}-${m}-${d}`;
 };
 
+/** House P/L if the current hint number wins (total stake on quiz − payout on that number). */
+function hintHouseNetMeta(value) {
+    if (value == null || !Number.isFinite(Number(value))) {
+        return { text: 'P/L: —', className: 'text-gray-400', title: '' };
+    }
+    const n = Math.round(Number(value));
+    if (n >= 0) {
+        return {
+            text: `P/L: +₹${n.toLocaleString('en-IN')}`,
+            className: 'text-green-700',
+            title: 'House keeps this much if this hint number wins (after paying winners on this number).',
+        };
+    }
+    return {
+        text: `P/L: −₹${Math.abs(n).toLocaleString('en-IN')}`,
+        className: 'text-red-700',
+        title: 'House pays out more than collected on this number if it wins.',
+    };
+}
+
 const TwoDResultControl = () => {
     const navigate = useNavigate();
     const [date, setDate] = useState(todayDate());
@@ -26,13 +46,16 @@ const TwoDResultControl = () => {
     const [pageUnlockError, setPageUnlockError] = useState('');
     const [currentHintRows, setCurrentHintRows] = useState([]);
     const [manualModal, setManualModal] = useState({ open: false, slotStartIso: '', quizId: '1', result: '' });
-    const [manualSetModeSlots, setManualSetModeSlots] = useState({});
     const [manualSaving, setManualSaving] = useState(false);
     const [manualError, setManualError] = useState('');
     const [loading, setLoading] = useState(true);
-    const [updating, setUpdating] = useState(false);
+    const [hintsLoading, setHintsLoading] = useState(true);
+    const [secretCheckComplete, setSecretCheckComplete] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
+    const topScrollRef = useRef(null);
+    const tableScrollRef = useRef(null);
+    const syncingScrollRef = useRef(false);
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -63,10 +86,10 @@ const TwoDResultControl = () => {
     }, [date]);
 
     useEffect(() => {
-        if (!hasSecretDeclarePassword || pageUnlocked) {
-            fetchSlots(date);
-        }
-    }, [fetchSlots, date, hasSecretDeclarePassword, pageUnlocked]);
+        if (!secretCheckComplete) return;
+        if (hasSecretDeclarePassword && !pageUnlocked) return;
+        fetchSlots(date);
+    }, [fetchSlots, date, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
 
     useEffect(() => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
@@ -84,10 +107,15 @@ const TwoDResultControl = () => {
                     setPageUnlocked(!hasPassword || restoredUnlock);
                 }
             })
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => {
+                setSecretCheckComplete(true);
+            });
     }, []);
 
-    const fetchCurrentSlotForHints = useCallback(async () => {
+    const fetchCurrentSlotForHints = useCallback(async (options = {}) => {
+        const silent = Boolean(options?.silent);
+        if (!silent) setHintsLoading(true);
         try {
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/current-slot`);
             if (res.status === 401) return;
@@ -112,6 +140,7 @@ const TwoDResultControl = () => {
                     ? detailJson.data.perQuiz.map((row) => ({
                         quizId: row.quizId,
                         hint: row.result == null ? '--' : String(row.result).padStart(2, '0'),
+                        houseNetIfHintWins: row.houseNetIfHintWins,
                     }))
                     : [];
                 setCurrentHintRows(rows);
@@ -120,20 +149,29 @@ const TwoDResultControl = () => {
             setCurrentSlotStartIso('');
             setCurrentSlotPhase('');
             setCurrentHintRows([]);
+        } finally {
+            if (!silent) setHintsLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        if (!hasSecretDeclarePassword || pageUnlocked) {
-            fetchCurrentSlotForHints();
+        if (!secretCheckComplete) return;
+        if (hasSecretDeclarePassword && !pageUnlocked) return;
+        fetchCurrentSlotForHints();
+    }, [fetchCurrentSlotForHints, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
+
+    useEffect(() => {
+        if (secretCheckComplete && hasSecretDeclarePassword && !pageUnlocked) {
+            setHintsLoading(false);
+            setLoading(false);
         }
-    }, [fetchCurrentSlotForHints, hasSecretDeclarePassword, pageUnlocked]);
+    }, [secretCheckComplete, hasSecretDeclarePassword, pageUnlocked]);
 
     useEffect(() => {
         if (hasSecretDeclarePassword && !pageUnlocked) return undefined;
         const timer = setInterval(() => {
             fetchSlots(date, { silent: true });
-            fetchCurrentSlotForHints();
+            fetchCurrentSlotForHints({ silent: true });
         }, 15000);
         return () => clearInterval(timer);
     }, [fetchSlots, fetchCurrentSlotForHints, date, hasSecretDeclarePassword, pageUnlocked]);
@@ -156,13 +194,6 @@ const TwoDResultControl = () => {
             if (!data?.success) {
                 throw new Error(data?.message || 'Invalid security password');
             }
-            const rows = Array.isArray(data?.data?.perQuiz)
-                ? data.data.perQuiz.map((row) => ({
-                    quizId: row.quizId,
-                    hint: row.result == null ? '--' : String(row.result).padStart(2, '0'),
-                }))
-                : [];
-            setCurrentHintRows(rows);
             setPageUnlocked(true);
             setPagePassword('');
             try {
@@ -170,51 +201,14 @@ const TwoDResultControl = () => {
             } catch {
                 // ignore storage write errors
             }
+            await fetchCurrentSlotForHints();
         } catch (err) {
             setPageUnlockError(err?.message || 'Invalid security password');
             setPageUnlocked(false);
         } finally {
             setUnlockingPage(false);
         }
-    }, [pagePassword]);
-
-    const updateDeclaration = useCallback(async (slotStartIso, action) => {
-        if (!slotStartIso) return;
-        setUpdating(true);
-        setError('');
-        setNotice('');
-        try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/declaration`, {
-                method: 'PATCH',
-                body: JSON.stringify({ slotStartIso, action }),
-            });
-            if (res.status === 401) return;
-            const data = await res.json();
-            if (!data?.success) throw new Error(data?.message || 'Failed to update declaration');
-            setSlots((prev) => prev.map((slot) => (
-                slot.slotStartIso === slotStartIso
-                    ? {
-                        ...slot,
-                        declaration: data?.data?.declaration || slot.declaration || null,
-                        perQuiz: Array.isArray(slot.perQuiz)
-                            ? slot.perQuiz.map((q) => ({
-                                ...q,
-                                declared: Boolean(data?.data?.declaration?.declared),
-                            }))
-                            : slot.perQuiz,
-                    }
-                    : slot
-            )));
-            if (action !== 'hold') {
-                setManualSetModeSlots((prev) => ({ ...prev, [slotStartIso]: false }));
-            }
-            setNotice(action === 'declare' ? 'Result declared successfully.' : 'Auto declare preference updated.');
-        } catch (err) {
-            setError(err.message || 'Failed to update declaration');
-        } finally {
-            setUpdating(false);
-        }
-    }, []);
+    }, [pagePassword, fetchCurrentSlotForHints]);
 
     const openManualModal = useCallback((slotStartIso, quizId = '1', currentResultLabel = '') => {
         const normalizedQuizId = String(quizId || '1');
@@ -228,12 +222,6 @@ const TwoDResultControl = () => {
     const closeManualModal = useCallback(() => {
         setManualModal({ open: false, slotStartIso: '', quizId: '1', result: '' });
         setManualError('');
-    }, []);
-
-    const enableManualSetMode = useCallback((slotStartIso) => {
-        if (!slotStartIso) return;
-        setManualSetModeSlots((prev) => ({ ...prev, [slotStartIso]: true }));
-        setNotice('Select "Set" under quiz columns to add manual results.');
     }, []);
 
     const submitManualResult = useCallback(async (e) => {
@@ -282,23 +270,36 @@ const TwoDResultControl = () => {
                         : slot.perQuiz,
                 };
             }));
-            if (currentSlotStartIso && currentSlotStartIso === slotStartIso) {
-                setCurrentHintRows((prev) => prev.map((r) => (
-                    Number(r.quizId) === quizId ? { ...r, hint: padded } : r
-                )));
-            }
             setNotice(`Manual result set for Q${String(quizId).padStart(2, '0')} = ${padded}.`);
+            await fetchCurrentSlotForHints({ silent: true });
             closeManualModal();
         } catch (err) {
             setManualError(err?.message || 'Failed to set manual result');
         } finally {
             setManualSaving(false);
         }
-    }, [manualModal, currentSlotStartIso, closeManualModal]);
+    }, [manualModal, closeManualModal, fetchCurrentSlotForHints]);
+
+    const syncHorizontalScroll = (source) => {
+        if (syncingScrollRef.current) return;
+        const topEl = topScrollRef.current;
+        const tableEl = tableScrollRef.current;
+        if (!topEl || !tableEl) return;
+        syncingScrollRef.current = true;
+        if (source === 'top') {
+            tableEl.scrollLeft = topEl.scrollLeft;
+        } else {
+            topEl.scrollLeft = tableEl.scrollLeft;
+        }
+        requestAnimationFrame(() => {
+            syncingScrollRef.current = false;
+        });
+    };
 
     return (
         <AdminLayout onLogout={handleLogout} title="2D Result Control">
-            <div className="space-y-5">
+            <div className="relative min-h-[60vh] space-y-5">
+                <div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800">2D Result Declaration Control</h1>
@@ -364,24 +365,32 @@ const TwoDResultControl = () => {
                         <span className="text-[11px] font-medium text-green-600">Visible</span>
                     </div>
                     <p className="text-xs text-gray-500 mb-3 break-all">Slot Start: {currentSlotStartIso || '-'}</p>
-                    {currentHintRows.length ? (
+                            {currentHintRows.length ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2">
-                            {currentHintRows.map((item) => (
-                                <button
-                                    key={item.quizId}
-                                    type="button"
-                                    onClick={() => {
-                                        if (!currentSlotStartIso) return;
-                                        navigate(`/2d-management/quiz/${item.quizId}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`);
-                                    }}
-                                    disabled={!currentSlotStartIso}
-                                    className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-left hover:border-orange-400 hover:bg-orange-50/50 hover:shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-                                    title={currentSlotStartIso ? 'Open stake/profit details' : 'Current slot unavailable'}
-                                >
-                                    <span className="text-gray-500">{`Q${String(item.quizId).padStart(2, '0')}`}</span>
-                                    <span className="float-right font-mono font-semibold text-gray-800">{item.hint}</span>
-                                </button>
-                            ))}
+                            {currentHintRows.map((item) => {
+                                const pl = hintHouseNetMeta(item.houseNetIfHintWins);
+                                return (
+                                    <button
+                                        key={item.quizId}
+                                        type="button"
+                                        onClick={() => {
+                                            if (!currentSlotStartIso) return;
+                                            navigate(`/2d-management/quiz/${item.quizId}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`);
+                                        }}
+                                        disabled={!currentSlotStartIso}
+                                        className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-left hover:border-orange-400 hover:bg-orange-50/50 hover:shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                                        title={currentSlotStartIso ? 'Open stake / number-wise P/L' : 'Current slot unavailable'}
+                                    >
+                                        <div className="flex justify-between gap-1 items-baseline">
+                                            <span className="text-gray-500 shrink-0">{`Q${String(item.quizId).padStart(2, '0')}`}</span>
+                                            <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
+                                        </div>
+                                        <div className={`mt-1 text-[10px] font-semibold leading-tight ${pl.className}`} title={pl.title || undefined}>
+                                            {pl.text}
+                                        </div>
+                                    </button>
+                                );
+                            })}
                         </div>
                     ) : (
                         <p className="text-xs text-gray-500">Hint numbers unavailable for current slot.</p>
@@ -389,13 +398,23 @@ const TwoDResultControl = () => {
                 </div>
 
                 <div className="bg-white border border-gray-200 rounded-xl p-5">
-                    <div className="overflow-x-auto">
+                    <div
+                        ref={topScrollRef}
+                        onScroll={() => syncHorizontalScroll('top')}
+                        className="mb-2 overflow-x-scroll overflow-y-hidden"
+                        aria-label="Top horizontal scrollbar"
+                    >
+                        <div className="h-2 min-w-[1500px]" />
+                    </div>
+                    <div
+                        ref={tableScrollRef}
+                        onScroll={() => syncHorizontalScroll('table')}
+                        className="max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-scroll pb-1"
+                    >
                         <table className="min-w-[1500px] w-full text-xs">
-                            <thead>
+                            <thead className="sticky top-0 z-20">
                                 <tr className="border-b border-gray-200 text-gray-600 bg-gray-50">
                                     <th className="text-left p-2">Slot</th>
-                                    <th className="text-left p-2">Declared</th>
-                                    <th className="text-left p-2">Actions</th>
                                     {Array.from({ length: 30 }, (_, i) => i + 1).map((quizId) => (
                                         <th key={quizId} className="text-center p-2 whitespace-nowrap">{`Q${String(quizId).padStart(2, '0')}`}</th>
                                     ))}
@@ -404,77 +423,25 @@ const TwoDResultControl = () => {
                             <tbody>
                                 {!slots.length && !loading ? (
                                     <tr>
-                                        <td colSpan={33} className="text-center p-4 text-gray-500">No slots found for selected date.</td>
+                                        <td colSpan={31} className="text-center p-4 text-gray-500">No slots found for selected date.</td>
                                     </tr>
                                 ) : null}
                                 {slots.map((slot) => {
                                     const declared = Boolean(slot?.declaration?.declared);
-                                    const paused = Boolean(slot?.declaration?.autoDeclareBlocked) && !declared;
                                     const isCurrentRunningSlot = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
                                     const canManualResult = !declared && isCurrentRunningSlot && currentSlotPhase === 'study';
-                                    const showManualSetOptions = canManualResult && manualSetModeSlots[slot.slotStartIso];
+                                    const showManualSetOptions = canManualResult;
                                     return (
                                         <tr key={slot.slotStartIso} className="border-b border-black">
                                             <td className="p-2">
                                                 <div className="font-semibold text-gray-800">{slot.drawLabelEnd || slot.slotStartIso}</div>
-                                                <div className="text-gray-500">{slot.slotStartIso}</div>
-                                            </td>
-                                            <td className="p-2">
-                                                <span className={`px-2 py-1 rounded-full text-[11px] font-semibold ${declared
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : (paused ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}`}
-                                                >
-                                                    {declared ? 'Declared' : (paused ? 'Paused' : 'Auto')}
-                                                </span>
-                                            </td>
-                                            <td className="p-2">
-                                                {declared ? (
-                                                    <span className="text-[11px] text-gray-500 font-medium">Locked</span>
-                                                ) : (
-                                                    <div className="flex flex-col gap-1">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => updateDeclaration(slot.slotStartIso, 'hold')}
-                                                            disabled={updating}
-                                                            className="px-2 py-1 rounded border border-amber-300 text-amber-700 hover:bg-amber-50 font-semibold disabled:opacity-60"
-                                                        >
-                                                            Hold
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => updateDeclaration(slot.slotStartIso, 'auto')}
-                                                            disabled={updating}
-                                                            className="px-2 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50 font-semibold disabled:opacity-60"
-                                                        >
-                                                            Enable
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => updateDeclaration(slot.slotStartIso, 'declare')}
-                                                        disabled={updating || !slot?.isCompleted}
-                                                            className="px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white font-semibold disabled:bg-green-400"
-                                                        >
-                                                        {slot?.isCompleted ? 'Declare' : 'Wait'}
-                                                        </button>
-                                                        {canManualResult ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => enableManualSetMode(slot.slotStartIso)}
-                                                                disabled={updating}
-                                                                className="px-2 py-1 rounded border border-purple-300 text-purple-700 hover:bg-purple-50 font-semibold disabled:opacity-60"
-                                                            >
-                                                                Manual Result
-                                                            </button>
-                                                        ) : null}
-                                                    </div>
-                                                )}
                                             </td>
                                             {Array.from({ length: 30 }, (_, idx) => idx + 1).map((quizId) => {
                                                 const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                 return (
                                                     <td key={`${slot.slotStartIso}-${quizId}`} className="p-2 text-center">
                                                         <div className="font-mono text-gray-800">{q?.resultLabel || '--'}</div>
-                                                        <div className={`text-[10px] ${q?.declared ? 'text-green-600' : 'text-red-500'}`}>
+                                                        <div className={`text-[9px] leading-tight ${q?.declared ? 'text-green-600' : 'text-gray-600'}`}>
                                                             {q?.declared ? 'Declared' : 'Not'}
                                                         </div>
                                                         {showManualSetOptions ? (
@@ -499,6 +466,7 @@ const TwoDResultControl = () => {
                 </div>
                     </>
                 )}
+                </div>
             </div>
             {manualModal.open ? (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40">
