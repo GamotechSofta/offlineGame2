@@ -20,6 +20,10 @@ const OldSlotsSection = ({
     handleSelectSlot,
     loadingHistory,
     detailSectionRef,
+    loadingDetail,
+    detailData,
+    setWiseAggregateAllSlots,
+    setSetWiseAggregateAllSlots,
     loadingAllHistoryDetails,
     historyDetailsMap,
     getThreeDQuizLabel,
@@ -136,53 +140,147 @@ const OldSlotsSection = ({
             ) : activeSection === 'quizStats' ? (
                 <div ref={detailSectionRef} className="space-y-5">
                     <div className="bg-white border border-gray-200 rounded-xl p-5">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-800">All Old Slots - Set-wise Stats</h3>
-                                <p className="text-sm text-gray-500">Selected date मधले सर्व completed slots खाली दिसतील.</p>
+                        <div className="flex flex-wrap items-end gap-4">
+                            <div className="min-w-[180px]">
+                                <label className="mb-1 block text-sm font-medium text-gray-700">Filter Date</label>
+                                <input
+                                    type="date"
+                                    value={date}
+                                    onChange={(e) => {
+                                        setDate(e.target.value);
+                                        setNotice('');
+                                        setError('');
+                                        setIsTimeDropdownOpen(false);
+                                    }}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                                />
                             </div>
-                            {loadingAllHistoryDetails ? <span className="text-xs text-gray-500">Loading all slot stats...</span> : null}
+                            <div ref={timeDropdownRef} className="min-w-[220px] flex-1 relative">
+                                <label className="mb-1 block text-sm font-medium text-gray-700">Filter Time Slot</label>
+                                <button
+                                    type="button"
+                                    onClick={() => historySlots.length && setIsTimeDropdownOpen((prev) => !prev)}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-left flex items-center justify-between gap-3 disabled:bg-gray-50 disabled:text-gray-400"
+                                    disabled={!historySlots.length}
+                                >
+                                <span>{setWiseAggregateAllSlots ? 'All slots (full day)' : selectedSlotMeta?.drawLabelEnd || 'No slots available for selected date'}</span>
+                                    <FaChevronDown className={`text-xs text-gray-500 transition-transform ${isTimeDropdownOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {isTimeDropdownOpen && historySlots.length ? (
+                                    <div className="absolute z-20 mt-2 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                                        <div className="max-h-64 overflow-y-auto py-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSetWiseAggregateAllSlots(true);
+                                                setNotice('');
+                                                setError('');
+                                                setIsTimeDropdownOpen(false);
+                                            }}
+                                            className={`w-full px-3 py-2 text-left text-sm transition ${
+                                                setWiseAggregateAllSlots ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            All slots (full day)
+                                        </button>
+                                            {historySlots.map((slot) => {
+                                            const active = !setWiseAggregateAllSlots && slot.slotStartIso === selectedSlot;
+                                                return (
+                                                    <button
+                                                        key={slot.slotStartIso}
+                                                        type="button"
+                                                        onClick={() => {
+                                                        setSetWiseAggregateAllSlots(false);
+                                                            setSelectedSlot(slot.slotStartIso);
+                                                            setNotice('');
+                                                            setError('');
+                                                            setIsTimeDropdownOpen(false);
+                                                        }}
+                                                        className={`w-full px-3 py-2 text-left text-sm transition ${
+                                                            active ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        {slot.drawLabelEnd}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                            {selectedSlotMeta ? (
+                                <div className="text-sm text-gray-500">
+                                    {setWiseAggregateAllSlots ? (
+                                        <>
+                                            Showing stats for <span className="font-semibold text-gray-700">all slots</span> on{' '}
+                                            <span className="font-semibold text-gray-700">{date}</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Showing stats for <span className="font-semibold text-gray-700">{selectedSlotMeta.drawLabelEnd}</span>
+                                        </>
+                                    )}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
-                    {!historySlots.length && !loadingHistory ? (
-                        <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">
-                            Selected date साठी old slots नाहीत.
-                        </div>
-                    ) : historySlots.map((slot) => {
-                        const detail = historyDetailsMap[slot.slotStartIso];
-                        const hasDetailLoaded = Object.prototype.hasOwnProperty.call(historyDetailsMap, slot.slotStartIso);
-                        const rows = Array.isArray(detail?.perQuiz)
-                            ? detail.perQuiz.filter((row) => [1, 2, 3].includes(Number(row.quizId)))
-                            : [];
-                        return (
-                            <div key={`set-stats-${slot.slotStartIso}`} className="space-y-2">
-                                <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-800">{slot.drawLabelEnd}</p>
-                                            <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
-                                        </div>
-                                        <p className="text-xs text-gray-500">
-                                            Tickets: <span className="font-semibold text-gray-700">{slot.totalTickets}</span> | Revenue: <span className="font-semibold text-green-600">₹{Number((slot.revenue ?? slot.totalBetAmount) || 0).toLocaleString('en-IN')}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                {rows.length ? (
-                                    <QuizSlotStatsTable
-                                        rows={rows}
-                                        canEdit={false}
-                                        resultPadLength={3}
-                                        quizLabelFormatter={getThreeDQuizLabel}
-                                        title={`Set-wise Slot Stats - ${slot.drawLabelEnd}`}
-                                    />
-                                ) : (
-                                    <div className="bg-white border border-gray-200 rounded-xl p-4 text-sm text-gray-500">
-                                        {hasDetailLoaded ? 'No set-wise stats found for this slot.' : 'Slot stats loading...'}
-                                    </div>
-                                )}
+
+                    {setWiseAggregateAllSlots ? (
+                        !historySlots.length && !loadingHistory ? (
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">
+                                Selected date साठी old slots नाहीत.
                             </div>
-                        );
-                    })}
+                        ) : loadingAllHistoryDetails ? (
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">Loading all slot stats...</div>
+                        ) : historySlots.map((slot) => {
+                            const detail = historyDetailsMap[slot.slotStartIso];
+                            const rows = Array.isArray(detail?.perQuiz)
+                                ? detail.perQuiz.filter((row) => [1, 2, 3].includes(Number(row.quizId)))
+                                : [];
+                            return (
+                                <div key={`set-stats-${slot.slotStartIso}`} className="space-y-2">
+                                    <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-800">{slot.drawLabelEnd}</p>
+                                                <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
+                                            </div>
+                                            <p className="text-xs text-gray-500">
+                                                Tickets: <span className="font-semibold text-gray-700">{slot.totalTickets}</span> | Revenue: <span className="font-semibold text-green-600">₹{Number((slot.revenue ?? slot.totalBetAmount) || 0).toLocaleString('en-IN')}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {rows.length ? (
+                                        <QuizSlotStatsTable
+                                            rows={rows}
+                                            canEdit={false}
+                                            resultPadLength={3}
+                                            quizLabelFormatter={getThreeDQuizLabel}
+                                            title={`Set-wise Slot Stats - ${slot.drawLabelEnd}`}
+                                        />
+                                    ) : (
+                                        <div className="bg-white border border-gray-200 rounded-xl p-4 text-sm text-gray-500">
+                                            Slot stats unavailable for this slot.
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    ) : loadingDetail ? (
+                        <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">Loading slot detail...</div>
+                    ) : Array.isArray(detailData?.perQuiz) ? (
+                        <QuizSlotStatsTable
+                            rows={detailData.perQuiz.filter((row) => [1, 2, 3].includes(Number(row.quizId)))}
+                            canEdit={false}
+                            resultPadLength={3}
+                            quizLabelFormatter={getThreeDQuizLabel}
+                            title={`Set-wise Slot Stats - ${selectedSlotMeta?.drawLabelEnd || ''}`}
+                        />
+                    ) : (
+                        <div className="bg-white border border-gray-200 rounded-xl p-5 text-sm text-gray-500">
+                            Please select a slot from Old Slots to view set-wise stats.
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="space-y-5">

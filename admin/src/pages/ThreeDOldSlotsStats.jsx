@@ -20,13 +20,15 @@ const ThreeDOldSlotsStats = () => {
     const [date, setDate] = useState(todayDate());
     const [historySlots, setHistorySlots] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState('');
+    const [detailData, setDetailData] = useState(null);
     const [activeSection, setActiveSection] = useState('oldSlots');
     const [loadingHistory, setLoadingHistory] = useState(true);
+    const [loadingDetail, setLoadingDetail] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [historyDetailsMap, setHistoryDetailsMap] = useState({});
-    const [historyPlayersMap, setHistoryPlayersMap] = useState({});
     const [loadingAllHistoryDetails, setLoadingAllHistoryDetails] = useState(false);
+    const [historyPlayersMap, setHistoryPlayersMap] = useState({});
     const [loadingAllHistoryPlayers, setLoadingAllHistoryPlayers] = useState(false);
     const [showPlayerHistoryModal, setShowPlayerHistoryModal] = useState(false);
     const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -36,6 +38,7 @@ const ThreeDOldSlotsStats = () => {
     const detailSectionRef = useRef(null);
     const timeDropdownRef = useRef(null);
     const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
+    const [setWiseAggregateAllSlots, setSetWiseAggregateAllSlots] = useState(true);
 
     const getThreeDQuizLabel = useCallback((quizId) => {
         const map = { 1: 'Set A', 2: 'Set B', 3: 'Set C' };
@@ -57,24 +60,47 @@ const ThreeDOldSlotsStats = () => {
     const fetchHistory = useCallback(async (targetDate) => {
         setLoadingHistory(true);
         try {
-            const params = new URLSearchParams({ date: targetDate, limit: '40' });
+            const params = new URLSearchParams({ date: targetDate, limit: '96' });
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots?${params.toString()}`);
             if (res.status === 401) return;
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to load slot history');
-            const slots = Array.isArray(data?.data?.slots) ? data.data.slots : [];
+            const slots = Array.isArray(data?.data?.slots)
+                ? data.data.slots
+                    .filter((slot) => Boolean(slot?.isCompleted))
+                    .sort((a, b) => new Date(a.slotStartIso).getTime() - new Date(b.slotStartIso).getTime())
+                : [];
             setHistorySlots(slots);
             if (slots.length) {
                 setSelectedSlot((prev) => (prev && slots.some((slot) => slot.slotStartIso === prev) ? prev : slots[0].slotStartIso));
             } else {
                 setSelectedSlot('');
+                setDetailData(null);
             }
         } catch (err) {
             setError(err.message || 'Failed to load history');
             setHistorySlots([]);
             setSelectedSlot('');
+            setDetailData(null);
         } finally {
             setLoadingHistory(false);
+        }
+    }, []);
+
+    const fetchDetail = useCallback(async (slotStartIso) => {
+        if (!slotStartIso) return;
+        setLoadingDetail(true);
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/${encodeURIComponent(slotStartIso)}/detail`);
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load slot detail');
+            setDetailData(data.data || null);
+        } catch (err) {
+            setError(err.message || 'Failed to load slot detail');
+            setDetailData(null);
+        } finally {
+            setLoadingDetail(false);
         }
     }, []);
 
@@ -170,6 +196,14 @@ const ThreeDOldSlotsStats = () => {
         fetchAllHistoryDetails(historySlots);
         fetchAllHistoryPlayers(historySlots);
     }, [historySlots, fetchAllHistoryDetails, fetchAllHistoryPlayers]);
+
+    useEffect(() => {
+        if (selectedSlot) fetchDetail(selectedSlot);
+    }, [selectedSlot, fetchDetail]);
+
+    useEffect(() => {
+        setSetWiseAggregateAllSlots(true);
+    }, [date]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -281,6 +315,10 @@ const ThreeDOldSlotsStats = () => {
                     handleSelectSlot={handleSelectSlot}
                     loadingHistory={loadingHistory}
                     detailSectionRef={detailSectionRef}
+                    loadingDetail={loadingDetail}
+                    detailData={detailData}
+                    setWiseAggregateAllSlots={setWiseAggregateAllSlots}
+                    setSetWiseAggregateAllSlots={setSetWiseAggregateAllSlots}
                     loadingAllHistoryDetails={loadingAllHistoryDetails}
                     historyDetailsMap={historyDetailsMap}
                     getThreeDQuizLabel={getThreeDQuizLabel}
