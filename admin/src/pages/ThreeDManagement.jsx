@@ -5,6 +5,7 @@ import useModalBackHandler from '../hooks/useModalBackHandler';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import CurrentSlotOverview from '../components/twoDManagement/CurrentSlotOverview';
 import OldSlotsSection from '../components/threeDManagement/OldSlotsSection';
+import SlotWiseBetsSection from '../components/SlotWiseBetsSection';
 
 const ThreeDManagement = () => {
     const navigate = useNavigate();
@@ -702,6 +703,7 @@ const ThreeDManagement = () => {
                     onEditHint={handleEditCurrentHint}
                     quizLabelFormatter={getThreeDQuizLabel}
                 />
+                <SlotWiseBetsSection mode="3d" />
 
                 {false ? <OldSlotsSection
                     activeSection={activeSection}

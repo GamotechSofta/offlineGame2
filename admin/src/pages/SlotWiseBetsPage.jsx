@@ -5,6 +5,9 @@ import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const ALL_DAY_VALUE = '__all_day__';
+const ALL_ADVANCE_VALUE = '__all_advance__';
+const ALL_PAST_VALUE = '__all_past__';
+const ALL_FILTER_SLOTS_VALUE = '__all_filter_slots__';
 
 const todayDate = () => {
   const now = new Date();
@@ -35,6 +38,26 @@ const flattenBets = (players = []) => {
   return rows.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 };
 
+const isSlotMatchingSelection = (slot, selection) => {
+  if (selection === ALL_DAY_VALUE) return true;
+  if (selection === ALL_ADVANCE_VALUE) return slot?.status === 'upcoming';
+  if (selection === ALL_PAST_VALUE) return slot?.status === 'past';
+  return slot?.slotStartIso === selection;
+};
+
+const selectionTitle = (selection, count) => {
+  if (selection === ALL_DAY_VALUE) return `All slots (${count})`;
+  if (selection === ALL_ADVANCE_VALUE) return `All advance slots (${count})`;
+  if (selection === ALL_PAST_VALUE) return `All past slots (${count})`;
+  return '';
+};
+
+const filterTitle = (filterMode) => {
+  if (filterMode === ALL_ADVANCE_VALUE) return 'advance';
+  if (filterMode === ALL_PAST_VALUE) return 'past';
+  return 'all day';
+};
+
 const outcomeClass = (outcome) => {
   if (outcome === 'win') return 'text-green-700';
   if (outcome === 'lose') return 'text-red-700';
@@ -47,7 +70,8 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
   const modeLabel = mode === '3d' ? '3D' : '2D';
   const [historyDate, setHistoryDate] = useState(todayDate);
   const [historySlots, setHistorySlots] = useState([]);
-  const [selectedSlotIso, setSelectedSlotIso] = useState(ALL_DAY_VALUE);
+  const [filterMode, setFilterMode] = useState(ALL_DAY_VALUE);
+  const [selectedSlotIso, setSelectedSlotIso] = useState(ALL_FILTER_SLOTS_VALUE);
   const [slotMeta, setSlotMeta] = useState(null);
   const [players, setPlayers] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -70,14 +94,11 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
       if (!json?.success) throw new Error(json?.message || 'Failed to load slot schedule');
       const slots = Array.isArray(json?.data?.slots) ? json.data.slots : [];
       setHistorySlots(slots);
-      setSelectedSlotIso((prev) => {
-        if (prev === ALL_DAY_VALUE) return ALL_DAY_VALUE;
-        return slots.some((s) => s.slotStartIso === prev) ? prev : ALL_DAY_VALUE;
-      });
+      setSelectedSlotIso((prev) => (slots.some((s) => s.slotStartIso === prev) ? prev : ALL_FILTER_SLOTS_VALUE));
       return slots;
     } catch (err) {
       setHistorySlots([]);
-      setSelectedSlotIso(ALL_DAY_VALUE);
+      setSelectedSlotIso(ALL_FILTER_SLOTS_VALUE);
       setError(err?.message || 'Failed to load slots');
       return [];
     } finally {
@@ -86,7 +107,8 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
   }, [mode]);
 
   const fetchBetsForSelection = useCallback(async (selection, slotsForDate = historySlots) => {
-    if (selection !== ALL_DAY_VALUE && !selection) {
+    const isSpecialSelection = selection === ALL_DAY_VALUE || selection === ALL_ADVANCE_VALUE || selection === ALL_PAST_VALUE;
+    if (!isSpecialSelection && !selection) {
       setSlotMeta(null);
       setPlayers([]);
       return;
@@ -94,14 +116,15 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
     setLoadingBets(true);
     setError('');
     try {
-      if (selection === ALL_DAY_VALUE) {
-        if (!slotsForDate.length) {
+      if (isSpecialSelection) {
+        const targetSlots = slotsForDate.filter((slot) => isSlotMatchingSelection(slot, selection));
+        if (!targetSlots.length) {
           setSlotMeta(null);
           setPlayers([]);
           return;
         }
         const responses = await Promise.all(
-          slotsForDate.map((slot) =>
+          targetSlots.map((slot) =>
             fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(slot.slotStartIso)}/players`),
           ),
         );
@@ -113,7 +136,7 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
           Array.isArray(payload?.data?.players) ? payload.data.players : [],
         );
         setSlotMeta({
-          drawLabelEnd: `All slots (${slotsForDate.length})`,
+          drawLabelEnd: selectionTitle(selection, targetSlots.length),
           slotStartIso: historyDate,
         });
         setPlayers(mergedPlayers);
@@ -129,7 +152,7 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
     } catch (err) {
       setSlotMeta(null);
       setPlayers([]);
-      setError(err?.message || 'Failed to load bets for selected slot');
+      setError(err?.message || 'Failed to load bets for selected filter');
     } finally {
       setLoadingBets(false);
     }
@@ -139,9 +162,16 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
     fetchDaySlotSchedule(historyDate);
   }, [historyDate, fetchDaySlotSchedule]);
 
+  const filteredSlots = useMemo(
+    () => historySlots.filter((slot) => isSlotMatchingSelection(slot, filterMode)),
+    [historySlots, filterMode],
+  );
+
+  const effectiveSelection = selectedSlotIso && selectedSlotIso !== ALL_FILTER_SLOTS_VALUE ? selectedSlotIso : filterMode;
+
   useEffect(() => {
-    fetchBetsForSelection(selectedSlotIso, historySlots);
-  }, [selectedSlotIso, historySlots, fetchBetsForSelection]);
+    fetchBetsForSelection(effectiveSelection, historySlots);
+  }, [effectiveSelection, historySlots, fetchBetsForSelection]);
 
   const flattenedBets = useMemo(() => flattenBets(players), [players]);
   const stats = useMemo(() => {
@@ -157,8 +187,13 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
 
   const refresh = useCallback(async () => {
     const latestSlots = await fetchDaySlotSchedule(historyDate);
-    await fetchBetsForSelection(selectedSlotIso, Array.isArray(latestSlots) ? latestSlots : historySlots);
-  }, [fetchDaySlotSchedule, historyDate, selectedSlotIso, fetchBetsForSelection, historySlots]);
+    await fetchBetsForSelection(effectiveSelection, Array.isArray(latestSlots) ? latestSlots : historySlots);
+  }, [fetchDaySlotSchedule, historyDate, effectiveSelection, fetchBetsForSelection, historySlots]);
+
+  const clearFilters = useCallback(() => {
+    setFilterMode(ALL_DAY_VALUE);
+    setSelectedSlotIso(ALL_FILTER_SLOTS_VALUE);
+  }, []);
 
   return (
     <AdminLayout onLogout={handleLogout} title={`${modeLabel} Slot Wise Bets`}>
@@ -170,14 +205,24 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
               View all bets placed for a selected draw time slot.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={refresh}
-            className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-70"
-            disabled={loadingSlots || loadingBets}
-          >
-            {loadingSlots || loadingBets ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="px-4 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-semibold disabled:opacity-70"
+              disabled={loadingSlots || loadingBets}
+            >
+              Clear Filter
+            </button>
+            <button
+              type="button"
+              onClick={refresh}
+              className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-70"
+              disabled={loadingSlots || loadingBets}
+            >
+              {loadingSlots || loadingBets ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -192,6 +237,22 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
                 className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
               />
             </label>
+            <label className="flex flex-col gap-1 text-sm min-w-[220px]">
+              <span className="text-gray-600 font-medium">Filter</span>
+              <select
+                value={filterMode}
+                onChange={(e) => {
+                  setFilterMode(e.target.value);
+                  setSelectedSlotIso(ALL_FILTER_SLOTS_VALUE);
+                }}
+                disabled={loadingSlots}
+                className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+              >
+                <option value={ALL_DAY_VALUE}>All day bets</option>
+                <option value={ALL_ADVANCE_VALUE}>All advance bets</option>
+                <option value={ALL_PAST_VALUE}>All past bets</option>
+              </select>
+            </label>
             <label className="flex flex-col gap-1 text-sm min-w-[240px] flex-1">
               <span className="text-gray-600 font-medium">Draw (slot end time)</span>
               <select
@@ -200,8 +261,11 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
                 disabled={loadingSlots}
                 className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm w-full max-w-md"
               >
-                <option value={ALL_DAY_VALUE}>All day bets (all slots)</option>
-                {historySlots.map((slot) => (
+                <option value={ALL_FILTER_SLOTS_VALUE}>
+                  {`All ${filterTitle(filterMode)} slots`}
+                </option>
+                {!filteredSlots.length ? <option value="">No slots found</option> : null}
+                {filteredSlots.map((slot) => (
                   <option key={slot.slotStartIso} value={slot.slotStartIso}>
                     {slotScheduleLabel(slot)}
                   </option>
@@ -211,7 +275,9 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
           </div>
           {slotMeta ? (
             <p className="text-xs text-gray-600 break-all">
-              {selectedSlotIso === ALL_DAY_VALUE ? 'Selected Date' : 'Slot Start'}:{' '}
+              {effectiveSelection === ALL_DAY_VALUE || effectiveSelection === ALL_ADVANCE_VALUE || effectiveSelection === ALL_PAST_VALUE
+                ? 'Selected Date'
+                : 'Slot Start'}:{' '}
               <span className="font-semibold">{slotMeta.slotStartIso}</span> | Draw Time:{' '}
               <span className="font-semibold">{slotMeta.drawLabelEnd || '-'}</span>
             </p>

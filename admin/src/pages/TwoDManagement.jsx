@@ -5,6 +5,7 @@ import useModalBackHandler from '../hooks/useModalBackHandler';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import CurrentSlotOverview from '../components/twoDManagement/CurrentSlotOverview';
 import OldSlotsSection from '../components/twoDManagement/OldSlotsSection';
+import SlotWiseBetsSection from '../components/SlotWiseBetsSection';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -666,6 +667,7 @@ const TwoDManagement = () => {
                         navigate(`/2d-management/quiz/${qid}/stake?slotStartIso=${encodeURIComponent(iso)}`);
                     }}
                 />
+                <SlotWiseBetsSection mode="2d" />
 
                 {isOldSlotsPage ? (
                     <OldSlotsSection
