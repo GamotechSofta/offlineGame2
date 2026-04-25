@@ -4,6 +4,7 @@ import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
+const ALL_DAY_VALUE = '__all_day__';
 
 const todayDate = () => {
   const now = new Date();
@@ -46,7 +47,7 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
   const modeLabel = mode === '3d' ? '3D' : '2D';
   const [historyDate, setHistoryDate] = useState(todayDate);
   const [historySlots, setHistorySlots] = useState([]);
-  const [selectedSlotIso, setSelectedSlotIso] = useState('');
+  const [selectedSlotIso, setSelectedSlotIso] = useState(ALL_DAY_VALUE);
   const [slotMeta, setSlotMeta] = useState(null);
   const [players, setPlayers] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -69,26 +70,23 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
       if (!json?.success) throw new Error(json?.message || 'Failed to load slot schedule');
       const slots = Array.isArray(json?.data?.slots) ? json.data.slots : [];
       setHistorySlots(slots);
-      if (!slots.length) {
-        setSelectedSlotIso('');
-        return '';
-      }
-      const live = slots.find((s) => s.status === 'live');
-      const chosen = live?.slotStartIso || slots[0]?.slotStartIso || '';
-      setSelectedSlotIso((prev) => (prev && slots.some((s) => s.slotStartIso === prev) ? prev : chosen));
-      return chosen;
+      setSelectedSlotIso((prev) => {
+        if (prev === ALL_DAY_VALUE) return ALL_DAY_VALUE;
+        return slots.some((s) => s.slotStartIso === prev) ? prev : ALL_DAY_VALUE;
+      });
+      return slots;
     } catch (err) {
       setHistorySlots([]);
-      setSelectedSlotIso('');
+      setSelectedSlotIso(ALL_DAY_VALUE);
       setError(err?.message || 'Failed to load slots');
-      return '';
+      return [];
     } finally {
       setLoadingSlots(false);
     }
   }, [mode]);
 
-  const fetchBetsForSlot = useCallback(async (slotStartIso) => {
-    if (!slotStartIso) {
+  const fetchBetsForSelection = useCallback(async (selection, slotsForDate = historySlots) => {
+    if (selection !== ALL_DAY_VALUE && !selection) {
       setSlotMeta(null);
       setPlayers([]);
       return;
@@ -96,7 +94,33 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
     setLoadingBets(true);
     setError('');
     try {
-      const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(slotStartIso)}/players`);
+      if (selection === ALL_DAY_VALUE) {
+        if (!slotsForDate.length) {
+          setSlotMeta(null);
+          setPlayers([]);
+          return;
+        }
+        const responses = await Promise.all(
+          slotsForDate.map((slot) =>
+            fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(slot.slotStartIso)}/players`),
+          ),
+        );
+        if (responses.some((res) => res.status === 401)) return;
+        const payloads = await Promise.all(responses.map((res) => res.json()));
+        const firstError = payloads.find((payload) => !payload?.success);
+        if (firstError) throw new Error(firstError?.message || 'Failed to load all-day bets');
+        const mergedPlayers = payloads.flatMap((payload) =>
+          Array.isArray(payload?.data?.players) ? payload.data.players : [],
+        );
+        setSlotMeta({
+          drawLabelEnd: `All slots (${slotsForDate.length})`,
+          slotStartIso: historyDate,
+        });
+        setPlayers(mergedPlayers);
+        return;
+      }
+
+      const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(selection)}/players`);
       if (res.status === 401) return;
       const json = await res.json();
       if (!json?.success) throw new Error(json?.message || 'Failed to load bets for selected slot');
@@ -109,15 +133,15 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
     } finally {
       setLoadingBets(false);
     }
-  }, [mode]);
+  }, [mode, historyDate, historySlots]);
 
   useEffect(() => {
     fetchDaySlotSchedule(historyDate);
   }, [historyDate, fetchDaySlotSchedule]);
 
   useEffect(() => {
-    fetchBetsForSlot(selectedSlotIso);
-  }, [selectedSlotIso, fetchBetsForSlot]);
+    fetchBetsForSelection(selectedSlotIso, historySlots);
+  }, [selectedSlotIso, historySlots, fetchBetsForSelection]);
 
   const flattenedBets = useMemo(() => flattenBets(players), [players]);
   const stats = useMemo(() => {
@@ -132,9 +156,9 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
   }, [flattenedBets]);
 
   const refresh = useCallback(async () => {
-    await fetchDaySlotSchedule(historyDate);
-    if (selectedSlotIso) await fetchBetsForSlot(selectedSlotIso);
-  }, [fetchDaySlotSchedule, historyDate, selectedSlotIso, fetchBetsForSlot]);
+    const latestSlots = await fetchDaySlotSchedule(historyDate);
+    await fetchBetsForSelection(selectedSlotIso, Array.isArray(latestSlots) ? latestSlots : historySlots);
+  }, [fetchDaySlotSchedule, historyDate, selectedSlotIso, fetchBetsForSelection, historySlots]);
 
   return (
     <AdminLayout onLogout={handleLogout} title={`${modeLabel} Slot Wise Bets`}>
@@ -173,12 +197,10 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
               <select
                 value={selectedSlotIso}
                 onChange={(e) => setSelectedSlotIso(e.target.value)}
-                disabled={loadingSlots || !historySlots.length}
+                disabled={loadingSlots}
                 className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm w-full max-w-md"
               >
-                {!historySlots.length && !loadingSlots ? (
-                  <option value="">No slots found for this date</option>
-                ) : null}
+                <option value={ALL_DAY_VALUE}>All day bets (all slots)</option>
                 {historySlots.map((slot) => (
                   <option key={slot.slotStartIso} value={slot.slotStartIso}>
                     {slotScheduleLabel(slot)}
@@ -189,7 +211,8 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
           </div>
           {slotMeta ? (
             <p className="text-xs text-gray-600 break-all">
-              Slot Start: <span className="font-semibold">{slotMeta.slotStartIso}</span> | Draw Time:{' '}
+              {selectedSlotIso === ALL_DAY_VALUE ? 'Selected Date' : 'Slot Start'}:{' '}
+              <span className="font-semibold">{slotMeta.slotStartIso}</span> | Draw Time:{' '}
               <span className="font-semibold">{slotMeta.drawLabelEnd || '-'}</span>
             </p>
           ) : null}
