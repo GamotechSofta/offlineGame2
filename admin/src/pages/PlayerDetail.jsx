@@ -13,6 +13,7 @@ const TABS = [
     { id: 'wallet', label: 'Wallet Statement' },
     { id: 'bets', label: 'Bet History' },
     { id: 'game-history', label: 'Game History' },
+    { id: 'lottery', label: 'Lottery History' },
     { id: 'profile', label: 'Profile' },
 ];
 
@@ -299,6 +300,8 @@ const PlayerDetail = () => {
     const [gameHistoryFilter, setGameHistoryFilter] = useState('all');
     const [gameHistorySearch, setGameHistorySearch] = useState('');
     const [betHistorySearch, setBetHistorySearch] = useState('');
+    const [lottery2dHistory, setLottery2dHistory] = useState(null);
+    const [lottery3dHistory, setLottery3dHistory] = useState(null);
     const [loadingTab, setLoadingTab] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
     const [toggleMessage, setToggleMessage] = useState('');
@@ -347,6 +350,7 @@ const PlayerDetail = () => {
         if (activeTab === 'wallet') fetchWalletTx();
         if (activeTab === 'bets') fetchBets();
         if (activeTab === 'game-history') fetchGameHistory();
+        if (activeTab === 'lottery') fetchLotteryHistory();
     }, [activeTab, userId, player, statementFrom, statementTo]);
 
     const fetchPlayer = async () => {
@@ -487,6 +491,27 @@ const PlayerDetail = () => {
             setGameTransactions(data.success ? data.data || [] : []);
         } catch (err) {
             setGameTransactions([]);
+        } finally {
+            setLoadingTab(false);
+        }
+    };
+
+    const fetchLotteryHistory = async () => {
+        if (!userId) return;
+        setLoadingTab(true);
+        try {
+            const [res2d, res3d] = await Promise.all([
+                fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/players/${encodeURIComponent(userId)}/history?limit=100`),
+                fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/players/${encodeURIComponent(userId)}/history?limit=100`),
+            ]);
+            if (res2d.status === 401 || res3d.status === 401) return;
+            const data2d = await res2d.json();
+            const data3d = await res3d.json();
+            setLottery2dHistory(data2d?.success ? data2d.data || null : null);
+            setLottery3dHistory(data3d?.success ? data3d.data || null : null);
+        } catch (err) {
+            setLottery2dHistory(null);
+            setLottery3dHistory(null);
         } finally {
             setLoadingTab(false);
         }
@@ -746,6 +771,7 @@ const PlayerDetail = () => {
     };
 
     const formatCurrency = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+    const formatNumber = (n) => Number(n || 0).toLocaleString('en-IN');
 
     const formatIpDisplay = (ip) => {
         if (!ip) return '—';
@@ -1369,6 +1395,119 @@ const PlayerDetail = () => {
                             <div><p className="text-gray-500 text-sm">Created</p><p className="text-gray-800">{player.createdAt ? new Date(player.createdAt).toLocaleString('en-IN') : '—'}</p></div>
                         </div>
                     </div>
+                )}
+
+                {activeTab === 'lottery' && (
+                    <>
+                        {loadingTab ? (
+                            <div className="p-8 text-center text-gray-400">Loading lottery history...</div>
+                        ) : (
+                            <div className="p-4 sm:p-6 space-y-6">
+                                <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+                                    <h3 className="text-base sm:text-lg font-bold text-gray-800">Lottery Summary (Player-wise)</h3>
+                                    <p className="text-xs text-gray-500 mt-1">Combined 2D and 3D history for this player.</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+                                        <div className="rounded-lg border border-gray-200 bg-white p-3">
+                                            <p className="text-xs text-gray-500">2D Total Bets</p>
+                                            <p className="text-lg font-bold text-gray-800">{formatNumber(lottery2dHistory?.summary?.totalBets)}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-white p-3">
+                                            <p className="text-xs text-gray-500">2D Net P/L</p>
+                                            <p className={`text-lg font-bold ${Number(lottery2dHistory?.summary?.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {formatCurrency(lottery2dHistory?.summary?.netProfitLoss)}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-white p-3">
+                                            <p className="text-xs text-gray-500">3D Total Bets</p>
+                                            <p className="text-lg font-bold text-gray-800">{formatNumber(lottery3dHistory?.summary?.totalBets)}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-white p-3">
+                                            <p className="text-xs text-gray-500">3D Net P/L</p>
+                                            <p className={`text-lg font-bold ${Number(lottery3dHistory?.summary?.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {formatCurrency(lottery3dHistory?.summary?.netProfitLoss)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                    <div className="rounded-xl border border-gray-200 overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                                            <h4 className="font-semibold text-orange-500">2D Lottery History</h4>
+                                        </div>
+                                        {!lottery2dHistory?.slots?.length ? (
+                                            <div className="p-4 text-sm text-gray-500">No 2D history found.</div>
+                                        ) : (
+                                            <div className="max-h-[420px] overflow-auto divide-y divide-gray-100">
+                                                {lottery2dHistory.slots.map((slot) => (
+                                                    <div key={slot.slotStartIso} className="p-4">
+                                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                                            <div>
+                                                                <p className="text-sm font-semibold text-gray-800">{slot.drawLabelEnd || '-'}</p>
+                                                                <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
+                                                            </div>
+                                                            <span className="text-xs text-gray-500">{formatNumber(slot.betCount)} bets</span>
+                                                        </div>
+                                                        <div className="grid grid-cols-3 gap-2 text-xs">
+                                                            <div className="rounded bg-gray-50 px-2 py-1">
+                                                                <p className="text-gray-500">Stake</p>
+                                                                <p className="font-semibold text-gray-800">{formatCurrency(slot.totalStake)}</p>
+                                                            </div>
+                                                            <div className="rounded bg-gray-50 px-2 py-1">
+                                                                <p className="text-gray-500">Payout</p>
+                                                                <p className="font-semibold text-gray-800">{formatCurrency(slot.totalPayout)}</p>
+                                                            </div>
+                                                            <div className="rounded bg-gray-50 px-2 py-1">
+                                                                <p className="text-gray-500">Net</p>
+                                                                <p className={`font-semibold ${Number(slot.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(slot.netProfitLoss)}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="rounded-xl border border-gray-200 overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                                            <h4 className="font-semibold text-orange-500">3D Lottery History</h4>
+                                        </div>
+                                        {!lottery3dHistory?.slots?.length ? (
+                                            <div className="p-4 text-sm text-gray-500">No 3D history found.</div>
+                                        ) : (
+                                            <div className="max-h-[420px] overflow-auto divide-y divide-gray-100">
+                                                {lottery3dHistory.slots.map((slot) => (
+                                                    <div key={slot.slotStartIso} className="p-4">
+                                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                                            <div>
+                                                                <p className="text-sm font-semibold text-gray-800">{slot.drawLabelEnd || '-'}</p>
+                                                                <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
+                                                            </div>
+                                                            <span className="text-xs text-gray-500">{formatNumber(slot.betCount)} bets</span>
+                                                        </div>
+                                                        <div className="grid grid-cols-3 gap-2 text-xs">
+                                                            <div className="rounded bg-gray-50 px-2 py-1">
+                                                                <p className="text-gray-500">Stake</p>
+                                                                <p className="font-semibold text-gray-800">{formatCurrency(slot.totalStake)}</p>
+                                                            </div>
+                                                            <div className="rounded bg-gray-50 px-2 py-1">
+                                                                <p className="text-gray-500">Payout</p>
+                                                                <p className="font-semibold text-gray-800">{formatCurrency(slot.totalPayout)}</p>
+                                                            </div>
+                                                            <div className="rounded bg-gray-50 px-2 py-1">
+                                                                <p className="text-gray-500">Net</p>
+                                                                <p className={`font-semibold ${Number(slot.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(slot.netProfitLoss)}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
 
             </div>
