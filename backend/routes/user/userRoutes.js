@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import {
     createUser,
     userLogin,
@@ -24,8 +25,34 @@ import { verifyUser } from '../../middleware/userAuth.js';
 
 const router = express.Router();
 
+const getLoginIdentifier = (req) => {
+    const body = req?.body || {};
+    const phone = body.phone != null ? String(body.phone).replace(/\D/g, '').slice(0, 10) : '';
+    if (phone) return `phone:${phone}`;
+    const username = body.username != null ? String(body.username).trim().toLowerCase() : '';
+    if (username) return `username:${username}`;
+    return '';
+};
+
+const userLoginLimiter = rateLimit({
+    windowMs: 30 * 60 * 1000, // 30 minutes
+    max: 3, // 3 failed attempts in window
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true, // only failed logins consume attempts
+    keyGenerator: (req) => {
+        const identifier = getLoginIdentifier(req);
+        if (identifier) return identifier;
+        return String(req.ip || 'unknown-ip');
+    },
+    message: {
+        success: false,
+        message: 'Too many failed login attempts. Please try again after 30 minutes.',
+    },
+});
+
 // Public routes
-router.post('/login', userLogin);
+router.post('/login', userLoginLimiter, userLogin);
 router.post('/signup', userSignup);
 router.post('/logout', userLogout);
 
