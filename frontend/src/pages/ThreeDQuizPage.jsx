@@ -6,7 +6,7 @@ import AppLayout from '../components/AppLayout';
 import { getQuizHint, getQuizQuestions, getQuizResult, getQuizSettings, getQuizSlot, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { verifyFairness } from '../utils/quizFairness';
-import { getVisibleQuestionCountFromSlotStart } from '../utils/quizSlotClock';
+import { SLOT_SECONDS, formatISTTimeFromDaySeconds, getVisibleQuestionCountFromSlotStart } from '../utils/quizSlotClock';
 const pad2 = (n) => String(n).padStart(2, '0');
 const pad3 = (n) => String(n).padStart(3, '0');
 
@@ -29,6 +29,8 @@ const SLOT_POLL_VISIBLE_MS = 3000;
 const SLOT_POLL_HIDDEN_MS = 7000;
 const HINT_POLL_VISIBLE_MS = 4000;
 const HINT_POLL_HIDDEN_MS = 9000;
+const FIRST_DRAW_SECONDS = (17 * 3600) + (15 * 60);
+const LAST_DRAW_SECONDS = (4 * 3600) + (45 * 60);
 
 const hasSlotDataChanged = (prev, next) => {
   if (!prev) return true;
@@ -135,6 +137,16 @@ const ThreeDQuizPage = () => {
   const quizLabel = `QUIZ${pad2(selectedQuiz)}`;
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
+  const allDrawLabels = useMemo(() => {
+    const labels = [];
+    let drawSeconds = FIRST_DRAW_SECONDS;
+    while (true) {
+      labels.push(formatISTTimeFromDaySeconds(drawSeconds));
+      if (drawSeconds === LAST_DRAW_SECONDS) break;
+      drawSeconds = (drawSeconds + SLOT_SECONDS) % 86400;
+    }
+    return labels;
+  }, []);
 
   useEffect(() => {
     selectedQuizRef.current = selectedQuiz;
@@ -540,10 +552,20 @@ const ThreeDQuizPage = () => {
 
               <div className="flex flex-1 flex-col px-2 pb-24 sm:px-4">
                 <div className="sticky z-[9] -mx-2 mb-3 bg-[#efe6d5]/95 px-2 pt-1 pb-2 sm:mx-0 sm:px-0" style={{ top: '52px' }}>
-                  <div className="mb-3 flex justify-center gap-2 sm:gap-3">
-                    <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnInactive} opacity-90`}>{slotData?.drawLabelPrev ?? '—'}</div>
-                    <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnActive}`}>{slotData?.drawLabelCurrent ?? '—'}</div>
-                    <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnInactive} opacity-90`}>{slotData?.drawLabelNext ?? '—'}</div>
+                  <div className="mb-3 overflow-x-auto pb-1">
+                    <div className="flex min-w-max items-center gap-2">
+                      {allDrawLabels.map((label) => {
+                        const isCurrent = label === slotData?.drawLabelCurrent;
+                        return (
+                          <div
+                            key={label}
+                            className={`rounded-xl px-3 py-2 text-xs font-bold sm:px-4 sm:py-2.5 sm:text-sm ${isCurrent ? btnActive : `${btnInactive} opacity-90`}`}
+                          >
+                            {label}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   {(studyPhase || hintPhase) && slotData && (
                     <div className="w-full">
