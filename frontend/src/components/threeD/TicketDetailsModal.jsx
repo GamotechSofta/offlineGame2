@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 const getDisplayNumberByMode = (number, modeRaw) => {
   const mode = String(modeRaw || '').toLowerCase();
@@ -27,7 +27,26 @@ const formatQuizLabel = (ticket) => {
   return `Q-${String(parsed).padStart(2, '0')}`;
 };
 
+const MODAL_BASE_WIDTH = 980;
+const MODAL_BASE_HEIGHT = 620;
+
 const TicketDetailsModal = ({ open, onClose, ticket }) => {
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const updateViewport = () => {
+      if (typeof window === 'undefined') return;
+      setViewport({
+        width: window.innerWidth || 0,
+        height: window.innerHeight || 0,
+      });
+    };
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, [open]);
+
   const couponTime = useMemo(() => {
     const dateSource = ticket?.createdAt || ticket?.id;
     if (!dateSource) return '-';
@@ -94,159 +113,131 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
   const midpoint = Math.ceil(ticketItems.length / 2);
   const leftCol = ticketItems.slice(0, midpoint);
   const rightCol = ticketItems.slice(midpoint);
+  const modalScale = useMemo(() => {
+    const safeWidth = Math.max(0, viewport.width - 16);
+    const safeHeight = Math.max(0, viewport.height - 16);
+    if (!safeWidth || !safeHeight) return 1;
+    const widthScale = safeWidth / MODAL_BASE_WIDTH;
+    const heightScale = safeHeight / MODAL_BASE_HEIGHT;
+    return Math.min(1, widthScale, heightScale);
+  }, [viewport.height, viewport.width]);
 
   if (!open || !ticket) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-2 sm:p-4">
-      <div className="flex max-h-[100vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-[#787878] bg-[#c8c8c8] shadow-2xl sm:max-h-[92vh]">
-        <div className="flex items-center justify-between bg-[#c71616] px-3 py-2 text-white sm:px-5 sm:py-3">
-          <h3 className="text-[22px] font-extrabold tracking-wide sm:text-[28px]">TICKET DATA</h3>
+    <div className="fixed inset-0 z-[90] flex items-center justify-center overflow-hidden bg-black/65 p-2">
+      <div
+        className="relative"
+        style={{
+          width: MODAL_BASE_WIDTH * modalScale,
+          height: MODAL_BASE_HEIGHT * modalScale,
+        }}
+      >
+        <div
+          className="absolute left-0 top-0 flex h-[620px] w-[980px] flex-col overflow-hidden rounded-xl border border-[#787878] bg-[#c8c8c8] shadow-2xl"
+          style={{
+            transform: `scale(${modalScale})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          <div className="flex items-center justify-between bg-[#c71616] px-4 py-2.5 text-white">
+            <h3 className="text-[26px] font-extrabold tracking-wide">TICKET DATA</h3>
           <button
             type="button"
             onClick={onClose}
-            className="rounded bg-black/20 px-3 py-1 text-[20px] font-bold leading-none hover:bg-black/35 sm:text-[22px]"
+            className="rounded bg-black/20 px-3 py-1 text-[22px] font-bold leading-none hover:bg-black/35"
             aria-label="Close ticket details"
           >
             ×
           </button>
-        </div>
-        <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-hidden bg-[#b5b5b5] p-2.5 sm:gap-4 sm:p-4">
-          <div className="min-h-0 overflow-y-auto rounded-xl border border-[#6d6d6d] bg-[#4f4f4f] p-4 text-white">
-            <div className="mb-3 border-b border-white/20 pb-3">
-              <div className="text-[20px] font-bold leading-tight sm:text-[24px]">Diamond Coupon</div>
-              <div className="text-[14px] font-semibold text-white/90 sm:text-[16px]">For Amusement Only</div>
-            </div>
-            <div className="space-y-2 text-[16px] sm:text-[17px]">
-              <div>Agent ID : <span className="font-semibold">{ticket?.userName || 'user'}</span></div>
-              <div>Quiz : <span className="font-semibold">{overview.quizLabel}</span></div>
-              <div>Coupon Dr Time : <span className="font-semibold">{ticket.drawTime || '-'}</span></div>
-              <div>Coupon Dr Date : <span className="font-semibold">{ticket.drawDate || '-'}</span></div>
-              <div>Coupon Time : <span className="font-semibold">{couponTime}</span></div>
-              <div>Total Point : <span className="font-semibold">{ticket.totalPoints ?? 0}</span></div>
-              <div>Win point : <span className="font-semibold">{ticket.totalWin ?? 0}</span></div>
-              <div>Game ID : <span className="font-semibold">{ticket.gameId || '-'}</span></div>
-            </div>
-            <div className="mt-4 rounded-lg border border-white/20 bg-black/15 p-3">
-              <div className="mb-2 text-[16px] font-bold uppercase tracking-wide text-white/90">Overview</div>
-              <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-[15px] sm:grid-cols-2 sm:text-[16px]">
-                <div>Total Bets : <span className="font-semibold">{overview.totalBets}</span></div>
-                <div>Win Bets : <span className="font-semibold text-emerald-300">{overview.winBets}</span></div>
-                <div>Loss Bets : <span className="font-semibold text-rose-300">{overview.lossBets}</span></div>
-                <div>Stake : <span className="font-semibold">{overview.totalStake}</span></div>
-                <div>Total Win : <span className="font-semibold text-emerald-300">{overview.totalWin}</span></div>
-                <div>
-                  Net : <span className={`font-semibold ${overview.net >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{overview.net}</span>
+          </div>
+          <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-hidden bg-[#b5b5b5] p-3">
+            <div className="min-h-0 overflow-y-auto rounded-xl border border-[#6d6d6d] bg-[#4f4f4f] p-4 text-white">
+              <div className="mb-3 border-b border-white/20 pb-3">
+                <div className="text-[22px] font-bold leading-tight">Diamond Coupon</div>
+                <div className="text-[15px] font-semibold text-white/90">For Amusement Only</div>
+              </div>
+              <div className="space-y-2 text-[16px]">
+                <div>Agent ID : <span className="font-semibold">{ticket?.userName || 'user'}</span></div>
+                <div>Quiz : <span className="font-semibold">{overview.quizLabel}</span></div>
+                <div>Coupon Dr Time : <span className="font-semibold">{ticket.drawTime || '-'}</span></div>
+                <div>Coupon Dr Date : <span className="font-semibold">{ticket.drawDate || '-'}</span></div>
+                <div>Coupon Time : <span className="font-semibold">{couponTime}</span></div>
+                <div>Total Point : <span className="font-semibold">{ticket.totalPoints ?? 0}</span></div>
+                <div>Win point : <span className="font-semibold">{ticket.totalWin ?? 0}</span></div>
+                <div>Game ID : <span className="font-semibold">{ticket.gameId || '-'}</span></div>
+              </div>
+              <div className="mt-4 rounded-lg border border-white/20 bg-black/15 p-3">
+                <div className="mb-2 text-[16px] font-bold uppercase tracking-wide text-white/90">Overview</div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[14px]">
+                  <div>Total Bets : <span className="font-semibold">{overview.totalBets}</span></div>
+                  <div>Win Bets : <span className="font-semibold text-emerald-300">{overview.winBets}</span></div>
+                  <div>Loss Bets : <span className="font-semibold text-rose-300">{overview.lossBets}</span></div>
+                  <div>Stake : <span className="font-semibold">{overview.totalStake}</span></div>
+                  <div>Total Win : <span className="font-semibold text-emerald-300">{overview.totalWin}</span></div>
+                  <div>
+                    Net : <span className={`font-semibold ${overview.net >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{overview.net}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div className="min-h-0 overflow-hidden rounded-xl border border-[#6d6d6d] bg-[#4f4f4f] p-4">
-            <div className="mb-3 text-[22px] font-bold text-white sm:text-[24px]">Ticket Items</div>
-            <div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-y-auto sm:hidden">
-              <div className="space-y-2">
-                {leftCol.map((item) => (
-                  <div
-                    key={`mobile-left-${item.id}`}
-                    className={`rounded-md px-2.5 py-2 text-[13px] font-bold ${
-                      item.outcome === 'win'
-                        ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
-                        : item.outcome === 'cancelled'
-                          ? 'border border-slate-300 bg-slate-100 text-slate-700'
-                        : 'bg-[#d0d0d0] text-[#c71616]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
-                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
-                        {item.outcome.toUpperCase()}
-                      </span>
+            <div className="min-h-0 overflow-hidden rounded-xl border border-[#6d6d6d] bg-[#4f4f4f] p-4">
+              <div className="mb-3 text-[22px] font-bold text-white">Ticket Items</div>
+              <div className="grid max-h-[520px] grid-cols-2 gap-3 overflow-y-auto">
+                <div className="space-y-2">
+                  {leftCol.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`rounded-md px-3 py-2.5 text-[15px] font-bold ${
+                        item.outcome === 'win'
+                          ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
+                          : item.outcome === 'cancelled'
+                            ? 'border border-slate-300 bg-slate-100 text-slate-700'
+                          : 'bg-[#d0d0d0] text-[#c71616]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
+                        <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
+                          {item.outcome.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[14px] font-semibold text-slate-700">
+                        Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
+                      </div>
+                      {item.payoutLabel ? (
+                        <div className="mt-0.5 text-[13px] font-semibold text-emerald-700">Payout: {item.payoutLabel}</div>
+                      ) : null}
                     </div>
-                    <div className="mt-1 text-[12px] font-semibold text-slate-700">
-                      Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  {rightCol.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`rounded-md px-3 py-2.5 text-[15px] font-bold ${
+                        item.outcome === 'win'
+                          ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
+                          : item.outcome === 'cancelled'
+                            ? 'border border-slate-300 bg-slate-100 text-slate-700'
+                          : 'bg-[#d0d0d0] text-[#c71616]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
+                        <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
+                          {item.outcome.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[14px] font-semibold text-slate-700">
+                        Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
+                      </div>
+                      {item.payoutLabel ? (
+                        <div className="mt-0.5 text-[13px] font-semibold text-emerald-700">Payout: {item.payoutLabel}</div>
+                      ) : null}
                     </div>
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-2">
-                {rightCol.map((item) => (
-                  <div
-                    key={`mobile-right-${item.id}`}
-                    className={`rounded-md px-2.5 py-2 text-[13px] font-bold ${
-                      item.outcome === 'win'
-                        ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
-                        : item.outcome === 'cancelled'
-                          ? 'border border-slate-300 bg-slate-100 text-slate-700'
-                        : 'bg-[#d0d0d0] text-[#c71616]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
-                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
-                        {item.outcome.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-[12px] font-semibold text-slate-700">
-                      Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="hidden max-h-[52vh] grid-cols-1 gap-3 overflow-y-auto sm:grid sm:grid-cols-2">
-              <div className="space-y-2">
-                {leftCol.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`rounded-md px-3 py-2.5 text-[15px] font-bold sm:text-[16px] ${
-                      item.outcome === 'win'
-                        ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
-                        : item.outcome === 'cancelled'
-                          ? 'border border-slate-300 bg-slate-100 text-slate-700'
-                        : 'bg-[#d0d0d0] text-[#c71616]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
-                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
-                        {item.outcome.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-[14px] font-semibold text-slate-700">
-                      Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
-                    </div>
-                    {item.payoutLabel ? (
-                      <div className="mt-0.5 text-[13px] font-semibold text-emerald-700">Payout: {item.payoutLabel}</div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-2">
-                {rightCol.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`rounded-md px-3 py-2.5 text-[15px] font-bold sm:text-[16px] ${
-                      item.outcome === 'win'
-                        ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
-                        : item.outcome === 'cancelled'
-                          ? 'border border-slate-300 bg-slate-100 text-slate-700'
-                        : 'bg-[#d0d0d0] text-[#c71616]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span>{`${item.panel}${item.displayNum} [${item.mode}] x ${item.points}`}</span>
-                      <span className={`${item.outcome === 'win' ? 'text-emerald-700' : item.outcome === 'loss' ? 'text-rose-700' : item.outcome === 'cancelled' ? 'text-slate-700' : 'text-slate-600'}`}>
-                        {item.outcome.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-[14px] font-semibold text-slate-700">
-                      Result: {item.matchedPanel}{item.matchedResult} | Win: {item.winAmount}
-                    </div>
-                    {item.payoutLabel ? (
-                      <div className="mt-0.5 text-[13px] font-semibold text-emerald-700">Payout: {item.payoutLabel}</div>
-                    ) : null}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>

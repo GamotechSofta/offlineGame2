@@ -2245,33 +2245,68 @@ const ThreeDGame = () => {
             </div>
           </div>
         ) : null}
-        <TicketListModal
-          open={isTicketListOpen}
-          onClose={() => setIsTicketListOpen(false)}
-          tickets={ticketHistory}
-          onView={(ticket) => {
-            setSelectedTicket(ticket);
-            setIsTicketListOpen(false);
-          }}
-        />
-        <TicketListModal
-          open={isHistoryListOpen}
-          onClose={() => setIsHistoryListOpen(false)}
-          tickets={historyTicketsForModal}
-          title="HISTORY"
-          loading={isHistoryLoading}
-          loadingMessage="Loading history..."
-          emptyMessage="No history available yet."
-          onView={(ticket) => {
-            setSelectedTicket(ticket);
-            setIsHistoryListOpen(false);
-          }}
-        />
-        <TicketDetailsModal
-          open={Boolean(selectedTicket)}
-          ticket={selectedTicket}
-          onClose={() => setSelectedTicket(null)}
-        />
+        {canUsePortal ? createPortal(
+          <>
+            <TicketListModal
+              open={isTicketListOpen}
+              onClose={() => setIsTicketListOpen(false)}
+              tickets={ticketHistory}
+              onView={(ticket) => {
+                setSelectedTicket(ticket);
+                setIsTicketListOpen(false);
+              }}
+            />
+            <TicketListModal
+              open={isHistoryListOpen}
+              onClose={() => setIsHistoryListOpen(false)}
+              tickets={historyTicketsForModal}
+              title="HISTORY"
+              loading={isHistoryLoading}
+              loadingMessage="Loading history..."
+              emptyMessage="No history available yet."
+              onView={(ticket) => {
+                setSelectedTicket(ticket);
+                setIsHistoryListOpen(false);
+              }}
+            />
+            <TicketDetailsModal
+              open={Boolean(selectedTicket)}
+              ticket={selectedTicket}
+              onClose={() => setSelectedTicket(null)}
+            />
+          </>,
+          document.body,
+        ) : (
+          <>
+            <TicketListModal
+              open={isTicketListOpen}
+              onClose={() => setIsTicketListOpen(false)}
+              tickets={ticketHistory}
+              onView={(ticket) => {
+                setSelectedTicket(ticket);
+                setIsTicketListOpen(false);
+              }}
+            />
+            <TicketListModal
+              open={isHistoryListOpen}
+              onClose={() => setIsHistoryListOpen(false)}
+              tickets={historyTicketsForModal}
+              title="HISTORY"
+              loading={isHistoryLoading}
+              loadingMessage="Loading history..."
+              emptyMessage="No history available yet."
+              onView={(ticket) => {
+                setSelectedTicket(ticket);
+                setIsHistoryListOpen(false);
+              }}
+            />
+            <TicketDetailsModal
+              open={Boolean(selectedTicket)}
+              ticket={selectedTicket}
+              onClose={() => setSelectedTicket(null)}
+            />
+          </>
+        )}
         {canUsePortal ? createPortal(
           <>
             <AdvanceDrawModal
