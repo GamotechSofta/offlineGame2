@@ -47,6 +47,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             icon: FaDice,
             children: [
                 { path: '/2d-management/current-slot-players', label: 'Current Slot Players' },
+                { path: '/2d-management/slot-wise-bets', label: 'Slot Wise Bets' },
                 { path: '/2d-management/result-control', label: 'Result Control' },
                 { path: '/2d-management/old-slots', label: 'Old Slots Stats' },
             ],
@@ -57,6 +58,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             icon: FaDice,
             children: [
                 { path: '/3d-management/current-slot-players', label: 'Current Slot Players' },
+                { path: '/3d-management/slot-wise-bets', label: 'Slot Wise Bets' },
                 { path: '/3d-management/result-control', label: 'Result Control' },
                 { path: '/3d-management/old-slots', label: 'Old Slots Stats' },
             ],
