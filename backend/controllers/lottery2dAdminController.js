@@ -601,6 +601,47 @@ export const getLottery2DSlotHistory = async (req, res) => {
   }
 };
 
+/**
+ * GET /admin/lottery2d/day-slot-schedule?date=YYYY-MM-DD
+ * All 15-minute IST slots for a calendar day (past ended, live, upcoming) so admins can
+ * inspect players for historical draws, the active draw, or advance bets on later draws.
+ */
+export const getLottery2DDaySlotSchedule = async (req, res) => {
+  try {
+    const date = typeof req.query.date === 'string' ? req.query.date.trim() : istDayKey();
+    if (!isValidISTDayKey(date)) {
+      return res.status(400).json({ success: false, message: 'Invalid date. Use YYYY-MM-DD (IST).' });
+    }
+    const today = istDayKey();
+    if (date > today) {
+      return res.status(400).json({ success: false, message: 'Future date is not allowed.' });
+    }
+
+    const now = Date.now();
+    const ctx = getSlotContext(new Date(), '2d');
+    const all = listSlotStartIsoForISTDay(date).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+    const slots = all.map((slotStartIso) => {
+      const slotStartMs = new Date(slotStartIso).getTime();
+      const slotEndMs = slotStartMs + SLOT_MS;
+      let status = 'upcoming';
+      if (now >= slotEndMs) status = 'past';
+      else if (now >= slotStartMs) status = 'live';
+      return {
+        slotStartIso,
+        slotEndIso: new Date(slotEndMs).toISOString(),
+        drawLabelEnd: formatDrawLabel(slotEndMs),
+        status,
+        isLive: slotStartIso === ctx.slotStartIso,
+      };
+    });
+
+    return res.json({ success: true, data: { date, slots } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
 export const getLottery2DDeclarationMatrix = async (req, res) => {
   try {
     const date = typeof req.query.date === 'string' ? req.query.date.trim() : istDayKey();
