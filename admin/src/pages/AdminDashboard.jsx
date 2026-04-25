@@ -165,53 +165,115 @@ const AdminDashboard = () => {
         return `${y}-${m}-${d}`;
     };
 
-    const fetchLotteryModeStats = async (mode) => {
+    const listDateKeysInRange = (from, to) => {
+        if (!from || !to) {
+            return [getTodayDateKey()];
+        }
+        const start = new Date(`${from}T00:00:00`);
+        const end = new Date(`${to}T00:00:00`);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+            return [getTodayDateKey()];
+        }
+        const out = [];
+        const cursor = new Date(start);
+        // Keep calls bounded for performance; enough for dashboard overviews.
+        const MAX_DAYS = 31;
+        while (cursor <= end && out.length < MAX_DAYS) {
+            out.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`);
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        return out;
+    };
+
+    const fetchLotteryModeStats = async (mode, rangeOverride) => {
         const modeKey = mode === '2d' ? 'twoD' : 'threeD';
-        const currentEndpoint = `${API_BASE_URL}/admin/lottery${mode}/current-slot`;
-        const today = getTodayDateKey();
-        const latestEndpoint = `${API_BASE_URL}/admin/lottery${mode}/slots?date=${encodeURIComponent(today)}&limit=1`;
-        const [currentRes, latestRes] = await Promise.all([
-            fetchWithAuth(currentEndpoint),
-            fetchWithAuth(latestEndpoint),
+        const nonce = Date.now();
+        const currentEndpoint = `${API_BASE_URL}/admin/lottery${mode}/current-slot?_=${nonce}`;
+        const effectiveRange = rangeOverride || getFromTo();
+        const dateKeys = listDateKeysInRange(effectiveRange?.from, effectiveRange?.to);
+        const [currentRes, ...historyResList] = await Promise.all([
+            fetchWithAuth(currentEndpoint, { cache: 'no-store' }),
+            ...dateKeys.map((dateKey) =>
+                fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots?date=${encodeURIComponent(dateKey)}&limit=96&_=${nonce}`, { cache: 'no-store' }),
+            ),
         ]);
 
-        if (currentRes.status === 401 || latestRes.status === 401) {
+        if (currentRes.status === 401 || historyResList.some((r) => r.status === 401)) {
             return null;
         }
 
         const currentJson = await currentRes.json();
-        const latestJson = await latestRes.json();
+        const historyJsonList = await Promise.all(historyResList.map((res) => res.json()));
 
         if (!currentJson?.success) {
             throw new Error(currentJson?.message || `Failed to load ${mode.toUpperCase()} current slot`);
         }
-
-        if (!latestJson?.success) {
-            throw new Error(latestJson?.message || `Failed to load ${mode.toUpperCase()} latest slots`);
+        if (historyJsonList.some((json) => !json?.success)) {
+            const bad = historyJsonList.find((json) => !json?.success);
+            throw new Error(bad?.message || `Failed to load ${mode.toUpperCase()} all slots`);
         }
 
-        const latestSlot = Array.isArray(latestJson?.data?.slots) && latestJson.data.slots.length
-            ? latestJson.data.slots[0]
+        const historySlots = historyJsonList.flatMap((json) => (Array.isArray(json?.data?.slots) ? json.data.slots : []));
+        const currentSlotIso = currentJson?.data?.slot?.slotStartIso || '';
+        const currentSlotMs = currentSlotIso ? new Date(currentSlotIso).getTime() : 0;
+        const normalizedSlots = historySlots
+            .map((slot) => {
+                const slotStartMs = new Date(slot?.slotStartIso || 0).getTime();
+                return {
+                    ...slot,
+                    slotStartMs: Number.isFinite(slotStartMs) ? slotStartMs : 0,
+                };
+            })
+            .filter((slot) => slot.slotStartMs > 0);
+
+        // Exclude future/upcoming slots so dashboard current/latest remain intuitive.
+        const uptoCurrentSlots = normalizedSlots.filter((slot) => (currentSlotMs ? slot.slotStartMs <= currentSlotMs : true));
+        const completedSlots = uptoCurrentSlots.filter((slot) => Boolean(slot?.isCompleted));
+        const latestSlot = [...completedSlots]
+            .sort((a, b) => b.slotStartMs - a.slotStartMs)[0] || null;
+        const nextUpcomingSlot = currentSlotMs
+            ? [...normalizedSlots]
+                .filter((slot) => slot.slotStartMs > currentSlotMs)
+                .sort((a, b) => a.slotStartMs - b.slotStartMs)[0] || null
             : null;
+        const currentSummary = currentJson?.data?.summary || {};
+        const historyTotals = completedSlots.reduce((acc, slot) => {
+            acc.tickets += Number(slot?.totalTickets || 0);
+            acc.revenue += Number(slot?.revenue || 0);
+            acc.payout += Number(slot?.winnerPayout || 0);
+            acc.net += Number(slot?.amountRemaining || 0);
+            acc.users += Number(slot?.totalUsers || 0);
+            return acc;
+        }, { tickets: 0, revenue: 0, payout: 0, net: 0, users: 0 });
+
+        const allSlots = {
+            tickets: historyTotals.tickets + Number(currentSummary?.totalTickets || 0),
+            revenue: historyTotals.revenue + Number(currentSummary?.revenue || 0),
+            payout: historyTotals.payout + Number(currentSummary?.winnerPayout || 0),
+            net: historyTotals.net + Number(currentSummary?.amountRemaining || 0),
+            users: historyTotals.users + Number(currentSummary?.totalUsers || 0),
+        };
 
         return {
             modeKey,
             current: currentJson?.data || null,
             latest: latestSlot,
+            nextUpcoming: nextUpcomingSlot,
+            allSlots,
             error: '',
         };
     };
 
-    const fetchLotteryDashboardStats = async () => {
+    const fetchLotteryDashboardStats = async (rangeOverride) => {
         try {
             const [twoD, threeD] = await Promise.all([
-                fetchLotteryModeStats('2d'),
-                fetchLotteryModeStats('3d'),
+                fetchLotteryModeStats('2d', rangeOverride),
+                fetchLotteryModeStats('3d', rangeOverride),
             ]);
 
             setLotteryStats({
-                twoD: twoD || { current: null, latest: null, error: '' },
-                threeD: threeD || { current: null, latest: null, error: '' },
+                twoD: twoD || { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
+                threeD: threeD || { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
             });
         } catch (err) {
             const message = err?.message || 'Failed to load lottery stats';
@@ -276,8 +338,11 @@ const AdminDashboard = () => {
 
     const handleRefresh = () => fetchDashboardStats(undefined, { refresh: true });
     const handleRefreshAll = () => {
-        handleRefresh();
-        fetchLotteryDashboardStats();
+        const range = customMode && customFrom && customTo
+            ? { from: customFrom, to: customTo }
+            : getFromTo();
+        fetchDashboardStats(undefined, { refresh: true });
+        fetchLotteryDashboardStats(range);
     };
     const handlePresetSelect = (presetId) => {
         setDatePreset(presetId);
@@ -286,6 +351,7 @@ const AdminDashboard = () => {
         const preset = PRESETS.find((p) => p.id === presetId);
         const range = preset ? preset.getRange() : PRESETS[0].getRange();
         fetchDashboardStats(range);
+        fetchLotteryDashboardStats(range);
     };
     const handleCustomToggle = () => { setCustomMode(true); setCustomOpen((o) => !o); };
     const handleCustomApply = () => {
@@ -293,7 +359,9 @@ const AdminDashboard = () => {
         if (new Date(customFrom) > new Date(customTo)) return;
         setCustomMode(true);
         setCustomOpen(false);
-        fetchDashboardStats({ from: customFrom, to: customTo });
+        const range = { from: customFrom, to: customTo };
+        fetchDashboardStats(range);
+        fetchLotteryDashboardStats(range);
     };
 
     const handleLogout = () => {
@@ -310,6 +378,8 @@ const AdminDashboard = () => {
 
     const twoDCurrent = lotteryStats?.twoD?.current?.summary || {};
     const threeDCurrent = lotteryStats?.threeD?.current?.summary || {};
+    const twoDAllSlots = lotteryStats?.twoD?.allSlots || {};
+    const threeDAllSlots = lotteryStats?.threeD?.allSlots || {};
     const twoDCurrentRevenue = Number(twoDCurrent.revenue || 0);
     const threeDCurrentRevenue = Number(threeDCurrent.revenue || 0);
     const twoDCurrentNet = Number(twoDCurrent.amountRemaining || 0);
@@ -321,6 +391,16 @@ const AdminDashboard = () => {
     const lotteryCurrentTotalTickets = Number(twoDCurrent.totalTickets || 0) + Number(threeDCurrent.totalTickets || 0);
     const lotteryCurrentTotalRevenue = Number(twoDCurrent.revenue || 0) + Number(threeDCurrent.revenue || 0);
     const lotteryCurrentTotalNet = Number(twoDCurrent.amountRemaining || 0) + Number(threeDCurrent.amountRemaining || 0);
+    const twoDAllSlotsPayout = Number(twoDAllSlots.payout || 0);
+    const threeDAllSlotsPayout = Number(threeDAllSlots.payout || 0);
+    const lotteryAllSlotsTotalTickets = Number(twoDAllSlots.tickets || 0) + Number(threeDAllSlots.tickets || 0);
+    const lotteryAllSlotsTotalRevenue = Number(twoDAllSlots.revenue || 0) + Number(threeDAllSlots.revenue || 0);
+    const lotteryAllSlotsTotalPayout = twoDAllSlotsPayout + threeDAllSlotsPayout;
+    const lotteryAllSlotsTotalNet = Number(twoDAllSlots.net || 0) + Number(threeDAllSlots.net || 0);
+    const lotteryAllSlotsTotalUsers = Number(twoDAllSlots.users || 0) + Number(threeDAllSlots.users || 0);
+    const mainRevenueWithLottery = Number(stats?.revenue?.total || 0) + lotteryAllSlotsTotalRevenue;
+    const mainNetWithLottery = Number(stats?.revenue?.netProfit || 0) + lotteryAllSlotsTotalNet;
+    const mainBetsWithLottery = Number(stats?.bets?.total || 0) + lotteryAllSlotsTotalTickets;
 
     const pendingPayments = stats?.payments?.pending || 0;
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
@@ -506,18 +586,24 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Revenue (period)</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(stats?.revenue?.total)}</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(mainRevenueWithLottery)}</p>
                     <p className="text-xs text-gray-500 mt-1">Bet amount collected in selected range</p>
                     <p className="text-xs text-gray-500 mt-1">
                         2D: <span className="font-medium">{formatCurrency(twoDCurrentRevenue)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDCurrentRevenue)}</span> · Total: <span className="font-medium text-green-600">{formatCurrency(lotteryCurrentTotalRevenue)}</span>
                     </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        All slots total - 2D: <span className="font-medium">{formatCurrency(twoDAllSlots.revenue)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDAllSlots.revenue)}</span> · Total: <span className="font-medium text-green-600">{formatCurrency(lotteryAllSlotsTotalRevenue)}</span>
+                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Net Profit (period)</p>
-                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.revenue?.netProfit)}</p>
+                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(mainNetWithLottery)}</p>
                     <p className="text-xs text-gray-500 mt-1">Revenue − Payouts in selected range</p>
                     <p className="text-xs text-gray-500 mt-1">
                         2D net: <span className="font-medium">{formatCurrency(twoDCurrentNet)}</span> · 3D net: <span className="font-medium">{formatCurrency(threeDCurrentNet)}</span> · Total net: <span className="font-medium text-blue-600">{formatCurrency(lotteryCurrentTotalNet)}</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        All slots net - 2D: <span className="font-medium">{formatCurrency(twoDAllSlots.net)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDAllSlots.net)}</span> · Total: <span className="font-medium text-blue-600">{formatCurrency(lotteryAllSlotsTotalNet)}</span>
                     </p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
@@ -527,13 +613,19 @@ const AdminDashboard = () => {
                     <p className="text-xs text-gray-500 mt-1">
                         2D users: <span className="font-medium">{formatNumber(twoDCurrentUsers)}</span> · 3D users: <span className="font-medium">{formatNumber(threeDCurrentUsers)}</span> · Total: <span className="font-medium">{formatNumber(twoDCurrentUsers + threeDCurrentUsers)}</span>
                     </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        All slots users - 2D: <span className="font-medium">{formatNumber(twoDAllSlots.users)}</span> · 3D: <span className="font-medium">{formatNumber(threeDAllSlots.users)}</span> · Total: <span className="font-medium">{formatNumber(lotteryAllSlotsTotalUsers)}</span>
+                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-orange-50 to-transparent rounded-xl p-5 border border-orange-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Bets (period)</p>
-                    <p className="text-2xl font-bold text-orange-500 font-mono">{stats?.bets?.total ?? 0}</p>
+                    <p className="text-2xl font-bold text-orange-500 font-mono">{formatNumber(mainBetsWithLottery)}</p>
                     <p className="text-xs text-gray-500 mt-1">Win rate: {stats?.bets?.winRate ?? 0}%</p>
                     <p className="text-xs text-gray-500 mt-1">
                         2D bets: <span className="font-medium">{formatNumber(twoDCurrentBets)}</span> · 3D bets: <span className="font-medium">{formatNumber(threeDCurrentBets)}</span> · Total: <span className="font-medium text-orange-600">{formatNumber(lotteryCurrentTotalTickets)}</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        All slots bets - 2D: <span className="font-medium">{formatNumber(twoDAllSlots.tickets)}</span> · 3D: <span className="font-medium">{formatNumber(threeDAllSlots.tickets)}</span> · Total: <span className="font-medium text-orange-600">{formatNumber(lotteryAllSlotsTotalTickets)}</span>
                     </p>
                 </div>
             </div>
@@ -669,21 +761,39 @@ const AdminDashboard = () => {
 
             {/* Lottery 2D + 3D */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mt-6">
-                <SectionCard title="2D Lottery Overview" description="Current slot + latest completed slot" icon={FaDice} linkTo="/2d-management" linkLabel="Open 2D Management">
+                <SectionCard title="2D Lottery Overview" description="Current slot + previous slot + selected range total" icon={FaDice} linkTo="/2d-management" linkLabel="Open 2D Management">
                     {lotteryStats.twoD.error ? (
                         <p className="text-sm text-red-500">{lotteryStats.twoD.error}</p>
                     ) : (
                         <>
+                            <div className="mb-2 mt-1">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Current Slot (Live)</p>
+                                <p className="text-[11px] text-gray-500">Running slot stats updated in real-time.</p>
+                            </div>
                             <StatRow label="Current Slot" value={formatDrawTime(lotteryStats.twoD.current?.slot?.drawLabelEnd)} />
                             <StatRow label="Current Tickets" value={formatNumber(lotteryStats.twoD.current?.summary?.totalTickets)} />
                             <StatRow label="Current Revenue" value={formatCurrency(lotteryStats.twoD.current?.summary?.revenue)} colorClass="text-green-600" />
                             <StatRow label="Current Payout" value={formatCurrency(lotteryStats.twoD.current?.summary?.winnerPayout)} colorClass="text-red-500" />
                             <StatRow label="Current Net" value={formatCurrency(lotteryStats.twoD.current?.summary?.amountRemaining)} colorClass="text-blue-600" />
-                            <StatRow label="Latest Slot" value={formatDrawTime(lotteryStats.twoD.latest?.drawLabelEnd)} />
-                            <StatRow label="Latest Slot Tickets" value={formatNumber(lotteryStats.twoD.latest?.totalTickets)} />
-                            <StatRow label="Latest Slot Revenue" value={formatCurrency(lotteryStats.twoD.latest?.revenue)} colorClass="text-green-600" />
-                            <StatRow label="Latest Slot Payout" value={formatCurrency(lotteryStats.twoD.latest?.winnerPayout)} colorClass="text-red-500" />
-                            <StatRow label="Latest Slot Net" value={formatCurrency(lotteryStats.twoD.latest?.amountRemaining)} colorClass="text-blue-600" />
+
+                            <div className="mb-2 mt-3">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Previous Slot (Last Closed)</p>
+                                <p className="text-[11px] text-gray-500">Shows only the immediate previous closed slot.</p>
+                            </div>
+                            <StatRow label="Previous Slot" value={formatDrawTime(lotteryStats.twoD.latest?.drawLabelEnd)} />
+                            <StatRow label="Previous Slot Tickets" value={formatNumber(lotteryStats.twoD.latest?.totalTickets)} />
+                            <StatRow label="Previous Slot Revenue" value={formatCurrency(lotteryStats.twoD.latest?.revenue)} colorClass="text-green-600" />
+                            <StatRow label="Previous Slot Payout" value={formatCurrency(lotteryStats.twoD.latest?.winnerPayout)} colorClass="text-red-500" />
+                            <StatRow label="Previous Slot Net" value={formatCurrency(lotteryStats.twoD.latest?.amountRemaining)} colorClass="text-blue-600" />
+
+                            <div className="mb-2 mt-3">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Selected Range Total</p>
+                                <p className="text-[11px] text-gray-500">All bets in selected date range (today/yesterday/custom).</p>
+                            </div>
+                            <StatRow label="All Slots Tickets" value={formatNumber(twoDAllSlots.tickets)} />
+                            <StatRow label="All Slots Revenue" value={formatCurrency(twoDAllSlots.revenue)} colorClass="text-green-600" />
+                            <StatRow label="All Slots Payout" value={formatCurrency(twoDAllSlots.payout)} colorClass="text-red-500" />
+                            <StatRow label="All Slots Net" value={formatCurrency(twoDAllSlots.net)} colorClass="text-blue-600" />
                         </>
                     )}
                     <div className="grid grid-cols-2 gap-2 mt-3">
@@ -694,21 +804,39 @@ const AdminDashboard = () => {
                     </div>
                 </SectionCard>
 
-                <SectionCard title="3D Lottery Overview" description="Current slot + latest completed slot" icon={FaDice} linkTo="/3d-management" linkLabel="Open 3D Management">
+                <SectionCard title="3D Lottery Overview" description="Current slot + previous slot + selected range total" icon={FaDice} linkTo="/3d-management" linkLabel="Open 3D Management">
                     {lotteryStats.threeD.error ? (
                         <p className="text-sm text-red-500">{lotteryStats.threeD.error}</p>
                     ) : (
                         <>
+                            <div className="mb-2 mt-1">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Current Slot (Live)</p>
+                                <p className="text-[11px] text-gray-500">Running slot stats updated in real-time.</p>
+                            </div>
                             <StatRow label="Current Slot" value={formatDrawTime(lotteryStats.threeD.current?.slot?.drawLabelEnd)} />
                             <StatRow label="Current Tickets" value={formatNumber(lotteryStats.threeD.current?.summary?.totalTickets)} />
                             <StatRow label="Current Revenue" value={formatCurrency(lotteryStats.threeD.current?.summary?.revenue)} colorClass="text-green-600" />
                             <StatRow label="Current Payout" value={formatCurrency(lotteryStats.threeD.current?.summary?.winnerPayout)} colorClass="text-red-500" />
                             <StatRow label="Current Net" value={formatCurrency(lotteryStats.threeD.current?.summary?.amountRemaining)} colorClass="text-blue-600" />
-                            <StatRow label="Latest Slot" value={formatDrawTime(lotteryStats.threeD.latest?.drawLabelEnd)} />
-                            <StatRow label="Latest Slot Tickets" value={formatNumber(lotteryStats.threeD.latest?.totalTickets)} />
-                            <StatRow label="Latest Slot Revenue" value={formatCurrency(lotteryStats.threeD.latest?.revenue)} colorClass="text-green-600" />
-                            <StatRow label="Latest Slot Payout" value={formatCurrency(lotteryStats.threeD.latest?.winnerPayout)} colorClass="text-red-500" />
-                            <StatRow label="Latest Slot Net" value={formatCurrency(lotteryStats.threeD.latest?.amountRemaining)} colorClass="text-blue-600" />
+
+                            <div className="mb-2 mt-3">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Previous Slot (Last Closed)</p>
+                                <p className="text-[11px] text-gray-500">Shows only the immediate previous closed slot.</p>
+                            </div>
+                            <StatRow label="Previous Slot" value={formatDrawTime(lotteryStats.threeD.latest?.drawLabelEnd)} />
+                            <StatRow label="Previous Slot Tickets" value={formatNumber(lotteryStats.threeD.latest?.totalTickets)} />
+                            <StatRow label="Previous Slot Revenue" value={formatCurrency(lotteryStats.threeD.latest?.revenue)} colorClass="text-green-600" />
+                            <StatRow label="Previous Slot Payout" value={formatCurrency(lotteryStats.threeD.latest?.winnerPayout)} colorClass="text-red-500" />
+                            <StatRow label="Previous Slot Net" value={formatCurrency(lotteryStats.threeD.latest?.amountRemaining)} colorClass="text-blue-600" />
+
+                            <div className="mb-2 mt-3">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Selected Range Total</p>
+                                <p className="text-[11px] text-gray-500">All bets in selected date range (today/yesterday/custom).</p>
+                            </div>
+                            <StatRow label="All Slots Tickets" value={formatNumber(threeDAllSlots.tickets)} />
+                            <StatRow label="All Slots Revenue" value={formatCurrency(threeDAllSlots.revenue)} colorClass="text-green-600" />
+                            <StatRow label="All Slots Payout" value={formatCurrency(threeDAllSlots.payout)} colorClass="text-red-500" />
+                            <StatRow label="All Slots Net" value={formatCurrency(threeDAllSlots.net)} colorClass="text-blue-600" />
                         </>
                     )}
                     <div className="grid grid-cols-2 gap-2 mt-3">
