@@ -363,6 +363,13 @@ const ThreeDGame = () => {
         const firstRow = sortedRows[0] || {};
         const createdAtIso = firstRow?.createdAt ? new Date(firstRow.createdAt).toISOString() : new Date().toISOString();
         const createdAt = new Date(createdAtIso);
+        const slotStartMs = new Date(slotStartIso).getTime();
+        const isAdvanceDraw = sortedRows.some((row) => {
+          const createdAtMs = new Date(row?.createdAt || 0).getTime();
+          if (!Number.isFinite(createdAtMs) || !Number.isFinite(slotStartMs) || slotStartMs <= 0) return false;
+          // Advance draw bets are placed for a future slot (strictly before slot start).
+          return createdAtMs < (slotStartMs - 60 * 1000);
+        });
         const drawDate = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}-${String(createdAt.getDate()).padStart(2, '0')}`;
         const drawTime = String(firstRow?.drawLabelEnd || '').trim() || new Intl.DateTimeFormat('en-IN', {
           hour: '2-digit',
@@ -413,6 +420,7 @@ const ThreeDGame = () => {
           totalPoints,
           totalWin,
           outcome,
+          isAdvanceDraw,
           settled: !hasPending,
           settledUsing: 'backend',
           bets,
