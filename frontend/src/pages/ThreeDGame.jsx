@@ -367,8 +367,9 @@ const ThreeDGame = () => {
         const isAdvanceDraw = sortedRows.some((row) => {
           const createdAtMs = new Date(row?.createdAt || 0).getTime();
           if (!Number.isFinite(createdAtMs) || !Number.isFinite(slotStartMs) || slotStartMs <= 0) return false;
-          // Advance draw bets are placed for a future slot (strictly before slot start).
-          return createdAtMs < (slotStartMs - 60 * 1000);
+          // Regular bets can still target the immediate upcoming slot.
+          // Mark as advance only when the slot is clearly beyond one draw interval.
+          return (slotStartMs - createdAtMs) > ((GAME_INTERVAL_SECONDS * 1000) + (60 * 1000));
         });
         const drawDate = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}-${String(createdAt.getDate()).padStart(2, '0')}`;
         const drawTime = String(firstRow?.drawLabelEnd || '').trim() || new Intl.DateTimeFormat('en-IN', {
