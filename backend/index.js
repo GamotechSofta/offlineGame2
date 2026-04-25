@@ -19,7 +19,6 @@ import webhookRoutes from './routes/webhookRoutes.js';
 
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -84,23 +83,8 @@ app.use(cookieParser());
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 600,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { success: false, message: 'Too many requests, please try again later.' },
-    handler: (req, res, next, options) => {
-        res.status(429).json(options.message);
-    },
-    /** Admin dashboard is JWT-protected; skip global burst limit so hints / refresh are not throttled. */
-    skip: (req) => typeof req.originalUrl === 'string' && req.originalUrl.startsWith('/api/v1/admin'),
-});
-
-// Inbound webhook relay — mounted before global /api/v1 rate limit (partner retries / bursts)
+// Inbound webhook relay (mounted early so partner webhooks are reachable)
 app.use('/api/v1', webhookRoutes);
-
-app.use('/api/v1', apiLimiter);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
