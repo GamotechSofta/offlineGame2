@@ -43,6 +43,8 @@ const LotteryDashboard = () => {
   const [multi, setMulti] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showMyBets, setShowMyBets] = useState(false);
+  const [showBuyConfirm, setShowBuyConfirm] = useState(false);
+  const [pendingRemoveBetLineKey, setPendingRemoveBetLineKey] = useState('');
   const [showAdvanceDrawModal, setShowAdvanceDrawModal] = useState(false);
   const [selectedAdvanceSlots, setSelectedAdvanceSlots] = useState([]);
   const [advanceSelectionNotice, setAdvanceSelectionNotice] = useState('');
@@ -51,6 +53,7 @@ const LotteryDashboard = () => {
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [rotatePromptDismissed, setRotatePromptDismissed] = useState(false);
   const [uiNotice, setUiNotice] = useState('');
+  const [uiToast, setUiToast] = useState('');
   const [enteredAmount, setEnteredAmount] = useState(2);
   const [amountDraft, setAmountDraft] = useState('2');
   const [pendingTarget, setPendingTarget] = useState(null);
@@ -230,6 +233,12 @@ const LotteryDashboard = () => {
   }, [advanceSelectionNotice]);
 
   useEffect(() => {
+    if (!uiToast) return undefined;
+    const t = setTimeout(() => setUiToast(''), 1500);
+    return () => clearTimeout(t);
+  }, [uiToast]);
+
+  useEffect(() => {
     let stop = false;
     const loadLastSlot = () => {
       getQuizSlotResults(1, '2d')
@@ -300,6 +309,27 @@ const LotteryDashboard = () => {
 
   const totals = useMemo(() => getTotals(selectedMap), [selectedMap]);
   const setTotals = useMemo(() => getLotterySetTotals(selectedMap), [selectedMap]);
+  const betLines = useMemo(
+    () => Object.entries(selectedMap)
+      .map(([key, amt]) => {
+        const parts = String(key).split('-');
+        const quizId = parseInt(parts[0], 10);
+        const num = parseInt(parts[1], 10);
+        const amount = Number(amt);
+        if (!Number.isFinite(amount) || amount <= 0) return null;
+        if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) return null;
+        if (!Number.isInteger(num) || num < 0 || num > 99) return null;
+        return {
+          key,
+          quizId,
+          num,
+          amount: Math.min(MAX_LOTTERY_AMOUNT, Math.floor(amount)),
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (a.quizId - b.quizId) || (a.num - b.num)),
+    [selectedMap],
+  );
 
   const exceedsMaxNumbersPerQuiz = useMemo(() => {
     const perQuiz = new Map();
@@ -711,25 +741,13 @@ const LotteryDashboard = () => {
       return;
     }
 
-    const stakes = Object.entries(selectedMap)
-      .map(([key, amt]) => {
-        const parts = String(key).split('-');
-        const quizId = parseInt(parts[0], 10);
-        const num = parseInt(parts[1], 10);
-        const amount = Number(amt);
-        if (!Number.isFinite(amount) || amount <= 0) return null;
-        if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) return null;
-        if (!Number.isInteger(num) || num < 0 || num > 99) return null;
-        return { quizId, num, amount: Math.min(MAX_LOTTERY_AMOUNT, Math.floor(amount)) };
-      })
-      .filter(Boolean);
-    if (!stakes.length) {
+    if (!betLines.length) {
       setUiNotice('Please add amount on board first.');
       return;
     }
 
     const byQuiz = new Map();
-    for (const s of stakes) {
+    for (const s of betLines) {
       if (!byQuiz.has(s.quizId)) byQuiz.set(s.quizId, []);
       byQuiz.get(s.quizId).push({ num: s.num, amount: s.amount });
     }
@@ -788,12 +806,10 @@ const LotteryDashboard = () => {
       setColPointDisplay(Array.from({ length: 10 }, () => ''));
       setSelectedAdvanceSlots([]);
       const n = rounds.reduce((sum, r) => sum + r.bets.length, 0);
-      setUiNotice(
+      setUiToast(
         targetSlots.length === 1
-          ? (n === 1
-            ? 'Your ticket is in! You can see it under My Bets → Quiz Tickets.'
-            : `All set — ${n} lines placed. Open My Bets → Quiz Tickets anytime to review your picks.`)
-          : `All set — scheduled ${n} line(s) for ${targetSlots.length} future slot(s).`,
+          ? 'You can see bets in My Bets → Quiz Tickets anytime to review your picks.'
+          : `Scheduled ${n} line(s) for ${targetSlots.length} future slot(s). Check My Bets → Quiz Tickets.`,
       );
     } catch (e) {
       const msg =
@@ -806,7 +822,35 @@ const LotteryDashboard = () => {
               : e.message || 'BUY failed';
       setUiNotice(msg);
     }
-  }, [selectedAdvanceSlots, selectedMap, serverSlot, slotOpenForBuy, walletBalance]);
+  }, [betLines, selectedAdvanceSlots, serverSlot, slotOpenForBuy, walletBalance]);
+
+  const handleRemoveBetLine = useCallback((lineKey) => {
+    setSelectedMap((prev) => {
+      if (!prev?.[lineKey]) return prev;
+      const next = { ...prev };
+      delete next[lineKey];
+      return next;
+    });
+    setRowPointDisplay(Array.from({ length: 10 }, () => ''));
+    setColPointDisplay(Array.from({ length: 10 }, () => ''));
+    setPendingTarget(null);
+    setAmountDraft('');
+    setEnteredAmount(0);
+    appliedAmountByTargetRef.current = {};
+  }, []);
+
+  const handleOpenBuyConfirm = useCallback(() => {
+    if (!betLines.length) {
+      setUiNotice('Please add amount on board first.');
+      return;
+    }
+    setShowBuyConfirm(true);
+  }, [betLines.length]);
+
+  const handleConfirmBuy = useCallback(async () => {
+    setShowBuyConfirm(false);
+    await handleBoardBuy();
+  }, [handleBoardBuy]);
   const handleIncrease = useCallback(() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleDecrease = useCallback(() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1)), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleEnterAmount = useCallback(() => {
@@ -904,7 +948,7 @@ const LotteryDashboard = () => {
               <SummaryPanel
                 totalAmount={totals.totalAmount}
                 setTotals={setTotals}
-                onBuy={handleBoardBuy}
+                onBuy={handleOpenBuyConfirm}
                 buyDisabled={buyDisabled}
                 buyHelpLines={buyHelpLines}
               />
@@ -960,6 +1004,89 @@ const LotteryDashboard = () => {
         }}
         onClose={() => setShowAdvanceDrawModal(false)}
       />
+      {showBuyConfirm ? (
+        <div className="fixed inset-0 z-[86] flex items-center justify-center bg-[#020617]/75 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-xl rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-4 text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)]">
+            <h3 className="text-[20px] font-extrabold">You want to place bet?</h3>
+            <p className="mt-2 text-sm text-[#cbd5e1]">
+              Total Bets: <span className="font-bold text-white">{betLines.length}</span> | Total Amount:{' '}
+              <span className="font-bold text-[#facc15]">₹{totals.totalAmount}</span>
+            </p>
+
+            <div className="mt-3 max-h-[42vh] overflow-y-auto rounded-lg border border-[#334155] bg-[#0b1220]">
+              {!betLines.length ? (
+                <p className="p-3 text-sm text-[#cbd5e1]">No bets left to place.</p>
+              ) : (
+                betLines.map((line) => (
+                  <div key={line.key} className="flex items-center justify-between gap-3 border-b border-[#1f2937] px-3 py-2 last:border-b-0">
+                    <div className="text-sm">
+                      <span className="font-semibold">Quiz {String(line.quizId).padStart(2, '0')}</span>
+                      <span className="mx-2 text-[#64748b]">|</span>
+                      <span>No. {String(line.num).padStart(2, '0')}</span>
+                      <span className="mx-2 text-[#64748b]">|</span>
+                      <span>₹{line.amount}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPendingRemoveBetLineKey(line.key)}
+                      className="rounded-md border border-[#b91c1c] bg-[#7f1d1d] px-2 py-1 text-xs font-bold text-white hover:bg-[#991b1b]"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBuyConfirm(false)}
+                className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBuy}
+                disabled={!betLines.length}
+                className="h-10 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Confirm & Place
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {pendingRemoveBetLineKey ? (
+        <div className="fixed inset-0 z-[87] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[1px]">
+          <div className="w-full max-w-sm rounded-xl border border-[#334155] bg-[#0f172a] p-4 text-white shadow-2xl">
+            <h4 className="text-lg font-bold">Are you sure?</h4>
+            <p className="mt-2 text-sm text-[#cbd5e1]">
+              Do you want to remove this bet line?
+            </p>
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingRemoveBetLineKey('')}
+                className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRemoveBetLine(pendingRemoveBetLineKey);
+                  setPendingRemoveBetLineKey('');
+                }}
+                className="h-10 flex-1 rounded-lg border border-[#b91c1c] bg-[#991b1b] text-sm font-extrabold"
+              >
+                Yes, Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {advanceSelectionNotice ? (
         <div className="fixed inset-0 z-[87] flex items-center justify-center bg-[#020617]/60 p-4 backdrop-blur-[2px]">
           <div className="w-full max-w-sm rounded-2xl border border-[#93c5fd] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_18px_45px_rgba(2,6,23,0.45)]">
@@ -1003,6 +1130,23 @@ const LotteryDashboard = () => {
           </div>
         </div>
       )}
+      {uiToast ? (
+        <div className="pointer-events-none fixed inset-0 z-[84] flex items-center justify-center bg-[#020617]/62 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-lg rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] px-6 py-5 text-white shadow-[0_22px_60px_rgba(2,6,23,0.58)]">
+            <div className="flex items-start gap-4">
+              <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#16a34a] text-lg font-black text-white shadow-[0_8px_20px_rgba(22,163,74,0.35)]">
+                ✓
+              </div>
+              <div className="min-w-0">
+                <p className="text-[22px] font-black leading-none text-[#93c5fd]">Bet Placed</p>
+                <p className="mt-2 text-[15px] font-semibold leading-relaxed text-[#e2e8f0] break-words">
+                  {uiToast}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AppLayout>
   );
 };

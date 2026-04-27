@@ -55,6 +55,7 @@ const MyBetsModal = ({ open, onClose }) => {
   const [quizItems, setQuizItems] = useState([]);
   const [cancellingId, setCancellingId] = useState('');
   const [cancelErr, setCancelErr] = useState('');
+  const [pendingCancelId, setPendingCancelId] = useState('');
 
   const loadQuiz = useCallback(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -83,6 +84,7 @@ const MyBetsModal = ({ open, onClose }) => {
   useEffect(() => {
     if (!open) return undefined;
     setCancelErr('');
+    setPendingCancelId('');
     loadQuiz();
   }, [open, loadQuiz]);
 
@@ -212,7 +214,7 @@ const MyBetsModal = ({ open, onClose }) => {
                               <button
                                 type="button"
                                 disabled={cancellingId === row.id}
-                                onClick={() => handleCancelBet(row.id)}
+                                onClick={() => setPendingCancelId(String(row.id))}
                                 className="rounded border border-[#c5362d] bg-[#ffe5e5] px-2 py-0.5 text-[10px] font-semibold text-[#a31] hover:bg-[#ffd5d5] disabled:opacity-60"
                               >
                                 {cancellingId === row.id ? '…' : 'Cancel'}
@@ -237,6 +239,37 @@ const MyBetsModal = ({ open, onClose }) => {
             ))}
         </div>
       </div>
+      {pendingCancelId ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-3">
+          <div className="w-full max-w-sm rounded-lg border border-[#6c6c6c] bg-white p-4 text-center shadow-xl">
+            <h4 className="text-[16px] font-bold text-[#1f2937]">Are you sure?</h4>
+            <p className="mt-2 text-[12px] text-gray-700">
+              Do you want to cancel this bet?
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingCancelId('')}
+                className="h-9 min-w-[90px] rounded border border-[#9ca3af] bg-[#f3f4f6] px-3 text-[12px] font-semibold text-[#111827]"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                disabled={cancellingId === pendingCancelId}
+                onClick={async () => {
+                  const targetId = pendingCancelId;
+                  setPendingCancelId('');
+                  await handleCancelBet(targetId);
+                }}
+                className="h-9 min-w-[110px] rounded border border-[#c5362d] bg-[#ef3f34] px-3 text-[12px] font-semibold text-white disabled:opacity-60"
+              >
+                {cancellingId === pendingCancelId ? 'Cancelling…' : 'Yes, Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
