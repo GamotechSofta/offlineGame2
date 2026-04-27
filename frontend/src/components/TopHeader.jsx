@@ -1,7 +1,7 @@
 import React from 'react';
 import { Wallet } from 'lucide-react';
 
-const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyBets, onBack }) => {
+const TopHeader = ({ now, walletBalance = 0, onOpenHistory, onOpenQuiz, onOpenThreeD, onOpenMyBets, onBack }) => {
   const formattedBalance = new Intl.NumberFormat('en-IN', {
     maximumFractionDigits: 0,
     minimumFractionDigits: 0,
@@ -56,6 +56,15 @@ const TopHeader = ({ now, walletBalance = 0, onOpenQuiz, onOpenThreeD, onOpenMyB
           <div className="text-[16px] font-extrabold leading-none mt-[1px]">{formattedTimeToDraw}</div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 h-full">
+          {typeof onOpenHistory === 'function' && (
+            <button
+              type="button"
+              onClick={onOpenHistory}
+              className="shrink-0 border border-[#2a7a4a] bg-[#3d9b5c] px-3 h-10 text-[17px] font-extrabold leading-none text-white"
+            >
+              History
+            </button>
+          )}
           {typeof onOpenQuiz === 'function' && (
             <button
               type="button"

@@ -214,6 +214,7 @@ const ThreeDGame = () => {
   const [qty, setQty] = useState('');
   const [validationMsg, setValidationMsg] = useState('');
   const [toast, setToast] = useState('');
+  const [showBuyConfirm, setShowBuyConfirm] = useState(false);
   const [buySummary, setBuySummary] = useState(null);
   const [showBuyConfirm, setShowBuyConfirm] = useState(false);
   const [buyConfirmError, setBuyConfirmError] = useState('');
@@ -230,6 +231,7 @@ const ThreeDGame = () => {
   const [selectedAdvanceSlots, setSelectedAdvanceSlots] = useState([]);
   const [advanceBuySuccess, setAdvanceBuySuccess] = useState(null);
   const [advanceSelectionNotice, setAdvanceSelectionNotice] = useState('');
+  const [pendingRemoveBetId, setPendingRemoveBetId] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [resultDateDay, setResultDateDay] = useState(() => String(new Date().getDate()).padStart(2, '0'));
@@ -1392,25 +1394,6 @@ const ThreeDGame = () => {
     }
   }, [bets, formatAdvanceSlotLabel, formatDrawEndLabelFromSlotStartIso, generateGameId, nextDrawAt, now, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
 
-  const handleOpenBuyConfirm = useCallback(() => {
-    if (!bets.length) {
-      setValidationMsg('Add at least one bet before BUY.');
-      return;
-    }
-    setBuyConfirmError('');
-    setShowBuyConfirm(true);
-  }, [bets.length]);
-
-  const handleConfirmBuy = useCallback(async () => {
-    setBuyConfirmError('');
-    const result = await handleBuy();
-    if (result?.ok) {
-      setShowBuyConfirm(false);
-      return;
-    }
-    setBuyConfirmError(result?.error || 'BUY failed. Please try again.');
-  }, [handleBuy]);
-
   const handleCancelPendingTicket = useCallback(() => {
     const nowMs = Date.now();
     const cancellable = (ticketHistory || []).find((ticket) => {
@@ -1567,6 +1550,10 @@ const ThreeDGame = () => {
   }, []);
   const handleRemoveBet = useCallback((betId) => {
     setBets((prev) => prev.filter((x) => x.id !== betId));
+  }, []);
+  const handleRequestRemoveBet = useCallback((betId) => {
+    if (!betId) return;
+    setPendingRemoveBetId(String(betId));
   }, []);
 
   const handleAdvance = useCallback(() => {
@@ -2171,7 +2158,7 @@ const ThreeDGame = () => {
                 visibleBetCards={visibleBetCards}
                 hiddenBetCardCount={hiddenBetCardCount}
                 getDisplayBetNumber={getDisplayBetNumber}
-                onRemoveBet={handleRemoveBet}
+                onRemoveBet={handleRequestRemoveBet}
               />
               <div className="w-full min-w-0 shrink-0 border-t border-[#e5e7eb] pt-2 mt-2">
                 <div className={`w-full min-w-0 rounded-xl border border-[#c5cdd9] bg-gradient-to-b from-[#f8fafc] to-[#eef2f7] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_10px_rgba(15,23,42,0.06)] ${isZoomCompactView ? 'p-2.5' : 'p-3 sm:p-4'}`}>
@@ -2283,6 +2270,65 @@ const ThreeDGame = () => {
           </div>
         </div>
 
+        {showBuyConfirm ? (
+          <div className="fixed inset-0 z-[86] flex items-center justify-center bg-[#020617]/75 p-4 backdrop-blur-[2px]">
+            <div className="w-full max-w-lg rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-5 text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)]">
+              <h3 className="text-[20px] font-extrabold">You want to confirm?</h3>
+              <p className="mt-2 text-sm text-[#cbd5e1]">
+                Total Bets: <span className="font-bold text-white">{bets.length}</span> | Total Amount:{' '}
+                <span className="font-bold text-[#facc15]">₹{Number(totalPoints || 0)}</span>
+              </p>
+              {selectedAdvanceSlots.length ? (
+                <p className="mt-1 text-xs text-[#93c5fd]">
+                  Advance slots selected: <span className="font-bold">{selectedAdvanceSlots.length}</span>
+                </p>
+              ) : null}
+              <div className="mt-3 max-h-[42vh] overflow-y-auto rounded-lg border border-[#334155] bg-[#0b1220]">
+                {!bets.length ? (
+                  <p className="p-3 text-sm text-[#cbd5e1]">No bets left to place.</p>
+                ) : (
+                  [...bets].reverse().map((bet) => (
+                    <div key={bet.id} className="flex items-center justify-between gap-3 border-b border-[#1f2937] px-3 py-2 last:border-b-0">
+                      <div className="text-sm">
+                        <span className="font-semibold">Set {String(bet.panels || '-').toUpperCase()}</span>
+                        <span className="mx-2 text-[#64748b]">|</span>
+                        <span>{String(bet.mode || '').toUpperCase()}</span>
+                        <span className="mx-2 text-[#64748b]">|</span>
+                        <span>No. {String(bet.number || '').padStart(3, '0')}</span>
+                        <span className="mx-2 text-[#64748b]">|</span>
+                        <span>₹{Number(bet.points || 0)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRequestRemoveBet(bet.id)}
+                        className="rounded-md border border-[#b91c1c] bg-[#7f1d1d] px-2 py-1 text-xs font-bold text-white hover:bg-[#991b1b]"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBuyConfirm(false)}
+                  className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBuy}
+                  disabled={!bets.length}
+                  className="h-10 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Confirm & Place
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {buySummary ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/65 p-4 backdrop-blur-[2px]">
             <div className="w-full max-w-md rounded-2xl border border-[#bfdbfe] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_20px_55px_rgba(2,6,23,0.45)]">
@@ -2440,6 +2486,35 @@ const ThreeDGame = () => {
               >
                 OK
               </button>
+            </div>
+          </div>
+        ) : null}
+        {pendingRemoveBetId ? (
+          <div className="fixed inset-0 z-[87] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[1px]">
+            <div className="w-full max-w-sm rounded-xl border border-[#334155] bg-[#0f172a] p-4 text-white shadow-2xl">
+              <h4 className="text-lg font-bold">Are you sure?</h4>
+              <p className="mt-2 text-sm text-[#cbd5e1]">
+                Do you want to remove this bet line?
+              </p>
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingRemoveBetId('')}
+                  className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold"
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleRemoveBet(pendingRemoveBetId);
+                    setPendingRemoveBetId('');
+                  }}
+                  className="h-10 flex-1 rounded-lg border border-[#b91c1c] bg-[#991b1b] text-sm font-extrabold"
+                >
+                  Yes, Remove
+                </button>
+              </div>
             </div>
           </div>
         ) : null}

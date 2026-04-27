@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cancelMyQuizBet, getMyQuizBets } from '../api/quizApi';
 import { updateUserBalance } from '../api/bets';
 import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
+
+const QUIZ_HISTORY_LIMIT = 10000;
 
 const statusLabel = (status) => {
   if (status === 'win') return 'Won';
@@ -57,8 +59,12 @@ const MyBetsModal = ({ open, onClose }) => {
   const [cancellingId, setCancellingId] = useState('');
   const [cancelErr, setCancelErr] = useState('');
   const [pendingCancelId, setPendingCancelId] = useState('');
+  const listScrollRef = useRef(null);
+  const lastScrollTopRef = useRef(0);
 
-  const loadQuiz = useCallback(() => {
+  const loadQuiz = useCallback((options = {}) => {
+    const silent = Boolean(options?.silent);
+    const preserveScroll = Boolean(options?.preserveScroll);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (!user?.token) {
       setQuizItems([]);
@@ -66,9 +72,14 @@ const MyBetsModal = ({ open, onClose }) => {
       setLoadingQuiz(false);
       return Promise.resolve();
     }
-    setLoadingQuiz(true);
+    if (preserveScroll && listScrollRef.current) {
+      lastScrollTopRef.current = listScrollRef.current.scrollTop;
+    }
+    if (!silent) {
+      setLoadingQuiz(true);
+    }
     setErrQuiz('');
-    return getMyQuizBets(120)
+    return getMyQuizBets(QUIZ_HISTORY_LIMIT)
       .then((j) => {
         const rows = Array.isArray(j?.data) ? j.data : [];
         setQuizItems(rows);
@@ -78,7 +89,16 @@ const MyBetsModal = ({ open, onClose }) => {
         else setErrQuiz(e.message || 'Failed to load');
       })
       .finally(() => {
-        setLoadingQuiz(false);
+        if (!silent) {
+          setLoadingQuiz(false);
+        }
+        if (preserveScroll) {
+          requestAnimationFrame(() => {
+            if (listScrollRef.current) {
+              listScrollRef.current.scrollTop = lastScrollTopRef.current;
+            }
+          });
+        }
       });
   }, []);
 
@@ -94,7 +114,7 @@ const MyBetsModal = ({ open, onClose }) => {
     intervalMs: 10000,
     immediate: false,
     onRefresh: () => {
-      void loadQuiz();
+      void loadQuiz({ silent: true, preserveScroll: true });
     },
   });
 
@@ -150,7 +170,7 @@ const MyBetsModal = ({ open, onClose }) => {
             Refresh
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-3 text-[11px]">
+        <div ref={listScrollRef} className="min-h-0 flex-1 overflow-y-auto p-3 text-[11px]">
           <p className="mb-2 text-[10px] text-gray-700">
             Wallet-based bets; each number is shown in a separate row. Win/loss updates after slot close. Cancel is only
             allowed before that draw closes (pending tickets). Canceled tickets stay listed in Action; you can place the same
