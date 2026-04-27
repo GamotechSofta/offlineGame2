@@ -21,7 +21,7 @@ const BoardCell = ({ quizNo, num, value, selected, targetSelected, onSelectTarge
         {selected ? <span>{value}</span> : !targetSelected ? <span className="font-semibold">{cellCode}</span> : null}
         {targetSelected ? <span className="blink-caret font-normal">|</span> : null}
       </div>
-      <div className="mt-0 text-[#111] font-bold tracking-tight text-[clamp(15px,1.45vw,19px)] leading-none">
+      <div className="mt-0 text-[#111] font-bold tracking-tight text-[17px] sm:text-[clamp(15px,1.45vw,19px)] leading-none">
         {cellCode}
       </div>
     </button>
