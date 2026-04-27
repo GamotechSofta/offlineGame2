@@ -92,9 +92,11 @@ const Funds = () => {
   };
 
   const isAddFundMobileView = mobileView === 'add-fund';
+  const isWithdrawFundMobileView = mobileView === 'withdraw-fund';
+  const isPlainMobileView = isAddFundMobileView || isWithdrawFundMobileView;
 
   return (
-    <div className="min-h-screen bg-white text-gray-800 pl-3 pr-3 sm:pl-4 sm:pr-4 pt-0 md:pt-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen bg-white text-gray-800 pl-4 pr-4 sm:pl-5 sm:pr-5 pt-0 md:pt-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
       <div className="w-full max-w-lg md:max-w-none mx-auto md:mx-0">
         <div className="mb-4 md:grid md:grid-cols-[360px_1fr] md:gap-6 md:items-center">
           <div className="flex items-center gap-3 pt-4 md:pt-0">
@@ -158,8 +160,8 @@ const Funds = () => {
             // Component view
             <div
               className={
-                isAddFundMobileView
-                  ? 'px-1 sm:px-2'
+                isPlainMobileView
+                  ? 'px-3 sm:px-4'
                   : 'bg-white border-2 border-gray-300 rounded-2xl shadow-sm p-4 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hidden'
               }
             >
