@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import BookieBidLayout from '../BookieBidLayout';
 import { usePlayerBet } from '../PlayerBetContext';
 import { useBetCart } from '../BetCartContext';
@@ -60,35 +60,10 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
 
     const panasBySumDigit = useMemo(() => ({ ...SINGLE_PANA_BY_SUM }), []);
 
-    const ptsInputOrder = useMemo(() => {
-        const order = [];
-        for (let d = 0; d <= 9; d++) {
-            const list = panasBySumDigit[String(d)] || [];
-            list.forEach((n) => order.push(n));
-        }
-        return order;
-    }, [panasBySumDigit]);
-
-    const ptsInputRefs = useRef({});
-
-    const handlePtsArrowKey = (num, e) => {
-        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-        const idx = ptsInputOrder.indexOf(num);
-        if (idx === -1) return;
-        if (e.key === 'ArrowRight' && idx < ptsInputOrder.length - 1) {
-            e.preventDefault();
-            ptsInputRefs.current[ptsInputOrder[idx + 1]]?.focus?.();
-        } else if (e.key === 'ArrowLeft' && idx > 0) {
-            e.preventDefault();
-            ptsInputRefs.current[ptsInputOrder[idx - 1]]?.focus?.();
-        }
-    };
-
     const specialCount = useMemo(
         () => Object.values(specialInputs).filter((v) => Number(v) > 0).length,
         [specialInputs]
     );
-    const canSubmit = specialCount > 0;
 
     const clearLocal = () => {
         setSpecialInputs(Object.fromEntries(singlePanas.map((n) => [n, ''])));
@@ -103,6 +78,12 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
         const count = addToCart(items, gameType, title, betType);
         if (count > 0) showWarning(`Added ${count} bet(s) to cart ✓`);
         clearLocal();
+    };
+
+    const autoAddRows = (rows) => {
+        if (!rows.length) return;
+        const count = addToCart(rows, gameType, title, betType);
+        if (count > 0) showWarning(`Added ${count} bet(s) to cart ✓`);
     };
 
     return (
@@ -138,11 +119,10 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                             const p = sanitizePoints(pts);
                             const n = Number(p);
                             if (!n || n <= 0) { showWarning('Please enter points.'); return; }
+                            autoAddRows(list.map((num) => ({ number: num, points: String(n), type: session })));
                             setSpecialInputs((prev) => {
                                 const next = { ...prev };
-                                for (const num of list) {
-                                    next[num] = String(n);
-                                }
+                                for (const num of list) next[num] = '';
                                 return next;
                             });
                             setGroupBulk((prev) => ({ ...prev, [groupKey]: '' }));
@@ -217,7 +197,6 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                                 {num}
                                             </div>
                                             <input
-                                                ref={(el) => { ptsInputRefs.current[num] = el; }}
                                                 type="text"
                                                 inputMode="numeric"
                                                 placeholder="Pts"
@@ -228,7 +207,20 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                                         [num]: sanitizePoints(e.target.value),
                                                     }))
                                                 }
-                                                onKeyDown={(e) => handlePtsArrowKey(num, e)}
+                                                onBlur={() => {
+                                                    const pts = Number(specialInputs[num] || 0);
+                                                    if (!pts) return;
+                                                    autoAddRows([{ number: num, points: String(pts), type: session }]);
+                                                    setSpecialInputs((prev) => ({ ...prev, [num]: '' }));
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key !== 'Enter') return;
+                                                    e.preventDefault();
+                                                    const pts = Number(specialInputs[num] || 0);
+                                                    if (!pts) return;
+                                                    autoAddRows([{ number: num, points: String(pts), type: session }]);
+                                                    setSpecialInputs((prev) => ({ ...prev, [num]: '' }));
+                                                }}
                                                 className="no-spinner flex-1 min-w-0 h-8 bg-gray-100 border border-l-0 border-gray-200 text-gray-800 placeholder-gray-400 rounded-r focus:outline-none focus:border-[#1B3150] px-2 text-[11px] font-semibold text-center"
                                             />
                                         </div>
@@ -239,7 +231,6 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                     })}
                 </div>
 
-                {/* Clear and Add to Cart */}
                 <div className={`flex flex-col gap-2 ${embedInSingleScroll ? 'mt-2' : 'mt-5 sticky bottom-3 z-10'}`}>
                     <button
                         type="button"
@@ -247,10 +238,6 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                         className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all"
                     >
                         Clear
-                    </button>
-                    <button type="button" onClick={handleAddToCart} disabled={!canSubmit}
-                        className={`w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[52px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${!canSubmit ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                        Add to Cart {specialCount > 0 && `(${specialCount})`}
                     </button>
                 </div>
             </div>

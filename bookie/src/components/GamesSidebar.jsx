@@ -20,19 +20,23 @@ export const getStoredSidebarWidth = () => {
 
 const GAME_TYPES_LIST = [
     { id: 'single-digit', title: 'Single Digit', icon: '1', color: 'bg-blue-500' },
-    { id: 'odd-even', title: 'Odd Even', icon: 'O/E', color: 'bg-indigo-500' },
-    { id: 'sp-common', title: 'SP Common', icon: 'SP', color: 'bg-emerald-500' },
-    { id: 'cp-common', title: 'CP (Common Pana)', icon: 'CP', color: 'bg-teal-500' },
-    { id: 'jodi', title: 'Jodi Bulk', icon: '12', color: 'bg-purple-500' },
+    { id: 'jodi', title: 'Jodi', icon: '12', color: 'bg-purple-500' },
+    { id: 'jodi-bulk', title: 'Jodi Bulk', icon: '12+', color: 'bg-purple-600' },
+    { id: 'single-pana', title: 'Single Pana', icon: '123', color: 'bg-emerald-500' },
     { id: 'single-pana-bulk', title: 'Single Pana Bulk', icon: '123+', color: 'bg-emerald-600' },
+    { id: 'double-pana', title: 'Double Pana', icon: '112', color: 'bg-[#1B3150]' },
     { id: 'double-pana-bulk', title: 'Double Pana Bulk', icon: '112+', color: 'bg-[#1B3150]' },
     { id: 'triple-pana', title: 'Triple Pana', icon: '111', color: 'bg-pink-500' },
+    { id: 'half-sangam', title: 'Half Sangam', icon: 'H/S', color: 'bg-cyan-500' },
     { id: 'full-sangam', title: 'Full Sangam', icon: 'F/S', color: 'bg-amber-600' },
-    { id: 'half-sangam', title: 'Half Sangam (O)', icon: 'H/S', color: 'bg-cyan-500' },
+    { id: 'sp-common', title: 'SP Common', icon: 'SP', color: 'bg-emerald-500' },
+    { id: 'dp-common', title: 'DP Common', icon: 'DP', color: 'bg-[#152842]' },
+    { id: 'cp-common', title: 'CP', icon: 'CP', color: 'bg-teal-500' },
     { id: 'sp-motor', title: 'SP Motor', icon: 'SP', color: 'bg-emerald-700' },
     { id: 'dp-motor', title: 'DP Motor', icon: 'DP', color: 'bg-[#152842]' },
     { id: 'sp-dp-motor', title: 'SP DP Motor', icon: 'SP/DP', color: 'bg-teal-600' },
     { id: 'sp-dp-t-motor', title: 'SP DP T Motor', icon: 'SP/DP/T', color: 'bg-teal-700' },
+    { id: 'odd-even', title: 'Odd Even', icon: 'O/E', color: 'bg-indigo-500' },
     { id: 'chart', title: 'Chart Game', icon: 'CHT', color: 'bg-sky-600' },
 ];
 
