@@ -4,6 +4,8 @@ import { usePlayerBet } from '../PlayerBetContext';
 import { useBetCart } from '../BetCartContext';
 import { isPastOpeningTime } from '../../../utils/marketTiming';
 import { generateSPCommon } from './spCommonGenerator';
+const DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+const QUICK_POINTS = [10, 20, 30, 40, 50];
 
 const SpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) => {
     const { market } = usePlayerBet();
@@ -44,6 +46,11 @@ const SpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
         setDigitInput('');
         setPointsInput('');
         setGeneratedRows([]);
+    };
+
+    const toggleDigit = (d) => {
+        const digit = String(d);
+        setDigitInput((prev) => (prev === digit ? '' : digit));
     };
 
     const handleGenerate = () => {
@@ -114,7 +121,27 @@ const SpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
                         <div>
-                            <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Enter Digit</label>
+                            <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Quick Digits</label>
+                            <div className="grid grid-cols-5 gap-2 mb-3">
+                                {DIGITS.map((d) => {
+                                    const selected = digitInput === String(d);
+                                    return (
+                                        <button
+                                            key={d}
+                                            type="button"
+                                            onClick={() => toggleDigit(d)}
+                                            aria-pressed={selected}
+                                            className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base transition-all active:scale-[0.98] border ${
+                                                selected
+                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                            }`}
+                                        >
+                                            {d}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                             <input
                                 type="text"
                                 value={digitInput}
@@ -125,14 +152,45 @@ const SpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                         </div>
                         <div>
                             <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Enter Points</label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                value={pointsInput}
-                                onChange={(e) => setPointsInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 6))}
-                                placeholder="Points"
-                                className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
-                            />
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={pointsInput}
+                                    onChange={(e) => setPointsInput((e.target.value ?? '').replace(/\D/g, '').slice(0, 6))}
+                                    placeholder="Points"
+                                    className="flex-1 min-w-0 min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={clearLocal}
+                                    className="min-h-[44px] h-11 px-4 rounded-lg text-xs sm:text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Quick Points</label>
+                            <div className="grid grid-cols-5 gap-2">
+                                {QUICK_POINTS.map((pts) => {
+                                    const selected = String(pointsInput || '') === String(pts);
+                                    return (
+                                        <button
+                                            key={pts}
+                                            type="button"
+                                            onClick={() => setPointsInput(String(pts))}
+                                            className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base border transition-all active:scale-[0.98] ${
+                                                selected
+                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                            }`}
+                                        >
+                                            {pts}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
                         <button
                             type="button"

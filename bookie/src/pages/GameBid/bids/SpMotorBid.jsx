@@ -64,6 +64,23 @@ const SpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false }) =
     );
   };
 
+  const toggleDigit = (d) => {
+    const digit = String(d);
+    setDigitInput((prev) => {
+      const current = sanitizeMotorDigitsUnique(prev);
+      if (current.includes(digit)) {
+        return current.split('').filter((x) => x !== digit).join('');
+      }
+      return sanitizeMotorDigitsUnique(current + digit);
+    });
+  };
+
+  const clearLocal = () => {
+    setDigitInput('');
+    setPointsInput('');
+    setCombinations([]);
+  };
+
   const updatePoint = (id, value) => {
     setCombinations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, points: sanitizePoints(value) } : c))
@@ -127,6 +144,27 @@ const SpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false }) =
         <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
           <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
             <div>
+              <div className="block text-[11px] sm:text-xs font-semibold text-gray-500 mb-2">Quick Digits</div>
+              <div className="grid grid-cols-5 gap-2 mb-3">
+                {Array.from({ length: 10 }, (_, i) => i).map((d) => {
+                  const selected = sanitizeMotorDigitsUnique(digitInput).includes(String(d));
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => toggleDigit(d)}
+                      aria-pressed={selected}
+                      className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base transition-all active:scale-[0.98] border ${
+                        selected
+                          ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                          : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                      }`}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
               <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Enter digits (0–9, no repeats)</label>
               <input
                 type="text"
@@ -139,14 +177,45 @@ const SpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false }) =
             </div>
             <div>
               <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Enter Points</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={pointsInput}
-                onChange={(e) => setPointsInput(sanitizePoints(e.target.value))}
-                placeholder="Points"
-                className="w-full min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={pointsInput}
+                  onChange={(e) => setPointsInput(sanitizePoints(e.target.value))}
+                  placeholder="Points"
+                  className="flex-1 min-w-0 min-h-[44px] h-11 sm:h-12 bg-white border border-gray-300 rounded-lg px-3 text-sm sm:text-base font-semibold text-gray-800"
+                />
+                <button
+                  type="button"
+                  onClick={clearLocal}
+                  className="min-h-[44px] h-11 px-4 rounded-lg text-xs sm:text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs sm:text-sm font-semibold text-gray-600 mb-1.5">Quick Points</label>
+              <div className="grid grid-cols-5 gap-2">
+                {[10, 20, 30, 40, 50].map((pts) => {
+                  const selected = String(pointsInput || '') === String(pts);
+                  return (
+                    <button
+                      key={pts}
+                      type="button"
+                      onClick={() => setPointsInput(String(pts))}
+                      className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base border transition-all active:scale-[0.98] ${
+                        selected
+                          ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                          : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                      }`}
+                    >
+                      {pts}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <button
               type="button"
@@ -180,9 +249,10 @@ const SpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false }) =
           </div>
 
           <div className="w-full md:w-1/2 flex-1 min-w-0 rounded-lg border border-gray-200 overflow-hidden flex flex-col min-h-[200px] sm:min-h-[260px]">
-            <div className="grid grid-cols-[72px_1fr_48px] gap-2 bg-[#1B3150] text-white font-bold text-xs sm:text-sm py-2.5 px-2 sm:px-3">
+            <div className="grid grid-cols-[72px_1fr_56px_48px] gap-2 bg-[#1B3150] text-white font-bold text-xs sm:text-sm py-2.5 px-2 sm:px-3">
               <div className="text-center">Sp Motor</div>
               <div className="text-center">Point</div>
+              <div className="text-center">Type</div>
               <div className="text-center">Delete</div>
             </div>
             <div className="max-h-[240px] sm:max-h-[280px] overflow-y-auto flex-1 bg-white">
@@ -192,7 +262,7 @@ const SpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false }) =
                 combinations.map((c) => (
                   <div
                     key={c.id}
-                    className="grid grid-cols-[72px_1fr_48px] gap-2 items-center py-2.5 px-2 sm:px-3 border-b border-gray-200 min-h-[44px]"
+                    className="grid grid-cols-[72px_1fr_56px_48px] gap-2 items-center py-2.5 px-2 sm:px-3 border-b border-gray-200 min-h-[44px]"
                   >
                     <div className="text-center font-bold text-gray-800 text-sm sm:text-base">{c.pana}</div>
                     <div className="px-1 sm:px-2 min-w-0">
@@ -204,6 +274,7 @@ const SpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false }) =
                         className="w-full min-h-[40px] h-9 border border-gray-300 rounded-md px-2 text-center text-sm font-semibold text-gray-800"
                       />
                     </div>
+                    <div className="text-center text-sm font-semibold text-[#1B3150]">{session}</div>
                     <button
                       type="button"
                       onClick={() => removeCombination(c.id)}

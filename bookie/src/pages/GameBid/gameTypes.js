@@ -60,7 +60,7 @@ export const BID_COMPONENTS = {
     // Bookie module does not yet have a separate DP Common screen;
     // temporarily route to CP Common to keep game-type parity with frontend UI.
     'dp-common': { component: CpCommonBid, title: 'DP Common', betType: 'dp-common' },
-    'cp-common': { component: CpCommonBid, title: 'CP', betType: 'cp-common' },
+    'cp-common': { component: CpCommonBid, title: 'CP (Common Pana)', betType: 'cp-common' },
     'sp-motor': { component: SpMotorBid, title: 'SP Motor', betType: 'sp-motor' },
     'dp-motor': { component: DpMotorBid, title: 'DP Motor', betType: 'dp-motor' },
     'sp-dp-motor': { component: SpDpMotorBid, title: 'SP DP Motor', betType: 'sp-motor' },

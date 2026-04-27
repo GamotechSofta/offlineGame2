@@ -174,7 +174,7 @@ const ChartBid = ({ title, gameType, betType, embedInSingleScroll = false }) => 
                             </div>
                         </div>
                         <div>
-                            <div className="block text-xs sm:text-sm font-semibold text-gray-600 mb-2">Select Digit</div>
+                            <div className="block text-xs sm:text-sm font-semibold text-gray-600 mb-2">Quick Digits</div>
                             <div className="grid grid-cols-5 gap-2">
                                 {DIGIT_ORDER.map((d) => {
                                     const ds = String(d);

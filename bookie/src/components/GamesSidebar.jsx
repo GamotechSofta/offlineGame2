@@ -31,7 +31,7 @@ const GAME_TYPES_LIST = [
     { id: 'full-sangam', title: 'Full Sangam', icon: 'F/S', color: 'bg-amber-600' },
     { id: 'sp-common', title: 'SP Common', icon: 'SP', color: 'bg-emerald-500' },
     { id: 'dp-common', title: 'DP Common', icon: 'DP', color: 'bg-[#152842]' },
-    { id: 'cp-common', title: 'CP', icon: 'CP', color: 'bg-teal-500' },
+    { id: 'cp-common', title: 'CP (Common Pana)', icon: 'CP', color: 'bg-teal-500' },
     { id: 'sp-motor', title: 'SP Motor', icon: 'SP', color: 'bg-emerald-700' },
     { id: 'dp-motor', title: 'DP Motor', icon: 'DP', color: 'bg-[#152842]' },
     { id: 'sp-dp-motor', title: 'SP DP Motor', icon: 'SP/DP', color: 'bg-teal-600' },
