@@ -1221,6 +1221,7 @@ const PlayerDetail = () => {
                                                     key={b._id}
                                                     index={index + 1}
                                                     betId={b._id}
+                                                    userName={player?.username || ''}
                                                     session={b.betOn || 'OPEN'}
                                                     marketTitle={(b.marketId?.marketName || 'Market').toUpperCase()}
                                                     gameLabel={b.betType === 'panna' ? 'Pana' : (b.betType || 'Bet')}
@@ -1315,6 +1316,7 @@ const PlayerDetail = () => {
                                                                 key={`${section.game}-${row.key}`}
                                                                 index={row.index}
                                                                 betId={row.betId}
+                                                                userName={player?.username || ''}
                                                                 betNumber={row.betNumber}
                                                                 betAmount={row.betAmount}
                                                                 winAmount={row.cashOutAmount}
@@ -1334,6 +1336,13 @@ const PlayerDetail = () => {
                                                                 <span className="text-xs font-medium text-gray-500">#{row.index}</span>
                                                                 <span className="rounded-md border-2 border-orange-300 bg-orange-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-orange-600">
                                                                     Game
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="mb-3 flex items-center justify-between gap-2 text-xs">
+                                                                <span className="text-gray-500">User</span>
+                                                                <span className="font-semibold text-gray-800 uppercase truncate max-w-[170px]" title={player?.username || '-'}>
+                                                                    {player?.username || '-'}
                                                                 </span>
                                                             </div>
 

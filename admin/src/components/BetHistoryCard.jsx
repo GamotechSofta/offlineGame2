@@ -26,6 +26,7 @@ const fmtRupee = (n) => {
 const BetHistoryCard = ({
   index,
   betId,
+  userName,
   session,
   marketTitle,
   gameLabel,
@@ -90,6 +91,15 @@ const BetHistoryCard = ({
           {sess}
         </span>
       </div>
+
+      {userName ? (
+        <div className="flex items-center justify-between gap-2 text-[11px] sm:text-xs mb-2">
+          <span className="text-gray-500 shrink-0">User</span>
+          <span className="text-gray-800 text-right min-w-0 font-semibold truncate uppercase" title={userName}>
+            {userName}
+          </span>
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between gap-2 text-[11px] sm:text-xs mb-2">
         <span className="text-gray-500 shrink-0">Bet ID</span>

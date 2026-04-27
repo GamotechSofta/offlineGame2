@@ -41,6 +41,7 @@ const getStatusMeta = (status) => {
 const FunTimerBetHistoryCard = ({
   index,
   betId,
+  userName,
   betNumber,
   betAmount,
   winAmount,
@@ -89,6 +90,15 @@ const FunTimerBetHistoryCard = ({
           GAME
         </span>
       </div>
+
+      {userName ? (
+        <div className="mb-2 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
+          <span className="shrink-0 text-gray-500">User</span>
+          <span className="min-w-0 truncate text-right font-semibold uppercase text-gray-800" title={userName}>
+            {userName}
+          </span>
+        </div>
+      ) : null}
 
       <div className="mb-2 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
         <span className="shrink-0 text-gray-500">Bet ID</span>

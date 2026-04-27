@@ -474,6 +474,10 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
     const u = safeParse(localStorage.getItem('user') || 'null', null);
     return u?._id || u?.id || u?.userId || u?.userid || u?.user_id || u?.uid || null;
   }, []);
+  const userName = useMemo(() => {
+    const u = safeParse(localStorage.getItem('user') || 'null', null);
+    return (u?.username || u?.name || '').toString().trim();
+  }, []);
 
   const fetchMarketsOnce = useCallback(async (background = false) => {
     try {
@@ -949,6 +953,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                             key={row.key}
                             index={row.index}
                             betId={row.betId}
+                            userName={userName}
                             betAmount={row.betAmount}
                             cashOutAmount={row.cashOutAmount}
                             timeFormatted={row.timeFormatted}
@@ -996,6 +1001,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                             key={row.key}
                             index={row.index}
                             betId={row.betId}
+                            userName={userName}
                             betNumber={row.betNumber}
                             betAmount={row.betAmount}
                             winAmount={row.cashOutAmount}
@@ -1045,6 +1051,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                             key={row.key}
                             index={row.index}
                             betId={row.betId}
+                            userName={userName}
                             betNumber={row.betNumber}
                             betAmount={row.betAmount}
                             winAmount={row.cashOutAmount}
@@ -1077,6 +1084,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                   key={`${x.id}-${r?.id ?? idx}`}
                   index={i + 1}
                   betId={betId}
+                  userName={userName}
                   session={session}
                   marketTitle={marketTitle.toUpperCase()}
                   gameLabel={shortGameLabel(x?.labelKey)}

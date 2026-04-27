@@ -15,7 +15,7 @@ const formatCurrency = (n) => {
   return `₹${v.toLocaleString('en-IN')}`;
 };
 
-const AviatorBetHistoryCard = ({ index, betId, betAmount, cashOutAmount, timeFormatted }) => {
+const AviatorBetHistoryCard = ({ index, betId, userName, betAmount, cashOutAmount, timeFormatted }) => {
   const bet = Number(betAmount) || 0;
   const cash = Number(cashOutAmount) || 0;
   const hasCash = Number.isFinite(Number(cashOutAmount));
@@ -80,6 +80,15 @@ const AviatorBetHistoryCard = ({ index, betId, betAmount, cashOutAmount, timeFor
           GAME
         </span>
       </div>
+
+      {userName ? (
+        <div className="flex items-center justify-between gap-2 text-[11px] sm:text-xs mb-2">
+          <span className="text-gray-500 shrink-0">User</span>
+          <span className="text-gray-800 text-right min-w-0 font-semibold truncate uppercase" title={userName}>
+            {userName}
+          </span>
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between gap-2 text-[11px] sm:text-xs mb-2">
         <span className="text-gray-500 shrink-0">Bet ID</span>

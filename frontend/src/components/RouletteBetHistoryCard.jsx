@@ -15,7 +15,7 @@ const formatCurrency = (n) => {
   return `₹${v.toLocaleString('en-IN')}`;
 };
 
-const RouletteBetHistoryCard = ({ index, betId, betNumber, betAmount, winAmount, timeFormatted }) => {
+const RouletteBetHistoryCard = ({ index, betId, userName, betNumber, betAmount, winAmount, timeFormatted }) => {
   const sid = shortBetId(betId);
   const bet = Number(betAmount) || 0;
   const win = Number(winAmount) || 0;
@@ -61,6 +61,15 @@ const RouletteBetHistoryCard = ({ index, betId, betNumber, betAmount, winAmount,
           GAME
         </span>
       </div>
+
+      {userName ? (
+        <div className="mb-2 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
+          <span className="shrink-0 text-gray-500">User</span>
+          <span className="min-w-0 truncate text-right font-semibold uppercase text-gray-800" title={userName}>
+            {userName}
+          </span>
+        </div>
+      ) : null}
 
       <div className="mb-2 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
         <span className="shrink-0 text-gray-500">Bet ID</span>
