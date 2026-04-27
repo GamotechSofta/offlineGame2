@@ -12,12 +12,14 @@ const pad3 = (n) => String(n).padStart(3, '0');
 
 const btnInactive = 'bg-[#5c2222] text-white border-2 border-[#3d1515] shadow-inner';
 const btnActive = 'bg-[#f5e14a] text-black border-2 border-[#c9b429] shadow-sm';
+const slotChipActive = `${btnActive} ring-2 ring-[#f59e0b] shadow-[0_0_0_2px_rgba(245,158,11,0.25)]`;
 
 const formatCountdown = (totalSeconds) => {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
 };
+const normalizeTimeLabel = (value) => String(value || '').replace(/\s+/g, ' ').trim().toUpperCase();
 
 const cleanQuestionText = (text) =>
   String(text || '').replace(/^(?:प्रश्न|Question)\s*\(\d{1,2}-\d{2,3}\)\s*:\s*/iu, '');
@@ -29,8 +31,6 @@ const SLOT_POLL_VISIBLE_MS = 3000;
 const SLOT_POLL_HIDDEN_MS = 7000;
 const HINT_POLL_VISIBLE_MS = 4000;
 const HINT_POLL_HIDDEN_MS = 9000;
-const FIRST_DRAW_SECONDS = (17 * 3600) + (15 * 60);
-const LAST_DRAW_SECONDS = (4 * 3600) + (45 * 60);
 
 const hasSlotDataChanged = (prev, next) => {
   if (!prev) return true;
@@ -133,19 +133,17 @@ const ThreeDQuizPage = () => {
   const selectedQuizRef = useRef(selectedQuiz);
   const lastHintSlotRef = useRef(null);
   const lastLandscapeAutoFsAttemptRef = useRef(0);
+  const slotStripRef = useRef(null);
+  const slotChipRefs = useRef({});
 
   const quizLabel = `QUIZ${pad2(selectedQuiz)}`;
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
   const allDrawLabels = useMemo(() => {
-    const labels = [];
-    let drawSeconds = FIRST_DRAW_SECONDS;
-    while (true) {
-      labels.push(formatISTTimeFromDaySeconds(drawSeconds));
-      if (drawSeconds === LAST_DRAW_SECONDS) break;
-      drawSeconds = (drawSeconds + SLOT_SECONDS) % 86400;
-    }
-    return labels;
+    // Show complete day slots (96 x 15-min) so current slot is always present.
+    return Array.from({ length: Math.floor(86400 / SLOT_SECONDS) }, (_, idx) =>
+      formatISTTimeFromDaySeconds((idx * SLOT_SECONDS) % 86400),
+    );
   }, []);
 
   useEffect(() => {
@@ -229,6 +227,18 @@ const ThreeDQuizPage = () => {
   useEffect(() => {
     if (hintData?.slotStartIso) lastHintSlotRef.current = hintData.slotStartIso;
   }, [hintData?.slotStartIso]);
+
+  useEffect(() => {
+    const currentLabel = normalizeTimeLabel(slotData?.drawLabelCurrent);
+    if (!currentLabel) return;
+    const strip = slotStripRef.current;
+    const chip = slotChipRefs.current[currentLabel];
+    if (!strip || !chip) return;
+    const stripRect = strip.getBoundingClientRect();
+    const chipRect = chip.getBoundingClientRect();
+    const targetLeft = strip.scrollLeft + (chipRect.left - stripRect.left) - ((stripRect.width - chipRect.width) / 2);
+    strip.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+  }, [slotData?.drawLabelCurrent]);
 
   useEffect(() => {
     const url = getQuizSocketUrl();
@@ -552,14 +562,18 @@ const ThreeDQuizPage = () => {
 
               <div className="flex flex-1 flex-col px-2 pb-24 sm:px-4">
                 <div className="sticky z-[9] -mx-2 mb-3 bg-[#efe6d5]/95 px-2 pt-1 pb-2 sm:mx-0 sm:px-0" style={{ top: '52px' }}>
-                  <div className="mb-3 overflow-x-auto pb-1">
+                  <div ref={slotStripRef} className="mb-3 overflow-x-auto pb-1">
                     <div className="flex min-w-max items-center gap-2">
                       {allDrawLabels.map((label) => {
-                        const isCurrent = label === slotData?.drawLabelCurrent;
+                        const normalizedLabel = normalizeTimeLabel(label);
+                        const isCurrent = normalizedLabel === normalizeTimeLabel(slotData?.drawLabelCurrent);
                         return (
                           <div
                             key={label}
-                            className={`rounded-xl px-3 py-2 text-xs font-bold sm:px-4 sm:py-2.5 sm:text-sm ${isCurrent ? btnActive : `${btnInactive} opacity-90`}`}
+                            ref={(el) => {
+                              if (el) slotChipRefs.current[normalizedLabel] = el;
+                            }}
+                            className={`rounded-xl px-3 py-2 text-xs font-bold transition-all sm:px-4 sm:py-2.5 sm:text-sm ${isCurrent ? slotChipActive : `${btnInactive} opacity-90`}`}
                           >
                             {label}
                           </div>
