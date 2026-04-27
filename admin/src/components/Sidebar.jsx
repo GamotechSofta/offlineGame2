@@ -201,12 +201,16 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
                                         <button
                                             key={child.path}
                                             onClick={() => handleNav(child.path)}
-                                            className={`w-full text-left pl-12 pr-3 py-2 rounded-lg text-sm transition ${isChildActive(child.path)
+                                            className={`w-full flex items-center gap-2 text-left pl-12 pr-3 py-2 rounded-lg text-sm transition ${isChildActive(child.path)
                                                 ? 'bg-orange-100 text-orange-700 font-semibold'
                                                 : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600'
                                                 }`}
                                         >
-                                            {child.label}
+                                            <span
+                                                className={`inline-block h-1.5 w-1.5 rounded-full ${isChildActive(child.path) ? 'bg-orange-600' : 'bg-gray-400'}`}
+                                                aria-hidden="true"
+                                            />
+                                            <span>{child.label}</span>
                                         </button>
                                     ))}
                                 </div>
