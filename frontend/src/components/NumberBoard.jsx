@@ -47,7 +47,7 @@ const NumberBoard = ({
         })}
       </div>
 
-      <div className="mt-[8px] flex-1 flex flex-col gap-[6px]">
+      <div className="mt-[8px] flex-1 flex flex-col gap-[7px]">
         {Array.from({ length: 10 }, (_, row) => {
           const rowNums = numbers.slice(row * 10, row * 10 + 10);
           return (
