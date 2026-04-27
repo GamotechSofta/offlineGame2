@@ -412,14 +412,6 @@ const JodiBulkBid = ({ market, title }) => {
                 </div>
 
                 <div className="hidden md:flex md:items-center md:gap-2 mb-3 px-1">
-                    <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center min-w-[110px]">
-                        <div className="text-[11px] text-gray-600 font-medium">Count</div>
-                        <div className="text-base font-bold text-[#1B3150] leading-tight">{rows.length}</div>
-                    </div>
-                    <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center min-w-[130px]">
-                        <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
-                        <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
-                    </div>
                     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hidden whitespace-nowrap flex-1">
                         <span className="mr-1 text-sm font-semibold text-gray-700 shrink-0 leading-tight flex flex-col">
                             <span>Quick</span>
@@ -446,6 +438,14 @@ const JodiBulkBid = ({ market, title }) => {
                         >
                             Clear
                         </button>
+                    </div>
+                    <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center min-w-[110px]">
+                        <div className="text-[11px] text-gray-600 font-medium">Count</div>
+                        <div className="text-base font-bold text-[#1B3150] leading-tight">{rows.length}</div>
+                    </div>
+                    <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center min-w-[130px]">
+                        <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
+                        <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
                     </div>
                 </div>
 
