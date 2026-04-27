@@ -170,8 +170,12 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
     return flattenedBets.reduce((acc, bet) => {
       const amount = Number(bet.amount || 0);
       const payout = Number(bet.payout || 0);
-      acc.totalBets += 1;
-      acc.totalStake += amount;
+      const outcome = String(bet.outcome || '').toLowerCase();
+      const isCancelled = outcome === 'cancelled';
+      if (!isCancelled) {
+        acc.totalBets += 1;
+        acc.totalStake += amount;
+      }
       acc.totalPayout += payout;
       return acc;
     }, { totalBets: 0, totalStake: 0, totalPayout: 0 });
