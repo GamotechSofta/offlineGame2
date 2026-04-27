@@ -3,6 +3,18 @@ import { useNavigate } from 'react-router-dom';
 
 const SupportLanding = () => {
   const navigate = useNavigate();
+  const handleBack = () => {
+    try {
+      const prev = sessionStorage.getItem('prevPathname');
+      if (prev && !['/support', '/support/new', '/support/status'].includes(prev)) {
+        navigate(prev);
+        return;
+      }
+    } catch (_) {
+      // ignore and fallback to home
+    }
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-800 px-3 sm:px-6 md:px-8 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
@@ -10,7 +22,7 @@ const SupportLanding = () => {
         <div className="flex items-center gap-3 pt-4 pb-3">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center text-gray-800 hover:opacity-80 active:scale-95 transition touch-manipulation"
             aria-label="Back"
           >
