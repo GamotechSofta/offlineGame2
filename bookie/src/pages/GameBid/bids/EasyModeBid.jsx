@@ -12,6 +12,7 @@ const EasyModeBid = ({
     maxLength = 3,
     validateInput,
     showModeTabs = false,
+    showCountCards = false,
     specialModeType = null,
     validDoublePanas = [],
     validSinglePanas = [],
@@ -293,6 +294,18 @@ const EasyModeBid = ({
                 {warning && (
                     <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-green-200 text-green-600 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium shadow-xl max-w-[calc(100%-2rem)] sm:max-w-md backdrop-blur-sm">
                         {warning}
+                    </div>
+                )}
+                {showCountCards && (
+                    <div className="grid grid-cols-2 gap-1.5 md:gap-2 px-1 mb-3">
+                        <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                            <div className="text-[11px] text-gray-600 font-medium">Count</div>
+                            <div className="text-base font-bold text-[#1B3150] leading-tight">0</div>
+                        </div>
+                        <div className="rounded-xl border border-gray-300 bg-white px-2 py-1.5 md:px-3 md:py-2 text-center">
+                            <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
+                            <div className="text-base font-bold text-[#1B3150] leading-tight">0</div>
+                        </div>
                     </div>
                 )}
 
