@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
@@ -105,6 +105,9 @@ const PlayerDetail = () => {
     const [betTypeFilter, setBetTypeFilter] = useState('all'); // all or betType key
     const [betSearch, setBetSearch] = useState(''); // number/type/market search
     const [betMarketFilter, setBetMarketFilter] = useState('all'); // all or marketId
+    const [betSourceFilter, setBetSourceFilter] = useState('matka'); // matka, all_lottery, lottery_2d, lottery_3d
+    const [lotteryHistory, setLotteryHistory] = useState({ twoD: [], threeD: [] });
+    const [visibleRows, setVisibleRows] = useState(120);
 
     // Market filter for fund history
     const [marketFilter, setMarketFilter] = useState('all'); // all or marketId
@@ -215,11 +218,54 @@ const PlayerDetail = () => {
             if (dateFrom && dateTo) params.append('endDate', dateTo);
             if (activeTab === 'bets_by_bookie') params.append('placedBy', 'bookie');
             if (activeTab === 'bets_by_user') params.append('placedBy', 'user');
-            const res = await fetch(`${API_BASE_URL}/bets/history?${params}`, { headers: getBookieAuthHeaders() });
+            const headers = getBookieAuthHeaders();
+            const [res, lottery2DRes, lottery3DRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/bets/history?${params}`, { headers }),
+                activeTab === 'bets_by_user'
+                    ? fetch(`${API_BASE_URL}/admin/lottery2d/players/${userId}/history?limit=100`, { headers })
+                    : Promise.resolve(null),
+                activeTab === 'bets_by_user'
+                    ? fetch(`${API_BASE_URL}/admin/lottery3d/players/${userId}/history?limit=100`, { headers })
+                    : Promise.resolve(null),
+            ]);
             const data = await res.json();
             setBets(data.success ? data.data || [] : []);
+
+            if (activeTab !== 'bets_by_user') {
+                setLotteryHistory({ twoD: [], threeD: [] });
+                return;
+            }
+
+            const [lottery2DData, lottery3DData] = await Promise.all([
+                lottery2DRes ? lottery2DRes.json() : Promise.resolve({ success: false }),
+                lottery3DRes ? lottery3DRes.json() : Promise.resolve({ success: false }),
+            ]);
+
+            const flattenLotteryRows = (slots, mode) => {
+                if (!Array.isArray(slots)) return [];
+                return slots.flatMap((slot) =>
+                    (Array.isArray(slot?.bets) ? slot.bets : []).map((bet) => ({
+                        id: `${mode}-${bet?.betId || bet?._id || Math.random().toString(36).slice(2)}`,
+                        mode,
+                        slotLabel: slot?.drawLabelEnd || '—',
+                        slotStartIso: slot?.slotStartIso || '',
+                        setLabel: bet?.setLabel || '—',
+                        number: bet?.number || '—',
+                        amount: Number(bet?.amount || 0),
+                        payout: Number(bet?.payout || 0),
+                        outcome: String(bet?.outcome || 'pending').toLowerCase(),
+                        createdAt: bet?.createdAt || slot?.slotStartIso || null,
+                    })),
+                );
+            };
+
+            setLotteryHistory({
+                twoD: flattenLotteryRows(lottery2DData?.success ? lottery2DData?.data?.slots : [], '2D'),
+                threeD: flattenLotteryRows(lottery3DData?.success ? lottery3DData?.data?.slots : [], '3D'),
+            });
         } catch (err) {
             setBets([]);
+            setLotteryHistory({ twoD: [], threeD: [] });
         } finally {
             setLoadingTab(false);
         }
@@ -539,21 +585,34 @@ const PlayerDetail = () => {
         totalPayout: bets.filter((b) => b.status === 'won').reduce((s, b) => s + (b.payout || 0), 0),
     };
 
-    const sourceFilteredBets = [...(bets || [])].sort((a, b) => {
-        const ta = new Date(a?.createdAt || 0).getTime();
-        const tb = new Date(b?.createdAt || 0).getTime();
-        return tb - ta;
-    });
+    useEffect(() => {
+        setVisibleRows(120);
+    }, [betSourceFilter, betFilter, betMarketFilter, betSessionFilter, betTypeFilter, betSearch, activeTab]);
 
-    const marketFilteredBets =
+    useEffect(() => {
+        if (activeTab !== 'bets_by_user' && betSourceFilter !== 'matka') {
+            setBetSourceFilter('matka');
+        }
+    }, [activeTab, betSourceFilter]);
+
+    const sourceFilteredBets = useMemo(() => (
+        [...(bets || [])].sort((a, b) => {
+            const ta = new Date(a?.createdAt || 0).getTime();
+            const tb = new Date(b?.createdAt || 0).getTime();
+            return tb - ta;
+        })
+    ), [bets]);
+
+    const marketFilteredBets = useMemo(() => (
         betMarketFilter === 'all'
             ? sourceFilteredBets
             : sourceFilteredBets.filter((b) => {
                 const mid = b?.marketId?._id || b?.marketId?.id || b?.marketId;
                 return String(mid || '') === String(betMarketFilter);
-            });
+            })
+    ), [sourceFilteredBets, betMarketFilter]);
 
-    const advancedFilteredBets = marketFilteredBets.filter((b) => {
+    const advancedFilteredBets = useMemo(() => marketFilteredBets.filter((b) => {
         if (betSessionFilter !== 'all') {
             const sess = String(b?.betOn || '').trim().toLowerCase();
             if (sess !== betSessionFilter) return false;
@@ -570,18 +629,56 @@ const PlayerDetail = () => {
             if (!num.includes(q) && !typeLabel.includes(q) && !marketName.includes(q)) return false;
         }
         return true;
-    });
+    }), [marketFilteredBets, betSessionFilter, betTypeFilter, betSearch, t]);
 
-    const displayedBetStats = {
+    const displayedBetStats = useMemo(() => ({
         total: advancedFilteredBets.length,
         won: advancedFilteredBets.filter((b) => b.status === 'won').length,
         lost: advancedFilteredBets.filter((b) => b.status === 'lost').length,
         pending: advancedFilteredBets.filter((b) => b.status === 'pending').length,
         totalAmount: advancedFilteredBets.reduce((s, b) => s + (b.amount || 0), 0),
         totalPayout: advancedFilteredBets.filter((b) => b.status === 'won').reduce((s, b) => s + (b.payout || 0), 0),
-    };
+    }), [advancedFilteredBets]);
 
-    const filteredBets = betFilter === 'all' ? advancedFilteredBets : advancedFilteredBets.filter((b) => b.status === betFilter);
+    const filteredBets = useMemo(() => (
+        betFilter === 'all' ? advancedFilteredBets : advancedFilteredBets.filter((b) => b.status === betFilter)
+    ), [betFilter, advancedFilteredBets]);
+
+    const lotteryRowsByMode = {
+        twoD: lotteryHistory.twoD || [],
+        threeD: lotteryHistory.threeD || [],
+    };
+    const selectedLotteryRows =
+        betSourceFilter === 'lottery_2d'
+            ? lotteryRowsByMode.twoD
+            : betSourceFilter === 'lottery_3d'
+                ? lotteryRowsByMode.threeD
+                : [...lotteryRowsByMode.twoD, ...lotteryRowsByMode.threeD];
+
+    const lotterySearchFilteredRows = useMemo(() => selectedLotteryRows.filter((row) => {
+        const q = betSearch.trim().toLowerCase();
+        if (!q) return true;
+        const hay = `${row.number} ${row.setLabel} ${row.slotLabel} ${row.mode}`.toLowerCase();
+        return hay.includes(q);
+    }), [selectedLotteryRows, betSearch]);
+    const toBetStatus = (outcome) => {
+        if (outcome === 'win') return 'won';
+        if (outcome === 'lose') return 'lost';
+        return 'pending';
+    };
+    const lotteryFilteredRows = betFilter === 'all'
+        ? lotterySearchFilteredRows
+        : lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === betFilter);
+    const displayedLotteryStats = useMemo(() => ({
+        total: lotterySearchFilteredRows.length,
+        won: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').length,
+        lost: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'lost').length,
+        pending: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'pending').length,
+        totalAmount: lotterySearchFilteredRows.reduce((sum, row) => sum + Number(row.amount || 0), 0),
+        totalPayout: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').reduce((sum, row) => sum + Number(row.payout || 0), 0),
+    }), [lotterySearchFilteredRows]);
+    const visibleMatkaRows = useMemo(() => filteredBets.slice(0, visibleRows), [filteredBets, visibleRows]);
+    const visibleLotteryRows = useMemo(() => lotteryFilteredRows.slice(0, visibleRows), [lotteryFilteredRows, visibleRows]);
 
     // Print bet history
     const handlePrintBets = () => {
@@ -891,6 +988,27 @@ const PlayerDetail = () => {
                             {/* Bet filter & actions bar */}
                             <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
                                 <FaFilter className="w-3 h-3 text-gray-400" />
+                                {(activeTab === 'bets_by_user'
+                                    ? [
+                                        { id: 'matka', label: 'Matka' },
+                                        { id: 'all_lottery', label: 'All Lottery' },
+                                        { id: 'lottery_2d', label: '2D Lottery' },
+                                        { id: 'lottery_3d', label: '3D Lottery' },
+                                    ]
+                                    : [{ id: 'matka', label: 'Matka' }]
+                                ).map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setBetSourceFilter(item.id)}
+                                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                            betSourceFilter === item.id
+                                                ? 'bg-orange-500 text-white'
+                                                : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+                                        }`}
+                                    >
+                                        {item.label}
+                                    </button>
+                                ))}
                                 {['all', 'pending', 'won', 'lost'].map((f) => (
                                     <button
                                         key={f}
@@ -905,47 +1023,51 @@ const PlayerDetail = () => {
                                         {f === 'all' && `(${advancedFilteredBets.length})`}
                                     </button>
                                 ))}
-                                <select
-                                    value={betMarketFilter}
-                                    onChange={(e) => setBetMarketFilter(e.target.value)}
-                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
-                                >
-                                    <option value="all">All Markets</option>
-                                    {markets.map((m) => (
-                                        <option key={m._id || m.id} value={m._id || m.id}>
-                                            {m.marketName}
-                                        </option>
-                                    ))}
-                                </select>
-                                <select
-                                    value={betSessionFilter}
-                                    onChange={(e) => setBetSessionFilter(e.target.value)}
-                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
-                                >
-                                    <option value="all">All Sessions</option>
-                                    <option value="open">OPEN</option>
-                                    <option value="close">CLOSE</option>
-                                </select>
-                                <select
-                                    value={betTypeFilter}
-                                    onChange={(e) => setBetTypeFilter(e.target.value)}
-                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
-                                >
-                                    <option value="all">All Types</option>
-                                    <option value="single">Single Digit</option>
-                                    <option value="jodi">Jodi</option>
-                                    <option value="panna">Panna</option>
-                                    <option value="odd-even">Odd Even</option>
-                                    <option value="half-sangam">Half Sangam</option>
-                                    <option value="full-sangam">Full Sangam</option>
-                                    <option value="sp-common">SP Common</option>
-                                    <option value="cp-common">CP (Common Pana)</option>
-                                    <option value="chart">Chart Game</option>
-                                    <option value="dp-common">DP Common</option>
-                                    <option value="sp-motor">SP Motor</option>
-                                    <option value="dp-motor">DP Motor</option>
-                                    <option value="t-motor">T Motor</option>
-                                </select>
+                                {betSourceFilter === 'matka' && (
+                                    <>
+                                        <select
+                                            value={betMarketFilter}
+                                            onChange={(e) => setBetMarketFilter(e.target.value)}
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                        >
+                                            <option value="all">All Markets</option>
+                                            {markets.map((m) => (
+                                                <option key={m._id || m.id} value={m._id || m.id}>
+                                                    {m.marketName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            value={betSessionFilter}
+                                            onChange={(e) => setBetSessionFilter(e.target.value)}
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                        >
+                                            <option value="all">All Sessions</option>
+                                            <option value="open">OPEN</option>
+                                            <option value="close">CLOSE</option>
+                                        </select>
+                                        <select
+                                            value={betTypeFilter}
+                                            onChange={(e) => setBetTypeFilter(e.target.value)}
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="single">Single Digit</option>
+                                            <option value="jodi">Jodi</option>
+                                            <option value="panna">Panna</option>
+                                            <option value="odd-even">Odd Even</option>
+                                            <option value="half-sangam">Half Sangam</option>
+                                            <option value="full-sangam">Full Sangam</option>
+                                            <option value="sp-common">SP Common</option>
+                                            <option value="cp-common">CP (Common Pana)</option>
+                                            <option value="chart">Chart Game</option>
+                                            <option value="dp-common">DP Common</option>
+                                            <option value="sp-motor">SP Motor</option>
+                                            <option value="dp-motor">DP Motor</option>
+                                            <option value="t-motor">T Motor</option>
+                                        </select>
+                                    </>
+                                )}
                                 <input
                                     type="text"
                                     value={betSearch}
@@ -957,6 +1079,7 @@ const PlayerDetail = () => {
                                     type="button"
                                     onClick={() => {
                                         setBetFilter('all');
+                                        setBetSourceFilter('matka');
                                         setBetMarketFilter('all');
                                         setBetSessionFilter('all');
                                         setBetTypeFilter('all');
@@ -966,41 +1089,58 @@ const PlayerDetail = () => {
                                 >
                                     Clear
                                 </button>
-                                <button onClick={handlePrintBets} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors">
+                                <button
+                                    onClick={handlePrintBets}
+                                    disabled={betSourceFilter !== 'matka'}
+                                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
                                     <FaPrint className="w-3 h-3" /> Print
                                 </button>
                             </div>
 
                             {/* Bet stats bar */}
                             <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 text-xs">
-                                <span className="text-gray-500">Total: <span className="text-gray-800 font-bold">{displayedBetStats.total}</span></span>
-                                <span className="text-gray-500">Amount: <span className="text-gray-800 font-bold">{formatCurrency(displayedBetStats.totalAmount)}</span></span>
-                                <span className="text-gray-500">Winnings: <span className="text-green-600 font-bold">{formatCurrency(displayedBetStats.totalPayout)}</span></span>
-                                <span className="text-gray-500">P/L: <span className={`font-bold ${displayedBetStats.totalPayout - displayedBetStats.totalAmount >= 0 ? 'text-green-600' : 'text-red-500'}`}>{formatCurrency(displayedBetStats.totalPayout - displayedBetStats.totalAmount)}</span></span>
+                                <span className="text-gray-500">Total: <span className="text-gray-800 font-bold">{betSourceFilter === 'matka' ? displayedBetStats.total : displayedLotteryStats.total}</span></span>
+                                <span className="text-gray-500">Amount: <span className="text-gray-800 font-bold">{formatCurrency(betSourceFilter === 'matka' ? displayedBetStats.totalAmount : displayedLotteryStats.totalAmount)}</span></span>
+                                <span className="text-gray-500">Winnings: <span className="text-green-600 font-bold">{formatCurrency(betSourceFilter === 'matka' ? displayedBetStats.totalPayout : displayedLotteryStats.totalPayout)}</span></span>
+                                <span className="text-gray-500">P/L: <span className={`font-bold ${(betSourceFilter === 'matka' ? displayedBetStats.totalPayout - displayedBetStats.totalAmount : displayedLotteryStats.totalPayout - displayedLotteryStats.totalAmount) >= 0 ? 'text-green-600' : 'text-red-500'}`}>{formatCurrency(betSourceFilter === 'matka' ? displayedBetStats.totalPayout - displayedBetStats.totalAmount : displayedLotteryStats.totalPayout - displayedLotteryStats.totalAmount)}</span></span>
                             </div>
 
                             {loadingTab ? (
                                 <div className="p-8 text-center text-gray-400">Loading...</div>
-                            ) : filteredBets.length === 0 ? (
+                            ) : (betSourceFilter === 'matka' ? filteredBets.length : lotteryFilteredRows.length) === 0 ? (
                                 <div className="p-8 text-center text-gray-400">No bets found.</div>
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm min-w-[700px]">
                                         <thead className="bg-gray-50">
-                                            <tr>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Market</th>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Session</th>
-                                                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-                                                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Payout</th>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Placed By</th>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                            </tr>
+                                            {betSourceFilter === 'matka' ? (
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Market</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Session</th>
+                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Payout</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Placed By</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                </tr>
+                                            ) : (
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Slot</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Set</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
+                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Payout</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                </tr>
+                                            )}
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                            {filteredBets.map((b) => (
+                                            {betSourceFilter === 'matka' ? visibleMatkaRows.map((b) => (
                                                 <tr key={b._id} className="hover:bg-gray-50">
                                                     <td className="px-3 py-2 font-mono font-bold text-[#1B3150]">{b.betNumber || '—'}</td>
                                                     <td className="px-3 py-2 text-gray-600 text-xs">{getBetTypeLabel(b.betType, t, b.betNumber)}</td>
@@ -1018,9 +1158,43 @@ const PlayerDetail = () => {
                                                     </td>
                                                     <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</td>
                                                 </tr>
-                                            ))}
+                                            )) : visibleLotteryRows.map((row) => {
+                                                const rowStatus = toBetStatus(row.outcome);
+                                                return (
+                                                    <tr key={row.id} className="hover:bg-gray-50">
+                                                        <td className="px-3 py-2 font-semibold text-orange-600">{row.mode}</td>
+                                                        <td className="px-3 py-2 text-gray-600 text-xs">{row.slotLabel || '—'}</td>
+                                                        <td className="px-3 py-2 text-gray-600 text-xs">{row.setLabel || '—'}</td>
+                                                        <td className="px-3 py-2 font-mono font-bold text-[#1B3150]">{row.number || '—'}</td>
+                                                        <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(row.amount)}</td>
+                                                        <td className="px-3 py-2 text-right font-mono text-green-600">{rowStatus === 'won' ? formatCurrency(row.payout) : '—'}</td>
+                                                        <td className="px-3 py-2">
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                                rowStatus === 'won' ? 'bg-green-100 text-green-700'
+                                                                    : rowStatus === 'lost' ? 'bg-red-100 text-red-600'
+                                                                        : 'bg-[#1B3150]/10 text-[#1B3150]'
+                                                            }`}>{rowStatus}</span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{row.createdAt ? new Date(row.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
+                                    {(betSourceFilter === 'matka' ? filteredBets.length : lotteryFilteredRows.length) > visibleRows && (
+                                        <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                                            <p className="text-xs text-gray-500">
+                                                Showing {Math.min(visibleRows, betSourceFilter === 'matka' ? filteredBets.length : lotteryFilteredRows.length)} of {betSourceFilter === 'matka' ? filteredBets.length : lotteryFilteredRows.length}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setVisibleRows((v) => v + 120)}
+                                                className="px-3 py-1.5 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white text-xs font-semibold"
+                                            >
+                                                Load More
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </>
