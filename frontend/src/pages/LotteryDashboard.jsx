@@ -44,6 +44,7 @@ const LotteryDashboard = () => {
   const [showResults, setShowResults] = useState(false);
   const [showMyBets, setShowMyBets] = useState(false);
   const [showBuyConfirm, setShowBuyConfirm] = useState(false);
+  const [buyConfirmError, setBuyConfirmError] = useState('');
   const [pendingRemoveBetLineKey, setPendingRemoveBetLineKey] = useState('');
   const [showAdvanceDrawModal, setShowAdvanceDrawModal] = useState(false);
   const [selectedAdvanceSlots, setSelectedAdvanceSlots] = useState([]);
@@ -399,6 +400,10 @@ const LotteryDashboard = () => {
       return { slotStartIso, label: formatAdvanceSlotLabel(slotStartIso) };
     });
   }, [formatAdvanceSlotLabel, serverSlot?.slotStartIso]);
+  const buyTargetSlotLabels = useMemo(() => {
+    const targetSlots = selectedAdvanceSlots.length ? [...selectedAdvanceSlots] : [serverSlot?.slotStartIso].filter(Boolean);
+    return targetSlots.map((slotStartIso) => formatAdvanceSlotLabel(new Date(new Date(slotStartIso).getTime() + (15 * 60 * 1000)).toISOString()));
+  }, [formatAdvanceSlotLabel, selectedAdvanceSlots, serverSlot?.slotStartIso]);
 
   const buyDisabled =
     totals.totalAmount <= 0 ||
@@ -728,22 +733,22 @@ const LotteryDashboard = () => {
   }, [navigate]);
 
   const handleBoardBuy = useCallback(async () => {
+    const fail = (msg) => {
+      setUiNotice(msg);
+      return { ok: false, error: msg };
+    };
     if (!isUserLoggedIn()) {
-      setUiNotice('Please login to buy tickets (account / wallet).');
-      return;
+      return fail('Please login to buy tickets (account / wallet).');
     }
     if (!serverSlot?.slotStartIso) {
-      setUiNotice('Server slot not available. Please try again.');
-      return;
+      return fail('Server slot not available. Please try again.');
     }
     if (!slotOpenForBuy && selectedAdvanceSlots.length === 0) {
-      setUiNotice('BUY works only while the current 15-minute draw slot is open. Wait for next slot if closed.');
-      return;
+      return fail('BUY works only while the current 15-minute draw slot is open. Wait for next slot if closed.');
     }
 
     if (!betLines.length) {
-      setUiNotice('Please add amount on board first.');
-      return;
+      return fail('Please add amount on board first.');
     }
 
     const byQuiz = new Map();
@@ -760,8 +765,7 @@ const LotteryDashboard = () => {
       }
       const bets = [...amountByNum.entries()].map(([number, amount]) => ({ number, amount }));
       if (bets.length > MAX_QUIZ_NUMBERS_PER_SLOT) {
-        setUiNotice(`Quiz ${String(quizId).padStart(2, '0')}: maximum ${MAX_QUIZ_NUMBERS_PER_SLOT} unique numbers allowed in one slot.`);
-        return;
+        return fail(`Quiz ${String(quizId).padStart(2, '0')}: maximum ${MAX_QUIZ_NUMBERS_PER_SLOT} unique numbers allowed in one slot.`);
       }
     }
 
@@ -781,8 +785,7 @@ const LotteryDashboard = () => {
       );
       const requiredBalance = totalStakePerTicket * targetSlots.length;
       if ((Number(walletBalance) || 0) < requiredBalance) {
-        setUiNotice(`Insufficient balance for ${targetSlots.length} slot(s). Need ₹${requiredBalance}.`);
-        return;
+        return fail(`Insufficient balance for ${targetSlots.length} slot(s). Need ₹${requiredBalance}.`);
       }
 
       let latestBalance = null;
@@ -811,6 +814,7 @@ const LotteryDashboard = () => {
           ? 'You can see bets in My Bets → Quiz Tickets anytime to review your picks.'
           : `Scheduled ${n} line(s) for ${targetSlots.length} future slot(s). Check My Bets → Quiz Tickets.`,
       );
+      return { ok: true };
     } catch (e) {
       const msg =
         e.status === 401
@@ -820,7 +824,7 @@ const LotteryDashboard = () => {
             : e.status === 409
               ? e.message || 'This number is already placed.'
               : e.message || 'BUY failed';
-      setUiNotice(msg);
+      return fail(msg);
     }
   }, [betLines, selectedAdvanceSlots, serverSlot, slotOpenForBuy, walletBalance]);
 
@@ -844,12 +848,18 @@ const LotteryDashboard = () => {
       setUiNotice('Please add amount on board first.');
       return;
     }
+    setBuyConfirmError('');
     setShowBuyConfirm(true);
   }, [betLines.length]);
 
   const handleConfirmBuy = useCallback(async () => {
-    setShowBuyConfirm(false);
-    await handleBoardBuy();
+    setBuyConfirmError('');
+    const result = await handleBoardBuy();
+    if (result?.ok) {
+      setShowBuyConfirm(false);
+      return;
+    }
+    setBuyConfirmError(result?.error || 'BUY failed. Please try again.');
   }, [handleBoardBuy]);
   const handleIncrease = useCallback(() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleDecrease = useCallback(() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1)), [amountDraft, enteredAmount, setAmountFromNumber]);
@@ -1012,6 +1022,14 @@ const LotteryDashboard = () => {
               Total Bets: <span className="font-bold text-white">{betLines.length}</span> | Total Amount:{' '}
               <span className="font-bold text-[#facc15]">₹{totals.totalAmount}</span>
             </p>
+            <p className="mt-1 text-sm text-[#cbd5e1]">
+              Draw Time: <span className="font-bold text-white">{buyTargetSlotLabels.join(', ') || '-'}</span>
+            </p>
+            {buyConfirmError ? (
+              <p className="mt-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300">
+                {buyConfirmError}
+              </p>
+            ) : null}
 
             <div className="mt-3 max-h-[42vh] overflow-y-auto rounded-lg border border-[#334155] bg-[#0b1220]">
               {!betLines.length ? (
@@ -1052,7 +1070,7 @@ const LotteryDashboard = () => {
                 disabled={!betLines.length}
                 className="h-10 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Confirm & Place
+                BUY
               </button>
             </div>
           </div>

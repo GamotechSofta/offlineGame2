@@ -215,6 +215,8 @@ const ThreeDGame = () => {
   const [validationMsg, setValidationMsg] = useState('');
   const [toast, setToast] = useState('');
   const [buySummary, setBuySummary] = useState(null);
+  const [showBuyConfirm, setShowBuyConfirm] = useState(false);
+  const [buyConfirmError, setBuyConfirmError] = useState('');
   const [bets, setBets] = useState([]);
   const [lastTxnId, setLastTxnId] = useState('GM00000000000000');
   const [lastPoints, setLastPoints] = useState(0);
@@ -812,6 +814,12 @@ const ThreeDGame = () => {
       return { slotStartIso, label: formatAdvanceSlotLabel(slotStartIso) };
     });
   }, [formatAdvanceSlotLabel, nextDrawAt]);
+  const buyTargetSlotLabels = useMemo(() => {
+    const targetSlots = selectedAdvanceSlots.length
+      ? [...selectedAdvanceSlots]
+      : [new Date(new Date(nextDrawAt).getTime() - (GAME_INTERVAL_SECONDS * 1000)).toISOString()];
+    return targetSlots.map((slotStartIso) => formatDrawEndLabelFromSlotStartIso(slotStartIso));
+  }, [formatDrawEndLabelFromSlotStartIso, nextDrawAt, selectedAdvanceSlots]);
   const generateGameId = useCallback(() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -1229,10 +1237,13 @@ const ThreeDGame = () => {
   }, [rangeFrom]);
 
   const handleBuy = useCallback(async () => {
-    if (isBuyingRef.current) return;
+    const fail = (msg) => {
+      setValidationMsg(msg);
+      return { ok: false, error: msg };
+    };
+    if (isBuyingRef.current) return { ok: false, error: 'Buy already in progress. Please wait.' };
     if (!bets.length) {
-      setValidationMsg('Add at least one bet before BUY.');
-      return;
+      return fail('Add at least one bet before BUY.');
     }
     isBuyingRef.current = true;
 
@@ -1240,12 +1251,10 @@ const ThreeDGame = () => {
     const investedAmount = Number(totalPoints);
 
     if (investedAmount <= 0) {
-      setValidationMsg('Total points must be greater than 0.');
-      return;
+      return fail('Total points must be greater than 0.');
     }
     if ((Number(walletBalance) || 0) < investedAmount) {
-      setValidationMsg('Insufficient balance');
-      return;
+      return fail('Insufficient balance');
     }
 
     // Persist 3D ticket lines to backend DB so admin history remains after refresh.
@@ -1276,8 +1285,7 @@ const ThreeDGame = () => {
     })).filter((r) => r.bets.length > 0);
 
     if (!rounds.length) {
-      setValidationMsg('No valid bets to save.');
-      return;
+      return fail('No valid bets to save.');
     }
     const payloadTotal = rounds.reduce(
       (outerSum, round) => outerSum + (Array.isArray(round?.bets)
@@ -1286,8 +1294,7 @@ const ThreeDGame = () => {
       0,
     );
     if (payloadTotal !== investedAmount) {
-      setValidationMsg(`Bet validation mismatch detected (list: ${investedAmount}, payload: ${payloadTotal}). Please review bets and retry.`);
-      return;
+      return fail(`Bet validation mismatch detected (list: ${investedAmount}, payload: ${payloadTotal}). Please review bets and retry.`);
     }
 
     const currentSlotStartIso = new Date(new Date(nextDrawAt).getTime() - (GAME_INTERVAL_SECONDS * 1000)).toISOString();
@@ -1297,8 +1304,7 @@ const ThreeDGame = () => {
     const totalPerSlot = Number(investedAmount) || 0;
     const requiredBalance = totalPerSlot * targetSlots.length;
     if ((Number(walletBalance) || 0) < requiredBalance) {
-      setValidationMsg(`Insufficient balance for ${targetSlots.length} slot(s). Need ₹${requiredBalance}.`);
-      return;
+      return fail(`Insufficient balance for ${targetSlots.length} slot(s). Need ₹${requiredBalance}.`);
     }
 
     let backendBalance = null;
@@ -1310,8 +1316,7 @@ const ThreeDGame = () => {
         if (Number.isFinite(b)) backendBalance = b;
       }
     } catch (e) {
-      setValidationMsg(e?.message || 'Failed to save bet in database.');
-      return;
+      return fail(e?.message || 'Failed to save bet in database.');
     }
 
     const drawDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -1381,10 +1386,30 @@ const ThreeDGame = () => {
     );
     setBets([]);
     setSelectedAdvanceSlots([]);
+    return { ok: true };
     } finally {
       isBuyingRef.current = false;
     }
   }, [bets, formatAdvanceSlotLabel, formatDrawEndLabelFromSlotStartIso, generateGameId, nextDrawAt, now, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
+
+  const handleOpenBuyConfirm = useCallback(() => {
+    if (!bets.length) {
+      setValidationMsg('Add at least one bet before BUY.');
+      return;
+    }
+    setBuyConfirmError('');
+    setShowBuyConfirm(true);
+  }, [bets.length]);
+
+  const handleConfirmBuy = useCallback(async () => {
+    setBuyConfirmError('');
+    const result = await handleBuy();
+    if (result?.ok) {
+      setShowBuyConfirm(false);
+      return;
+    }
+    setBuyConfirmError(result?.error || 'BUY failed. Please try again.');
+  }, [handleBuy]);
 
   const handleCancelPendingTicket = useCallback(() => {
     const nowMs = Date.now();
@@ -2160,7 +2185,7 @@ const ThreeDGame = () => {
                     <div className={`flex w-full min-w-0 flex-wrap items-stretch justify-start ${isZoomCompactView ? 'gap-1.5' : 'gap-2'}`}>
                       <button
                         type="button"
-                        onClick={handleBuy}
+                        onClick={handleOpenBuyConfirm}
                         className={`${isZoomCompactView ? 'min-h-[3.55rem] basis-[4.5rem] px-2 py-3 text-[18px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[3.95rem] basis-[5.25rem] px-3 py-3.5 text-[21px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
                       >
                         BUY
@@ -2277,6 +2302,122 @@ const ThreeDGame = () => {
             </div>
           </div>
         ) : null}
+        {showBuyConfirm ? (canUsePortal ? createPortal(
+          <div className="fixed inset-0 z-[96] flex items-center justify-center bg-[#020617]/75 p-3 sm:p-4 backdrop-blur-[2px]">
+            <div className="w-full max-w-xl rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-4 text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)]">
+              <h3 className="text-[20px] font-extrabold">Confirm 3D Bet Buy</h3>
+              <p className="mt-2 text-sm text-[#cbd5e1]">
+                Total Bets: <span className="font-bold text-white">{bets.length}</span> | Total Amount:{' '}
+                <span className="font-bold text-[#facc15]">₹{totalPoints}</span>
+              </p>
+              <p className="mt-1 text-sm text-[#cbd5e1]">
+                Draw Time: <span className="font-bold text-white">{buyTargetSlotLabels.join(', ')}</span>
+              </p>
+              {buyConfirmError ? (
+                <p className="mt-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300">
+                  {buyConfirmError}
+                </p>
+              ) : null}
+
+              <div className="mt-3 max-h-[42vh] overflow-y-auto rounded-lg border border-[#334155] bg-[#0b1220]">
+                {!bets.length ? (
+                  <p className="p-3 text-sm text-[#cbd5e1]">No bets left to place.</p>
+                ) : (
+                  [...bets]
+                    .sort((a, b) => String(a?.panels || '').localeCompare(String(b?.panels || '')) || String(a?.number || '').localeCompare(String(b?.number || '')))
+                    .map((bet, idx) => (
+                      <div key={bet.id || `${bet.number}-${bet.mode}-${idx}`} className="flex items-center justify-between gap-3 border-b border-[#1f2937] px-3 py-2 last:border-b-0">
+                        <div className="text-sm">
+                          <span className="font-semibold">Set {String(bet?.panels || '-').toUpperCase()}</span>
+                          <span className="mx-2 text-[#64748b]">|</span>
+                          <span>No. {String(bet?.number || '').padStart(3, '0')}</span>
+                          <span className="mx-2 text-[#64748b]">|</span>
+                          <span>Mode {String(bet?.mode || '-').toUpperCase()}</span>
+                        </div>
+                        <div className="text-sm font-bold text-[#facc15]">₹{Number(bet?.points || 0)}</div>
+                      </div>
+                    ))
+                )}
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBuyConfirm(false)}
+                  className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBuy}
+                  disabled={!bets.length}
+                  className="h-10 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  BUY
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        ) : (
+          <div className="fixed inset-0 z-[86] flex items-center justify-center bg-[#020617]/75 p-3 sm:p-4 backdrop-blur-[2px]">
+            <div className="w-full max-w-xl rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-4 text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)]">
+              <h3 className="text-[20px] font-extrabold">Confirm 3D Bet Buy</h3>
+              <p className="mt-2 text-sm text-[#cbd5e1]">
+                Total Bets: <span className="font-bold text-white">{bets.length}</span> | Total Amount:{' '}
+                <span className="font-bold text-[#facc15]">₹{totalPoints}</span>
+              </p>
+              <p className="mt-1 text-sm text-[#cbd5e1]">
+                Draw Time: <span className="font-bold text-white">{buyTargetSlotLabels.join(', ')}</span>
+              </p>
+              {buyConfirmError ? (
+                <p className="mt-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300">
+                  {buyConfirmError}
+                </p>
+              ) : null}
+
+              <div className="mt-3 max-h-[42vh] overflow-y-auto rounded-lg border border-[#334155] bg-[#0b1220]">
+                {!bets.length ? (
+                  <p className="p-3 text-sm text-[#cbd5e1]">No bets left to place.</p>
+                ) : (
+                  [...bets]
+                    .sort((a, b) => String(a?.panels || '').localeCompare(String(b?.panels || '')) || String(a?.number || '').localeCompare(String(b?.number || '')))
+                    .map((bet, idx) => (
+                      <div key={bet.id || `${bet.number}-${bet.mode}-${idx}`} className="flex items-center justify-between gap-3 border-b border-[#1f2937] px-3 py-2 last:border-b-0">
+                        <div className="text-sm">
+                          <span className="font-semibold">Set {String(bet?.panels || '-').toUpperCase()}</span>
+                          <span className="mx-2 text-[#64748b]">|</span>
+                          <span>No. {String(bet?.number || '').padStart(3, '0')}</span>
+                          <span className="mx-2 text-[#64748b]">|</span>
+                          <span>Mode {String(bet?.mode || '-').toUpperCase()}</span>
+                        </div>
+                        <div className="text-sm font-bold text-[#facc15]">₹{Number(bet?.points || 0)}</div>
+                      </div>
+                    ))
+                )}
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBuyConfirm(false)}
+                  className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBuy}
+                  disabled={!bets.length}
+                  className="h-10 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  BUY
+                </button>
+              </div>
+            </div>
+          </div>
+        )) : null}
         {advanceBuySuccess ? (
           <div className="fixed inset-0 z-[86] flex items-center justify-center bg-[#020617]/70 p-4 backdrop-blur-[2px]">
             <div className="w-full max-w-md rounded-2xl border border-[#93c5fd] bg-gradient-to-b from-white to-[#eff6ff] p-5 shadow-[0_20px_55px_rgba(2,6,23,0.45)]">
