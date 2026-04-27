@@ -364,6 +364,7 @@ const ThreeDGame = () => {
         const createdAtIso = firstRow?.createdAt ? new Date(firstRow.createdAt).toISOString() : new Date().toISOString();
         const createdAt = new Date(createdAtIso);
         const slotStartMs = new Date(slotStartIso).getTime();
+        const slotStartDate = Number.isFinite(slotStartMs) ? new Date(slotStartMs) : null;
         const isAdvanceDraw = sortedRows.some((row) => {
           const createdAtMs = new Date(row?.createdAt || 0).getTime();
           if (!Number.isFinite(createdAtMs) || !Number.isFinite(slotStartMs) || slotStartMs <= 0) return false;
@@ -371,12 +372,14 @@ const ThreeDGame = () => {
           // Mark as advance only when the slot is clearly beyond one draw interval.
           return (slotStartMs - createdAtMs) > ((GAME_INTERVAL_SECONDS * 1000) + (60 * 1000));
         });
-        const drawDate = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}-${String(createdAt.getDate()).padStart(2, '0')}`;
-        const drawTime = String(firstRow?.drawLabelEnd || '').trim() || new Intl.DateTimeFormat('en-IN', {
+        // Use slot start timestamp for history labels so current-slot bets do not appear under next-slot time.
+        const drawDateBase = slotStartDate && !Number.isNaN(slotStartDate.getTime()) ? slotStartDate : createdAt;
+        const drawDate = `${drawDateBase.getFullYear()}-${String(drawDateBase.getMonth() + 1).padStart(2, '0')}-${String(drawDateBase.getDate()).padStart(2, '0')}`;
+        const drawTime = new Intl.DateTimeFormat('en-IN', {
           hour: '2-digit',
           minute: '2-digit',
           hour12: true,
-        }).format(createdAt).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
+        }).format(drawDateBase).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
 
         let totalPoints = 0;
         let totalWin = 0;

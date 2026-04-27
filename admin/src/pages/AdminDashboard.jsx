@@ -184,38 +184,51 @@ const AdminDashboard = () => {
         }
         return out;
     };
+    const dateKeyFromMs = (ms) => {
+        if (!Number.isFinite(ms) || ms <= 0) return '';
+        const d = new Date(ms);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
 
     const fetchLotteryModeStats = async (mode, rangeOverride) => {
         const modeKey = mode === '2d' ? 'twoD' : 'threeD';
         const nonce = Date.now();
         const currentEndpoint = `${API_BASE_URL}/admin/lottery${mode}/current-slot?_=${nonce}`;
         const effectiveRange = rangeOverride || getFromTo();
-        const dateKeys = listDateKeysInRange(effectiveRange?.from, effectiveRange?.to);
-        const [currentRes, ...historyResList] = await Promise.all([
-            fetchWithAuth(currentEndpoint, { cache: 'no-store' }),
-            ...dateKeys.map((dateKey) =>
-                fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots?date=${encodeURIComponent(dateKey)}&limit=96&_=${nonce}`, { cache: 'no-store' }),
-            ),
-        ]);
-
-        if (currentRes.status === 401 || historyResList.some((r) => r.status === 401)) {
+        const currentRes = await fetchWithAuth(currentEndpoint, { cache: 'no-store' });
+        if (currentRes.status === 401) {
             return null;
         }
 
         const currentJson = await currentRes.json();
-        const historyJsonList = await Promise.all(historyResList.map((res) => res.json()));
-
         if (!currentJson?.success) {
             throw new Error(currentJson?.message || `Failed to load ${mode.toUpperCase()} current slot`);
         }
+        const currentSlotIso = currentJson?.data?.slot?.slotStartIso || '';
+        const currentSlotMs = currentSlotIso ? new Date(currentSlotIso).getTime() : 0;
+        const previousSlotMs = Number.isFinite(currentSlotMs) && currentSlotMs > 0
+            ? (currentSlotMs - (15 * 60 * 1000))
+            : 0;
+        const rangeDateKeys = listDateKeysInRange(effectiveRange?.from, effectiveRange?.to);
+        const mustHaveDateKeys = [
+            dateKeyFromMs(currentSlotMs),
+            dateKeyFromMs(previousSlotMs),
+        ].filter(Boolean);
+        const dateKeys = [...new Set([...rangeDateKeys, ...mustHaveDateKeys])];
+        const historyResList = await Promise.all(
+            dateKeys.map((dateKey) =>
+                fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots?date=${encodeURIComponent(dateKey)}&limit=96&_=${nonce}`, { cache: 'no-store' }),
+            ),
+        );
+        if (historyResList.some((r) => r.status === 401)) {
+            return null;
+        }
+        const historyJsonList = await Promise.all(historyResList.map((res) => res.json()));
         if (historyJsonList.some((json) => !json?.success)) {
             const bad = historyJsonList.find((json) => !json?.success);
             throw new Error(bad?.message || `Failed to load ${mode.toUpperCase()} all slots`);
         }
-
         const historySlots = historyJsonList.flatMap((json) => (Array.isArray(json?.data?.slots) ? json.data.slots : []));
-        const currentSlotIso = currentJson?.data?.slot?.slotStartIso || '';
-        const currentSlotMs = currentSlotIso ? new Date(currentSlotIso).getTime() : 0;
         const normalizedSlots = historySlots
             .map((slot) => {
                 const slotStartMs = new Date(slot?.slotStartIso || 0).getTime();
@@ -229,8 +242,11 @@ const AdminDashboard = () => {
         // Exclude future/upcoming slots so dashboard current/latest remain intuitive.
         const uptoCurrentSlots = normalizedSlots.filter((slot) => (currentSlotMs ? slot.slotStartMs <= currentSlotMs : true));
         const completedSlots = uptoCurrentSlots.filter((slot) => Boolean(slot?.isCompleted));
-        const latestSlot = [...completedSlots]
-            .sort((a, b) => b.slotStartMs - a.slotStartMs)[0] || null;
+        const latestSlot = previousSlotMs
+            ? (completedSlots.find((slot) => slot.slotStartMs === previousSlotMs)
+                || [...completedSlots].sort((a, b) => b.slotStartMs - a.slotStartMs)[0]
+                || null)
+            : ([...completedSlots].sort((a, b) => b.slotStartMs - a.slotStartMs)[0] || null);
         const nextUpcomingSlot = currentSlotMs
             ? [...normalizedSlots]
                 .filter((slot) => slot.slotStartMs > currentSlotMs)
@@ -374,6 +390,24 @@ const AdminDashboard = () => {
     const formatDrawTime = (label) => {
         if (!label) return '-';
         return label;
+    };
+    const formatSlotWindow = (slot) => {
+        const slotStartIso = String(slot?.slotStartIso || '').trim();
+        if (!slotStartIso) return formatDrawTime(slot?.drawLabelEnd);
+        const startDate = new Date(slotStartIso);
+        if (Number.isNaN(startDate.getTime())) return formatDrawTime(slot?.drawLabelEnd);
+        const start = new Intl.DateTimeFormat('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        }).format(startDate).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
+        const endFallback = new Date(startDate.getTime() + (15 * 60 * 1000));
+        const end = String(slot?.drawLabelEnd || '').trim() || new Intl.DateTimeFormat('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        }).format(endFallback).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
+        return `${start} - ${end}`;
     };
 
     const twoDCurrent = lotteryStats?.twoD?.current?.summary || {};
@@ -813,7 +847,7 @@ const AdminDashboard = () => {
                                 <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Current Slot (Live)</p>
                                 <p className="text-[11px] text-gray-500">Running slot stats updated in real-time.</p>
                             </div>
-                            <StatRow label="Current Slot" value={formatDrawTime(lotteryStats.threeD.current?.slot?.drawLabelEnd)} />
+                            <StatRow label="Current Slot" value={formatSlotWindow(lotteryStats.threeD.current?.slot)} />
                             <StatRow label="Current Tickets" value={formatNumber(lotteryStats.threeD.current?.summary?.totalTickets)} />
                             <StatRow label="Current Revenue" value={formatCurrency(lotteryStats.threeD.current?.summary?.revenue)} colorClass="text-green-600" />
                             <StatRow label="Current Payout" value={formatCurrency(lotteryStats.threeD.current?.summary?.winnerPayout)} colorClass="text-red-500" />
@@ -823,7 +857,7 @@ const AdminDashboard = () => {
                                 <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Previous Slot (Last Closed)</p>
                                 <p className="text-[11px] text-gray-500">Shows only the immediate previous closed slot.</p>
                             </div>
-                            <StatRow label="Previous Slot" value={formatDrawTime(lotteryStats.threeD.latest?.drawLabelEnd)} />
+                            <StatRow label="Previous Slot" value={formatSlotWindow(lotteryStats.threeD.latest)} />
                             <StatRow label="Previous Slot Tickets" value={formatNumber(lotteryStats.threeD.latest?.totalTickets)} />
                             <StatRow label="Previous Slot Revenue" value={formatCurrency(lotteryStats.threeD.latest?.revenue)} colorClass="text-green-600" />
                             <StatRow label="Previous Slot Payout" value={formatCurrency(lotteryStats.threeD.latest?.winnerPayout)} colorClass="text-red-500" />
