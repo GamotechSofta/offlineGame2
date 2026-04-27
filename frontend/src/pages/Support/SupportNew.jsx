@@ -13,40 +13,6 @@ const SupportNew = () => {
 
   const userId = user?._id || user?.id;
 
-  // Mobile only: prevent page scrolling (as requested)
-  useEffect(() => {
-    let cleanup = () => {};
-    try {
-      const mql = window.matchMedia('(max-width: 767px)');
-      const apply = () => {
-        cleanup();
-        if (!mql.matches) return;
-        const prevBody = document.body.style.overflow;
-        const prevHtml = document.documentElement.style.overflow;
-        const prevOverscrollBody = document.body.style.overscrollBehavior;
-        const prevOverscrollHtml = document.documentElement.style.overscrollBehavior;
-        document.body.style.overflow = 'hidden';
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overscrollBehavior = 'none';
-        document.documentElement.style.overscrollBehavior = 'none';
-        cleanup = () => {
-          document.body.style.overflow = prevBody;
-          document.documentElement.style.overflow = prevHtml;
-          document.body.style.overscrollBehavior = prevOverscrollBody;
-          document.documentElement.style.overscrollBehavior = prevOverscrollHtml;
-        };
-      };
-      apply();
-      mql.addEventListener?.('change', apply);
-      return () => {
-        mql.removeEventListener?.('change', apply);
-        cleanup();
-      };
-    } catch (_) {
-      return () => cleanup();
-    }
-  }, []);
-
   useEffect(() => {
     const raw = localStorage.getItem('user');
     if (raw) {
@@ -77,6 +43,11 @@ const SupportNew = () => {
     if (list.length !== files.length) {
       setMessage({ type: 'error', text: 'Only image files (e.g. PNG, JPG) are allowed.' });
     }
+    if (list.length > 1) {
+      setMessage({ type: 'error', text: 'Only 1 screenshot is allowed.' });
+      setScreenshots(list.slice(0, 1));
+      return;
+    }
     setScreenshots(list.length ? list : []);
   };
 
@@ -88,6 +59,10 @@ const SupportNew = () => {
     }
     if (!description.trim()) {
       setMessage({ type: 'error', text: 'Please describe your problem.' });
+      return;
+    }
+    if (screenshots.length < 1) {
+      setMessage({ type: 'error', text: 'Please upload at least 1 screenshot.' });
       return;
     }
     setMessage({ type: '', text: '' });
@@ -176,16 +151,16 @@ const SupportNew = () => {
             </div>
             <div>
               <label htmlFor="support-screenshots" className="block text-sm font-medium text-gray-700 mb-1">
-                Screenshots (optional, max 5 images)
+                Screenshot (required, only 1 image)
               </label>
               <input
                 id="support-screenshots"
                 type="file"
                 accept="image/jpeg,image/jpg,image/png,image/gif"
-                multiple
                 onChange={handleFileChange}
                 className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#1B3150] file:text-white file:font-semibold file:cursor-pointer hover:file:bg-[#1B3150]"
                 disabled={!userId}
+                required
               />
               {screenshots.length > 0 && (
                 <p className="mt-1 text-sm text-gray-600">{screenshots.length} file(s) selected</p>
