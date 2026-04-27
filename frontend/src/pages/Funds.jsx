@@ -159,7 +159,7 @@ const Funds = () => {
             <div
               className={
                 isAddFundMobileView
-                  ? 'px-1 sm:px-2 max-h-[calc(100vh-220px)] overflow-y-auto scrollbar-hidden'
+                  ? 'px-1 sm:px-2'
                   : 'bg-white border-2 border-gray-300 rounded-2xl shadow-sm p-4 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hidden'
               }
             >
