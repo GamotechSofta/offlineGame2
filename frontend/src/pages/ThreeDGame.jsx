@@ -2313,27 +2313,27 @@ const ThreeDGame = () => {
 
         {showBuyConfirm ? (
           <div className="fixed inset-0 z-[86] flex items-center justify-center bg-[#020617]/75 p-4 backdrop-blur-[2px]">
-            <div className="w-full max-w-lg rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-5 text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)]">
-              <h3 className="text-[20px] font-extrabold">You want to confirm?</h3>
-              <p className="mt-2 text-sm text-[#cbd5e1]">
+            <div className="w-full max-w-4xl rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-7 text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)]">
+              <h3 className="text-[24px] font-extrabold">You want to confirm?</h3>
+              <p className="mt-2 text-[15px] text-[#cbd5e1]">
                 Total Bets: <span className="font-bold text-white">{bets.length}</span> | Total Amount:{' '}
                 <span className="font-bold text-[#facc15]">₹{Number(totalPoints || 0)}</span>
               </p>
               {selectedAdvanceSlots.length ? (
-                <p className="mt-1 text-xs text-[#93c5fd]">
+                <p className="mt-1 text-[13px] text-[#93c5fd]">
                   Advance slots selected: <span className="font-bold">{selectedAdvanceSlots.length}</span>
                 </p>
               ) : null}
-              <p className="mt-1 text-xs text-[#cbd5e1]">
+              <p className="mt-1 text-[13px] text-[#cbd5e1]">
                 Draw Time: <span className="font-bold text-white">{buyTargetSlotLabels.join(', ')}</span>
               </p>
-              <div className="mt-3 max-h-[42vh] overflow-y-auto rounded-lg border border-[#334155] bg-[#0b1220]">
+              <div className="mt-4 max-h-[50vh] overflow-y-auto rounded-lg border border-[#334155] bg-[#0b1220]">
                 {!bets.length ? (
-                  <p className="p-3 text-sm text-[#cbd5e1]">No bets left to place.</p>
+                  <p className="p-4 text-[15px] text-[#cbd5e1]">No bets left to place.</p>
                 ) : (
                   [...bets].reverse().map((bet) => (
-                    <div key={bet.id} className="flex items-center justify-between gap-3 border-b border-[#1f2937] px-3 py-2 last:border-b-0">
-                      <div className="text-sm">
+                    <div key={bet.id} className="flex items-center justify-between gap-3 border-b border-[#1f2937] px-4 py-2.5 last:border-b-0">
+                      <div className="text-[15px]">
                         <span className="font-semibold">Set {String(bet.panels || '-').toUpperCase()}</span>
                         <span className="mx-2 text-[#64748b]">|</span>
                         <span>{String(bet.mode || '').toUpperCase()}</span>
@@ -2345,7 +2345,7 @@ const ThreeDGame = () => {
                       <button
                         type="button"
                         onClick={() => handleRequestRemoveBet(bet.id)}
-                        className="rounded-md border border-[#b91c1c] bg-[#7f1d1d] px-2 py-1 text-xs font-bold text-white hover:bg-[#991b1b]"
+                        className="rounded-md border border-[#b91c1c] bg-[#7f1d1d] px-2.5 py-1.5 text-[12px] font-bold text-white hover:bg-[#991b1b]"
                       >
                         Remove
                       </button>
@@ -2357,7 +2357,7 @@ const ThreeDGame = () => {
                 <button
                   type="button"
                   onClick={() => setShowBuyConfirm(false)}
-                  className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold"
+                  className="h-11 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-[15px] font-bold"
                 >
                   Cancel
                 </button>
@@ -2365,7 +2365,7 @@ const ThreeDGame = () => {
                   type="button"
                   onClick={handleConfirmBuy}
                   disabled={!bets.length}
-                  className="h-10 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-11 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-[15px] font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Confirm & Place
                 </button>
