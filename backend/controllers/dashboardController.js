@@ -5,7 +5,7 @@ import User from '../models/user/user.js';
 import Market from '../models/market/market.js';
 import Admin from '../models/admin/admin.js';
 
-import { Wallet } from '../models/wallet/wallet.js';
+import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import HelpDesk from '../models/helpDesk/helpDesk.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingClosed } from '../utils/marketTiming.js';
@@ -208,6 +208,84 @@ export const getDashboardStats = async (req, res) => {
             }));
         }
 
+        const gameRevenueMatch = {
+            ...dateMatch,
+            ...(bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {}),
+        };
+        const gameTransactions = await WalletTransaction.find(gameRevenueMatch)
+            .select('userId type amount description referenceId')
+            .lean();
+        const detectGameKey = (text) => {
+            const s = String(text || '').toLowerCase();
+            if (s.includes('aviator')) return 'aviator';
+            if (s.includes('funtimer') || s.includes('fun timer')) return 'funTimer';
+            if (s.includes('roulette')) return 'roulette';
+            return '';
+        };
+        const extractRoundId = (text) => {
+            const s = String(text || '');
+            const m = s.match(/roundId=([^|]+)/i);
+            return m?.[1] ? String(m[1]).trim() : '';
+        };
+        const gameWiseRevenue = {
+            aviator: { revenue: 0, payout: 0, totalProfit: 0 },
+            funTimer: { revenue: 0, payout: 0, totalProfit: 0 },
+            roulette: { revenue: 0, payout: 0, totalProfit: 0 },
+        };
+
+        const gameByUserRef = new Map();
+        const gameByUserRound = new Map();
+
+        gameTransactions.forEach((txn) => {
+            if (String(txn?.type || '').toLowerCase() !== 'debit') return;
+            const detectedGame = detectGameKey(txn?.description);
+            if (!detectedGame) return;
+            const userId = String(txn?.userId || '');
+            const ref = String(txn?.referenceId || '').trim();
+            const roundId = extractRoundId(txn?.description);
+            if (ref) gameByUserRef.set(`${userId}::${ref}`, detectedGame);
+            if (roundId) gameByUserRound.set(`${userId}::${roundId}`, detectedGame);
+        });
+
+        gameTransactions.forEach((txn) => {
+            const type = String(txn?.type || '').toLowerCase();
+            const amount = Number(txn?.amount || 0);
+            if (!Number.isFinite(amount) || amount <= 0) return;
+
+            const userId = String(txn?.userId || '');
+            const ref = String(txn?.referenceId || '').trim();
+            const roundId = extractRoundId(txn?.description);
+            const detectedGame =
+                detectGameKey(txn?.description) ||
+                (ref ? gameByUserRef.get(`${userId}::${ref}`) : '') ||
+                (roundId ? gameByUserRound.get(`${userId}::${roundId}`) : '');
+
+            if (!detectedGame || !Object.prototype.hasOwnProperty.call(gameWiseRevenue, detectedGame)) return;
+
+            if (type === 'debit') {
+                gameWiseRevenue[detectedGame].revenue += amount;
+            } else if (type === 'credit') {
+                gameWiseRevenue[detectedGame].payout += amount;
+            }
+        });
+        Object.keys(gameWiseRevenue).forEach((k) => {
+            gameWiseRevenue[k].totalProfit = gameWiseRevenue[k].revenue - gameWiseRevenue[k].payout;
+        });
+        gameWiseRevenue.total = {
+            revenue:
+                gameWiseRevenue.aviator.revenue +
+                gameWiseRevenue.funTimer.revenue +
+                gameWiseRevenue.roulette.revenue,
+            payout:
+                gameWiseRevenue.aviator.payout +
+                gameWiseRevenue.funTimer.payout +
+                gameWiseRevenue.roulette.payout,
+            totalProfit:
+                gameWiseRevenue.aviator.totalProfit +
+                gameWiseRevenue.funTimer.totalProfit +
+                gameWiseRevenue.roulette.totalProfit,
+        };
+
         const scopedMainMarkets = selectedMarketId
             ? scopedMarkets.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline').length
             : mainMarkets;
@@ -308,6 +386,7 @@ export const getDashboardStats = async (req, res) => {
                 marketsPendingResult,
                 marketsPendingResultList,
                 marketWise,
+                gameWiseRevenue,
             },
         });
     } catch (error) {

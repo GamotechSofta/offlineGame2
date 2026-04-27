@@ -477,6 +477,7 @@ const AdminDashboard = () => {
     const threeDCurrent = lotteryStats?.threeD?.current?.summary || {};
     const twoDAllSlots = lotteryStats?.twoD?.allSlots || {};
     const threeDAllSlots = lotteryStats?.threeD?.allSlots || {};
+    const gameWiseRevenue = stats?.gameWiseRevenue || {};
     const twoDCurrentRevenue = Number(twoDCurrent.revenue || 0);
     const threeDCurrentRevenue = Number(threeDCurrent.revenue || 0);
     const twoDCurrentNet = Number(twoDCurrent.amountRemaining || 0);
@@ -495,7 +496,8 @@ const AdminDashboard = () => {
     const lotteryAllSlotsTotalPayout = twoDAllSlotsPayout + threeDAllSlotsPayout;
     const lotteryAllSlotsTotalNet = Number(twoDAllSlots.net || 0) + Number(threeDAllSlots.net || 0);
     const lotteryAllSlotsTotalUsers = Number(twoDAllSlots.users || 0) + Number(threeDAllSlots.users || 0);
-    const mainRevenueWithLottery = Number(stats?.revenue?.total || 0) + lotteryAllSlotsTotalRevenue;
+    const gameRevenueTotal = Number(gameWiseRevenue?.total?.revenue || 0);
+    const mainRevenueWithLottery = Number(stats?.revenue?.total || 0) + lotteryAllSlotsTotalRevenue + gameRevenueTotal;
     const mainNetWithLottery = Number(stats?.revenue?.netProfit || 0) + lotteryAllSlotsTotalNet;
     const mainBetsWithLottery = Number(stats?.bets?.total || 0) + lotteryAllSlotsTotalTickets;
 
@@ -691,6 +693,9 @@ const AdminDashboard = () => {
                     <p className="text-xs text-gray-500 mt-1">
                         All slots total - 2D: <span className="font-medium">{formatCurrency(twoDAllSlots.revenue)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDAllSlots.revenue)}</span> · Total: <span className="font-medium text-green-600">{formatCurrency(lotteryAllSlotsTotalRevenue)}</span>
                     </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        Games total - Aviator/FunTimer/Roulette: <span className="font-medium text-green-600">{formatCurrency(gameRevenueTotal)}</span>
+                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Net Profit (period)</p>
@@ -855,6 +860,28 @@ const AdminDashboard = () => {
                     )}
                 </div>
             )}
+
+            {/* Game-wise Revenue Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white rounded-xl p-5 border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Aviator</h3>
+                    <StatRow label="Total Revenue" value={formatCurrency(gameWiseRevenue?.aviator?.revenue)} colorClass="text-green-600" />
+                    <StatRow label="Total Payout" value={formatCurrency(gameWiseRevenue?.aviator?.payout)} colorClass="text-red-500" />
+                    <StatRow label="Total Profit" value={formatCurrency(gameWiseRevenue?.aviator?.totalProfit)} colorClass="text-blue-600" />
+                </div>
+                <div className="bg-white rounded-xl p-5 border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">FunTimer</h3>
+                    <StatRow label="Total Revenue" value={formatCurrency(gameWiseRevenue?.funTimer?.revenue)} colorClass="text-green-600" />
+                    <StatRow label="Total Payout" value={formatCurrency(gameWiseRevenue?.funTimer?.payout)} colorClass="text-red-500" />
+                    <StatRow label="Total Profit" value={formatCurrency(gameWiseRevenue?.funTimer?.totalProfit)} colorClass="text-blue-600" />
+                </div>
+                <div className="bg-white rounded-xl p-5 border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Roulette</h3>
+                    <StatRow label="Total Revenue" value={formatCurrency(gameWiseRevenue?.roulette?.revenue)} colorClass="text-green-600" />
+                    <StatRow label="Total Payout" value={formatCurrency(gameWiseRevenue?.roulette?.payout)} colorClass="text-red-500" />
+                    <StatRow label="Total Profit" value={formatCurrency(gameWiseRevenue?.roulette?.totalProfit)} colorClass="text-blue-600" />
+                </div>
+            </div>
 
             {/* Lottery 2D + 3D */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mt-6">
