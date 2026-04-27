@@ -27,6 +27,15 @@ const getTabs = (t) => [
     { id: 'statement', label: t('statement'), icon: FaFileInvoiceDollar },
 ];
 
+const BET_SOURCE_OPTIONS_BY_USER = [
+    { id: 'matka', label: 'Matka' },
+    { id: 'all_lottery', label: 'All Lottery' },
+    { id: 'lottery_2d', label: '2D Lottery' },
+    { id: 'lottery_3d', label: '3D Lottery' },
+];
+
+const BET_SOURCE_OPTIONS_BY_BOOKIE = [{ id: 'matka', label: 'Matka' }];
+
 const formatDateRange = (from, to) => {
     if (!from || !to) return '';
     const a = new Date(from);
@@ -644,16 +653,18 @@ const PlayerDetail = () => {
         betFilter === 'all' ? advancedFilteredBets : advancedFilteredBets.filter((b) => b.status === betFilter)
     ), [betFilter, advancedFilteredBets]);
 
-    const lotteryRowsByMode = {
+    const lotteryRowsByMode = useMemo(() => ({
         twoD: lotteryHistory.twoD || [],
         threeD: lotteryHistory.threeD || [],
-    };
-    const selectedLotteryRows =
-        betSourceFilter === 'lottery_2d'
-            ? lotteryRowsByMode.twoD
-            : betSourceFilter === 'lottery_3d'
-                ? lotteryRowsByMode.threeD
-                : [...lotteryRowsByMode.twoD, ...lotteryRowsByMode.threeD];
+    }), [lotteryHistory]);
+    const selectedLotteryRows = useMemo(() => {
+        if (betSourceFilter === 'lottery_2d') return lotteryRowsByMode.twoD;
+        if (betSourceFilter === 'lottery_3d') return lotteryRowsByMode.threeD;
+        return [...lotteryRowsByMode.twoD, ...lotteryRowsByMode.threeD];
+    }, [betSourceFilter, lotteryRowsByMode]);
+    const currentBetSourceOptions = activeTab === 'bets_by_user'
+        ? BET_SOURCE_OPTIONS_BY_USER
+        : BET_SOURCE_OPTIONS_BY_BOOKIE;
 
     const lotterySearchFilteredRows = useMemo(() => selectedLotteryRows.filter((row) => {
         const q = betSearch.trim().toLowerCase();
@@ -988,15 +999,7 @@ const PlayerDetail = () => {
                             {/* Bet filter & actions bar */}
                             <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
                                 <FaFilter className="w-3 h-3 text-gray-400" />
-                                {(activeTab === 'bets_by_user'
-                                    ? [
-                                        { id: 'matka', label: 'Matka' },
-                                        { id: 'all_lottery', label: 'All Lottery' },
-                                        { id: 'lottery_2d', label: '2D Lottery' },
-                                        { id: 'lottery_3d', label: '3D Lottery' },
-                                    ]
-                                    : [{ id: 'matka', label: 'Matka' }]
-                                ).map((item) => (
+                                {currentBetSourceOptions.map((item) => (
                                     <button
                                         key={item.id}
                                         onClick={() => setBetSourceFilter(item.id)}
