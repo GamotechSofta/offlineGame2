@@ -364,7 +364,7 @@ const ThreeDGame = () => {
         const createdAtIso = firstRow?.createdAt ? new Date(firstRow.createdAt).toISOString() : new Date().toISOString();
         const createdAt = new Date(createdAtIso);
         const slotStartMs = new Date(slotStartIso).getTime();
-        const slotStartDate = Number.isFinite(slotStartMs) ? new Date(slotStartMs) : null;
+        const slotEndDate = Number.isFinite(slotStartMs) ? new Date(slotStartMs + (GAME_INTERVAL_SECONDS * 1000)) : null;
         const isAdvanceDraw = sortedRows.some((row) => {
           const createdAtMs = new Date(row?.createdAt || 0).getTime();
           if (!Number.isFinite(createdAtMs) || !Number.isFinite(slotStartMs) || slotStartMs <= 0) return false;
@@ -372,8 +372,8 @@ const ThreeDGame = () => {
           // Mark as advance only when the slot is clearly beyond one draw interval.
           return (slotStartMs - createdAtMs) > ((GAME_INTERVAL_SECONDS * 1000) + (60 * 1000));
         });
-        // Use slot start timestamp for history labels so current-slot bets do not appear under next-slot time.
-        const drawDateBase = slotStartDate && !Number.isNaN(slotStartDate.getTime()) ? slotStartDate : createdAt;
+        // Draw label should represent the slot close/draw boundary.
+        const drawDateBase = slotEndDate && !Number.isNaN(slotEndDate.getTime()) ? slotEndDate : createdAt;
         const drawDate = `${drawDateBase.getFullYear()}-${String(drawDateBase.getMonth() + 1).padStart(2, '0')}-${String(drawDateBase.getDate()).padStart(2, '0')}`;
         const drawTime = new Intl.DateTimeFormat('en-IN', {
           hour: '2-digit',
@@ -510,6 +510,37 @@ const ThreeDGame = () => {
     [inputNumber, points, qty, rangeFrom, rangeTo, selectedModes],
   );
   const totalPoints = useMemo(() => bets.reduce((sum, bet) => sum + Number(bet.points || 0), 0), [bets]);
+  const ticketListWithCurrentBets = useMemo(() => {
+    const existingTickets = Array.isArray(ticketHistory) ? ticketHistory : [];
+    if (!bets.length) return existingTickets;
+    const drawTime = new Intl.DateTimeFormat('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(nextDrawAt).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
+    const drawDate = `${nextDrawAt.getFullYear()}-${String(nextDrawAt.getMonth() + 1).padStart(2, '0')}-${String(nextDrawAt.getDate()).padStart(2, '0')}`;
+    const draftTicket = {
+      id: 'current-bets-draft-ticket',
+      userName: playerIdentity || 'user',
+      drawTime,
+      drawDate,
+      gameId: 'CURRENT',
+      totalPoints,
+      totalWin: 0,
+      outcome: 'pending',
+      settled: false,
+      createdAt: new Date().toISOString(),
+      bets: bets.map((bet, idx) => ({
+        ...bet,
+        id: bet?.id || `current-bet-${idx}`,
+        outcome: String(bet?.outcome || 'pending').toLowerCase(),
+        matchedPanel: bet?.matchedPanel || '-',
+        matchedResult: bet?.matchedResult || '-',
+        winAmount: Number(bet?.winAmount || 0),
+      })),
+    };
+    return [draftTicket, ...existingTickets];
+  }, [bets, nextDrawAt, playerIdentity, ticketHistory, totalPoints]);
   const pointValue = useMemo(() => {
     const parsed = parseInt(points, 10);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
@@ -768,6 +799,11 @@ const ThreeDGame = () => {
       .format(d)
       .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
   }, []);
+  const formatDrawEndLabelFromSlotStartIso = useCallback((slotStartIso) => {
+    const slotStartMs = new Date(slotStartIso).getTime();
+    if (!Number.isFinite(slotStartMs)) return '-';
+    return formatAdvanceSlotLabel(new Date(slotStartMs + (GAME_INTERVAL_SECONDS * 1000)).toISOString());
+  }, [formatAdvanceSlotLabel]);
   const advanceDrawSlots = useMemo(() => {
     const baseMs = new Date(nextDrawAt).getTime();
     if (!Number.isFinite(baseMs)) return [];
@@ -923,15 +959,12 @@ const ThreeDGame = () => {
   }, [selectedModes]);
 
   const toThreeDigit = useCallback((n) => String(n).replace(/\D/g, '').slice(-3).padStart(3, '0'), []);
-  const toSpCycleValue = useCallback((threeDigit) => {
-    const digits = String(threeDigit || '').replace(/\D/g, '').slice(-3).padStart(3, '0');
-    return String(10 + Number(digits[2]));
-  }, []);
   const normalizeNumberForMode = useCallback((num, modeRaw) => {
-    const mode = String(modeRaw || '').toLowerCase();
-    if (mode === 'sp') return toSpCycleValue(num);
-    return num;
-  }, [toSpCycleValue]);
+    // Keep every mode on canonical 3-digit format. SP is validated/matched
+    // by position during settlement, so converting it here can drop bets.
+    void modeRaw;
+    return toThreeDigit(num);
+  }, [toThreeDigit]);
 
   const generateRangeNumbers = useCallback((fromStr, toStr) => {
     const from = Number(fromStr);
@@ -1031,7 +1064,7 @@ const ThreeDGame = () => {
 
   const addBet = useCallback(() => {
     const cleanNum = (inputNumber || '').trim();
-    const pts = Number(selectedRate) > 0 ? Number(selectedRate) : pointValue;
+    const pts = Number(pointValue) > 0 ? Number(pointValue) : Number(selectedRate);
     const selectedBetTypes = getNormalizedSelectedModes();
     const resetPrimaryInputs = () => {
       setInputNumber('');
@@ -1225,9 +1258,10 @@ const ThreeDGame = () => {
       if (!Number.isFinite(amount) || amount <= 0) continue;
       const panelsRaw = String(bet?.panels || 'A').split(',').map((x) => x.trim()).filter(Boolean);
       const primaryPanel = panelsRaw.length ? panelsRaw[0] : 'A';
-      const quizId = Number.isInteger(Number(selectedQuizId)) && Number(selectedQuizId) >= 1 && Number(selectedQuizId) <= 3
+      const fallbackQuizId = Number.isInteger(Number(selectedQuizId)) && Number(selectedQuizId) >= 1 && Number(selectedQuizId) <= 3
         ? Number(selectedQuizId)
-        : panelToQuizId(primaryPanel);
+        : 1;
+      const quizId = panelToQuizId(primaryPanel) || fallbackQuizId;
       const roundKey = `${quizId}|${mode}`;
       if (!roundMap.has(roundKey)) {
         roundMap.set(roundKey, { quizId, mode, byNumber: new Map() });
@@ -1245,10 +1279,21 @@ const ThreeDGame = () => {
       setValidationMsg('No valid bets to save.');
       return;
     }
+    const payloadTotal = rounds.reduce(
+      (outerSum, round) => outerSum + (Array.isArray(round?.bets)
+        ? round.bets.reduce((innerSum, b) => innerSum + Number(b?.amount || 0), 0)
+        : 0),
+      0,
+    );
+    if (payloadTotal !== investedAmount) {
+      setValidationMsg(`Bet validation mismatch detected (list: ${investedAmount}, payload: ${payloadTotal}). Please review bets and retry.`);
+      return;
+    }
 
+    const currentSlotStartIso = new Date(new Date(nextDrawAt).getTime() - (GAME_INTERVAL_SECONDS * 1000)).toISOString();
     const targetSlots = selectedAdvanceSlots.length
       ? [...selectedAdvanceSlots]
-      : [new Date(nextDrawAt).toISOString()];
+      : [currentSlotStartIso];
     const totalPerSlot = Number(investedAmount) || 0;
     const requiredBalance = totalPerSlot * targetSlots.length;
     if ((Number(walletBalance) || 0) < requiredBalance) {
@@ -1293,14 +1338,14 @@ const ThreeDGame = () => {
       : null;
     const createdTickets = targetSlots.map((slotStartIso, idx) => {
       const settleAtMs = new Date(slotStartIso).getTime() + (15 * 60 * 1000);
-      const slotDate = new Date(slotStartIso);
+      const slotDate = new Date(settleAtMs);
       const slotDrawDate = `${slotDate.getFullYear()}-${String(slotDate.getMonth() + 1).padStart(2, '0')}-${String(slotDate.getDate()).padStart(2, '0')}`;
       const gameId = generateGameId();
       return {
         id: Date.now() + idx,
         userName: 'user',
         quizId: resolvedQuizId,
-        drawTime: formatAdvanceSlotLabel(slotStartIso),
+        drawTime: formatDrawEndLabelFromSlotStartIso(slotStartIso),
         drawDate: slotDrawDate || drawDate,
         gameId,
         slotKey: slotRef.current,
@@ -1323,7 +1368,7 @@ const ThreeDGame = () => {
         slotCount: targetSlots.length,
         totalPoints: (Number(investedAmount) || 0) * targetSlots.length,
         perSlotPoints: Number(investedAmount) || 0,
-        slots: targetSlots.map((slotStartIso) => formatAdvanceSlotLabel(slotStartIso)),
+        slots: targetSlots.map((slotStartIso) => formatDrawEndLabelFromSlotStartIso(slotStartIso)),
       });
     } else {
       setAdvanceBuySuccess(null);
@@ -1339,7 +1384,7 @@ const ThreeDGame = () => {
     } finally {
       isBuyingRef.current = false;
     }
-  }, [bets, formatAdvanceSlotLabel, generateGameId, nextDrawAt, now, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
+  }, [bets, formatAdvanceSlotLabel, formatDrawEndLabelFromSlotStartIso, generateGameId, nextDrawAt, now, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
 
   const handleCancelPendingTicket = useCallback(() => {
     const nowMs = Date.now();
@@ -2262,7 +2307,7 @@ const ThreeDGame = () => {
             <TicketListModal
               open={isTicketListOpen}
               onClose={() => setIsTicketListOpen(false)}
-              tickets={ticketHistory}
+              tickets={ticketListWithCurrentBets}
               onView={(ticket) => {
                 setSelectedTicket(ticket);
                 setIsTicketListOpen(false);
@@ -2293,7 +2338,7 @@ const ThreeDGame = () => {
             <TicketListModal
               open={isTicketListOpen}
               onClose={() => setIsTicketListOpen(false)}
-              tickets={ticketHistory}
+              tickets={ticketListWithCurrentBets}
               onView={(ticket) => {
                 setSelectedTicket(ticket);
                 setIsTicketListOpen(false);

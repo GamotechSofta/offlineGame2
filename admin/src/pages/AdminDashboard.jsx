@@ -21,6 +21,9 @@ import {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
+const LOTTERY_LIVE_REFRESH_MS = 8000;
+const DASHBOARD_SECTION_REFRESH_MS = 20000;
+
 const PRESETS = [
     { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
     { id: 'today', label: 'Today', getRange: () => {
@@ -135,6 +138,22 @@ const AdminDashboard = () => {
         twoD: { current: null, latest: null, error: '' },
         threeD: { current: null, latest: null, error: '' },
     });
+
+    const hasChanged = (a, b) => JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
+    const mergeSectionStats = (prev, next) => {
+        if (!next || typeof next !== 'object') return prev;
+        if (!prev || typeof prev !== 'object') return next;
+        const merged = { ...prev };
+        let changed = false;
+        Object.keys(next).forEach((key) => {
+            const nextValue = next[key];
+            if (hasChanged(prev[key], nextValue)) {
+                merged[key] = nextValue;
+                changed = true;
+            }
+        });
+        return changed ? merged : prev;
+    };
 
     const getFromTo = () => {
         if (customMode && customFrom && customTo) return { from: customFrom, to: customTo };
@@ -322,10 +341,13 @@ const AdminDashboard = () => {
 
     const fetchDashboardStats = async (rangeOverride, options = {}) => {
         const isRefresh = options.refresh === true;
+        const isSilent = options.silent === true;
         try {
-            if (isRefresh) setRefreshing(true);
-            else setLoading(true);
-            setError('');
+            if (!isSilent) {
+                if (isRefresh) setRefreshing(true);
+                else setLoading(true);
+                setError('');
+            }
             const { from, to } = rangeOverride || getFromTo();
             const params = new URLSearchParams();
             if (from && to) { params.set('from', from); params.set('to', to); }
@@ -340,15 +362,17 @@ const AdminDashboard = () => {
             if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
-                setStats(data.data);
+                setStats((prev) => mergeSectionStats(prev, data.data));
             } else {
-                setError('Failed to fetch dashboard stats');
+                if (!isSilent) setError('Failed to fetch dashboard stats');
             }
         } catch (err) {
-            setError('Network error. Please check if the server is running.');
+            if (!isSilent) setError('Network error. Please check if the server is running.');
         } finally {
-            setLoading(false);
-            setRefreshing(false);
+            if (!isSilent) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
     };
 
@@ -384,6 +408,45 @@ const AdminDashboard = () => {
         clearAdminSession();
         navigate('/');
     };
+
+    useEffect(() => {
+        if (loading) return undefined;
+        const getEffectiveRange = () => (
+            customMode && customFrom && customTo
+                ? { from: customFrom, to: customTo }
+                : getFromTo()
+        );
+
+        const refreshDashboardSections = () => {
+            if (document.visibilityState !== 'visible') return;
+            fetchDashboardStats(getEffectiveRange(), { refresh: true, silent: true });
+        };
+
+        const refreshLotterySections = () => {
+            if (document.visibilityState !== 'visible') return;
+            fetchLotteryDashboardStats(getEffectiveRange());
+        };
+
+        const dashboardTimer = setInterval(refreshDashboardSections, DASHBOARD_SECTION_REFRESH_MS);
+        const lotteryTimer = setInterval(refreshLotterySections, LOTTERY_LIVE_REFRESH_MS);
+
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                refreshDashboardSections();
+                refreshLotterySections();
+            }
+        };
+
+        window.addEventListener('focus', onVisible);
+        document.addEventListener('visibilitychange', onVisible);
+
+        return () => {
+            clearInterval(dashboardTimer);
+            clearInterval(lotteryTimer);
+            window.removeEventListener('focus', onVisible);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
+    }, [customFrom, customMode, customTo, datePreset, loading, selectedMarketId]);
 
     const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
     const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN');
