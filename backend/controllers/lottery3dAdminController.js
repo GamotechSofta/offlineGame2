@@ -26,9 +26,16 @@ import {
 } from '../services/quizDeclarationService.js';
 import { getQuizSocketIo } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
+import { getBookieUserIds } from '../utils/bookieFilter.js';
 
 const QUIZ_IDS = [1, 2, 3];
 const GAME_MODE = '3d';
+
+async function getLotteryScopeFilter(req) {
+  const bookieUserIds = await getBookieUserIds(req.admin);
+  if (bookieUserIds === null) return {};
+  return { userId: { $in: bookieUserIds } };
+}
 
 async function getQuiz3DMultiplier() {
   try {
@@ -288,9 +295,10 @@ export const getLottery3DCurrentSlot = async (req, res) => {
     const ctx = getSlotContext(new Date(), '3d');
     const slotStartIso = ctx.slotStartIso;
     const slotEndMs = ctx.slotEndMs;
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount status winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter }).select('quizId userId number amount status winPayout').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz3DMultiplier(),
     ]);
@@ -428,9 +436,10 @@ export const getLottery3DSlotHistory = async (req, res) => {
     if (!daySlots.length) {
       return res.json({ success: true, data: { date, slots: [] } });
     }
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } }).select('slotStartIso quizId userId number amount status winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots }, ...lotteryScopeFilter }).select('slotStartIso quizId userId number amount status winPayout').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } }).select('slotStartIso quizId hintPosition').lean(),
       getQuiz3DMultiplier(),
     ]);

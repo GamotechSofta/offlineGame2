@@ -16,7 +16,10 @@ import {
     FaClipboardList,
     FaArrowRight,
     FaExclamationTriangle,
+    FaDice,
 } from 'react-icons/fa';
+
+const LOTTERY_LIVE_REFRESH_MS = 2000;
 
 const getPresets = (t) => [
     { id: 'all', label: t('all'), getRange: () => {
@@ -146,6 +149,10 @@ const Dashboard = () => {
         pendingAmount: 0,
         netProfit: 0,
     });
+    const [lotteryStats, setLotteryStats] = useState({
+        twoD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
+        threeD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
+    });
 
     const PRESETS = getPresets(t);
 
@@ -176,6 +183,137 @@ const Dashboard = () => {
         refreshBookieProfile();
         fetchMarkets();
     }, []);
+
+    const getTodayDateKey = () => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    const listDateKeysInRange = (from, to) => {
+        if (!from || !to) return [getTodayDateKey()];
+        const start = new Date(`${from}T00:00:00`);
+        const end = new Date(`${to}T00:00:00`);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+            return [getTodayDateKey()];
+        }
+        const out = [];
+        const cursor = new Date(start);
+        const MAX_DAYS = 31;
+        while (cursor <= end && out.length < MAX_DAYS) {
+            out.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`);
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        return out;
+    };
+
+    const dateKeyFromMs = (ms) => {
+        if (!Number.isFinite(ms) || ms <= 0) return '';
+        const d = new Date(ms);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    const fetchLotteryModeStats = async (mode, rangeOverride) => {
+        const modeKey = mode === '2d' ? 'twoD' : 'threeD';
+        const nonce = Date.now();
+        const headers = getBookieAuthHeaders();
+        const currentEndpoint = `${API_BASE_URL}/admin/lottery${mode}/current-slot?_=${nonce}`;
+        const effectiveRange = rangeOverride || getFromTo();
+        const currentRes = await fetch(currentEndpoint, { headers, cache: 'no-store' });
+        const currentJson = await currentRes.json();
+        if (!currentJson?.success) {
+            throw new Error(currentJson?.message || `Failed to load ${mode.toUpperCase()} current slot`);
+        }
+        const currentSlotIso = currentJson?.data?.slot?.slotStartIso || '';
+        const currentSlotMs = currentSlotIso ? new Date(currentSlotIso).getTime() : 0;
+        const previousSlotMs = Number.isFinite(currentSlotMs) && currentSlotMs > 0
+            ? (currentSlotMs - (15 * 60 * 1000))
+            : 0;
+        const rangeDateKeys = listDateKeysInRange(effectiveRange?.from, effectiveRange?.to);
+        const mustHaveDateKeys = [dateKeyFromMs(currentSlotMs), dateKeyFromMs(previousSlotMs)].filter(Boolean);
+        const dateKeys = [...new Set([...rangeDateKeys, ...mustHaveDateKeys])];
+        const historyResList = await Promise.all(
+            dateKeys.map((dateKey) =>
+                fetch(`${API_BASE_URL}/admin/lottery${mode}/slots?date=${encodeURIComponent(dateKey)}&limit=96&_=${nonce}`, {
+                    headers,
+                    cache: 'no-store',
+                }),
+            ),
+        );
+        const historyJsonList = await Promise.all(historyResList.map((res) => res.json()));
+        if (historyJsonList.some((json) => !json?.success)) {
+            const bad = historyJsonList.find((json) => !json?.success);
+            throw new Error(bad?.message || `Failed to load ${mode.toUpperCase()} all slots`);
+        }
+        const historySlots = historyJsonList.flatMap((json) => (Array.isArray(json?.data?.slots) ? json.data.slots : []));
+        const normalizedSlots = historySlots
+            .map((slot) => {
+                const slotStartMs = new Date(slot?.slotStartIso || 0).getTime();
+                return {
+                    ...slot,
+                    slotStartMs: Number.isFinite(slotStartMs) ? slotStartMs : 0,
+                };
+            })
+            .filter((slot) => slot.slotStartMs > 0);
+
+        const uptoCurrentSlots = normalizedSlots.filter((slot) => (currentSlotMs ? slot.slotStartMs <= currentSlotMs : true));
+        const completedSlots = uptoCurrentSlots.filter((slot) => Boolean(slot?.isCompleted));
+        const latestSlot = previousSlotMs
+            ? (completedSlots.find((slot) => slot.slotStartMs === previousSlotMs)
+                || [...completedSlots].sort((a, b) => b.slotStartMs - a.slotStartMs)[0]
+                || null)
+            : ([...completedSlots].sort((a, b) => b.slotStartMs - a.slotStartMs)[0] || null);
+        const nextUpcomingSlot = currentSlotMs
+            ? [...normalizedSlots]
+                .filter((slot) => slot.slotStartMs > currentSlotMs)
+                .sort((a, b) => a.slotStartMs - b.slotStartMs)[0] || null
+            : null;
+        const currentSummary = currentJson?.data?.summary || {};
+        const historyTotals = completedSlots.reduce((acc, slot) => {
+            acc.tickets += Number(slot?.totalTickets || 0);
+            acc.revenue += Number(slot?.revenue || 0);
+            acc.payout += Number(slot?.winnerPayout || 0);
+            acc.net += Number(slot?.amountRemaining || 0);
+            return acc;
+        }, { tickets: 0, revenue: 0, payout: 0, net: 0 });
+
+        const allSlots = {
+            tickets: historyTotals.tickets + Number(currentSummary?.totalTickets || 0),
+            revenue: historyTotals.revenue + Number(currentSummary?.revenue || 0),
+            payout: historyTotals.payout + Number(currentSummary?.winnerPayout || 0),
+            net: historyTotals.net + Number(currentSummary?.amountRemaining || 0),
+        };
+
+        return {
+            modeKey,
+            current: currentJson?.data || null,
+            latest: latestSlot,
+            nextUpcoming: nextUpcomingSlot,
+            allSlots,
+            error: '',
+        };
+    };
+
+    const fetchLotteryDashboardStats = async (rangeOverride) => {
+        try {
+            const [twoD, threeD] = await Promise.all([
+                fetchLotteryModeStats('2d', rangeOverride),
+                fetchLotteryModeStats('3d', rangeOverride),
+            ]);
+            setLotteryStats({
+                twoD: twoD || { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
+                threeD: threeD || { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
+            });
+        } catch (err) {
+            const message = err?.message || 'Failed to load lottery stats';
+            setLotteryStats((prev) => ({
+                twoD: prev.twoD.current || prev.twoD.latest ? prev.twoD : { ...prev.twoD, error: message },
+                threeD: prev.threeD.current || prev.threeD.latest ? prev.threeD : { ...prev.threeD, error: message },
+            }));
+        }
+    };
 
     const fetchMarkets = async () => {
         try {
@@ -252,6 +390,7 @@ const Dashboard = () => {
                     .slice(0, 3);
                 setTopWalletPlayers(topPlayers);
                 await fetchMarketReport(rangeOverride);
+                await fetchLotteryDashboardStats(rangeOverride);
             }
             else setError(statsData.message || 'Failed to fetch dashboard stats');
         } catch (err) {
@@ -280,7 +419,43 @@ const Dashboard = () => {
         fetchDashboardStats({ from: customFrom, to: customTo });
     };
 
+    useEffect(() => {
+        if (loading) return undefined;
+        const timer = setInterval(() => {
+            if (document.visibilityState !== 'visible') return;
+            const range = customMode && customFrom && customTo
+                ? { from: customFrom, to: customTo }
+                : getFromTo();
+            fetchLotteryDashboardStats(range);
+        }, LOTTERY_LIVE_REFRESH_MS);
+
+        return () => clearInterval(timer);
+    }, [loading, customMode, customFrom, customTo, datePreset]);
+
     const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
+    const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN');
+    const formatDrawTime = (label) => {
+        if (!label) return '-';
+        return label;
+    };
+    const formatSlotWindow = (slot) => {
+        const slotStartIso = String(slot?.slotStartIso || '').trim();
+        if (!slotStartIso) return formatDrawTime(slot?.drawLabelEnd);
+        const startDate = new Date(slotStartIso);
+        if (Number.isNaN(startDate.getTime())) return formatDrawTime(slot?.drawLabelEnd);
+        const start = new Intl.DateTimeFormat('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        }).format(startDate).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
+        const endFallback = new Date(startDate.getTime() + (15 * 60 * 1000));
+        const end = String(slot?.drawLabelEnd || '').trim() || new Intl.DateTimeFormat('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        }).format(endFallback).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
+        return `${start} - ${end}`;
+    };
 
     const pendingPayments = stats?.payments?.pending || 0;
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
@@ -290,7 +465,14 @@ const Dashboard = () => {
     const hasActionRequired = pendingPayments > 0;
     const toReceived = Number(stats?.toTake || 0);
     const toGive = Number(stats?.toGive || 0);
-    const computedTotalProfit = (Number(marketReport.netProfit) || 0) + (toReceived - toGive);
+    const twoDAllSlotsRevenue = Number(lotteryStats?.twoD?.allSlots?.revenue || 0);
+    const threeDAllSlotsRevenue = Number(lotteryStats?.threeD?.allSlots?.revenue || 0);
+    const lotteryAllSlotsRevenue = twoDAllSlotsRevenue + threeDAllSlotsRevenue;
+    const twoDAllSlotsNet = Number(lotteryStats?.twoD?.allSlots?.net || 0);
+    const threeDAllSlotsNet = Number(lotteryStats?.threeD?.allSlots?.net || 0);
+    const lotteryAllSlotsNet = twoDAllSlotsNet + threeDAllSlotsNet;
+    const marketPendingAmount = Number(marketReport.pendingAmount || 0);
+    const computedTotalProfit = (Number(marketReport.netProfit) || 0) + lotteryAllSlotsNet + (toReceived - toGive);
 
     if (loading) {
         return (
@@ -446,8 +628,11 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetAmount')}</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(marketReport.totalBetAmount || 0)}</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency((marketReport.totalBetAmount || 0) + lotteryAllSlotsRevenue)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('totalBetAmountDescription')}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        2D: <span className="font-medium">{formatCurrency(twoDAllSlotsRevenue)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDAllSlotsRevenue)}</span> · Total: <span className="font-medium text-green-600">{formatCurrency(lotteryAllSlotsRevenue)}</span>
+                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toReceived')}</p>
@@ -461,13 +646,19 @@ const Dashboard = () => {
                 </div>
                 <div className="bg-gradient-to-br from-[#1B3150]/5 to-transparent rounded-xl p-5 border border-[#1B3150]/20">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('pending')}</p>
-                    <p className="text-2xl font-bold text-[#1B3150] font-mono">{formatCurrency(marketReport.pendingAmount || 0)}</p>
+                    <p className="text-2xl font-bold text-[#1B3150] font-mono">{formatCurrency(marketPendingAmount + lotteryAllSlotsNet)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('pendingBetsAmount')}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        2D net: <span className="font-medium">{formatCurrency(twoDAllSlotsNet)}</span> · 3D net: <span className="font-medium">{formatCurrency(threeDAllSlotsNet)}</span> · Total net: <span className="font-medium text-[#1B3150]">{formatCurrency(lotteryAllSlotsNet)}</span>
+                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalProfit')}</p>
                     <p className="text-2xl font-bold text-purple-600 font-mono">{formatCurrency(computedTotalProfit)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('totalProfitDescription')}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        Lottery profit - 2D: <span className="font-medium">{formatCurrency(twoDAllSlotsNet)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDAllSlotsNet)}</span> · Total: <span className="font-medium text-purple-600">{formatCurrency(lotteryAllSlotsNet)}</span>
+                    </p>
                 </div>
             </div>
 
@@ -545,6 +736,83 @@ const Dashboard = () => {
                         <p className="text-xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.revenue?.netProfit)}</p>
                     </div>
                 </div>
+            </div>
+
+            {/* Lottery 2D + 3D */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-6">
+                <SectionCard title="2D Lottery Overview" description="Current slot + previous slot + selected range total" icon={FaDice} t={t}>
+                    {lotteryStats.twoD.error ? (
+                        <p className="text-sm text-red-500">{lotteryStats.twoD.error}</p>
+                    ) : (
+                        <>
+                            <div className="mb-2 mt-1">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Current Slot (Live)</p>
+                                <p className="text-[11px] text-gray-500">Running slot stats updated in real-time.</p>
+                            </div>
+                            <StatRow label="Current Slot" value={formatDrawTime(lotteryStats.twoD.current?.slot?.drawLabelEnd)} />
+                            <StatRow label="Current Tickets" value={formatNumber(lotteryStats.twoD.current?.summary?.totalTickets)} />
+                            <StatRow label="Current Revenue" value={formatCurrency(lotteryStats.twoD.current?.summary?.revenue)} colorClass="text-green-600" />
+                            <StatRow label="Current Payout" value={formatCurrency(lotteryStats.twoD.current?.summary?.winnerPayout)} colorClass="text-red-500" />
+                            <StatRow label="Current Net" value={formatCurrency(lotteryStats.twoD.current?.summary?.amountRemaining)} colorClass="text-blue-600" />
+
+                            <div className="mb-2 mt-3">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Previous Slot (Last Closed)</p>
+                                <p className="text-[11px] text-gray-500">Shows only the immediate previous closed slot.</p>
+                            </div>
+                            <StatRow label="Previous Slot" value={formatDrawTime(lotteryStats.twoD.latest?.drawLabelEnd)} />
+                            <StatRow label="Previous Slot Tickets" value={formatNumber(lotteryStats.twoD.latest?.totalTickets)} />
+                            <StatRow label="Previous Slot Revenue" value={formatCurrency(lotteryStats.twoD.latest?.revenue)} colorClass="text-green-600" />
+                            <StatRow label="Previous Slot Payout" value={formatCurrency(lotteryStats.twoD.latest?.winnerPayout)} colorClass="text-red-500" />
+                            <StatRow label="Previous Slot Net" value={formatCurrency(lotteryStats.twoD.latest?.amountRemaining)} colorClass="text-blue-600" />
+
+                            <div className="mb-2 mt-3">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Selected Range Total</p>
+                                <p className="text-[11px] text-gray-500">All bets in selected date range.</p>
+                            </div>
+                            <StatRow label="All Slots Tickets" value={formatNumber(lotteryStats.twoD?.allSlots?.tickets)} />
+                            <StatRow label="All Slots Revenue" value={formatCurrency(lotteryStats.twoD?.allSlots?.revenue)} colorClass="text-green-600" />
+                            <StatRow label="All Slots Payout" value={formatCurrency(lotteryStats.twoD?.allSlots?.payout)} colorClass="text-red-500" />
+                            <StatRow label="All Slots Net" value={formatCurrency(lotteryStats.twoD?.allSlots?.net)} colorClass="text-blue-600" />
+                        </>
+                    )}
+                </SectionCard>
+
+                <SectionCard title="3D Lottery Overview" description="Current slot + previous slot + selected range total" icon={FaDice} t={t}>
+                    {lotteryStats.threeD.error ? (
+                        <p className="text-sm text-red-500">{lotteryStats.threeD.error}</p>
+                    ) : (
+                        <>
+                            <div className="mb-2 mt-1">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Current Slot (Live)</p>
+                                <p className="text-[11px] text-gray-500">Running slot stats updated in real-time.</p>
+                            </div>
+                            <StatRow label="Current Slot" value={formatSlotWindow(lotteryStats.threeD.current?.slot)} />
+                            <StatRow label="Current Tickets" value={formatNumber(lotteryStats.threeD.current?.summary?.totalTickets)} />
+                            <StatRow label="Current Revenue" value={formatCurrency(lotteryStats.threeD.current?.summary?.revenue)} colorClass="text-green-600" />
+                            <StatRow label="Current Payout" value={formatCurrency(lotteryStats.threeD.current?.summary?.winnerPayout)} colorClass="text-red-500" />
+                            <StatRow label="Current Net" value={formatCurrency(lotteryStats.threeD.current?.summary?.amountRemaining)} colorClass="text-blue-600" />
+
+                            <div className="mb-2 mt-3">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Previous Slot (Last Closed)</p>
+                                <p className="text-[11px] text-gray-500">Shows only the immediate previous closed slot.</p>
+                            </div>
+                            <StatRow label="Previous Slot" value={formatSlotWindow(lotteryStats.threeD.latest)} />
+                            <StatRow label="Previous Slot Tickets" value={formatNumber(lotteryStats.threeD.latest?.totalTickets)} />
+                            <StatRow label="Previous Slot Revenue" value={formatCurrency(lotteryStats.threeD.latest?.revenue)} colorClass="text-green-600" />
+                            <StatRow label="Previous Slot Payout" value={formatCurrency(lotteryStats.threeD.latest?.winnerPayout)} colorClass="text-red-500" />
+                            <StatRow label="Previous Slot Net" value={formatCurrency(lotteryStats.threeD.latest?.amountRemaining)} colorClass="text-blue-600" />
+
+                            <div className="mb-2 mt-3">
+                                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Selected Range Total</p>
+                                <p className="text-[11px] text-gray-500">All bets in selected date range.</p>
+                            </div>
+                            <StatRow label="All Slots Tickets" value={formatNumber(lotteryStats.threeD?.allSlots?.tickets)} />
+                            <StatRow label="All Slots Revenue" value={formatCurrency(lotteryStats.threeD?.allSlots?.revenue)} colorClass="text-green-600" />
+                            <StatRow label="All Slots Payout" value={formatCurrency(lotteryStats.threeD?.allSlots?.payout)} colorClass="text-red-500" />
+                            <StatRow label="All Slots Net" value={formatCurrency(lotteryStats.threeD?.allSlots?.net)} colorClass="text-blue-600" />
+                        </>
+                    )}
+                </SectionCard>
             </div>
 
             {/* Quick Links */}

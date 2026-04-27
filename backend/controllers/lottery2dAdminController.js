@@ -27,9 +27,16 @@ import {
 } from '../services/quizDeclarationService.js';
 import { getQuizSocketIo } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
+import { getBookieUserIds } from '../utils/bookieFilter.js';
 
 const QUIZ_IDS = Array.from({ length: 30 }, (_, i) => i + 1);
 const GAME_MODE = '2d';
+
+async function getLotteryScopeFilter(req) {
+  const bookieUserIds = await getBookieUserIds(req.admin);
+  if (bookieUserIds === null) return {};
+  return { userId: { $in: bookieUserIds } };
+}
 
 async function getQuiz2DMultiplier() {
   try {
@@ -432,9 +439,10 @@ export const getLottery2DCurrentSlot = async (req, res) => {
     const ctx = getSlotContext(new Date(), '2d');
     const slotStartIso = ctx.slotStartIso;
     const slotEndMs = ctx.slotEndMs;
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount status winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter }).select('quizId userId number amount status winPayout').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
@@ -562,9 +570,10 @@ export const getLottery2DSlotHistory = async (req, res) => {
     if (!completedSlots.length) {
       return res.json({ success: true, data: { date, slots: [] } });
     }
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } })
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots }, ...lotteryScopeFilter })
         .select('slotStartIso quizId userId number amount status winPayout')
         .lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId hintPosition').lean(),
