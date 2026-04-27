@@ -50,6 +50,29 @@ const formatAmount = (amount) => {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const formatPassbookDescription = (raw, type) => {
+  const fallback = type === 'credit' ? 'Amount Credited' : 'Amount Debited';
+  const source = String(raw || '').trim();
+  if (!source) return fallback;
+
+  const roundIdMatch = source.match(/roundId=([^|]+)/i);
+  const gameMatch = source.match(/game=([^|]+)/i);
+  const betNumberMatch = source.match(/betNumber=([^|]*)/i);
+  const startsGeneric = /^generic\s+(credit|debit)/i.test(source);
+
+  if (!startsGeneric && !roundIdMatch && !gameMatch && !betNumberMatch) return source;
+
+  const game = (gameMatch?.[1] || '').trim();
+  const roundId = (roundIdMatch?.[1] || '').trim();
+  const betNumber = (betNumberMatch?.[1] || '').trim();
+  const action = type === 'credit' ? 'Game Win' : 'Game Bet';
+  const parts = [action];
+  if (game) parts.push(game);
+  if (roundId) parts.push(`Round ${roundId.slice(0, 8)}`);
+  if (betNumber) parts.push(`Bet #${betNumber}`);
+  return parts.join(' - ');
+};
+
 /* ───────── Skeleton Loader ───────── */
 const SkeletonRow = () => (
   <div className="flex items-center gap-3.5 md:gap-4 px-4 md:px-6 py-4 md:py-5 animate-pulse">
@@ -311,7 +334,7 @@ const Passbook = () => {
                         {/* Info */}
                         <div className="flex-1 min-w-0">
                           <p className="text-gray-800 text-sm md:text-base font-medium truncate">
-                            {tx.description || (isCredit ? 'Amount Credited' : 'Amount Withdrawn')}
+                            {formatPassbookDescription(tx.description, tx.type)}
                           </p>
                           <p className="text-gray-500 text-xs md:text-sm mt-0.5">{formatTime(tx.createdAt)}</p>
                         </div>

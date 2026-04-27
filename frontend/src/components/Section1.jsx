@@ -169,7 +169,7 @@ const Section1 = () => {
   };
 
   return (
-    <section className="w-full bg-gray-200 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 md:pt-2 sm:pb-10 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
+    <section className="w-full bg-gray-200 min-[375px]:pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 md:pt-2 sm:pb-10 px-2 min-[375px]:px-3 sm:px-4 md:pb-8 max-w-full overflow-x-hidden">
       {/* ═══ Desktop: MARKETS header ── */}
       <div className="hidden md:flex items-center gap-4 mt-1 mb-4 w-full max-w-7xl mx-auto px-4">
         {/* ── Left navy line ── */}
@@ -207,7 +207,7 @@ const Section1 = () => {
           <p className="text-gray-600">No markets available</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 min-[375px]:gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 min-[375px]:gap-3 sm:gap-4 px-1 min-[375px]:px-2 sm:px-3">
           {markets.map((market) => (
             <MarketCard
               key={market.id}
