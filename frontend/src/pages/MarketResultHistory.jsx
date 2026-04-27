@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
 import ResultDatePicker from '../components/ResultDatePicker';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
+import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
 
 const toDateKeyIST = (d) => {
   try {
@@ -49,17 +50,21 @@ const MarketResultHistory = () => {
   };
 
   useEffect(() => {
-    let alive = true;
     const run = async () => {
       await fetchResults();
     };
     run();
-    const id = setInterval(run, 30000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
+    return undefined;
   }, [selectedDate, todayKey]);
+
+  useSectionAutoRefresh({
+    enabled: true,
+    intervalMs: 30000,
+    immediate: false,
+    onRefresh: () => {
+      void fetchResults();
+    },
+  });
 
   useRefreshOnMarketReset(fetchResults);
 

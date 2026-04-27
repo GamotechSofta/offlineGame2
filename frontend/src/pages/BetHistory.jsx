@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth, getAuthHeaders } from '../config/api';
 import { getMyWalletTransactions, getRatesCurrent } from '../api/bets';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
+import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
 import BetHistoryCard from '../components/BetHistoryCard';
 import AviatorBetHistoryCard from '../components/AviatorBetHistoryCard';
 import FunTimerBetHistoryCard from '../components/FunTimerBetHistoryCard';
@@ -536,11 +537,15 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
 
   useEffect(() => {
     void refreshBetHistoryData(false);
-    const id = setInterval(() => {
-      void refreshBetHistoryData(true);
-    }, 15000);
-    return () => clearInterval(id);
   }, [refreshBetHistoryData]);
+  useSectionAutoRefresh({
+    enabled: true,
+    intervalMs: 15000,
+    immediate: false,
+    onRefresh: () => {
+      void refreshBetHistoryData(true);
+    },
+  });
 
   const bets = useMemo(() => {
     return (myBets || [])

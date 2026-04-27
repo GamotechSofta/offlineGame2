@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getQuizSlotResultsForDate } from '../api/quizApi';
 import { QUIZ_GROUPS } from '../data/mockData';
 import { pad2 } from '../utils/boardHelpers';
+import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
 
 const istTodayKey = () => {
   try {
@@ -101,6 +102,15 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
     if (!open || !dateKey) return;
     showResult();
   }, [open, dateKey, showResult]);
+
+  useSectionAutoRefresh({
+    enabled: open && !!dateKey,
+    intervalMs: 12000,
+    immediate: false,
+    onRefresh: () => {
+      void showResult();
+    },
+  });
 
   if (!open) return null;
 

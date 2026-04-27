@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { cancelMyQuizBet, getMyQuizBets } from '../api/quizApi';
 import { updateUserBalance } from '../api/bets';
+import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
 
 const statusLabel = (status) => {
   if (status === 'win') return 'Won';
@@ -87,6 +88,15 @@ const MyBetsModal = ({ open, onClose }) => {
     setPendingCancelId('');
     loadQuiz();
   }, [open, loadQuiz]);
+
+  useSectionAutoRefresh({
+    enabled: open,
+    intervalMs: 10000,
+    immediate: false,
+    onRefresh: () => {
+      void loadQuiz();
+    },
+  });
 
   const quizGroups = useMemo(() => groupQuizRows(quizItems), [quizItems]);
 
