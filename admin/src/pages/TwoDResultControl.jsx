@@ -378,7 +378,7 @@ const TwoDResultControl = () => {
                                             navigate(`/2d-management/quiz/${item.quizId}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`);
                                         }}
                                         disabled={!currentSlotStartIso}
-                                        className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-left hover:border-orange-400 hover:bg-orange-50/50 hover:shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                                        className="cursor-pointer rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-left hover:border-orange-400 hover:bg-orange-50/50 hover:shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
                                         title={currentSlotStartIso ? 'Open stake / number-wise P/L' : 'Current slot unavailable'}
                                     >
                                         <div className="flex justify-between gap-1 items-baseline">
@@ -387,6 +387,11 @@ const TwoDResultControl = () => {
                                         </div>
                                         <div className={`mt-1 text-[10px] font-semibold leading-tight ${pl.className}`} title={pl.title || undefined}>
                                             {pl.text}
+                                        </div>
+                                        <div className="mt-1.5 flex justify-end">
+                                            <span className="inline-flex items-center rounded border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">
+                                                Edit
+                                            </span>
                                         </div>
                                     </button>
                                 );
