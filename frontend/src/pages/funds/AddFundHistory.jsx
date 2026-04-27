@@ -170,7 +170,7 @@ const AddFundHistory = () => {
                                 )}
                                 {deposit.adminRemarks && (
                                     <p className="text-gray-600 text-sm">
-                                        <span className="text-gray-500">Admin:</span> {deposit.adminRemarks}
+                                        {deposit.adminRemarks}
                                     </p>
                                 )}
                                 {deposit.processedAt && (

@@ -151,7 +151,7 @@ const WithdrawFund = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h20" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 2c3.5 3.5 3.5 16.5 0 20" />
                         </svg>
-                        <span className="font-semibold tracking-wide">RATAN 365</span>
+                        <span className="font-semibold tracking-wide">ShriBalaji</span>
                     </div>
 
                     <div className="bg-gradient-to-r bg-[#1B3150] px-4 py-3 flex items-center gap-3">

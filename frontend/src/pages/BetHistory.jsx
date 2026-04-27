@@ -431,7 +431,6 @@ const evaluateBet = ({ market, betNumberRaw, amount, session, ratesMap }) => {
 };
 
 const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
-  const ITEMS_PER_PAGE = 20;
   const navigate = useNavigate();
   const location = useLocation();
   const qp = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -452,7 +451,6 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
   const [myBets, setMyBets] = useState([]);
   const [gameTransactions, setGameTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
 
   // Scope behavior:
   // - default (null/empty): MAIN markets only (exclude starline/startline)
@@ -780,45 +778,6 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
     return rouletteRoundRows;
   }, [rouletteRoundRows, gameStatusFilter, selectedGameFromQuery]);
 
-  const paginatedSortedFiltered = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return sortedFiltered.slice(start, start + ITEMS_PER_PAGE);
-  }, [sortedFiltered, currentPage, ITEMS_PER_PAGE]);
-
-  const paginatedAviatorRows = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredAviatorRoundRows.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredAviatorRoundRows, currentPage, ITEMS_PER_PAGE]);
-
-  const paginatedFunTimerRows = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredFunTimerRoundRows.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredFunTimerRoundRows, currentPage, ITEMS_PER_PAGE]);
-
-  const paginatedRouletteRows = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredRouletteRoundRows.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredRouletteRoundRows, currentPage, ITEMS_PER_PAGE]);
-
-  const totalRows = useMemo(() => {
-    if (!isGameScope) return sortedFiltered.length;
-    if (!isGameDetailPage) return 0;
-    if (selectedGameFromQuery === 'Aviator') return filteredAviatorRoundRows.length;
-    if (selectedGameFromQuery === 'FunTimer') return filteredFunTimerRoundRows.length;
-    if (selectedGameFromQuery === 'Roulette') return filteredRouletteRoundRows.length;
-    return 0;
-  }, [
-    isGameScope,
-    isGameDetailPage,
-    selectedGameFromQuery,
-    sortedFiltered.length,
-    filteredAviatorRoundRows.length,
-    filteredFunTimerRoundRows.length,
-    filteredRouletteRoundRows.length,
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(totalRows / ITEMS_PER_PAGE));
-
   // Draft state for modal
   const [draftSessions, setDraftSessions] = useState([]);
   const [draftStatuses, setDraftStatuses] = useState([]);
@@ -830,22 +789,6 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
     setDraftStatuses(selectedStatuses);
     setDraftMarkets(selectedMarkets);
   }, [isFilterOpen, selectedMarkets, selectedSessions, selectedStatuses]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    scope,
-    isGameDetailPage,
-    selectedGameFromQuery,
-    selectedSessions,
-    selectedStatuses,
-    selectedMarkets,
-    gameStatusFilter,
-    sortedFiltered.length,
-    filteredAviatorRoundRows.length,
-    filteredFunTimerRoundRows.length,
-    filteredRouletteRoundRows.length,
-  ]);
 
   const toggleDraft = (arr, value, setArr) => {
     setArr((prev) => (prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]));
@@ -996,7 +939,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4">
-                        {paginatedAviatorRows.map((row) => (
+                        {filteredAviatorRoundRows.map((row) => (
                           <AviatorBetHistoryCard
                             key={row.key}
                             index={row.index}
@@ -1043,7 +986,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4">
-                        {paginatedFunTimerRows.map((row) => (
+                        {filteredFunTimerRoundRows.map((row) => (
                           <FunTimerBetHistoryCard
                             key={row.key}
                             index={row.index}
@@ -1092,7 +1035,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4">
-                        {paginatedRouletteRows.map((row) => (
+                        {filteredRouletteRoundRows.map((row) => (
                           <RouletteBetHistoryCard
                             key={row.key}
                             index={row.index}
@@ -1118,7 +1061,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
               {userId ? 'No bets found.' : 'Please login to see your bet history.'}
             </div>
           ) : (
-            paginatedSortedFiltered.map(({ x, r, idx, points, session, marketTitle, verdict }, i) => {
+            sortedFiltered.map(({ x, r, idx, points, session, marketTitle, verdict }, i) => {
               const betValue = r?.number != null ? renderBetNumber(r.number) : '-';
               const statusLabel =
                 verdict.state === 'won' ? 'Win' : verdict.state === 'lost' ? 'Lost' : 'Pending';
@@ -1127,7 +1070,7 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
               return (
                 <BetHistoryCard
                   key={`${x.id}-${r?.id ?? idx}`}
-                  index={(currentPage - 1) * ITEMS_PER_PAGE + i + 1}
+                  index={i + 1}
                   betId={betId}
                   session={session}
                   marketTitle={marketTitle.toUpperCase()}
@@ -1142,29 +1085,6 @@ const BetHistory = ({ pageTitle = 'Bet History', marketScope = null } = {}) => {
             })
           )}
         </div>
-        {!isLoading && totalRows > 0 && totalPages > 1 && (
-          <div className="mt-5 flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage <= 1}
-              className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-[#1B3150] disabled:opacity-50"
-            >
-              Prev
-            </button>
-            <span className="text-sm text-gray-700">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage >= totalPages}
-              className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-[#1B3150] disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Filter modal (as per screenshot) */}

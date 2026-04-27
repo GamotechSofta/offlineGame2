@@ -161,6 +161,14 @@ const AddFund = () => {
                     <div className="rounded-2xl bg-white p-0">
                         {/* Top card (as screenshot) */}
                         <div className="bg-white rounded-2xl shadow-sm border-2 border-gray-300 overflow-hidden">
+                            <div className="px-4 pt-3 pb-2 flex items-center justify-center gap-2 text-sm text-gray-600">
+                                <svg className="w-4 h-4 text-[#1B3150]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h20" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 2c3.5 3.5 3.5 16.5 0 20" />
+                                </svg>
+                                <span className="font-semibold tracking-wide">ShriBalaji</span>
+                            </div>
                             <div className="bg-gradient-to-r from-[#1B3150] via-[#1B3150] to-[#1B3150] px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-3">
                                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/30 border border-white/40 flex items-center justify-center shrink-0">
                                     <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white flex items-center justify-center text-[13px] sm:text-sm font-extrabold text-[#1B3150]">
@@ -300,7 +308,7 @@ const AddFund = () => {
                                 {config?.upiId ? (
                                     <img
                                         src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                                            `upi://pay?pa=${config.upiId}&pn=${encodeURIComponent(config.upiName || 'Golden Games')}${qrAmount != null ? `&am=${qrAmount}` : ''}&cu=INR`
+                                            `upi://pay?pa=${config.upiId}&pn=${encodeURIComponent(config.upiName || 'ShriBalaji')}${qrAmount != null ? `&am=${qrAmount}` : ''}&cu=INR`
                                         )}`}
                                         alt="UPI QR Code"
                                         className="w-[180px] h-[180px]"
@@ -343,7 +351,7 @@ const AddFund = () => {
                             </div>
                             <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
                                 <p className="text-gray-600 text-sm">Pay to</p>
-                                <p className="text-gray-800 font-semibold">{config?.upiName || 'Golden Games'}</p>
+                                <p className="text-gray-800 font-semibold">{config?.upiName || 'ShriBalaji'}</p>
                             </div>
                         </div>
                     </div>
