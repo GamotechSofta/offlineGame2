@@ -6,40 +6,6 @@ const Funds = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Mobile only: prevent page scrolling (as requested)
-  useEffect(() => {
-    let cleanup = () => {};
-    try {
-      const mql = window.matchMedia('(max-width: 767px)');
-      const apply = () => {
-        cleanup();
-        if (!mql.matches) return;
-        const prevBody = document.body.style.overflow;
-        const prevHtml = document.documentElement.style.overflow;
-        const prevOverscrollBody = document.body.style.overscrollBehavior;
-        const prevOverscrollHtml = document.documentElement.style.overscrollBehavior;
-        document.body.style.overflow = 'hidden';
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overscrollBehavior = 'none';
-        document.documentElement.style.overscrollBehavior = 'none';
-        cleanup = () => {
-          document.body.style.overflow = prevBody;
-          document.documentElement.style.overflow = prevHtml;
-          document.body.style.overscrollBehavior = prevOverscrollBody;
-          document.documentElement.style.overscrollBehavior = prevOverscrollHtml;
-        };
-      };
-      apply();
-      mql.addEventListener?.('change', apply);
-      return () => {
-        mql.removeEventListener?.('change', apply);
-        cleanup();
-      };
-    } catch (_) {
-      return () => cleanup();
-    }
-  }, []);
-
   const items = useMemo(() => ([
     {
       key: 'add-fund',
@@ -191,11 +157,11 @@ const Funds = () => {
           ) : (
             // Component view
             <div
-              className={`bg-white border-2 border-gray-300 rounded-2xl shadow-sm ${
+              className={
                 isAddFundMobileView
-                  ? 'p-3 max-h-[calc(100vh-220px)] overflow-y-auto scrollbar-hidden'
-                  : 'p-4 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hidden'
-              }`}
+                  ? 'px-1 sm:px-2 max-h-[calc(100vh-220px)] overflow-y-auto scrollbar-hidden'
+                  : 'bg-white border-2 border-gray-300 rounded-2xl shadow-sm p-4 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hidden'
+              }
             >
               {items.find(i => i.key === mobileView)?.component && (
                 React.createElement(items.find(i => i.key === mobileView).component)
