@@ -66,12 +66,14 @@ const SkeletonRow = () => (
 );
 
 const Passbook = () => {
+  const ITEMS_PER_PAGE = 20;
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all' | 'credit' | 'debit'
   const [balance, setBalance] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); }
@@ -111,6 +113,12 @@ const Passbook = () => {
     return transactions.filter((t) => (t.type || '').toString().toLowerCase() === typeFilter);
   }, [transactions, filter]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const paginatedTransactions = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, currentPage, ITEMS_PER_PAGE]);
+
   const stats = useMemo(() => {
     let totalCredit = 0, totalDebit = 0, creditCount = 0, debitCount = 0;
     transactions.forEach((t) => {
@@ -130,13 +138,17 @@ const Passbook = () => {
   /* ── Group transactions by date ── */
   const grouped = useMemo(() => {
     const map = new Map();
-    filtered.forEach((t) => {
+    paginatedTransactions.forEach((t) => {
       const key = formatDate(t.createdAt);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(t);
     });
     return Array.from(map.entries());
-  }, [filtered]);
+  }, [paginatedTransactions]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, transactions.length]);
 
   const filters = [
     { key: 'all', label: 'All', count: transactions.length },
@@ -323,6 +335,29 @@ const Passbook = () => {
             </div>
           )}
         </div>
+        {!loading && filtered.length > 0 && totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-[#1B3150] disabled:opacity-50"
+            >
+              Prev
+            </button>
+            <span className="text-sm text-gray-700">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-[#1B3150] disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        )}
 
         {/* Bottom spacer */}
         <div className="h-2" />
