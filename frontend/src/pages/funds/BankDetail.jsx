@@ -17,8 +17,6 @@ const BankDetail = () => {
         accountNumber: '',
         ifscCode: '',
         bankName: '',
-        upiId: '',
-        accountType: 'savings',
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -51,8 +49,6 @@ const BankDetail = () => {
             accountNumber: '',
             ifscCode: '',
             bankName: '',
-            upiId: '',
-            accountType: 'savings',
         });
         setEditingId(null);
         setShowForm(false);
@@ -64,8 +60,6 @@ const BankDetail = () => {
             accountNumber: acc.accountNumber || '',
             ifscCode: acc.ifscCode || '',
             bankName: acc.bankName || '',
-            upiId: acc.upiId || '',
-            accountType: acc.accountType || 'savings',
         });
         setEditingId(acc._id);
         setShowForm(true);
@@ -76,13 +70,18 @@ const BankDetail = () => {
         setError('');
         setSuccess('');
 
+        if (!editingId && bankAccounts.length >= 1) {
+            setError('Only 1 bank account is allowed. Please edit the existing account.');
+            return;
+        }
+
         if (!formData.accountHolderName) {
             setError('Account holder name is required');
             return;
         }
 
-        if (!formData.upiId && (!formData.accountNumber || !formData.ifscCode)) {
-            setError('Please provide either UPI ID or bank account details');
+        if (!formData.accountNumber || !formData.ifscCode) {
+            setError('Account number and IFSC code are required');
             return;
         }
 
@@ -168,9 +167,9 @@ const BankDetail = () => {
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-bold text-gray-800">Bank Accounts</h3>
-                    <p className="text-gray-600 text-sm">{bankAccounts.length}/5 accounts added</p>
+                    <p className="text-gray-600 text-sm">{bankAccounts.length}/1 account added</p>
                 </div>
-                {bankAccounts.length < 5 && !showForm && (
+                {bankAccounts.length < 1 && !showForm && (
                     <button
                         onClick={() => setShowForm(true)}
                         className="px-4 py-2 bg-[#1B3150] hover:bg-[#1B3150] text-white rounded-lg text-sm font-medium shadow-md"
@@ -223,18 +222,6 @@ const BankDetail = () => {
                                     placeholder="e.g., HDFC Bank"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-gray-700 text-sm mb-1">Account Type</label>
-                                <select
-                                    value={formData.accountType}
-                                    onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
-                                >
-                                    <option value="savings">Savings</option>
-                                    <option value="current">Current</option>
-                                    <option value="upi_only">UPI Only</option>
-                                </select>
-                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -258,26 +245,6 @@ const BankDetail = () => {
                                     placeholder="e.g., HDFC0001234"
                                 />
                             </div>
-                        </div>
-
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-300"></div>
-                            </div>
-                            <div className="relative flex justify-center">
-                                <span className="px-3 bg-white text-gray-500 text-sm">OR</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-gray-700 text-sm mb-1">UPI ID</label>
-                            <input
-                                type="text"
-                                value={formData.upiId}
-                                onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
-                                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
-                                placeholder="e.g., yourname@paytm"
-                            />
                         </div>
 
                         <div className="flex gap-3">
@@ -346,9 +313,6 @@ const BankDetail = () => {
                                             <p className="text-gray-500 text-sm">
                                                 A/C: ****{acc.accountNumber.slice(-4)} | IFSC: {acc.ifscCode}
                                             </p>
-                                        )}
-                                        {acc.upiId && (
-                                            <p className="text-gray-500 text-sm">UPI: {acc.upiId}</p>
                                         )}
                                     </div>
                                 </div>

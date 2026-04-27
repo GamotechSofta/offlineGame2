@@ -95,11 +95,13 @@ const Funds = () => {
   const isWithdrawFundMobileView = mobileView === 'withdraw-fund';
   const isAddFundHistoryMobileView = mobileView === 'add-fund-history';
   const isWithdrawFundHistoryMobileView = mobileView === 'withdraw-fund-history';
+  const isBankDetailMobileView = mobileView === 'bank-detail';
   const isPlainMobileView =
     isAddFundMobileView ||
     isWithdrawFundMobileView ||
     isAddFundHistoryMobileView ||
-    isWithdrawFundHistoryMobileView;
+    isWithdrawFundHistoryMobileView ||
+    isBankDetailMobileView;
 
   return (
     <div className="min-h-screen bg-white text-gray-800 pl-4 pr-4 sm:pl-5 sm:pr-5 pt-0 md:pt-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">

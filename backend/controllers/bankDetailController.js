@@ -32,8 +32,6 @@ export const addBankDetail = async (req, res) => {
             accountNumber,
             ifscCode,
             bankName,
-            upiId,
-            accountType,
             isDefault,
         } = req.body;
 
@@ -45,27 +43,21 @@ export const addBankDetail = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Account holder name is required' });
         }
 
-        // Must have either bank details or UPI ID
-        if (!upiId && (!accountNumber || !ifscCode)) {
+        // Bank account details are mandatory
+        if (!accountNumber || !ifscCode) {
             return res.status(400).json({
                 success: false,
-                message: 'Please provide either UPI ID or bank account details (account number and IFSC)',
+                message: 'Please provide bank account details (account number and IFSC)',
             });
         }
 
-        // Check limit (max 5 accounts per user)
+        // Check limit (max 1 account per user)
         const existingCount = await BankDetail.countDocuments({ userId, isActive: true });
-        if (existingCount >= 5) {
+        if (existingCount >= 1) {
             return res.status(400).json({
                 success: false,
-                message: 'Maximum 5 bank accounts allowed. Please delete an existing account first.',
+                message: 'Only 1 bank account is allowed. Please update the existing account.',
             });
-        }
-
-        // Determine account type
-        let finalAccountType = accountType || 'savings';
-        if (upiId && !accountNumber) {
-            finalAccountType = 'upi_only';
         }
 
         // If this is the first account or isDefault is true, make it default
@@ -77,8 +69,8 @@ export const addBankDetail = async (req, res) => {
             accountNumber: accountNumber?.trim() || '',
             ifscCode: ifscCode?.trim().toUpperCase() || '',
             bankName: bankName?.trim() || '',
-            upiId: upiId?.trim() || '',
-            accountType: finalAccountType,
+            upiId: '',
+            accountType: 'savings',
             isDefault: shouldBeDefault,
             isVerified: false,
             isActive: true,
