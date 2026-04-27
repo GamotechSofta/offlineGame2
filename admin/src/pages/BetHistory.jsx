@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -29,9 +30,10 @@ const BetHistory = () => {
         fetchBets();
     }, [filters]);
 
-    const fetchBets = async () => {
+    const fetchBets = async (options = {}) => {
+        const isSilent = options.silent === true;
         try {
-            setLoading(true);
+            if (!isSilent) setLoading(true);
             const queryParams = new URLSearchParams();
             if (filters.userId) queryParams.append('userId', filters.userId);
             if (filters.marketId) queryParams.append('marketId', filters.marketId);
@@ -48,9 +50,17 @@ const BetHistory = () => {
         } catch (err) {
             console.error('Error fetching bets:', err);
         } finally {
-            setLoading(false);
+            if (!isSilent) setLoading(false);
         }
     };
+
+    useSectionAutoRefresh({
+        enabled: true,
+        intervalMs: 15000,
+        onRefresh: () => fetchBets({ silent: true }),
+        immediate: false,
+        refreshOnVisible: true,
+    });
 
     // Group bets by market and then by open/close
     const betsByMarket = useMemo(() => {

@@ -28,7 +28,7 @@ import TicketListModal from '../components/threeD/TicketListModal';
 import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
 import AdvanceDrawModal from '../components/AdvanceDrawModal';
 import { getBalance, updateUserBalance } from '../api/bets';
-import { getMyQuizBets, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
+import { cancelMyQuizBet, getMyQuizBets, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
 import { getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
@@ -387,11 +387,15 @@ const ThreeDGame = () => {
         let totalWin = 0;
         let hasPending = false;
         let hasWin = false;
+        let hasLoss = false;
+        let hasCancelled = false;
         const bets = sortedRows.map((row) => {
           const status = String(row?.status || '').toLowerCase();
-          const outcome = status === 'win' ? 'win' : status === 'lose' ? 'loss' : 'pending';
+          const outcome = status === 'win' ? 'win' : status === 'lose' ? 'loss' : status === 'cancelled' ? 'cancelled' : 'pending';
           if (outcome === 'pending') hasPending = true;
           if (outcome === 'win') hasWin = true;
+          if (outcome === 'loss') hasLoss = true;
+          if (outcome === 'cancelled') hasCancelled = true;
           const setPanel = Number(row?.quizId) === 1 ? 'A' : Number(row?.quizId) === 2 ? 'B' : Number(row?.quizId) === 3 ? 'C' : 'A';
           const number3 = String(row?.number ?? '').replace(/\D/g, '').slice(-3).padStart(3, '0');
           const betMode = String(row?.betMode || row?.mode || 'str').trim().toLowerCase();
@@ -414,7 +418,7 @@ const ThreeDGame = () => {
           };
         });
 
-        const outcome = hasPending ? 'pending' : (hasWin ? 'win' : 'loss');
+        const outcome = hasPending ? 'pending' : (hasWin ? 'win' : (hasCancelled && !hasLoss ? 'cancelled' : 'loss'));
         return {
           id: `backend-slot-${slotStartIso}`,
           userName: playerIdentity || 'user',
@@ -1405,7 +1409,7 @@ const ThreeDGame = () => {
     await handleBuy();
   }, [handleBuy]);
 
-  const handleCancelPendingTicket = useCallback(() => {
+  const handleCancelPendingTicket = useCallback(async () => {
     const nowMs = Date.now();
     const cancellable = (ticketHistory || []).find((ticket) => {
       if (ticket?.settled) return false;
@@ -1422,6 +1426,28 @@ const ThreeDGame = () => {
     const ticketLabel = cancellable?.gameId || String(cancellable?.id || '');
     const ok = window.confirm(`Cancel ticket ${ticketLabel} before draw and refund ₹${refundAmount}?`);
     if (!ok) return;
+
+    let backendBalance = null;
+    try {
+      const slotStartIso = computeSlotStartIsoFromSettleAtMs(getTicketSettleAtMs(cancellable));
+      if (slotStartIso) {
+        const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
+        const rows = Array.isArray(j?.data) ? j.data : [];
+        const cancellableRows = rows.filter((row) => {
+          const status = String(row?.status || '').toLowerCase();
+          return String(row?.slotStartIso || '') === String(slotStartIso) && status === 'pending' && row?.id;
+        });
+        for (const row of cancellableRows) {
+          // eslint-disable-next-line no-await-in-loop
+          const cancelled = await cancelMyQuizBet(row.id, '3d');
+          const b = Number(cancelled?.data?.balance);
+          if (Number.isFinite(b)) backendBalance = b;
+        }
+      }
+    } catch (e) {
+      setValidationMsg(e?.message || 'Failed to cancel ticket on server.');
+      return;
+    }
 
     setTicketHistory((prev) => prev.map((ticket) => {
       if (ticket?.id !== cancellable.id) return ticket;
@@ -1444,7 +1470,11 @@ const ThreeDGame = () => {
       };
     }));
 
-    if (refundAmount > 0) {
+    if (backendBalance != null) {
+      updateUserBalance(backendBalance);
+      setWalletBalance(backendBalance);
+      await loadBackendHistoryTickets();
+    } else if (refundAmount > 0) {
       setWalletBalance((prev) => {
         const next = (Number(prev) || 0) + refundAmount;
         updateUserBalance(next);
@@ -1454,7 +1484,7 @@ const ThreeDGame = () => {
 
     setToast('Ticket cancelled');
     setValidationMsg(`Ticket ${ticketLabel} cancelled. Refund ₹${refundAmount} credited.`);
-  }, [getTicketSettleAtMs, ticketHistory]);
+  }, [computeSlotStartIsoFromSettleAtMs, getTicketSettleAtMs, loadBackendHistoryTickets, ticketHistory]);
 
   useEffect(() => {
     if (!resultUpdatedAt) return;

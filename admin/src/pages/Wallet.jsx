@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -20,9 +21,10 @@ const Wallet = () => {
         }
     }, [activeTab]);
 
-    const fetchWallets = async () => {
+    const fetchWallets = async (options = {}) => {
+        const isSilent = options.silent === true;
         try {
-            setLoading(true);
+            if (!isSilent) setLoading(true);
             const response = await fetchWithAuth(`${API_BASE_URL}/wallet/all`);
             if (response.status === 401) return;
             const data = await response.json();
@@ -32,13 +34,14 @@ const Wallet = () => {
         } catch (err) {
             console.error('Error fetching wallets:', err);
         } finally {
-            setLoading(false);
+            if (!isSilent) setLoading(false);
         }
     };
 
-    const fetchTransactions = async () => {
+    const fetchTransactions = async (options = {}) => {
+        const isSilent = options.silent === true;
         try {
-            setLoading(true);
+            if (!isSilent) setLoading(true);
             const response = await fetchWithAuth(`${API_BASE_URL}/wallet/transactions`);
             if (response.status === 401) return;
             const data = await response.json();
@@ -48,9 +51,23 @@ const Wallet = () => {
         } catch (err) {
             console.error('Error fetching transactions:', err);
         } finally {
-            setLoading(false);
+            if (!isSilent) setLoading(false);
         }
     };
+
+    useSectionAutoRefresh({
+        enabled: true,
+        intervalMs: 15000,
+        onRefresh: () => {
+            if (activeTab === 'wallets') {
+                fetchWallets({ silent: true });
+            } else {
+                fetchTransactions({ silent: true });
+            }
+        },
+        immediate: false,
+        refreshOnVisible: true,
+    });
 
     const handleAdjustBalance = async (userId, amount, type) => {
         try {

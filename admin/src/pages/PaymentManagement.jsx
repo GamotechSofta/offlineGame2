@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowDown, FaArrowUp, FaClock, FaFilter, FaEye, FaCheck, FaTimes, FaImage, FaWallet } from 'react-icons/fa';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -48,9 +49,10 @@ const PaymentManagement = () => {
             .catch(() => setHasSecretDeclarePassword(false));
     }, []);
 
-    const fetchPayments = async () => {
+    const fetchPayments = async (options = {}) => {
+        const isSilent = options.silent === true;
         try {
-            setLoading(true);
+            if (!isSilent) setLoading(true);
             const queryParams = new URLSearchParams();
             if (filters.status) queryParams.append('status', filters.status);
             if (filters.type) queryParams.append('type', filters.type);
@@ -64,7 +66,7 @@ const PaymentManagement = () => {
         } catch (err) {
             console.error('Error fetching payments:', err);
         } finally {
-            setLoading(false);
+            if (!isSilent) setLoading(false);
         }
     };
 
@@ -80,6 +82,17 @@ const PaymentManagement = () => {
             console.error('Error fetching pending counts:', err);
         }
     };
+
+    useSectionAutoRefresh({
+        enabled: true,
+        intervalMs: 12000,
+        onRefresh: () => {
+            fetchPayments({ silent: true });
+            fetchPendingCounts();
+        },
+        immediate: false,
+        refreshOnVisible: true,
+    });
 
     const openActionModal = (payment, action) => {
         setActionModal({ show: true, payment, action });

@@ -15,6 +15,7 @@ import {
     FaWallet,
     FaPrint,
 } from 'react-icons/fa';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession } from '../lib/auth';
@@ -121,9 +122,10 @@ const Reports = () => {
         fetchReport();
     }, [dateRange]);
 
-    const fetchReport = async () => {
+    const fetchReport = async (options = {}) => {
+        const isSilent = options.silent === true;
         try {
-            setLoading(true);
+            if (!isSilent) setLoading(true);
             const response = await fetch(
                 `${API_BASE_URL}/reports?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
                 { headers: getAuthHeaders() }
@@ -138,9 +140,17 @@ const Reports = () => {
             console.error('Error fetching report:', err);
             setReport(null);
         } finally {
-            setLoading(false);
+            if (!isSilent) setLoading(false);
         }
     };
+
+    useSectionAutoRefresh({
+        enabled: true,
+        intervalMs: 20000,
+        onRefresh: () => fetchReport({ silent: true }),
+        immediate: false,
+        refreshOnVisible: true,
+    });
 
     const applyPreset = (presetId) => {
         const preset = PRESETS.find((p) => p.id === presetId);

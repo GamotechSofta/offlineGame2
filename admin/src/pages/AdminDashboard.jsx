@@ -21,8 +21,8 @@ import {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
-const LOTTERY_LIVE_REFRESH_MS = 8000;
-const DASHBOARD_SECTION_REFRESH_MS = 20000;
+const LOTTERY_LIVE_REFRESH_MS = 2000;
+const DASHBOARD_SECTION_REFRESH_MS = 4000;
 
 const PRESETS = [
     { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
@@ -131,6 +131,7 @@ const AdminDashboard = () => {
     const [customMode, setCustomMode] = useState(false);
     const [customOpen, setCustomOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [rangeUpdating, setRangeUpdating] = useState(false);
     const [adminRole, setAdminRole] = useState('');
     const [marketOptions, setMarketOptions] = useState([]);
     const [selectedMarketId, setSelectedMarketId] = useState('');
@@ -138,6 +139,7 @@ const AdminDashboard = () => {
         twoD: { current: null, latest: null, error: '' },
         threeD: { current: null, latest: null, error: '' },
     });
+    const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
 
     const hasChanged = (a, b) => JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
     const mergeSectionStats = (prev, next) => {
@@ -369,6 +371,7 @@ const AdminDashboard = () => {
         } catch (err) {
             if (!isSilent) setError('Network error. Please check if the server is running.');
         } finally {
+            setIsAutoRefreshing(false);
             if (!isSilent) {
                 setLoading(false);
                 setRefreshing(false);
@@ -384,14 +387,24 @@ const AdminDashboard = () => {
         fetchDashboardStats(undefined, { refresh: true });
         fetchLotteryDashboardStats(range);
     };
+    const applyRangeUpdate = async (range, marketIdOverride) => {
+        setRangeUpdating(true);
+        try {
+            await Promise.all([
+                fetchDashboardStats(range, { silent: true, marketIdOverride }),
+                fetchLotteryDashboardStats(range),
+            ]);
+        } finally {
+            setRangeUpdating(false);
+        }
+    };
     const handlePresetSelect = (presetId) => {
         setDatePreset(presetId);
         setCustomMode(false);
         setCustomOpen(false);
         const preset = PRESETS.find((p) => p.id === presetId);
         const range = preset ? preset.getRange() : PRESETS[0].getRange();
-        fetchDashboardStats(range);
-        fetchLotteryDashboardStats(range);
+        applyRangeUpdate(range);
     };
     const handleCustomToggle = () => { setCustomMode(true); setCustomOpen((o) => !o); };
     const handleCustomApply = () => {
@@ -400,8 +413,7 @@ const AdminDashboard = () => {
         setCustomMode(true);
         setCustomOpen(false);
         const range = { from: customFrom, to: customTo };
-        fetchDashboardStats(range);
-        fetchLotteryDashboardStats(range);
+        applyRangeUpdate(range);
     };
 
     const handleLogout = () => {
@@ -419,11 +431,14 @@ const AdminDashboard = () => {
 
         const refreshDashboardSections = () => {
             if (document.visibilityState !== 'visible') return;
+            if (rangeUpdating || isAutoRefreshing) return;
+            setIsAutoRefreshing(true);
             fetchDashboardStats(getEffectiveRange(), { refresh: true, silent: true });
         };
 
         const refreshLotterySections = () => {
             if (document.visibilityState !== 'visible') return;
+            if (rangeUpdating) return;
             fetchLotteryDashboardStats(getEffectiveRange());
         };
 
@@ -446,7 +461,7 @@ const AdminDashboard = () => {
             window.removeEventListener('focus', onVisible);
             document.removeEventListener('visibilitychange', onVisible);
         };
-    }, [customFrom, customMode, customTo, datePreset, loading, selectedMarketId]);
+    }, [customFrom, customMode, customTo, datePreset, loading, selectedMarketId, rangeUpdating, isAutoRefreshing]);
 
     const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
     const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN');
@@ -618,6 +633,9 @@ const AdminDashboard = () => {
                         )}
                     </div>
                     <p className="text-xs text-gray-500 mt-2">Showing data for: <span className="text-orange-500 font-medium">{displayLabel}</span></p>
+                    {rangeUpdating && (
+                        <p className="text-xs text-blue-600 mt-2 font-medium">Updating selected range data...</p>
+                    )}
                     <div className="mt-3">
                         <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Market</p>
                         <select
@@ -628,7 +646,7 @@ const AdminDashboard = () => {
                                 const range = customMode && customFrom && customTo
                                     ? { from: customFrom, to: customTo }
                                     : getFromTo();
-                                fetchDashboardStats(range, { marketIdOverride: nextMarketId });
+                                applyRangeUpdate(range, nextMarketId);
                             }}
                             className="w-full sm:w-auto min-w-[260px] px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800"
                         >
