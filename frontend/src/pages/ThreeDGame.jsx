@@ -694,7 +694,21 @@ const ThreeDGame = () => {
 
   useEffect(() => {
     const onResize = () => {
-      setViewport({ width: window.innerWidth, height: window.innerHeight });
+      const next = { width: window.innerWidth, height: window.innerHeight };
+      const isMobileDevice = Math.max(window.screen?.width || 0, window.screen?.height || 0) <= 1024;
+      setViewport((prev) => {
+        const wasLandscape = prev.width > prev.height;
+        const isLandscape = next.width > next.height;
+        const widthDelta = Math.abs(next.width - prev.width);
+        const heightDelta = Math.abs(next.height - prev.height);
+
+        // On mobile landscape, browser chrome show/hide can jitter height and cause visible scale flicker.
+        if (isMobileDevice && wasLandscape && isLandscape && widthDelta <= 1 && heightDelta <= 140) {
+          return prev;
+        }
+        if (widthDelta <= 1 && heightDelta <= 1) return prev;
+        return next;
+      });
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -1389,6 +1403,10 @@ const ThreeDGame = () => {
         : 'Status: pending. Result will be shown after draw time.',
     );
     setBets([]);
+    setSelectedPanels(['A']);
+    setSelectedDigits([]);
+    setSelectedModes(['box']);
+    setLPickType('box');
     setSelectedAdvanceSlots([]);
     return { ok: true };
     } finally {
@@ -1635,7 +1653,9 @@ const ThreeDGame = () => {
       return;
     }
     if (label.toLowerCase() === 'refresh') {
-      window.location.reload();
+      refreshLastDrawResult();
+      refreshWalletBalance();
+      setToast('Refreshed');
       return;
     }
     if (label.toLowerCase() === 'ticket list') {
@@ -1658,7 +1678,7 @@ const ThreeDGame = () => {
       return;
     }
     setToast(`${label} clicked`);
-  }, [applyFreshResult, handleCancelPendingTicket, handleRotateLandscape, loadBackendHistoryTickets, navigate, now]);
+  }, [handleCancelPendingTicket, handleRotateLandscape, loadBackendHistoryTickets, navigate, now, refreshLastDrawResult, refreshWalletBalance]);
 
   const handleGoHome = useCallback(async () => {
     try {
@@ -2266,18 +2286,6 @@ const ThreeDGame = () => {
             <div className="flex min-h-0 w-full flex-col justify-center">
             <Keypad
               onDigit={handleDigitInput}
-              onClear={() => {
-                const focusedIndex = resolveKeypadTargetIndex();
-                if (focusedIndex === -1 || focusedIndex === 0) {
-                  if (focusedIndex === -1) setPoints(String(selectedRate));
-                  setInputNumber('');
-                }
-                else if (focusedIndex === 1) setRangeFrom('');
-                else if (focusedIndex === 2) setRangeTo('');
-                else if (focusedIndex === 3) setQty('');
-                else setInputNumber('');
-                if (validationMsg) setValidationMsg('');
-              }}
               onDelete={() => {
                 const focusedIndex = resolveKeypadTargetIndex();
                 if (focusedIndex === -1 || focusedIndex === 0) {
