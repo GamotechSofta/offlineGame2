@@ -50,6 +50,7 @@ const ThreeDResultControl = () => {
     const [secretCheckComplete, setSecretCheckComplete] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
+    const [slotDetailMap, setSlotDetailMap] = useState({});
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -273,6 +274,45 @@ const ThreeDResultControl = () => {
         [...slots].sort((a, b) => String(b.slotStartIso || '').localeCompare(String(a.slotStartIso || '')))
     ), [slots]);
 
+    useEffect(() => {
+        if (!sortedSlots.length) {
+            setSlotDetailMap({});
+            return;
+        }
+        let cancelled = false;
+        const loadSlotDetails = async () => {
+            try {
+                const settled = await Promise.allSettled(
+                    sortedSlots.map(async (slot) => {
+                        const slotStartIso = slot?.slotStartIso;
+                        if (!slotStartIso) return [null, null];
+                        const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/${encodeURIComponent(slotStartIso)}/detail`);
+                        if (res.status === 401) return [slotStartIso, null];
+                        const json = await res.json();
+                        if (!json?.success) return [slotStartIso, null];
+                        return [slotStartIso, json?.data || null];
+                    }),
+                );
+                if (cancelled) return;
+                const nextMap = {};
+                settled.forEach((entry) => {
+                    if (entry.status !== 'fulfilled') return;
+                    const [slotStartIso, detail] = entry.value || [];
+                    if (slotStartIso) nextMap[slotStartIso] = detail;
+                });
+                setSlotDetailMap(nextMap);
+            } catch {
+                if (!cancelled) {
+                    setSlotDetailMap({});
+                }
+            }
+        };
+        loadSlotDetails();
+        return () => {
+            cancelled = true;
+        };
+    }, [sortedSlots]);
+
     return (
         <AdminLayout onLogout={handleLogout} title="3D Result Control">
             <div className="relative min-h-[60vh] space-y-5">
@@ -404,8 +444,9 @@ const ThreeDResultControl = () => {
                                                         </td>
                                                         {[1, 2, 3].map((quizId) => {
                                                             const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
+                                                            const detailQuiz = (slotDetailMap?.[slot.slotStartIso]?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                             const visibleResultLabel = (slot?.isCompleted || isRunning) ? (q?.resultLabel || '--') : '--';
-                                                            const pl = formatHousePl(q?.houseNetIfHintWins);
+                                                            const pl = formatHousePl(detailQuiz?.houseNetIfHintWins ?? q?.houseNetIfHintWins);
                                                             return (
                                                                 <td key={`${slot.slotStartIso}-${quizId}`} className="p-2.5 text-center align-top">
                                                                     <div className="font-mono text-sm font-semibold text-gray-800">{visibleResultLabel}</div>
