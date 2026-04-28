@@ -494,14 +494,20 @@ const PlayerDetail = () => {
     const fetchStatement = async () => {
         setLoadingTab(true);
         try {
-            const [betsRes, txRes] = await Promise.all([
+            const [betsRes, txRes, lottery2DRes, lottery3DRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/bets/history?userId=${userId}&startDate=${dateFrom}&endDate=${dateTo}`, { headers: getBookieAuthHeaders() }),
                 fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}&includeBet=1`, { headers: getBookieAuthHeaders() }),
+                fetch(`${API_BASE_URL}/admin/lottery2d/players/${userId}/history?limit=100`, { headers: getBookieAuthHeaders() }),
+                fetch(`${API_BASE_URL}/admin/lottery3d/players/${userId}/history?limit=100`, { headers: getBookieAuthHeaders() }),
             ]);
             const betsData = await betsRes.json();
             const txData = await txRes.json();
+            const lottery2DData = await lottery2DRes.json();
+            const lottery3DData = await lottery3DRes.json();
             const betList = betsData.success ? betsData.data || [] : [];
             const txList = txData.success ? txData.data || [] : [];
+            const lotterySlots2D = lottery2DData?.success ? lottery2DData?.data?.slots || [] : [];
+            const lotterySlots3D = lottery3DData?.success ? lottery3DData?.data?.slots || [] : [];
             
             const start = new Date(dateFrom); start.setHours(0, 0, 0, 0);
             const end = new Date(dateTo); end.setHours(23, 59, 59, 999);
@@ -511,8 +517,19 @@ const PlayerDetail = () => {
                 const d = new Date(b.createdAt);
                 return d >= start && d <= end;
             });
+
+            const lotteryRowsInRange = [...lotterySlots2D, ...lotterySlots3D].flatMap((slot) => (
+                Array.isArray(slot?.bets) ? slot.bets.map((bet) => ({
+                    amount: Number(bet?.amount || 0),
+                    createdAt: bet?.createdAt || slot?.slotStartIso || null,
+                })) : []
+            )).filter((row) => {
+                const d = new Date(row.createdAt);
+                return d >= start && d <= end;
+            });
             
-            const totalBetAmount = filteredBets.reduce((sum, b) => sum + (b.amount || 0), 0);
+            const totalLotteryBetAmount = lotteryRowsInRange.reduce((sum, row) => sum + row.amount, 0);
+            const totalBetAmount = filteredBets.reduce((sum, b) => sum + (b.amount || 0), 0) + totalLotteryBetAmount;
             const totalWinAmount = filteredBets.filter(b => b.status === 'won').reduce((sum, b) => sum + (b.payout || 0), 0);
             const totalLossAmount = filteredBets.filter(b => b.status === 'lost').reduce((sum, b) => sum + (b.amount || 0), 0);
             const totalPendingBets = filteredBets.filter(b => b.status === 'pending').reduce((sum, b) => sum + (b.amount || 0), 0);
@@ -776,7 +793,7 @@ const PlayerDetail = () => {
         won: bets.filter((b) => b.status === 'won').length,
         lost: bets.filter((b) => b.status === 'lost').length,
         pending: bets.filter((b) => b.status === 'pending').length,
-        totalAmount: bets.reduce((s, b) => s + (b.amount || 0), 0),
+        totalAmount: bets.reduce((s, b) => s + (b.amount || 0), 0) + [...(lotteryHistory.twoD || []), ...(lotteryHistory.threeD || [])].reduce((s, row) => s + Number(row.amount || 0), 0),
         totalPayout: bets.filter((b) => b.status === 'won').reduce((s, b) => s + (b.payout || 0), 0),
     };
 

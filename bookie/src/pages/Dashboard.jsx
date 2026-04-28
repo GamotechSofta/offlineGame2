@@ -149,6 +149,7 @@ const Dashboard = () => {
         pendingAmount: 0,
         netProfit: 0,
     });
+    const [commissionBaseTotal, setCommissionBaseTotal] = useState(0);
     const [lotteryStats, setLotteryStats] = useState({
         twoD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
         threeD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
@@ -335,6 +336,7 @@ const Dashboard = () => {
             if (from) params.set('startDate', from);
             if (to) params.set('endDate', to);
             if (marketId && marketId !== 'all') params.set('marketId', marketId);
+            params.set('placedBy', 'user');
             const res = await fetch(`${API_BASE_URL}/bets/history?${params.toString()}`, {
                 headers: getBookieAuthHeaders(),
             });
@@ -371,7 +373,13 @@ const Dashboard = () => {
             const query = params.toString();
             const url = `${API_BASE_URL}/dashboard/stats${query ? `?${query}` : ''}`;
             const headers = getBookieAuthHeaders();
-            const [statsRes, usersRes] = await Promise.all([
+            const revenueParams = new URLSearchParams();
+            if (from && to) {
+                revenueParams.set('startDate', from);
+                revenueParams.set('endDate', to);
+            }
+            const revenueUrl = `${API_BASE_URL}/reports/revenue${revenueParams.toString() ? `?${revenueParams.toString()}` : ''}`;
+            const [statsRes, usersRes, revenueRes] = await Promise.all([
                 fetch(url, {
                     headers,
                     cache: isRefresh ? 'no-store' : 'default',
@@ -380,10 +388,15 @@ const Dashboard = () => {
                     headers,
                     cache: isRefresh ? 'no-store' : 'default',
                 }),
+                fetch(revenueUrl, {
+                    headers,
+                    cache: isRefresh ? 'no-store' : 'default',
+                }),
             ]);
-            const [statsData, usersData] = await Promise.all([statsRes.json(), usersRes.json()]);
+            const [statsData, usersData, revenueData] = await Promise.all([statsRes.json(), usersRes.json(), revenueRes.json()]);
             if (statsData.success) {
                 setStats(statsData.data);
+                setCommissionBaseTotal(revenueData?.success ? Number(revenueData?.data?.totalBetAmount || 0) : 0);
                 const allUsers = usersData?.success && Array.isArray(usersData?.data) ? usersData.data : [];
                 const topPlayers = [...allUsers]
                     .sort((a, b) => (Number(b?.walletBalance ?? 0) || 0) - (Number(a?.walletBalance ?? 0) || 0))
@@ -473,10 +486,6 @@ const Dashboard = () => {
     const lotteryAllSlotsNet = twoDAllSlotsNet + threeDAllSlotsNet;
     const marketPendingAmount = Number(marketReport.pendingAmount || 0);
     const computedTotalProfit = (Number(marketReport.netProfit) || 0) + lotteryAllSlotsNet + (toReceived - toGive);
-    const aviatorRevenue = Number(stats?.gameWiseRevenue?.aviator?.revenue || 0);
-    const funTimerRevenue = Number(stats?.gameWiseRevenue?.funTimer?.revenue || 0);
-    const rouletteRevenue = Number(stats?.gameWiseRevenue?.roulette?.revenue || 0);
-    const gamesTotalRevenue = aviatorRevenue + funTimerRevenue + rouletteRevenue;
 
     if (loading) {
         return (
@@ -632,14 +641,8 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetAmount')}</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency((marketReport.totalBetAmount || 0) + lotteryAllSlotsRevenue + gamesTotalRevenue)}</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(commissionBaseTotal)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('totalBetAmountDescription')}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        2D: <span className="font-medium">{formatCurrency(twoDAllSlotsRevenue)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDAllSlotsRevenue)}</span> · Lottery: <span className="font-medium text-green-600">{formatCurrency(lotteryAllSlotsRevenue)}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        Aviator: <span className="font-medium">{formatCurrency(aviatorRevenue)}</span> · FunTimer: <span className="font-medium">{formatCurrency(funTimerRevenue)}</span> · Roulette: <span className="font-medium">{formatCurrency(rouletteRevenue)}</span>
-                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toReceived')}</p>

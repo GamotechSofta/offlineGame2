@@ -5,6 +5,69 @@ import Admin from '../models/admin/admin.js';
 import { Wallet } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
+import QuizBet from '../models/quiz/QuizBet.js';
+
+const aggregatePlayerBetMetrics = async ({ userIds, dateFilter = {} }) => {
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+        return {
+            totalBetAmount: 0,
+            totalPayouts: 0,
+            totalBets: 0,
+            winningBets: 0,
+            losingBets: 0,
+        };
+    }
+
+    const matkaMatch = {
+        ...dateFilter,
+        userId: { $in: userIds },
+        $or: [
+            { placedByBookie: false },
+            { placedByBookie: { $exists: false } },
+        ],
+    };
+    const quizMatch = { ...dateFilter, userId: { $in: userIds } };
+
+    const [
+        matkaAgg,
+        matkaPayoutAgg,
+        quizAgg,
+        quizPayoutAgg,
+        matkaWins,
+        matkaLosses,
+        quizWins,
+        quizLosses,
+    ] = await Promise.all([
+        Bet.aggregate([
+            { $match: matkaMatch },
+            { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
+        ]),
+        Bet.aggregate([
+            { $match: { ...matkaMatch, status: 'won' } },
+            { $group: { _id: null, totalPayout: { $sum: '$payout' } } },
+        ]),
+        QuizBet.aggregate([
+            { $match: quizMatch },
+            { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
+        ]),
+        QuizBet.aggregate([
+            { $match: { ...quizMatch, status: 'win' } },
+            { $group: { _id: null, totalPayout: { $sum: '$winPayout' } } },
+        ]),
+        Bet.countDocuments({ ...matkaMatch, status: 'won' }),
+        Bet.countDocuments({ ...matkaMatch, status: 'lost' }),
+        QuizBet.countDocuments({ ...quizMatch, status: 'win' }),
+        QuizBet.countDocuments({ ...quizMatch, status: 'lose' }),
+    ]);
+
+    return {
+        totalBetAmount: Number(matkaAgg?.[0]?.totalAmount || 0) + Number(quizAgg?.[0]?.totalAmount || 0),
+        totalPayouts: Number(matkaPayoutAgg?.[0]?.totalPayout || 0) + Number(quizPayoutAgg?.[0]?.totalPayout || 0),
+        totalBets: Number(matkaAgg?.[0]?.count || 0) + Number(quizAgg?.[0]?.count || 0),
+        winningBets: Number(matkaWins || 0) + Number(quizWins || 0),
+        losingBets: Number(matkaLosses || 0) + Number(quizLosses || 0),
+    };
+};
 
 export const getReport = async (req, res) => {
     try {
@@ -94,10 +157,7 @@ export const getRevenueReport = async (req, res) => {
             const users = await User.find({ referredBy: admin._id }).select('_id').lean();
             const userIds = users.map((u) => u._id);
 
-            const betFilter = { ...dateFilter };
-            if (userIds.length > 0) {
-                betFilter.userId = { $in: userIds };
-            } else {
+            if (userIds.length === 0) {
                 // Bookie has no users yet
                 return res.status(200).json({
                     success: true,
@@ -114,30 +174,18 @@ export const getRevenueReport = async (req, res) => {
                 });
             }
 
-            const [betAgg] = await Bet.aggregate([
-                { $match: betFilter },
-                { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
-            ]);
-
-            const [payoutAgg] = await Bet.aggregate([
-                { $match: { status: 'won', ...betFilter } },
-                { $group: { _id: null, totalPayout: { $sum: '$payout' } } },
-            ]);
-
-            const totalBetAmount = betAgg?.totalAmount || 0;
-            const totalPayouts = payoutAgg?.totalPayout || 0;
-            const totalBets = betAgg?.count || 0;
+            const metrics = await aggregatePlayerBetMetrics({ userIds, dateFilter });
+            const totalBetAmount = metrics.totalBetAmount;
+            const totalPayouts = metrics.totalPayouts;
+            const totalBets = metrics.totalBets;
             const commissionPct = admin.commissionPercentage || 0;
             const bookieRevenue = Math.round((totalBetAmount * commissionPct / 100) * 100) / 100;
-            const winningBets = await Bet.countDocuments({ status: 'won', ...betFilter });
-            const losingBets = await Bet.countDocuments({ status: 'lost', ...betFilter });
+            const winningBets = metrics.winningBets;
+            const losingBets = metrics.losingBets;
 
             // Payment tracking is calculated against all-time commission.
-            const [allTimeBetAgg] = await Bet.aggregate([
-                { $match: { userId: { $in: userIds } } },
-                { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
-            ]);
-            const allTimeBetAmount = allTimeBetAgg?.totalAmount || 0;
+            const allTimeMetrics = await aggregatePlayerBetMetrics({ userIds });
+            const allTimeBetAmount = allTimeMetrics.totalBetAmount;
             const allTimeCommission = Math.round((allTimeBetAmount * commissionPct / 100) * 100) / 100;
             const [paidAgg] = await CommissionPayment.aggregate([
                 { $match: { bookieId: admin._id } },
@@ -213,21 +261,10 @@ export const getRevenueReport = async (req, res) => {
                 continue;
             }
 
-            const betFilter = { ...dateFilter, userId: { $in: userIds } };
-
-            const [betAgg] = await Bet.aggregate([
-                { $match: betFilter },
-                { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
-            ]);
-
-            const [payoutAgg] = await Bet.aggregate([
-                { $match: { status: 'won', ...betFilter } },
-                { $group: { _id: null, totalPayout: { $sum: '$payout' } } },
-            ]);
-
-            const totalBetAmount = betAgg?.totalAmount || 0;
-            const totalPayouts = payoutAgg?.totalPayout || 0;
-            const totalBets = betAgg?.count || 0;
+            const metrics = await aggregatePlayerBetMetrics({ userIds, dateFilter });
+            const totalBetAmount = metrics.totalBetAmount;
+            const totalPayouts = metrics.totalPayouts;
+            const totalBets = metrics.totalBets;
             const commPct = bookie.commissionPercentage || 0;
 
             const bookieShare = Math.round((totalBetAmount * commPct / 100) * 100) / 100;
@@ -258,21 +295,10 @@ export const getRevenueReport = async (req, res) => {
         // Direct users (admin's own users - 100% admin revenue)
         let directStats = { totalBetAmount: 0, totalPayouts: 0, adminProfit: 0, totalBets: 0 };
         if (directUserIds.length > 0) {
-            const betFilter = { ...dateFilter, userId: { $in: directUserIds } };
-
-            const [betAgg] = await Bet.aggregate([
-                { $match: betFilter },
-                { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
-            ]);
-
-            const [payoutAgg] = await Bet.aggregate([
-                { $match: { status: 'won', ...betFilter } },
-                { $group: { _id: null, totalPayout: { $sum: '$payout' } } },
-            ]);
-
-            const totalBetAmount = betAgg?.totalAmount || 0;
-            const totalPayouts = payoutAgg?.totalPayout || 0;
-            const totalBets = betAgg?.count || 0;
+            const metrics = await aggregatePlayerBetMetrics({ userIds: directUserIds, dateFilter });
+            const totalBetAmount = metrics.totalBetAmount;
+            const totalPayouts = metrics.totalPayouts;
+            const totalBets = metrics.totalBets;
 
             directStats = {
                 totalBetAmount,
@@ -347,22 +373,12 @@ export const getBookieRevenueDetail = async (req, res) => {
         let losingBets = 0;
 
         if (userIds.length > 0) {
-            const betFilter = { ...dateFilter, userId: { $in: userIds } };
-
-            const [betAgg] = await Bet.aggregate([
-                { $match: betFilter },
-                { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
-            ]);
-            const [payoutAgg] = await Bet.aggregate([
-                { $match: { status: 'won', ...betFilter } },
-                { $group: { _id: null, totalPayout: { $sum: '$payout' } } },
-            ]);
-
-            totalBetAmount = betAgg?.totalAmount || 0;
-            totalPayouts = payoutAgg?.totalPayout || 0;
-            totalBetCount = betAgg?.count || 0;
-            winningBets = await Bet.countDocuments({ status: 'won', ...betFilter });
-            losingBets = await Bet.countDocuments({ status: 'lost', ...betFilter });
+            const metrics = await aggregatePlayerBetMetrics({ userIds, dateFilter });
+            totalBetAmount = metrics.totalBetAmount;
+            totalPayouts = metrics.totalPayouts;
+            totalBetCount = metrics.totalBets;
+            winningBets = metrics.winningBets;
+            losingBets = metrics.losingBets;
         }
 
         const commPct = bookie.commissionPercentage || 0;

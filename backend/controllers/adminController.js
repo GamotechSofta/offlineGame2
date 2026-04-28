@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import DailyCommission from '../models/dailyCommission/dailyCommission.js';
 import User from '../models/user/user.js';
 import Bet from '../models/bet/bet.js';
+import QuizBet from '../models/quiz/QuizBet.js';
 import { SP_COMMON_LIST } from '../config/spCommonList.js';
 import { DP_COMMON_LIST } from '../config/dpCommonList.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
@@ -332,13 +333,28 @@ export const getAllBookies = async (req, res) => {
                 .lean();
             const userIds = users.map((u) => u._id);
             if (userIds.length > 0) {
-                const betAgg = await Bet.aggregate([
-                    { $match: { userId: { $in: userIds }, status: { $ne: 'cancelled' } } },
-                    { $group: { _id: '$userId', totalBetAmount: { $sum: '$amount' } } },
+                const [matkaAgg, lotteryAgg] = await Promise.all([
+                    Bet.aggregate([
+                        {
+                            $match: {
+                                userId: { $in: userIds },
+                                status: { $ne: 'cancelled' },
+                                $or: [
+                                    { placedByBookie: false },
+                                    { placedByBookie: { $exists: false } },
+                                ],
+                            },
+                        },
+                        { $group: { _id: '$userId', totalBetAmount: { $sum: '$amount' } } },
+                    ]),
+                    QuizBet.aggregate([
+                        { $match: { userId: { $in: userIds }, status: { $ne: 'cancelled' } } },
+                        { $group: { _id: '$userId', totalBetAmount: { $sum: '$amount' } } },
+                    ]),
                 ]);
                 const userToBookie = Object.fromEntries(users.map((u) => [String(u._id), String(u.referredBy)]));
                 const totalBetByBookie = {};
-                for (const row of betAgg) {
+                for (const row of [...matkaAgg, ...lotteryAgg]) {
                     const uid = String(row._id);
                     const bid = userToBookie[uid];
                     if (!bid) continue;

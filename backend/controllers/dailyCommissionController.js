@@ -3,6 +3,7 @@ import Bet from '../models/bet/bet.js';
 import Admin from '../models/admin/admin.js';
 import User from '../models/user/user.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
+import QuizBet from '../models/quiz/QuizBet.js';
 
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -83,44 +84,82 @@ export const calculateDailyCommission = async (req, res) => {
                     continue;
                 }
                 
-                // Calculate total revenue for the day (sum of all bet amounts)
-                const [revenueAgg] = await Bet.aggregate([
-                    {
-                        $match: {
-                            userId: { $in: userIds },
-                            createdAt: { $gte: startOfDay, $lte: endOfDay },
-                            status: { $ne: 'cancelled' },
+                const [matkaRevenueAgg, matkaPayoutAgg, lotteryRevenueAgg, lotteryPayoutAgg] = await Promise.all([
+                    Bet.aggregate([
+                        {
+                            $match: {
+                                userId: { $in: userIds },
+                                createdAt: { $gte: startOfDay, $lte: endOfDay },
+                                status: { $ne: 'cancelled' },
+                                $or: [
+                                    { placedByBookie: false },
+                                    { placedByBookie: { $exists: false } },
+                                ],
+                            },
                         },
-                    },
-                    {
-                        $group: {
-                            _id: null,
-                            totalRevenue: { $sum: '$amount' },
-                            totalBets: { $sum: 1 },
+                        {
+                            $group: {
+                                _id: null,
+                                totalRevenue: { $sum: '$amount' },
+                                totalBets: { $sum: 1 },
+                            },
                         },
-                    },
+                    ]),
+                    Bet.aggregate([
+                        {
+                            $match: {
+                                userId: { $in: userIds },
+                                createdAt: { $gte: startOfDay, $lte: endOfDay },
+                                status: 'won',
+                                $or: [
+                                    { placedByBookie: false },
+                                    { placedByBookie: { $exists: false } },
+                                ],
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalPayouts: { $sum: '$payout' },
+                            },
+                        },
+                    ]),
+                    QuizBet.aggregate([
+                        {
+                            $match: {
+                                userId: { $in: userIds },
+                                createdAt: { $gte: startOfDay, $lte: endOfDay },
+                                status: { $ne: 'cancelled' },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalRevenue: { $sum: '$amount' },
+                                totalBets: { $sum: 1 },
+                            },
+                        },
+                    ]),
+                    QuizBet.aggregate([
+                        {
+                            $match: {
+                                userId: { $in: userIds },
+                                createdAt: { $gte: startOfDay, $lte: endOfDay },
+                                status: 'win',
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                totalPayouts: { $sum: '$winPayout' },
+                            },
+                        },
+                    ]),
                 ]);
-                
-                // Calculate total payouts for the day
-                const [payoutAgg] = await Bet.aggregate([
-                    {
-                        $match: {
-                            userId: { $in: userIds },
-                            createdAt: { $gte: startOfDay, $lte: endOfDay },
-                            status: 'won',
-                        },
-                    },
-                    {
-                        $group: {
-                            _id: null,
-                            totalPayouts: { $sum: '$payout' },
-                        },
-                    },
-                ]);
-                
-                const totalRevenue = revenueAgg?.totalRevenue || 0;
-                const totalBets = revenueAgg?.totalBets || 0;
-                const totalPayouts = payoutAgg?.totalPayouts || 0;
+
+                const totalRevenue = (matkaRevenueAgg?.[0]?.totalRevenue || 0) + (lotteryRevenueAgg?.[0]?.totalRevenue || 0);
+                const totalBets = (matkaRevenueAgg?.[0]?.totalBets || 0) + (lotteryRevenueAgg?.[0]?.totalBets || 0);
+                const totalPayouts = (matkaPayoutAgg?.[0]?.totalPayouts || 0) + (lotteryPayoutAgg?.[0]?.totalPayouts || 0);
                 const commissionPercentage = bookie.commissionPercentage || 0;
                 
                 // Calculate commission on total daily revenue
@@ -387,11 +426,25 @@ export const getAllCommissionSummary = async (req, res) => {
             let totalBetAmount = 0;
 
             if (userIds.length > 0) {
-                const [betAgg] = await Bet.aggregate([
-                    { $match: { userId: { $in: userIds } } },
-                    { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+                const [matkaAgg, lotteryAgg] = await Promise.all([
+                    Bet.aggregate([
+                        {
+                            $match: {
+                                userId: { $in: userIds },
+                                $or: [
+                                    { placedByBookie: false },
+                                    { placedByBookie: { $exists: false } },
+                                ],
+                            },
+                        },
+                        { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+                    ]),
+                    QuizBet.aggregate([
+                        { $match: { userId: { $in: userIds } } },
+                        { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+                    ]),
                 ]);
-                totalBetAmount = round2(betAgg?.totalAmount || 0);
+                totalBetAmount = round2((matkaAgg?.[0]?.totalAmount || 0) + (lotteryAgg?.[0]?.totalAmount || 0));
             }
 
             const commissionPct = Number(bookie.commissionPercentage || 0);
@@ -564,11 +617,25 @@ export const recordBookieCommissionPayment = async (req, res) => {
         const userIds = users.map((u) => u._id);
         let totalBetAmount = 0;
         if (userIds.length > 0) {
-            const [betAgg] = await Bet.aggregate([
-                { $match: { userId: { $in: userIds } } },
-                { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+            const [matkaAgg, lotteryAgg] = await Promise.all([
+                Bet.aggregate([
+                    {
+                        $match: {
+                            userId: { $in: userIds },
+                            $or: [
+                                { placedByBookie: false },
+                                { placedByBookie: { $exists: false } },
+                            ],
+                        },
+                    },
+                    { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+                ]),
+                QuizBet.aggregate([
+                    { $match: { userId: { $in: userIds } } },
+                    { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+                ]),
             ]);
-            totalBetAmount = round2(betAgg?.totalAmount || 0);
+            totalBetAmount = round2((matkaAgg?.[0]?.totalAmount || 0) + (lotteryAgg?.[0]?.totalAmount || 0));
         }
 
         const totalCommission = round2((totalBetAmount * Number(bookie.commissionPercentage || 0)) / 100);
