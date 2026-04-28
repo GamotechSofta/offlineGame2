@@ -4,6 +4,21 @@ import { updateUserBalance } from '../api/bets';
 import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
 
 const QUIZ_HISTORY_LIMIT = 10000;
+const BET_FILTERS = {
+  TODAY: 'today',
+  ALL: 'all',
+};
+const DRAW_FILTERS = {
+  ALL: 'all',
+  ADVANCE: 'advance',
+  NORMAL: 'normal',
+};
+const IST_DAY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Kolkata',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 const statusLabel = (status) => {
   if (status === 'win') return 'Won';
@@ -52,6 +67,19 @@ const groupQuizRows = (items) => {
   }));
 };
 
+const getIstDayKey = (dateInput) => {
+  const date = new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return '';
+  return IST_DAY_FORMATTER.format(date);
+};
+
+const isAdvanceDrawRow = (row) => {
+  const createdAtMs = new Date(row?.createdAt || 0).getTime();
+  const slotStartMs = new Date(row?.slotStartIso || 0).getTime();
+  if (!Number.isFinite(createdAtMs) || !Number.isFinite(slotStartMs)) return false;
+  return slotStartMs - createdAtMs > 60 * 1000;
+};
+
 const MyBetsModal = ({ open, onClose }) => {
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [errQuiz, setErrQuiz] = useState('');
@@ -59,6 +87,8 @@ const MyBetsModal = ({ open, onClose }) => {
   const [cancellingId, setCancellingId] = useState('');
   const [cancelErr, setCancelErr] = useState('');
   const [pendingCancelId, setPendingCancelId] = useState('');
+  const [betFilter, setBetFilter] = useState(BET_FILTERS.TODAY);
+  const [drawFilter, setDrawFilter] = useState(DRAW_FILTERS.ALL);
   const listScrollRef = useRef(null);
   const lastScrollTopRef = useRef(0);
 
@@ -106,6 +136,8 @@ const MyBetsModal = ({ open, onClose }) => {
     if (!open) return undefined;
     setCancelErr('');
     setPendingCancelId('');
+    setBetFilter(BET_FILTERS.TODAY);
+    setDrawFilter(DRAW_FILTERS.ALL);
     loadQuiz();
   }, [open, loadQuiz]);
 
@@ -118,7 +150,20 @@ const MyBetsModal = ({ open, onClose }) => {
     },
   });
 
-  const quizGroups = useMemo(() => groupQuizRows(quizItems), [quizItems]);
+  const filteredQuizItems = useMemo(() => {
+    const todayIstKey = getIstDayKey(new Date());
+    return quizItems.filter((row) => {
+      if (betFilter === BET_FILTERS.TODAY) {
+        const primaryDate = row?.createdAt || row?.placedAt || row?.updatedAt || row?.slotStartIso;
+        if (getIstDayKey(primaryDate) !== todayIstKey) return false;
+      }
+      if (drawFilter === DRAW_FILTERS.ADVANCE) return isAdvanceDrawRow(row);
+      if (drawFilter === DRAW_FILTERS.NORMAL) return !isAdvanceDrawRow(row);
+      return true;
+    });
+  }, [betFilter, drawFilter, quizItems]);
+
+  const quizGroups = useMemo(() => groupQuizRows(filteredQuizItems), [filteredQuizItems]);
 
   const refreshQuiz = useCallback(() => {
     loadQuiz();
@@ -133,7 +178,14 @@ const MyBetsModal = ({ open, onClose }) => {
         const j = await cancelMyQuizBet(betId, '2d');
         const bal = j?.data?.balance;
         if (bal != null) updateUserBalance(bal);
-        await loadQuiz();
+        // Update only the cancelled row immediately to avoid full-list flashing/reload UX.
+        setQuizItems((prev) => prev.map((row) => (
+          String(row?.id) === String(betId)
+            ? { ...row, status: 'cancelled' }
+            : row
+        )));
+        // Keep server data in sync without triggering blocking loading state.
+        void loadQuiz({ silent: true, preserveScroll: true });
       } catch (e) {
         setCancelErr(e.message || 'Cancel failed');
       } finally {
@@ -158,10 +210,71 @@ const MyBetsModal = ({ open, onClose }) => {
             Close
           </button>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-[#c0c0c0] bg-[#dadada] px-3 py-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[#c0c0c0] bg-gradient-to-r from-[#e9edf3] to-[#dce4ef] px-3 py-2.5">
           <span className="rounded px-2.5 py-1 text-[11px] font-semibold bg-[#2d9de8] text-white">
             Quiz Tickets (Account)
           </span>
+          <div className="flex items-center gap-1.5 rounded-lg border border-[#bfd1ea] bg-white/85 px-2 py-1.5 shadow-sm">
+            <span className="px-1 text-[9px] font-bold uppercase tracking-wide text-[#385d8a]">Bet Type</span>
+            <button
+              type="button"
+              onClick={() => setBetFilter(BET_FILTERS.TODAY)}
+              className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold transition ${
+                betFilter === BET_FILTERS.TODAY
+                  ? 'border-[#0f4aa2] bg-gradient-to-b from-[#2e7be6] to-[#1f63cd] text-white shadow-[0_2px_8px_rgba(37,99,235,0.28)]'
+                  : 'border-[#b5bfd1] bg-[#f8fafc] text-[#334155] hover:bg-[#eef2f7]'
+              }`}
+            >
+              Today's Bets
+            </button>
+            <button
+              type="button"
+              onClick={() => setBetFilter(BET_FILTERS.ALL)}
+              className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold transition ${
+                betFilter === BET_FILTERS.ALL
+                  ? 'border-[#0f4aa2] bg-gradient-to-b from-[#2e7be6] to-[#1f63cd] text-white shadow-[0_2px_8px_rgba(37,99,235,0.28)]'
+                  : 'border-[#b5bfd1] bg-[#f8fafc] text-[#334155] hover:bg-[#eef2f7]'
+              }`}
+            >
+              All Bets
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-lg border border-[#c9dec1] bg-white/85 px-2 py-1.5 shadow-sm">
+            <span className="px-1 text-[9px] font-bold uppercase tracking-wide text-[#3d7040]">Draw Type</span>
+            <button
+              type="button"
+              onClick={() => setDrawFilter(DRAW_FILTERS.ADVANCE)}
+              className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold transition ${
+                drawFilter === DRAW_FILTERS.ADVANCE
+                  ? 'border-[#2c7a3f] bg-gradient-to-b from-[#33b05a] to-[#249748] text-white shadow-[0_2px_8px_rgba(34,197,94,0.28)]'
+                  : 'border-[#b5bfd1] bg-[#f8fafc] text-[#334155] hover:bg-[#eef2f7]'
+              }`}
+            >
+              Advance Draw
+            </button>
+            <button
+              type="button"
+              onClick={() => setDrawFilter(DRAW_FILTERS.NORMAL)}
+              className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold transition ${
+                drawFilter === DRAW_FILTERS.NORMAL
+                  ? 'border-[#2c7a3f] bg-gradient-to-b from-[#33b05a] to-[#249748] text-white shadow-[0_2px_8px_rgba(34,197,94,0.28)]'
+                  : 'border-[#b5bfd1] bg-[#f8fafc] text-[#334155] hover:bg-[#eef2f7]'
+              }`}
+            >
+              Normal Draw
+            </button>
+            <button
+              type="button"
+              onClick={() => setDrawFilter(DRAW_FILTERS.ALL)}
+              className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold transition ${
+                drawFilter === DRAW_FILTERS.ALL
+                  ? 'border-[#2c7a3f] bg-gradient-to-b from-[#33b05a] to-[#249748] text-white shadow-[0_2px_8px_rgba(34,197,94,0.28)]'
+                  : 'border-[#b5bfd1] bg-[#f8fafc] text-[#334155] hover:bg-[#eef2f7]'
+              }`}
+            >
+              All Draws
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => refreshQuiz()}
@@ -179,7 +292,7 @@ const MyBetsModal = ({ open, onClose }) => {
           {cancelErr ? <p className="mb-2 text-center text-[11px] text-red-700">{cancelErr}</p> : null}
           {loadingQuiz && <p className="text-center">Loading...</p>}
           {errQuiz && <p className="text-center text-red-700">{errQuiz}</p>}
-          {!loadingQuiz && !errQuiz && quizItems.length === 0 && (
+          {!loadingQuiz && !errQuiz && filteredQuizItems.length === 0 && (
             <p className="text-center text-gray-600">No quiz tickets yet or not logged in.</p>
           )}
           {!loadingQuiz &&
