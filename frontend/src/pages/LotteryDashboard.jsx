@@ -711,8 +711,22 @@ const LotteryDashboard = () => {
   const handleBackToHome = useCallback(async () => {
     // Back button should only navigate to home, never logout.
     try {
-      if (document.fullscreenElement && document.exitFullscreen) {
-        await document.exitFullscreen();
+      const doc = document;
+      const isInFullscreen = Boolean(
+        doc.fullscreenElement
+          || doc.webkitFullscreenElement
+          || doc.mozFullScreenElement
+          || doc.msFullscreenElement,
+      );
+      if (isInFullscreen) {
+        const exitFullscreen =
+          doc.exitFullscreen
+          || doc.webkitExitFullscreen
+          || doc.mozCancelFullScreen
+          || doc.msExitFullscreen;
+        if (typeof exitFullscreen === 'function') {
+          await exitFullscreen.call(doc);
+        }
       }
     } catch (_) {
       // Ignore if browser blocks exitFullscreen.
