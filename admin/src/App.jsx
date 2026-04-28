@@ -23,6 +23,7 @@ import DeclareSuccess from './pages/DeclareSuccess';
 import UpdateRate from './pages/UpdateRate';
 import MarketDetail from './pages/MarketDetail';
 import Settings from './pages/Settings';
+import BannerSettings from './pages/BannerSettings';
 import TopWinners from './pages/TopWinners';
 import TwoDManagement from './pages/TwoDManagement';
 import TwoDQuizStakeDetail from './pages/TwoDQuizStakeDetail';
@@ -343,6 +344,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <ThreeDOldSlotsStats />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/banner"
+                    element={
+                        <PrivateRoute>
+                            <BannerSettings />
                         </PrivateRoute>
                     }
                 />

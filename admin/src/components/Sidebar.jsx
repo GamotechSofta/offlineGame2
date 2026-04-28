@@ -17,6 +17,7 @@ import {
     FaMoneyBillWave,
     FaLifeRing,
     FaDice,
+    FaImage,
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
@@ -32,7 +33,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         const adminRaw = localStorage.getItem('admin');
         const parsed = adminRaw ? JSON.parse(adminRaw) : null;
         adminRole = parsed?.role || '';
-    } catch (_) {
+    } catch {
         adminRole = '';
     }
 
@@ -68,6 +69,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/payment-management', label: 'Payments', icon: FaCreditCard },
         { path: '/wallet', label: 'Wallet', icon: FaWallet },
         { path: '/logs', label: 'Logs', icon: FaClipboardList },
+        { path: '/banner', label: 'Banner', icon: FaImage },
         { path: '/settings', label: 'Settings', icon: FaCog },
     ];
 

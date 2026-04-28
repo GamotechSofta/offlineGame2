@@ -2,17 +2,20 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const heroImageDesktop = '/playAndWinRealMoney.png';
 const heroImageMobile = '/playAndWinRealMoneyMobile.png';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
-const desktopSlides = [heroImageDesktop, '/aviator.png'];
-const mobileSlides = [heroImageMobile, '/aviatorMobile.png'];
 const AUTO_SLIDE_MS = 4000;
 const SWIPE_THRESHOLD_PX = 40;
 
 const HeroSection = () => {
+  const [desktopBanners, setDesktopBanners] = useState([heroImageDesktop]);
+  const [mobileBanners, setMobileBanners] = useState([heroImageMobile]);
   const [currentDesktopIndex, setCurrentDesktopIndex] = useState(0);
   const [currentMobileIndex, setCurrentMobileIndex] = useState(0);
   const desktopTouchStartX = useRef(null);
   const mobileTouchStartX = useRef(null);
+  const desktopSlides = desktopBanners;
+  const mobileSlides = mobileBanners;
 
   const goToNextDesktopSlide = () => {
     setCurrentDesktopIndex((prev) => (prev + 1) % desktopSlides.length);
@@ -32,18 +35,51 @@ const HeroSection = () => {
 
   useEffect(() => {
     const desktopTimer = setInterval(() => {
-      goToNextDesktopSlide();
+      setCurrentDesktopIndex((prev) => (prev + 1) % desktopSlides.length);
     }, AUTO_SLIDE_MS);
 
     const mobileTimer = setInterval(() => {
-      goToNextMobileSlide();
+      setCurrentMobileIndex((prev) => (prev + 1) % mobileSlides.length);
     }, AUTO_SLIDE_MS);
 
     return () => {
       clearInterval(desktopTimer);
       clearInterval(mobileTimer);
     };
+  }, [desktopSlides.length, mobileSlides.length]);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchBanners = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/banner-settings`);
+        const json = await res.json();
+        if (!mounted || !json?.success) return;
+        const nextDesktop = Array.isArray(json?.data?.desktopBanners) ? json.data.desktopBanners.filter(Boolean) : [];
+        const nextMobile = Array.isArray(json?.data?.mobileBanners) ? json.data.mobileBanners.filter(Boolean) : [];
+        if (nextDesktop.length) setDesktopBanners(nextDesktop);
+        if (nextMobile.length) setMobileBanners(nextMobile);
+      } catch {
+        // Keep local fallback images if API fails.
+      }
+    };
+    fetchBanners();
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (currentDesktopIndex >= desktopSlides.length) {
+      setCurrentDesktopIndex(0);
+    }
+  }, [currentDesktopIndex, desktopSlides.length]);
+
+  useEffect(() => {
+    if (currentMobileIndex >= mobileSlides.length) {
+      setCurrentMobileIndex(0);
+    }
+  }, [currentMobileIndex, mobileSlides.length]);
 
   return (
     <>

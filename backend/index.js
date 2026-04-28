@@ -16,6 +16,7 @@ import reportRoutes from './routes/report/reportRoutes.js';
 import userRoutes from './routes/user/userRoutes.js';
 import walletRoutes from './routes/wallet/walletRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
+import bannerRoutes from './routes/banner/bannerRoutes.js';
 
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -122,6 +123,7 @@ app.use('/api/v1/games', gamesRouter);
 app.use('/api/v1/bank-details', bankDetailRoutes);
 app.use('/api/v1/quiz', quizRoutes);
 app.use('/api/v1/generics', genericRouter);
+app.use('/api/v1/banner-settings', bannerRoutes);
 
 async function startServer() {
     await connectDB();
