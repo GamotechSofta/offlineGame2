@@ -19,6 +19,12 @@ const IST_DAY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
   month: '2-digit',
   day: '2-digit',
 });
+const IST_DATE_LABEL_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Kolkata',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
 
 const statusLabel = (status) => {
   if (status === 'win') return 'Won';
@@ -71,6 +77,12 @@ const getIstDayKey = (dateInput) => {
   const date = new Date(dateInput);
   if (Number.isNaN(date.getTime())) return '';
   return IST_DAY_FORMATTER.format(date);
+};
+
+const formatIstDateLabel = (dateInput) => {
+  const date = new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return '—';
+  return IST_DATE_LABEL_FORMATTER.format(date);
 };
 
 const isAdvanceDrawRow = (row) => {
@@ -301,6 +313,9 @@ const MyBetsModal = ({ open, onClose }) => {
               <div key={`${g.slotStartIso}-${g.quizId}`} className="mb-3 rounded border border-[#bbb] bg-white p-2.5 shadow-sm">
                 <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-bold text-[#1a4d6e]">
                   QUIZ{String(g.quizId).padStart(2, '0')} · Draw: {g.drawLabelEnd ?? '—'}
+                  <span className="rounded bg-[#eef2ff] px-2 py-0.5 text-[#374151]">
+                    Date: {formatIstDateLabel(g.lines?.[0]?.createdAt || g.lines?.[0]?.slotStartIso || g.slotStartIso)}
+                  </span>
                   {g.isAdvanceDraw ? (
                     <span className="rounded bg-[#1d4ed8] px-2 py-0.5 text-white">Advance Draw</span>
                   ) : null}
