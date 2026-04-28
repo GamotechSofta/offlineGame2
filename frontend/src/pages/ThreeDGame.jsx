@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ClipboardList,
   CircleX,
   History,
   HelpCircle,
@@ -43,10 +42,9 @@ const HEADER_MENU_ITEMS = [
   { label: 'Result', Icon: Trophy },
   { label: 'Account', Icon: UserCircle },
   { label: 'Quiz', Icon: HelpCircle },
-  { label: 'Ticket List', Icon: ClipboardList },
   { label: 'Cancel Bet', Icon: CircleX },
   { label: 'Refresh', Icon: RefreshCw },
-  { label: 'History', Icon: History },
+  { label: 'My Bets / Ticket', Icon: History },
 ];
 const PANEL_OPTIONS = ['A', 'B', 'C'];
 const DIGIT_OPTIONS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -230,6 +228,8 @@ const ThreeDGame = () => {
   const [advanceBuySuccess, setAdvanceBuySuccess] = useState(null);
   const [advanceSelectionNotice, setAdvanceSelectionNotice] = useState('');
   const [pendingRemoveBetId, setPendingRemoveBetId] = useState('');
+  const [cancelBetDialog, setCancelBetDialog] = useState(null);
+  const [isCancelSubmitting, setIsCancelSubmitting] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [resultDateDay, setResultDateDay] = useState(() => String(new Date().getDate()).padStart(2, '0'));
@@ -273,10 +273,20 @@ const ThreeDGame = () => {
     });
     return Number(latestWinningTicket?.totalWin || 0);
   }, [ticketHistory]);
-  const historyTicketsForModal = useMemo(
-    () => (Array.isArray(backendHistoryTickets) ? backendHistoryTickets : []),
-    [backendHistoryTickets],
-  );
+  const historyTicketsForModal = useMemo(() => {
+    const backendList = Array.isArray(backendHistoryTickets) ? backendHistoryTickets : [];
+    const localCancelled = (Array.isArray(ticketHistory) ? ticketHistory : []).filter(
+      (ticket) => String(ticket?.outcome || '').toLowerCase() === 'cancelled',
+    );
+    const byKey = new Map();
+    [...backendList, ...localCancelled].forEach((ticket) => {
+      const key = `${ticket?.slotStartIso || ''}|${ticket?.gameId || ticket?.id || ''}`;
+      if (!byKey.has(key)) byKey.set(key, ticket);
+    });
+    return [...byKey.values()].sort(
+      (a, b) => new Date(b?.slotStartIso || b?.createdAt || 0).getTime() - new Date(a?.slotStartIso || a?.createdAt || 0).getTime(),
+    );
+  }, [backendHistoryTickets, ticketHistory]);
   const formattedWalletBalance = useMemo(
     () => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Number(walletBalance) || 0),
     [walletBalance],
@@ -1342,6 +1352,11 @@ const ThreeDGame = () => {
       updateUserBalance(backendBalance);
       setWalletBalance(backendBalance);
     } else {
+      setWalletBalance((prev) => {
+        const next = Math.max(0, (Number(prev) || 0) - requiredBalance);
+        updateUserBalance(next);
+        return next;
+      });
       refreshWalletBalance();
     }
 
@@ -1427,7 +1442,19 @@ const ThreeDGame = () => {
     await handleBuy();
   }, [handleBuy]);
 
-  const handleCancelPendingTicket = useCallback(async () => {
+  const handleCancelPendingTicket = useCallback(() => {
+    if (Array.isArray(bets) && bets.length) {
+      const totalCurrent = bets.reduce((sum, bet) => sum + Number(bet?.points || 0), 0);
+      setCancelBetDialog({
+        type: 'current',
+        title: 'Cancel Current Bet',
+        description: `Cancel ${bets.length} current bet(s)?`,
+        points: totalCurrent,
+        count: bets.length,
+      });
+      return;
+    }
+
     const nowMs = Date.now();
     const cancellable = (ticketHistory || []).find((ticket) => {
       if (ticket?.settled) return false;
@@ -1442,8 +1469,70 @@ const ThreeDGame = () => {
 
     const refundAmount = Number(cancellable?.totalPoints || 0);
     const ticketLabel = cancellable?.gameId || String(cancellable?.id || '');
-    const ok = window.confirm(`Cancel ticket ${ticketLabel} before draw and refund ₹${refundAmount}?`);
-    if (!ok) return;
+    setCancelBetDialog({
+      type: 'ticket',
+      title: 'Cancel Ticket Bet',
+      description: `Cancel ticket ${ticketLabel} before draw?`,
+      points: refundAmount,
+      ticketId: cancellable.id,
+      ticketLabel,
+    });
+  }, [bets, getTicketSettleAtMs, ticketHistory]);
+
+  const handleConfirmCancelBet = useCallback(async () => {
+    if (!cancelBetDialog || isCancelSubmitting) return;
+    setIsCancelSubmitting(true);
+    if (cancelBetDialog.type === 'current') {
+      const cancelledSnapshot = (Array.isArray(bets) ? bets : []).map((bet) => ({
+        ...bet,
+        outcome: 'cancelled',
+        matchedPanel: '-',
+        matchedResult: '-',
+        matchReason: 'Cancelled before buy',
+        winAmount: 0,
+        payoutLabel: null,
+      }));
+      if (cancelledSnapshot.length) {
+        const nowIso = new Date().toISOString();
+        setTicketHistory((prev) => [{
+          id: `local-cancel-${Date.now()}`,
+          userName: playerIdentity || 'user',
+          drawTime: '-',
+          drawDate: nowIso.slice(0, 10),
+          gameId: `CNCL-${Date.now()}`,
+          totalPoints: Number(cancelBetDialog.points || 0),
+          totalWin: 0,
+          outcome: 'cancelled',
+          settled: true,
+          createdAt: nowIso,
+          bets: cancelledSnapshot,
+          settledUsing: 'local',
+        }, ...prev].slice(0, 500));
+      }
+      setBets([]);
+      setToast('Current bets cancelled');
+      setValidationMsg('Current bet list cleared. Balance unchanged.');
+      setCancelBetDialog(null);
+      setIsCancelSubmitting(false);
+      return;
+    }
+
+    const nowMs = Date.now();
+    const cancellable = (ticketHistory || []).find((ticket) => {
+      if (ticket?.id !== cancelBetDialog.ticketId) return false;
+      if (ticket?.settled) return false;
+      const settleAtMs = getTicketSettleAtMs(ticket);
+      return settleAtMs > nowMs;
+    });
+    const refundAmount = Number(cancellable?.totalPoints || cancelBetDialog?.points || 0);
+    const ticketLabel = cancellable?.gameId || cancelBetDialog?.ticketLabel || String(cancellable?.id || '');
+
+    if (!cancellable) {
+      setToast('Ticket already settled or unavailable.');
+      setCancelBetDialog(null);
+      setIsCancelSubmitting(false);
+      return;
+    }
 
     let backendBalance = null;
     try {
@@ -1464,6 +1553,7 @@ const ThreeDGame = () => {
       }
     } catch (e) {
       setValidationMsg(e?.message || 'Failed to cancel ticket on server.');
+      setIsCancelSubmitting(false);
       return;
     }
 
@@ -1491,7 +1581,6 @@ const ThreeDGame = () => {
     if (backendBalance != null) {
       updateUserBalance(backendBalance);
       setWalletBalance(backendBalance);
-      await loadBackendHistoryTickets();
     } else if (refundAmount > 0) {
       setWalletBalance((prev) => {
         const next = (Number(prev) || 0) + refundAmount;
@@ -1499,10 +1588,13 @@ const ThreeDGame = () => {
         return next;
       });
     }
+    await loadBackendHistoryTickets();
 
     setToast('Ticket cancelled');
     setValidationMsg(`Ticket ${ticketLabel} cancelled. Refund ₹${refundAmount} credited.`);
-  }, [computeSlotStartIsoFromSettleAtMs, getTicketSettleAtMs, loadBackendHistoryTickets, ticketHistory]);
+    setCancelBetDialog(null);
+    setIsCancelSubmitting(false);
+  }, [bets, cancelBetDialog, computeSlotStartIsoFromSettleAtMs, getTicketSettleAtMs, isCancelSubmitting, loadBackendHistoryTickets, playerIdentity, ticketHistory]);
 
   useEffect(() => {
     if (!resultUpdatedAt) return;
@@ -1658,12 +1750,7 @@ const ThreeDGame = () => {
       setToast('Refreshed');
       return;
     }
-    if (label.toLowerCase() === 'ticket list') {
-      setIsTicketListOpen(true);
-      setIsHistoryListOpen(false);
-      return;
-    }
-    if (label.toLowerCase() === 'history') {
+    if (['history', 'my bets / ticket'].includes(label.toLowerCase())) {
       setIsHistoryListOpen(true);
       setIsTicketListOpen(false);
       loadBackendHistoryTickets();
@@ -1926,16 +2013,16 @@ const ThreeDGame = () => {
         </div>
 
         <div className="w-full min-h-0 rounded-lg border border-[#d6c2a5] bg-[#fff7ec] px-2 py-2">
-          <nav className="grid w-full grid-cols-7 gap-1" aria-label="Main menu">
+          <nav className="grid w-full grid-cols-6 gap-1.5" aria-label="Main menu">
             {HEADER_MENU_ITEMS.map(({ label, Icon }) => (
               <button
                 key={label}
                 type="button"
                 onClick={() => handleHeaderAction(label)}
-                className="inline-flex min-w-0 touch-manipulation items-center justify-center gap-2 rounded-lg border border-black bg-[#f7ecde] px-2.5 py-2.5 text-[18px] font-bold text-[#6b4423] transition-colors hover:bg-[#eedfc8] active:scale-[0.99] sm:text-[19px]"
+                className="inline-flex min-w-0 touch-manipulation items-center justify-center gap-2 rounded-lg border border-black bg-[#f7ecde] px-2 py-2.5 text-[16px] font-bold text-[#6b4423] transition-colors hover:bg-[#eedfc8] active:scale-[0.99] sm:text-[17px] xl:text-[18px]"
               >
                 <Icon className="h-5 w-5 shrink-0 sm:h-[20px] sm:w-[20px]" strokeWidth={2.25} aria-hidden />
-                <span className="truncate">{label}</span>
+                <span className="text-center leading-tight">{label}</span>
               </button>
             ))}
           </nav>
@@ -2422,6 +2509,43 @@ const ThreeDGame = () => {
               >
                 OK
               </button>
+            </div>
+          </div>
+        ) : null}
+        {cancelBetDialog ? (
+          <div className="fixed inset-0 z-[87] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[1px]">
+            <div className={`w-full max-w-md rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-5 text-white shadow-2xl ${isCancelSubmitting ? 'animate-pulse' : ''}`}>
+              <div className="flex items-center gap-2">
+                <CircleX className="h-6 w-6 text-rose-400" />
+                <h4 className="text-xl font-extrabold">{cancelBetDialog.title || 'Cancel Bet'}</h4>
+              </div>
+              <p className="mt-2 text-[15px] text-[#cbd5e1]">{cancelBetDialog.description}</p>
+              <p className="mt-2 text-[14px] font-bold text-amber-300">
+                Amount: ₹{Number(cancelBetDialog.points || 0)}
+              </p>
+              {cancelBetDialog.type === 'ticket' ? (
+                <p className="mt-1 text-[13px] text-emerald-300">Refund will be credited back to wallet.</p>
+              ) : (
+                <p className="mt-1 text-[13px] text-slate-300">These are current bets only. Wallet balance stays unchanged.</p>
+              )}
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCancelBetDialog(null)}
+                  disabled={isCancelSubmitting}
+                  className="h-11 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-[15px] font-bold disabled:opacity-60"
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCancelBet}
+                  disabled={isCancelSubmitting}
+                  className="h-11 flex-1 rounded-lg border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] text-[15px] font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCancelSubmitting ? 'Cancelling...' : 'Yes, Cancel'}
+                </button>
+              </div>
             </div>
           </div>
         ) : null}
