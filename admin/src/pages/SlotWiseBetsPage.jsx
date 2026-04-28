@@ -55,7 +55,7 @@ const selectionTitle = (selection, count) => {
 const filterTitle = (filterMode) => {
   if (filterMode === ALL_ADVANCE_VALUE) return 'advance';
   if (filterMode === ALL_PAST_VALUE) return 'past';
-  return 'all day';
+  return 'day';
 };
 
 const outcomeClass = (outcome) => {
@@ -166,6 +166,14 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
     () => historySlots.filter((slot) => isSlotMatchingSelection(slot, filterMode)),
     [historySlots, filterMode],
   );
+  const liveSlot = useMemo(
+    () => historySlots.find((slot) => slot?.status === 'live') || null,
+    [historySlots],
+  );
+  const latestPastSlot = useMemo(
+    () => historySlots.find((slot) => slot?.status === 'past') || null,
+    [historySlots],
+  );
 
   const effectiveSelection = selectedSlotIso && selectedSlotIso !== ALL_FILTER_SLOTS_VALUE ? selectedSlotIso : filterMode;
 
@@ -193,6 +201,11 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
   const clearFilters = useCallback(() => {
     setFilterMode(ALL_DAY_VALUE);
     setSelectedSlotIso(ALL_FILTER_SLOTS_VALUE);
+  }, []);
+
+  const applyQuickFilter = useCallback((nextFilter, nextSlot = ALL_FILTER_SLOTS_VALUE) => {
+    setFilterMode(nextFilter);
+    setSelectedSlotIso(nextSlot);
   }, []);
 
   return (
@@ -226,6 +239,63 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => applyQuickFilter(ALL_DAY_VALUE)}
+              className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700"
+            >
+              All Day
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickFilter(ALL_ADVANCE_VALUE)}
+              className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700"
+            >
+              Advance
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickFilter(ALL_PAST_VALUE)}
+              className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700"
+            >
+              Past
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!liveSlot?.slotStartIso) return;
+                applyQuickFilter(ALL_DAY_VALUE, liveSlot.slotStartIso);
+              }}
+              disabled={!liveSlot?.slotStartIso}
+              className="px-3 py-1.5 rounded-lg border border-orange-300 bg-orange-50 hover:bg-orange-100 text-xs font-semibold text-orange-700 disabled:opacity-50"
+              title={liveSlot?.slotStartIso ? `Live slot: ${liveSlot.drawLabelEnd || liveSlot.slotStartIso}` : 'No live slot available'}
+            >
+              Live Slot
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!latestPastSlot?.slotStartIso) return;
+                applyQuickFilter(ALL_DAY_VALUE, latestPastSlot.slotStartIso);
+              }}
+              disabled={!latestPastSlot?.slotStartIso}
+              className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 disabled:opacity-50"
+              title={latestPastSlot?.slotStartIso ? `Latest past slot: ${latestPastSlot.drawLabelEnd || latestPastSlot.slotStartIso}` : 'No past slot available'}
+            >
+              Latest Past Slot
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setHistoryDate(todayDate());
+                clearFilters();
+              }}
+              className="px-3 py-1.5 rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-xs font-semibold text-blue-700"
+            >
+              Today + Reset
+            </button>
+          </div>
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-gray-600 font-medium">Date (IST day)</span>

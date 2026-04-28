@@ -48,7 +48,9 @@ const ThreeDManagement = () => {
     const [selectedPlayer, setSelectedPlayer] = useState(null);
     const [playerHistoryData, setPlayerHistoryData] = useState(null);
     const [loadingPlayerHistory, setLoadingPlayerHistory] = useState(false);
+    const [refreshingPlayerHistory, setRefreshingPlayerHistory] = useState(false);
     const [playerHistoryError, setPlayerHistoryError] = useState('');
+    const [playerHistoryLastUpdatedAt, setPlayerHistoryLastUpdatedAt] = useState(null);
     const [historyDetailsMap, setHistoryDetailsMap] = useState({});
     const [historyPlayersMap, setHistoryPlayersMap] = useState({});
     const [loadingAllHistoryDetails, setLoadingAllHistoryDetails] = useState(false);
@@ -262,21 +264,33 @@ const ThreeDManagement = () => {
         }
     }, [API_BASE_URL]);
 
-    const fetchPlayerHistory = useCallback(async (userId) => {
+    const fetchPlayerHistory = useCallback(async (userId, options = {}) => {
         if (!userId) return;
-        setLoadingPlayerHistory(true);
-        setPlayerHistoryError('');
+        const silent = Boolean(options?.silent);
+        if (silent) {
+            setRefreshingPlayerHistory(true);
+        } else {
+            setLoadingPlayerHistory(true);
+            setPlayerHistoryError('');
+        }
         try {
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/players/${encodeURIComponent(userId)}/history?limit=40`);
             if (res.status === 401) return;
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to load player history');
             setPlayerHistoryData(data.data || null);
+            setPlayerHistoryLastUpdatedAt(new Date());
         } catch (err) {
-            setPlayerHistoryError(err.message || 'Failed to load player history');
-            setPlayerHistoryData(null);
+            if (!silent) {
+                setPlayerHistoryError(err.message || 'Failed to load player history');
+                setPlayerHistoryData(null);
+            }
         } finally {
-            setLoadingPlayerHistory(false);
+            if (silent) {
+                setRefreshingPlayerHistory(false);
+            } else {
+                setLoadingPlayerHistory(false);
+            }
         }
     }, [API_BASE_URL]);
 
@@ -491,8 +505,17 @@ const ThreeDManagement = () => {
         if (!player?.userId) return;
         setSelectedPlayer(player);
         setShowPlayerHistoryModal(true);
+        setPlayerHistoryLastUpdatedAt(null);
         await fetchPlayerHistory(player.userId);
     };
+
+    useEffect(() => {
+        if (!showPlayerHistoryModal || !selectedPlayer?.userId) return undefined;
+        const timer = setInterval(() => {
+            fetchPlayerHistory(selectedPlayer.userId, { silent: true });
+        }, 3000);
+        return () => clearInterval(timer);
+    }, [showPlayerHistoryModal, selectedPlayer?.userId, fetchPlayerHistory]);
 
     const handleUnlockHints = async () => {
         if (hasSecretDeclarePassword && !hintPassword.trim()) {
@@ -746,6 +769,20 @@ const ThreeDManagement = () => {
                             <button type="button" onClick={closePlayerHistoryModal} className="text-gray-400 hover:text-gray-800 p-1">×</button>
                         </div>
                         <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(88vh-64px)]">
+                            <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-xs text-blue-800">
+                                    Live updates are ON (auto-refresh every 3 seconds).
+                                    {playerHistoryLastUpdatedAt ? ` Last sync: ${playerHistoryLastUpdatedAt.toLocaleTimeString()}` : ''}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => fetchPlayerHistory(selectedPlayer?.userId, { silent: true })}
+                                    disabled={refreshingPlayerHistory || !selectedPlayer?.userId}
+                                    className="px-2.5 py-1 rounded border border-blue-200 bg-white text-blue-700 text-xs font-semibold hover:bg-blue-100 disabled:opacity-60"
+                                >
+                                    {refreshingPlayerHistory ? 'Syncing...' : 'Sync Now'}
+                                </button>
+                            </div>
                             {loadingPlayerHistory ? (
                                 <div className="text-sm text-gray-500">Loading player history...</div>
                             ) : playerHistoryError ? (
@@ -783,8 +820,13 @@ const ThreeDManagement = () => {
                                                         <p className="text-sm font-semibold text-gray-800">{slot.drawLabelEnd}</p>
                                                         <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
                                                     </div>
-                                                    <div className="text-xs text-gray-600">
-                                                        Total Bets: <span className="font-semibold">{slot.betCount}</span> | Stake: <span className="font-semibold">₹{Number(slot.totalStake || 0).toLocaleString('en-IN')}</span> | Payout: <span className="font-semibold">₹{Number(slot.totalPayout || 0).toLocaleString('en-IN')}</span>
+                                                    <div className="text-xs text-gray-600 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                        <span>Total Bets: <span className="font-semibold">{slot.betCount}</span></span>
+                                                        <span>Stake: <span className="font-semibold">₹{Number(slot.totalStake || 0).toLocaleString('en-IN')}</span></span>
+                                                        <span>Payout: <span className="font-semibold">₹{Number(slot.totalPayout || 0).toLocaleString('en-IN')}</span></span>
+                                                        <span className={`font-semibold ${Number(slot.netProfitLoss || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                                            Net: ₹{Number(slot.netProfitLoss || 0).toLocaleString('en-IN')}
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 <div className="overflow-x-auto">

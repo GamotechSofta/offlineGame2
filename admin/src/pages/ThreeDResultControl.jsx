@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -18,25 +18,17 @@ const todayDate = () => {
     return `${y}-${m}-${d}`;
 };
 
-/** House P/L if the current hint number wins (total stake on set − payout on that number). */
-function hintHouseNetMeta(value) {
+const formatSlotLabel = (slot) => slot?.drawLabelEnd || slot?.slotStartIso || '-';
+const formatHousePl = (value) => {
     if (value == null || !Number.isFinite(Number(value))) {
-        return { text: 'P/L: —', className: 'text-gray-400', title: '' };
+        return { text: 'P/L: —', className: 'text-gray-400' };
     }
     const n = Math.round(Number(value));
     if (n >= 0) {
-        return {
-            text: `P/L: +₹${n.toLocaleString('en-IN')}`,
-            className: 'text-green-700',
-            title: 'House keeps this much if this hint number wins (after paying winners on this number).',
-        };
+        return { text: `P/L: +₹${n.toLocaleString('en-IN')}`, className: 'text-green-700' };
     }
-    return {
-        text: `P/L: −₹${Math.abs(n).toLocaleString('en-IN')}`,
-        className: 'text-red-700',
-        title: 'House pays out more than collected on this number if it wins.',
-    };
-}
+    return { text: `P/L: -₹${Math.abs(n).toLocaleString('en-IN')}`, className: 'text-red-700' };
+};
 
 const ThreeDResultControl = () => {
     const navigate = useNavigate();
@@ -277,6 +269,10 @@ const ThreeDResultControl = () => {
         }
     }, [manualModal, closeManualModal, fetchCurrentSlotForHints]);
 
+    const sortedSlots = useMemo(() => (
+        [...slots].sort((a, b) => String(b.slotStartIso || '').localeCompare(String(a.slotStartIso || '')))
+    ), [slots]);
+
     return (
         <AdminLayout onLogout={handleLogout} title="3D Result Control">
             <div className="relative min-h-[60vh] space-y-5">
@@ -284,7 +280,7 @@ const ThreeDResultControl = () => {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800">3D Result Declaration Control</h1>
-                        <p className="text-sm text-gray-500">All slots chart with set-wise result and declaration controls.</p>
+                        <p className="text-sm text-gray-500">Simple flow: set running slot results, then review history.</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <input
@@ -338,118 +334,104 @@ const ThreeDResultControl = () => {
                 {hasSecretDeclarePassword && !pageUnlocked ? null : (
                     <>
                         <div className="bg-white border border-gray-200 rounded-xl p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                                <p className="text-sm font-bold text-gray-700">
-                                    Running Slot <span className="text-red-500">Hint Numbers</span>
-                                </p>
-                                <span className="text-[11px] font-medium text-green-600">Visible</span>
-                            </div>
-                            <p className="text-xs text-gray-500 mb-3 break-all">Slot Start: {currentSlotStartIso || '-'}</p>
-                            {currentHintRows.length ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                    {currentHintRows.map((item) => {
-                                        const pl = hintHouseNetMeta(item.houseNetIfHintWins);
-                                        return (
-                                            <button
-                                                key={item.quizId}
-                                                type="button"
-                                                onClick={() => {
-                                                    if (!currentSlotStartIso) return;
-                                                    navigate(
-                                                        `/3d-management/set/${encodeURIComponent(item.quizId)}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`,
-                                                    );
-                                                }}
-                                                disabled={!currentSlotStartIso}
-                                                className="cursor-pointer rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-left hover:border-orange-400 hover:bg-orange-50/50 hover:shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-                                                title={currentSlotStartIso ? 'Open set-wise stake / P/L' : 'Current slot unavailable'}
-                                            >
-                                                <div className="flex justify-between gap-1 items-baseline">
-                                                    <span className="text-gray-500 shrink-0">{setLabelByQuizId[Number(item.quizId)] || `Set ${item.quizId}`}</span>
-                                                    <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
-                                                </div>
-                                                <div className={`mt-1 text-[10px] font-semibold leading-tight ${pl.className}`} title={pl.title || undefined}>
-                                                    {pl.text}
-                                                </div>
-                                                <div className="mt-1.5 flex justify-end">
-                                                    <span className="inline-flex items-center rounded border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">
-                                                        Edit
-                                                    </span>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
+                            <h2 className="text-base font-semibold text-gray-800">Step 1: Running slot quick edit</h2>
+                            <p className="text-xs text-gray-500 mt-1">Current slot: {currentSlotStartIso || '-'}</p>
+                            {hintsLoading ? (
+                                <p className="mt-3 text-xs text-gray-500">Loading running slot...</p>
+                            ) : currentHintRows.length ? (
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    {currentHintRows.map((item) => (
+                                        (() => {
+                                            const pl = formatHousePl(item.houseNetIfHintWins);
+                                            return (
+                                        <button
+                                            key={item.quizId}
+                                            type="button"
+                                            onClick={() => openManualModal(currentSlotStartIso, String(item.quizId), item.hint)}
+                                            className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left hover:border-purple-300 hover:bg-purple-50 transition"
+                                        >
+                                            <div className="flex justify-between gap-1 items-baseline">
+                                                <span className="text-gray-500 shrink-0">{setLabelByQuizId[Number(item.quizId)] || `Set ${item.quizId}`}</span>
+                                                <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
+                                            </div>
+                                            <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
+                                            <div className="mt-1 text-[10px] text-purple-700 font-semibold">Set Result</div>
+                                        </button>
+                                            );
+                                        })()
+                                    ))}
                                 </div>
                             ) : (
-                                <p className="text-xs text-gray-500">Hint numbers unavailable for current slot.</p>
+                                <p className="mt-3 text-xs text-gray-500">Running slot unavailable or hint numbers not ready.</p>
                             )}
                         </div>
 
                         <div className="bg-white border border-gray-200 rounded-xl p-5">
-                            <div className="max-h-[calc(100vh-100px)] overflow-y-auto">
-                                <table className="w-full text-xs table-fixed">
-                                    <thead>
-                                        <tr className="border-b border-gray-200 text-gray-600 bg-gray-50">
-                                            <th className="text-left p-2">Slot</th>
-                                            <th className="text-left p-2">Declared</th>
-                                            {[1, 2, 3].map((quizId) => (
-                                                <th key={quizId} className="text-center p-2 whitespace-nowrap">{setLabelByQuizId[quizId]}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {!slots.length && !loading ? (
-                                            <tr>
-                                                <td colSpan={5} className="text-center p-4 text-gray-500">No slots found for selected date.</td>
+                            <h2 className="text-base font-semibold text-gray-800">Step 2: Slot history (latest first)</h2>
+                            <p className="text-xs text-gray-500 mt-1">Simple table view: one slot per row with all set results.</p>
+                            {!sortedSlots.length && !loading ? (
+                                <p className="mt-3 text-sm text-gray-500">No slots found for selected date.</p>
+                            ) : (
+                                <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
+                                    <table className="w-full min-w-[760px] text-xs">
+                                        <thead className="bg-gray-50 border-b border-gray-200">
+                                            <tr className="text-gray-600">
+                                                <th className="text-left p-2.5 font-semibold">Slot</th>
+                                                <th className="text-left p-2.5 font-semibold">Status</th>
+                                                <th className="text-center p-2.5 font-semibold">Set A</th>
+                                                <th className="text-center p-2.5 font-semibold">Set B</th>
+                                                <th className="text-center p-2.5 font-semibold">Set C</th>
                                             </tr>
-                                        ) : null}
-                                        {slots.map((slot) => {
-                                            const declared = Boolean(slot?.declaration?.declared);
-                                            const isCurrentRunningSlot = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
-                                            const canManualResult = !declared && isCurrentRunningSlot && currentSlotPhase === 'study';
-                                            const showManualSetOptions = canManualResult;
-                                            const shouldShowSlotResultNumbers = Boolean(slot?.isCompleted) || isCurrentRunningSlot;
-                                            return (
-                                                <tr key={slot.slotStartIso} className="border-b border-black">
-                                                    <td className="p-2">
-                                                        <div className="font-semibold text-gray-800">{slot.drawLabelEnd || slot.slotStartIso}</div>
-                                                        <div className="text-gray-500">{slot.slotStartIso}</div>
-                                                    </td>
-                                                    <td className="p-2">
-                                                        <span className={`px-2 py-1 rounded-full text-[11px] font-semibold ${declared
-                                                            ? 'bg-green-100 text-green-700'
-                                                            : 'bg-gray-100 text-gray-700'}`}
-                                                        >
-                                                            {declared ? 'Declared' : 'Not'}
-                                                        </span>
-                                                    </td>
-                                                    {[1, 2, 3].map((quizId) => {
-                                                        const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
-                                                        const visibleResultLabel = shouldShowSlotResultNumbers ? (q?.resultLabel || '--') : '--';
-                                                        return (
-                                                            <td key={`${slot.slotStartIso}-${quizId}`} className="p-2 text-center">
-                                                                <div className="font-mono text-gray-800">{visibleResultLabel}</div>
-                                                                <div className={`text-[9px] leading-tight ${q?.declared ? 'text-green-600' : 'text-gray-600'}`}>
-                                                                    {q?.declared ? 'Declared' : 'Not'}
-                                                                </div>
-                                                                {showManualSetOptions ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => openManualModal(slot.slotStartIso, String(quizId), q?.resultLabel || '--')}
-                                                                        className="mt-1 px-1.5 py-0.5 rounded border border-purple-300 text-[10px] leading-none font-semibold text-purple-700 hover:bg-purple-50"
-                                                                        title="Set manual result for this set"
-                                                                    >
-                                                                        Set
-                                                                    </button>
-                                                                ) : null}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {sortedSlots.map((slot) => {
+                                                const declared = Boolean(slot?.declaration?.declared);
+                                                const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
+                                                const canManualResult = !declared && isRunning && currentSlotPhase === 'study';
+                                                return (
+                                                    <tr key={slot.slotStartIso} className="border-b border-gray-200 last:border-b-0">
+                                                        <td className="p-2.5 align-top">
+                                                            <div className="font-semibold text-gray-800">{formatSlotLabel(slot)}</div>
+                                                            <div className="text-[11px] text-gray-500 mt-0.5">{slot.slotStartIso}</div>
+                                                        </td>
+                                                        <td className="p-2.5 align-top">
+                                                            <div className="flex flex-col items-start gap-1">
+                                                                <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${declared ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                                    {declared ? 'Declared' : 'Pending'}
+                                                                </span>
+                                                                {isRunning ? <span className="text-[10px] px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">Running Slot</span> : null}
+                                                            </div>
+                                                        </td>
+                                                        {[1, 2, 3].map((quizId) => {
+                                                            const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
+                                                            const visibleResultLabel = (slot?.isCompleted || isRunning) ? (q?.resultLabel || '--') : '--';
+                                                            const pl = formatHousePl(q?.houseNetIfHintWins);
+                                                            return (
+                                                                <td key={`${slot.slotStartIso}-${quizId}`} className="p-2.5 text-center align-top">
+                                                                    <div className="font-mono text-sm font-semibold text-gray-800">{visibleResultLabel}</div>
+                                                                    <div className={`text-[10px] mt-0.5 ${q?.declared ? 'text-green-600' : 'text-gray-500'}`}>
+                                                                        {q?.declared ? 'Declared' : 'Not declared'}
+                                                                    </div>
+                                                                    <div className={`text-[10px] mt-0.5 font-semibold ${pl.className}`}>{pl.text}</div>
+                                                                    {canManualResult ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => openManualModal(slot.slotStartIso, String(quizId), q?.resultLabel || '--')}
+                                                                            className="mt-1.5 inline-flex px-2 py-0.5 rounded border border-purple-300 text-[10px] text-purple-700 font-semibold hover:bg-purple-50"
+                                                                        >
+                                                                            Set
+                                                                        </button>
+                                                                    ) : null}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     </>
                 )}

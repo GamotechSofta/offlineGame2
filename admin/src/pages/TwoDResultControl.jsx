@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -13,25 +13,7 @@ const todayDate = () => {
     return `${y}-${m}-${d}`;
 };
 
-/** House P/L if the current hint number wins (total stake on quiz − payout on that number). */
-function hintHouseNetMeta(value) {
-    if (value == null || !Number.isFinite(Number(value))) {
-        return { text: 'P/L: —', className: 'text-gray-400', title: '' };
-    }
-    const n = Math.round(Number(value));
-    if (n >= 0) {
-        return {
-            text: `P/L: +₹${n.toLocaleString('en-IN')}`,
-            className: 'text-green-700',
-            title: 'House keeps this much if this hint number wins (after paying winners on this number).',
-        };
-    }
-    return {
-        text: `P/L: −₹${Math.abs(n).toLocaleString('en-IN')}`,
-        className: 'text-red-700',
-        title: 'House pays out more than collected on this number if it wins.',
-    };
-}
+const formatSlotLabel = (slot) => slot?.drawLabelEnd || slot?.slotStartIso || '-';
 
 const TwoDResultControl = () => {
     const navigate = useNavigate();
@@ -53,9 +35,7 @@ const TwoDResultControl = () => {
     const [secretCheckComplete, setSecretCheckComplete] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
-    const topScrollRef = useRef(null);
-    const tableScrollRef = useRef(null);
-    const syncingScrollRef = useRef(false);
+    const [expandedSlotIso, setExpandedSlotIso] = useState('');
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -280,21 +260,9 @@ const TwoDResultControl = () => {
         }
     }, [manualModal, closeManualModal, fetchCurrentSlotForHints]);
 
-    const syncHorizontalScroll = (source) => {
-        if (syncingScrollRef.current) return;
-        const topEl = topScrollRef.current;
-        const tableEl = tableScrollRef.current;
-        if (!topEl || !tableEl) return;
-        syncingScrollRef.current = true;
-        if (source === 'top') {
-            tableEl.scrollLeft = topEl.scrollLeft;
-        } else {
-            topEl.scrollLeft = tableEl.scrollLeft;
-        }
-        requestAnimationFrame(() => {
-            syncingScrollRef.current = false;
-        });
-    };
+    const sortedSlots = useMemo(() => (
+        [...slots].sort((a, b) => String(b.slotStartIso || '').localeCompare(String(a.slotStartIso || '')))
+    ), [slots]);
 
     return (
         <AdminLayout onLogout={handleLogout} title="2D Result Control">
@@ -303,7 +271,7 @@ const TwoDResultControl = () => {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800">2D Result Declaration Control</h1>
-                        <p className="text-sm text-gray-500">All slots chart with quiz-wise result and declaration controls.</p>
+                        <p className="text-sm text-gray-500">Simple flow: edit running slot first, then review history.</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <input
@@ -356,119 +324,94 @@ const TwoDResultControl = () => {
 
                 {hasSecretDeclarePassword && !pageUnlocked ? null : (
                     <>
-
-                <div className="bg-white border border-gray-200 rounded-xl p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <p className="text-sm font-bold text-gray-700">
-                            Running Slot <span className="text-red-500">Hint Numbers</span>
-                        </p>
-                        <span className="text-[11px] font-medium text-green-600">Visible</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mb-3 break-all">Slot Start: {currentSlotStartIso || '-'}</p>
-                            {currentHintRows.length ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2">
-                            {currentHintRows.map((item) => {
-                                const pl = hintHouseNetMeta(item.houseNetIfHintWins);
-                                return (
-                                    <button
-                                        key={item.quizId}
-                                        type="button"
-                                        onClick={() => {
-                                            if (!currentSlotStartIso) return;
-                                            navigate(`/2d-management/quiz/${item.quizId}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`);
-                                        }}
-                                        disabled={!currentSlotStartIso}
-                                        className="cursor-pointer rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-left hover:border-orange-400 hover:bg-orange-50/50 hover:shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-                                        title={currentSlotStartIso ? 'Open stake / number-wise P/L' : 'Current slot unavailable'}
-                                    >
-                                        <div className="flex justify-between gap-1 items-baseline">
-                                            <span className="text-gray-500 shrink-0">{`Q${String(item.quizId).padStart(2, '0')}`}</span>
-                                            <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
-                                        </div>
-                                        <div className={`mt-1 text-[10px] font-semibold leading-tight ${pl.className}`} title={pl.title || undefined}>
-                                            {pl.text}
-                                        </div>
-                                        <div className="mt-1.5 flex justify-end">
-                                            <span className="inline-flex items-center rounded border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">
-                                                Edit
-                                            </span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <p className="text-xs text-gray-500">Hint numbers unavailable for current slot.</p>
-                    )}
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-xl p-5">
-                    <div
-                        ref={topScrollRef}
-                        onScroll={() => syncHorizontalScroll('top')}
-                        className="mb-2 overflow-x-scroll overflow-y-hidden"
-                        aria-label="Top horizontal scrollbar"
-                    >
-                        <div className="h-2 min-w-[1500px]" />
-                    </div>
-                    <div
-                        ref={tableScrollRef}
-                        onScroll={() => syncHorizontalScroll('table')}
-                        className="max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-scroll pb-1"
-                    >
-                        <table className="min-w-[1500px] w-full text-xs">
-                            <thead className="sticky top-0 z-20">
-                                <tr className="border-b border-gray-200 text-gray-600 bg-gray-50">
-                                    <th className="text-left p-2">Slot</th>
-                                    {Array.from({ length: 30 }, (_, i) => i + 1).map((quizId) => (
-                                        <th key={quizId} className="text-center p-2 whitespace-nowrap">{`Q${String(quizId).padStart(2, '0')}`}</th>
+                        <div className="bg-white border border-gray-200 rounded-xl p-5">
+                            <h2 className="text-base font-semibold text-gray-800">Step 1: Running slot quick edit</h2>
+                            <p className="text-xs text-gray-500 mt-1">Current slot: {currentSlotStartIso || '-'}</p>
+                            {hintsLoading ? (
+                                <p className="mt-3 text-xs text-gray-500">Loading running slot...</p>
+                            ) : currentHintRows.length ? (
+                                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                                    {currentHintRows.map((item) => (
+                                        <button
+                                            key={item.quizId}
+                                            type="button"
+                                            onClick={() => openManualModal(currentSlotStartIso, String(item.quizId), item.hint)}
+                                            className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left hover:border-purple-300 hover:bg-purple-50 transition"
+                                            title="Set result quickly"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-gray-500">{`Q${String(item.quizId).padStart(2, '0')}`}</span>
+                                                <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
+                                            </div>
+                                            <div className="mt-1 text-[10px] text-purple-700 font-semibold">Set Result</div>
+                                        </button>
                                     ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {!slots.length && !loading ? (
-                                    <tr>
-                                        <td colSpan={31} className="text-center p-4 text-gray-500">No slots found for selected date.</td>
-                                    </tr>
-                                ) : null}
-                                {slots.map((slot) => {
-                                    const declared = Boolean(slot?.declaration?.declared);
-                                    const isCurrentRunningSlot = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
-                                    const canManualResult = !declared && isCurrentRunningSlot && currentSlotPhase === 'study';
-                                    const showManualSetOptions = canManualResult;
-                                    return (
-                                        <tr key={slot.slotStartIso} className="border-b border-black">
-                                            <td className="p-2">
-                                                <div className="font-semibold text-gray-800">{slot.drawLabelEnd || slot.slotStartIso}</div>
-                                            </td>
-                                            {Array.from({ length: 30 }, (_, idx) => idx + 1).map((quizId) => {
-                                                const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
-                                                return (
-                                                    <td key={`${slot.slotStartIso}-${quizId}`} className="p-2 text-center">
-                                                        <div className="font-mono text-gray-800">{q?.resultLabel || '--'}</div>
-                                                        <div className={`text-[9px] leading-tight ${q?.declared ? 'text-green-600' : 'text-gray-600'}`}>
-                                                            {q?.declared ? 'Declared' : 'Not'}
+                                </div>
+                            ) : (
+                                <p className="mt-3 text-xs text-gray-500">Running slot unavailable or hint numbers not ready.</p>
+                            )}
+                        </div>
+
+                        <div className="bg-white border border-gray-200 rounded-xl p-5">
+                            <h2 className="text-base font-semibold text-gray-800">Step 2: Slot history (latest first)</h2>
+                            <p className="text-xs text-gray-500 mt-1">Open any slot to view all 30 quiz results clearly.</p>
+                            {!sortedSlots.length && !loading ? (
+                                <p className="mt-3 text-sm text-gray-500">No slots found for selected date.</p>
+                            ) : (
+                                <div className="mt-3 space-y-2">
+                                    {sortedSlots.map((slot) => {
+                                        const declaredCount = (slot?.perQuiz || []).filter((q) => q?.declared).length;
+                                        const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
+                                        const canManualResult = !slot?.declaration?.declared && isRunning && currentSlotPhase === 'study';
+                                        const isExpanded = expandedSlotIso === slot.slotStartIso;
+                                        return (
+                                            <div key={slot.slotStartIso} className="rounded-lg border border-gray-200">
+                                                <div className="p-3 flex flex-wrap items-center justify-between gap-2">
+                                                    <div>
+                                                        <div className="font-semibold text-sm text-gray-800">{formatSlotLabel(slot)}</div>
+                                                        <div className="text-xs text-gray-500">{declaredCount}/30 declared</div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {isRunning ? <span className="text-[10px] px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">Running</span> : null}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setExpandedSlotIso(isExpanded ? '' : slot.slotStartIso)}
+                                                            className="px-2.5 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                                        >
+                                                            {isExpanded ? 'Hide Details' : 'View Details'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {isExpanded ? (
+                                                    <div className="border-t border-gray-200 p-3">
+                                                        <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-10 gap-2">
+                                                            {Array.from({ length: 30 }, (_, idx) => idx + 1).map((quizId) => {
+                                                                const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
+                                                                return (
+                                                                    <div key={`${slot.slotStartIso}-${quizId}`} className="rounded border border-gray-200 px-2 py-1.5 text-center">
+                                                                        <div className="text-[10px] text-gray-500">{`Q${String(quizId).padStart(2, '0')}`}</div>
+                                                                        <div className="font-mono text-xs font-semibold text-gray-800">{q?.resultLabel || '--'}</div>
+                                                                        {canManualResult ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => openManualModal(slot.slotStartIso, String(quizId), q?.resultLabel || '--')}
+                                                                                className="mt-1 text-[10px] text-purple-700 font-semibold hover:underline"
+                                                                            >
+                                                                                Set
+                                                                            </button>
+                                                                        ) : null}
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
-                                                        {showManualSetOptions ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => openManualModal(slot.slotStartIso, String(quizId), q?.resultLabel || '--')}
-                                                                className="mt-1 px-1.5 py-0.5 rounded border border-purple-300 text-[10px] leading-none font-semibold text-purple-700 hover:bg-purple-50"
-                                                                title="Set manual result for this quiz"
-                                                            >
-                                                                Set
-                                                            </button>
-                                                        ) : null}
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </>
                 )}
                 </div>
