@@ -1,12 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BookieBidLayout from '../BookieBidLayout';
 import { usePlayerBet } from '../PlayerBetContext';
 import { useBetCart } from '../BetCartContext';
 import { isPastOpeningTime } from '../../../utils/marketTiming';
 import { generateCPCommon } from './spCommonGenerator';
+import { isValidSinglePana, isValidDoublePana, isValidTriplePana } from '../panaRules';
 
 const DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 const QUICK_POINTS = [10, 20, 30, 40, 50];
+
+const getPanaType = (pana) => {
+    if (isValidTriplePana(pana)) return 'T';
+    if (isValidDoublePana(pana)) return 'DP';
+    if (isValidSinglePana(pana)) return 'SP';
+    return '';
+};
 
 const CpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) => {
     const { market } = usePlayerBet();
@@ -21,6 +29,9 @@ const CpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
         return new Date().toISOString().split('T')[0];
     });
     const [selectedDigits, setSelectedDigits] = useState([]);
+    const [includeSp, setIncludeSp] = useState(false);
+    const [includeDp, setIncludeDp] = useState(false);
+    const [includeTriple, setIncludeTriple] = useState(false);
     const [pointsInput, setPointsInput] = useState('');
     const [generatedRows, setGeneratedRows] = useState([]);
 
@@ -41,7 +52,7 @@ const CpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
             return;
         }
         if (selectedDigits.length >= 2) {
-            showWarning('Select at most 2 digits for CP (Common Pana).');
+            showWarning('Select at most 2 digits for CP.');
             return;
         }
         setSelectedDigits([...selectedDigits, digit].sort((a, b) => Number(a) - Number(b)));
@@ -60,32 +71,55 @@ const CpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
         setSelectedDigits([]);
         setPointsInput('');
         setGeneratedRows([]);
+        setIncludeSp(false);
+        setIncludeDp(false);
+        setIncludeTriple(false);
     };
 
-    const handleGenerate = () => {
+    // Auto-generate when inputs change
+    const lastAutoWarnKeyRef = useRef('');
+    useEffect(() => {
         const digitsInput = selectedDigits.join('');
-        if (!digitsInput) {
-            showWarning('Please select at least one digit (0-9), at most two.');
-            return;
-        }
-        const result = generateCPCommon({ digitsInput, points: Number(pointsInput) });
-        if (!result.success) {
-            showWarning(result.message);
-            return;
-        }
-        if (result.data.length === 0) {
-            showWarning('No panna matches for selected digit(s).');
+        const pts = Number(pointsInput);
+        const hasDigits = digitsInput.length >= 1 && digitsInput.length <= 2;
+        const hasPoints = Number.isFinite(pts) && pts > 0;
+        const hasAnyFilter = includeSp || includeDp || includeTriple;
+
+        if (!hasDigits || !hasPoints || !hasAnyFilter) {
             setGeneratedRows([]);
             return;
         }
+
+        const useSingles = includeSp || includeTriple;
+        const useDoubles = includeDp || includeTriple;
+        const result = generateCPCommon({
+            digitsInput,
+            points: pts,
+            includeSingles: useSingles,
+            includeDoubles: useDoubles,
+            includeTriples: includeTriple,
+        });
+
+        const warnKey = `${digitsInput}|${pts}|${useSingles ? 1 : 0}|${useDoubles ? 1 : 0}|${includeTriple ? 1 : 0}`;
+        if (!result.success) {
+            setGeneratedRows([]);
+            if (lastAutoWarnKeyRef.current !== warnKey) {
+                lastAutoWarnKeyRef.current = warnKey;
+                showWarning(result.message);
+            }
+            return;
+        }
+
+        lastAutoWarnKeyRef.current = '';
+        const now = Date.now();
         setGeneratedRows(
             result.data.map((row, idx) => ({
-                id: `${row.pana}-${Date.now()}-${idx}`,
+                id: `${row.pana}-${now}-${idx}`,
                 pana: row.pana,
                 points: String(row.points),
             }))
         );
-    };
+    }, [selectedDigits, pointsInput, includeSp, includeDp, includeTriple]);
 
     const updatePoint = (id, value) => {
         const clean = (value ?? '').toString().replace(/\D/g, '').slice(0, 6);
@@ -101,7 +135,7 @@ const CpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
             .filter((row) => Number(row.points) > 0)
             .map((row) => ({ number: row.pana, points: String(row.points), type: session }));
         if (!items.length) {
-            showWarning('Generate and keep at least one row with points.');
+            showWarning('Select digits, check SP/DP/SPDPT, and enter points to generate rows.');
             return;
         }
         const count = addToCart(items, gameType, title, betType || 'cp-common');
@@ -134,7 +168,42 @@ const CpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
                         <div>
-                            <div className="block text-xs sm:text-sm font-semibold text-gray-600 mb-2">Quick Digits</div>
+                            <div className="mb-2">
+                                <div className="flex items-center justify-between mb-1 gap-3">
+                                    <div className="block text-[11px] sm:text-xs font-semibold text-gray-500">
+                                        Select Digits
+                                    </div>
+                                    <div className="flex items-center gap-2 sm:gap-3">
+                                        <label className="inline-flex items-center gap-2 text-[12px] sm:text-sm font-semibold text-gray-800">
+                                            <input
+                                                type="checkbox"
+                                                className="h-5 w-5 sm:h-6 sm:w-6 rounded border-2 border-gray-500 text-[#1B3150] focus:ring-[#1B3150]"
+                                                checked={includeSp}
+                                                onChange={(e) => setIncludeSp(e.target.checked)}
+                                            />
+                                            <span>SP</span>
+                                        </label>
+                                        <label className="inline-flex items-center gap-2 text-[12px] sm:text-sm font-semibold text-gray-800">
+                                            <input
+                                                type="checkbox"
+                                                className="h-5 w-5 sm:h-6 sm:w-6 rounded border-2 border-gray-500 text-[#1B3150] focus:ring-[#1B3150]"
+                                                checked={includeDp}
+                                                onChange={(e) => setIncludeDp(e.target.checked)}
+                                            />
+                                            <span>DP</span>
+                                        </label>
+                                        <label className="inline-flex items-center gap-2 text-[12px] sm:text-sm font-semibold text-gray-800">
+                                            <input
+                                                type="checkbox"
+                                                className="h-5 w-5 sm:h-6 sm:w-6 rounded border-2 border-gray-500 text-[#1B3150] focus:ring-[#1B3150]"
+                                                checked={includeTriple}
+                                                onChange={(e) => setIncludeTriple(e.target.checked)}
+                                            />
+                                            <span>SPDPT</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                             <div className="grid grid-cols-5 gap-2">
                                 {DIGITS.map((d) => {
                                     const selected = selectedDigits.includes(String(d));
@@ -208,27 +277,21 @@ const CpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                                 })}
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={handleGenerate}
-                            className="w-full min-h-[48px] py-3.5 rounded-lg bg-[#1B3150] text-white font-bold text-base"
-                        >
-                            GENERATE
-                        </button>
                     </div>
 
                     <div className="w-full md:w-1/2 flex-1 min-w-0 rounded-lg border border-gray-200 overflow-hidden flex flex-col min-h-[200px] sm:min-h-[260px] bg-white">
-                        <div className="grid grid-cols-[72px_1fr_48px] gap-2 bg-[#1B3150] text-white font-bold text-xs sm:text-sm py-2.5 px-2 sm:px-3">
+                        <div className="grid grid-cols-[72px_1fr_56px_48px] gap-2 bg-[#1B3150] text-white font-bold text-xs sm:text-sm py-2.5 px-2 sm:px-3">
                             <div className="text-center">Pana</div>
                             <div className="text-center">Point</div>
+                            <div className="text-center">Type</div>
                             <div className="text-center">Delete</div>
                         </div>
                         <div className="max-h-[240px] sm:max-h-[280px] overflow-y-auto flex-1 bg-white">
                             {generatedRows.length === 0 ? (
-                                <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
+                                <div className="py-6 text-center text-gray-400 text-sm">Select 1-2 digits, check SP/DP/SPDPT, and enter points to generate</div>
                             ) : (
                                 generatedRows.map((row) => (
-                                    <div key={row.id} className="grid grid-cols-[72px_1fr_48px] gap-2 items-center py-2.5 px-2 sm:px-3 border-b border-gray-200 min-h-[44px]">
+                                    <div key={row.id} className="grid grid-cols-[72px_1fr_56px_48px] gap-2 items-center py-2.5 px-2 sm:px-3 border-b border-gray-200 min-h-[44px]">
                                         <div className="text-center font-bold text-gray-800 text-sm sm:text-base">{row.pana}</div>
                                         <div className="px-1 sm:px-2 min-w-0">
                                             <input
@@ -239,6 +302,7 @@ const CpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                                                 className="w-full min-h-[40px] h-9 border border-gray-300 rounded-md px-2 text-center text-sm font-semibold text-gray-800"
                                             />
                                         </div>
+                                        <div className="text-center text-sm font-semibold text-[#1B3150]">{getPanaType(row.pana)}</div>
                                         <button
                                             type="button"
                                             onClick={() => removeRow(row.id)}

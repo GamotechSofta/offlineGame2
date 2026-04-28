@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import BookieBidLayout from '../BookieBidLayout';
 import { usePlayerBet } from '../PlayerBetContext';
 import { useBetCart } from '../BetCartContext';
@@ -68,25 +68,30 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
     showWarning._t = window.setTimeout(() => setWarning(''), 2200);
   };
 
-  const handleGenerate = () => {
+  // Auto-generate when inputs change
+  const lastAutoWarnKeyRef = useRef('');
+  useEffect(() => {
     const digits = sanitizeMotorDigitsUnique(digitInput);
-    if (digits.length < 2) {
-      showWarning(`Enter at least 3 digits for SP and 2 digits for DP${isSpDpTMotor ? ', and selected digits for T' : ''}.`);
-      return;
-    }
-    const rawPoints = sanitizePoints(pointsInput);
-    const pts = parseInt(rawPoints, 10);
-    if (!Number.isFinite(pts) || pts < 1) {
-      showWarning('Please enter points.');
+    const pts = Number(sanitizePoints(pointsInput));
+    const hasDigits = digits.length >= 2;
+    const hasPoints = Number.isFinite(pts) && pts > 0;
+    if (!hasDigits || !hasPoints) {
+      setCombinations([]);
       return;
     }
     const singleCombos = generateSpMotorSinglePanas(digits);
     const doubleCombos = generateDoublePanaCombinations(digits);
     const tripleCombos = isSpDpTMotor ? generateTriplePanaCombinations(digits) : [];
     if (!singleCombos.length && !doubleCombos.length && !tripleCombos.length) {
-      showWarning(`Could not generate ${isSpDpTMotor ? 'SP/DP/T' : 'SP/DP'} combinations from these digits.`);
+      const warnKey = `${digits}|${pts}|empty`;
+      setCombinations([]);
+      if (lastAutoWarnKeyRef.current !== warnKey) {
+        lastAutoWarnKeyRef.current = warnKey;
+        showWarning(`Could not generate ${isSpDpTMotor ? 'SP/DP/T' : 'SP/DP'} combinations from these digits.`);
+      }
       return;
     }
+    lastAutoWarnKeyRef.current = '';
     const now = Date.now();
     const all = [
       ...singleCombos.map((pana, idx) => ({
@@ -109,7 +114,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
       })),
     ];
     setCombinations(all);
-  };
+  }, [digitInput, pointsInput, isSpDpTMotor]);
 
   const toggleDigit = (d) => {
     const digit = String(d);
@@ -284,13 +289,6 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
                 })}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleGenerate}
-              className="w-full min-h-[48px] py-3.5 rounded-lg bg-[#1B3150] text-white font-bold text-base"
-            >
-              GENERATE
-            </button>
             <div className="hidden md:flex flex-col gap-2 mt-2">
               <div className="flex gap-6">
                 <div className="flex flex-col items-center">
@@ -346,7 +344,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
             </div>
             <div className="max-h-[240px] sm:max-h-[280px] overflow-y-auto flex-1 bg-white">
               {sortedCombinations.length === 0 ? (
-                <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
+                <div className="py-6 text-center text-gray-400 text-sm">Enter at least 2 digits and points to generate</div>
               ) : (
                 sortedCombinations.map((c) => (
                   <div

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BookieBidLayout from '../BookieBidLayout';
 import { usePlayerBet } from '../PlayerBetContext';
 import { useBetCart } from '../BetCartContext';
@@ -53,25 +53,45 @@ const SpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
         setDigitInput((prev) => (prev === digit ? '' : digit));
     };
 
-    const handleGenerate = () => {
-        const result = generateSPCommon({ digit: digitInput, points: Number(pointsInput) });
-        if (!result.success) {
-            showWarning(result.message);
-            return;
-        }
-        if (result.data.length === 0) {
-            showWarning('No panna matches for selected digit(s).');
+    // Auto-generate when inputs change
+    const lastAutoWarnKeyRef = useRef('');
+    useEffect(() => {
+        const pts = Number(pointsInput);
+        const hasDigit = digitInput && digitInput.length === 1;
+        const hasPoints = Number.isFinite(pts) && pts > 0;
+        if (!hasDigit || !hasPoints) {
             setGeneratedRows([]);
             return;
         }
+        const result = generateSPCommon({ digit: digitInput, points: pts });
+        if (!result.success) {
+            const warnKey = `${digitInput}|${pts}|error`;
+            setGeneratedRows([]);
+            if (lastAutoWarnKeyRef.current !== warnKey) {
+                lastAutoWarnKeyRef.current = warnKey;
+                showWarning(result.message);
+            }
+            return;
+        }
+        if (result.data.length === 0) {
+            const warnKey = `${digitInput}|${pts}|empty`;
+            setGeneratedRows([]);
+            if (lastAutoWarnKeyRef.current !== warnKey) {
+                lastAutoWarnKeyRef.current = warnKey;
+                showWarning('No panna matches for selected digit(s).');
+            }
+            return;
+        }
+        lastAutoWarnKeyRef.current = '';
+        const now = Date.now();
         setGeneratedRows(
             result.data.map((row, idx) => ({
-                id: `${row.pana}-${Date.now()}-${idx}`,
+                id: `${row.pana}-${now}-${idx}`,
                 pana: row.pana,
                 points: String(row.points),
             }))
         );
-    };
+    }, [digitInput, pointsInput]);
 
     const updatePoint = (id, value) => {
         const clean = (value ?? '').toString().replace(/\D/g, '').slice(0, 6);
@@ -117,7 +137,7 @@ const SpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                         {warning}
                     </div>
                 )}
-                <p className="text-gray-600 text-xs mb-3">Enter a single digit (0-9), points and click Generate.</p>
+                <p className="text-gray-600 text-xs mb-3">Select a digit (0-9) and enter points to auto-generate panas.</p>
                 <div className="flex flex-col md:flex-row gap-4 sm:gap-5 items-stretch md:items-start">
                     <div className="flex flex-col gap-3 w-full md:w-1/2 shrink-0 min-w-0">
                         <div>
@@ -192,13 +212,6 @@ const SpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                                 })}
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={handleGenerate}
-                            className="w-full min-h-[48px] py-3.5 rounded-lg bg-[#1B3150] text-white font-bold text-base"
-                        >
-                            GENERATE
-                        </button>
                     </div>
 
                     <div className="w-full md:w-1/2 flex-1 min-w-0 rounded-lg border border-gray-200 overflow-hidden flex flex-col min-h-[200px] sm:min-h-[260px] bg-white">
@@ -209,7 +222,7 @@ const SpCommonBid = ({ title, gameType, betType, embedInSingleScroll = false }) 
                         </div>
                         <div className="max-h-[240px] sm:max-h-[280px] overflow-y-auto flex-1 bg-white">
                             {generatedRows.length === 0 ? (
-                                <div className="py-6 text-center text-gray-400 text-sm">Generate to add</div>
+                                <div className="py-6 text-center text-gray-400 text-sm">Select digit and enter points to generate</div>
                             ) : (
                                 generatedRows.map((row) => (
                                     <div key={row.id} className="grid grid-cols-[72px_1fr_48px] gap-2 items-center py-2.5 px-2 sm:px-3 border-b border-gray-200 min-h-[44px]">

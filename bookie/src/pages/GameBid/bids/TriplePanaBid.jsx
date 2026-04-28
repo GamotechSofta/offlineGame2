@@ -2,17 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BookieBidLayout from '../BookieBidLayout';
 import { usePlayerBet } from '../PlayerBetContext';
 import { useBetCart } from '../BetCartContext';
-import { isValidTriplePana } from '../panaRules';
 import { isPastOpeningTime } from '../../../utils/marketTiming';
 
 const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }) => {
     const { market } = usePlayerBet();
     const { addToCart } = useBetCart();
-    const [activeTab, setActiveTab] = useState('easy');
     const [session, setSession] = useState(() => (isPastOpeningTime(market) ? 'CLOSE' : 'OPEN'));
-    const [inputNumber, setInputNumber] = useState('');
-    const [inputPoints, setInputPoints] = useState('');
-    const pointsInputRef = useRef(null);
     const [warning, setWarning] = useState('');
     const [selectedDate, setSelectedDate] = useState(() => {
         try {
@@ -42,17 +37,6 @@ const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }
     const isRunning = isPastOpeningTime(market);
     useEffect(() => { if (isRunning) setSession('CLOSE'); }, [isRunning]);
 
-    const handleAddToCart = () => {
-        const pts = Number(inputPoints);
-        if (!pts || pts <= 0) { showWarning('Please enter points.'); return; }
-        const n = inputNumber?.toString().trim() || '';
-        if (!n) { showWarning('Please enter triple pana (000-999).'); return; }
-        if (!isValidTriplePana(n)) { showWarning('Invalid triple pana. Use 000, 111, 222 ... 999.'); return; }
-        const count = addToCart([{ number: n, points: String(pts), type: session }], gameType, title, betType);
-        if (count > 0) showWarning(`Added ${count} bet to cart ✓`);
-        setInputNumber(''); setInputPoints('');
-    };
-
     const handleAddSpecialToCart = () => {
         const toAdd = Object.entries(specialInputs)
             .filter(([, pts]) => Number(pts) > 0)
@@ -62,33 +46,6 @@ const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }
         if (count > 0) showWarning(`Added ${count} bet(s) to cart ✓`);
         setSpecialInputs(Object.fromEntries(tripleNumbers.map((n) => [n, ''])));
     };
-
-    const handleNumberInputChange = (e) => {
-        const raw = e.target.value.replace(/\D/g, '').slice(0, 3);
-        if (raw.length < inputNumber.length) { setInputNumber(''); return; }
-        if (!raw) { setInputNumber(''); return; }
-        const d = raw[0];
-        const nextVal = `${d}${d}${d}`;
-        const prevVal = (inputNumber ?? '').toString();
-        setInputNumber(nextVal);
-        if (nextVal.length === 3 && prevVal !== nextVal) {
-            window.requestAnimationFrame(() => { pointsInputRef.current?.focus?.(); });
-        }
-    };
-    const isPanaInvalid = !!inputNumber && inputNumber.length === 3 && !isValidTriplePana(inputNumber);
-
-    const modeTabs = (
-        <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setActiveTab('easy')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border active:scale-[0.98] transition-colors ${activeTab === 'easy' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-400 border-gray-200 hover:border-[#1B3150]/50'}`}>
-                EASY MODE
-            </button>
-            <button type="button" onClick={() => setActiveTab('special')}
-                className={`min-h-[44px] py-3 rounded-lg font-bold text-sm shadow-sm border active:scale-[0.98] transition-colors ${activeTab === 'special' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-400 border-gray-200 hover:border-[#1B3150]/50'}`}>
-                SPECIAL MODE
-            </button>
-        </div>
-    );
 
     const addToCartBtnClass = 'w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98]';
 
@@ -103,33 +60,7 @@ const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }
                             {warning}
                         </div>
                     )}
-                    {modeTabs}
-                    {activeTab === 'easy' ? (
-                        <>
-                            <div className="flex flex-col gap-3">
-                                <div className="flex flex-row items-center gap-2">
-                                    <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Select Game Type:</label>
-                                    <div className="flex-1 min-w-0 bg-gray-100 border border-gray-200 rounded-full py-2.5 min-h-[40px] px-4 flex items-center justify-center text-sm font-bold text-gray-800">{session}</div>
-                                </div>
-                                <div className="flex flex-row items-center gap-2">
-                                    <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Enter Pana:</label>
-                                    <input type="text" inputMode="numeric" value={inputNumber} onChange={handleNumberInputChange} placeholder="Pana" maxLength={3}
-                                        className={`flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${isPanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'}`} />
-                                </div>
-                                <div className="flex flex-row items-center gap-2">
-                                    <label className="text-gray-400 text-sm font-medium shrink-0 w-32">Enter Points:</label>
-                                    <input ref={pointsInputRef} type="text" inputMode="numeric" value={inputPoints}
-                                        onChange={(e) => setInputPoints(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                        placeholder="Point" className="no-spinner flex-1 min-w-0 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none" />
-                                </div>
-                            </div>
-                            <button type="button" onClick={handleAddToCart} className={addToCartBtnClass}>
-                                Add to Cart
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
                                 {tripleNumbers.map((num, idx) => (
                                     <div key={num} className="flex items-center gap-2">
                                         <div className="w-12 h-10 bg-gray-100 border border-gray-200 text-orange-500 flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">{num}</div>
@@ -152,8 +83,6 @@ const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }
                             <button type="button" onClick={handleAddSpecialToCart} className={addToCartBtnClass}>
                                 Add to Cart
                             </button>
-                        </>
-                    )}
                 </div>
             </div>
         </BookieBidLayout>

@@ -72,7 +72,8 @@ export const generateCPCommon = ({
         for (let d = 0; d <= 9; d += 1) {
             const pana = `${d}${d}${d}`;
             if (!isValidTriplePana(pana)) continue;
-            if (!required.every((ch) => pana.includes(ch))) continue;
+            // For triples, check if ANY of the required digits is in the pana (not ALL)
+            if (!required.some((ch) => pana.includes(ch))) continue;
             if (!byPana.has(pana)) byPana.set(pana, safePoints);
         }
     }
