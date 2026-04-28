@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession } from '../lib/auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
+const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV ? 'http://localhost:3010/api/v1' : 'https://api.singlepana.in/api/v1');
 const normalizeRows = (rows) => rows.map((item) => String(item || '').trim()).filter(Boolean);
 
 const BannerSettings = () => {
@@ -39,6 +41,10 @@ const BannerSettings = () => {
                 handleUnauthorized();
                 return;
             }
+            if (!res.ok) {
+                setStatusMsg(`Failed to load banner settings (${res.status})`);
+                return;
+            }
             const json = await res.json();
             if (json.success) {
                 const nextDesktop = normalizeRows(json.data?.desktopBanners || []);
@@ -48,8 +54,8 @@ const BannerSettings = () => {
             } else {
                 setStatusMsg(json.message || 'Failed to load banner settings');
             }
-        } catch {
-            setStatusMsg('Network error while loading banner settings');
+        } catch (error) {
+            setStatusMsg(error?.message ? `Network error: ${error.message}` : 'Network error while loading banner settings');
         } finally {
             setLoading(false);
         }
@@ -85,6 +91,10 @@ const BannerSettings = () => {
                 handleUnauthorized();
                 return;
             }
+            if (!res.ok) {
+                setStatusMsg(`Failed to update banner settings (${res.status})`);
+                return;
+            }
 
             const json = await res.json();
             if (json.success) {
@@ -98,8 +108,8 @@ const BannerSettings = () => {
             } else {
                 setStatusMsg(json.message || 'Failed to update banner');
             }
-        } catch {
-            setStatusMsg('Network error while saving banner settings');
+        } catch (error) {
+            setStatusMsg(error?.message ? `Network error: ${error.message}` : 'Network error while saving banner settings');
         } finally {
             setSaving(false);
         }
