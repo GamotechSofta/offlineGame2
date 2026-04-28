@@ -1,6 +1,6 @@
 import React from 'react';
 
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'C', 'X'];
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'X'];
 
 const Keypad = ({ onKey }) => {
   return (
@@ -10,8 +10,8 @@ const Keypad = ({ onKey }) => {
           key={k}
           type="button"
           onClick={() => onKey(k)}
-          className={`h-[54px] border text-[22px] leading-none font-semibold rounded-[2px] shadow-sm active:scale-[0.98] transition touch-manipulation ${
-            k === 'C' || k === 'X'
+          className={`${k === 'X' ? 'col-span-2' : ''} h-[54px] border text-[34px] leading-none font-semibold rounded-[2px] shadow-sm active:scale-[0.98] transition touch-manipulation ${
+            k === 'X'
               ? 'border-[#d63f35] bg-[#f04438] text-white hover:bg-[#e83d32]'
               : 'border-[#8a8a8a] bg-[#f4f4f4] text-black hover:bg-[#ececec]'
           }`}
