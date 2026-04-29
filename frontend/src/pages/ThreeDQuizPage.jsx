@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AppLayout from '../components/AppLayout';
-import { getQuizHint, getQuizQuestions, getQuizResult, getQuizSettings, getQuizSlot, postQuizBet } from '../api/quizApi';
+import { getQuizQuestions, getQuizResult, getQuizSettings, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { verifyFairness } from '../utils/quizFairness';
 import { SLOT_SECONDS, formatISTTimeFromDaySeconds, getVisibleQuestionCountFromSlotStart } from '../utils/quizSlotClock';
@@ -27,10 +27,6 @@ const QUIZ_MODE = '3d';
 const DEFAULT_STUDY_MINUTES = 14.5;
 const DEFAULT_REVEAL_STAGGER_MS_3D = 810;
 const QUIZ_SELECTOR_COUNT = 3;
-const SLOT_POLL_VISIBLE_MS = 3000;
-const SLOT_POLL_HIDDEN_MS = 7000;
-const HINT_POLL_VISIBLE_MS = 4000;
-const HINT_POLL_HIDDEN_MS = 9000;
 
 const hasSlotDataChanged = (prev, next) => {
   if (!prev) return true;
@@ -128,6 +124,8 @@ const ThreeDQuizPage = () => {
     studyMinutes: DEFAULT_STUDY_MINUTES,
     questionRevealStaggerMs: DEFAULT_REVEAL_STAGGER_MS_3D,
   });
+  const [clockNowMs, setClockNowMs] = useState(() => Date.now());
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
 
   const lastBetNumbersRef = useRef([]);
   const selectedQuizRef = useRef(selectedQuiz);
@@ -135,6 +133,7 @@ const ThreeDQuizPage = () => {
   const lastLandscapeAutoFsAttemptRef = useRef(0);
   const slotStripRef = useRef(null);
   const slotChipRefs = useRef({});
+  const socketRef = useRef(null);
 
   const quizLabel = `QUIZ${pad2(selectedQuiz)}`;
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
@@ -149,6 +148,13 @@ const ThreeDQuizPage = () => {
   useEffect(() => {
     selectedQuizRef.current = selectedQuiz;
   }, [selectedQuiz]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setClockNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
@@ -246,10 +252,33 @@ const ThreeDQuizPage = () => {
     const socket = io(url, {
       path: '/socket.io',
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 2000,
     });
+    socketRef.current = socket;
+
+    const onSlotUpdate = (data) => {
+      if (!data || String(data.gameMode || '2d').toLowerCase() !== QUIZ_MODE) return;
+      setSlotData((prev) => (hasSlotDataChanged(prev, data) ? data : prev));
+      if (data.serverNowIso) {
+        const serverNowMs = new Date(data.serverNowIso).getTime();
+        if (Number.isFinite(serverNowMs)) {
+          setServerOffsetMs(serverNowMs - Date.now());
+        }
+      }
+      setSlotErr('');
+    };
+
+    const onHintUpdate = (data) => {
+      if (!data?.slotStartIso) return;
+      setHintData({
+        quizId: selectedQuizRef.current,
+        questionText: data.questionText,
+        slotStartIso: data.slotStartIso,
+        seedHash: data.seedHash,
+      });
+    };
 
     const onQuizResult = async (data) => {
       if (!data?.slotStartIso || !Array.isArray(data.results)) return;
@@ -275,43 +304,27 @@ const ThreeDQuizPage = () => {
       setGuessFeedback('Result declared for this slot. Winning number is hidden.');
     };
 
-    socket.on('quiz:result', onQuizResult);
-    return () => {
-      socket.off('quiz:result', onQuizResult);
-      socket.disconnect();
+    const onConnectError = (err) => {
+      setSlotErr(err?.message || 'Socket connection failed');
     };
-  }, []);
 
-  useEffect(() => {
-    let stop = false;
-    let timerId;
-    const poll = async () => {
-      try {
-        const j = await getQuizSlot();
-        if (!stop && j.success && j.data) {
-          setSlotData((prev) => (hasSlotDataChanged(prev, j.data) ? j.data : prev));
-        }
-        if (!stop) setSlotErr('');
-      } catch (e) {
-        if (!stop) setSlotErr(e.message || 'Slot sync failed');
-      } finally {
-        if (!stop) {
-          const delay = document.hidden ? SLOT_POLL_HIDDEN_MS : SLOT_POLL_VISIBLE_MS;
-          timerId = window.setTimeout(poll, delay);
-        }
-      }
+    const onDisconnect = () => {
+      setSlotErr('Realtime connection disconnected');
     };
-    poll();
-    const onVisibilityChange = () => {
-      if (stop) return;
-      if (timerId) window.clearTimeout(timerId);
-      timerId = window.setTimeout(poll, 150);
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    socket.on('slot:update', onSlotUpdate);
+    socket.on('hint:update', onHintUpdate);
+    socket.on('quiz:result', onQuizResult);
+    socket.on('connect_error', onConnectError);
+    socket.on('disconnect', onDisconnect);
     return () => {
-      stop = true;
-      if (timerId) window.clearTimeout(timerId);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
+      socketRef.current = null;
+      socket.off('slot:update', onSlotUpdate);
+      socket.off('hint:update', onHintUpdate);
+      socket.off('quiz:result', onQuizResult);
+      socket.off('connect_error', onConnectError);
+      socket.off('disconnect', onDisconnect);
+      socket.disconnect();
     };
   }, []);
 
@@ -367,49 +380,8 @@ const ThreeDQuizPage = () => {
       return undefined;
     }
     setHintData(null);
-    let cancelled = false;
-    let timerId;
-    const load = async () => {
-      try {
-        const j = await getQuizHint(selectedQuiz, QUIZ_MODE);
-        if (!cancelled && j.success && j.data) {
-          const nextHint = {
-            quizId: selectedQuiz,
-            questionText: j.data.questionText,
-            slotStartIso: j.data.slotStartIso,
-            seedHash: j.data.seedHash,
-          };
-          setHintData((prev) => (
-            prev
-            && prev.quizId === nextHint.quizId
-            && prev.questionText === nextHint.questionText
-            && prev.slotStartIso === nextHint.slotStartIso
-            && prev.seedHash === nextHint.seedHash
-              ? prev
-              : nextHint
-          ));
-        }
-      } catch {
-        // race with study phase, will retry
-      } finally {
-        if (!cancelled) {
-          const delay = document.hidden ? HINT_POLL_HIDDEN_MS : HINT_POLL_VISIBLE_MS;
-          timerId = window.setTimeout(load, delay);
-        }
-      }
-    };
-    load();
-    const onVisibilityChange = () => {
-      if (cancelled) return;
-      if (timerId) window.clearTimeout(timerId);
-      timerId = window.setTimeout(load, 150);
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => {
-      cancelled = true;
-      if (timerId) window.clearTimeout(timerId);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
+    socketRef.current?.emit('hint:subscribe', { quizId: selectedQuiz, gameMode: QUIZ_MODE });
+    return undefined;
   }, [slotData?.phase, selectedQuiz]);
 
   useEffect(() => {
@@ -422,6 +394,18 @@ const ThreeDQuizPage = () => {
 
   const hintPhase = slotData?.phase === 'hint';
   const studyPhase = slotData?.phase === 'study';
+  const effectiveNowMs = clockNowMs + serverOffsetMs;
+  const slotEndMs = slotData?.slotEndIso ? new Date(slotData.slotEndIso).getTime() : NaN;
+  const slotStartMs = slotData?.slotStartIso ? new Date(slotData.slotStartIso).getTime() : NaN;
+  const remainingSlotSeconds = Number.isFinite(slotEndMs)
+    ? Math.max(0, Math.floor((slotEndMs - effectiveNowMs) / 1000))
+    : Math.max(0, Number(slotData?.secondsUntilSlotEnd ?? 0));
+  const hintStartMs = Number.isFinite(slotStartMs)
+    ? slotStartMs + Math.round((timingSettings.studyMinutes || DEFAULT_STUDY_MINUTES) * 60 * 1000)
+    : NaN;
+  const remainingHintSeconds = Number.isFinite(hintStartMs)
+    ? Math.max(0, Math.floor((hintStartMs - effectiveNowMs) / 1000))
+    : Math.max(0, Number(slotData?.secondsUntilHint ?? 0));
   const slotOpenForBuy = useMemo(() => {
     if (!slotData?.slotStartIso) return false;
     if (slotData.acceptsBets === true) return true;
@@ -556,7 +540,7 @@ const ThreeDQuizPage = () => {
                   3D
                 </button>
                 <span className="text-[15px] font-extrabold leading-snug text-[#5c2222] sm:text-lg">
-                  {slotErr ? `Server: ${slotErr}` : hintPhase ? `Hint phase - Draw: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(slotData?.secondsUntilSlotEnd ?? 0)})` : `Hint in ${timingSettings.studyMinutes} min (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
+                  {slotErr ? `Server: ${slotErr}` : hintPhase ? `Hint phase - Draw: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(remainingSlotSeconds)})` : `Hint in ${timingSettings.studyMinutes} min (${formatCountdown(remainingHintSeconds)})`}
                 </span>
               </div>
 

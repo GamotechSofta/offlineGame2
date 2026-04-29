@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AppLayout from '../components/AppLayout';
-import { getQuizHint, getQuizQuestions, getQuizResult, getQuizSettings, getQuizSlot, postQuizBet } from '../api/quizApi';
+import { getQuizQuestions, getQuizResult, getQuizSettings, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { verifyFairness } from '../utils/quizFairness';
 import { getVisibleQuestionCountFromSlotStart } from '../utils/quizSlotClock';
@@ -24,6 +24,20 @@ const formatCountdown = (totalSeconds) => {
 
 const cleanQuestionText = (text) =>
   String(text || '').replace(/^(?:प्रश्न|Question)\s*\(\d{1,2}-\d{2}\)\s*:\s*/iu, '');
+
+const hasSlotDataChanged = (prev, next) => {
+  if (!prev) return true;
+  return (
+    prev.slotStartIso !== next.slotStartIso
+    || prev.phase !== next.phase
+    || prev.acceptsBets !== next.acceptsBets
+    || prev.secondsUntilSlotEnd !== next.secondsUntilSlotEnd
+    || prev.secondsUntilHint !== next.secondsUntilHint
+    || prev.drawLabelPrev !== next.drawLabelPrev
+    || prev.drawLabelCurrent !== next.drawLabelCurrent
+    || prev.drawLabelNext !== next.drawLabelNext
+  );
+};
 
 const LotteryQuizPage = () => {
   const navigate = useNavigate();
@@ -51,11 +65,14 @@ const LotteryQuizPage = () => {
     studyMinutes: DEFAULT_STUDY_MINUTES,
     questionRevealStaggerMs: DEFAULT_REVEAL_STAGGER_MS,
   });
+  const [clockNowMs, setClockNowMs] = useState(() => Date.now());
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
 
   const lastBetNumbersRef = useRef([]);
   const selectedQuizRef = useRef(selectedQuiz);
   const lastHintSlotRef = useRef(null);
   const lastLandscapeAutoFsAttemptRef = useRef(0);
+  const socketRef = useRef(null);
 
   const quizLabel = `QUIZ${pad2(selectedQuiz)}`;
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
@@ -64,6 +81,13 @@ const LotteryQuizPage = () => {
   useEffect(() => {
     selectedQuizRef.current = selectedQuiz;
   }, [selectedQuiz]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setClockNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const onResize = () => {
@@ -132,10 +156,33 @@ const LotteryQuizPage = () => {
     const socket = io(url, {
       path: '/socket.io',
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 2000,
     });
+    socketRef.current = socket;
+
+    const onSlotUpdate = (data) => {
+      if (!data || String(data.gameMode || '2d').toLowerCase() !== QUIZ_MODE) return;
+      setSlotData((prev) => (hasSlotDataChanged(prev, data) ? data : prev));
+      if (data.serverNowIso) {
+        const serverNowMs = new Date(data.serverNowIso).getTime();
+        if (Number.isFinite(serverNowMs)) {
+          setServerOffsetMs(serverNowMs - Date.now());
+        }
+      }
+      setSlotErr('');
+    };
+
+    const onHintUpdate = (data) => {
+      if (!data?.slotStartIso) return;
+      setHintData({
+        quizId: selectedQuizRef.current,
+        questionText: data.questionText,
+        slotStartIso: data.slotStartIso,
+        seedHash: data.seedHash,
+      });
+    };
 
     const onQuizResult = async (data) => {
       if (!data?.slotStartIso || !Array.isArray(data.results)) return;
@@ -164,29 +211,27 @@ const LotteryQuizPage = () => {
       setGuessFeedback('Result declared for this slot. Winning number is hidden.');
     };
 
-    socket.on('quiz:result', onQuizResult);
-    return () => {
-      socket.off('quiz:result', onQuizResult);
-      socket.disconnect();
+    const onConnectError = (err) => {
+      setSlotErr(err?.message || 'Socket connection failed');
     };
-  }, []);
 
-  useEffect(() => {
-    let stop = false;
-    const poll = async () => {
-      try {
-        const j = await getQuizSlot();
-        if (!stop && j.success) setSlotData(j.data);
-        if (!stop) setSlotErr('');
-      } catch (e) {
-        if (!stop) setSlotErr(e.message || 'Slot sync failed');
-      }
+    const onDisconnect = () => {
+      setSlotErr('Realtime connection disconnected');
     };
-    poll();
-    const id = setInterval(poll, 2000);
+
+    socket.on('slot:update', onSlotUpdate);
+    socket.on('hint:update', onHintUpdate);
+    socket.on('quiz:result', onQuizResult);
+    socket.on('connect_error', onConnectError);
+    socket.on('disconnect', onDisconnect);
     return () => {
-      stop = true;
-      clearInterval(id);
+      socketRef.current = null;
+      socket.off('slot:update', onSlotUpdate);
+      socket.off('hint:update', onHintUpdate);
+      socket.off('quiz:result', onQuizResult);
+      socket.off('connect_error', onConnectError);
+      socket.off('disconnect', onDisconnect);
+      socket.disconnect();
     };
   }, []);
 
@@ -246,28 +291,8 @@ const LotteryQuizPage = () => {
       return undefined;
     }
     setHintData(null);
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const j = await getQuizHint(selectedQuiz, QUIZ_MODE);
-        if (!cancelled && j.success) {
-          setHintData({
-            quizId: selectedQuiz,
-            questionText: j.data.questionText,
-            slotStartIso: j.data.slotStartIso,
-            seedHash: j.data.seedHash,
-          });
-        }
-      } catch {
-        /* NOT_HINT_PHASE during race — retry on interval */
-      }
-    };
-    load();
-    const id = setInterval(load, 2500);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
+    socketRef.current?.emit('hint:subscribe', { quizId: selectedQuiz, gameMode: QUIZ_MODE });
+    return undefined;
   }, [slotData?.phase, selectedQuiz]);
 
   useEffect(() => {
@@ -389,6 +414,18 @@ const LotteryQuizPage = () => {
 
   const hintPhase = slotData?.phase === 'hint';
   const studyPhase = slotData?.phase === 'study';
+  const effectiveNowMs = clockNowMs + serverOffsetMs;
+  const slotEndMs = slotData?.slotEndIso ? new Date(slotData.slotEndIso).getTime() : NaN;
+  const slotStartMs = slotData?.slotStartIso ? new Date(slotData.slotStartIso).getTime() : NaN;
+  const remainingSlotSeconds = Number.isFinite(slotEndMs)
+    ? Math.max(0, Math.floor((slotEndMs - effectiveNowMs) / 1000))
+    : Math.max(0, Number(slotData?.secondsUntilSlotEnd ?? 0));
+  const hintStartMs = Number.isFinite(slotStartMs)
+    ? slotStartMs + Math.round((timingSettings.studyMinutes || DEFAULT_STUDY_MINUTES) * 60 * 1000)
+    : NaN;
+  const remainingHintSeconds = Number.isFinite(hintStartMs)
+    ? Math.max(0, Math.floor((hintStartMs - effectiveNowMs) / 1000))
+    : Math.max(0, Number(slotData?.secondsUntilHint ?? 0));
   const slotOpenForBuy = useMemo(() => {
     if (!slotData?.slotStartIso) return false;
     if (slotData.acceptsBets === true) return true;
@@ -444,8 +481,8 @@ const LotteryQuizPage = () => {
             {slotErr
               ? `Server: ${slotErr}`
               : hintPhase
-                ? `Hint phase - Draw: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(slotData?.secondsUntilSlotEnd ?? 0)})`
-                : `Hint in ${timingSettings.studyMinutes} min (${formatCountdown(slotData?.secondsUntilHint ?? 0)})`}
+                ? `Hint phase - Draw: ${slotData?.drawLabelCurrent ?? ''} (${formatCountdown(remainingSlotSeconds)})`
+                : `Hint in ${timingSettings.studyMinutes} min (${formatCountdown(remainingHintSeconds)})`}
           </span>
               </div>
 
@@ -576,12 +613,6 @@ const LotteryQuizPage = () => {
                       </p>
                       <p className="text-[14px] font-semibold text-black">{hintData.questionText}</p>
                     </div>
-                    {hintData.seedHash && (
-                      <div className="border-b border-[#dcb] bg-[#f0f4ff] px-3 py-2 text-[11px] leading-snug text-[#1a2a5c]">
-                        <span className="font-bold">Fairness hash (commitment):</span>
-                        <p className="mt-1 break-all font-mono text-[10px] sm:text-[11px]">{hintData.seedHash}</p>
-                      </div>
-                    )}
                   </div>
                 </div>
               ) : null}
