@@ -2429,28 +2429,28 @@ const ThreeDGame = () => {
         </div>
 
         {showBuyConfirm ? (
-          <div className="fixed inset-0 z-[86] flex items-center justify-center bg-[#020617]/75 p-4 backdrop-blur-[2px]">
-            <div className="w-full max-w-4xl rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-7 text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)]">
-              <h3 className="text-[24px] font-extrabold">You want to confirm?</h3>
-              <p className="mt-2 text-[15px] text-[#cbd5e1]">
+          <div className="fixed inset-0 z-[86] flex items-center justify-center bg-[#020617]/80 p-1.5 backdrop-blur-[2px] sm:p-4">
+            <div className="flex w-[99vw] max-w-5xl max-h-[96vh] flex-col overflow-hidden rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-4 text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)] sm:w-full sm:p-7">
+              <h3 className="text-[clamp(2.15rem,10vw,2.9rem)] font-extrabold leading-tight">You want to confirm?</h3>
+              <p className="mt-2 text-[clamp(1.35rem,5.5vw,1.55rem)] text-[#cbd5e1]">
                 Total Bets: <span className="font-bold text-white">{bets.length}</span> | Total Amount:{' '}
                 <span className="font-bold text-[#facc15]">₹{Number(totalPoints || 0)}</span>
               </p>
               {selectedAdvanceSlots.length ? (
-                <p className="mt-1 text-[13px] text-[#93c5fd]">
+                <p className="mt-1 text-[clamp(1.22rem,4.8vw,1.35rem)] text-[#93c5fd]">
                   Advance slots selected: <span className="font-bold">{selectedAdvanceSlots.length}</span>
                 </p>
               ) : null}
-              <p className="mt-1 text-[13px] text-[#cbd5e1]">
+              <p className="mt-1 text-[clamp(1.22rem,4.8vw,1.35rem)] text-[#cbd5e1]">
                 Draw Time: <span className="font-bold text-white">{buyTargetSlotLabels.join(', ')}</span>
               </p>
-              <div className="mt-4 max-h-[50vh] overflow-y-auto rounded-lg border border-[#334155] bg-[#0b1220]">
+              <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-lg border border-[#334155] bg-[#0b1220]">
                 {!bets.length ? (
-                  <p className="p-4 text-[15px] text-[#cbd5e1]">No bets left to place.</p>
+                  <p className="p-4 text-[clamp(1.3rem,5vw,1.45rem)] text-[#cbd5e1]">No bets left to place.</p>
                 ) : (
                   [...bets].reverse().map((bet) => (
-                    <div key={bet.id} className="flex items-center justify-between gap-3 border-b border-[#1f2937] px-4 py-2.5 last:border-b-0">
-                      <div className="text-[15px]">
+                    <div key={bet.id} className="flex items-center justify-between gap-3 border-b border-[#1f2937] px-4 py-3.5 last:border-b-0">
+                      <div className="text-[clamp(1.2rem,4.9vw,1.35rem)]">
                         <span className="font-semibold">Set {String(bet.panels || '-').toUpperCase()}</span>
                         <span className="mx-2 text-[#64748b]">|</span>
                         <span>{String(bet.mode || '').toUpperCase()}</span>
@@ -2462,7 +2462,7 @@ const ThreeDGame = () => {
                       <button
                         type="button"
                         onClick={() => handleRequestRemoveBet(bet.id)}
-                        className="rounded-md border border-[#b91c1c] bg-[#7f1d1d] px-2.5 py-1.5 text-[12px] font-bold text-white hover:bg-[#991b1b]"
+                        className="rounded-md border border-[#b91c1c] bg-[#7f1d1d] px-3.5 py-2.5 text-[17px] font-bold text-white hover:bg-[#991b1b] sm:px-2.5 sm:py-1.5 sm:text-[12px]"
                       >
                         Remove
                       </button>
@@ -2470,11 +2470,11 @@ const ThreeDGame = () => {
                   ))
                 )}
               </div>
-              <div className="mt-4 flex items-center gap-2">
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:items-center">
                 <button
                   type="button"
                   onClick={() => setShowBuyConfirm(false)}
-                  className="h-11 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-[15px] font-bold"
+                  className="h-[5.25rem] w-full rounded-lg border border-[#475569] bg-[#1e293b] px-4 text-[30px] font-bold leading-none sm:h-[4rem] sm:flex-1 sm:text-[22px]"
                 >
                   Cancel
                 </button>
@@ -2482,7 +2482,7 @@ const ThreeDGame = () => {
                   type="button"
                   onClick={handleConfirmBuy}
                   disabled={!bets.length}
-                  className="h-11 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-[15px] font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-[5.25rem] w-full rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] px-4 text-[30px] font-extrabold leading-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
                 >
                   Confirm & Place
                 </button>
@@ -2535,27 +2535,27 @@ const ThreeDGame = () => {
           </div>
         ) : null}
         {cancelBetDialog ? (
-          <div className="fixed inset-0 z-[87] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[1px]">
-            <div className={`w-full max-w-md rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-5 text-white shadow-2xl ${isCancelSubmitting ? 'animate-pulse' : ''}`}>
+          <div className="fixed inset-0 z-[87] flex items-center justify-center bg-black/75 p-1.5 backdrop-blur-[1px] sm:p-4">
+            <div className={`w-[99vw] max-w-xl rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-5 text-white shadow-2xl sm:w-full sm:p-6 ${isCancelSubmitting ? 'animate-pulse' : ''}`}>
               <div className="flex items-center gap-2">
-                <CircleX className="h-6 w-6 text-rose-400" />
-                <h4 className="text-xl font-extrabold">{cancelBetDialog.title || 'Cancel Bet'}</h4>
+                <CircleX className="h-7 w-7 text-rose-400" />
+                <h4 className="text-[clamp(2rem,8.2vw,2.5rem)] font-extrabold">{cancelBetDialog.title || 'Cancel Bet'}</h4>
               </div>
-              <p className="mt-2 text-[15px] text-[#cbd5e1]">{cancelBetDialog.description}</p>
-              <p className="mt-2 text-[14px] font-bold text-amber-300">
+              <p className="mt-2 text-[clamp(1.3rem,5.4vw,1.5rem)] text-[#cbd5e1]">{cancelBetDialog.description}</p>
+              <p className="mt-2 text-[clamp(1.25rem,5.2vw,1.45rem)] font-bold text-amber-300">
                 Amount: ₹{Number(cancelBetDialog.points || 0)}
               </p>
               {cancelBetDialog.type === 'ticket' ? (
-                <p className="mt-1 text-[13px] text-emerald-300">Refund will be credited back to wallet.</p>
+                <p className="mt-1 text-[clamp(1.15rem,4.5vw,1.3rem)] text-emerald-300">Refund will be credited back to wallet.</p>
               ) : (
-                <p className="mt-1 text-[13px] text-slate-300">These are current bets only. Wallet balance stays unchanged.</p>
+                <p className="mt-1 text-[clamp(1.15rem,4.5vw,1.3rem)] text-slate-300">These are current bets only. Wallet balance stays unchanged.</p>
               )}
-              <div className="mt-4 flex items-center gap-2">
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:items-center">
                 <button
                   type="button"
                   onClick={() => setCancelBetDialog(null)}
                   disabled={isCancelSubmitting}
-                  className="h-11 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-[15px] font-bold disabled:opacity-60"
+                  className="h-[5.25rem] w-full rounded-lg border border-[#475569] bg-[#1e293b] px-4 text-[30px] font-bold leading-none disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
                 >
                   No
                 </button>
@@ -2563,7 +2563,7 @@ const ThreeDGame = () => {
                   type="button"
                   onClick={handleConfirmCancelBet}
                   disabled={isCancelSubmitting}
-                  className="h-11 flex-1 rounded-lg border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] text-[15px] font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-[5.25rem] w-full rounded-lg border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] px-4 text-[30px] font-extrabold leading-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
                 >
                   {isCancelSubmitting ? 'Cancelling...' : 'Yes, Cancel'}
                 </button>
