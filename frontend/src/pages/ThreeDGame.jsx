@@ -275,13 +275,20 @@ const ThreeDGame = () => {
   }, [ticketHistory]);
   const historyTicketsForModal = useMemo(() => {
     const backendList = Array.isArray(backendHistoryTickets) ? backendHistoryTickets : [];
-    const localCancelled = (Array.isArray(ticketHistory) ? ticketHistory : []).filter(
-      (ticket) => String(ticket?.outcome || '').toLowerCase() === 'cancelled',
-    );
+    const localList = Array.isArray(ticketHistory) ? ticketHistory : [];
     const byKey = new Map();
-    [...backendList, ...localCancelled].forEach((ticket) => {
-      const key = `${ticket?.slotStartIso || ''}|${ticket?.gameId || ticket?.id || ''}`;
-      if (!byKey.has(key)) byKey.set(key, ticket);
+    const ticketScore = (ticket) => {
+      const isSettled = ticket?.settled ? 1 : 0;
+      const isBackend = String(ticket?.settledUsing || '').toLowerCase() === 'backend' ? 1 : 0;
+      const win = Number(ticket?.totalWin || 0) > 0 ? 1 : 0;
+      return (isSettled * 100) + (isBackend * 10) + win;
+    };
+    [...localList, ...backendList].forEach((ticket) => {
+      const key = String(ticket?.slotStartIso || '').trim() || String(ticket?.id || ticket?.gameId || '');
+      const existing = byKey.get(key);
+      if (!existing || ticketScore(ticket) >= ticketScore(existing)) {
+        byKey.set(key, ticket);
+      }
     });
     return [...byKey.values()].sort(
       (a, b) => new Date(b?.slotStartIso || b?.createdAt || 0).getTime() - new Date(a?.slotStartIso || a?.createdAt || 0).getTime(),
@@ -1383,6 +1390,7 @@ const ThreeDGame = () => {
         id: Date.now() + idx,
         userName: 'user',
         quizId: resolvedQuizId,
+        slotStartIso,
         drawTime: formatDrawEndLabelFromSlotStartIso(slotStartIso),
         drawDate: slotDrawDate || drawDate,
         gameId,
@@ -1665,6 +1673,9 @@ const ThreeDGame = () => {
       }
 
       setTicketHistory(nextHistory);
+      if (isHistoryListOpen) {
+        await loadBackendHistoryTickets();
+      }
     })();
 
     return () => {
@@ -1680,7 +1691,18 @@ const ThreeDGame = () => {
     resultUpdatedAt,
     settleAllBets,
     ticketHistory,
+    isHistoryListOpen,
+    loadBackendHistoryTickets,
   ]);
+
+  useEffect(() => {
+    if (!isHistoryListOpen) return undefined;
+    loadBackendHistoryTickets();
+    const id = setInterval(() => {
+      loadBackendHistoryTickets();
+    }, 10000);
+    return () => clearInterval(id);
+  }, [isHistoryListOpen, loadBackendHistoryTickets]);
 
   const handleClearAll = useCallback(() => {
     setBets([]);
