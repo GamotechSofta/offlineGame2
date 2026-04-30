@@ -284,7 +284,10 @@ const ThreeDGame = () => {
       return (isSettled * 100) + (isBackend * 10) + win;
     };
     [...localList, ...backendList].forEach((ticket) => {
-      const key = String(ticket?.slotStartIso || '').trim() || String(ticket?.id || ticket?.gameId || '');
+      const outcome = String(ticket?.outcome || '').toLowerCase();
+      const key = outcome === 'cancelled'
+        ? `cancelled:${String(ticket?.ticketId || '').trim() || String(ticket?.id || ticket?.gameId || '')}`
+        : `slot:${String(ticket?.slotStartIso || '').trim() || String(ticket?.id || ticket?.gameId || '')}`;
       const existing = byKey.get(key);
       if (!existing || ticketScore(ticket) >= ticketScore(existing)) {
         byKey.set(key, ticket);
@@ -370,14 +373,22 @@ const ThreeDGame = () => {
     try {
       const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
       const rows = Array.isArray(j?.data) ? j.data : [];
-      const rowsBySlot = new Map();
+      const rowsByHistoryGroup = new Map();
       rows.forEach((row) => {
         const slotStartIso = String(row?.slotStartIso || '').trim() || 'unknown-slot';
-        if (!rowsBySlot.has(slotStartIso)) rowsBySlot.set(slotStartIso, []);
-        rowsBySlot.get(slotStartIso).push(row);
+        const ticketId = String(row?.ticketId || '').trim();
+        const status = String(row?.status || '').toLowerCase();
+        // Keep cancelled tickets separate; combine non-cancelled entries by slot.
+        const groupKey = status === 'cancelled'
+          ? `cancelled:${ticketId || row?.id || slotStartIso}`
+          : `slot:${slotStartIso}`;
+        if (!rowsByHistoryGroup.has(groupKey)) {
+          rowsByHistoryGroup.set(groupKey, { ticketId: ticketId || null, slotStartIso, rows: [] });
+        }
+        rowsByHistoryGroup.get(groupKey).rows.push(row);
       });
 
-      const mapped = Array.from(rowsBySlot.entries()).map(([slotStartIso, slotRows]) => {
+      const mapped = Array.from(rowsByHistoryGroup.values()).map(({ ticketId, slotStartIso, rows: slotRows }) => {
         const sortedRows = [...slotRows].sort((a, b) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime());
         const firstRow = sortedRows[0] || {};
         const createdAtIso = firstRow?.createdAt ? new Date(firstRow.createdAt).toISOString() : new Date().toISOString();
@@ -437,13 +448,14 @@ const ThreeDGame = () => {
 
         const outcome = hasPending ? 'pending' : (hasWin ? 'win' : (hasCancelled && !hasLoss ? 'cancelled' : 'loss'));
         return {
-          id: `backend-slot-${slotStartIso}`,
+          id: `backend-ticket-${ticketId || slotStartIso}`,
+          ticketId: ticketId || firstRow?.ticketId || null,
           userName: playerIdentity || 'user',
           slotStartIso,
           drawDate,
           drawTime,
           createdAt: createdAtIso,
-          gameId: slotStartIso,
+          gameId: ticketId || slotStartIso,
           totalPoints,
           totalWin,
           outcome,
@@ -876,6 +888,10 @@ const ThreeDGame = () => {
   const getTicketSettleAtMs = useCallback((ticket) => {
     const direct = Number(ticket?.settleAtMs);
     if (Number.isFinite(direct) && direct > 0) return direct;
+    const slotStartMs = new Date(ticket?.slotStartIso || 0).getTime();
+    if (Number.isFinite(slotStartMs) && slotStartMs > 0) {
+      return slotStartMs + (GAME_INTERVAL_SECONDS * 1000);
+    }
     const createdAtMs = new Date(ticket?.createdAt || ticket?.id || 0).getTime();
     if (Number.isFinite(createdAtMs) && createdAtMs > 0) {
       return createdAtMs + (GAME_INTERVAL_SECONDS * 1000);
@@ -1450,7 +1466,7 @@ const ThreeDGame = () => {
     await handleBuy();
   }, [handleBuy]);
 
-  const handleCancelPendingTicket = useCallback(() => {
+  const handleCancelPendingTicket = useCallback(async () => {
     if (Array.isArray(bets) && bets.length) {
       const totalCurrent = bets.reduce((sum, bet) => sum + Number(bet?.points || 0), 0);
       setCancelBetDialog({
@@ -1463,12 +1479,57 @@ const ThreeDGame = () => {
       return;
     }
 
-    const nowMs = Date.now();
-    const cancellable = (ticketHistory || []).find((ticket) => {
-      if (ticket?.settled) return false;
-      const settleAtMs = getTicketSettleAtMs(ticket);
-      return settleAtMs > nowMs;
-    });
+    let cancellable = null;
+    try {
+      const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
+      const rows = Array.isArray(j?.data) ? j.data : [];
+      const pendingRows = rows.filter((row) => {
+        const status = String(row?.status || '').toLowerCase();
+        return status === 'pending';
+      });
+      const bySlot = new Map();
+      pendingRows.forEach((row) => {
+        const slotKey = String(row?.slotStartIso || '').trim();
+        if (!slotKey) return;
+        if (!bySlot.has(slotKey)) {
+          bySlot.set(slotKey, {
+            slotStartIso: slotKey,
+            totalPoints: 0,
+            latestCreatedAtMs: 0,
+          });
+        }
+        const bucket = bySlot.get(slotKey);
+        bucket.totalPoints += Number(row?.amount || 0);
+        const createdAtMs = new Date(row?.createdAt || 0).getTime();
+        if (Number.isFinite(createdAtMs) && createdAtMs > bucket.latestCreatedAtMs) {
+          bucket.latestCreatedAtMs = createdAtMs;
+        }
+      });
+      const latest = [...bySlot.values()].sort((a, b) => b.latestCreatedAtMs - a.latestCreatedAtMs)[0];
+      if (latest) {
+        const settleAtMs = new Date(latest.slotStartIso).getTime() + (GAME_INTERVAL_SECONDS * 1000);
+        cancellable = {
+          id: `backend-slot-${latest.slotStartIso}`,
+          ticketId: null,
+          gameId: latest.slotStartIso,
+          slotStartIso: latest.slotStartIso,
+          totalPoints: Number(latest.totalPoints || 0),
+          settleAtMs,
+        };
+      }
+    } catch (_) {
+      // Backend fetch failed; fallback to in-memory ticket list.
+    }
+
+    if (!cancellable) {
+      const nowMs = Date.now();
+      cancellable = (historyTicketsForModal || []).find((ticket) => {
+        const outcome = String(ticket?.outcome || '').toLowerCase();
+        if (outcome === 'pending') return String(ticket?.slotStartIso || '').trim().length > 0;
+        const settleAtMs = getTicketSettleAtMs(ticket);
+        return settleAtMs > nowMs && String(ticket?.slotStartIso || '').trim().length > 0;
+      });
+    }
 
     if (!cancellable) {
       setToast('No active ticket to cancel before draw time.');
@@ -1483,9 +1544,11 @@ const ThreeDGame = () => {
       description: `Cancel ticket ${ticketLabel} before draw?`,
       points: refundAmount,
       ticketId: cancellable.id,
+      ticketBackendId: cancellable?.ticketId || null,
+      slotStartIso: cancellable?.slotStartIso || '',
       ticketLabel,
     });
-  }, [bets, getTicketSettleAtMs, ticketHistory]);
+  }, [bets, getTicketSettleAtMs, historyTicketsForModal]);
 
   const handleConfirmCancelBet = useCallback(async () => {
     if (!cancelBetDialog || isCancelSubmitting) return;
@@ -1526,7 +1589,11 @@ const ThreeDGame = () => {
     }
 
     const nowMs = Date.now();
-    const cancellable = (ticketHistory || []).find((ticket) => {
+    const targetSlotStartIso = String(cancelBetDialog?.slotStartIso || '').trim();
+    const cancellable = (historyTicketsForModal || []).find((ticket) => {
+      if (targetSlotStartIso) {
+        return String(ticket?.slotStartIso || '').trim() === targetSlotStartIso;
+      }
       if (ticket?.id !== cancelBetDialog.ticketId) return false;
       if (ticket?.settled) return false;
       const settleAtMs = getTicketSettleAtMs(ticket);
@@ -1544,7 +1611,9 @@ const ThreeDGame = () => {
 
     let backendBalance = null;
     try {
-      const slotStartIso = computeSlotStartIsoFromSettleAtMs(getTicketSettleAtMs(cancellable));
+      const slotStartIso = targetSlotStartIso
+        || String(cancellable?.slotStartIso || '').trim()
+        || computeSlotStartIsoFromSettleAtMs(getTicketSettleAtMs(cancellable));
       if (slotStartIso) {
         const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
         const rows = Array.isArray(j?.data) ? j.data : [];
@@ -1552,6 +1621,9 @@ const ThreeDGame = () => {
           const status = String(row?.status || '').toLowerCase();
           return String(row?.slotStartIso || '') === String(slotStartIso) && status === 'pending' && row?.id;
         });
+        if (!cancellableRows.length) {
+          throw new Error('Running slot bets not found. Please refresh and try again.');
+        }
         for (const row of cancellableRows) {
           // eslint-disable-next-line no-await-in-loop
           const cancelled = await cancelMyQuizBet(row.id, '3d');
@@ -1566,7 +1638,11 @@ const ThreeDGame = () => {
     }
 
     setTicketHistory((prev) => prev.map((ticket) => {
-      if (ticket?.id !== cancellable.id) return ticket;
+      if (targetSlotStartIso) {
+        if (String(ticket?.slotStartIso || '').trim() !== targetSlotStartIso) return ticket;
+      } else if (ticket?.id !== cancellable.id) {
+        return ticket;
+      }
       return {
         ...ticket,
         bets: (ticket?.bets || []).map((bet) => ({
@@ -1602,7 +1678,7 @@ const ThreeDGame = () => {
     setValidationMsg(`Ticket ${ticketLabel} cancelled. Refund ₹${refundAmount} credited.`);
     setCancelBetDialog(null);
     setIsCancelSubmitting(false);
-  }, [bets, cancelBetDialog, computeSlotStartIsoFromSettleAtMs, getTicketSettleAtMs, isCancelSubmitting, loadBackendHistoryTickets, playerIdentity, ticketHistory]);
+  }, [bets, cancelBetDialog, computeSlotStartIsoFromSettleAtMs, getTicketSettleAtMs, historyTicketsForModal, isCancelSubmitting, loadBackendHistoryTickets, playerIdentity, ticketHistory]);
 
   useEffect(() => {
     if (!resultUpdatedAt) return;
