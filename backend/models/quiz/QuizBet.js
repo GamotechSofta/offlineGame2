@@ -38,6 +38,8 @@ quizBetSchema.index(
   },
 );
 quizBetSchema.index({ gameMode: 1, slotStartIso: 1, quizId: 1, status: 1 });
+quizBetSchema.index({ gameMode: 1, userId: 1, createdAt: -1, _id: -1 });
+quizBetSchema.index({ gameMode: 1, userId: 1, status: 1, slotStartIso: 1 });
 
 const QuizBet = mongoose.model('QuizBet', quizBetSchema);
 export default QuizBet;

@@ -612,7 +612,7 @@ export const postQuizBetsBatch = async (req, res) => {
 };
 
 /**
- * GET /api/v1/quiz/my-quiz-bets?limit= (default 10000, max 50000)
+ * GET /api/v1/quiz/my-quiz-bets?limit= (default 1200, max 50000)
  * Logged-in user's QuizBet rows (wallet tickets): pending | win | lose + optional winning number after draw.
  */
 export const getMyQuizBets = async (req, res) => {
@@ -622,7 +622,7 @@ export const getMyQuizBets = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
-    const limit = Math.min(50000, Math.max(1, parseInt(String(req.query.limit || '10000'), 10) || 10000));
+    const limit = Math.min(50000, Math.max(1, parseInt(String(req.query.limit || '1200'), 10) || 1200));
     const uid = new mongoose.Types.ObjectId(userId);
     const gameMode = resolveGameMode(req);
 
@@ -634,7 +634,7 @@ export const getMyQuizBets = async (req, res) => {
         const slotStartMs = new Date(slotStartIso).getTime();
         if (!Number.isFinite(slotStartMs)) return false;
         return Date.now() >= (slotStartMs + SLOT_MS);
-      });
+      }).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()).slice(0, 8);
       const declaredSlotStarts = [];
       for (const slotStartIso of endedPendingSlotStarts) {
         // eslint-disable-next-line no-await-in-loop

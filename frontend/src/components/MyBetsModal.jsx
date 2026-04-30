@@ -3,7 +3,7 @@ import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets } from '../api/quizA
 import { updateUserBalance } from '../api/bets';
 import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
 
-const QUIZ_HISTORY_LIMIT = 10000;
+const QUIZ_HISTORY_LIMIT = 1200;
 const BET_FILTERS = {
   TODAY: 'today',
   ALL: 'all',
@@ -161,7 +161,7 @@ const MyBetsModal = ({ open, onClose }) => {
 
   useSectionAutoRefresh({
     enabled: open,
-    intervalMs: 10000,
+    intervalMs: 3000,
     immediate: false,
     onRefresh: () => {
       void loadQuiz({ silent: true, preserveScroll: true });
