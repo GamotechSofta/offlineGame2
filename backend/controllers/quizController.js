@@ -5,6 +5,7 @@ import QuizSlotSeed from '../models/quiz/QuizSlotSeed.js';
 import QuizBet from '../models/quiz/QuizBet.js';
 import User from '../models/user/user.js';
 import { Wallet } from '../models/wallet/wallet.js';
+import { getRatesMap } from '../models/rate/rate.js';
 import { getCachedSlotContext } from '../services/quizCacheService.js';
 import {
   SLOT_MINUTES,
@@ -57,6 +58,23 @@ async function ensureQuizBetIndexes() {
     });
   }
   await ensureQuizBetIndexesPromise;
+}
+
+async function getQuizWinMultiplier(gameMode = '2d') {
+  try {
+    const rates = await getRatesMap();
+    const m = Number(gameMode === '3d' ? rates?.quiz3d : rates?.quiz2d);
+    if (Number.isFinite(m) && m > 0) return m;
+  } catch {
+    // Fall back to env/default when rates are unavailable.
+  }
+  const envMultiplier = parseInt(
+    gameMode === '3d'
+      ? (process.env.QUIZ3D_BET_WIN_MULTIPLIER ?? process.env.QUIZ_BET_WIN_MULTIPLIER ?? '90')
+      : (process.env.QUIZ_BET_WIN_MULTIPLIER ?? '90'),
+    10,
+  );
+  return Number.isFinite(envMultiplier) && envMultiplier > 0 ? envMultiplier : 90;
 }
 
 function slotAcceptsBets(ctx, nowMs = Date.now()) {
@@ -670,6 +688,7 @@ export const getMyQuizBets = async (req, res) => {
     }
 
     const now = Date.now();
+    const winMultiplier = await getQuizWinMultiplier(gameMode);
     const data = bets.map((b) => {
       const slotStartMs = new Date(b.slotStartIso).getTime();
       const slotEndMs = slotStartMs + SLOT_MS;
@@ -679,6 +698,14 @@ export const getMyQuizBets = async (req, res) => {
       const padLength = gameMode === '3d' ? 3 : 2;
       const winningNumber =
         slotEnded && hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos ? String(hp).padStart(padLength, '0') : null;
+      const currentWinPayout = Number(b.winPayout || 0);
+      const isCancelled = String(b.status || '').toLowerCase() === 'cancelled';
+      const isDerivedWin = !isCancelled
+        && winningNumber != null
+        && String(b.number).padStart(padLength, '0') === String(winningNumber);
+      const effectiveWinPayout = currentWinPayout > 0
+        ? currentWinPayout
+        : (isDerivedWin ? Math.round(Number(b.amount || 0) * winMultiplier) : 0);
       return {
         id: String(b._id),
         ticketId: b.ticketId || null,
@@ -688,6 +715,7 @@ export const getMyQuizBets = async (req, res) => {
         amount: b.amount,
         status: b.status,
         winPayout: b.winPayout,
+        effectiveWinPayout,
         slotStartIso: b.slotStartIso,
         drawLabelEnd: formatDrawLabel(slotEndMs),
         slotEnded,
