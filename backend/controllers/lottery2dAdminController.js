@@ -165,7 +165,7 @@ async function buildPlayersForSlot(slotStartIso) {
   const isCompleted = Date.now() >= slotEndMs;
   const [bets, picks, winMultiplier] = await Promise.all([
     QuizBet.find({ gameMode: GAME_MODE, slotStartIso })
-      .select('_id ticketId userId quizId number amount status winPayout createdAt')
+      .select('_id userId quizId number amount status winPayout createdAt')
       .sort({ createdAt: -1 })
       .lean(),
     QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso })
@@ -232,7 +232,6 @@ async function buildPlayersForSlot(slotStartIso) {
     if (result.outcome === 'cancelled') {
       row.bets.push({
         betId: String(bet._id),
-        ticketId: bet.ticketId || null,
         quizId: bet.quizId,
         setLabel: getQuizLabelByQuizId2d(bet.quizId),
         number: String(bet.number).padStart(2, '0'),
@@ -253,7 +252,6 @@ async function buildPlayersForSlot(slotStartIso) {
     else row.pending += 1;
     row.bets.push({
       betId: String(bet._id),
-      ticketId: bet.ticketId || null,
       quizId: bet.quizId,
       setLabel: getQuizLabelByQuizId2d(bet.quizId),
       number: String(bet.number).padStart(2, '0'),

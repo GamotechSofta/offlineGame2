@@ -20,62 +20,20 @@ const slotScheduleLabel = (slot) => {
   return `${slot.drawLabelEnd || slot.slotStartIso} (${tag})`;
 };
 
-const resolveTicketOutcome = (lines = []) => {
-  const outcomes = lines.map((line) => String(line?.outcome || '').toLowerCase());
-  if (!outcomes.length) return 'pending';
-  if (outcomes.every((o) => o === 'cancelled')) return 'cancelled';
-  if (outcomes.some((o) => o === 'pending')) return 'pending';
-  if (outcomes.some((o) => o === 'win')) return 'win';
-  if (outcomes.every((o) => o === 'lose')) return 'lose';
-  return 'mixed';
-};
-
-const flattenTickets = (players = []) => {
-  const ticketMap = new Map();
+const flattenBets = (players = []) => {
+  const rows = [];
   players.forEach((player) => {
     const bets = Array.isArray(player?.bets) ? player.bets : [];
     bets.forEach((bet) => {
-      const ticketId = String(bet?.ticketId || bet?.betId || '').trim();
-      const key = `${player.userId || 'na'}|${ticketId || bet?.slotStartIso || ''}|${player.username || ''}`;
-      if (!ticketMap.has(key)) {
-        ticketMap.set(key, {
-          ticketId: ticketId || 'legacy',
-          userId: player.userId,
-          username: player.username || 'unknown',
-          phone: player.phone || '',
-          createdAt: bet.createdAt,
-          lines: [],
-        });
-      }
-      const row = ticketMap.get(key);
-      row.lines.push(bet);
-      const existingCreatedAt = new Date(row.createdAt || 0).getTime();
-      const betCreatedAt = new Date(bet?.createdAt || 0).getTime();
-      if (!Number.isFinite(existingCreatedAt) || (Number.isFinite(betCreatedAt) && betCreatedAt < existingCreatedAt)) {
-        row.createdAt = bet.createdAt;
-      }
+      rows.push({
+        ...bet,
+        userId: player.userId,
+        username: player.username || 'unknown',
+        phone: player.phone || '',
+      });
     });
   });
-  const tickets = [...ticketMap.values()].map((ticket) => {
-    const lines = ticket.lines || [];
-    const nonCancelledLines = lines.filter((line) => String(line?.outcome || '').toLowerCase() !== 'cancelled');
-    const winBetCount = lines.filter((line) => String(line?.outcome || '').toLowerCase() === 'win').length;
-    const totalStake = nonCancelledLines.reduce((sum, line) => sum + Number(line?.amount || 0), 0);
-    const totalPayout = lines.reduce((sum, line) => sum + Number(line?.payout || 0), 0);
-    const totalNet = lines.reduce((sum, line) => sum + Number(line?.netProfitLoss || 0), 0);
-    const quizSetList = [...new Set(lines.map((line) => line?.setLabel).filter(Boolean))];
-    return {
-      ...ticket,
-      lineCount: lines.length,
-      winBetCount,
-      quizSetList,
-      totalStake,
-      totalPayout,
-      totalNet,
-      outcome: resolveTicketOutcome(lines),
-    };
-  });
-  return tickets.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  return rows.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 };
 
 const isSlotMatchingSelection = (slot, selection) => {
@@ -116,7 +74,6 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [loadingBets, setLoadingBets] = useState(false);
   const [error, setError] = useState('');
-  const [expandedTickets, setExpandedTickets] = useState({});
 
   const fetchDaySlotSchedule = useCallback(async (targetDate) => {
     setLoadingSlots(true);
@@ -208,17 +165,21 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
     fetchBetsForSelection(effectiveSelection, historySlots);
   }, [effectiveSelection, historySlots, fetchBetsForSelection]);
 
-  const flattenedTickets = useMemo(() => flattenTickets(players), [players]);
+  const flattenedBets = useMemo(() => flattenBets(players), [players]);
   const stats = useMemo(() => {
-    return flattenedTickets.reduce((acc, ticket) => {
-      if (ticket.outcome !== 'cancelled') {
-        acc.totalTickets += 1;
-        acc.totalStake += Number(ticket.totalStake || 0);
+    return flattenedBets.reduce((acc, bet) => {
+      const amount = Number(bet.amount || 0);
+      const payout = Number(bet.payout || 0);
+      const outcome = String(bet.outcome || '').toLowerCase();
+      const isCancelled = outcome === 'cancelled';
+      if (!isCancelled) {
+        acc.totalBets += 1;
+        acc.totalStake += amount;
       }
-      acc.totalPayout += Number(ticket.totalPayout || 0);
+      acc.totalPayout += payout;
       return acc;
-    }, { totalTickets: 0, totalStake: 0, totalPayout: 0 });
-  }, [flattenedTickets]);
+    }, { totalBets: 0, totalStake: 0, totalPayout: 0 });
+  }, [flattenedBets]);
 
   const refresh = useCallback(async () => {
     const latestSlots = await fetchDaySlotSchedule(historyDate);
@@ -228,10 +189,6 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
   const clearFilters = useCallback(() => {
     setFilterMode(ALL_DAY_VALUE);
     setSelectedSlotIso(ALL_FILTER_SLOTS_VALUE);
-  }, []);
-
-  const toggleTicket = useCallback((ticketKey) => {
-    setExpandedTickets((prev) => ({ ...prev, [ticketKey]: !prev[ticketKey] }));
   }, []);
 
   return (
@@ -324,8 +281,8 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-lg border border-gray-200 bg-white p-3">
-          <p className="text-xs text-gray-500">Total Tickets</p>
-          <p className="text-lg font-bold text-gray-800">{stats.totalTickets}</p>
+          <p className="text-xs text-gray-500">Total Bets</p>
+          <p className="text-lg font-bold text-gray-800">{stats.totalBets}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-3">
           <p className="text-xs text-gray-500">Total Stake</p>
@@ -339,7 +296,7 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
 
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <h3 className="text-lg font-semibold text-gray-800">All Tickets In Selected Filter</h3>
+          <h3 className="text-lg font-semibold text-gray-800">All Bets In Selected Filter</h3>
           {loadingBets ? <span className="text-xs text-gray-500">Loading...</span> : null}
         </div>
         <div className="overflow-x-auto">
@@ -347,99 +304,44 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
             <thead>
               <tr className="text-left text-gray-500 border-b border-gray-200">
                 <th className="py-2 pr-3">Player</th>
-                <th className="py-2 pr-3">Ticket</th>
-                <th className="py-2 pr-3">Sets</th>
-                <th className="py-2 pr-3 text-right">Bets</th>
-                <th className="py-2 pr-3 text-right">Win Bets</th>
-                <th className="py-2 pr-3 text-right">Bets Rs</th>
-                <th className="py-2 pr-3 text-right">Player Win</th>
-                <th className="py-2 pr-3 text-right">Player Loss</th>
+                <th className="py-2 pr-3">Set</th>
+                <th className="py-2 pr-3">Number</th>
+                <th className="py-2 pr-3 text-right">Stake</th>
+                <th className="py-2 pr-3">Result</th>
+                <th className="py-2 pr-3 text-right">Payout</th>
+                <th className="py-2 pr-3 text-right">Net</th>
                 <th className="py-2 pr-3">Placed At</th>
               </tr>
             </thead>
             <tbody>
-              {!flattenedTickets.length && !loadingBets ? (
+              {!flattenedBets.length && !loadingBets ? (
                 <tr>
-                  <td colSpan={9} className="py-4 text-center text-gray-500">
-                    No tickets found for this filter.
+                  <td colSpan={8} className="py-4 text-center text-gray-500">
+                    No bets found for this filter.
                   </td>
                 </tr>
               ) : null}
-              {flattenedTickets.map((ticket) => {
-                const ticketKey = `${ticket.userId || 'na'}-${ticket.ticketId}-${ticket.createdAt || ''}`;
-                const isExpanded = Boolean(expandedTickets[ticketKey]);
-                return (
-                  <React.Fragment key={ticketKey}>
-                    <tr
-                      className="border-b border-gray-100 cursor-pointer hover:bg-gray-50"
-                      onClick={() => toggleTicket(ticketKey)}
-                    >
-                      <td className="py-2 pr-3">
-                        <div className="font-semibold text-gray-800">{ticket.username}</div>
-                        {ticket.phone ? <div className="text-xs text-gray-500">{ticket.phone}</div> : null}
-                      </td>
-                      <td className="py-2 pr-3 font-mono">
-                        <div className="flex items-center gap-1">
-                          <span>{isExpanded ? '▾' : '▸'}</span>
-                          <span>{String(ticket.ticketId || '').slice(-8).toUpperCase()}</span>
-                        </div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        {ticket.quizSetList.length ? ticket.quizSetList.join(', ') : '-'}
-                      </td>
-                      <td className="py-2 pr-3 text-right font-mono">{ticket.lineCount}</td>
-                      <td className="py-2 pr-3 text-right font-mono">{ticket.winBetCount}</td>
-                      <td className="py-2 pr-3 text-right font-mono">Rs {Number(ticket.totalStake || 0).toLocaleString('en-IN')}</td>
-                      <td className="py-2 pr-3 text-right font-mono">Rs {Number(ticket.totalPayout || 0).toLocaleString('en-IN')}</td>
-                      <td className={`py-2 pr-3 text-right font-mono ${Number(ticket.totalNet || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        Rs {Number(ticket.totalNet || 0).toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-2 pr-3 text-xs text-gray-600">
-                        {ticket.createdAt ? new Date(ticket.createdAt).toLocaleString() : '-'}
-                      </td>
-                    </tr>
-                    {isExpanded ? (
-                      <tr className="border-b border-gray-100 bg-gray-50/70">
-                        <td colSpan={9} className="py-2 pl-3 pr-2">
-                          <div className="rounded border border-gray-200 bg-white p-2">
-                            <p className="mb-2 text-xs font-semibold text-gray-600">Ticket Bets</p>
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="text-left text-gray-500 border-b border-gray-200">
-                                  <th className="py-1 pr-2">Quiz</th>
-                                  <th className="py-1 pr-2">Set</th>
-                                  <th className="py-1 pr-2">Number</th>
-                                  <th className="py-1 pr-2 text-right">Stake</th>
-                                  <th className="py-1 pr-2">Result</th>
-                                  <th className="py-1 pr-2 text-right">Payout</th>
-                                  <th className="py-1 pr-2 text-right">Net</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(ticket.lines || []).map((line, idx) => (
-                                  <tr key={`${ticketKey}-line-${line?.betId || idx}`} className="border-b border-gray-100 last:border-b-0">
-                                    <td className="py-1 pr-2">{line?.quizLabel || `Q${String(line?.quizId || '').padStart(2, '0')}`}</td>
-                                    <td className="py-1 pr-2">{line?.setLabel || '-'}</td>
-                                    <td className="py-1 pr-2 font-mono">{line?.number ?? '-'}</td>
-                                    <td className="py-1 pr-2 text-right font-mono">Rs {Number(line?.amount || 0).toLocaleString('en-IN')}</td>
-                                    <td className={`py-1 pr-2 font-semibold ${outcomeClass(line?.outcome)}`}>
-                                      {String(line?.outcome || '-').toUpperCase()}
-                                    </td>
-                                    <td className="py-1 pr-2 text-right font-mono">Rs {Number(line?.payout || 0).toLocaleString('en-IN')}</td>
-                                    <td className={`py-1 pr-2 text-right font-mono ${Number(line?.netProfitLoss || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                      Rs {Number(line?.netProfitLoss || 0).toLocaleString('en-IN')}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : null}
-                  </React.Fragment>
-                );
-              })}
+              {flattenedBets.map((bet) => (
+                <tr key={bet.betId} className="border-b border-gray-100">
+                  <td className="py-2 pr-3">
+                    <div className="font-semibold text-gray-800">{bet.username}</div>
+                    {bet.phone ? <div className="text-xs text-gray-500">{bet.phone}</div> : null}
+                  </td>
+                  <td className="py-2 pr-3">{bet.setLabel || '-'}</td>
+                  <td className="py-2 pr-3 font-mono">{bet.number}</td>
+                  <td className="py-2 pr-3 text-right font-mono">Rs {Number(bet.amount || 0).toLocaleString('en-IN')}</td>
+                  <td className={`py-2 pr-3 font-semibold ${outcomeClass(bet.outcome)}`}>
+                    {String(bet.outcome || '').toUpperCase()}
+                  </td>
+                  <td className="py-2 pr-3 text-right font-mono">Rs {Number(bet.payout || 0).toLocaleString('en-IN')}</td>
+                  <td className={`py-2 pr-3 text-right font-mono ${Number(bet.netProfitLoss || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    Rs {Number(bet.netProfitLoss || 0).toLocaleString('en-IN')}
+                  </td>
+                  <td className="py-2 pr-3 text-xs text-gray-600">
+                    {bet.createdAt ? new Date(bet.createdAt).toLocaleString() : '-'}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
