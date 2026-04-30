@@ -406,25 +406,29 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
                             <table className="w-full text-xs">
                               <thead>
                                 <tr className="text-left text-gray-500 border-b border-gray-200">
-                                  <th className="py-1 px-2">Quiz</th>
-                                  <th className="py-1 px-2">Set</th>
-                                  <th className="py-1 px-2">Number</th>
-                                  <th className="py-1 px-2 text-right">Stake</th>
-                                  <th className="py-1 px-2">Result</th>
-                                  <th className="py-1 px-2 text-right">Payout</th>
+                                  <th className="py-1 pr-2">Quiz</th>
+                                  <th className="py-1 pr-2">Set</th>
+                                  <th className="py-1 pr-2">Number</th>
+                                  <th className="py-1 pr-2 text-right">Stake</th>
+                                  <th className="py-1 pr-2">Result</th>
+                                  <th className="py-1 pr-2 text-right">Payout</th>
+                                  <th className="py-1 pr-2 text-right">Net</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {(ticket.lines || []).map((line, idx) => (
                                   <tr key={`${ticketKey}-line-${line?.betId || idx}`} className="border-b border-gray-100 last:border-b-0">
-                                    <td className="py-1 px-2">{line?.quizLabel || `Q${String(line?.quizId || '').padStart(2, '0')}`}</td>
-                                    <td className="py-1 px-2">{line?.setLabel || '-'}</td>
-                                    <td className="py-1 px-2 font-mono">{line?.number ?? '-'}</td>
-                                    <td className="py-1 px-2 text-right font-mono">Rs {Number(line?.amount || 0).toLocaleString('en-IN')}</td>
-                                    <td className={`py-1 px-2 font-semibold ${outcomeClass(line?.outcome)}`}>
+                                    <td className="py-1 pr-2">{line?.quizLabel || `Q${String(line?.quizId || '').padStart(2, '0')}`}</td>
+                                    <td className="py-1 pr-2">{line?.setLabel || '-'}</td>
+                                    <td className="py-1 pr-2 font-mono">{line?.number ?? '-'}</td>
+                                    <td className="py-1 pr-2 text-right font-mono">Rs {Number(line?.amount || 0).toLocaleString('en-IN')}</td>
+                                    <td className={`py-1 pr-2 font-semibold ${outcomeClass(line?.outcome)}`}>
                                       {String(line?.outcome || '-').toUpperCase()}
                                     </td>
-                                    <td className="py-1 px-2 text-right font-mono">Rs {Number(line?.payout || 0).toLocaleString('en-IN')}</td>
+                                    <td className="py-1 pr-2 text-right font-mono">Rs {Number(line?.payout || 0).toLocaleString('en-IN')}</td>
+                                    <td className={`py-1 pr-2 text-right font-mono ${Number(line?.netProfitLoss || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                      Rs {Number(line?.netProfitLoss || 0).toLocaleString('en-IN')}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
