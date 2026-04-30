@@ -44,7 +44,6 @@ const LotteryDashboard = () => {
   const [showResults, setShowResults] = useState(false);
   const [showMyBets, setShowMyBets] = useState(false);
   const [showBuyConfirm, setShowBuyConfirm] = useState(false);
-  const [isBuying, setIsBuying] = useState(false);
   const [buyConfirmError, setBuyConfirmError] = useState('');
   const [pendingRemoveBetLineKey, setPendingRemoveBetLineKey] = useState('');
   const [showAdvanceDrawModal, setShowAdvanceDrawModal] = useState(false);
@@ -868,20 +867,14 @@ const LotteryDashboard = () => {
   }, [betLines.length]);
 
   const handleConfirmBuy = useCallback(async () => {
-    if (isBuying) return;
     setBuyConfirmError('');
-    setIsBuying(true);
-    try {
-      const result = await handleBoardBuy();
-      if (result?.ok) {
-        setShowBuyConfirm(false);
-        return;
-      }
-      setBuyConfirmError(result?.error || 'BUY failed. Please try again.');
-    } finally {
-      setIsBuying(false);
+    const result = await handleBoardBuy();
+    if (result?.ok) {
+      setShowBuyConfirm(false);
+      return;
     }
-  }, [handleBoardBuy, isBuying]);
+    setBuyConfirmError(result?.error || 'BUY failed. Please try again.');
+  }, [handleBoardBuy]);
   const handleIncrease = useCallback(() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleDecrease = useCallback(() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1)), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleEnterAmount = useCallback(() => {
@@ -1068,7 +1061,6 @@ const LotteryDashboard = () => {
                     <button
                       type="button"
                       onClick={() => setPendingRemoveBetLineKey(line.key)}
-                      disabled={isBuying}
                       className="rounded-md border border-[#b91c1c] bg-[#7f1d1d] px-2 py-1 text-xs font-bold text-white hover:bg-[#991b1b]"
                     >
                       Remove
@@ -1082,7 +1074,6 @@ const LotteryDashboard = () => {
               <button
                 type="button"
                 onClick={() => setShowBuyConfirm(false)}
-                disabled={isBuying}
                 className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold"
               >
                 Cancel
@@ -1090,10 +1081,10 @@ const LotteryDashboard = () => {
               <button
                 type="button"
                 onClick={handleConfirmBuy}
-                disabled={!betLines.length || isBuying}
+                disabled={!betLines.length}
                 className="h-10 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isBuying ? 'PROCESSING...' : 'BUY'}
+                BUY
               </button>
             </div>
           </div>
