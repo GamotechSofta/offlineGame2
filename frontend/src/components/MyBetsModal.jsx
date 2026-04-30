@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cancelMyQuizBet, getMyQuizBets } from '../api/quizApi';
+import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets } from '../api/quizApi';
 import { updateUserBalance } from '../api/bets';
 import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
 
@@ -47,11 +47,11 @@ const computeDisplayStatus = (row, group) => {
 const groupQuizRows = (items) => {
   const map = new Map();
   for (const row of items) {
-    const k = `${row.slotStartIso}|${row.quizId}`;
+    const k = String(row.ticketId || `${row.slotStartIso}|${row.quizId}`);
     if (!map.has(k)) {
       map.set(k, {
+        ticketId: row.ticketId || null,
         slotStartIso: row.slotStartIso,
-        quizId: row.quizId,
         drawLabelEnd: row.drawLabelEnd,
         slotEnded: row.slotEnded,
         winningNumber: row.winningNumber,
@@ -67,10 +67,16 @@ const groupQuizRows = (items) => {
     }
     group.lines.push(row);
   }
-  return [...map.values()].map((g) => ({
-    ...g,
-    lines: [...g.lines].sort((a, b) => Number(a.number) - Number(b.number)),
-  }));
+  return [...map.values()].map((g) => {
+    const totalAmount = g.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
+    const pendingLines = g.lines.filter((line) => String(line.status || '').toLowerCase() === 'pending');
+    return {
+      ...g,
+      totalAmount,
+      pendingCount: pendingLines.length,
+      lines: [...g.lines].sort((a, b) => (Number(a.quizId) - Number(b.quizId)) || (Number(a.number) - Number(b.number))),
+    };
+  });
 };
 
 const getIstDayKey = (dateInput) => {
@@ -98,7 +104,7 @@ const MyBetsModal = ({ open, onClose }) => {
   const [quizItems, setQuizItems] = useState([]);
   const [cancellingId, setCancellingId] = useState('');
   const [cancelErr, setCancelErr] = useState('');
-  const [pendingCancelId, setPendingCancelId] = useState('');
+  const [pendingCancelTarget, setPendingCancelTarget] = useState(null);
   const [betFilter, setBetFilter] = useState(BET_FILTERS.TODAY);
   const [drawFilter, setDrawFilter] = useState(DRAW_FILTERS.ALL);
   const listScrollRef = useRef(null);
@@ -147,7 +153,7 @@ const MyBetsModal = ({ open, onClose }) => {
   useEffect(() => {
     if (!open) return undefined;
     setCancelErr('');
-    setPendingCancelId('');
+    setPendingCancelTarget(null);
     setBetFilter(BET_FILTERS.TODAY);
     setDrawFilter(DRAW_FILTERS.ALL);
     loadQuiz();
@@ -181,22 +187,46 @@ const MyBetsModal = ({ open, onClose }) => {
     loadQuiz();
   }, [loadQuiz]);
 
-  const handleCancelBet = useCallback(
+  const handleCancelTicket = useCallback(
+    async (ticketId) => {
+      if (!ticketId) return;
+      setCancelErr('');
+      setCancellingId(`ticket:${ticketId}`);
+      try {
+        const j = await cancelMyQuizTicket(ticketId, '2d');
+        const bal = j?.data?.balance;
+        if (bal != null) updateUserBalance(bal);
+        // Update all rows under the cancelled ticket immediately.
+        setQuizItems((prev) => prev.map((row) => (
+          String(row?.ticketId || '') === String(ticketId)
+            ? { ...row, status: 'cancelled' }
+            : row
+        )));
+        // Keep server data in sync without triggering blocking loading state.
+        void loadQuiz({ silent: true, preserveScroll: true });
+      } catch (e) {
+        setCancelErr(e.message || 'Cancel failed');
+      } finally {
+        setCancellingId('');
+      }
+    },
+    [loadQuiz],
+  );
+
+  const handleCancelSingleBet = useCallback(
     async (betId) => {
       if (!betId) return;
       setCancelErr('');
-      setCancellingId(String(betId));
+      setCancellingId(`bet:${betId}`);
       try {
         const j = await cancelMyQuizBet(betId, '2d');
         const bal = j?.data?.balance;
         if (bal != null) updateUserBalance(bal);
-        // Update only the cancelled row immediately to avoid full-list flashing/reload UX.
         setQuizItems((prev) => prev.map((row) => (
           String(row?.id) === String(betId)
             ? { ...row, status: 'cancelled' }
             : row
         )));
-        // Keep server data in sync without triggering blocking loading state.
         void loadQuiz({ silent: true, preserveScroll: true });
       } catch (e) {
         setCancelErr(e.message || 'Cancel failed');
@@ -310,9 +340,15 @@ const MyBetsModal = ({ open, onClose }) => {
           {!loadingQuiz &&
             !errQuiz &&
             quizGroups.map((g) => (
-              <div key={`${g.slotStartIso}-${g.quizId}`} className="mb-3 rounded border border-[#bbb] bg-white p-2.5 shadow-sm">
+              <div key={`${g.ticketId || 'legacy'}-${g.slotStartIso}`} className="mb-3 rounded border border-[#bbb] bg-white p-2.5 shadow-sm">
                 <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-bold text-[#1a4d6e]">
-                  QUIZ{String(g.quizId).padStart(2, '0')} · Draw: {g.drawLabelEnd ?? '—'}
+                  Ticket: {g.ticketId ? String(g.ticketId).slice(-8).toUpperCase() : 'Legacy'}
+                  <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
+                    Draw: {g.drawLabelEnd ?? '—'}
+                  </span>
+                  <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
+                    Total: ₹{g.totalAmount}
+                  </span>
                   <span className="rounded bg-[#eef2ff] px-2 py-0.5 text-[#374151]">
                     Date: {formatIstDateLabel(g.lines?.[0]?.createdAt || g.lines?.[0]?.slotStartIso || g.slotStartIso)}
                   </span>
@@ -322,10 +358,21 @@ const MyBetsModal = ({ open, onClose }) => {
                   {g.slotEnded && g.winningNumber != null && (
                     <span className="rounded bg-[#f2f6ff] px-2 py-0.5 font-mono text-[#333]">Winning No.: {g.winningNumber}</span>
                   )}
+                  {g.pendingCount > 0 && !g.slotEnded && String(g.ticketId || '').length > 0 ? (
+                    <button
+                      type="button"
+                      disabled={cancellingId === `ticket:${g.ticketId}`}
+                      onClick={() => setPendingCancelTarget({ type: 'ticket', id: String(g.ticketId) })}
+                      className="ml-auto rounded border border-[#c5362d] bg-[#ffe5e5] px-2 py-0.5 text-[10px] font-semibold text-[#a31] hover:bg-[#ffd5d5] disabled:opacity-60"
+                    >
+                      {cancellingId === `ticket:${g.ticketId}` ? '…' : 'Cancel Full Ticket'}
+                    </button>
+                  ) : null}
                 </div>
                 <table className="w-full border-collapse text-[11px]">
                   <thead>
                     <tr className="bg-[#d9e4f5]">
+                      <th className="border border-[#a0a0a0] p-1">Quiz</th>
                       <th className="border border-[#a0a0a0] p-1">Number</th>
                       <th className="border border-[#a0a0a0] p-1">Amount</th>
                       <th className="border border-[#a0a0a0] p-1">Status</th>
@@ -334,15 +381,13 @@ const MyBetsModal = ({ open, onClose }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {g.lines.map((row) => {
+                    {g.lines.map((row, rowIndex) => {
                       const displayStatus = computeDisplayStatus(row, g);
-                      const canCancel =
-                        row.status === 'pending' &&
-                        !g.slotEnded &&
-                        displayStatus === 'pending' &&
-                        String(row.id || '').length > 0;
                       return (
                         <tr key={row.id} className="bg-[#f8f8f8]">
+                          <td className="border border-[#a0a0a0] p-1 font-mono font-semibold">
+                            Q{String(row.quizId).padStart(2, '0')}
+                          </td>
                           <td className="border border-[#a0a0a0] p-1 font-mono font-semibold">
                             {String(row.number).padStart(2, '0')}
                           </td>
@@ -368,24 +413,19 @@ const MyBetsModal = ({ open, onClose }) => {
                               : '—'}
                           </td>
                           <td className="border border-[#a0a0a0] p-1 text-center align-top">
-                            {canCancel ? (
+                            {displayStatus === 'pending' && !g.slotEnded && String(row?.id || '').length > 0 ? (
                               <button
                                 type="button"
-                                disabled={cancellingId === row.id}
-                                onClick={() => setPendingCancelId(String(row.id))}
+                                disabled={cancellingId === `bet:${row.id}`}
+                                onClick={() => setPendingCancelTarget({ type: 'bet', id: String(row.id) })}
                                 className="rounded border border-[#c5362d] bg-[#ffe5e5] px-2 py-0.5 text-[10px] font-semibold text-[#a31] hover:bg-[#ffd5d5] disabled:opacity-60"
                               >
-                                {cancellingId === row.id ? '…' : 'Cancel'}
+                                {cancellingId === `bet:${row.id}` ? '…' : 'Cancel Bet'}
                               </button>
                             ) : displayStatus === 'cancelled' ? (
-                              <div className="flex flex-col items-center gap-0.5 px-1">
-                                <span className="font-semibold text-gray-700">Canceled</span>
-                                <span className="text-[9px] leading-tight text-gray-600">
-                                  Refunded. You can place this bet again on the board.
-                                </span>
-                              </div>
+                              'Canceled'
                             ) : (
-                              <span className="text-[#999]">—</span>
+                              '—'
                             )}
                           </td>
                         </tr>
@@ -397,32 +437,39 @@ const MyBetsModal = ({ open, onClose }) => {
             ))}
         </div>
       </div>
-      {pendingCancelId ? (
+      {pendingCancelTarget?.id ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-3">
           <div className="w-full max-w-sm rounded-lg border border-[#6c6c6c] bg-white p-4 text-center shadow-xl">
             <h4 className="text-[16px] font-bold text-[#1f2937]">Are you sure?</h4>
             <p className="mt-2 text-[12px] text-gray-700">
-              Do you want to cancel this bet?
+              {pendingCancelTarget?.type === 'ticket'
+                ? 'Do you want to cancel this full ticket?'
+                : 'Do you want to cancel this bet?'}
             </p>
             <div className="mt-4 flex items-center justify-center gap-2">
               <button
                 type="button"
-                onClick={() => setPendingCancelId('')}
+                onClick={() => setPendingCancelTarget(null)}
                 className="h-9 min-w-[90px] rounded border border-[#9ca3af] bg-[#f3f4f6] px-3 text-[12px] font-semibold text-[#111827]"
               >
                 No
               </button>
               <button
                 type="button"
-                disabled={cancellingId === pendingCancelId}
+                disabled={cancellingId === `${pendingCancelTarget?.type}:${pendingCancelTarget?.id}`}
                 onClick={async () => {
-                  const targetId = pendingCancelId;
-                  setPendingCancelId('');
-                  await handleCancelBet(targetId);
+                  const target = pendingCancelTarget;
+                  setPendingCancelTarget(null);
+                  if (!target?.id) return;
+                  if (target.type === 'ticket') {
+                    await handleCancelTicket(target.id);
+                  } else {
+                    await handleCancelSingleBet(target.id);
+                  }
                 }}
                 className="h-9 min-w-[110px] rounded border border-[#c5362d] bg-[#ef3f34] px-3 text-[12px] font-semibold text-white disabled:opacity-60"
               >
-                {cancellingId === pendingCancelId ? 'Cancelling…' : 'Yes, Cancel'}
+                {cancellingId === `${pendingCancelTarget?.type}:${pendingCancelTarget?.id}` ? 'Cancelling…' : 'Yes, Cancel'}
               </button>
             </div>
           </div>

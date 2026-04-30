@@ -157,6 +157,23 @@ export async function cancelMyQuizBet(betId, mode = '2d') {
   return json;
 }
 
+/** Cancel full ticket (all pending rows under one ticketId). */
+export async function cancelMyQuizTicket(ticketId, mode = '2d') {
+  const res = await fetch(`${base}/my-quiz-tickets/${encodeURIComponent(String(ticketId))}?mode=${encodeURIComponent(mode)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { ...getAuthHeaders() },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json.message || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.code = json.code;
+    throw err;
+  }
+  return json;
+}
+
 export async function getQuizResult(quizId, slotStartIso, mode = '2d') {
   const params = new URLSearchParams();
   if (slotStartIso) params.set('slotStartIso', slotStartIso);

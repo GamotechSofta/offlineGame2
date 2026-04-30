@@ -3,6 +3,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import {
   cancelMyQuizBet,
+  cancelMyQuizTicket,
   getHint,
   getMyQuizBets,
   getQuestions,
@@ -63,6 +64,7 @@ router.get('/slot-results', quizLimiter, getSlotResultsHistory);
 router.get('/my-board-bets', quizLimiter, getMyBoardBets);
 router.get('/my-quiz-bets', quizLimiter, verifyUser, getMyQuizBets);
 router.delete('/my-quiz-bets/:betId', quizLimiter, verifyUser, cancelMyQuizBet);
+router.delete('/my-quiz-tickets/:ticketId', quizLimiter, verifyUser, cancelMyQuizTicket);
 router.post('/board-bet', guessLimiter, postBoardBet);
 router.get('/questions/:quizId', quizLimiter, validateQuizIdParam, getQuestions);
 router.get('/hint/:quizId', hintLimiter, validateQuizIdParam, getHint);

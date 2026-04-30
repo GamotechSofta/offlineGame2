@@ -78,22 +78,9 @@ function resolveRequestedSlotStartIso(ctx, requestedSlotRaw, nowMs = Date.now())
   return { ok: true, slotStartIso: requested };
 }
 
-/**
- * Apply amount increases + new QuizBet rows. On failure, reverse applied ops and refund wallet once.
- */
-async function applyMergesAndInsertsOrRefund(userId, totalStake, incs, insertDocs) {
+/** Insert new ticket rows. On failure, reverse inserts and refund wallet once. */
+async function applyInsertsOrRefund(userId, totalStake, insertDocs) {
   try {
-    if (incs.length) {
-      const incOps = incs.map(({ _id, amount }) => ({
-        updateOne: {
-          filter: { _id },
-          update: { $inc: { amount } },
-        },
-      }));
-      const incResult = await QuizBet.bulkWrite(incOps, { ordered: true });
-      const matched = Number(incResult?.matchedCount || 0);
-      if (matched !== incs.length) throw new Error('MERGE_TARGET_MISSING');
-    }
     if (insertDocs.length) {
       await QuizBet.insertMany(insertDocs, { ordered: true });
     }
@@ -105,21 +92,7 @@ async function applyMergesAndInsertsOrRefund(userId, totalStake, incs, insertDoc
         await QuizBet.deleteMany({ _id: { $in: insertedIds } });
       }
     }
-    if (incs.length) {
-      const rollbackIncOps = incs.map(({ _id, amount }) => ({
-        updateOne: {
-          filter: { _id },
-          update: { $inc: { amount: -amount } },
-        },
-      }));
-      await QuizBet.bulkWrite(rollbackIncOps, { ordered: false });
-    }
     await Wallet.findOneAndUpdate({ userId }, { $inc: { balance: totalStake } });
-    if (e?.code === 11000) {
-      const err = new Error('Duplicate number');
-      err.code = 11000;
-      throw err;
-    }
     throw e;
   }
 }
@@ -332,8 +305,8 @@ export const getQuizSettings = async (req, res) => {
 
 /**
  * POST /api/v1/quiz/bet
- * Body: { quizId, bets: [{ number, amount }] } — any time while current 15m IST slot is open;
- * repeat number adds to stake (merge).
+ * Body: { quizId, bets: [{ number, amount }] } — any time while current 15m IST slot is open.
+ * Each request creates a brand-new ticket (no merge with previous tickets).
  */
 export const postQuizBet = async (req, res) => {
   try {
@@ -417,36 +390,24 @@ export const postQuizBet = async (req, res) => {
     }
 
     const owner = getBetOwnerKey(req);
-    const existing = await QuizBet.find({
-      gameMode,
-      betOwnerKey: owner,
-      quizId,
-      slotStartIso,
-      status: { $ne: 'cancelled' },
-    }).lean();
-    const existingByKey = new Map(existing.map((e) => [`${e.number}|${normalizeQuizBetMode(e.betMode || 'str') || 'str'}`, e]));
+    const ticketId = new mongoose.Types.ObjectId().toString();
     const uid = new mongoose.Types.ObjectId(userId);
-    const incs = [];
     const insertDocs = [];
     for (const { num, amount, betMode } of lines) {
-      const ex = existingByKey.get(`${num}|${betMode}`);
-      if (ex) {
-        incs.push({ _id: ex._id, amount });
-      } else {
-        insertDocs.push({
-          _id: new mongoose.Types.ObjectId(),
-          gameMode,
-          betOwnerKey: owner,
-          userId: uid,
-          quizId,
-          slotStartIso,
-          number: num,
-          betMode,
-          amount,
-          status: 'pending',
-          winPayout: 0,
-        });
-      }
+      insertDocs.push({
+        _id: new mongoose.Types.ObjectId(),
+        gameMode,
+        betOwnerKey: owner,
+        ticketId,
+        userId: uid,
+        quizId,
+        slotStartIso,
+        number: num,
+        betMode,
+        amount,
+        status: 'pending',
+        winPayout: 0,
+      });
     }
 
     const walletUpdate = await Wallet.findOneAndUpdate(
@@ -464,26 +425,15 @@ export const postQuizBet = async (req, res) => {
       });
     }
 
-    try {
-      await applyMergesAndInsertsOrRefund(userId, totalStake, incs, insertDocs);
-    } catch (e) {
-      if (e?.code === 11000) {
-        return res.status(409).json({
-          success: false,
-          code: 'DUPLICATE_NUMBER',
-          message: 'Could not apply bet (duplicate). Try again.',
-        });
-      }
-      throw e;
-    }
+    await applyInsertsOrRefund(userId, totalStake, insertDocs);
 
     res.status(201).json({
       success: true,
       data: {
+        ticketId,
         quizId,
         slotStartIso,
         betsInserted: insertDocs.length,
-        stakeAddedToExisting: incs.length,
         linesProcessed: lines.length,
         totalStake,
         balance: walletUpdate.balance,
@@ -499,8 +449,8 @@ export const postQuizBet = async (req, res) => {
 
 /**
  * POST /api/v1/quiz/bet-batch
- * Body: { rounds: [{ quizId, bets: [{ number, amount }] }] } — one wallet debit while slot open;
- * same number again increases stake.
+ * Body: { rounds: [{ quizId, bets: [{ number, amount }] }] } — one wallet debit while slot open.
+ * Each request creates a brand-new ticket (no merge with previous tickets).
  */
 export const postQuizBetsBatch = async (req, res) => {
   try {
@@ -549,6 +499,7 @@ export const postQuizBetsBatch = async (req, res) => {
     }
 
     const owner = getBetOwnerKey(req);
+    const ticketId = new mongoose.Types.ObjectId().toString();
     const uid = new mongoose.Types.ObjectId(userId);
     const normalizedByQuiz = new Map();
     const roundsData = [];
@@ -593,50 +544,26 @@ export const postQuizBetsBatch = async (req, res) => {
       normalizedByQuiz.set(quizId, byKey);
     }
 
-    const quizIds = [...normalizedByQuiz.keys()];
-    const existingAll = quizIds.length
-      ? await QuizBet.find({
-          gameMode,
-          betOwnerKey: owner,
-          slotStartIso,
-          quizId: { $in: quizIds },
-          status: { $ne: 'cancelled' },
-        }).lean()
-      : [];
-    const existingByCompositeKey = new Map(
-      existingAll.map((e) => [
-        `${e.quizId}|${e.number}|${normalizeQuizBetMode(e.betMode || 'str') || 'str'}`,
-        e,
-      ]),
-    );
-
     for (const [quizId, byKey] of normalizedByQuiz.entries()) {
       const lines = [...byKey.values()];
-      const incs = [];
       const insertDocs = [];
       for (const { num, amount, betMode } of lines) {
-        const ex = existingByCompositeKey.get(`${quizId}|${num}|${betMode}`);
-        if (ex) {
-          incs.push({ _id: ex._id, amount });
-        } else {
-          const doc = {
-            _id: new mongoose.Types.ObjectId(),
-            gameMode,
-            betOwnerKey: owner,
-            userId: uid,
-            quizId,
-            slotStartIso,
-            number: num,
-            betMode,
-            amount,
-            status: 'pending',
-            winPayout: 0,
-          };
-          insertDocs.push(doc);
-          existingByCompositeKey.set(`${quizId}|${num}|${betMode}`, doc);
-        }
+        insertDocs.push({
+          _id: new mongoose.Types.ObjectId(),
+          gameMode,
+          betOwnerKey: owner,
+          ticketId,
+          userId: uid,
+          quizId,
+          slotStartIso,
+          number: num,
+          betMode,
+          amount,
+          status: 'pending',
+          winPayout: 0,
+        });
       }
-      roundsData.push({ quizId, lines, incs, insertDocs });
+      roundsData.push({ quizId, lines, insertDocs });
     }
 
     const totalStake = roundsData.reduce(
@@ -659,28 +586,16 @@ export const postQuizBetsBatch = async (req, res) => {
       });
     }
 
-    const flatIncs = roundsData.flatMap((r) => r.incs);
     const flatInserts = roundsData.flatMap((r) => r.insertDocs);
-    try {
-      await applyMergesAndInsertsOrRefund(userId, totalStake, flatIncs, flatInserts);
-    } catch (e) {
-      if (e?.code === 11000) {
-        return res.status(409).json({
-          success: false,
-          code: 'DUPLICATE_NUMBER',
-          message: 'Could not apply batch bet (duplicate). Try again.',
-        });
-      }
-      throw e;
-    }
+    await applyInsertsOrRefund(userId, totalStake, flatInserts);
 
     res.status(201).json({
       success: true,
       data: {
+        ticketId,
         slotStartIso,
         linesProcessed: roundsData.reduce((n, r) => n + r.lines.length, 0),
         betsInserted: flatInserts.length,
-        stakeAddedToExisting: flatIncs.length,
         totalStake,
         balance: walletUpdate.balance,
         rounds: roundsData.map((r) => ({
@@ -766,6 +681,7 @@ export const getMyQuizBets = async (req, res) => {
         slotEnded && hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos ? String(hp).padStart(padLength, '0') : null;
       return {
         id: String(b._id),
+        ticketId: b.ticketId || null,
         quizId: b.quizId,
         number: b.number,
         betMode: b.betMode || 'str',
@@ -873,5 +789,89 @@ export const cancelMyQuizBet = async (req, res) => {
     // eslint-disable-next-line no-console
     console.error('cancelMyQuizBet', err);
     res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
+
+/**
+ * DELETE /api/v1/quiz/my-quiz-tickets/:ticketId?mode=
+ * Cancels own full pending ticket before slot closes (refund = sum of pending ticket rows).
+ */
+export const cancelMyQuizTicket = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+    const ticketId = String(req.params?.ticketId || '').trim();
+    if (!ticketId) {
+      return res.status(400).json({ success: false, message: 'Invalid ticket id.' });
+    }
+
+    const gameMode = resolveGameMode(req);
+    const uid = new mongoose.Types.ObjectId(userId);
+    await ensureQuizBetIndexes();
+
+    const pendingRows = await QuizBet.find({
+      userId: uid,
+      gameMode,
+      ticketId,
+      status: 'pending',
+    }).lean();
+
+    if (!pendingRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket not found or already settled.',
+      });
+    }
+
+    let refund = 0;
+    for (const row of pendingRows) {
+      const slotStartMs = new Date(row.slotStartIso).getTime();
+      if (!Number.isFinite(slotStartMs)) {
+        return res.status(400).json({ success: false, message: 'Invalid slot on ticket.' });
+      }
+      const slotEndMs = slotStartMs + SLOT_MS;
+      if (Date.now() >= slotEndMs) {
+        return res.status(403).json({
+          success: false,
+          code: 'SLOT_CLOSED',
+          message: 'This draw has closed — pending tickets cannot be cancelled.',
+        });
+      }
+      refund += Math.floor(Number(row.amount || 0));
+    }
+
+    if (!Number.isFinite(refund) || refund <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid ticket stake amount.' });
+    }
+
+    const updateRes = await QuizBet.updateMany(
+      { userId: uid, gameMode, ticketId, status: 'pending' },
+      { $set: { status: 'cancelled', winPayout: 0 } },
+    );
+    const modified = Number(updateRes?.modifiedCount || 0);
+    if (modified === 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Could not cancel — ticket may have been settled.',
+      });
+    }
+
+    const walletUpdate = await Wallet.findOneAndUpdate({ userId: uid }, { $inc: { balance: refund } }, { new: true }).lean();
+
+    return res.json({
+      success: true,
+      data: {
+        ticketId,
+        refunded: refund,
+        rowsCancelled: modified,
+        balance: walletUpdate?.balance ?? null,
+      },
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('cancelMyQuizTicket', err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
   }
 };
