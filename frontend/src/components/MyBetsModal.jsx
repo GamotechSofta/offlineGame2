@@ -70,15 +70,10 @@ const groupQuizRows = (items) => {
   return [...map.values()].map((g) => {
     const totalAmount = g.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
     const pendingLines = g.lines.filter((line) => String(line.status || '').toLowerCase() === 'pending');
-    const winCount = g.lines.reduce((sum, line) => {
-      const displayStatus = computeDisplayStatus(line, g);
-      return displayStatus === 'win' ? sum + 1 : sum;
-    }, 0);
     return {
       ...g,
       totalAmount,
       pendingCount: pendingLines.length,
-      winCount,
       lines: [...g.lines].sort((a, b) => (Number(a.quizId) - Number(b.quizId)) || (Number(a.number) - Number(b.number))),
     };
   });
@@ -103,19 +98,6 @@ const isAdvanceDrawRow = (row) => {
   return slotStartMs - createdAtMs > 60 * 1000;
 };
 
-const resolveDisplayedWinAmount = (row, displayStatus, inferredMultiplier) => {
-  if (displayStatus !== 'win') return 0;
-  const effective = Number(row?.effectiveWinPayout ?? 0);
-  if (effective > 0) return effective;
-  const direct = Number(row?.winPayout ?? 0);
-  if (direct > 0) return direct;
-  const amount = Number(row?.amount || 0);
-  if (amount > 0 && Number.isFinite(inferredMultiplier) && inferredMultiplier > 0) {
-    return Math.round(amount * inferredMultiplier);
-  }
-  return 0;
-};
-
 const MyBetsModal = ({ open, onClose }) => {
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [errQuiz, setErrQuiz] = useState('');
@@ -125,7 +107,6 @@ const MyBetsModal = ({ open, onClose }) => {
   const [pendingCancelTarget, setPendingCancelTarget] = useState(null);
   const [betFilter, setBetFilter] = useState(BET_FILTERS.TODAY);
   const [drawFilter, setDrawFilter] = useState(DRAW_FILTERS.ALL);
-  const [expandedTickets, setExpandedTickets] = useState({});
   const listScrollRef = useRef(null);
   const lastScrollTopRef = useRef(0);
 
@@ -178,11 +159,6 @@ const MyBetsModal = ({ open, onClose }) => {
     loadQuiz();
   }, [open, loadQuiz]);
 
-  useEffect(() => {
-    if (!open) return;
-    setExpandedTickets({});
-  }, [open, betFilter, drawFilter]);
-
   useSectionAutoRefresh({
     enabled: open,
     intervalMs: 10000,
@@ -206,17 +182,6 @@ const MyBetsModal = ({ open, onClose }) => {
   }, [betFilter, drawFilter, quizItems]);
 
   const quizGroups = useMemo(() => groupQuizRows(filteredQuizItems), [filteredQuizItems]);
-  const inferredWinMultiplier = useMemo(() => {
-    for (const row of quizItems) {
-      const payout = Number(row?.effectiveWinPayout ?? row?.winPayout ?? 0);
-      const amount = Number(row?.amount || 0);
-      if (payout > 0 && amount > 0) {
-        const m = payout / amount;
-        if (Number.isFinite(m) && m > 0) return m;
-      }
-    }
-    return 0;
-  }, [quizItems]);
 
   const refreshQuiz = useCallback(() => {
     loadQuiz();
@@ -376,133 +341,101 @@ const MyBetsModal = ({ open, onClose }) => {
             !errQuiz &&
             quizGroups.map((g) => (
               <div key={`${g.ticketId || 'legacy'}-${g.slotStartIso}`} className="mb-3 rounded border border-[#bbb] bg-white p-2.5 shadow-sm">
-                {(() => {
-                  const groupKey = `${g.ticketId || 'legacy'}-${g.slotStartIso || ''}`;
-                  const isExpanded = Boolean(expandedTickets[groupKey]);
-                  return (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setExpandedTickets((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
-                        }}
-                        className="mb-2 flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-left font-bold text-[#1a4d6e]"
-                      >
-                        <span className="font-mono text-[12px] text-[#4b5563]">{isExpanded ? '▾' : '▸'}</span>
-                        Ticket: {g.ticketId ? String(g.ticketId).slice(-8).toUpperCase() : 'Legacy'}
-                        <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
-                          Draw: {g.drawLabelEnd ?? '—'}
-                        </span>
-                        <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
-                          Total: ₹{g.totalAmount}
-                        </span>
-                        <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
-                          Bets: {g.lines.length}
-                        </span>
-                        <span className="rounded bg-[#ecfdf5] px-2 py-0.5 text-[#166534]">
-                          Win Bets: {g.winCount}
-                        </span>
-                        <span className="rounded bg-[#eef2ff] px-2 py-0.5 text-[#374151]">
-                          Date: {formatIstDateLabel(g.lines?.[0]?.createdAt || g.lines?.[0]?.slotStartIso || g.slotStartIso)}
-                        </span>
-                        {g.isAdvanceDraw ? (
-                          <span className="rounded bg-[#1d4ed8] px-2 py-0.5 text-white">Advance Draw</span>
-                        ) : null}
-                      </button>
-                      <div className="mb-2 flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setExpandedTickets((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
-                          }}
-                          className="rounded border border-[#4b74a8] bg-[#e8f1ff] px-2 py-0.5 text-[10px] font-semibold text-[#1d4e89] hover:bg-[#dbeafe]"
-                        >
-                          {isExpanded ? 'Hide Bets' : 'Show All Bets'}
-                        </button>
-                        {g.pendingCount > 0 && !g.slotEnded && String(g.ticketId || '').length > 0 ? (
-                          <button
-                            type="button"
-                            disabled={cancellingId === `ticket:${g.ticketId}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPendingCancelTarget({ type: 'ticket', id: String(g.ticketId) });
-                            }}
-                            className="rounded border border-[#c5362d] bg-[#ffe5e5] px-2 py-0.5 text-[10px] font-semibold text-[#a31] hover:bg-[#ffd5d5] disabled:opacity-60"
+                <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-bold text-[#1a4d6e]">
+                  Ticket: {g.ticketId ? String(g.ticketId).slice(-8).toUpperCase() : 'Legacy'}
+                  <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
+                    Draw: {g.drawLabelEnd ?? '—'}
+                  </span>
+                  <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
+                    Total: ₹{g.totalAmount}
+                  </span>
+                  <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
+                    Bets: {g.lines.length}
+                  </span>
+                  <span className="rounded bg-[#eef2ff] px-2 py-0.5 text-[#374151]">
+                    Date: {formatIstDateLabel(g.lines?.[0]?.createdAt || g.lines?.[0]?.slotStartIso || g.slotStartIso)}
+                  </span>
+                  {g.isAdvanceDraw ? (
+                    <span className="rounded bg-[#1d4ed8] px-2 py-0.5 text-white">Advance Draw</span>
+                  ) : null}
+                  {g.slotEnded && g.winningNumber != null && (
+                    <span className="rounded bg-[#f2f6ff] px-2 py-0.5 font-mono text-[#333]">Winning No.: {g.winningNumber}</span>
+                  )}
+                  {g.pendingCount > 0 && !g.slotEnded && String(g.ticketId || '').length > 0 ? (
+                    <button
+                      type="button"
+                      disabled={cancellingId === `ticket:${g.ticketId}`}
+                      onClick={() => setPendingCancelTarget({ type: 'ticket', id: String(g.ticketId) })}
+                      className="ml-auto rounded border border-[#c5362d] bg-[#ffe5e5] px-2 py-0.5 text-[10px] font-semibold text-[#a31] hover:bg-[#ffd5d5] disabled:opacity-60"
+                    >
+                      {cancellingId === `ticket:${g.ticketId}` ? '…' : 'Cancel Full Ticket'}
+                    </button>
+                  ) : null}
+                </div>
+                <table className="w-full border-collapse text-[11px]">
+                  <thead>
+                    <tr className="bg-[#d9e4f5]">
+                      <th className="border border-[#a0a0a0] p-1">Quiz</th>
+                      <th className="border border-[#a0a0a0] p-1">Number</th>
+                      <th className="border border-[#a0a0a0] p-1">Amount</th>
+                      <th className="border border-[#a0a0a0] p-1">Status</th>
+                      <th className="border border-[#a0a0a0] p-1">Win Amount</th>
+                      <th className="border border-[#a0a0a0] p-1">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.lines.map((row, rowIndex) => {
+                      const displayStatus = computeDisplayStatus(row, g);
+                      return (
+                        <tr key={row.id} className="bg-[#f8f8f8]">
+                          <td className="border border-[#a0a0a0] p-1 font-mono font-semibold">
+                            Q{String(row.quizId).padStart(2, '0')}
+                          </td>
+                          <td className="border border-[#a0a0a0] p-1 font-mono font-semibold">
+                            {String(row.number).padStart(2, '0')}
+                          </td>
+                          <td className="border border-[#a0a0a0] p-1">₹{row.amount}</td>
+                          <td
+                            className={`border border-[#a0a0a0] p-1 font-semibold ${
+                              displayStatus === 'win'
+                                ? 'text-green-700'
+                                : displayStatus === 'lose'
+                                  ? 'text-red-700'
+                                  : displayStatus === 'cancelled'
+                                    ? 'text-gray-600'
+                                    : 'text-amber-800'
+                            }`}
                           >
-                            {cancellingId === `ticket:${g.ticketId}` ? '…' : 'Cancel Full Ticket'}
-                          </button>
-                        ) : null}
-                      </div>
-                      {isExpanded ? (
-                        <table className="w-full border-collapse text-[11px]">
-                          <thead>
-                            <tr className="bg-[#d9e4f5]">
-                              <th className="border border-[#a0a0a0] p-1">Quiz</th>
-                              <th className="border border-[#a0a0a0] p-1">Number</th>
-                              <th className="border border-[#a0a0a0] p-1">Amount</th>
-                              <th className="border border-[#a0a0a0] p-1">Status</th>
-                              <th className="border border-[#a0a0a0] p-1">Win Amount</th>
-                              <th className="border border-[#a0a0a0] p-1">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {g.lines.map((row) => {
-                              const displayStatus = computeDisplayStatus(row, g);
-                              const displayWinAmount = resolveDisplayedWinAmount(row, displayStatus, inferredWinMultiplier);
-                              return (
-                                <tr key={row.id} className="bg-[#f8f8f8]">
-                                  <td className="border border-[#a0a0a0] p-1 font-mono font-semibold">
-                                    Q{String(row.quizId).padStart(2, '0')}
-                                  </td>
-                                  <td className="border border-[#a0a0a0] p-1 font-mono font-semibold">
-                                    {String(row.number).padStart(2, '0')}
-                                  </td>
-                                  <td className="border border-[#a0a0a0] p-1">₹{row.amount}</td>
-                                  <td
-                                    className={`border border-[#a0a0a0] p-1 font-semibold ${
-                                      displayStatus === 'win'
-                                        ? 'text-green-700'
-                                        : displayStatus === 'lose'
-                                          ? 'text-red-700'
-                                          : displayStatus === 'cancelled'
-                                            ? 'text-gray-600'
-                                            : 'text-amber-800'
-                                    }`}
-                                  >
-                                    {statusLabel(displayStatus)}
-                                  </td>
-                                  <td className="border border-[#a0a0a0] p-1">
-                                    {displayStatus === 'win'
-                                      ? displayWinAmount > 0
-                                        ? `₹${displayWinAmount}`
-                                        : 'Processing...'
-                                      : '—'}
-                                  </td>
-                                  <td className="border border-[#a0a0a0] p-1 text-center align-top">
-                                    {displayStatus === 'pending' && !g.slotEnded && String(row?.id || '').length > 0 ? (
-                                      <button
-                                        type="button"
-                                        disabled={cancellingId === `bet:${row.id}`}
-                                        onClick={() => setPendingCancelTarget({ type: 'bet', id: String(row.id) })}
-                                        className="rounded border border-[#c5362d] bg-[#ffe5e5] px-2 py-0.5 text-[10px] font-semibold text-[#a31] hover:bg-[#ffd5d5] disabled:opacity-60"
-                                      >
-                                        {cancellingId === `bet:${row.id}` ? '…' : 'Cancel Bet'}
-                                      </button>
-                                    ) : displayStatus === 'cancelled' ? (
-                                      'Canceled'
-                                    ) : (
-                                      '—'
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      ) : null}
-                    </>
-                  );
-                })()}
+                            {statusLabel(displayStatus)}
+                          </td>
+                          <td className="border border-[#a0a0a0] p-1">
+                            {displayStatus === 'win'
+                              ? row.winPayout > 0
+                                ? `₹${row.winPayout}`
+                                : 'Processing...'
+                              : '—'}
+                          </td>
+                          <td className="border border-[#a0a0a0] p-1 text-center align-top">
+                            {displayStatus === 'pending' && !g.slotEnded && String(row?.id || '').length > 0 ? (
+                              <button
+                                type="button"
+                                disabled={cancellingId === `bet:${row.id}`}
+                                onClick={() => setPendingCancelTarget({ type: 'bet', id: String(row.id) })}
+                                className="rounded border border-[#c5362d] bg-[#ffe5e5] px-2 py-0.5 text-[10px] font-semibold text-[#a31] hover:bg-[#ffd5d5] disabled:opacity-60"
+                              >
+                                {cancellingId === `bet:${row.id}` ? '…' : 'Cancel Bet'}
+                              </button>
+                            ) : displayStatus === 'cancelled' ? (
+                              'Canceled'
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             ))}
         </div>
