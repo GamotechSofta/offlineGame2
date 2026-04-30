@@ -1467,88 +1467,93 @@ const ThreeDGame = () => {
   }, [handleBuy]);
 
   const handleCancelPendingTicket = useCallback(async () => {
-    if (Array.isArray(bets) && bets.length) {
-      const totalCurrent = bets.reduce((sum, bet) => sum + Number(bet?.points || 0), 0);
-      setCancelBetDialog({
-        type: 'current',
-        title: 'Cancel Current Bet',
-        description: `Cancel ${bets.length} current bet(s)?`,
-        points: totalCurrent,
-        count: bets.length,
-      });
-      return;
-    }
-
-    let cancellable = null;
+    const options = [];
     try {
       const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
       const rows = Array.isArray(j?.data) ? j.data : [];
-      const pendingRows = rows.filter((row) => {
-        const status = String(row?.status || '').toLowerCase();
-        return status === 'pending';
-      });
-      const bySlot = new Map();
+      const pendingRows = rows.filter((row) => String(row?.status || '').toLowerCase() === 'pending');
+      const byTicket = new Map();
       pendingRows.forEach((row) => {
-        const slotKey = String(row?.slotStartIso || '').trim();
-        if (!slotKey) return;
-        if (!bySlot.has(slotKey)) {
-          bySlot.set(slotKey, {
-            slotStartIso: slotKey,
+        const slotStartIso = String(row?.slotStartIso || '').trim();
+        if (!slotStartIso) return;
+        const ticketId = String(row?.ticketId || '').trim();
+        const key = ticketId || `slot:${slotStartIso}`;
+        if (!byTicket.has(key)) {
+          byTicket.set(key, {
+            key,
+            ticketId: ticketId || null,
+            slotStartIso,
             totalPoints: 0,
             latestCreatedAtMs: 0,
+            isAdvanceDraw: false,
           });
         }
-        const bucket = bySlot.get(slotKey);
+        const bucket = byTicket.get(key);
         bucket.totalPoints += Number(row?.amount || 0);
         const createdAtMs = new Date(row?.createdAt || 0).getTime();
         if (Number.isFinite(createdAtMs) && createdAtMs > bucket.latestCreatedAtMs) {
           bucket.latestCreatedAtMs = createdAtMs;
         }
+        const slotStartMs = new Date(slotStartIso).getTime();
+        if (Number.isFinite(createdAtMs) && Number.isFinite(slotStartMs) && (slotStartMs - createdAtMs) > ((GAME_INTERVAL_SECONDS * 1000) + (60 * 1000))) {
+          bucket.isAdvanceDraw = true;
+        }
       });
-      const latest = [...bySlot.values()].sort((a, b) => b.latestCreatedAtMs - a.latestCreatedAtMs)[0];
-      if (latest) {
-        const settleAtMs = new Date(latest.slotStartIso).getTime() + (GAME_INTERVAL_SECONDS * 1000);
-        cancellable = {
-          id: `backend-slot-${latest.slotStartIso}`,
-          ticketId: null,
-          gameId: latest.slotStartIso,
-          slotStartIso: latest.slotStartIso,
-          totalPoints: Number(latest.totalPoints || 0),
-          settleAtMs,
-        };
-      }
+      options.push(...[...byTicket.values()]
+        .sort((a, b) => b.latestCreatedAtMs - a.latestCreatedAtMs)
+        .map((item) => ({
+          ...item,
+          drawLabel: formatDrawEndLabelFromSlotStartIso(item.slotStartIso),
+          ticketLabel: item.ticketId || item.slotStartIso,
+        })));
     } catch (_) {
-      // Backend fetch failed; fallback to in-memory ticket list.
+      // If backend lookup fails, fallback below.
     }
 
-    if (!cancellable) {
-      const nowMs = Date.now();
-      cancellable = (historyTicketsForModal || []).find((ticket) => {
-        const outcome = String(ticket?.outcome || '').toLowerCase();
-        if (outcome === 'pending') return String(ticket?.slotStartIso || '').trim().length > 0;
-        const settleAtMs = getTicketSettleAtMs(ticket);
-        return settleAtMs > nowMs && String(ticket?.slotStartIso || '').trim().length > 0;
+    if (!options.length) {
+      const fallback = (historyTicketsForModal || []).filter((ticket) => String(ticket?.outcome || '').toLowerCase() === 'pending');
+      fallback.forEach((ticket) => {
+        const slotStartIso = String(ticket?.slotStartIso || '').trim();
+        if (!slotStartIso) return;
+        options.push({
+          key: String(ticket?.ticketId || '').trim() || `slot:${slotStartIso}`,
+          ticketId: String(ticket?.ticketId || '').trim() || null,
+          slotStartIso,
+          totalPoints: Number(ticket?.totalPoints || 0),
+          latestCreatedAtMs: new Date(ticket?.createdAt || 0).getTime(),
+          isAdvanceDraw: Boolean(ticket?.isAdvanceDraw),
+          drawLabel: ticket?.drawTime || formatDrawEndLabelFromSlotStartIso(slotStartIso),
+          ticketLabel: String(ticket?.ticketId || ticket?.gameId || slotStartIso),
+        });
       });
     }
 
-    if (!cancellable) {
+    if (!options.length) {
+      if (Array.isArray(bets) && bets.length) {
+        const totalCurrent = bets.reduce((sum, bet) => sum + Number(bet?.points || 0), 0);
+        setCancelBetDialog({
+          type: 'current',
+          title: 'Cancel Current Bet',
+          description: `Cancel ${bets.length} current bet(s)?`,
+          points: totalCurrent,
+          count: bets.length,
+        });
+        return;
+      }
       setToast('No active ticket to cancel before draw time.');
       return;
     }
 
-    const refundAmount = Number(cancellable?.totalPoints || 0);
-    const ticketLabel = cancellable?.gameId || String(cancellable?.id || '');
+    const selected = options[0];
     setCancelBetDialog({
-      type: 'ticket',
+      type: 'ticket-picker',
       title: 'Cancel Ticket Bet',
-      description: `Cancel ticket ${ticketLabel} before draw?`,
-      points: refundAmount,
-      ticketId: cancellable.id,
-      ticketBackendId: cancellable?.ticketId || null,
-      slotStartIso: cancellable?.slotStartIso || '',
-      ticketLabel,
+      description: 'Choose a bet and tap Cancel.',
+      points: Number(selected?.totalPoints || 0),
+      options,
+      selectedOptionKey: selected?.key || '',
     });
-  }, [bets, getTicketSettleAtMs, historyTicketsForModal]);
+  }, [bets, formatDrawEndLabelFromSlotStartIso, historyTicketsForModal]);
 
   const handleConfirmCancelBet = useCallback(async () => {
     if (!cancelBetDialog || isCancelSubmitting) return;
@@ -1589,7 +1594,17 @@ const ThreeDGame = () => {
     }
 
     const nowMs = Date.now();
-    const targetSlotStartIso = String(cancelBetDialog?.slotStartIso || '').trim();
+    const selectedOption = cancelBetDialog?.type === 'ticket-picker'
+      ? (Array.isArray(cancelBetDialog?.options)
+        ? cancelBetDialog.options.find((opt) => String(opt?.key || '') === String(cancelBetDialog?.selectedOptionKey || ''))
+        : null)
+      : null;
+    if (cancelBetDialog?.type === 'ticket-picker' && !selectedOption) {
+      setValidationMsg('Please select a ticket to cancel.');
+      setIsCancelSubmitting(false);
+      return;
+    }
+    const targetSlotStartIso = String(selectedOption?.slotStartIso || cancelBetDialog?.slotStartIso || '').trim();
     const cancellable = (historyTicketsForModal || []).find((ticket) => {
       if (targetSlotStartIso) {
         return String(ticket?.slotStartIso || '').trim() === targetSlotStartIso;
@@ -1599,10 +1614,10 @@ const ThreeDGame = () => {
       const settleAtMs = getTicketSettleAtMs(ticket);
       return settleAtMs > nowMs;
     });
-    const refundAmount = Number(cancellable?.totalPoints || cancelBetDialog?.points || 0);
-    const ticketLabel = cancellable?.gameId || cancelBetDialog?.ticketLabel || String(cancellable?.id || '');
+    const refundAmount = Number(selectedOption?.totalPoints || cancellable?.totalPoints || cancelBetDialog?.points || 0);
+    const ticketLabel = selectedOption?.ticketLabel || cancellable?.gameId || cancelBetDialog?.ticketLabel || String(cancellable?.id || '');
 
-    if (!cancellable) {
+    if (!cancellable && !selectedOption) {
       setToast('Ticket already settled or unavailable.');
       setCancelBetDialog(null);
       setIsCancelSubmitting(false);
@@ -2611,38 +2626,121 @@ const ThreeDGame = () => {
           </div>
         ) : null}
         {cancelBetDialog ? (
-          <div className="fixed inset-0 z-[87] flex items-center justify-center bg-black/75 p-1.5 backdrop-blur-[1px] sm:p-4">
-            <div className={`w-[99vw] max-w-xl rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-5 text-white shadow-2xl sm:w-full sm:p-6 ${isCancelSubmitting ? 'animate-pulse' : ''}`}>
+          <div className="fixed inset-0 z-[87] flex items-center justify-center bg-black/80 p-1 backdrop-blur-[2px] sm:p-4">
+            <div className={`w-[calc(100vw-8px)] max-w-[96vw] rounded-2xl border border-[#475569] bg-gradient-to-b from-[#0f172a] to-[#111827] p-3 text-white shadow-2xl sm:max-w-3xl sm:p-7 ${isCancelSubmitting ? 'animate-pulse' : ''}`}>
               <div className="flex items-center gap-2">
-                <CircleX className="h-7 w-7 text-rose-400" />
-                <h4 className="text-[clamp(2rem,8.2vw,2.5rem)] font-extrabold">{cancelBetDialog.title || 'Cancel Bet'}</h4>
+                <CircleX className="h-8 w-8 text-rose-400" />
+                <h4 className="text-[clamp(2rem,8vw,2.5rem)] font-black leading-tight">{cancelBetDialog.title || 'Cancel Bet'}</h4>
               </div>
-              <p className="mt-2 text-[clamp(1.3rem,5.4vw,1.5rem)] text-[#cbd5e1]">{cancelBetDialog.description}</p>
-              <p className="mt-2 text-[clamp(1.25rem,5.2vw,1.45rem)] font-bold text-amber-300">
-                Amount: ₹{Number(cancelBetDialog.points || 0)}
-              </p>
-              {cancelBetDialog.type === 'ticket' ? (
+              <p className="mt-2 text-[clamp(1.28rem,5vw,1.55rem)] font-semibold text-[#dbe5f3]">{cancelBetDialog.description}</p>
+              {cancelBetDialog.type !== 'ticket-picker' ? (
+                <p className="mt-2 text-[clamp(1.25rem,5.2vw,1.45rem)] font-bold text-amber-300">
+                  Amount: ₹{Number(cancelBetDialog.points || 0)}
+                </p>
+              ) : null}
+              {cancelBetDialog.type === 'ticket' || cancelBetDialog.type === 'ticket-picker' ? (
                 <p className="mt-1 text-[clamp(1.15rem,4.5vw,1.3rem)] text-emerald-300">Refund will be credited back to wallet.</p>
               ) : (
                 <p className="mt-1 text-[clamp(1.15rem,4.5vw,1.3rem)] text-slate-300">These are current bets only. Wallet balance stays unchanged.</p>
               )}
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:flex sm:items-center">
+              {cancelBetDialog.type === 'ticket-picker' ? (
+                <div className="mt-4 max-h-[22rem] overflow-y-auto rounded-xl border border-[#334155] bg-[#0b1220] p-2.5 sm:p-3">
+                  {(Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options : []).map((option) => {
+                    const singleOptionMode = (Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options.length : 0) === 1;
+                    return (
+                      <div
+                        key={option.key}
+                        className="mb-3 rounded-xl border border-[#3f4d63] bg-[#111827] px-3.5 py-3.5 text-[#cbd5e1] last:mb-0 sm:px-4"
+                      >
+                        <div className="break-all text-[18px] font-extrabold leading-tight text-white sm:text-[18px]">
+                          {option.ticketId ? `Ticket: ${option.ticketId}` : `Slot: ${option.slotStartIso}`}
+                        </div>
+                        <div className="mt-1 text-[18px] font-semibold sm:text-[16px]">
+                          Draw: {option.drawLabel}
+                        </div>
+                        <div className="mt-1 text-[20px] font-bold text-amber-300 sm:text-[17px]">
+                          Amount: ₹{Number(option.totalPoints || 0)}
+                        </div>
+                        {option.isAdvanceDraw ? (
+                          <div className="mt-2 inline-block rounded-md bg-[#1d4ed8] px-3 py-1.5 text-[14px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-[13px]">
+                            Advance Draw
+                          </div>
+                        ) : null}
+                        {!singleOptionMode ? (
+                          <div className="mt-3">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCancelBetDialog({
+                                  type: 'ticket',
+                                  title: 'Confirm Cancel',
+                                  description: `Cancel ${option.ticketId ? `ticket ${option.ticketId}` : `slot ${option.slotStartIso}`}?`,
+                                  points: Number(option?.totalPoints || 0),
+                                  ticketId: option.key,
+                                  ticketBackendId: option?.ticketId || null,
+                                  slotStartIso: option?.slotStartIso || '',
+                                  ticketLabel: option?.ticketLabel || option?.slotStartIso || '',
+                                });
+                              }}
+                              className="h-11 w-full rounded-lg border border-[#b91c1c] bg-[#991b1b] px-4 text-[18px] font-extrabold text-white hover:bg-[#b91c1c] sm:w-auto sm:text-[17px]"
+                            >
+                              Cancel This Bet
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:items-center">
                 <button
                   type="button"
-                  onClick={() => setCancelBetDialog(null)}
+                  onClick={() => {
+                    const isSinglePicker = cancelBetDialog.type === 'ticket-picker'
+                      && (Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options.length : 0) === 1;
+                    if (!isSinglePicker) {
+                      setCancelBetDialog(null);
+                      return;
+                    }
+                    const onlyOption = Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options[0] : null;
+                    if (!onlyOption) {
+                      setCancelBetDialog(null);
+                      return;
+                    }
+                    setCancelBetDialog((prev) => {
+                      if (!prev || prev.type !== 'ticket-picker') return prev;
+                      return {
+                        ...prev,
+                        selectedOptionKey: onlyOption.key,
+                        points: Number(onlyOption?.totalPoints || 0),
+                      };
+                    });
+                    setTimeout(() => {
+                      handleConfirmCancelBet();
+                    }, 0);
+                  }}
                   disabled={isCancelSubmitting}
-                  className="h-[5.25rem] w-full rounded-lg border border-[#475569] bg-[#1e293b] px-4 text-[30px] font-bold leading-none disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
+                  className={`h-[4rem] w-full rounded-lg px-4 text-[22px] font-extrabold leading-none disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px] ${
+                    cancelBetDialog.type === 'ticket-picker' && (Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options.length : 0) === 1
+                      ? 'border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] text-white'
+                      : 'border border-[#64748b] bg-[#1e293b] text-white'
+                  }`}
                 >
-                  No
+                  {cancelBetDialog.type === 'ticket-picker' && (Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options.length : 0) === 1
+                    ? (isCancelSubmitting ? 'Cancelling...' : 'Cancel Bet Now')
+                    : 'Close'}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmCancelBet}
-                  disabled={isCancelSubmitting}
-                  className="h-[5.25rem] w-full rounded-lg border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] px-4 text-[30px] font-extrabold leading-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
-                >
-                  {isCancelSubmitting ? 'Cancelling...' : 'Yes, Cancel'}
-                </button>
+                {cancelBetDialog.type !== 'ticket-picker' ? (
+                  <button
+                    type="button"
+                    onClick={handleConfirmCancelBet}
+                    disabled={isCancelSubmitting}
+                    className="h-[4rem] w-full rounded-lg border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] px-4 text-[22px] font-black leading-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
+                  >
+                    {isCancelSubmitting ? 'Cancelling...' : 'Yes, Cancel'}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>
