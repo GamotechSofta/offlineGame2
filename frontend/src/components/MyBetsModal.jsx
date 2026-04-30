@@ -349,6 +349,9 @@ const MyBetsModal = ({ open, onClose }) => {
                   <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
                     Total: ₹{g.totalAmount}
                   </span>
+                  <span className="rounded bg-[#f2f6ff] px-2 py-0.5 text-[#374151]">
+                    Bets: {g.lines.length}
+                  </span>
                   <span className="rounded bg-[#eef2ff] px-2 py-0.5 text-[#374151]">
                     Date: {formatIstDateLabel(g.lines?.[0]?.createdAt || g.lines?.[0]?.slotStartIso || g.slotStartIso)}
                   </span>
