@@ -35,7 +35,10 @@ const statusLabel = (status) => {
 };
 
 const computeDisplayStatus = (row, group) => {
-  if (String(row?.status || '').toLowerCase() === 'cancelled') return 'cancelled';
+  const explicitStatus = String(row?.status || '').toLowerCase();
+  if (explicitStatus === 'cancelled') return 'cancelled';
+  // Keep user-side result consistent with admin-side settlement.
+  if (explicitStatus === 'win' || explicitStatus === 'lose') return explicitStatus;
   const winning = group?.winningNumber;
   if (group?.slotEnded && winning != null) {
     const betNo = String(row?.number ?? '').padStart(2, '0');
