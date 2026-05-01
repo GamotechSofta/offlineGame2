@@ -12,6 +12,21 @@ const todayDate = () => {
   return `${y}-${m}-${d}`;
 };
 
+/** Gross win payout vs net stake lost on ticket (after settle). */
+const ticketWinLossRs = (row) => {
+  const pending = Number(row?.pendingBets || 0);
+  if (pending > 0) {
+    return { pending: true, pendingN: pending, winRs: 0, lossRs: 0 };
+  }
+  const stake = Number(row?.totalStake || 0);
+  const payout = Number(row?.totalWinPayout || 0);
+  return {
+    pending: false,
+    winRs: payout,
+    lossRs: Math.max(0, stake - payout),
+  };
+};
+
 const TwoDTickets = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -213,15 +228,20 @@ const TwoDTickets = () => {
                   <th className="py-2 pr-3">Phone</th>
                   <th className="py-2 pr-3">Draw</th>
                   <th className="py-2 pr-3 text-right">Total Bets</th>
-                  <th className="py-2 pr-3 text-right">Pending Bets</th>
                   <th className="py-2 pr-3 text-right">Total Stake</th>
+                  <th className="py-2 pr-3 text-right" title="Gross payout credited on winning lines">
+                    Win (Rs)
+                  </th>
+                  <th className="py-2 pr-3 text-right" title="Stake not returned (total stake − win payout)">
+                    Loss (Rs)
+                  </th>
                   <th className="py-2 pr-3">Placed At</th>
                 </tr>
               </thead>
               <tbody>
                 {!rows.length && !loading ? (
                   <tr>
-                    <td colSpan={8} className="py-4 text-center text-gray-500">
+                    <td colSpan={9} className="py-4 text-center text-gray-500">
                       No tickets found for this date range.
                     </td>
                   </tr>
@@ -230,6 +250,7 @@ const TwoDTickets = () => {
                   const key = rowKey(row);
                   const isOpen = Boolean(expandedKeys[key]);
                   const betRows = ticketBetsByKey[key] || [];
+                  const wl = ticketWinLossRs(row);
                   return (
                     <React.Fragment key={key}>
                       <tr
@@ -244,13 +265,24 @@ const TwoDTickets = () => {
                         <td className="py-2 pr-3 text-gray-600">{row.phone || '-'}</td>
                         <td className="py-2 pr-3 text-gray-700">{row.drawLabelEnd || '-'}</td>
                         <td className="py-2 pr-3 text-right font-mono">{Number(row.totalBets || 0).toLocaleString('en-IN')}</td>
-                        <td className="py-2 pr-3 text-right font-mono">{Number(row.pendingBets || 0).toLocaleString('en-IN')}</td>
                         <td className="py-2 pr-3 text-right font-mono">Rs {Number(row.totalStake || 0).toLocaleString('en-IN')}</td>
+                        <td
+                          className={`py-2 pr-3 text-right font-mono ${wl.pending ? 'text-amber-700 text-xs' : 'text-emerald-700'}`}
+                          title={wl.pending ? `${wl.pendingN} line(s) still pending` : 'Total win payout on this ticket'}
+                        >
+                          {wl.pending ? `Open (${wl.pendingN})` : `Rs ${wl.winRs.toLocaleString('en-IN')}`}
+                        </td>
+                        <td
+                          className={`py-2 pr-3 text-right font-mono ${wl.pending ? 'text-amber-700 text-xs' : 'text-red-700'}`}
+                          title={wl.pending ? 'Settles after draw' : 'Stake − win payout (net kept from player)'}
+                        >
+                          {wl.pending ? '—' : `Rs ${wl.lossRs.toLocaleString('en-IN')}`}
+                        </td>
                         <td className="py-2 pr-3 text-xs text-gray-600">{row.placedAt ? new Date(row.placedAt).toLocaleString() : '-'}</td>
                       </tr>
                       {isOpen ? (
                         <tr className="border-b border-gray-100 bg-gray-50">
-                          <td colSpan={8} className="p-3">
+                          <td colSpan={9} className="p-3">
                             {loadingTicketKey === key ? (
                               <p className="text-xs text-gray-500">Loading ticket bets...</p>
                             ) : ticketErrorByKey[key] ? (

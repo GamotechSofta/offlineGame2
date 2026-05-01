@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import TopHeader from '../components/TopHeader';
@@ -45,6 +46,8 @@ const LotteryDashboard = () => {
   const [showMyBets, setShowMyBets] = useState(false);
   const [showBuyConfirm, setShowBuyConfirm] = useState(false);
   const [buyConfirmError, setBuyConfirmError] = useState('');
+  const [buyProcessing, setBuyProcessing] = useState(false);
+  const buyConfirmInFlightRef = useRef(false);
   const [pendingRemoveBetLineKey, setPendingRemoveBetLineKey] = useState('');
   const [showAdvanceDrawModal, setShowAdvanceDrawModal] = useState(false);
   const [selectedAdvanceSlots, setSelectedAdvanceSlots] = useState([]);
@@ -863,17 +866,32 @@ const LotteryDashboard = () => {
       return;
     }
     setBuyConfirmError('');
+    setBuyProcessing(false);
+    buyConfirmInFlightRef.current = false;
     setShowBuyConfirm(true);
   }, [betLines.length]);
 
   const handleConfirmBuy = useCallback(async () => {
-    setBuyConfirmError('');
-    const result = await handleBoardBuy();
-    if (result?.ok) {
-      setShowBuyConfirm(false);
-      return;
+    if (buyConfirmInFlightRef.current) return;
+    buyConfirmInFlightRef.current = true;
+    flushSync(() => {
+      setBuyConfirmError('');
+      setBuyProcessing(true);
+    });
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+    try {
+      const result = await handleBoardBuy();
+      if (result?.ok) {
+        setShowBuyConfirm(false);
+        return;
+      }
+      setBuyConfirmError(result?.error || 'BUY failed. Please try again.');
+    } finally {
+      buyConfirmInFlightRef.current = false;
+      setBuyProcessing(false);
     }
-    setBuyConfirmError(result?.error || 'BUY failed. Please try again.');
   }, [handleBoardBuy]);
   const handleIncrease = useCallback(() => setAmountFromNumber(Number(amountDraft || enteredAmount) + 1), [amountDraft, enteredAmount, setAmountFromNumber]);
   const handleDecrease = useCallback(() => setAmountFromNumber(Math.max(1, Number(amountDraft || enteredAmount) - 1)), [amountDraft, enteredAmount, setAmountFromNumber]);
@@ -1039,6 +1057,11 @@ const LotteryDashboard = () => {
             <p className="mt-1 text-sm text-[#cbd5e1]">
               Draw Time: <span className="font-bold text-white">{buyTargetSlotLabels.join(', ') || '-'}</span>
             </p>
+            {buyProcessing ? (
+              <p className="mt-2 rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm font-semibold text-sky-200">
+                Processing… please wait. Do not close this screen.
+              </p>
+            ) : null}
             {buyConfirmError ? (
               <p className="mt-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300">
                 {buyConfirmError}
@@ -1060,8 +1083,9 @@ const LotteryDashboard = () => {
                     </div>
                     <button
                       type="button"
+                      disabled={buyProcessing}
                       onClick={() => setPendingRemoveBetLineKey(line.key)}
-                      className="rounded-md border border-[#b91c1c] bg-[#7f1d1d] px-2 py-1 text-xs font-bold text-white hover:bg-[#991b1b]"
+                      className="rounded-md border border-[#b91c1c] bg-[#7f1d1d] px-2 py-1 text-xs font-bold text-white hover:bg-[#991b1b] disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       Remove
                     </button>
@@ -1073,18 +1097,19 @@ const LotteryDashboard = () => {
             <div className="mt-4 flex items-center gap-2">
               <button
                 type="button"
+                disabled={buyProcessing}
                 onClick={() => setShowBuyConfirm(false)}
-                className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold"
+                className="h-10 flex-1 rounded-lg border border-[#475569] bg-[#1e293b] text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmBuy}
-                disabled={!betLines.length}
+                disabled={!betLines.length || buyProcessing}
                 className="h-10 flex-1 rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-60"
               >
-                BUY
+                {buyProcessing ? 'Processing…' : 'BUY'}
               </button>
             </div>
           </div>

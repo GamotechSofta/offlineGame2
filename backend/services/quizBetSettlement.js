@@ -25,9 +25,11 @@ async function winMultiplier(gameMode = '2d') {
 
 /**
  * Settle all pending quiz bets for a completed slot (idempotent per bet via status: pending).
+ * @param {{ skipDeclaredCheck?: boolean }} [options] - When true, settle using picks after slot end even if admin declaration row is missing (player my-bets read path).
  */
-export async function settleQuizBetsForSlot(slotStartIso, gameMode = '2d') {
-  if (!(await isSlotDeclared(slotStartIso, gameMode))) return { settled: 0 };
+export async function settleQuizBetsForSlot(slotStartIso, gameMode = '2d', options = {}) {
+  const skipDeclaredCheck = Boolean(options?.skipDeclaredCheck);
+  if (!skipDeclaredCheck && !(await isSlotDeclared(slotStartIso, gameMode))) return { settled: 0 };
   const pending = await QuizBet.find({ gameMode, slotStartIso, status: 'pending' }).lean();
   if (!pending.length) return { settled: 0 };
 

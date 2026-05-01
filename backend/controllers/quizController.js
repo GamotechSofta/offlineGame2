@@ -635,25 +635,68 @@ export const getMyQuizBets = async (req, res) => {
         if (!Number.isFinite(slotStartMs)) return false;
         return Date.now() >= (slotStartMs + SLOT_MS);
       }).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()).slice(0, 8);
-      const declaredSlotStarts = [];
-      for (const slotStartIso of endedPendingSlotStarts) {
-        // eslint-disable-next-line no-await-in-loop
-        const declared = await isSlotDeclared(slotStartIso, gameMode, new Date(slotStartIso).getTime() + SLOT_MS);
-        if (declared) declaredSlotStarts.push(slotStartIso);
-      }
-      if (declaredSlotStarts.length) {
+      if (endedPendingSlotStarts.length) {
         await Promise.allSettled(
-          declaredSlotStarts.map((slotStartIso) => settleQuizBetsForSlot(slotStartIso, gameMode)),
+          endedPendingSlotStarts.map(async (slotStartIso) => {
+            // eslint-disable-next-line no-await-in-loop
+            const declared = await isSlotDeclared(slotStartIso, gameMode);
+            if (declared) {
+              await settleQuizBetsForSlot(slotStartIso, gameMode);
+              return;
+            }
+            await settleQuizBetsForSlot(slotStartIso, gameMode, { skipDeclaredCheck: true });
+          }),
         );
       }
     } catch {
       // If fallback settle fails, continue with best-effort read.
     }
 
-    const bets = await QuizBet.find({ gameMode, userId: uid })
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(limit)
-      .lean();
+    const [bets, ticketAgg] = await Promise.all([
+      QuizBet.find({ gameMode, userId: uid })
+        .sort({ createdAt: -1, _id: -1 })
+        .limit(limit)
+        .lean(),
+      QuizBet.aggregate([
+        { $match: { gameMode, userId: uid } },
+        {
+          $group: {
+            _id: { ticketId: '$ticketId', slotStartIso: '$slotStartIso' },
+            lineCountAll: { $sum: 1 },
+            lineCountActive: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, 1] } },
+            stakeAll: { $sum: '$amount' },
+            stakeActive: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, '$amount'] } },
+            winLineCount: { $sum: { $cond: [{ $eq: ['$status', 'win'] }, 1, 0] } },
+            totalWinPayout: { $sum: { $ifNull: ['$winPayout', 0] } },
+          },
+        },
+      ]),
+    ]);
+
+    const ticketSummaryByKey = {};
+    for (const row of ticketAgg) {
+      const tid = row?._id?.ticketId;
+      const slot = row?._id?.slotStartIso;
+      if (!tid || !slot) continue;
+      const key = `${String(tid).trim()}|${slot}`;
+      ticketSummaryByKey[key] = {
+        lineCountAll: Number(row.lineCountAll || 0),
+        lineCountActive: Number(row.lineCountActive || 0),
+        stakeAll: Number(row.stakeAll || 0),
+        stakeActive: Number(row.stakeActive || 0),
+        winLineCount: Number(row.winLineCount || 0),
+        totalWinPayout: Number(row.totalWinPayout || 0),
+      };
+    }
+
+    const slotIsoSet = new Set();
+    for (const r of ticketAgg) {
+      if (r?._id?.slotStartIso) slotIsoSet.add(r._id.slotStartIso);
+    }
+    for (const b of bets) {
+      if (b?.slotStartIso) slotIsoSet.add(b.slotStartIso);
+    }
+    const slotList = [...slotIsoSet];
 
     const pairKey = (s, q) => `${s}|${q}`;
     const uniquePairs = new Map();
@@ -669,7 +712,31 @@ export const getMyQuizBets = async (req, res) => {
       }
     }
 
-    const now = Date.now();
+    const nowMs = Date.now();
+    const slotWinnersBySlot = {};
+    if (slotList.length) {
+      const allPicks = await QuizSlotPick.find({ gameMode, slotStartIso: { $in: slotList } })
+        .select('slotStartIso quizId hintPosition')
+        .lean();
+      const maxPos = gameMode === '3d' ? 999 : 99;
+      const padLength = gameMode === '3d' ? 3 : 2;
+      for (const p of allPicks) {
+        const slotIso = p.slotStartIso;
+        const slotStartMs = new Date(slotIso).getTime();
+        const slotEndMs = slotStartMs + SLOT_MS;
+        const slotEnded = nowMs >= slotEndMs;
+        const hp = p.hintPosition;
+        const winningNumber =
+          slotEnded && hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos
+            ? String(hp).padStart(padLength, '0')
+            : null;
+        if (winningNumber == null) continue;
+        if (!slotWinnersBySlot[slotIso]) slotWinnersBySlot[slotIso] = {};
+        slotWinnersBySlot[slotIso][String(p.quizId)] = winningNumber;
+      }
+    }
+
+    const now = nowMs;
     const data = bets.map((b) => {
       const slotStartMs = new Date(b.slotStartIso).getTime();
       const slotEndMs = slotStartMs + SLOT_MS;
@@ -696,7 +763,16 @@ export const getMyQuizBets = async (req, res) => {
       };
     });
 
-    res.json({ success: true, data });
+    const walletRow = await Wallet.findOne({ userId: uid }).select('balance').lean();
+    const balance = walletRow?.balance != null ? Number(walletRow.balance) : null;
+
+    res.json({
+      success: true,
+      data,
+      ticketSummaryByKey,
+      slotWinnersBySlot,
+      ...(balance != null && Number.isFinite(balance) ? { balance } : {}),
+    });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('getMyQuizBets', err);

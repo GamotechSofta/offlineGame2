@@ -378,6 +378,7 @@ export const getLottery2DTickets = async (req, res) => {
           },
           totalBets: { $sum: 1 },
           totalStake: { $sum: '$amount' },
+          totalWinPayout: { $sum: { $ifNull: ['$winPayout', 0] } },
           pendingBets: {
             $sum: {
               $cond: [{ $eq: ['$status', 'pending'] }, 1, 0],
@@ -448,6 +449,7 @@ export const getLottery2DTickets = async (req, res) => {
         totalBets: Number(row?.totalBets || 0),
         pendingBets: Number(row?.pendingBets || 0),
         totalStake: Number(row?.totalStake || 0),
+        totalWinPayout: Number(row?.totalWinPayout || 0),
         placedAt: row?.placedAt || null,
       };
     });
