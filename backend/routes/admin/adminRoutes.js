@@ -22,6 +22,8 @@ import {
     getLottery2DSlotHistory,
     getLottery2DDaySlotSchedule,
     getLottery2DSlotPlayers,
+    getLottery2DTickets,
+    getLottery2DTicketBets,
     getLottery2DPlayerHistory,
     getLottery2DQuizStakeByNumber,
     getLottery2DDeclarationMatrix,
@@ -68,6 +70,8 @@ router.get('/lottery2d/day-slot-schedule', verifyAdmin, getLottery2DDaySlotSched
 router.get('/lottery2d/slots/:slotStartIso/detail', verifyAdmin, getLottery2DSlotDetail);
 router.get('/lottery2d/quizzes/:quizId/stake-by-number', verifyAdmin, getLottery2DQuizStakeByNumber);
 router.get('/lottery2d/slots/:slotStartIso/players', verifyAdmin, getLottery2DSlotPlayers);
+router.get('/lottery2d/tickets', verifyAdmin, getLottery2DTickets);
+router.get('/lottery2d/tickets/:ticketId/bets', verifyAdmin, getLottery2DTicketBets);
 router.get('/lottery2d/players/:userId/history', verifyAdmin, getLottery2DPlayerHistory);
 router.get('/lottery2d/slots/declaration-matrix', verifyAdmin, getLottery2DDeclarationMatrix);
 router.patch('/lottery2d/slots/:slotStartIso/result', verifyAdmin, updateLottery2DSlotResult);

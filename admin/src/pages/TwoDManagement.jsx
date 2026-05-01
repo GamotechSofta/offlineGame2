@@ -5,7 +5,6 @@ import useModalBackHandler from '../hooks/useModalBackHandler';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import CurrentSlotOverview from '../components/twoDManagement/CurrentSlotOverview';
 import OldSlotsSection from '../components/twoDManagement/OldSlotsSection';
-import SlotWiseBetsSection from '../components/SlotWiseBetsSection';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -667,8 +666,19 @@ const TwoDManagement = () => {
                         navigate(`/2d-management/quiz/${qid}/stake?slotStartIso=${encodeURIComponent(iso)}`);
                     }}
                 />
-                <SlotWiseBetsSection mode="2d" />
-
+                <div className="rounded-xl border border-gray-200 bg-white p-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 className="text-base font-semibold text-gray-800">All User Tickets</h3>
+                        <p className="text-sm text-gray-500">Open ticket-wise list with username, bet count and total stake.</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/2d-management/tickets')}
+                        className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+                    >
+                        Open Tickets Page
+                    </button>
+                </div>
                 {isOldSlotsPage ? (
                     <OldSlotsSection
                         activeSection={activeSection}

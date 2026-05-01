@@ -14,7 +14,9 @@ import {
   isValidISTDayKey,
   isValidISTSlotStartIso,
   istDayKey,
+  istInclusiveDaySpan,
   listSlotStartIsoForISTDay,
+  listSlotStartIsoForISTDayRange,
 } from '../services/slotService.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
 import { getShuffleOrderIndices } from '../services/quizShuffleService.js';
@@ -290,6 +292,229 @@ export const getLottery2DSlotPlayers = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid slotStartIso.' });
     }
     const data = await buildPlayersForSlot(slotStartIso);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+/**
+ * GET /admin/lottery2d/tickets?dateFrom=&dateTo=&date=&slotStartIso=&limit=
+ * Ticket-wise view for admin with user + bet count + total stake.
+ * Use dateFrom+dateTo (IST YYYY-MM-DD) for a range; omit both and pass legacy `date` for a single day.
+ */
+export const getLottery2DTickets = async (req, res) => {
+  try {
+    const rawSlotStartIso = typeof req.query.slotStartIso === 'string' ? req.query.slotStartIso.trim() : '';
+    const dateFromQ = typeof req.query.dateFrom === 'string' ? req.query.dateFrom.trim() : '';
+    const dateToQ = typeof req.query.dateTo === 'string' ? req.query.dateTo.trim() : '';
+    const dateLegacy = typeof req.query.date === 'string' ? req.query.date.trim() : '';
+
+    let dateFrom;
+    let dateTo;
+    if (dateFromQ && dateToQ) {
+      dateFrom = dateFromQ;
+      dateTo = dateToQ;
+    } else if (dateLegacy) {
+      dateFrom = dateLegacy;
+      dateTo = dateLegacy;
+    } else if (dateFromQ || dateToQ) {
+      const single = dateFromQ || dateToQ;
+      dateFrom = single;
+      dateTo = single;
+    } else {
+      const today = istDayKey();
+      dateFrom = today;
+      dateTo = today;
+    }
+
+    if (!isValidISTDayKey(dateFrom) || !isValidISTDayKey(dateTo)) {
+      return res.status(400).json({ success: false, message: 'Invalid date. Use YYYY-MM-DD (IST).' });
+    }
+    if (dateFrom > dateTo) {
+      return res.status(400).json({ success: false, message: 'dateFrom must be on or before dateTo.' });
+    }
+    const rangeDays = istInclusiveDaySpan(dateFrom, dateTo);
+    const MAX_RANGE_DAYS = 366;
+    if (rangeDays > MAX_RANGE_DAYS) {
+      return res.status(400).json({
+        success: false,
+        message: `Date range cannot exceed ${MAX_RANGE_DAYS} days (IST).`,
+      });
+    }
+
+    const maxLimit = rangeDays > 1 ? 5000 : 1000;
+    const limit = Math.min(maxLimit, Math.max(1, parseInt(String(req.query.limit || '300'), 10) || 300));
+
+    const hasSlotFilter = rawSlotStartIso.length > 0;
+    const slotStartIso = hasSlotFilter ? rawSlotStartIso : getSlotContext(new Date(), '2d').slotStartIso;
+    if (hasSlotFilter && !isValidISTSlotStartIso(slotStartIso)) {
+      return res.status(400).json({ success: false, message: 'Invalid slotStartIso.' });
+    }
+
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
+    const match = {
+      gameMode: GAME_MODE,
+      ...lotteryScopeFilter,
+    };
+    if (hasSlotFilter) {
+      match.slotStartIso = slotStartIso;
+    } else {
+      const slotList =
+        dateFrom === dateTo
+          ? listSlotStartIsoForISTDay(dateFrom)
+          : listSlotStartIsoForISTDayRange(dateFrom, dateTo);
+      match.slotStartIso = { $in: slotList };
+    }
+
+    const ticketListPipeline = [
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            ticketId: '$ticketId',
+            userId: '$userId',
+            slotStartIso: '$slotStartIso',
+          },
+          totalBets: { $sum: 1 },
+          totalStake: { $sum: '$amount' },
+          pendingBets: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'pending'] }, 1, 0],
+            },
+          },
+          placedAt: { $min: '$createdAt' },
+        },
+      },
+      { $sort: { placedAt: -1 } },
+      { $limit: limit },
+    ];
+
+    const [rows, summaryAgg, ticketCountAgg, distinctUserIds] = await Promise.all([
+      QuizBet.aggregate(ticketListPipeline),
+      QuizBet.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: null,
+            totalBets: { $sum: 1 },
+            totalStake: { $sum: '$amount' },
+            totalPayout: { $sum: { $ifNull: ['$winPayout', 0] } },
+          },
+        },
+      ]),
+      QuizBet.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: { ticketId: '$ticketId', userId: '$userId', slotStartIso: '$slotStartIso' },
+          },
+        },
+        { $count: 'n' },
+      ]),
+      QuizBet.distinct('userId', match),
+    ]);
+
+    const sum = summaryAgg[0] || {};
+    const totalStake = Number(sum.totalStake || 0);
+    const totalPayout = Number(sum.totalPayout || 0);
+    const summary = {
+      totalTickets: Number(ticketCountAgg[0]?.n || 0),
+      totalBets: Number(sum.totalBets || 0),
+      totalStake,
+      totalPayout,
+      adminProfit: totalStake - totalPayout,
+      uniqueUsers: Array.isArray(distinctUserIds) ? distinctUserIds.length : 0,
+    };
+
+    const userIds = Array.from(new Set(rows.map((row) => String(row?._id?.userId || '')).filter(Boolean)));
+    const users = userIds.length
+      ? await User.find({ _id: { $in: userIds } }).select('_id username phone').lean()
+      : [];
+    const userMap = new Map(users.map((u) => [String(u._id), u]));
+    const tickets = rows.map((row) => {
+      const uid = String(row?._id?.userId || '');
+      const user = userMap.get(uid);
+      const rowSlotStartIso = String(row?._id?.slotStartIso || '');
+      const rowSlotStartMs = new Date(rowSlotStartIso).getTime();
+      const rowSlotEndMs = rowSlotStartMs + SLOT_MS;
+      return {
+        ticketId: row?._id?.ticketId || '-',
+        userId: uid,
+        username: user?.username || 'unknown',
+        phone: user?.phone || '',
+        slotStartIso: rowSlotStartIso,
+        drawLabelEnd: Number.isFinite(rowSlotEndMs) ? formatDrawLabel(rowSlotEndMs) : '-',
+        totalBets: Number(row?.totalBets || 0),
+        pendingBets: Number(row?.pendingBets || 0),
+        totalStake: Number(row?.totalStake || 0),
+        placedAt: row?.placedAt || null,
+      };
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        slot: {
+          slotStartIso,
+          dateFrom,
+          dateTo,
+          isDateRange: dateFrom !== dateTo,
+          hasSlotFilter,
+        },
+        summary,
+        tickets,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+/**
+ * GET /admin/lottery2d/tickets/:ticketId/bets?slotStartIso=&userId=
+ * Bet-line details for one ticket.
+ */
+export const getLottery2DTicketBets = async (req, res) => {
+  try {
+    const ticketId = String(req.params?.ticketId || '').trim();
+    const slotStartIso = String(req.query?.slotStartIso || '').trim();
+    const userId = String(req.query?.userId || '').trim();
+    if (!ticketId) {
+      return res.status(400).json({ success: false, message: 'ticketId is required.' });
+    }
+    if (!isValidISTSlotStartIso(slotStartIso)) {
+      return res.status(400).json({ success: false, message: 'Valid slotStartIso is required.' });
+    }
+
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
+    const match = {
+      gameMode: GAME_MODE,
+      ticketId,
+      slotStartIso,
+      ...lotteryScopeFilter,
+    };
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      match.userId = new mongoose.Types.ObjectId(userId);
+    }
+
+    const bets = await QuizBet.find(match)
+      .select('_id quizId number betMode amount status winPayout createdAt')
+      .sort({ createdAt: 1, quizId: 1, number: 1 })
+      .lean();
+
+    const data = bets.map((bet) => ({
+      betId: String(bet._id),
+      quizId: Number(bet.quizId || 0),
+      setLabel: getQuizLabelByQuizId2d(bet.quizId),
+      number: String(bet.number ?? '').padStart(2, '0'),
+      betMode: bet.betMode || 'str',
+      amount: Number(bet.amount || 0),
+      status: String(bet.status || '').toLowerCase(),
+      winPayout: Number(bet.winPayout || 0),
+      createdAt: bet.createdAt || null,
+    }));
+
     return res.json({ success: true, data });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Server error' });

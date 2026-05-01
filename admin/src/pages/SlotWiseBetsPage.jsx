@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
-import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const ALL_DAY_VALUE = '__all_day__';

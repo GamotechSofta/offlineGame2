@@ -88,6 +88,36 @@ export function istPreviousDayKey(istYmd) {
   return istDayKey(anchor);
 }
 
+/** Next calendar day in IST (noon anchor + 24h). */
+export function istNextDayKey(istYmd) {
+  const [Y, M, D] = istYmd.split('-').map((x) => parseInt(x, 10));
+  const anchor = new Date(`${Y}-${pad2(M)}-${pad2(D)}T12:00:00+05:30`);
+  anchor.setTime(anchor.getTime() + 86400000);
+  return istDayKey(anchor);
+}
+
+/** Inclusive IST day count from `fromYmd` to `toYmd` (expects `fromYmd` <= `toYmd`). */
+export function istInclusiveDaySpan(fromYmd, toYmd) {
+  let n = 0;
+  let cur = fromYmd;
+  while (cur <= toYmd) {
+    n += 1;
+    cur = istNextDayKey(cur);
+  }
+  return n;
+}
+
+/** All slot start ISO strings for each IST calendar day in [fromYmd, toYmd] inclusive. */
+export function listSlotStartIsoForISTDayRange(fromYmd, toYmd) {
+  const out = [];
+  let cur = fromYmd;
+  while (cur <= toYmd) {
+    out.push(...listSlotStartIsoForISTDay(cur));
+    cur = istNextDayKey(cur);
+  }
+  return out;
+}
+
 export function getStudyMinutesForMode(gameMode = '2d') {
   return Number(getQuizTimingSettingsSnapshot(gameMode)?.studyMinutes || 14.5);
 }

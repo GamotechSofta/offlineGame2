@@ -49,6 +49,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             children: [
                 { path: '/2d-management/current-slot-players', label: 'Current Slot Players' },
                 { path: '/2d-management/result-control', label: 'Result Control' },
+                { path: '/2d-management/tickets', label: 'All User Tickets' },
                 { path: '/2d-management/old-slots', label: 'Old Slots Stats' },
             ],
         },

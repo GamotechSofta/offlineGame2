@@ -36,8 +36,8 @@ import ThreeDResultControl from './pages/ThreeDResultControl';
 import ThreeDCurrentSlotPlayers from './pages/ThreeDCurrentSlotPlayers';
 import ThreeDOldSlotsStats from './pages/ThreeDOldSlotsStats';
 import BookieCommissions from './pages/BookieCommissions';
-import TwoDSlotWiseBets from './pages/TwoDSlotWiseBets';
 import ThreeDSlotWiseBets from './pages/ThreeDSlotWiseBets';
+import TwoDTickets from './pages/TwoDTickets';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -308,10 +308,10 @@ const App = () => {
                     }
                 />
                 <Route
-                    path="/2d-management/slot-wise-bets"
+                    path="/2d-management/tickets"
                     element={
                         <PrivateRoute>
-                            <TwoDSlotWiseBets />
+                            <TwoDTickets />
                         </PrivateRoute>
                     }
                 />
