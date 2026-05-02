@@ -15,11 +15,17 @@ export function getTodayIST() {
     }).format(new Date());
 }
 
-const IST_WEEKDAY_SHORT_TO_JS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
+/** IST weekday 0–6 from Asia/Kolkata calendar date (matches backend on UTC hosts). */
 export function getISTWeekdayIndex(now = new Date()) {
-    const short = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' }).format(now);
-    return IST_WEEKDAY_SHORT_TO_JS[short] ?? new Date(now).getDay();
+    const ymd = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(now);
+    const ref = new Date(`${ymd}T12:00:00+05:30`);
+    if (isNaN(ref.getTime())) return 0;
+    return ref.getUTCDay();
 }
 
 export function normalizeMarketOpenDays(openDays) {
