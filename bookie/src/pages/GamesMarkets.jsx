@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import { FaDice, FaClock } from 'react-icons/fa';
-import { isPastClosingTime, getMarketSession } from '../utils/marketTiming';
+import { isPastClosingTime, getMarketSession, isMarketOpenOnISTDay } from '../utils/marketTiming';
 
 /** Format "13:00" / "15:10" to "1pm" / "3:10pm" */
 function formatTimeLabel(timeStr) {
@@ -65,6 +65,7 @@ const GamesMarkets = () => {
         const hasOpening = market.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
         const hasClosing = market.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
         if (hasOpening && hasClosing) return { status: 'closed' };
+        if (!isMarketOpenOnISTDay(market, currentTime)) return { status: 'closed', weeklyOff: true };
         if (isPastClosingTime(market, currentTime)) return { status: 'closed' };
         return { status: 'open' };
     };
@@ -112,7 +113,7 @@ const GamesMarkets = () => {
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {availableMarkets.map((market) => {
-                            const { status } = getMarketStatus(market);
+                            const { status, weeklyOff } = getMarketStatus(market);
                             const session = getSession(market);
                             const isClosed = status === 'closed';
                             const isClickable = !isClosed;
@@ -136,7 +137,7 @@ const GamesMarkets = () => {
                                     <div className="flex justify-center mb-1.5">
                                         {isClosed ? (
                                             <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">
-                                                Closed
+                                                {weeklyOff ? 'Closed (weekly off)' : 'Closed'}
                                             </span>
                                         ) : (
                                             <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-500 text-white">

@@ -58,6 +58,21 @@ const marketSchema = new mongoose.Schema({
         type: Number,
         default: null,
     },
+    /**
+     * IST weekdays when the market accepts bets (same as JS Date.getDay() in Asia/Kolkata: 0 = Sunday … 6 = Saturday).
+     * Omitted or empty in API = treat as all days (backward compatible).
+     */
+    openDays: {
+        type: [Number],
+        default: undefined,
+        validate: {
+            validator(arr) {
+                if (arr == null || !Array.isArray(arr) || arr.length === 0) return true;
+                return arr.every((n) => Number.isInteger(n) && n >= 0 && n <= 6);
+            },
+            message: 'openDays must be integers 0–6 (Sun–Sat, IST)',
+        },
+    },
     /** Opening market number (3 digits), e.g. "123". Set when opening is announced. */
     openingNumber: {
         type: String,

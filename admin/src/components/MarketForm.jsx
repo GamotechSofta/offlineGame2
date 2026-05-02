@@ -36,6 +36,28 @@ const to24Hour = (hour12, minute, ampm) => {
 const HOURS_12 = ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
+/** 0=Sun … 6=Sat (IST), same as backend / JS getDay */
+const ALL_OPEN_DAYS = [0, 1, 2, 3, 4, 5, 6];
+const WEEKDAY_TOGGLE_OPTIONS = [
+    { label: 'Mon', value: 1 },
+    { label: 'Tue', value: 2 },
+    { label: 'Wed', value: 3 },
+    { label: 'Thu', value: 4 },
+    { label: 'Fri', value: 5 },
+    { label: 'Sat', value: 6 },
+    { label: 'Sun', value: 0 },
+];
+
+function openDaysSelectionFromMarket(m) {
+    if (!m?.openDays || !Array.isArray(m.openDays) || m.openDays.length === 0) {
+        return [...ALL_OPEN_DAYS];
+    }
+    const uniq = [...new Set(m.openDays.map((x) => Number(x)).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort(
+        (a, b) => a - b
+    );
+    return uniq.length ? uniq : [...ALL_OPEN_DAYS];
+}
+
 const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, apiBaseUrl, getAuthHeaders }) => {
     const [formData, setFormData] = useState({
         marketName: '',
@@ -47,6 +69,7 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
     });
     const [start12, setStart12] = useState({ hour12: '12', minute: '00', ampm: 'AM' });
     const [close12, setClose12] = useState({ hour12: '12', minute: '00', ampm: 'PM' });
+    const [openDaysSelection, setOpenDaysSelection] = useState(() => [...ALL_OPEN_DAYS]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const closeModal = useModalBackHandler(true, () => {
@@ -73,10 +96,21 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
             }));
             setStart12(from24Hour(market.startingTime));
             setClose12(close12Initial);
+            setOpenDaysSelection(openDaysSelectionFromMarket(market));
         } else {
             setFormData((prev) => ({ ...prev, marketType: defaultMarketType }));
+            setOpenDaysSelection([...ALL_OPEN_DAYS]);
         }
     }, [market, defaultMarketType]);
+
+    const toggleOpenDay = (value) => {
+        setOpenDaysSelection((prev) => {
+            const s = new Set(prev);
+            if (s.has(value)) s.delete(value);
+            else s.add(value);
+            return [...s].sort((a, b) => a - b);
+        });
+    };
 
     const handleChange = (e) => {
         setFormData({
@@ -104,6 +138,10 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        if (openDaysSelection.length === 0) {
+            setError('Select at least one day when the market accepts bets.');
+            return;
+        }
         setLoading(true);
 
         try {
@@ -117,11 +155,13 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
                 ? {
                     closingTime: startlineClosingTime,
                     betClosureTime: formData.betClosureTime !== '' && formData.betClosureTime != null ? Number(formData.betClosureTime) : null,
+                    openDays: openDaysSelection,
                 }
                 : {
                     ...formData,
                     betClosureTime: formData.betClosureTime ? Number(formData.betClosureTime) : null,
                     marketType: formData.marketType === 'startline' ? 'startline' : 'main',
+                    openDays: openDaysSelection,
                 };
 
             const response = await fetchWithAuth(url, {
@@ -311,6 +351,34 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
                                 <span className="inline-flex items-center justify-center px-3 sm:px-4 py-2 bg-gray-100 text-gray-500 text-xs sm:text-sm font-medium whitespace-nowrap">
                                     Seconds
                                 </span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-gray-600 text-sm font-medium mb-1.5">
+                                Open for bets (IST · Mon–Sun)
+                            </label>
+                            <p className="text-xs text-gray-500 mb-2">
+                                Days you leave off still show in the app, but the market stays closed and will not accept bets on those days.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {WEEKDAY_TOGGLE_OPTIONS.map(({ label, value }) => {
+                                    const on = openDaysSelection.includes(value);
+                                    return (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() => toggleOpenDay(value)}
+                                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                                                on
+                                                    ? 'bg-orange-500 text-white border-orange-500'
+                                                    : 'bg-gray-50 text-gray-600 border-gray-300 hover:border-gray-400'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 

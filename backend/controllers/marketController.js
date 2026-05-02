@@ -67,6 +67,17 @@ const computeDisplayResultFromNumbers = (openingNumber, closingNumber) => {
     return displayResult;
 };
 
+/** 0=Sun … 6=Sat (IST, same as JS getDay). Empty/invalid → null (store as all-week: omit or $unset). */
+function normalizeOpenDaysFromRequest(openDays) {
+    if (openDays === undefined) return undefined;
+    if (!Array.isArray(openDays)) return undefined;
+    const uniq = [...new Set(openDays.map((x) => Number(x)).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort(
+        (a, b) => a - b
+    );
+    if (uniq.length === 0) return null;
+    return uniq;
+}
+
 const upsertMarketResultSnapshot = async (marketDoc, dateKey) => {
     if (!marketDoc?._id || !dateKey) return;
     const displayResult = computeDisplayResultFromNumbers(marketDoc.openingNumber, marketDoc.closingNumber);
@@ -86,11 +97,11 @@ const upsertMarketResultSnapshot = async (marketDoc, dateKey) => {
 
 /**
  * Create a new market.
- * Body: { marketName, startingTime, closingTime, betClosureTime?, marketType? }
+ * Body: { marketName, startingTime, closingTime, betClosureTime?, marketType?, openDays? }
  */
 export const createMarket = async (req, res) => {
     try {
-        const { marketName, marketNameHi, startingTime, closingTime, betClosureTime, marketType } = req.body;
+        const { marketName, marketNameHi, startingTime, closingTime, betClosureTime, marketType, openDays } = req.body;
         if (!marketName || !startingTime || !closingTime) {
             return res.status(400).json({
                 success: false,
@@ -100,6 +111,8 @@ export const createMarket = async (req, res) => {
         const betClosureSec = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
         const payload = { marketName, startingTime, closingTime, betClosureTime: betClosureSec, marketType: 'main' };
         if (marketNameHi !== undefined) payload.marketNameHi = marketNameHi && String(marketNameHi).trim() ? String(marketNameHi).trim() : null;
+        const od = normalizeOpenDaysFromRequest(openDays);
+        if (od !== undefined && od !== null) payload.openDays = od;
         const market = new Market(payload);
         await market.save();
 
@@ -208,7 +221,7 @@ export const getMarketById = async (req, res) => {
 
 /**
  * Update market (name, times). Does not set opening/closing numbers; use setOpeningNumber / setClosingNumber.
- * Body: { marketName?, startingTime?, closingTime?, betClosureTime? }
+ * Body: { marketName?, startingTime?, closingTime?, betClosureTime?, openDays? }
  */
 export const updateMarket = async (req, res) => {
     try {
@@ -217,20 +230,29 @@ export const updateMarket = async (req, res) => {
         if (!existing) {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }
-        const { marketName, marketNameHi, startingTime, closingTime, betClosureTime, marketType } = req.body;
-        const updates = {};
-        if (marketName !== undefined) updates.marketName = marketName;
-        if (marketNameHi !== undefined) updates.marketNameHi = marketNameHi && String(marketNameHi).trim() ? String(marketNameHi).trim() : null;
-        if (startingTime !== undefined) updates.startingTime = startingTime;
-        if (closingTime !== undefined) updates.closingTime = closingTime;
-        if (betClosureTime !== undefined) updates.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
-        if (marketType !== undefined) updates.marketType = 'main';
+        const { marketName, marketNameHi, startingTime, closingTime, betClosureTime, marketType, openDays } = req.body;
+        const setOps = {};
+        const unsetOps = {};
+        if (marketName !== undefined) setOps.marketName = marketName;
+        if (marketNameHi !== undefined) setOps.marketNameHi = marketNameHi && String(marketNameHi).trim() ? String(marketNameHi).trim() : null;
+        if (startingTime !== undefined) setOps.startingTime = startingTime;
+        if (closingTime !== undefined) setOps.closingTime = closingTime;
+        if (betClosureTime !== undefined) setOps.betClosureTime = betClosureTime != null && betClosureTime !== '' ? Number(betClosureTime) : null;
+        if (marketType !== undefined) setOps.marketType = 'main';
 
-        const market = await Market.findByIdAndUpdate(
-            id,
-            updates,
-            { new: true, runValidators: true }
-        );
+        if (openDays !== undefined) {
+            const od = normalizeOpenDaysFromRequest(openDays);
+            if (od === null) unsetOps.openDays = '';
+            else if (od) setOps.openDays = od;
+        }
+
+        const mongoUpdate = {};
+        if (Object.keys(setOps).length) mongoUpdate.$set = setOps;
+        if (Object.keys(unsetOps).length) mongoUpdate.$unset = unsetOps;
+
+        const market = Object.keys(mongoUpdate).length
+            ? await Market.findByIdAndUpdate(id, mongoUpdate, { new: true, runValidators: true })
+            : existing;
         if (!market) {
             return res.status(404).json({ success: false, message: 'Market not found' });
         }

@@ -8,7 +8,7 @@ import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import HelpDesk from '../models/helpDesk/helpDesk.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
-import { isBettingClosed } from '../utils/marketTiming.js';
+import { isBettingClosed, isMarketOpenOnISTDay } from '../utils/marketTiming.js';
 
 const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
 
@@ -155,7 +155,13 @@ export const getDashboardStats = async (req, res) => {
         for (const m of scopedMarkets) {
             const startTime = parseTimeToMinutes(m.startingTime);
             const endTime = parseTimeToMinutes(m.closingTime);
-            if (startTime && endTime && currentTime >= startTime && currentTime <= endTime) {
+            if (
+                startTime &&
+                endTime &&
+                currentTime >= startTime &&
+                currentTime <= endTime &&
+                isMarketOpenOnISTDay(m, now)
+            ) {
                 openMarkets++;
                 if (m.marketType === 'startline') openStarlineMarkets++;
                 else openMainMarkets++;

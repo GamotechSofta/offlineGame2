@@ -6,7 +6,7 @@ import Market from '../models/market/market.js';
 import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
-import { isBettingAllowed, isBettingAllowedForSession } from '../utils/marketTiming.js';
+import { isBettingAllowed, isBettingAllowedForSession, isMarketOpenOnISTDay } from '../utils/marketTiming.js';
 import { BET_TYPES as VALID_BET_TYPES } from '../models/bet/betTypeConstants.js';
 import { parseChartBet } from '../utils/chartBet.js';
 import { isSpCommon } from '../config/spCommonList.js';
@@ -85,10 +85,11 @@ export const placeBet = async (req, res) => {
                 ? 'open'
                 : (market?.openingNumber && THREE_DIGITS.test(String(market.openingNumber)) ? 'close' : 'open');
 
-        if (!isBettingAllowed(market).allowed) {
+        const bettingGate = isBettingAllowed(market);
+        if (!bettingGate.allowed) {
             return res.status(400).json({
                 success: false,
-                message: 'Betting is not allowed for this market at this time.',
+                message: bettingGate.message || 'Betting is not allowed for this market at this time.',
                 code: 'BETTING_CLOSED',
             });
         }
@@ -241,6 +242,17 @@ export const placeBet = async (req, res) => {
                 return res.status(400).json({
                     success: false,
                     message: 'Scheduled date must be today or in the future',
+                });
+            }
+            if (!isMarketOpenOnISTDay(market, scheduledDateObj)) {
+                await Wallet.findOneAndUpdate(
+                    { userId },
+                    { $inc: { balance: totalAmount } },
+                    { upsert: false }
+                );
+                return res.status(400).json({
+                    success: false,
+                    message: 'Market is not open on the scheduled date (weekly schedule).',
                 });
             }
             isScheduled = true;
@@ -401,10 +413,11 @@ export const placeBetForPlayer = async (req, res) => {
                 ? 'open'
                 : (market?.openingNumber && THREE_DIGITS.test(String(market.openingNumber)) ? 'close' : 'open');
 
-        if (!isBettingAllowed(market).allowed) {
+        const bookieBettingGate = isBettingAllowed(market);
+        if (!bookieBettingGate.allowed) {
             return res.status(400).json({
                 success: false,
-                message: 'Betting is not allowed for this market at this time.',
+                message: bookieBettingGate.message || 'Betting is not allowed for this market at this time.',
                 code: 'BETTING_CLOSED',
             });
         }

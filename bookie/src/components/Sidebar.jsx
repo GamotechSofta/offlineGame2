@@ -36,13 +36,12 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/payments', label: t('payments'), icon: FaCreditCard, key: 'payments' },
         { path: '/records', label: t('betHistory'), icon: FaFileInvoiceDollar, key: 'records' },
         { path: '/wallet', label: t('wallet'), icon: FaWallet, key: 'wallet' },
-        { path: '/receipt', label: t('receipt'), icon: FaFileInvoiceDollar, key: 'receipt' },
         { path: '/shortcuts', label: t('shortcuts'), icon: FaKeyboard, key: 'shortcuts' },
         { path: '/settings', label: t('settings'), icon: FaCog, key: 'settings' },
     ];
 
     const isActive = (path) => {
-        if (path === '/my-users' || path === '/receipt' || path === '/games' || path === '/markets') {
+        if (path === '/my-users' || path === '/games' || path === '/markets') {
             return location.pathname === path || location.pathname.startsWith(path + '/');
         }
         if (path === '/settings') return location.pathname === '/settings';

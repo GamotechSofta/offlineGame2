@@ -15,6 +15,31 @@ export function getTodayIST() {
     }).format(new Date());
 }
 
+const IST_WEEKDAY_SHORT_TO_JS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+export function getISTWeekdayIndex(now = new Date()) {
+    const short = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' }).format(now);
+    return IST_WEEKDAY_SHORT_TO_JS[short] ?? new Date(now).getDay();
+}
+
+export function normalizeMarketOpenDays(openDays) {
+    if (openDays == null || !Array.isArray(openDays)) {
+        return [0, 1, 2, 3, 4, 5, 6];
+    }
+    const set = new Set();
+    for (const d of openDays) {
+        const n = Number(d);
+        if (Number.isInteger(n) && n >= 0 && n <= 6) set.add(n);
+    }
+    if (set.size === 0) return [0, 1, 2, 3, 4, 5, 6];
+    return [...set].sort((a, b) => a - b);
+}
+
+export function isMarketOpenOnISTDay(market, now = new Date()) {
+    const allowed = normalizeMarketOpenDays(market?.openDays);
+    return allowed.includes(getISTWeekdayIndex(now));
+}
+
 /**
  * Normalize time string to HH:MM:SS format
  */
@@ -144,6 +169,7 @@ export function getMarketSession(market, now = new Date()) {
     const hasOpening = market?.openingNumber && /^\d{3}$/.test(String(market.openingNumber));
     const hasClosing = market?.closingNumber && /^\d{3}$/.test(String(market.closingNumber));
     if (hasOpening && hasClosing) return 'closed';
+    if (!isMarketOpenOnISTDay(market, now)) return 'closed';
     if (isPastClosingTime(market, now)) return 'closed';
     const b = getMarketBettingBounds(market, now);
     if (!b) return 'closed';

@@ -11,6 +11,8 @@ const aggregatePlayerBetMetrics = async ({ userIds, dateFilter = {} }) => {
     if (!Array.isArray(userIds) || userIds.length === 0) {
         return {
             totalBetAmount: 0,
+            matkaBetAmount: 0,
+            lotteryBetAmount: 0,
             totalPayouts: 0,
             totalBets: 0,
             winningBets: 0,
@@ -62,6 +64,8 @@ const aggregatePlayerBetMetrics = async ({ userIds, dateFilter = {} }) => {
 
     return {
         totalBetAmount: Number(matkaAgg?.[0]?.totalAmount || 0) + Number(quizAgg?.[0]?.totalAmount || 0),
+        matkaBetAmount: Number(matkaAgg?.[0]?.totalAmount || 0),
+        lotteryBetAmount: Number(quizAgg?.[0]?.totalAmount || 0),
         totalPayouts: Number(matkaPayoutAgg?.[0]?.totalPayout || 0) + Number(quizPayoutAgg?.[0]?.totalPayout || 0),
         totalBets: Number(matkaAgg?.[0]?.count || 0) + Number(quizAgg?.[0]?.count || 0),
         winningBets: Number(matkaWins || 0) + Number(quizWins || 0),
@@ -198,6 +202,8 @@ export const getRevenueReport = async (req, res) => {
                 success: true,
                 data: {
                     totalBetAmount,
+                    matkaBetAmount: metrics.matkaBetAmount,
+                    lotteryBetAmount: metrics.lotteryBetAmount,
                     totalPayouts,
                     commissionPercentage: commissionPct,
                     bookieRevenue,

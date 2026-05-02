@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { API_BASE_URL } from '../config/api';
-import { isPastClosingTime } from '../utils/marketTiming';
+import { isPastClosingTime, isMarketOpenOnISTDay } from '../utils/marketTiming';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import { SkeletonCard } from './Skeleton';
 import EmptyState from './EmptyState';
@@ -23,6 +23,9 @@ function formatTime(time24) {
 }
 
 function getMarketStatus(market) {
+  if (!isMarketOpenOnISTDay(market)) {
+    return { status: 'closed', timer: null, weeklyOff: true };
+  }
   if (isPastClosingTime(market)) {
     return { status: 'closed', timer: null };
   }
@@ -67,11 +70,13 @@ export default function Section1({ refreshRef }) {
             result: market.displayResult || '***-**-***',
             status: st.status,
             timer: st.timer,
+            weeklyOff: !!st.weeklyOff,
             startingTime: market.startingTime,
             closingTime: market.closingTime,
             betClosureTime: market.betClosureTime ?? 0,
             openingNumber: market.openingNumber,
             closingNumber: market.closingNumber,
+            openDays: market.openDays,
           };
         });
         marketsCache.data = transformedMarkets;
@@ -138,7 +143,9 @@ export default function Section1({ refreshRef }) {
             const isClickable = market.status === 'open' || market.status === 'running';
             const statusText =
               market.status === 'closed'
-                ? 'Closed for today'
+                ? market.weeklyOff
+                  ? 'Closed (weekly off)'
+                  : 'Closed for today'
                 : market.status === 'running'
                   ? 'Close is Running'
                   : 'Market is Open';

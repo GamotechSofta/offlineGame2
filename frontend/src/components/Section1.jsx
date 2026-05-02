@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
-import { isPastClosingTime } from '../utils/marketTiming';
+import { isPastClosingTime, isMarketOpenOnISTDay } from '../utils/marketTiming';
 import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
-const getStatusText = (status) => {
+const getStatusText = (status, weeklyOff) => {
+  if (status === 'closed' && weeklyOff) return 'Closed (weekly off)';
   if (status === 'closed') return 'Closed for today';
   if (status === 'running') return 'Close is Running';
   return 'Market is Open';
@@ -19,7 +20,7 @@ const TimeSlot = ({ label, value }) => (
 
 const MarketCard = ({ market, onOpen }) => {
   const isClickable = market.status === 'open' || market.status === 'running';
-  const statusText = getStatusText(market.status);
+  const statusText = getStatusText(market.status, market.weeklyOff);
 
   return (
     <article
@@ -102,6 +103,9 @@ const Section1 = () => {
   // Status: result format OR automatic close when closing time is reached
   // ***-**-*** → Open (green) | 156-2*-*** → Running (green) | 987-45-456 or past closing time → Closed (red)
   const getMarketStatus = (market) => {
+    if (!isMarketOpenOnISTDay(market)) {
+      return { status: 'closed', timer: null, weeklyOff: true };
+    }
     if (isPastClosingTime(market)) {
       return { status: 'closed', timer: null };
     }
@@ -114,7 +118,7 @@ const Section1 = () => {
     if (hasOpening && !hasClosing) {
       return { status: 'running', timer: null };
     }
-    return { status: 'open', timer: null };
+    return { status: 'open', timer: null, weeklyOff: false };
   };
 
   // Fetch markets from API
@@ -137,12 +141,14 @@ const Section1 = () => {
             result: market.displayResult || '***-**-***',
             status: st.status,
             timer: st.timer,
+            weeklyOff: !!st.weeklyOff,
             winNumber: market.winNumber,
             startingTime: market.startingTime,
             closingTime: market.closingTime,
             betClosureTime: market.betClosureTime ?? 0,
             openingNumber: market.openingNumber,
             closingNumber: market.closingNumber,
+            openDays: market.openDays,
             startingTimeFormatted: openingTimeFormatted,
             closingTimeFormatted: closingTimeFormatted,
           };

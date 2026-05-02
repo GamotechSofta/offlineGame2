@@ -1,3 +1,33 @@
+const IST_WEEKDAY_SHORT_TO_JS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/** IST weekday 0–6 (Sun–Sat), aligned with JavaScript Date.getDay() for Asia/Kolkata. */
+export function getISTWeekdayIndex(now = new Date()) {
+    const short = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' }).format(now);
+    return IST_WEEKDAY_SHORT_TO_JS[short] ?? new Date(now).getDay();
+}
+
+/**
+ * Effective open days: unique sorted 0–6. Null/omit/non-array = all week (legacy markets).
+ */
+export function normalizeMarketOpenDays(openDays) {
+    if (openDays == null || !Array.isArray(openDays)) {
+        return [0, 1, 2, 3, 4, 5, 6];
+    }
+    const set = new Set();
+    for (const d of openDays) {
+        const n = Number(d);
+        if (Number.isInteger(n) && n >= 0 && n <= 6) set.add(n);
+    }
+    if (set.size === 0) return [0, 1, 2, 3, 4, 5, 6];
+    return [...set].sort((a, b) => a - b);
+}
+
+/** True if today (IST) is a day when this market runs and accepts bets. */
+export function isMarketOpenOnISTDay(market, now = new Date()) {
+    const allowed = normalizeMarketOpenDays(market?.openDays);
+    return allowed.includes(getISTWeekdayIndex(now));
+}
+
 /**
  * Get market time boundaries in ms (IST). Used by isBettingAllowed and isBettingAllowedForSession.
  * betClosureTime (seconds) is subtracted from BOTH opening and closing deadlines.
@@ -45,6 +75,12 @@ function getMarketTimeBounds(market, _now = new Date()) {
  * @returns {{ allowed: boolean, message?: string }}
  */
 export function isBettingAllowedForSession(market, now = new Date(), betOn = 'open') {
+    if (!isMarketOpenOnISTDay(market, now)) {
+        return {
+            allowed: false,
+            message: 'Market is closed today (weekly schedule).',
+        };
+    }
     const bounds = getMarketTimeBounds(market, now);
     if (!bounds) {
         return { allowed: false, message: 'Market timing not configured.' };
@@ -100,6 +136,12 @@ export function isBettingAllowedForSession(market, now = new Date(), betOn = 'op
  * @returns {{ allowed: boolean, closeOnly?: boolean, message?: string }}
  */
 export function isBettingAllowed(market, now = new Date()) {
+    if (!isMarketOpenOnISTDay(market, now)) {
+        return {
+            allowed: false,
+            message: 'Market is closed today (weekly schedule).',
+        };
+    }
     const bounds = getMarketTimeBounds(market, now);
     if (!bounds) {
         return { allowed: false, message: 'Market timing not configured.' };

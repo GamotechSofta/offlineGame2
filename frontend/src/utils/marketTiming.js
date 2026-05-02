@@ -1,3 +1,31 @@
+const IST_WEEKDAY_SHORT_TO_JS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/** IST weekday 0–6 (Sun–Sat), aligned with JavaScript Date.getDay() for Asia/Kolkata. */
+export function getISTWeekdayIndex(now = new Date()) {
+  const short = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' }).format(now);
+  return IST_WEEKDAY_SHORT_TO_JS[short] ?? new Date(now).getDay();
+}
+
+/** Effective open days: unique sorted 0–6. Null/omit/non-array = all week (legacy). */
+export function normalizeMarketOpenDays(openDays) {
+  if (openDays == null || !Array.isArray(openDays)) {
+    return [0, 1, 2, 3, 4, 5, 6];
+  }
+  const set = new Set();
+  for (const d of openDays) {
+    const n = Number(d);
+    if (Number.isInteger(n) && n >= 0 && n <= 6) set.add(n);
+  }
+  if (set.size === 0) return [0, 1, 2, 3, 4, 5, 6];
+  return [...set].sort((a, b) => a - b);
+}
+
+/** True if today (IST) is a scheduled operating day for the market. */
+export function isMarketOpenOnISTDay(market, now = new Date()) {
+  const allowed = normalizeMarketOpenDays(market?.openDays);
+  return allowed.includes(getISTWeekdayIndex(now));
+}
+
 /**
  * Check if betting is allowed for a market at the given time.
  * betClosureTime (seconds) is subtracted from opening and closing deadlines (matches backend).
@@ -6,11 +34,17 @@
  * - After close deadline: no betting.
  * Uses IST (Asia/Kolkata) to match market reset and backend.
  *
- * @param {{ startingTime?: string, closingTime: string, betClosureTime?: number }} market
+ * @param {{ startingTime?: string, closingTime: string, betClosureTime?: number, openDays?: number[] }} market
  * @param {Date} [now]
  * @returns {{ allowed: boolean, closeOnly?: boolean, message?: string }}
  */
 export function isBettingAllowed(market, now = new Date()) {
+  if (!isMarketOpenOnISTDay(market, now)) {
+    return {
+      allowed: false,
+      message: 'Market is closed today (weekly schedule).',
+    };
+  }
   const closeStr = (market?.closingTime || '').toString().trim();
   const betClosureSec = Number(market?.betClosureTime);
   const closureSec = Number.isFinite(betClosureSec) && betClosureSec >= 0 ? betClosureSec : 0;

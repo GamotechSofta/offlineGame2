@@ -150,6 +150,8 @@ const Dashboard = () => {
         netProfit: 0,
     });
     const [commissionBaseTotal, setCommissionBaseTotal] = useState(0);
+    const [commissionMatkaTotal, setCommissionMatkaTotal] = useState(0);
+    const [commissionLotteryTotal, setCommissionLotteryTotal] = useState(0);
     const [lotteryStats, setLotteryStats] = useState({
         twoD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
         threeD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
@@ -397,6 +399,8 @@ const Dashboard = () => {
             if (statsData.success) {
                 setStats(statsData.data);
                 setCommissionBaseTotal(revenueData?.success ? Number(revenueData?.data?.totalBetAmount || 0) : 0);
+                setCommissionMatkaTotal(revenueData?.success ? Number(revenueData?.data?.matkaBetAmount || 0) : 0);
+                setCommissionLotteryTotal(revenueData?.success ? Number(revenueData?.data?.lotteryBetAmount || 0) : 0);
                 const allUsers = usersData?.success && Array.isArray(usersData?.data) ? usersData.data : [];
                 const topPlayers = [...allUsers]
                     .sort((a, b) => (Number(b?.walletBalance ?? 0) || 0) - (Number(a?.walletBalance ?? 0) || 0))
@@ -643,6 +647,12 @@ const Dashboard = () => {
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetAmount')}</p>
                     <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(commissionBaseTotal)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('totalBetAmountDescription')}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        Matka: <span className="font-medium">{formatCurrency(commissionMatkaTotal)}</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        2D & 3D: <span className="font-medium">{formatCurrency(commissionLotteryTotal)}</span>
+                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toReceived')}</p>
