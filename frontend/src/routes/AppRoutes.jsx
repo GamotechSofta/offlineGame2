@@ -90,10 +90,42 @@ const Layout = ({ children }) => {
   useEffect(() => {
     const viewportMeta = document.querySelector('meta[name="viewport"]');
     if (!viewportMeta) return undefined;
-    const zoomDisabledContent = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-    const zoomEnabledContent = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover';
-    viewportMeta.setAttribute('content', (isTwoDGamePage || isThreeDGamePage) ? zoomDisabledContent : zoomEnabledContent);
+
+    const zoomDisabledContent =
+      'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+    const zoomEnabledContent =
+      'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover';
+
+    const getFullscreenElement = () =>
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement ||
+      null;
+
+    const applyViewport = () => {
+      const isLottery2d3d = isTwoDGamePage || isThreeDGamePage;
+      const inFullscreen = !!getFullscreenElement();
+      // Pinch-zoom off while embedded (avoids layout break); on mobile, allow zoom after entering fullscreen.
+      if (isLottery2d3d && !inFullscreen) {
+        viewportMeta.setAttribute('content', zoomDisabledContent);
+      } else {
+        viewportMeta.setAttribute('content', zoomEnabledContent);
+      }
+    };
+
+    applyViewport();
+
+    document.addEventListener('fullscreenchange', applyViewport);
+    document.addEventListener('webkitfullscreenchange', applyViewport);
+    document.addEventListener('mozfullscreenchange', applyViewport);
+    document.addEventListener('MSFullscreenChange', applyViewport);
+
     return () => {
+      document.removeEventListener('fullscreenchange', applyViewport);
+      document.removeEventListener('webkitfullscreenchange', applyViewport);
+      document.removeEventListener('mozfullscreenchange', applyViewport);
+      document.removeEventListener('MSFullscreenChange', applyViewport);
       viewportMeta.setAttribute('content', zoomEnabledContent);
     };
   }, [isTwoDGamePage, isThreeDGamePage]);
