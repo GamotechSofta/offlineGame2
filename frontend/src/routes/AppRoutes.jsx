@@ -94,7 +94,7 @@ const Layout = ({ children }) => {
     const zoomDisabledContent =
       'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
     const zoomEnabledContent =
-      'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover';
+      'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover';
 
     const getFullscreenElement = () =>
       document.fullscreenElement ||
@@ -103,10 +103,19 @@ const Layout = ({ children }) => {
       document.msFullscreenElement ||
       null;
 
+    const isMobileLike = () =>
+      window.matchMedia('(max-width: 900px)').matches ||
+      window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
     const applyViewport = () => {
       const isLottery2d3d = isTwoDGamePage || isThreeDGamePage;
       const inFullscreen = !!getFullscreenElement();
-      // Pinch-zoom off while embedded (avoids layout break); on mobile, allow zoom after entering fullscreen.
+      // iOS / many mobile browsers never set fullscreenElement for in-app lottery UIs, so pinch-zoom stayed blocked.
+      if (isLottery2d3d && isMobileLike()) {
+        viewportMeta.setAttribute('content', zoomEnabledContent);
+        return;
+      }
+      // Desktop / large viewports: keep pinch off on 2D/3D unless true fullscreen (where supported).
       if (isLottery2d3d && !inFullscreen) {
         viewportMeta.setAttribute('content', zoomDisabledContent);
       } else {
@@ -116,16 +125,35 @@ const Layout = ({ children }) => {
 
     applyViewport();
 
-    document.addEventListener('fullscreenchange', applyViewport);
-    document.addEventListener('webkitfullscreenchange', applyViewport);
-    document.addEventListener('mozfullscreenchange', applyViewport);
-    document.addEventListener('MSFullscreenChange', applyViewport);
+    const onFs = () => applyViewport();
+    document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
+    document.addEventListener('mozfullscreenchange', onFs);
+    document.addEventListener('MSFullscreenChange', onFs);
+
+    const mq900 = window.matchMedia('(max-width: 900px)');
+    const mqCoarse = window.matchMedia('(hover: none) and (pointer: coarse)');
+    const onViewportHint = () => applyViewport();
+    const addMq = (mq) => {
+      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onViewportHint);
+      else if (typeof mq.addListener === 'function') mq.addListener(onViewportHint);
+    };
+    const removeMq = (mq) => {
+      if (typeof mq.removeEventListener === 'function') mq.removeEventListener('change', onViewportHint);
+      else if (typeof mq.removeListener === 'function') mq.removeListener(onViewportHint);
+    };
+    addMq(mq900);
+    addMq(mqCoarse);
+    window.addEventListener('orientationchange', onViewportHint);
 
     return () => {
-      document.removeEventListener('fullscreenchange', applyViewport);
-      document.removeEventListener('webkitfullscreenchange', applyViewport);
-      document.removeEventListener('mozfullscreenchange', applyViewport);
-      document.removeEventListener('MSFullscreenChange', applyViewport);
+      document.removeEventListener('fullscreenchange', onFs);
+      document.removeEventListener('webkitfullscreenchange', onFs);
+      document.removeEventListener('mozfullscreenchange', onFs);
+      document.removeEventListener('MSFullscreenChange', onFs);
+      removeMq(mq900);
+      removeMq(mqCoarse);
+      window.removeEventListener('orientationchange', onViewportHint);
       viewportMeta.setAttribute('content', zoomEnabledContent);
     };
   }, [isTwoDGamePage, isThreeDGamePage]);
