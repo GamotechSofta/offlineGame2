@@ -860,6 +860,173 @@ export const getMyQuizBets = async (req, res) => {
 };
 
 /**
+ * GET /api/v1/quiz/my-quiz-ticket-summary?mode=&limit=
+ * Lightweight ticket-level history for large accounts (no per-line payload).
+ */
+export const getMyQuizTicketSummary = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
+    const limit = Math.min(5000, Math.max(1, parseInt(String(req.query.limit || '1200'), 10) || 1200));
+    const uid = new mongoose.Types.ObjectId(userId);
+    const gameMode = resolveGameMode(req);
+
+    const ticketAgg = await QuizBet.aggregate([
+      { $match: { gameMode, userId: uid } },
+      {
+        $group: {
+          _id: { ticketId: '$ticketId', slotStartIso: '$slotStartIso' },
+          createdAt: { $min: '$createdAt' },
+          totalBets: { $sum: 1 },
+          totalStake: { $sum: '$amount' },
+          totalWinPayout: { $sum: { $ifNull: ['$winPayout', 0] } },
+          pendingBets: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          winBets: { $sum: { $cond: [{ $eq: ['$status', 'win'] }, 1, 0] } },
+          loseBets: { $sum: { $cond: [{ $eq: ['$status', 'lose'] }, 1, 0] } },
+          cancelledBets: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
+          quizzes: { $addToSet: '$quizId' },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $limit: limit },
+    ]);
+
+    const nowMs = Date.now();
+    const tickets = ticketAgg.map((row) => {
+      const slotStartIso = String(row?._id?.slotStartIso || '');
+      const slotStartMs = new Date(slotStartIso).getTime();
+      const slotEndMs = slotStartMs + SLOT_MS;
+      const slotEnded = Number.isFinite(slotEndMs) ? nowMs >= slotEndMs : false;
+      const pendingBets = Number(row?.pendingBets || 0);
+      const winBets = Number(row?.winBets || 0);
+      const loseBets = Number(row?.loseBets || 0);
+      const cancelledBets = Number(row?.cancelledBets || 0);
+      const outcome = pendingBets > 0
+        ? 'pending'
+        : winBets > 0
+          ? 'win'
+          : (cancelledBets > 0 && loseBets === 0 ? 'cancelled' : 'loss');
+      const createdAtIso = row?.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString();
+      const createdAtMs = new Date(createdAtIso).getTime();
+      const isAdvanceDraw = Number.isFinite(createdAtMs) && Number.isFinite(slotStartMs)
+        ? (slotStartMs - createdAtMs) > ((SLOT_MS) + (60 * 1000))
+        : false;
+      return {
+        ticketId: row?._id?.ticketId || null,
+        slotStartIso,
+        drawLabelEnd: Number.isFinite(slotEndMs) ? formatDrawLabel(slotEndMs) : '-',
+        createdAt: createdAtIso,
+        slotEnded,
+        totalBets: Number(row?.totalBets || 0),
+        totalStake: Number(row?.totalStake || 0),
+        totalWinPayout: Number(row?.totalWinPayout || 0),
+        pendingBets,
+        winBets,
+        loseBets,
+        cancelledBets,
+        outcome,
+        isAdvanceDraw,
+        quizzes: Array.isArray(row?.quizzes) ? row.quizzes : [],
+      };
+    });
+
+    const walletRow = await Wallet.findOne({ userId: uid }).select('balance').lean();
+    const balance = walletRow?.balance != null ? Number(walletRow.balance) : null;
+
+    return res.json({
+      success: true,
+      data: tickets,
+      ...(balance != null && Number.isFinite(balance) ? { balance } : {}),
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('getMyQuizTicketSummary', err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
+
+/**
+ * GET /api/v1/quiz/my-quiz-ticket-lines?ticketId=&slotStartIso=&mode=
+ * Fetch detailed rows for one ticket only.
+ */
+export const getMyQuizTicketLines = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+    const uid = new mongoose.Types.ObjectId(userId);
+    const gameMode = resolveGameMode(req);
+    const ticketId = String(req.query?.ticketId || '').trim();
+    const slotStartIso = String(req.query?.slotStartIso || '').trim();
+    if (!ticketId) {
+      return res.status(400).json({ success: false, message: 'ticketId is required.' });
+    }
+
+    const match = { gameMode, userId: uid, ticketId };
+    if (slotStartIso) match.slotStartIso = slotStartIso;
+    const bets = await QuizBet.find(match)
+      .sort({ createdAt: -1, _id: -1 })
+      .lean();
+
+    if (!bets.length) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const pairKey = (s, q) => `${s}|${q}`;
+    const uniquePairs = new Map();
+    for (const b of bets) {
+      uniquePairs.set(pairKey(b.slotStartIso, b.quizId), { slotStartIso: b.slotStartIso, quizId: b.quizId });
+    }
+    const picks = await QuizSlotPick.find({ gameMode, $or: [...uniquePairs.values()] })
+      .select('slotStartIso quizId hintPosition')
+      .lean();
+    const pickMap = new Map();
+    for (const p of picks) {
+      pickMap.set(pairKey(p.slotStartIso, p.quizId), p.hintPosition);
+    }
+
+    const now = Date.now();
+    const maxPos = gameMode === '3d' ? 999 : 99;
+    const padLength = gameMode === '3d' ? 3 : 2;
+    const data = bets.map((b) => {
+      const slotStartMs = new Date(b.slotStartIso).getTime();
+      const slotEndMs = slotStartMs + SLOT_MS;
+      const slotEnded = now >= slotEndMs;
+      const hp = pickMap.get(pairKey(b.slotStartIso, b.quizId));
+      const winningNumber =
+        slotEnded && hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos
+          ? String(hp).padStart(padLength, '0')
+          : null;
+      return {
+        id: String(b._id),
+        ticketId: b.ticketId || null,
+        quizId: b.quizId,
+        number: b.number,
+        betMode: b.betMode || 'str',
+        amount: b.amount,
+        status: b.status,
+        winPayout: b.winPayout,
+        slotStartIso: b.slotStartIso,
+        drawLabelEnd: formatDrawLabel(slotEndMs),
+        slotEnded,
+        winningNumber,
+        createdAt: b.createdAt,
+      };
+    });
+
+    return res.json({ success: true, data });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('getMyQuizTicketLines', err);
+    return res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
+
+/**
  * DELETE /api/v1/quiz/my-quiz-bets/:betId?mode=
  * Cancels own pending quiz ticket before the slot ends (result not finalized); refunds stake to wallet.
  */

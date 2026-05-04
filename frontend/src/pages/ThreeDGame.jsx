@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CircleX,
@@ -32,7 +32,7 @@ import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
 import ThreeDRatesModal from '../components/threeD/ThreeDRatesModal';
 import AdvanceDrawModal from '../components/AdvanceDrawModal';
 import { getBalance, getRatesCurrent, updateUserBalance } from '../api/bets';
-import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
+import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets, getMyQuizTicketLines, getMyQuizTicketSummary, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
 import { getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
@@ -40,6 +40,7 @@ const MODE_GROUP_COMBO = MODE_OPTIONS.slice(0, 7);
 const MODE_GROUP_SPECIAL = MODE_OPTIONS.slice(7);
 const ALL_SHORTCUT_MODES = ['box', 'str', 'sp', 'fp', 'bp', 'ap'];
 const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
+const MAX_VISIBLE_BET_CARDS = 240;
 /** Progress bar turns red when remaining time is at or below this many seconds (5 minutes). */
 const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
 // Large multi-bet tickets can exceed 10k rows; keep fetch window high for history visibility.
@@ -219,6 +220,7 @@ const ThreeDGame = () => {
   const [qty, setQty] = useState('');
   const [validationMsg, setValidationMsg] = useState('');
   const [toast, setToast] = useState('');
+  const [insufficientBalancePopupMsg, setInsufficientBalancePopupMsg] = useState('');
   const [buySummary, setBuySummary] = useState(null);
   const [showBuyConfirm, setShowBuyConfirm] = useState(false);
   const [bets, setBets] = useState([]);
@@ -318,10 +320,13 @@ const ThreeDGame = () => {
     [serverRatesPayload],
   );
   const visibleBetCards = useMemo(
-    () => (Array.isArray(bets) ? [...bets].reverse() : []),
+    () => (Array.isArray(bets) ? [...bets].reverse().slice(0, MAX_VISIBLE_BET_CARDS) : []),
     [bets],
   );
-  const hiddenBetCardCount = 0;
+  const hiddenBetCardCount = useMemo(
+    () => Math.max(0, (Array.isArray(bets) ? bets.length : 0) - visibleBetCards.length),
+    [bets, visibleBetCards.length],
+  );
   const accountDetails = useMemo(() => {
     const user = getCurrentUser() || {};
     const userId = user?.id || user?._id || '-';
@@ -391,38 +396,15 @@ const ThreeDGame = () => {
 
     if (showSpinner) setIsHistoryLoading(true);
     try {
-      const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
+      const j = await getMyQuizTicketSummary(HISTORY_FETCH_LIMIT, '3d');
       const rows = Array.isArray(j?.data) ? j.data : [];
-      const rowsByHistoryGroup = new Map();
-      rows.forEach((row) => {
+      const mapped = rows.map((row) => {
         const slotStartIso = String(row?.slotStartIso || '').trim() || 'unknown-slot';
         const ticketId = String(row?.ticketId || '').trim();
-        const status = String(row?.status || '').toLowerCase();
-        // Separate cancelled vs active tickets; scope each buy by ticketId (same slot may have multiple tickets).
-        const groupKey = status === 'cancelled'
-          ? `cancelled:${ticketId || row?.id || slotStartIso}`
-          : (ticketId ? `buy:${ticketId}` : `slot:${slotStartIso}`);
-        if (!rowsByHistoryGroup.has(groupKey)) {
-          rowsByHistoryGroup.set(groupKey, { ticketId: ticketId || null, slotStartIso, rows: [] });
-        }
-        rowsByHistoryGroup.get(groupKey).rows.push(row);
-      });
-
-      const mapped = Array.from(rowsByHistoryGroup.values()).map(({ ticketId, slotStartIso, rows: slotRows }) => {
-        const sortedRows = [...slotRows].sort((a, b) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime());
-        const firstRow = sortedRows[0] || {};
-        const createdAtIso = firstRow?.createdAt ? new Date(firstRow.createdAt).toISOString() : new Date().toISOString();
+        const createdAtIso = row?.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString();
         const createdAt = new Date(createdAtIso);
         const slotStartMs = new Date(slotStartIso).getTime();
         const slotEndDate = Number.isFinite(slotStartMs) ? new Date(slotStartMs + (GAME_INTERVAL_SECONDS * 1000)) : null;
-        const isAdvanceDraw = sortedRows.some((row) => {
-          const createdAtMs = new Date(row?.createdAt || 0).getTime();
-          if (!Number.isFinite(createdAtMs) || !Number.isFinite(slotStartMs) || slotStartMs <= 0) return false;
-          // Regular bets can still target the immediate upcoming slot.
-          // Mark as advance only when the slot is clearly beyond one draw interval.
-          return (slotStartMs - createdAtMs) > ((GAME_INTERVAL_SECONDS * 1000) + (60 * 1000));
-        });
-        // Draw label should represent the slot close/draw boundary.
         const drawDateBase = slotEndDate && !Number.isNaN(slotEndDate.getTime()) ? slotEndDate : createdAt;
         const drawDate = `${drawDateBase.getFullYear()}-${String(drawDateBase.getMonth() + 1).padStart(2, '0')}-${String(drawDateBase.getDate()).padStart(2, '0')}`;
         const drawTime = new Intl.DateTimeFormat('en-IN', {
@@ -430,59 +412,25 @@ const ThreeDGame = () => {
           minute: '2-digit',
           hour12: true,
         }).format(drawDateBase).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
-
-        let totalPoints = 0;
-        let totalWin = 0;
-        let hasPending = false;
-        let hasWin = false;
-        let hasLoss = false;
-        let hasCancelled = false;
-        const bets = sortedRows.map((row) => {
-          const status = String(row?.status || '').toLowerCase();
-          const outcome = status === 'win' ? 'win' : status === 'lose' ? 'loss' : status === 'cancelled' ? 'cancelled' : 'pending';
-          if (outcome === 'pending') hasPending = true;
-          if (outcome === 'win') hasWin = true;
-          if (outcome === 'loss') hasLoss = true;
-          if (outcome === 'cancelled') hasCancelled = true;
-          const setPanel = Number(row?.quizId) === 1 ? 'A' : Number(row?.quizId) === 2 ? 'B' : Number(row?.quizId) === 3 ? 'C' : 'A';
-          const number3 = String(row?.number ?? '').replace(/\D/g, '').slice(-3).padStart(3, '0');
-          const betMode = String(row?.betMode || row?.mode || 'str').trim().toLowerCase();
-          const amount = Number(row?.amount || 0);
-          const winPayout = Number(row?.winPayout || 0);
-          const winningNumber = String(row?.winningNumber ?? '').replace(/\D/g, '').slice(-3).padStart(3, '0');
-          totalPoints += amount;
-          totalWin += winPayout;
-          return {
-            id: row?.id || `${row?.createdAt || Date.now()}-${row?.quizId}-${number3}`,
-            panels: setPanel,
-            mode: betMode,
-            number: number3,
-            points: amount,
-            outcome,
-            matchedPanel: setPanel,
-            matchedResult: outcome === 'pending' ? '-' : (/^\d{3}$/.test(winningNumber) ? winningNumber : '-'),
-            winAmount: winPayout,
-            payoutLabel: outcome === 'win' ? `${amount} × ${amount > 0 ? Math.round(winPayout / amount) : 0} = ${winPayout}` : null,
-          };
-        });
-
-        const outcome = hasPending ? 'pending' : (hasWin ? 'win' : (hasCancelled && !hasLoss ? 'cancelled' : 'loss'));
+        const pendingCount = Number(row?.pendingBets || 0);
         return {
           id: `backend-ticket-${ticketId || slotStartIso}`,
-          ticketId: ticketId || firstRow?.ticketId || null,
+          ticketId: ticketId || null,
           userName: playerIdentity || 'user',
           slotStartIso,
           drawDate,
           drawTime,
           createdAt: createdAtIso,
           gameId: ticketId || slotStartIso,
-          totalPoints,
-          totalWin,
-          outcome,
-          isAdvanceDraw,
-          settled: !hasPending,
+          totalPoints: Number(row?.totalStake || 0),
+          totalWin: Number(row?.totalWinPayout || 0),
+          outcome: String(row?.outcome || 'pending').toLowerCase(),
+          isAdvanceDraw: Boolean(row?.isAdvanceDraw),
+          settled: pendingCount <= 0,
           settledUsing: 'backend',
-          bets,
+          pendingCount,
+          totalBets: Number(row?.totalBets || 0),
+          bets: [],
         };
       });
       mapped.sort(compareTicketsByDrawTimeDesc);
@@ -1190,10 +1138,12 @@ const ThreeDGame = () => {
       });
     });
     if (created.length) {
-      setBets((prev) => [...prev, ...created]);
+      startTransition(() => {
+        setBets((prev) => [...prev, ...created]);
+      });
     }
     return { createdCount: created.length, skippedCount: skipped.length };
-  }, [bets, normalizeNumberForMode, selectedPanels]);
+  }, [normalizeNumberForMode, selectedPanels]);
 
   const addBet = useCallback(() => {
     const cleanNum = (inputNumber || '').trim();
@@ -1203,8 +1153,6 @@ const ThreeDGame = () => {
       setInputNumber('');
       setPoints('0');
     };
-
-    console.debug('[3D addBet] snapshot', { inputNumber, rangeFrom, rangeTo, qty, lPickType, points, selectedModes, selectedPanels, selectedRate });
 
     if (!Number.isFinite(pts) || pts <= 0) {
       setValidationMsg('Points must be greater than 0.');
@@ -1364,6 +1312,9 @@ const ThreeDGame = () => {
   const handleBuy = useCallback(async () => {
     const fail = (msg) => {
       setValidationMsg(msg);
+      if (String(msg || '').toLowerCase().includes('insufficient balance')) {
+        setInsufficientBalancePopupMsg(String(msg));
+      }
       return { ok: false, error: msg };
     };
     if (isBuyingRef.current) return { ok: false, error: 'Buy already in progress. Please wait.' };
@@ -2000,6 +1951,47 @@ const ThreeDGame = () => {
     setToast(`${label} clicked`);
   }, [handleCancelPendingTicket, handleClearAll, handleRotateLandscape, navigate, now, refreshLastDrawResult, refreshWalletBalance]);
 
+  const handleOpenHistoryTicketDetails = useCallback(async (ticket) => {
+    const ticketId = String(ticket?.ticketId || '').trim();
+    const slotStartIso = String(ticket?.slotStartIso || '').trim();
+    if (!ticketId) {
+      setSelectedTicket(ticket);
+      return;
+    }
+    try {
+      const j = await getMyQuizTicketLines(ticketId, slotStartIso, '3d');
+      const rows = Array.isArray(j?.data) ? j.data : [];
+      const bets = rows
+        .sort((a, b) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime())
+        .map((row, idx) => {
+          const status = String(row?.status || '').toLowerCase();
+          const outcome = status === 'win' ? 'win' : status === 'lose' ? 'loss' : status === 'cancelled' ? 'cancelled' : 'pending';
+          const setPanel = Number(row?.quizId) === 1 ? 'A' : Number(row?.quizId) === 2 ? 'B' : Number(row?.quizId) === 3 ? 'C' : 'A';
+          const number3 = String(row?.number ?? '').replace(/\D/g, '').slice(-3).padStart(3, '0');
+          const betMode = String(row?.betMode || row?.mode || 'str').trim().toLowerCase();
+          const amount = Number(row?.amount || 0);
+          const winPayout = Number(row?.winPayout || 0);
+          const winningNumber = String(row?.winningNumber ?? '').replace(/\D/g, '').slice(-3).padStart(3, '0');
+          return {
+            id: row?.id || `${row?.createdAt || Date.now()}-${row?.quizId}-${number3}-${idx}`,
+            panels: setPanel,
+            mode: betMode,
+            number: number3,
+            points: amount,
+            outcome,
+            matchedPanel: setPanel,
+            matchedResult: outcome === 'pending' ? '-' : (/^\d{3}$/.test(winningNumber) ? winningNumber : '-'),
+            winAmount: winPayout,
+            payoutLabel: outcome === 'win' ? `${amount} × ${amount > 0 ? Math.round(winPayout / amount) : 0} = ${winPayout}` : null,
+          };
+        });
+      setSelectedTicket({ ...ticket, bets });
+    } catch {
+      setSelectedTicket(ticket);
+      setValidationMsg('Ticket lines loading failed. Try again.');
+    }
+  }, []);
+
   const handleGoHome = useCallback(async () => {
     try {
       if (document.fullscreenElement && document.exitFullscreen) {
@@ -2158,6 +2150,23 @@ const ThreeDGame = () => {
         }}
       >
         <div className="relative w-full h-full bg-[#f5f7fc] border border-[#dbe2f0] p-2 overflow-hidden grid grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-3">
+        {insufficientBalancePopupMsg ? (
+          <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/55 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-rose-300 bg-white p-5 shadow-[0_18px_40px_rgba(15,23,42,0.4)]">
+              <h3 className="text-xl font-extrabold text-rose-700">Insufficient Balance</h3>
+              <p className="mt-2 text-base font-semibold text-slate-700">{insufficientBalancePopupMsg}</p>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setInsufficientBalancePopupMsg('')}
+                  className="rounded-lg border border-rose-300 bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {toast ? (
           <div
             className={`fixed z-50 ${
@@ -2931,7 +2940,7 @@ const ThreeDGame = () => {
               onClose={() => setIsTicketListOpen(false)}
               tickets={ticketListWithCurrentBets}
               onView={(ticket) => {
-                setSelectedTicket(ticket);
+                void handleOpenHistoryTicketDetails(ticket);
                 setIsTicketListOpen(false);
               }}
             />
@@ -2945,7 +2954,7 @@ const ThreeDGame = () => {
               loadingMessage="Loading history..."
               emptyMessage="No history available yet."
               onView={(ticket) => {
-                setSelectedTicket(ticket);
+                void handleOpenHistoryTicketDetails(ticket);
                 setIsHistoryListOpen(false);
               }}
             />
@@ -2969,7 +2978,7 @@ const ThreeDGame = () => {
               onClose={() => setIsTicketListOpen(false)}
               tickets={ticketListWithCurrentBets}
               onView={(ticket) => {
-                setSelectedTicket(ticket);
+                void handleOpenHistoryTicketDetails(ticket);
                 setIsTicketListOpen(false);
               }}
             />
@@ -2983,7 +2992,7 @@ const ThreeDGame = () => {
               loadingMessage="Loading history..."
               emptyMessage="No history available yet."
               onView={(ticket) => {
-                setSelectedTicket(ticket);
+                void handleOpenHistoryTicketDetails(ticket);
                 setIsHistoryListOpen(false);
               }}
             />

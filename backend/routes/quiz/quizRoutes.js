@@ -6,6 +6,8 @@ import {
   cancelMyQuizTicket,
   getHint,
   getMyQuizBets,
+  getMyQuizTicketLines,
+  getMyQuizTicketSummary,
   getQuestions,
   getQuizSettings,
   getResult,
@@ -63,6 +65,8 @@ router.get('/settings', quizLimiter, getQuizSettings);
 router.get('/slot-results', quizLimiter, getSlotResultsHistory);
 router.get('/my-board-bets', quizLimiter, getMyBoardBets);
 router.get('/my-quiz-bets', quizLimiter, verifyUser, getMyQuizBets);
+router.get('/my-quiz-ticket-summary', quizLimiter, verifyUser, getMyQuizTicketSummary);
+router.get('/my-quiz-ticket-lines', quizLimiter, verifyUser, getMyQuizTicketLines);
 router.delete('/my-quiz-bets/:betId', quizLimiter, verifyUser, cancelMyQuizBet);
 router.delete('/my-quiz-tickets/:ticketId', quizLimiter, verifyUser, cancelMyQuizTicket);
 router.post('/board-bet', guessLimiter, postBoardBet);

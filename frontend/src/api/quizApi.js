@@ -140,6 +140,40 @@ export async function getMyQuizBets(limit = 120, mode = '2d') {
   return json;
 }
 
+/** Lightweight ticket-level history (no line-level payload). */
+export async function getMyQuizTicketSummary(limit = 1200, mode = '2d') {
+  const res = await fetch(`${base}/my-quiz-ticket-summary?limit=${encodeURIComponent(String(limit))}&mode=${encodeURIComponent(mode)}`, {
+    ...cred,
+    headers: { ...getAuthHeaders() },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json.message || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.code = json.code;
+    throw err;
+  }
+  return json;
+}
+
+/** Detailed rows for one ticket only. */
+export async function getMyQuizTicketLines(ticketId, slotStartIso = '', mode = '2d') {
+  const q = new URLSearchParams({ ticketId: String(ticketId || ''), mode: String(mode || '2d') });
+  if (slotStartIso) q.set('slotStartIso', String(slotStartIso));
+  const res = await fetch(`${base}/my-quiz-ticket-lines?${q.toString()}`, {
+    ...cred,
+    headers: { ...getAuthHeaders() },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json.message || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.code = json.code;
+    throw err;
+  }
+  return json;
+}
+
 /** Cancel one pending quiz ticket before the draw closes (wallet refund). */
 export async function cancelMyQuizBet(betId, mode = '2d') {
   const res = await fetch(`${base}/my-quiz-bets/${encodeURIComponent(String(betId))}?mode=${encodeURIComponent(mode)}`, {
