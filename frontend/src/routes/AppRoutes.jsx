@@ -88,6 +88,17 @@ const Layout = ({ children }) => {
   const [showPortraitPrompt, setShowPortraitPrompt] = useState(false);
 
   useEffect(() => {
+    const viewportMeta = document.querySelector('meta[name="viewport"]');
+    if (!viewportMeta) return undefined;
+    const zoomDisabledContent = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+    const zoomEnabledContent = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover';
+    viewportMeta.setAttribute('content', (isTwoDGamePage || isThreeDGamePage) ? zoomDisabledContent : zoomEnabledContent);
+    return () => {
+      viewportMeta.setAttribute('content', zoomEnabledContent);
+    };
+  }, [isTwoDGamePage, isThreeDGamePage]);
+
+  useEffect(() => {
     const check = async () => {
       const user = getCurrentUser();
       if (user && (user.id || user._id)) {
