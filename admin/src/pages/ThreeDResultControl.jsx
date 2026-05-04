@@ -51,6 +51,7 @@ const ThreeDResultControl = () => {
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [slotDetailMap, setSlotDetailMap] = useState({});
+    const [showAllHistorySlots, setShowAllHistorySlots] = useState(false);
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -274,6 +275,39 @@ const ThreeDResultControl = () => {
         [...slots].sort((a, b) => String(b.slotStartIso || '').localeCompare(String(a.slotStartIso || '')))
     ), [slots]);
 
+    const visibleHistorySlots = useMemo(() => {
+        if (showAllHistorySlots) return sortedSlots;
+        if (!sortedSlots.length) return [];
+
+        const declaredSlots = sortedSlots.filter((slot) => Boolean(slot?.declaration?.declared));
+        const runningSlot = sortedSlots.find((slot) => (
+            Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted
+        ));
+        const chronologicalSlots = [...sortedSlots].sort((a, b) => String(a.slotStartIso || '').localeCompare(String(b.slotStartIso || '')));
+        const runningIndex = chronologicalSlots.findIndex((slot) => (
+            Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted
+        ));
+        const limitedPending = [];
+        if (runningIndex >= 0) {
+            for (let i = runningIndex + 1; i < chronologicalSlots.length && limitedPending.length < 2; i += 1) {
+                const slot = chronologicalSlots[i];
+                if (!slot) continue;
+                const declared = Boolean(slot?.declaration?.declared);
+                if (!declared) {
+                    limitedPending.push(slot);
+                }
+            }
+        }
+        const combined = [...[...limitedPending].reverse(), ...(runningSlot ? [runningSlot] : []), ...declaredSlots];
+        const seen = new Set();
+        return combined.filter((slot) => {
+            const key = String(slot?.slotStartIso || '');
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }, [sortedSlots, showAllHistorySlots, currentSlotStartIso]);
+
     useEffect(() => {
         if (!sortedSlots.length) {
             setSlotDetailMap({});
@@ -429,70 +463,77 @@ const ThreeDResultControl = () => {
                         </div>
 
                         <div className="bg-white border border-gray-200 rounded-xl p-5">
-                            <h2 className="text-base font-semibold text-gray-800">Step 2: Slot history (latest first)</h2>
-                            <p className="text-xs text-gray-500 mt-1">Simple table view: one slot per row with all set results.</p>
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <h2 className="text-base font-semibold text-gray-800">Step 2: Slot history (latest first)</h2>
+                                    <p className="text-xs text-gray-500 mt-1">Default: pending from next 2 slots first, then running, then declared. Use button to view all.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAllHistorySlots((prev) => !prev)}
+                                    className="shrink-0 px-3 py-1.5 rounded-lg border border-purple-300 text-xs font-semibold text-purple-700 hover:bg-purple-50"
+                                >
+                                    {showAllHistorySlots ? 'Show Limited' : 'Show All'}
+                                </button>
+                            </div>
                             {!sortedSlots.length && !loading ? (
                                 <p className="mt-3 text-sm text-gray-500">No slots found for selected date.</p>
+                            ) : !visibleHistorySlots.length ? (
+                                <p className="mt-3 text-sm text-gray-500">No running slot or pending slots found.</p>
                             ) : (
-                                <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
-                                    <table className="w-full min-w-[760px] text-xs">
-                                        <thead className="bg-gray-50 border-b border-gray-200">
-                                            <tr className="text-gray-600">
-                                                <th className="text-left p-2.5 font-semibold">Slot</th>
-                                                <th className="text-left p-2.5 font-semibold">Status</th>
-                                                <th className="text-center p-2.5 font-semibold">Set A</th>
-                                                <th className="text-center p-2.5 font-semibold">Set B</th>
-                                                <th className="text-center p-2.5 font-semibold">Set C</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {sortedSlots.map((slot) => {
-                                                const declared = Boolean(slot?.declaration?.declared);
-                                                const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
-                                                const canManualResult = !declared && isRunning && currentSlotPhase === 'study';
-                                                return (
-                                                    <tr key={slot.slotStartIso} className="border-b border-gray-200 last:border-b-0">
-                                                        <td className="p-2.5 align-top">
-                                                            <div className="font-semibold text-gray-800">{formatSlotLabel(slot)}</div>
-                                                            <div className="text-[11px] text-gray-500 mt-0.5">{slot.slotStartIso}</div>
-                                                        </td>
-                                                        <td className="p-2.5 align-top">
-                                                            <div className="flex flex-col items-start gap-1">
-                                                                <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${declared ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                                                                    {declared ? 'Declared' : 'Pending'}
-                                                                </span>
-                                                                {isRunning ? <span className="text-[10px] px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">Running Slot</span> : null}
-                                                            </div>
-                                                        </td>
+                                <div className="mt-3 space-y-3">
+                                    {visibleHistorySlots.map((slot) => {
+                                        const declared = Boolean(slot?.declaration?.declared);
+                                        const declaredCount = (slot?.perQuiz || []).filter((q) => q?.declared).length;
+                                        const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
+                                        const canManualResult = !declared && isRunning && currentSlotPhase === 'study';
+                                        return (
+                                            <div key={slot.slotStartIso} className="rounded-lg border border-gray-200">
+                                                <div className="px-3 py-2.5 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
+                                                    <div>
+                                                        <div className="font-semibold text-gray-800">{formatSlotLabel(slot)}</div>
+                                                        <div className="text-[11px] text-gray-500 mt-0.5">{slot.slotStartIso}</div>
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${declared ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                            {declared ? 'Declared' : 'Pending'}
+                                                        </span>
+                                                        <span className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-semibold">{`${declaredCount}/3 declared`}</span>
+                                                        {isRunning ? <span className="text-[10px] px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">Running Slot</span> : null}
+                                                    </div>
+                                                </div>
+                                                <div className="p-2.5">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                                         {[1, 2, 3].map((quizId) => {
                                                             const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                             const detailQuiz = (slotDetailMap?.[slot.slotStartIso]?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                             const visibleResultLabel = (slot?.isCompleted || isRunning) ? (q?.resultLabel || '--') : '--';
                                                             const pl = formatHousePl(detailQuiz?.houseNetIfHintWins ?? q?.houseNetIfHintWins);
+                                                            const setLabel = setLabelByQuizId[quizId] || `Set ${quizId}`;
                                                             return (
-                                                                <td key={`${slot.slotStartIso}-${quizId}`} className="p-2.5 text-center align-top">
-                                                                    <div className="font-mono text-sm font-semibold text-gray-800">{visibleResultLabel}</div>
-                                                                    <div className={`text-[10px] mt-0.5 ${q?.declared ? 'text-green-600' : 'text-gray-500'}`}>
-                                                                        {q?.declared ? 'Declared' : 'Not declared'}
+                                                                <div key={`${slot.slotStartIso}-${quizId}`} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left">
+                                                                    <div className="flex items-center justify-between gap-1">
+                                                                        <span className="text-gray-500 shrink-0">{setLabel}</span>
+                                                                        <span className="font-mono font-semibold text-gray-800">{visibleResultLabel}</span>
                                                                     </div>
-                                                                    <div className={`text-[10px] mt-0.5 font-semibold ${pl.className}`}>{pl.text}</div>
+                                                                    <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
                                                                     {canManualResult ? (
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => openManualModal(slot.slotStartIso, String(quizId), q?.resultLabel || '--')}
-                                                                            className="mt-1.5 inline-flex px-2 py-0.5 rounded border border-purple-300 text-[10px] text-purple-700 font-semibold hover:bg-purple-50"
+                                                                            className="mt-1 text-[10px] text-purple-700 font-semibold hover:underline"
                                                                         >
-                                                                            Set
+                                                                            Set Result
                                                                         </button>
                                                                     ) : null}
-                                                                </td>
+                                                                </div>
                                                             );
                                                         })}
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
