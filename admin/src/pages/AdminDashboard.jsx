@@ -278,15 +278,18 @@ const AdminDashboard = () => {
         const currentSummary = currentJson?.data?.summary || {};
         const historyTotals = completedSlots.reduce((acc, slot) => {
             acc.tickets += Number(slot?.totalTickets || 0);
+            acc.bets += Number(slot?.totalBets ?? slot?.totalTickets ?? 0);
             acc.revenue += Number(slot?.revenue || 0);
             acc.payout += Number(slot?.winnerPayout || 0);
             acc.net += Number(slot?.amountRemaining || 0);
             acc.users += Number(slot?.totalUsers || 0);
             return acc;
-        }, { tickets: 0, revenue: 0, payout: 0, net: 0, users: 0 });
+        }, { tickets: 0, bets: 0, revenue: 0, payout: 0, net: 0, users: 0 });
 
+        const currentBets = Number(currentSummary?.totalBets ?? currentSummary?.totalTickets ?? 0);
         const allSlots = {
             tickets: historyTotals.tickets + Number(currentSummary?.totalTickets || 0),
+            bets: historyTotals.bets + currentBets,
             revenue: historyTotals.revenue + Number(currentSummary?.revenue || 0),
             payout: historyTotals.payout + Number(currentSummary?.winnerPayout || 0),
             net: historyTotals.net + Number(currentSummary?.amountRemaining || 0),
@@ -919,7 +922,8 @@ const AdminDashboard = () => {
                                 <p className="text-[11px] text-gray-500">Running slot stats updated in real-time.</p>
                             </div>
                             <StatRow label="Current Slot" value={formatDrawTime(lotteryStats.twoD.current?.slot?.drawLabelEnd)} />
-                            <StatRow label="Current Tickets" value={formatNumber(lotteryStats.twoD.current?.summary?.totalTickets)} />
+                            <StatRow label="Current Slot Tickets" value={formatNumber(lotteryStats.twoD.current?.summary?.totalTickets)} />
+                            <StatRow label="Current Slot Bets" value={formatNumber(lotteryStats.twoD.current?.summary?.totalBets)} />
                             <StatRow label="Current Revenue" value={formatCurrency(lotteryStats.twoD.current?.summary?.revenue)} colorClass="text-green-600" />
                             <StatRow label="Current Payout" value={formatCurrency(lotteryStats.twoD.current?.summary?.winnerPayout)} colorClass="text-red-500" />
                             <StatRow label="Current Net" value={formatCurrency(lotteryStats.twoD.current?.summary?.amountRemaining)} colorClass="text-blue-600" />
@@ -930,6 +934,7 @@ const AdminDashboard = () => {
                             </div>
                             <StatRow label="Previous Slot" value={formatDrawTime(lotteryStats.twoD.latest?.drawLabelEnd)} />
                             <StatRow label="Previous Slot Tickets" value={formatNumber(lotteryStats.twoD.latest?.totalTickets)} />
+                            <StatRow label="Previous Slot Bets" value={formatNumber(lotteryStats.twoD.latest?.totalBets)} />
                             <StatRow label="Previous Slot Revenue" value={formatCurrency(lotteryStats.twoD.latest?.revenue)} colorClass="text-green-600" />
                             <StatRow label="Previous Slot Payout" value={formatCurrency(lotteryStats.twoD.latest?.winnerPayout)} colorClass="text-red-500" />
                             <StatRow label="Previous Slot Net" value={formatCurrency(lotteryStats.twoD.latest?.amountRemaining)} colorClass="text-blue-600" />
@@ -939,6 +944,7 @@ const AdminDashboard = () => {
                                 <p className="text-[11px] text-gray-500">All bets in selected date range (today/yesterday/custom).</p>
                             </div>
                             <StatRow label="All Slots Tickets" value={formatNumber(twoDAllSlots.tickets)} />
+                            <StatRow label="All Slots Bets" value={formatNumber(twoDAllSlots.bets)} />
                             <StatRow label="All Slots Revenue" value={formatCurrency(twoDAllSlots.revenue)} colorClass="text-green-600" />
                             <StatRow label="All Slots Payout" value={formatCurrency(twoDAllSlots.payout)} colorClass="text-red-500" />
                             <StatRow label="All Slots Net" value={formatCurrency(twoDAllSlots.net)} colorClass="text-blue-600" />
