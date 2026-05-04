@@ -50,7 +50,6 @@ const ThreeDResultControl = () => {
     const [secretCheckComplete, setSecretCheckComplete] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
-    const [slotDetailMap, setSlotDetailMap] = useState({});
     const [showAllHistorySlots, setShowAllHistorySlots] = useState(false);
 
     const handleLogout = useCallback(() => {
@@ -60,7 +59,7 @@ const ThreeDResultControl = () => {
 
     const fetchSlots = useCallback(async (targetDate = date, options = {}) => {
         const silent = Boolean(options?.silent);
-        const limit = Math.min(96, Math.max(1, Number(options?.limit || 96)));
+        const limit = Math.min(96, Math.max(1, Number(options?.limit || 24)));
         if (!silent) {
             setLoading(true);
         }
@@ -151,10 +150,17 @@ const ThreeDResultControl = () => {
     useEffect(() => {
         if (!secretCheckComplete) return;
         if (hasSecretDeclarePassword && !pageUnlocked) return;
-        // Quick initial load for faster first paint, then hydrate full day rows in background.
+        // Keep first paint fast with a compact slot window.
         fetchSlots(date, { limit: 24 });
-        fetchSlots(date, { silent: true, limit: 96 });
     }, [fetchSlots, date, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
+
+    useEffect(() => {
+        if (!secretCheckComplete) return;
+        if (hasSecretDeclarePassword && !pageUnlocked) return;
+        if (!showAllHistorySlots) return;
+        // When admin asks "Show All", hydrate full day slots so all declared rows appear.
+        fetchSlots(date, { silent: true, limit: 96 });
+    }, [showAllHistorySlots, fetchSlots, date, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
 
     useEffect(() => {
         if (!secretCheckComplete) return;
@@ -307,45 +313,6 @@ const ThreeDResultControl = () => {
             return true;
         });
     }, [sortedSlots, showAllHistorySlots, currentSlotStartIso]);
-
-    useEffect(() => {
-        if (!sortedSlots.length) {
-            setSlotDetailMap({});
-            return;
-        }
-        let cancelled = false;
-        const loadSlotDetails = async () => {
-            try {
-                const settled = await Promise.allSettled(
-                    sortedSlots.map(async (slot) => {
-                        const slotStartIso = slot?.slotStartIso;
-                        if (!slotStartIso) return [null, null];
-                        const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/${encodeURIComponent(slotStartIso)}/detail`);
-                        if (res.status === 401) return [slotStartIso, null];
-                        const json = await res.json();
-                        if (!json?.success) return [slotStartIso, null];
-                        return [slotStartIso, json?.data || null];
-                    }),
-                );
-                if (cancelled) return;
-                const nextMap = {};
-                settled.forEach((entry) => {
-                    if (entry.status !== 'fulfilled') return;
-                    const [slotStartIso, detail] = entry.value || [];
-                    if (slotStartIso) nextMap[slotStartIso] = detail;
-                });
-                setSlotDetailMap(nextMap);
-            } catch {
-                if (!cancelled) {
-                    setSlotDetailMap({});
-                }
-            }
-        };
-        loadSlotDetails();
-        return () => {
-            cancelled = true;
-        };
-    }, [sortedSlots]);
 
     return (
         <AdminLayout onLogout={handleLogout} title="3D Result Control">
@@ -506,9 +473,8 @@ const ThreeDResultControl = () => {
                                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                                         {[1, 2, 3].map((quizId) => {
                                                             const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
-                                                            const detailQuiz = (slotDetailMap?.[slot.slotStartIso]?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                             const visibleResultLabel = (slot?.isCompleted || isRunning) ? (q?.resultLabel || '--') : '--';
-                                                            const pl = formatHousePl(detailQuiz?.houseNetIfHintWins ?? q?.houseNetIfHintWins);
+                                                            const pl = formatHousePl(q?.houseNetIfHintWins);
                                                             const setLabel = setLabelByQuizId[quizId] || `Set ${quizId}`;
                                                             return (
                                                                 <div key={`${slot.slotStartIso}-${quizId}`} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left">

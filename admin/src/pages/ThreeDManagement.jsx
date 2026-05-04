@@ -62,6 +62,7 @@ const ThreeDManagement = () => {
     const [timingPassword, setTimingPassword] = useState('');
     const [timingUnlocked, setTimingUnlocked] = useState(false);
     const [timingUnlockedSecret, setTimingUnlockedSecret] = useState('');
+    const ENABLE_OLD_SLOT_FETCH = false;
     const detailSectionRef = useRef(null);
     const timeDropdownRef = useRef(null);
     const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
@@ -461,9 +462,10 @@ const ThreeDManagement = () => {
     }, [selectedSlot, fetchSlotPlayers]);
 
     useEffect(() => {
+        if (!ENABLE_OLD_SLOT_FETCH) return;
         fetchAllHistoryDetails(historySlots);
         fetchAllHistoryPlayers(historySlots);
-    }, [historySlots, fetchAllHistoryDetails, fetchAllHistoryPlayers]);
+    }, [ENABLE_OLD_SLOT_FETCH, historySlots, fetchAllHistoryDetails, fetchAllHistoryPlayers]);
 
     useEffect(() => {
         setCurrentHintRows([]);
@@ -741,7 +743,7 @@ const ThreeDManagement = () => {
                 </div>
                 <SlotWiseBetsSection mode="3d" />
 
-                {false ? <OldSlotsSection
+                {ENABLE_OLD_SLOT_FETCH ? <OldSlotsSection
                     activeSection={activeSection}
                     setActiveSection={setActiveSection}
                     date={date}

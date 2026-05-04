@@ -24,7 +24,10 @@ export const getBoxTypeFromNum = (num) => {
 const normalizeStoredMode = (modeRaw) => {
   const m = String(modeRaw || '').trim().toLowerCase();
   if (m === 'single') return 'str';
+  if (m === 'straight') return 'str';
+  if (m === 'duplicate' || m === 'dup') return 'duplicates';
   if (m === 'dp') return 'duplicates';
+  if (m === 'triple') return 'triples';
   if (m === 'tp') return 'triples';
   return m;
 };

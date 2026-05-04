@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchWithAuth } from '../lib/auth';
+import DateRangePresetFilter from './DateRangePresetFilter';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const ALL_DAY_VALUE = '__all_day__';
@@ -13,6 +14,17 @@ const todayDate = () => {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+};
+
+const listDateKeysBetween = (from, to) => {
+  if (!from || !to || from > to) return [];
+  const out = [];
+  const start = new Date(`${from}T12:00:00`);
+  const end = new Date(`${to}T12:00:00`);
+  for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+  }
+  return out;
 };
 
 const slotScheduleLabel = (slot) => {
@@ -65,7 +77,8 @@ const outcomeClass = (outcome) => {
 
 const SlotWiseBetsSection = ({ mode = '2d' }) => {
   const modeLabel = mode === '3d' ? '3D' : '2D';
-  const [historyDate, setHistoryDate] = useState(todayDate);
+  const [dateFrom, setDateFrom] = useState(todayDate);
+  const [dateTo, setDateTo] = useState(todayDate);
   const [historySlots, setHistorySlots] = useState([]);
   const [filterMode, setFilterMode] = useState(ALL_DAY_VALUE);
   const [selectedSlotIso, setSelectedSlotIso] = useState(ALL_FILTER_SLOTS_VALUE);
@@ -75,16 +88,28 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
   const [loadingBets, setLoadingBets] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchDaySlotSchedule = useCallback(async (targetDate) => {
+  const fetchRangeSlotSchedule = useCallback(async (fromDate, toDate) => {
     setLoadingSlots(true);
     setError('');
     try {
-      const params = new URLSearchParams({ date: targetDate });
-      const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/day-slot-schedule?${params.toString()}`);
-      if (res.status === 401) return [];
-      const json = await res.json();
-      if (!json?.success) throw new Error(json?.message || 'Failed to load slot schedule');
-      const slots = Array.isArray(json?.data?.slots) ? json.data.slots : [];
+      const days = listDateKeysBetween(fromDate, toDate);
+      const settled = await Promise.allSettled(days.map(async (dayKey) => {
+        const params = new URLSearchParams({ date: dayKey });
+        const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/day-slot-schedule?${params.toString()}`);
+        if (res.status === 401) return [];
+        const json = await res.json();
+        if (!json?.success) return [];
+        return Array.isArray(json?.data?.slots) ? json.data.slots : [];
+      }));
+      const merged = settled.flatMap((entry) => (entry.status === 'fulfilled' ? entry.value : []));
+      const unique = new Map();
+      merged.forEach((slot) => {
+        const key = String(slot?.slotStartIso || '');
+        if (key) unique.set(key, slot);
+      });
+      const slots = Array.from(unique.values()).sort(
+        (a, b) => new Date(b.slotStartIso || 0).getTime() - new Date(a.slotStartIso || 0).getTime(),
+      );
       setHistorySlots(slots);
       setSelectedSlotIso((prev) => (slots.some((s) => s.slotStartIso === prev) ? prev : ALL_FILTER_SLOTS_VALUE));
       return slots;
@@ -108,6 +133,29 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
     setLoadingBets(true);
     setError('');
     try {
+      if (mode === '3d') {
+        const params = new URLSearchParams({
+          dateFrom,
+          dateTo,
+          filterMode:
+            selection === ALL_ADVANCE_VALUE
+              ? 'advance'
+              : selection === ALL_PAST_VALUE
+                ? 'past'
+                : 'all_day',
+        });
+        if (![ALL_DAY_VALUE, ALL_ADVANCE_VALUE, ALL_PAST_VALUE].includes(selection)) {
+          params.set('slotStartIso', selection);
+        }
+        const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slot-wise-bets?${params.toString()}`);
+        if (res.status === 401) return;
+        const json = await res.json();
+        if (!json?.success) throw new Error(json?.message || 'Failed to load slot wise bets');
+        setSlotMeta(json?.data?.slot || null);
+        setPlayers(Array.isArray(json?.data?.players) ? json.data.players : []);
+        return;
+      }
+
       if (isSpecialSelection) {
         const targetSlots = slotsForDate.filter((slot) => isSlotMatchingSelection(slot, selection));
         if (!targetSlots.length) {
@@ -117,7 +165,7 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
         }
         const responses = await Promise.all(
           targetSlots.map((slot) =>
-            fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(slot.slotStartIso)}/players`),
+            fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(slot.slotStartIso)}/players?includeBets=1`),
           ),
         );
         if (responses.some((res) => res.status === 401)) return;
@@ -129,13 +177,13 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
         );
         setSlotMeta({
           drawLabelEnd: selectionTitle(selection, targetSlots.length),
-          slotStartIso: historyDate,
+          slotStartIso: dateFrom === dateTo ? dateFrom : `${dateFrom} to ${dateTo}`,
         });
         setPlayers(mergedPlayers);
         return;
       }
 
-      const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(selection)}/players`);
+      const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(selection)}/players?includeBets=1`);
       if (res.status === 401) return;
       const json = await res.json();
       if (!json?.success) throw new Error(json?.message || 'Failed to load bets for selected slot');
@@ -148,11 +196,11 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
     } finally {
       setLoadingBets(false);
     }
-  }, [mode, historyDate, historySlots]);
+  }, [mode, dateFrom, dateTo, historySlots]);
 
   useEffect(() => {
-    fetchDaySlotSchedule(historyDate);
-  }, [historyDate, fetchDaySlotSchedule]);
+    fetchRangeSlotSchedule(dateFrom, dateTo);
+  }, [dateFrom, dateTo, fetchRangeSlotSchedule]);
 
   const filteredSlots = useMemo(
     () => historySlots.filter((slot) => isSlotMatchingSelection(slot, filterMode)),
@@ -182,9 +230,9 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
   }, [flattenedBets]);
 
   const refresh = useCallback(async () => {
-    const latestSlots = await fetchDaySlotSchedule(historyDate);
+    const latestSlots = await fetchRangeSlotSchedule(dateFrom, dateTo);
     await fetchBetsForSelection(effectiveSelection, Array.isArray(latestSlots) ? latestSlots : historySlots);
-  }, [fetchDaySlotSchedule, historyDate, effectiveSelection, fetchBetsForSelection, historySlots]);
+  }, [fetchRangeSlotSchedule, dateFrom, dateTo, effectiveSelection, fetchBetsForSelection, historySlots]);
 
   const clearFilters = useCallback(() => {
     setFilterMode(ALL_DAY_VALUE);
@@ -219,17 +267,13 @@ const SlotWiseBetsSection = ({ mode = '2d' }) => {
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+        <DateRangePresetFilter
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          setDateFrom={setDateFrom}
+          setDateTo={setDateTo}
+        />
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-gray-600 font-medium">Date (IST day)</span>
-            <input
-              type="date"
-              value={historyDate}
-              max={todayDate()}
-              onChange={(e) => setHistoryDate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-            />
-          </label>
           <label className="flex flex-col gap-1 text-sm min-w-[220px]">
             <span className="text-gray-600 font-medium">Filter</span>
             <select

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
+import DateRangePresetFilter from '../components/DateRangePresetFilter';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
@@ -342,35 +343,13 @@ const ThreeDCurrentSlotPlayers = () => {
                     </div>
                     {viewMode === 'bySlot' ? (
                         <div className="flex flex-wrap items-end gap-3">
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span className="text-gray-600 font-medium">From date (IST)</span>
-                                <input
-                                    type="date"
-                                    value={dateFrom}
-                                    max={dateTo}
-                                    onChange={(e) => {
-                                        const v = e.target.value;
-                                        setDateFrom(v);
-                                        if (v > dateTo) setDateTo(v);
-                                    }}
-                                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-                                />
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span className="text-gray-600 font-medium">To date (IST)</span>
-                                <input
-                                    type="date"
-                                    value={dateTo}
-                                    min={dateFrom}
-                                    max={todayDate()}
-                                    onChange={(e) => {
-                                        const v = e.target.value;
-                                        setDateTo(v);
-                                        if (v < dateFrom) setDateFrom(v);
-                                    }}
-                                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-                                />
-                            </label>
+                            <DateRangePresetFilter
+                                dateFrom={dateFrom}
+                                dateTo={dateTo}
+                                setDateFrom={setDateFrom}
+                                setDateTo={setDateTo}
+                                className="w-full"
+                            />
                             <label className="flex flex-col gap-1 text-sm min-w-[220px] flex-1">
                                 <span className="text-gray-600 font-medium">Draw (slot end time)</span>
                                 <select

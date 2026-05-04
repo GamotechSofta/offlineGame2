@@ -37,6 +37,7 @@ import {
     getLottery3DCurrentSlotHints,
     getLottery3DSlotDetail,
     getLottery3DSlotPlayers,
+    getLottery3DSlotWiseBets,
     getLottery3DSlotHistory,
     getLottery3DDaySlotSchedule,
     getLottery3DDayPlayers,
@@ -93,6 +94,7 @@ router.get('/lottery3d/day-players', verifyAdmin, getLottery3DDayPlayers);
 router.get('/lottery3d/slots/:slotStartIso/detail', verifyAdmin, getLottery3DSlotDetail);
 router.get('/lottery3d/quizzes/:quizId/stake-by-number', verifyAdmin, getLottery3DQuizStakeByNumber);
 router.get('/lottery3d/slots/:slotStartIso/players', verifyAdmin, getLottery3DSlotPlayers);
+router.get('/lottery3d/slot-wise-bets', verifyAdmin, getLottery3DSlotWiseBets);
 router.get('/lottery3d/tickets', verifyAdmin, getLottery3DTickets);
 router.get('/lottery3d/tickets/:ticketId/bets', verifyAdmin, getLottery3DTicketBets);
 router.get('/lottery3d/players/:userId/history', verifyAdmin, getLottery3DPlayerHistory);

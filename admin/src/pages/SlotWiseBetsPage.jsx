@@ -126,7 +126,7 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
         }
         const responses = await Promise.all(
           targetSlots.map((slot) =>
-            fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(slot.slotStartIso)}/players`),
+            fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(slot.slotStartIso)}/players?includeBets=1`),
           ),
         );
         if (responses.some((res) => res.status === 401)) return;
@@ -144,7 +144,7 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
         return;
       }
 
-      const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(selection)}/players`);
+      const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots/${encodeURIComponent(selection)}/players?includeBets=1`);
       if (res.status === 401) return;
       const json = await res.json();
       if (!json?.success) throw new Error(json?.message || 'Failed to load bets for selected slot');

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
+import DateRangePresetFilter from '../components/DateRangePresetFilter';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -136,35 +137,15 @@ const TwoDTickets = () => {
             <h1 className="text-2xl font-bold text-gray-800">2D All User Tickets</h1>
             <p className="text-sm text-gray-500">Ticket-wise list for selected IST date range (all users).</p>
           </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-gray-600 font-medium">From date</span>
-              <input
-                type="date"
-                value={dateFrom}
-                max={dateTo}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setDateFrom(v);
-                  if (v > dateTo) setDateTo(v);
-                }}
-                className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-gray-600 font-medium">To date</span>
-              <input
-                type="date"
-                value={dateTo}
-                min={dateFrom}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setDateTo(v);
-                  if (v < dateFrom) setDateFrom(v);
-                }}
-                className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-              />
-            </label>
+          <div className="w-full">
+            <DateRangePresetFilter
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              setDateFrom={setDateFrom}
+              setDateTo={setDateTo}
+            />
+          </div>
+          <div className="flex items-end gap-2">
             <button
               type="button"
               onClick={fetchTickets}
