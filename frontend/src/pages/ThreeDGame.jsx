@@ -42,7 +42,8 @@ const ALL_SHORTCUT_MODES = ['box', 'str', 'sp', 'fp', 'bp', 'ap'];
 const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
 /** Progress bar turns red when remaining time is at or below this many seconds (5 minutes). */
 const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
-const HISTORY_FETCH_LIMIT = 5000;
+// Large multi-bet tickets can exceed 10k rows; keep fetch window high for history visibility.
+const HISTORY_FETCH_LIMIT = 20000;
 const HEADER_MENU_ITEMS = [
   { label: 'Result', Icon: Trophy },
   { label: 'Rates', Icon: BadgePercent },
@@ -496,8 +497,9 @@ const ThreeDGame = () => {
       await refreshWalletBalance();
     } catch (_) {
       if (!background) {
+        // Keep previously loaded history on transient errors instead of blanking the list.
         pendingBackendHistoryTicketsRef.current = null;
-        setBackendHistoryTickets([]);
+        setValidationMsg((prev) => prev || 'History loading delayed. Please refresh once.');
       }
     } finally {
       if (showSpinner) setIsHistoryLoading(false);
