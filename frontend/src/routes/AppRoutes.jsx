@@ -110,16 +110,45 @@ const Layout = ({ children }) => {
     const applyViewport = () => {
       const isLottery2d3d = isTwoDGamePage || isThreeDGamePage;
       const inFullscreen = !!getFullscreenElement();
+      const rootEl = document.documentElement;
+      const bodyEl = document.body;
+
+      const enablePinchGesture = () => {
+        if (rootEl) {
+          rootEl.style.setProperty('touch-action', 'pinch-zoom');
+          rootEl.style.setProperty('-ms-touch-action', 'pinch-zoom');
+        }
+        if (bodyEl) {
+          bodyEl.style.setProperty('touch-action', 'pinch-zoom');
+          bodyEl.style.setProperty('-ms-touch-action', 'pinch-zoom');
+        }
+      };
+
+      const resetPinchGesture = () => {
+        if (rootEl) {
+          rootEl.style.removeProperty('touch-action');
+          rootEl.style.removeProperty('-ms-touch-action');
+        }
+        if (bodyEl) {
+          bodyEl.style.removeProperty('touch-action');
+          bodyEl.style.removeProperty('-ms-touch-action');
+        }
+      };
+
       // iOS / many mobile browsers never set fullscreenElement for in-app lottery UIs, so pinch-zoom stayed blocked.
       if (isLottery2d3d && isMobileLike()) {
         viewportMeta.setAttribute('content', zoomEnabledContent);
+        enablePinchGesture();
         return;
       }
       // Desktop / large viewports: keep pinch off on 2D/3D unless true fullscreen (where supported).
       if (isLottery2d3d && !inFullscreen) {
         viewportMeta.setAttribute('content', zoomDisabledContent);
+        resetPinchGesture();
       } else {
         viewportMeta.setAttribute('content', zoomEnabledContent);
+        if (isLottery2d3d && inFullscreen) enablePinchGesture();
+        else resetPinchGesture();
       }
     };
 
@@ -154,6 +183,10 @@ const Layout = ({ children }) => {
       removeMq(mq900);
       removeMq(mqCoarse);
       window.removeEventListener('orientationchange', onViewportHint);
+      document.documentElement?.style.removeProperty('touch-action');
+      document.documentElement?.style.removeProperty('-ms-touch-action');
+      document.body?.style.removeProperty('touch-action');
+      document.body?.style.removeProperty('-ms-touch-action');
       viewportMeta.setAttribute('content', zoomEnabledContent);
     };
   }, [isTwoDGamePage, isThreeDGamePage]);
