@@ -76,6 +76,7 @@ const normalizeBannerResponse = (setting) => {
         mobileBanners: lists.mobile.map((item) => item?.url).filter(Boolean),
         desktopImageUrl: lists.desktop?.[0]?.url || '',
         mobileImageUrl: lists.mobile?.[0]?.url || '',
+        lotteryNewsMessage: String(setting?.lotteryNewsMessage || '').trim() || 'Welcome Diamond',
         updatedAt: setting?.updatedAt || null,
     };
 };
@@ -175,6 +176,58 @@ export const updateAdminBannerSettings = async (req, res) => {
             success: true,
             message: 'Banner settings updated successfully',
             data: normalizeBannerResponse(setting),
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getPublicLotteryNews = async (req, res) => {
+    try {
+        const setting = await ensureBannerSetting();
+        const message = String(setting?.lotteryNewsMessage || '').trim() || 'Welcome Diamond';
+        res.status(200).json({
+            success: true,
+            data: { message, updatedAt: setting?.updatedAt || null },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getAdminLotteryNews = async (req, res) => {
+    try {
+        const setting = await ensureBannerSetting();
+        const message = String(setting?.lotteryNewsMessage || '').trim() || 'Welcome Diamond';
+        res.status(200).json({
+            success: true,
+            data: { message, updatedAt: setting?.updatedAt || null },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const updateAdminLotteryNews = async (req, res) => {
+    try {
+        const setting = await ensureBannerSetting();
+        const raw = req.body?.message;
+        const message = String(raw == null ? '' : raw).trim();
+        if (!message) {
+            return res.status(400).json({ success: false, message: 'Lottery news message is required.' });
+        }
+        if (message.length > 500) {
+            return res.status(400).json({ success: false, message: 'Lottery news message must be at most 500 characters.' });
+        }
+
+        setting.lotteryNewsMessage = message;
+        setting.updatedBy = req.admin?._id || null;
+        await setting.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Lottery news updated successfully',
+            data: { message, updatedAt: setting.updatedAt || null },
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

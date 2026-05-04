@@ -39,6 +39,7 @@ import BookieCommissions from './pages/BookieCommissions';
 import ThreeDSlotWiseBets from './pages/ThreeDSlotWiseBets';
 import TwoDTickets from './pages/TwoDTickets';
 import ThreeDTickets from './pages/ThreeDTickets';
+import LotteryNewsSettings from './pages/LotteryNewsSettings';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -361,6 +362,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <BannerSettings />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/lottery-news"
+                    element={
+                        <PrivateRoute>
+                            <LotteryNewsSettings />
                         </PrivateRoute>
                     }
                 />

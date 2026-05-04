@@ -38,6 +38,12 @@ const bannerSettingSchema = new mongoose.Schema(
             ref: 'Admin',
             default: null,
         },
+        lotteryNewsMessage: {
+            type: String,
+            default: 'Welcome Diamond',
+            trim: true,
+            maxlength: 500,
+        },
     },
     { timestamps: true }
 );

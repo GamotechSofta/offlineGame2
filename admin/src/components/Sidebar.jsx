@@ -18,6 +18,7 @@ import {
     FaLifeRing,
     FaDice,
     FaImage,
+    FaBullhorn,
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
@@ -72,6 +73,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         { path: '/wallet', label: 'Wallet', icon: FaWallet },
         { path: '/logs', label: 'Logs', icon: FaClipboardList },
         { path: '/banner', label: 'Banner', icon: FaImage },
+        { path: '/lottery-news', label: 'Lottery News', icon: FaBullhorn },
         { path: '/settings', label: 'Settings', icon: FaCog },
     ];
 
