@@ -259,7 +259,7 @@ const TwoDTickets = () => {
                       >
                         <td className="py-2 pr-3 font-mono">
                           <span className="mr-1.5 text-xs text-gray-500">{isOpen ? '▼' : '▶'}</span>
-                          {String(row.ticketId || '-').slice(-12).toUpperCase()}
+                          {String(row.ticketId || '-').slice(-8).toUpperCase()}
                         </td>
                         <td className="py-2 pr-3 font-semibold text-gray-800">{row.username || 'unknown'}</td>
                         <td className="py-2 pr-3 text-gray-600">{row.phone || '-'}</td>
