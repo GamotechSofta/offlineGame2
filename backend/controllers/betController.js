@@ -12,6 +12,10 @@ import { parseChartBet } from '../utils/chartBet.js';
 import { isSpCommon } from '../config/spCommonList.js';
 import { isValidDoublePana } from '../utils/doublePanaValidate.js';
 const THREE_DIGITS = /^\d{3}$/;
+/** CP (Common Pana): 3-digit chart single, chart double, or triple (matches frontend generateCPCommon). */
+const isValidCpCommonThreeDigit = (sn) =>
+    /^[0-9]{3}$/.test(String(sn || '').trim()) &&
+    (isSpCommon(sn) || isValidDoublePana(sn) || /^(\d)\1\1$/.test(String(sn || '').trim()));
 
 const normalizeBetOn = (v) => {
     const s = String(v ?? '').trim().toLowerCase();
@@ -147,11 +151,11 @@ export const placeBet = async (req, res) => {
             }
             if (betType === 'cp-common') {
                 const sn = String(betNumber || '').trim();
-                if (!(/^[0-9]{3}$/.test(sn) && (isSpCommon(sn) || isValidDoublePana(sn)))) {
+                if (!isValidCpCommonThreeDigit(sn)) {
                     return res.status(400).json({
                         success: false,
                         message:
-                            'CP (Common Pana): each bet must be a valid 3-digit single or double panna from the chart.',
+                            'CP (Common Pana): each bet must be a valid 3-digit single, double, or triple panna from the chart.',
                     });
                 }
             }
@@ -474,11 +478,11 @@ export const placeBetForPlayer = async (req, res) => {
             }
             if (betType === 'cp-common') {
                 const sn = String(betNumber || '').trim();
-                if (!(/^[0-9]{3}$/.test(sn) && (isSpCommon(sn) || isValidDoublePana(sn)))) {
+                if (!isValidCpCommonThreeDigit(sn)) {
                     return res.status(400).json({
                         success: false,
                         message:
-                            'CP (Common Pana): each bet must be a valid 3-digit single or double panna from the chart.',
+                            'CP (Common Pana): each bet must be a valid 3-digit single, double, or triple panna from the chart.',
                     });
                 }
             }
