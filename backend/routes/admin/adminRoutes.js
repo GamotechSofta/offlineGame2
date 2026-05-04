@@ -40,6 +40,8 @@ import {
     getLottery3DDaySlotSchedule,
     getLottery3DPlayerHistory,
     getLottery3DQuizStakeByNumber,
+    getLottery3DTickets,
+    getLottery3DTicketBets,
     updateLottery3DSlotResult,
     updateLottery3DSlotDeclaration,
 } from '../../controllers/lottery3dAdminController.js';
@@ -87,6 +89,8 @@ router.get('/lottery3d/day-slot-schedule', verifyAdmin, getLottery3DDaySlotSched
 router.get('/lottery3d/slots/:slotStartIso/detail', verifyAdmin, getLottery3DSlotDetail);
 router.get('/lottery3d/quizzes/:quizId/stake-by-number', verifyAdmin, getLottery3DQuizStakeByNumber);
 router.get('/lottery3d/slots/:slotStartIso/players', verifyAdmin, getLottery3DSlotPlayers);
+router.get('/lottery3d/tickets', verifyAdmin, getLottery3DTickets);
+router.get('/lottery3d/tickets/:ticketId/bets', verifyAdmin, getLottery3DTicketBets);
 router.get('/lottery3d/players/:userId/history', verifyAdmin, getLottery3DPlayerHistory);
 router.patch('/lottery3d/slots/:slotStartIso/result', verifyAdmin, updateLottery3DSlotResult);
 router.patch('/lottery3d/slots/declaration', verifyAdmin, updateLottery3DSlotDeclaration);

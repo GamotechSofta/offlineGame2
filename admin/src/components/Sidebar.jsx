@@ -60,6 +60,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             children: [
                 { path: '/3d-management/current-slot-players', label: 'Current Slot Players' },
                 { path: '/3d-management/result-control', label: 'Result Control' },
+                { path: '/3d-management/tickets', label: 'All User Tickets' },
                 { path: '/3d-management/old-slots', label: 'Old Slots Stats' },
             ],
         },

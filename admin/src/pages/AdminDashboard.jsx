@@ -983,6 +983,7 @@ const AdminDashboard = () => {
                     <div className="grid grid-cols-2 gap-2 mt-3">
                         <Link to="/3d-management/current-slot-players" className="px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-600">Current Slot Players</Link>
                         <Link to="/3d-management/result-control" className="px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-600">Result Control</Link>
+                        <Link to="/3d-management/tickets" className="px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-600">All User Tickets</Link>
                         <Link to="/3d-management/old-slots" className="px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-600">Old Slot Stats</Link>
                         <Link to="/3d-management/slot-wise-bets" className="px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-600">Slot-wise Bets</Link>
                     </div>

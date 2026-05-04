@@ -726,6 +726,19 @@ const ThreeDManagement = () => {
                     onEditHint={handleEditCurrentHint}
                     quizLabelFormatter={getThreeDQuizLabel}
                 />
+                <div className="rounded-xl border border-gray-200 bg-white p-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 className="text-base font-semibold text-gray-800">All User Tickets</h3>
+                        <p className="text-sm text-gray-500">3D ticket-wise list with username, bet count and total stake (same as 2D).</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/3d-management/tickets')}
+                        className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+                    >
+                        Open Tickets Page
+                    </button>
+                </div>
                 <SlotWiseBetsSection mode="3d" />
 
                 {false ? <OldSlotsSection
