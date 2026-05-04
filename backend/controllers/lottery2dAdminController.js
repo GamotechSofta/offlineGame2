@@ -661,6 +661,116 @@ export const getLottery2DPlayerHistory = async (req, res) => {
   }
 };
 
+/**
+ * GET /admin/lottery2d/aggregate-stats?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD (optional, IST calendar days)
+ * When omitted: all-time 2D totals. When set: bets whose slot falls on those IST days (inclusive).
+ */
+export const getLottery2DAggregateStats = async (req, res) => {
+  try {
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
+    const match = { gameMode: GAME_MODE, status: { $ne: 'cancelled' }, ...lotteryScopeFilter };
+
+    const dateFromQ = typeof req.query.dateFrom === 'string' ? req.query.dateFrom.trim() : '';
+    const dateToQ = typeof req.query.dateTo === 'string' ? req.query.dateTo.trim() : '';
+    let filterMeta = { dateFrom: null, dateTo: null };
+
+    if (dateFromQ || dateToQ) {
+      if (!dateFromQ || !dateToQ) {
+        return res.status(400).json({
+          success: false,
+          message: 'For a date range, both dateFrom and dateTo are required (IST YYYY-MM-DD).',
+        });
+      }
+      if (!isValidISTDayKey(dateFromQ) || !isValidISTDayKey(dateToQ)) {
+        return res.status(400).json({ success: false, message: 'Invalid date. Use YYYY-MM-DD (IST).' });
+      }
+      if (dateFromQ > dateToQ) {
+        return res.status(400).json({ success: false, message: 'dateFrom must be on or before dateTo.' });
+      }
+      const rangeDays = istInclusiveDaySpan(dateFromQ, dateToQ);
+      const MAX_RANGE_DAYS = 366;
+      if (rangeDays > MAX_RANGE_DAYS) {
+        return res.status(400).json({
+          success: false,
+          message: `Date range cannot exceed ${MAX_RANGE_DAYS} days (IST).`,
+        });
+      }
+      const todayIst = istDayKey();
+      if (dateFromQ > todayIst || dateToQ > todayIst) {
+        return res.status(400).json({ success: false, message: 'Future IST dates are not allowed.' });
+      }
+
+      const slotIsos = listSlotStartIsoForISTDayRange(dateFromQ, dateToQ);
+      if (!slotIsos.length) {
+        return res.json({
+          success: true,
+          data: {
+            total2DTickets: 0,
+            totalBets: 0,
+            totalStake: 0,
+            totalPayout: 0,
+            totalLoss: 0,
+            adminNet: 0,
+            uniqueUsers2D: 0,
+            dateFrom: dateFromQ,
+            dateTo: dateToQ,
+          },
+        });
+      }
+      match.slotStartIso = { $in: slotIsos };
+      filterMeta = { dateFrom: dateFromQ, dateTo: dateToQ };
+    }
+
+    const rows = await QuizBet.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          totalBets: { $sum: 1 },
+          totalStake: { $sum: '$amount' },
+          totalPayout: { $sum: '$winPayout' },
+          totalLoss: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'lose'] }, '$amount', 0],
+            },
+          },
+          userIds: { $addToSet: '$userId' },
+          ticketIds: { $addToSet: '$ticketId' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          total2DTickets: { $size: '$ticketIds' },
+          totalBets: 1,
+          totalStake: 1,
+          totalPayout: 1,
+          totalLoss: 1,
+          adminNet: { $subtract: ['$totalStake', '$totalPayout'] },
+          uniqueUsers2D: { $size: '$userIds' },
+        },
+      },
+    ]);
+
+    const row = rows[0] || {};
+    const data = {
+      total2DTickets: Number(row.total2DTickets || 0),
+      totalBets: Number(row.totalBets || 0),
+      totalStake: Number(row.totalStake || 0),
+      totalPayout: Number(row.totalPayout || 0),
+      totalLoss: Number(row.totalLoss || 0),
+      adminNet: Number(row.adminNet || 0),
+      uniqueUsers2D: Number(row.uniqueUsers2D || 0),
+      dateFrom: filterMeta.dateFrom,
+      dateTo: filterMeta.dateTo,
+    };
+
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
 export const getLottery2DCurrentSlot = async (req, res) => {
   try {
     const ctx = getSlotContext(new Date(), '2d');

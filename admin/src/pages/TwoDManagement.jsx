@@ -4,6 +4,7 @@ import AdminLayout from '../components/AdminLayout';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import CurrentSlotOverview from '../components/twoDManagement/CurrentSlotOverview';
+import TwoDAggregateStatsCard from '../components/twoDManagement/TwoDAggregateStatsCard';
 import OldSlotsSection from '../components/twoDManagement/OldSlotsSection';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -58,6 +59,11 @@ const TwoDManagement = () => {
     const [timingPassword, setTimingPassword] = useState('');
     const [timingUnlocked, setTimingUnlocked] = useState(false);
     const [timingUnlockedSecret, setTimingUnlockedSecret] = useState('');
+    const [aggregateStats, setAggregateStats] = useState(null);
+    const [loadingAggregateStats, setLoadingAggregateStats] = useState(true);
+    const [aggregateStatsError, setAggregateStatsError] = useState('');
+    const [appliedStatsDateFrom, setAppliedStatsDateFrom] = useState('');
+    const [appliedStatsDateTo, setAppliedStatsDateTo] = useState('');
     const detailSectionRef = useRef(null);
     const timeDropdownRef = useRef(null);
     const currentSlotIsoRef = useRef('');
@@ -128,6 +134,29 @@ const TwoDManagement = () => {
             setLoadingCurrent(false);
         }
     }, [fetchSlotPlayers]);
+
+    const fetchAggregateStats = useCallback(async () => {
+        setLoadingAggregateStats(true);
+        setAggregateStatsError('');
+        try {
+            const params = new URLSearchParams();
+            if (appliedStatsDateFrom && appliedStatsDateTo) {
+                params.set('dateFrom', appliedStatsDateFrom);
+                params.set('dateTo', appliedStatsDateTo);
+            }
+            const q = params.toString() ? `?${params.toString()}` : '';
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/aggregate-stats${q}`);
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load 2D aggregate stats');
+            setAggregateStats(data.data || null);
+        } catch (err) {
+            setAggregateStatsError(err.message || 'Failed to load 2D aggregate stats');
+            setAggregateStats(null);
+        } finally {
+            setLoadingAggregateStats(false);
+        }
+    }, [appliedStatsDateFrom, appliedStatsDateTo]);
 
 
     const fetchTimingSettings = useCallback(async (secretDeclarePasswordValue = '') => {
@@ -340,6 +369,10 @@ const TwoDManagement = () => {
             .catch(() => setHasSecretDeclarePassword(false));
         fetchCurrent();
     }, [fetchCurrent, fetchTimingSettings, navigate]);
+
+    useEffect(() => {
+        fetchAggregateStats();
+    }, [fetchAggregateStats]);
 
     useEffect(() => {
         if (hasSecretDeclarePassword) {
@@ -565,7 +598,10 @@ const TwoDManagement = () => {
                     </div>
                     <button
                         type="button"
-                        onClick={fetchCurrent}
+                        onClick={() => {
+                            fetchCurrent();
+                            fetchAggregateStats();
+                        }}
                         className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold"
                     >
                         Refresh Current Slot
@@ -643,6 +679,21 @@ const TwoDManagement = () => {
                     )}
                     {timingError ? <p className="mt-3 text-sm text-red-600">{timingError}</p> : null}
                 </div>
+                <TwoDAggregateStatsCard
+                    data={aggregateStats}
+                    loading={loadingAggregateStats}
+                    error={aggregateStatsError}
+                    appliedFrom={appliedStatsDateFrom}
+                    appliedTo={appliedStatsDateTo}
+                    onApplyRange={(from, to) => {
+                        setAppliedStatsDateFrom(from);
+                        setAppliedStatsDateTo(to);
+                    }}
+                    onClearRange={() => {
+                        setAppliedStatsDateFrom('');
+                        setAppliedStatsDateTo('');
+                    }}
+                />
                 <CurrentSlotOverview
                     data={currentSlotData}
                     loading={loadingCurrent}
