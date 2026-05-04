@@ -323,15 +323,15 @@ async function buildPlayersForISTDateRange(dateFrom, dateTo) {
     };
   }
 
-  const [bets, picks, winMultiplier] = await Promise.all([
+  const [bets, picks, ratesMap] = await Promise.all([
     QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotList } })
-      .select('_id userId quizId number amount status winPayout createdAt slotStartIso')
+      .select('_id userId quizId number amount status winPayout betMode createdAt slotStartIso')
       .sort({ createdAt: -1 })
       .lean(),
     QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotList } })
       .select('slotStartIso quizId hintPosition')
       .lean(),
-    getQuiz3DMultiplier(),
+    getRatesMap(),
   ]);
 
   const picksBySlot = new Map();
@@ -401,7 +401,7 @@ async function buildPlayersForISTDateRange(dateFrom, dateTo) {
     }
     const row = playerMap.get(userId);
     const amount = Number(bet.amount || 0);
-    const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier });
+    const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, ratesMap });
     row.betCount += 1;
     if (result.outcome === 'cancelled') {
       row.bets.push({
