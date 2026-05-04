@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Trophy,
   UserCircle,
+  X,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ResultPanel from '../components/threeD/ResultPanel';
@@ -27,7 +28,7 @@ import TicketListModal from '../components/threeD/TicketListModal';
 import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
 import AdvanceDrawModal from '../components/AdvanceDrawModal';
 import { getBalance, updateUserBalance } from '../api/bets';
-import { cancelMyQuizBet, getMyQuizBets, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
+import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
 import { getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
@@ -285,9 +286,11 @@ const ThreeDGame = () => {
     };
     [...localList, ...backendList].forEach((ticket) => {
       const outcome = String(ticket?.outcome || '').toLowerCase();
+      const tid = String(ticket?.ticketId || '').trim();
+      const slotFallback = String(ticket?.slotStartIso || '').trim();
       const key = outcome === 'cancelled'
-        ? `cancelled:${String(ticket?.ticketId || '').trim() || String(ticket?.id || ticket?.gameId || '')}`
-        : `slot:${String(ticket?.slotStartIso || '').trim() || String(ticket?.id || ticket?.gameId || '')}`;
+        ? `cancelled:${tid || String(ticket?.id || ticket?.gameId || '')}`
+        : (tid ? `buy:${tid}` : `slot:${slotFallback || String(ticket?.id || ticket?.gameId || '')}`);
       const existing = byKey.get(key);
       if (!existing || ticketScore(ticket) >= ticketScore(existing)) {
         byKey.set(key, ticket);
@@ -378,10 +381,10 @@ const ThreeDGame = () => {
         const slotStartIso = String(row?.slotStartIso || '').trim() || 'unknown-slot';
         const ticketId = String(row?.ticketId || '').trim();
         const status = String(row?.status || '').toLowerCase();
-        // Keep cancelled tickets separate; combine non-cancelled entries by slot.
+        // Separate cancelled vs active tickets; scope each buy by ticketId (same slot may have multiple tickets).
         const groupKey = status === 'cancelled'
           ? `cancelled:${ticketId || row?.id || slotStartIso}`
-          : `slot:${slotStartIso}`;
+          : (ticketId ? `buy:${ticketId}` : `slot:${slotStartIso}`);
         if (!rowsByHistoryGroup.has(groupKey)) {
           rowsByHistoryGroup.set(groupKey, { ticketId: ticketId || null, slotStartIso, rows: [] });
         }
@@ -1359,12 +1362,18 @@ const ThreeDGame = () => {
     }
 
     let backendBalance = null;
+    /** One entry per `targetSlots` index — API `ticketId` must match history merge keys (avoids duplicate GM… rows). */
+    const perSlotSaveMeta = [];
     try {
       for (const slotStartIso of targetSlots) {
         // eslint-disable-next-line no-await-in-loop
         const saved = await postQuizBetsBatch(rounds, '3d', { slotStartIso });
         const b = Number(saved?.data?.balance);
         if (Number.isFinite(b)) backendBalance = b;
+        perSlotSaveMeta.push({
+          ticketId: String(saved?.data?.ticketId || '').trim() || null,
+          slotStartIso: String(saved?.data?.slotStartIso || '').trim() || String(slotStartIso || '').trim(),
+        });
       }
     } catch (e) {
       return fail(e?.message || 'Failed to save bet in database.');
@@ -1397,19 +1406,24 @@ const ThreeDGame = () => {
     const resolvedQuizId = Number.isInteger(Number(selectedQuizId)) && Number(selectedQuizId) > 0
       ? Number(selectedQuizId)
       : null;
-    const createdTickets = targetSlots.map((slotStartIso, idx) => {
+    const displayUser = String(playerIdentity || '').trim() || 'user';
+    const createdTickets = targetSlots.map((requestedSlotIso, idx) => {
+      const meta = perSlotSaveMeta[idx];
+      const slotStartIso = meta?.slotStartIso || String(requestedSlotIso || '').trim();
+      const ticketId = meta?.ticketId || null;
       const settleAtMs = new Date(slotStartIso).getTime() + (15 * 60 * 1000);
       const slotDate = new Date(settleAtMs);
       const slotDrawDate = `${slotDate.getFullYear()}-${String(slotDate.getMonth() + 1).padStart(2, '0')}-${String(slotDate.getDate()).padStart(2, '0')}`;
-      const gameId = generateGameId();
+      const fallbackGameId = generateGameId();
       return {
-        id: Date.now() + idx,
-        userName: 'user',
+        id: ticketId ? `backend-ticket-${ticketId}` : Date.now() + idx,
+        ticketId,
+        userName: displayUser,
         quizId: resolvedQuizId,
         slotStartIso,
         drawTime: formatDrawEndLabelFromSlotStartIso(slotStartIso),
         drawDate: slotDrawDate || drawDate,
-        gameId,
+        gameId: ticketId || fallbackGameId,
         slotKey: slotRef.current,
         settleAtMs: Number.isFinite(settleAtMs) ? settleAtMs : null,
         bets: pendingBets,
@@ -1422,7 +1436,7 @@ const ThreeDGame = () => {
       };
     });
     setTicketHistory((prev) => [...createdTickets, ...prev].slice(0, 500));
-    setLastTxnId(createdTickets[0]?.gameId || '');
+    setLastTxnId(createdTickets[0]?.ticketId || createdTickets[0]?.gameId || '');
     setLastPoints((Number(investedAmount) || 0) * targetSlots.length);
     setToast(targetSlots.length > 1 ? 'Advance draw bets scheduled successfully' : 'Bet placed successfully');
     if (targetSlots.length > 1) {
@@ -1447,11 +1461,12 @@ const ThreeDGame = () => {
     setSelectedModes(['box']);
     setLPickType('box');
     setSelectedAdvanceSlots([]);
+    void loadBackendHistoryTickets();
     return { ok: true };
     } finally {
       isBuyingRef.current = false;
     }
-  }, [bets, formatAdvanceSlotLabel, formatDrawEndLabelFromSlotStartIso, generateGameId, nextDrawAt, now, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
+  }, [bets, formatAdvanceSlotLabel, formatDrawEndLabelFromSlotStartIso, generateGameId, loadBackendHistoryTickets, nextDrawAt, now, playerIdentity, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
 
   const handleOpenBuyConfirm = useCallback(() => {
     if (!bets.length) {
@@ -1604,8 +1619,21 @@ const ThreeDGame = () => {
       setIsCancelSubmitting(false);
       return;
     }
-    const targetSlotStartIso = String(selectedOption?.slotStartIso || cancelBetDialog?.slotStartIso || '').trim();
+
+    /** After "Cancel This Bet", dialog is `type: 'ticket'` — must use `ticketBackendId`, not picker `selectedOption` (would be null and cancel entire slot). */
+    const backendTicketForCancel = cancelBetDialog?.type === 'ticket'
+      ? String(cancelBetDialog?.ticketBackendId || '').trim()
+      : '';
+    const targetSlotStartIso = String(
+      selectedOption?.slotStartIso
+        || (cancelBetDialog?.type === 'ticket' ? cancelBetDialog?.slotStartIso : '')
+        || cancelBetDialog?.slotStartIso || '',
+    ).trim();
+    const optTicketId = backendTicketForCancel || String(selectedOption?.ticketId || '').trim();
     const cancellable = (historyTicketsForModal || []).find((ticket) => {
+      if (optTicketId) {
+        return String(ticket?.ticketId || '').trim() === optTicketId;
+      }
       if (targetSlotStartIso) {
         return String(ticket?.slotStartIso || '').trim() === targetSlotStartIso;
       }
@@ -1617,7 +1645,7 @@ const ThreeDGame = () => {
     const refundAmount = Number(selectedOption?.totalPoints || cancellable?.totalPoints || cancelBetDialog?.points || 0);
     const ticketLabel = selectedOption?.ticketLabel || cancellable?.gameId || cancelBetDialog?.ticketLabel || String(cancellable?.id || '');
 
-    if (!cancellable && !selectedOption) {
+    if (!cancellable && !selectedOption && cancelBetDialog?.type !== 'ticket') {
       setToast('Ticket already settled or unavailable.');
       setCancelBetDialog(null);
       setIsCancelSubmitting(false);
@@ -1630,20 +1658,27 @@ const ThreeDGame = () => {
         || String(cancellable?.slotStartIso || '').trim()
         || computeSlotStartIsoFromSettleAtMs(getTicketSettleAtMs(cancellable));
       if (slotStartIso) {
-        const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
-        const rows = Array.isArray(j?.data) ? j.data : [];
-        const cancellableRows = rows.filter((row) => {
-          const status = String(row?.status || '').toLowerCase();
-          return String(row?.slotStartIso || '') === String(slotStartIso) && status === 'pending' && row?.id;
-        });
-        if (!cancellableRows.length) {
-          throw new Error('Running slot bets not found. Please refresh and try again.');
-        }
-        for (const row of cancellableRows) {
-          // eslint-disable-next-line no-await-in-loop
-          const cancelled = await cancelMyQuizBet(row.id, '3d');
+        const selectedTid = optTicketId;
+        if (selectedTid) {
+          const cancelled = await cancelMyQuizTicket(selectedTid, '3d');
           const b = Number(cancelled?.data?.balance);
           if (Number.isFinite(b)) backendBalance = b;
+        } else {
+          const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
+          const rows = Array.isArray(j?.data) ? j.data : [];
+          const cancellableRows = rows.filter((row) => {
+            const status = String(row?.status || '').toLowerCase();
+            return String(row?.slotStartIso || '') === String(slotStartIso) && status === 'pending' && row?.id;
+          });
+          if (!cancellableRows.length) {
+            throw new Error('Running slot bets not found. Please refresh and try again.');
+          }
+          for (const row of cancellableRows) {
+            // eslint-disable-next-line no-await-in-loop
+            const cancelledRow = await cancelMyQuizBet(row.id, '3d');
+            const b = Number(cancelledRow?.data?.balance);
+            if (Number.isFinite(b)) backendBalance = b;
+          }
         }
       }
     } catch (e) {
@@ -1653,9 +1688,12 @@ const ThreeDGame = () => {
     }
 
     setTicketHistory((prev) => prev.map((ticket) => {
-      if (targetSlotStartIso) {
+      const ticketTid = String(ticket?.ticketId || '').trim();
+      if (optTicketId) {
+        if (ticketTid !== optTicketId) return ticket;
+      } else if (targetSlotStartIso) {
         if (String(ticket?.slotStartIso || '').trim() !== targetSlotStartIso) return ticket;
-      } else if (ticket?.id !== cancellable.id) {
+      } else if (ticket?.id !== cancellable?.id) {
         return ticket;
       }
       return {
@@ -2626,11 +2664,34 @@ const ThreeDGame = () => {
           </div>
         ) : null}
         {cancelBetDialog ? (
-          <div className="fixed inset-0 z-[87] flex items-center justify-center bg-black/80 p-1 backdrop-blur-[2px] sm:p-4">
-            <div className={`w-[calc(100vw-8px)] max-w-[96vw] rounded-2xl border border-[#475569] bg-gradient-to-b from-[#0f172a] to-[#111827] p-3 text-white shadow-2xl sm:max-w-3xl sm:p-7 ${isCancelSubmitting ? 'animate-pulse' : ''}`}>
-              <div className="flex items-center gap-2">
-                <CircleX className="h-8 w-8 text-rose-400" />
-                <h4 className="text-[clamp(2rem,8vw,2.5rem)] font-black leading-tight">{cancelBetDialog.title || 'Cancel Bet'}</h4>
+          <div
+            className="fixed inset-0 z-[87] flex items-center justify-center bg-black/80 p-1 backdrop-blur-[2px] sm:p-4"
+            onMouseDown={(e) => {
+              if (isCancelSubmitting || e.target !== e.currentTarget) return;
+              setCancelBetDialog(null);
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-bet-dialog-title"
+          >
+            <div
+              className={`w-[calc(100vw-8px)] max-w-[96vw] rounded-2xl border border-[#475569] bg-gradient-to-b from-[#0f172a] to-[#111827] p-3 text-white shadow-2xl sm:max-w-3xl sm:p-7 ${isCancelSubmitting ? 'animate-pulse' : ''}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <CircleX className="h-8 w-8 shrink-0 text-rose-400" />
+                  <h4 id="cancel-bet-dialog-title" className="text-[clamp(2rem,8vw,2.5rem)] font-black leading-tight">{cancelBetDialog.title || 'Cancel Bet'}</h4>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close dialog"
+                  disabled={isCancelSubmitting}
+                  className="shrink-0 rounded-lg border border-[#475569] bg-[#1e293b] p-2 text-white hover:bg-[#334155] disabled:opacity-50"
+                  onClick={() => setCancelBetDialog(null)}
+                >
+                  <X className="h-6 w-6" aria-hidden />
+                </button>
               </div>
               <p className="mt-2 text-[clamp(1.28rem,5vw,1.55rem)] font-semibold text-[#dbe5f3]">{cancelBetDialog.description}</p>
               {cancelBetDialog.type !== 'ticket-picker' ? (
@@ -2693,54 +2754,61 @@ const ThreeDGame = () => {
                   })}
                 </div>
               ) : null}
-              <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:items-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const isSinglePicker = cancelBetDialog.type === 'ticket-picker'
-                      && (Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options.length : 0) === 1;
-                    if (!isSinglePicker) {
-                      setCancelBetDialog(null);
-                      return;
-                    }
-                    const onlyOption = Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options[0] : null;
-                    if (!onlyOption) {
-                      setCancelBetDialog(null);
-                      return;
-                    }
-                    setCancelBetDialog((prev) => {
-                      if (!prev || prev.type !== 'ticket-picker') return prev;
-                      return {
-                        ...prev,
-                        selectedOptionKey: onlyOption.key,
-                        points: Number(onlyOption?.totalPoints || 0),
-                      };
-                    });
-                    setTimeout(() => {
-                      handleConfirmCancelBet();
-                    }, 0);
-                  }}
-                  disabled={isCancelSubmitting}
-                  className={`h-[4rem] w-full rounded-lg px-4 text-[22px] font-extrabold leading-none disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px] ${
-                    cancelBetDialog.type === 'ticket-picker' && (Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options.length : 0) === 1
-                      ? 'border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] text-white'
-                      : 'border border-[#64748b] bg-[#1e293b] text-white'
-                  }`}
-                >
-                  {cancelBetDialog.type === 'ticket-picker' && (Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options.length : 0) === 1
-                    ? (isCancelSubmitting ? 'Cancelling...' : 'Cancel Bet Now')
-                    : 'Close'}
-                </button>
-                {cancelBetDialog.type !== 'ticket-picker' ? (
+              <div
+                className={`mt-5 grid grid-cols-1 gap-2 ${
+                  cancelBetDialog.type === 'ticket-picker' && (Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options.length : 0) === 1
+                    ? 'sm:grid-cols-2'
+                    : 'sm:flex sm:items-center'
+                }`}
+              >
+                {cancelBetDialog.type === 'ticket-picker' && (Array.isArray(cancelBetDialog.options) ? cancelBetDialog.options.length : 0) === 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setCancelBetDialog(null)}
+                      disabled={isCancelSubmitting}
+                      className="h-[4rem] w-full rounded-lg border border-[#64748b] bg-[#1e293b] px-4 text-[22px] font-extrabold leading-none text-white disabled:opacity-60 sm:h-[4rem] sm:text-[22px]"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmCancelBet}
+                      disabled={isCancelSubmitting}
+                      className="h-[4rem] w-full rounded-lg border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] px-4 text-[22px] font-black leading-none text-white disabled:cursor-not-allowed disabled:opacity-60 sm:h-[4rem] sm:text-[22px]"
+                    >
+                      {isCancelSubmitting ? 'Cancelling...' : 'Cancel Bet Now'}
+                    </button>
+                  </>
+                ) : cancelBetDialog.type === 'ticket-picker' ? (
                   <button
                     type="button"
-                    onClick={handleConfirmCancelBet}
+                    onClick={() => setCancelBetDialog(null)}
                     disabled={isCancelSubmitting}
-                    className="h-[4rem] w-full rounded-lg border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] px-4 text-[22px] font-black leading-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
+                    className="h-[4rem] w-full rounded-lg border border-[#64748b] bg-[#1e293b] px-4 text-[22px] font-extrabold leading-none text-white disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
                   >
-                    {isCancelSubmitting ? 'Cancelling...' : 'Yes, Cancel'}
+                    Close
                   </button>
-                ) : null}
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setCancelBetDialog(null)}
+                      disabled={isCancelSubmitting}
+                      className="h-[4rem] w-full rounded-lg border border-[#64748b] bg-[#1e293b] px-4 text-[22px] font-extrabold leading-none text-white disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmCancelBet}
+                      disabled={isCancelSubmitting}
+                      className="h-[4rem] w-full rounded-lg border border-[#b91c1c] bg-gradient-to-b from-[#ef4444] to-[#b91c1c] px-4 text-[22px] font-black leading-none text-white disabled:cursor-not-allowed disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
+                    >
+                      {isCancelSubmitting ? 'Cancelling...' : 'Yes, Cancel'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

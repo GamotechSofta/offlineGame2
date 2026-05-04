@@ -52,6 +52,60 @@ const TicketListModal = ({
       .sort((a, b) => b.createdAtMs - a.createdAtMs);
   }, [tickets]);
 
+  const ticketSections = useMemo(() => {
+    const running = normalizedTickets.filter((t) => t.outcome === 'pending');
+    const cancelled = normalizedTickets.filter((t) => t.outcome === 'cancelled');
+    const settled = normalizedTickets.filter((t) => t.outcome === 'win' || t.outcome === 'loss');
+    return [
+      { key: 'running', label: 'Running', items: running },
+      { key: 'cancelled', label: 'Cancelled', items: cancelled },
+      { key: 'settled', label: 'Win / Loss', items: settled },
+    ].filter((s) => s.items.length > 0);
+  }, [normalizedTickets]);
+
+  const renderTicketRow = (ticket) => (
+    <div
+      key={ticket.id}
+      className="flex flex-col items-start justify-between gap-3 rounded-xl border border-[#6f6f6f] bg-[#4f4f4f] px-3 py-3 text-white sm:flex-row sm:items-center sm:gap-4 sm:px-4"
+    >
+      <div className="grid w-full grid-cols-1 gap-x-8 gap-y-1.5 text-[16px] sm:grid-cols-2 sm:text-[17px]">
+        <div>User Name : <span className="font-semibold">{ticket.userName}</span></div>
+        <div>Dr Time : <span className="font-semibold">{ticket.drawTime}</span></div>
+        <div>Dr Date : <span className="font-semibold">{ticket.drawDate}</span></div>
+        <div>Game ID : <span className="font-semibold">{ticket.gameId}</span></div>
+        <div>Total Point : <span className="font-semibold">{ticket.totalPoints}</span></div>
+        <div>Total Win : <span className="font-semibold">{ticket.totalWin}</span></div>
+      </div>
+      <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+        {ticket.isAdvanceDraw ? (
+          <span className="rounded-md bg-[#1d4ed8] px-3 py-2.5 text-[15px] font-extrabold text-white shadow sm:text-[16px]">
+            Advance Draw
+          </span>
+        ) : null}
+        <span
+          className={`rounded-md px-4 py-2.5 text-[16px] font-bold text-white shadow sm:text-[17px] ${
+            ticket.outcome === 'win'
+              ? 'bg-[#19a34a]'
+              : ticket.outcome === 'pending'
+                ? 'bg-[#d97706]'
+                : ticket.outcome === 'cancelled'
+                  ? 'bg-[#475569]'
+                  : 'bg-[#dc2626]'
+          }`}
+        >
+          {ticket.outcome === 'win' ? 'Win' : ticket.outcome === 'pending' ? 'Pending' : ticket.outcome === 'cancelled' ? 'Cancelled' : 'Loss'}
+        </span>
+        <button
+          type="button"
+          onClick={() => onView?.(ticket)}
+          className="rounded-md bg-[#db2f2f] px-4 py-2.5 text-[16px] font-bold text-white shadow hover:brightness-110 sm:text-[17px]"
+        >
+          View
+        </button>
+      </div>
+    </div>
+  );
+
   if (!open) return null;
 
   return (
@@ -75,46 +129,12 @@ const TicketListModal = ({
               {loadingMessage}
             </div>
           ) : normalizedTickets.length ? (
-            normalizedTickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="flex flex-col items-start justify-between gap-3 rounded-xl border border-[#6f6f6f] bg-[#4f4f4f] px-3 py-3 text-white sm:flex-row sm:items-center sm:gap-4 sm:px-4"
-              >
-                <div className="grid w-full grid-cols-1 gap-x-8 gap-y-1.5 text-[16px] sm:grid-cols-2 sm:text-[17px]">
-                  <div>User Name : <span className="font-semibold">{ticket.userName}</span></div>
-                  <div>Dr Time : <span className="font-semibold">{ticket.drawTime}</span></div>
-                  <div>Dr Date : <span className="font-semibold">{ticket.drawDate}</span></div>
-                  <div>Game ID : <span className="font-semibold">{ticket.gameId}</span></div>
-                  <div>Total Point : <span className="font-semibold">{ticket.totalPoints}</span></div>
-                  <div>Total Win : <span className="font-semibold">{ticket.totalWin}</span></div>
-                </div>
-                <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
-                  {ticket.isAdvanceDraw ? (
-                    <span className="rounded-md bg-[#1d4ed8] px-3 py-2.5 text-[15px] font-extrabold text-white shadow sm:text-[16px]">
-                      Advance Draw
-                    </span>
-                  ) : null}
-                  <span
-                    className={`rounded-md px-4 py-2.5 text-[16px] font-bold text-white shadow sm:text-[17px] ${
-                      ticket.outcome === 'win'
-                        ? 'bg-[#19a34a]'
-                        : ticket.outcome === 'pending'
-                          ? 'bg-[#d97706]'
-                          : ticket.outcome === 'cancelled'
-                            ? 'bg-[#475569]'
-                            : 'bg-[#dc2626]'
-                    }`}
-                  >
-                    {ticket.outcome === 'win' ? 'Win' : ticket.outcome === 'pending' ? 'Pending' : ticket.outcome === 'cancelled' ? 'Cancelled' : 'Loss'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onView?.(ticket)}
-                    className="rounded-md bg-[#db2f2f] px-4 py-2.5 text-[16px] font-bold text-white shadow hover:brightness-110 sm:text-[17px]"
-                  >
-                    View
-                  </button>
-                </div>
+            ticketSections.map((section) => (
+              <div key={section.key} className="space-y-2">
+                <h4 className="text-[17px] font-extrabold uppercase tracking-wide text-[#3d3d3d] sm:text-[19px]">
+                  {section.label}
+                </h4>
+                <div className="space-y-3">{section.items.map((ticket) => renderTicketRow(ticket))}</div>
               </div>
             ))
           ) : (
