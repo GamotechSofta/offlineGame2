@@ -10,6 +10,7 @@ import Bank from '../pages/Bank';
 import Funds from '../pages/Funds';
 import Download from '../pages/Download';
 import Login from '../pages/Login';
+import Signup from '../pages/Signup';
 import Passbook from '../pages/Passbook';
 import SupportLanding from '../pages/Support/SupportLanding';
 import SupportNew from '../pages/Support/SupportNew';
@@ -72,7 +73,7 @@ const ScrollToTop = () => {
   return null;
 };
 // Only /login is accessible without being logged in; all other routes redirect to login
-const PUBLIC_PATHS = ['/login'];
+const PUBLIC_PATHS = ['/login', '/signup'];
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -82,7 +83,7 @@ const Layout = ({ children }) => {
   const isThreeDQuizPage = location.pathname === '/lottery/3d/quiz';
   const isLotteryFullScreenPage = isTwoDGamePage || isThreeDGamePage || isLotteryQuizPage || isThreeDQuizPage;
   const [hasUser, setHasUser] = useState(null);
-  const isLoginPage = location.pathname === '/login';
+  const isLoginPage = location.pathname === '/login' || location.pathname === '/signup';
   const isHomePage = location.pathname === '/';
   const [showPortraitPrompt, setShowPortraitPrompt] = useState(false);
 
@@ -270,6 +271,7 @@ const AppRoutes = () => {
           <Route path="/support/new" element={<SupportNew />} />
           <Route path="/support/status" element={<SupportStatus />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/bids" element={<Bids />} />
           <Route path="/bet-history" element={<BetHistory />} />
           <Route path="/market-result-history" element={<MarketResultHistory />} />

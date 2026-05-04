@@ -383,12 +383,40 @@ export const getMyDebit = async (req, res) => {
 
 export const userSignup = async (req, res) => {
     try {
-        const { username, email, password, phone } = req.body;
+        const {
+            username,
+            firstName,
+            lastName,
+            email,
+            password,
+            phone,
+            referredBy: referredByBody,
+            deviceId: deviceIdBody,
+        } = req.body;
 
-        if (!username || !email || !password) {
+        const referredByRaw = referredByBody != null && String(referredByBody).trim()
+            ? String(referredByBody).trim()
+            : '';
+
+        const derivedUsername = (username != null && String(username).trim())
+            ? String(username).trim()
+            : [firstName, lastName]
+                .map((x) => (x != null ? String(x).trim() : ''))
+                .filter(Boolean)
+                .join(' ')
+                .trim();
+
+        if (!derivedUsername) {
             return res.status(400).json({
                 success: false,
-                message: 'Username, email and password are required',
+                message: 'Display name is required (username or first and last name)',
+            });
+        }
+
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required',
             });
         }
 
@@ -414,10 +442,31 @@ export const userSignup = async (req, res) => {
             });
         }
 
-        // Check if user already exists (username, email or phone)
+        let referredBy = null;
+        if (referredByRaw) {
+            if (!mongoose.Types.ObjectId.isValid(referredByRaw)) {
+                return res.status(400).json({ success: false, message: 'Invalid referral link' });
+            }
+            const bookieOk = await Admin.findOne({
+                _id: referredByRaw,
+                role: 'bookie',
+                status: 'active',
+            }).select('_id').lean();
+            if (!bookieOk) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This referral link is not valid or the bookie is inactive',
+                });
+            }
+            referredBy = new mongoose.Types.ObjectId(referredByRaw);
+        }
+
+        // Direct signup without referral → super_admin pool (visible under Super Admin Players in admin).
+        const source = referredBy ? 'bookie' : 'super_admin';
+
         const existingUser = await User.findOne({
             $or: [
-                { username: username.trim() },
+                { username: derivedUsername },
                 { email: email.toLowerCase() },
                 { phone: trimmedPhone },
             ],
@@ -430,24 +479,15 @@ export const userSignup = async (req, res) => {
             if (existingUser.email === email.toLowerCase()) {
                 return res.status(409).json({ success: false, message: 'A player with this email already exists' });
             }
-            return res.status(409).json({ success: false, message: 'Username already exists' });
+            return res.status(409).json({ success: false, message: 'This display name is already taken' });
         }
 
-        // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Direct frontend signup: referredBy = null → super_admin's user. Via bookie link: referredBy = bookie ID → bookie's user.
-        const referredByRaw = req.body.referredBy || null;
-        // Convert referredBy string to ObjectId for proper MongoDB matching
-        let referredBy = null;
-        if (referredByRaw && mongoose.Types.ObjectId.isValid(referredByRaw)) {
-            referredBy = new mongoose.Types.ObjectId(referredByRaw);
-        }
-        const source = referredBy ? 'bookie' : 'super_admin';
         const now = new Date();
         const userDoc = {
-            username: username.trim(),
+            username: derivedUsername,
             email: email.toLowerCase(),
             password: hashedPassword,
             phone: trimmedPhone,
@@ -461,26 +501,64 @@ export const userSignup = async (req, res) => {
             updatedAt: now,
         };
 
-        const user = await User.collection.insertOne(userDoc);
-        const userId = user.insertedId;
+        const insertResult = await User.collection.insertOne(userDoc);
+        const userId = insertResult.insertedId;
 
         await logActivity({
             action: 'player_signup',
-            performedBy: username,
+            performedBy: derivedUsername,
             performedByType: 'user',
             targetType: 'user',
             targetId: userId.toString(),
-            details: `Player "${username}" signed up (${source === 'bookie' ? 'via bookie link' : 'direct frontend'})`,
+            details: `Player "${derivedUsername}" signed up (${source === 'bookie' ? 'via bookie link' : 'direct / self signup'})`,
             meta: { email: userDoc.email, source },
             ip: getClientIp(req),
         });
 
-        // Create wallet for user
         await Wallet.collection.insertOne({
             userId,
             balance: 0,
             createdAt: new Date(),
             updatedAt: new Date(),
+        });
+
+        const isProduction = process.env.NODE_ENV === 'production';
+        const clientIp = getClientIp(req);
+        const rawDeviceId = req.body != null && 'deviceId' in req.body ? req.body.deviceId : deviceIdBody;
+        const trimmedDeviceId = (rawDeviceId != null && String(rawDeviceId).trim())
+            ? String(rawDeviceId).trim()
+            : '';
+
+        const loginUpdate = {
+            lastActiveAt: new Date(),
+            lastLoginIp: clientIp || undefined,
+            ...(trimmedDeviceId ? { lastLoginDeviceId: trimmedDeviceId } : {}),
+        };
+        await User.updateOne({ _id: userId }, { $set: loginUpdate });
+
+        if (trimmedDeviceId) {
+            const doc = await User.findById(userId).select('loginDevices').lean();
+            const loginDevices = Array.isArray(doc?.loginDevices) ? [...doc.loginDevices] : [];
+            const devNow = new Date();
+            const idx = loginDevices.findIndex((d) => String(d.deviceId) === trimmedDeviceId);
+            if (idx >= 0) {
+                loginDevices[idx].lastLoginAt = devNow;
+            } else {
+                loginDevices.push({ deviceId: trimmedDeviceId, firstLoginAt: devNow, lastLoginAt: devNow });
+            }
+            await User.updateOne({ _id: userId }, { $set: { loginDevices } });
+        }
+
+        const wallet = await Wallet.findOne({ userId });
+        const balance = wallet ? wallet.balance : 0;
+        const token = signUserToken({ _id: userId });
+        res.cookie('userToken', token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            ...(isProduction ? {} : { domain: 'localhost' }),
+            path: '/',
         });
 
         const signupData = {
@@ -489,16 +567,19 @@ export const userSignup = async (req, res) => {
             email: userDoc.email,
             phone: userDoc.phone || '',
             role: userDoc.role,
-            balance: 0,
+            balance,
+            token,
+            createdAt: now,
         };
         if (referredBy) {
             signupData.referredBy = referredBy;
             const bookie = await Admin.findById(referredBy).select('uiTheme').lean();
             signupData.bookieTheme = bookie?.uiTheme || { themeId: 'default' };
         }
+
         res.status(201).json({
             success: true,
-            message: 'User created successfully',
+            message: 'Account created successfully',
             data: signupData,
         });
     } catch (error) {
@@ -652,7 +733,7 @@ export const createUser = async (req, res) => {
 /**
  * Get users with optional filter.
  * filter=all (default): all users; super_admin sees all, bookie sees only their users.
- * filter=super_admin: users where source=super_admin or (referredBy=null) - super admin's users only.
+ * filter=super_admin: super admin pool (source=super_admin and/or no bookie referral) — includes self-signup players.
  * filter=bookie: users where source=bookie or (referredBy!=null) - bookie's users; sorted by bookie username then createdAt.
  */
 export const getUsers = async (req, res) => {
@@ -666,7 +747,12 @@ export const getUsers = async (req, res) => {
         }
 
         if (filter === 'super_admin') {
-            query.$or = [{ referredBy: null }, { referredBy: { $exists: false } }];
+            // Self-registered players have source: super_admin and referredBy: null — same pool as admin-created players.
+            query.$or = [
+                { source: 'super_admin' },
+                { referredBy: null },
+                { referredBy: { $exists: false } },
+            ];
         } else if (filter === 'bookie') {
             query.referredBy = { $ne: null, $exists: true };
         }

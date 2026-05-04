@@ -8,6 +8,7 @@ import OfflineBanner from '../components/OfflineBanner';
 import { useNetInfo } from '../hooks/useNetInfo';
 import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
+import SignUpScreen from '../screens/SignUpScreen';
 import BidOptionsScreen from '../screens/BidOptionsScreen';
 import GameBidScreen from '../screens/GameBidScreen';
 import BankScreen from '../screens/BankScreen';
@@ -81,6 +82,7 @@ export default function MainNavigator({ initialRouteName = 'Login' }) {
   return (
     <Stack.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} />
       <Stack.Screen name="Main" component={MainLayout} />
     </Stack.Navigator>
   );

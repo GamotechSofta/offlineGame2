@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, Link } from 'react-router-dom';
 import { SkeletonCard } from '../components/Skeleton';
@@ -22,7 +22,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const LOTTERY_LIVE_REFRESH_MS = 2000;
-const DASHBOARD_SECTION_REFRESH_MS = 4000;
+/** Main dashboard KPIs (bets, wallet, payments) — keep in sync with live activity without full page reload */
+const DASHBOARD_SECTION_REFRESH_MS = 2000;
 
 const PRESETS = [
     { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
@@ -139,7 +140,8 @@ const AdminDashboard = () => {
         twoD: { current: null, latest: null, error: '' },
         threeD: { current: null, latest: null, error: '' },
     });
-    const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
+    const dashboardPollBusyRef = useRef(false);
+    const lotteryPollBusyRef = useRef(false);
 
     const hasChanged = (a, b) => JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
     const mergeSectionStats = (prev, next) => {
@@ -371,7 +373,6 @@ const AdminDashboard = () => {
         } catch (err) {
             if (!isSilent) setError('Network error. Please check if the server is running.');
         } finally {
-            setIsAutoRefreshing(false);
             if (!isSilent) {
                 setLoading(false);
                 setRefreshing(false);
@@ -431,15 +432,20 @@ const AdminDashboard = () => {
 
         const refreshDashboardSections = () => {
             if (document.visibilityState !== 'visible') return;
-            if (rangeUpdating || isAutoRefreshing) return;
-            setIsAutoRefreshing(true);
-            fetchDashboardStats(getEffectiveRange(), { refresh: true, silent: true });
+            if (rangeUpdating || dashboardPollBusyRef.current) return;
+            dashboardPollBusyRef.current = true;
+            fetchDashboardStats(getEffectiveRange(), { refresh: true, silent: true }).finally(() => {
+                dashboardPollBusyRef.current = false;
+            });
         };
 
         const refreshLotterySections = () => {
             if (document.visibilityState !== 'visible') return;
-            if (rangeUpdating) return;
-            fetchLotteryDashboardStats(getEffectiveRange());
+            if (rangeUpdating || lotteryPollBusyRef.current) return;
+            lotteryPollBusyRef.current = true;
+            Promise.resolve(fetchLotteryDashboardStats(getEffectiveRange())).finally(() => {
+                lotteryPollBusyRef.current = false;
+            });
         };
 
         const dashboardTimer = setInterval(refreshDashboardSections, DASHBOARD_SECTION_REFRESH_MS);
@@ -461,7 +467,7 @@ const AdminDashboard = () => {
             window.removeEventListener('focus', onVisible);
             document.removeEventListener('visibilitychange', onVisible);
         };
-    }, [customFrom, customMode, customTo, datePreset, loading, selectedMarketId, rangeUpdating, isAutoRefreshing]);
+    }, [customFrom, customMode, customTo, datePreset, loading, selectedMarketId, rangeUpdating]);
 
     const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
     const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN');

@@ -51,9 +51,20 @@ const userLoginLimiter = rateLimit({
     },
 });
 
+const userSignupLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 15,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many sign-up attempts from this network. Please try again later.',
+    },
+});
+
 // Public routes
 router.post('/login', userLoginLimiter, userLogin);
-router.post('/signup', userSignup);
+router.post('/signup', userSignupLimiter, userSignup);
 router.post('/logout', userLogout);
 
 // Player auth required

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,32 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_BASE_URL } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function LoginScreen() {
+export default function SignUpScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
   const { setUser } = useAuth();
-  const [formData, setFormData] = useState({ phone: '', password: '' });
+
+  const referredBy = useMemo(() => {
+    const r = route.params?.ref;
+    if (r == null) return '';
+    const s = String(r).trim();
+    return /^[a-fA-F0-9]{24}$/.test(s) ? s : '';
+  }, [route.params?.ref]);
+
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: '',
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [isAbove18, setIsAbove18] = useState(false);
   const [error, setError] = useState('');
@@ -41,12 +56,22 @@ export default function LoginScreen() {
       setError('You must be above 18 years to continue');
       return;
     }
-    if (!formData.phone) {
-      setError('Phone number is required');
+    const first = formData.firstName.trim();
+    const last = formData.lastName.trim();
+    if (!first || !last) {
+      setError('First name and last name are required');
       return;
     }
-    if (!formData.password) {
-      setError('Password is required');
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    if (!formData.phone || formData.phone.length !== 10) {
+      setError('Enter a valid 10-digit phone number');
+      return;
+    }
+    if (!formData.password || formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
 
@@ -63,14 +88,22 @@ export default function LoginScreen() {
         deviceId = `rn-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
       }
 
-      const response = await fetch(`${API_BASE_URL}/users/login`, {
+      const body = {
+        firstName: first,
+        lastName: last,
+        email: formData.email.trim(),
+        phone: formData.phone,
+        password: formData.password,
+        deviceId: deviceId || undefined,
+      };
+      if (referredBy) {
+        body.referredBy = referredBy;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/users/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: formData.phone,
-          password: formData.password,
-          deviceId: deviceId || undefined,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -112,8 +145,10 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.formWrap}>
-          <Text style={styles.welcome}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
+          <Text style={styles.welcome}>Create account</Text>
+          <Text style={styles.subtitle}>
+            {referredBy ? 'You are joining via a referral link.' : 'Sign up to get started'}
+          </Text>
 
           {error ? (
             <View style={styles.errorBox}>
@@ -121,8 +156,54 @@ export default function LoginScreen() {
             </View>
           ) : null}
 
+          <View style={styles.row}>
+            <View style={[styles.field, styles.fieldHalf]}>
+              <Text style={styles.label}>
+                First name <Text style={styles.asterisk}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="First name"
+                placeholderTextColor="#9ca3af"
+                value={formData.firstName}
+                onChangeText={(v) => handleChange('firstName', v)}
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={[styles.field, styles.fieldHalf]}>
+              <Text style={styles.label}>
+                Last name <Text style={styles.asterisk}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Last name"
+                placeholderTextColor="#9ca3af"
+                value={formData.lastName}
+                onChangeText={(v) => handleChange('lastName', v)}
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
           <View style={styles.field}>
-            <Text style={styles.label}>Phone Number <Text style={styles.asterisk}>*</Text></Text>
+            <Text style={styles.label}>
+              Email <Text style={styles.asterisk}>*</Text>
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="you@example.com"
+              placeholderTextColor="#9ca3af"
+              value={formData.email}
+              onChangeText={(v) => handleChange('email', v)}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>
+              Phone Number <Text style={styles.asterisk}>*</Text>
+            </Text>
             <TextInput
               style={styles.input}
               placeholder="10-digit phone number"
@@ -133,21 +214,21 @@ export default function LoginScreen() {
               maxLength={10}
             />
           </View>
+
           <View style={styles.field}>
-            <Text style={styles.label}>Password <Text style={styles.asterisk}>*</Text></Text>
+            <Text style={styles.label}>
+              Password <Text style={styles.asterisk}>*</Text>
+            </Text>
             <View style={styles.passwordRow}>
               <TextInput
                 style={[styles.input, styles.passwordInput]}
-                placeholder="Enter your password"
+                placeholder="At least 6 characters"
                 placeholderTextColor="#9ca3af"
                 value={formData.password}
                 onChangeText={(v) => handleChange('password', v)}
                 secureTextEntry={!showPassword}
               />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeBtn}
-              >
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
                 <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
               </TouchableOpacity>
             </View>
@@ -175,19 +256,17 @@ export default function LoginScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.submitText}>Sign In</Text>
+              <Text style={styles.submitText}>Sign up</Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate('SignUp')} style={styles.linkRow}>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.linkRow}>
             <Text style={styles.linkText}>
-              New here? <Text style={styles.linkBold}>Create an account</Text>
+              Already have an account? <Text style={styles.linkBold}>Sign in</Text>
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.legal}>
-            By continuing, you agree to our Terms of Use and Privacy Policy
-          </Text>
+          <Text style={styles.legal}>By continuing, you agree to our Terms of Use and Privacy Policy</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -211,7 +290,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: { color: '#dc2626', fontSize: 12 },
+  row: { flexDirection: 'row', gap: 12, marginBottom: 0 },
   field: { marginBottom: 16 },
+  fieldHalf: { flex: 1 },
   label: { fontSize: 12, fontWeight: '500', color: '#374151', marginBottom: 6 },
   asterisk: { color: '#1B3150' },
   input: {
@@ -247,7 +328,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   submitBtnDisabled: { opacity: 0.5 },
   submitText: { color: '#fff', fontWeight: '700', fontSize: 14 },

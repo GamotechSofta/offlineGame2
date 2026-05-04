@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config/api';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { getCurrentUser, setCurrentUser } from '../session/userSession';
+import { setCurrentUser } from '../session/userSession';
 
-const Login = () => {
+const Signup = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referredBy = useMemo(() => {
+    const r = searchParams.get('ref');
+    return r && /^[a-fA-F0-9]{24}$/.test(r.trim()) ? r.trim() : '';
+  }, [searchParams]);
+
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
     phone: '',
     password: '',
   });
@@ -18,16 +27,10 @@ const Login = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     let processedValue = value;
-    
-    // Only allow digits for phone number
     if (name === 'phone') {
       processedValue = value.replace(/\D/g, '').slice(0, 10);
     }
-    
-    setFormData({
-      ...formData,
-      [name]: processedValue,
-    });
+    setFormData((prev) => ({ ...prev, [name]: processedValue }));
     setError('');
   };
 
@@ -40,13 +43,22 @@ const Login = () => {
       return;
     }
 
-    // Login validation
-    if (!formData.phone) {
-      setError('Phone number is required');
+    const first = formData.firstName.trim();
+    const last = formData.lastName.trim();
+    if (!first || !last) {
+      setError('First name and last name are required');
       return;
     }
-    if (!formData.password) {
-      setError('Password is required');
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    if (!formData.phone || formData.phone.length !== 10) {
+      setError('Enter a valid 10-digit phone number');
+      return;
+    }
+    if (!formData.password || formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
 
@@ -57,28 +69,35 @@ const Login = () => {
       try {
         deviceId = typeof localStorage !== 'undefined' ? (localStorage.getItem('deviceId') || '') : '';
         if (!deviceId) {
-          deviceId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-            ? crypto.randomUUID()
-            : `web-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+          deviceId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `web-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
           if (typeof localStorage !== 'undefined') {
             localStorage.setItem('deviceId', deviceId);
           }
         }
-      } catch (e) {
+      } catch (err) {
         deviceId = `web-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
       }
 
-      const response = await fetch(`${API_BASE_URL}/users/login`, {
+      const body = {
+        firstName: first,
+        lastName: last,
+        email: formData.email.trim(),
+        phone: formData.phone,
+        password: formData.password,
+        deviceId: deviceId || undefined,
+      };
+      if (referredBy) {
+        body.referredBy = referredBy;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/users/signup`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          phone: formData.phone, 
-          password: formData.password, 
-          deviceId: deviceId || undefined 
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
 
       let data;
@@ -91,25 +110,11 @@ const Login = () => {
       }
 
       if (data.success) {
-        // Store user data in shared session service (in-memory, not persisted).
-        const previousUser = getCurrentUser();
-        let previousCreatedAt = null;
-        if (previousUser) {
-          try {
-            const parsed = typeof previousUser === 'string' ? JSON.parse(previousUser) : previousUser;
-            previousCreatedAt = parsed?.createdAt || parsed?.created_at || parsed?.createdOn || null;
-          } catch (e) {
-            previousCreatedAt = null;
-          }
-        }
-
         const userPayload = {
           ...data.data,
-          createdAt: data.data?.createdAt || data.data?.created_at || data.data?.createdOn || previousCreatedAt
+          createdAt: data.data?.createdAt || data.data?.created_at || data.data?.createdOn,
         };
-
         setCurrentUser(userPayload);
-        // Redirect to home after login
         navigate('/');
       } else {
         setError(data.message || 'Something went wrong');
@@ -130,8 +135,10 @@ const Login = () => {
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center">
         <div className="relative w-full rounded-2xl border border-[#244c89] bg-[#071737]/85 p-6 shadow-sm backdrop-blur-sm sm:border-gray-200 sm:bg-white sm:p-8">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-[#60a5fa] sm:text-3xl sm:text-[#1B3150]">Sign In</h1>
-            <p className="mt-1 text-sm text-gray-200 sm:text-gray-600">Access your account to continue.</p>
+            <h1 className="text-2xl font-bold text-[#60a5fa] sm:text-3xl sm:text-[#1B3150]">Create account</h1>
+            <p className="mt-1 text-sm text-gray-200 sm:text-gray-600">
+              Sign up to play. {referredBy ? 'You are joining via a referral link.' : ''}
+            </p>
           </div>
 
           {error && (
@@ -144,9 +151,58 @@ const Login = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
+                  First name <span className="text-[#1B3150]">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  autoComplete="given-name"
+                  className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 px-3 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
+                  placeholder="First name"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
+                  Last name <span className="text-[#1B3150]">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  autoComplete="family-name"
+                  className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 px-3 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
+                  placeholder="Last name"
+                  required
+                />
+              </div>
+            </div>
+
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
-                Phone Number <span className="text-[#1B3150]">*</span>
+                Email <span className="text-[#1B3150]">*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                autoComplete="email"
+                className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 px-3 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
+                Phone number <span className="text-[#1B3150]">*</span>
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -160,6 +216,7 @@ const Login = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   maxLength="10"
+                  autoComplete="tel"
                   className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 pl-10 pr-3 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
                   placeholder="10-digit phone number"
                   required
@@ -182,8 +239,9 @@ const Login = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
+                  autoComplete="new-password"
                   className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
-                  placeholder="Enter your password"
+                  placeholder="At least 6 characters"
                   required
                 />
                 <button
@@ -227,15 +285,15 @@ const Login = () => {
                   Please wait...
                 </span>
               ) : (
-                'Sign In'
+                'Sign up'
               )}
             </button>
           </form>
 
           <p className="mt-4 text-center text-sm text-gray-200 sm:text-gray-600">
-            New here?{' '}
-            <Link to="/signup" className="font-semibold text-[#60a5fa] sm:text-[#1B3150] hover:underline">
-              Create an account
+            Already have an account?{' '}
+            <Link to="/login" className="font-semibold text-[#60a5fa] sm:text-[#1B3150] hover:underline">
+              Sign in
             </Link>
           </p>
         </div>
@@ -244,4 +302,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Signup;
