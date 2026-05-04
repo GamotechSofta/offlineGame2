@@ -413,10 +413,10 @@ export const userSignup = async (req, res) => {
             });
         }
 
-        if (!email || !password) {
+        if (!password) {
             return res.status(400).json({
                 success: false,
-                message: 'Email and password are required',
+                message: 'Password is required',
             });
         }
 
@@ -441,6 +441,22 @@ export const userSignup = async (req, res) => {
                 message: 'Password must be at least 6 characters',
             });
         }
+
+        const emailRaw = email != null ? String(email).trim().toLowerCase() : '';
+        const PLACEHOLDER_DOMAIN = '@players.internal';
+        let resolvedEmail;
+        if (emailRaw) {
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid email address',
+                });
+            }
+            resolvedEmail = emailRaw;
+        } else {
+            resolvedEmail = `${trimmedPhone}${PLACEHOLDER_DOMAIN}`;
+        }
+        const isPlaceholderEmail = resolvedEmail.endsWith(PLACEHOLDER_DOMAIN);
 
         let referredBy = null;
         if (referredByRaw) {
@@ -467,7 +483,7 @@ export const userSignup = async (req, res) => {
         const existingUser = await User.findOne({
             $or: [
                 { username: derivedUsername },
-                { email: email.toLowerCase() },
+                { email: resolvedEmail },
                 { phone: trimmedPhone },
             ],
         });
@@ -476,7 +492,7 @@ export const userSignup = async (req, res) => {
             if (existingUser.phone === trimmedPhone) {
                 return res.status(409).json({ success: false, message: 'A player with this phone number already exists' });
             }
-            if (existingUser.email === email.toLowerCase()) {
+            if (existingUser.email === resolvedEmail) {
                 return res.status(409).json({ success: false, message: 'A player with this email already exists' });
             }
             return res.status(409).json({ success: false, message: 'This display name is already taken' });
@@ -488,7 +504,7 @@ export const userSignup = async (req, res) => {
         const now = new Date();
         const userDoc = {
             username: derivedUsername,
-            email: email.toLowerCase(),
+            email: resolvedEmail,
             password: hashedPassword,
             phone: trimmedPhone,
             role: 'user',
@@ -564,13 +580,15 @@ export const userSignup = async (req, res) => {
         const signupData = {
             id: userId,
             username: userDoc.username,
-            email: userDoc.email,
             phone: userDoc.phone || '',
             role: userDoc.role,
             balance,
             token,
             createdAt: now,
         };
+        if (!isPlaceholderEmail) {
+            signupData.email = userDoc.email;
+        }
         if (referredBy) {
             signupData.referredBy = referredBy;
             const bookie = await Admin.findById(referredBy).select('uiTheme').lean();

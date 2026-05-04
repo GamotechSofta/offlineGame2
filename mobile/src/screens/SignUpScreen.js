@@ -32,7 +32,6 @@ export default function SignUpScreen() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
     phone: '',
     password: '',
   });
@@ -62,10 +61,6 @@ export default function SignUpScreen() {
       setError('First name and last name are required');
       return;
     }
-    if (!formData.email.trim()) {
-      setError('Email is required');
-      return;
-    }
     if (!formData.phone || formData.phone.length !== 10) {
       setError('Enter a valid 10-digit phone number');
       return;
@@ -91,7 +86,6 @@ export default function SignUpScreen() {
       const body = {
         firstName: first,
         lastName: last,
-        email: formData.email.trim(),
         phone: formData.phone,
         password: formData.password,
         deviceId: deviceId || undefined,
@@ -183,21 +177,6 @@ export default function SignUpScreen() {
                 autoCapitalize="words"
               />
             </View>
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              Email <Text style={styles.asterisk}>*</Text>
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              placeholderTextColor="#9ca3af"
-              value={formData.email}
-              onChangeText={(v) => handleChange('email', v)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
           </View>
 
           <View style={styles.field}>

@@ -15,7 +15,6 @@ const Signup = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
     phone: '',
     password: '',
   });
@@ -49,10 +48,6 @@ const Signup = () => {
       setError('First name and last name are required');
       return;
     }
-    if (!formData.email.trim()) {
-      setError('Email is required');
-      return;
-    }
     if (!formData.phone || formData.phone.length !== 10) {
       setError('Enter a valid 10-digit phone number');
       return;
@@ -84,7 +79,6 @@ const Signup = () => {
       const body = {
         firstName: first,
         lastName: last,
-        email: formData.email.trim(),
         phone: formData.phone,
         password: formData.password,
         deviceId: deviceId || undefined,
@@ -182,22 +176,6 @@ const Signup = () => {
                   required
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
-                Email <span className="text-[#1B3150]">*</span>
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                autoComplete="email"
-                className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 px-3 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
-                placeholder="you@example.com"
-                required
-              />
             </div>
 
             <div>
