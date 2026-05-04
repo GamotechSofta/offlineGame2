@@ -375,7 +375,11 @@ const ThreeDResultControl = () => {
                     <>
                         <div className="bg-white border border-gray-200 rounded-xl p-5">
                             <h2 className="text-base font-semibold text-gray-800">Step 1: Running slot quick edit</h2>
-                            <p className="text-xs text-gray-500 mt-1">Current slot: {currentSlotStartIso || '-'}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Current slot: {currentSlotStartIso || '-'}
+                                {' · '}
+                                Use <span className="font-semibold text-gray-600">View all bets</span> on a set to open its full betting breakdown (every number) for this slot.
+                            </p>
                             {hintsLoading ? (
                                 <p className="mt-3 text-xs text-gray-500">Loading running slot...</p>
                             ) : currentHintRows.length ? (
@@ -383,20 +387,38 @@ const ThreeDResultControl = () => {
                                     {currentHintRows.map((item) => (
                                         (() => {
                                             const pl = formatHousePl(item.houseNetIfHintWins);
+                                            const qid = String(item.quizId);
+                                            const goToBetHistory = () => {
+                                                if (!currentSlotStartIso) return;
+                                                navigate(`/3d-management/set/${qid}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`);
+                                            };
                                             return (
-                                        <button
+                                        <div
                                             key={item.quizId}
-                                            type="button"
-                                            onClick={() => openManualModal(currentSlotStartIso, String(item.quizId), item.hint)}
-                                            className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left hover:border-purple-300 hover:bg-purple-50 transition"
+                                            className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left flex flex-col gap-1 hover:border-purple-300 hover:bg-purple-50/60 transition"
                                         >
-                                            <div className="flex justify-between gap-1 items-baseline">
-                                                <span className="text-gray-500 shrink-0">{setLabelByQuizId[Number(item.quizId)] || `Set ${item.quizId}`}</span>
-                                                <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
-                                            </div>
-                                            <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
-                                            <div className="mt-1 text-[10px] text-purple-700 font-semibold">Set Result</div>
-                                        </button>
+                                            <button
+                                                type="button"
+                                                onClick={goToBetHistory}
+                                                disabled={!currentSlotStartIso}
+                                                className="text-left w-full rounded p-0.5 -m-0.5 outline-none focus-visible:ring-2 focus-visible:ring-purple-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title="Open number-wise betting breakdown for this set"
+                                            >
+                                                <div className="flex justify-between gap-1 items-baseline">
+                                                    <span className="text-gray-500 shrink-0">{setLabelByQuizId[Number(item.quizId)] || `Set ${item.quizId}`}</span>
+                                                    <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
+                                                </div>
+                                                <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
+                                                <div className="mt-1 text-[10px] text-gray-600 font-semibold">View all bets →</div>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => openManualModal(currentSlotStartIso, qid, item.hint)}
+                                                className="w-full rounded border border-purple-200 bg-white py-1 text-[10px] text-purple-700 font-semibold hover:bg-purple-100/80"
+                                            >
+                                                Set result
+                                            </button>
+                                        </div>
                                             );
                                         })()
                                     ))}

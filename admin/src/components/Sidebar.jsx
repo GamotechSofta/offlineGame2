@@ -107,6 +107,13 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
         ) {
             return true;
         }
+        // Treat 3D set stake detail as part of Result Control flow.
+        if (
+            path === '/3d-management/result-control' &&
+            location.pathname.startsWith('/3d-management/set/')
+        ) {
+            return true;
+        }
         return false;
     };
 
