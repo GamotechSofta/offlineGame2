@@ -224,10 +224,13 @@ const LotteryDashboard = () => {
         });
     };
     sync();
-    const id = setInterval(sync, 4000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') sync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       stop = true;
-      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
   useEffect(() => {
@@ -276,10 +279,13 @@ const LotteryDashboard = () => {
         });
     };
     loadLastSlot();
-    const id = setInterval(loadLastSlot, 4000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadLastSlot();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       stop = true;
-      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 
