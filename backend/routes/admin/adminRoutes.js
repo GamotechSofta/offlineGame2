@@ -22,6 +22,7 @@ import {
     getLottery2DSlotDetail,
     getLottery2DSlotHistory,
     getLottery2DDaySlotSchedule,
+    getLottery2DDayPlayers,
     getLottery2DSlotPlayers,
     getLottery2DTickets,
     getLottery2DTicketBets,
@@ -38,6 +39,7 @@ import {
     getLottery3DSlotPlayers,
     getLottery3DSlotHistory,
     getLottery3DDaySlotSchedule,
+    getLottery3DDayPlayers,
     getLottery3DPlayerHistory,
     getLottery3DQuizStakeByNumber,
     getLottery3DTickets,
@@ -71,6 +73,7 @@ router.get('/lottery2d/aggregate-stats', verifyAdmin, getLottery2DAggregateStats
 router.post('/lottery2d/current-slot/hints', verifyAdmin, getLottery2DCurrentSlotHints);
 router.get('/lottery2d/slots', verifyAdmin, getLottery2DSlotHistory);
 router.get('/lottery2d/day-slot-schedule', verifyAdmin, getLottery2DDaySlotSchedule);
+router.get('/lottery2d/day-players', verifyAdmin, getLottery2DDayPlayers);
 router.get('/lottery2d/slots/:slotStartIso/detail', verifyAdmin, getLottery2DSlotDetail);
 router.get('/lottery2d/quizzes/:quizId/stake-by-number', verifyAdmin, getLottery2DQuizStakeByNumber);
 router.get('/lottery2d/slots/:slotStartIso/players', verifyAdmin, getLottery2DSlotPlayers);
@@ -86,6 +89,7 @@ router.get('/lottery3d/current-slot', verifyAdmin, getLottery3DCurrentSlot);
 router.post('/lottery3d/current-slot/hints', verifyAdmin, getLottery3DCurrentSlotHints);
 router.get('/lottery3d/slots', verifyAdmin, getLottery3DSlotHistory);
 router.get('/lottery3d/day-slot-schedule', verifyAdmin, getLottery3DDaySlotSchedule);
+router.get('/lottery3d/day-players', verifyAdmin, getLottery3DDayPlayers);
 router.get('/lottery3d/slots/:slotStartIso/detail', verifyAdmin, getLottery3DSlotDetail);
 router.get('/lottery3d/quizzes/:quizId/stake-by-number', verifyAdmin, getLottery3DQuizStakeByNumber);
 router.get('/lottery3d/slots/:slotStartIso/players', verifyAdmin, getLottery3DSlotPlayers);

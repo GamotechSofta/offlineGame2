@@ -295,6 +295,217 @@ async function buildPlayersForSlot(slotStartIso) {
   };
 }
 
+/** All bets for every slot in an IST date range (inclusive), merged per user. */
+async function buildPlayersForISTDateRange(dateFrom, dateTo) {
+  const slotList = dateFrom === dateTo
+    ? listSlotStartIsoForISTDay(dateFrom)
+    : listSlotStartIsoForISTDayRange(dateFrom, dateTo);
+  const isSingleDay = dateFrom === dateTo;
+  if (!slotList.length) {
+    return {
+      slot: {
+        view: isSingleDay ? 'day' : 'range',
+        dateFrom,
+        dateTo,
+        ...(isSingleDay ? { date: dateFrom } : {}),
+        label: isSingleDay
+          ? `All draws · ${dateFrom} (IST)`
+          : `All draws · ${dateFrom} – ${dateTo} (IST)`,
+        slotStartIso: '',
+      },
+      players: [],
+    };
+  }
+
+  const [bets, picks, winMultiplier] = await Promise.all([
+    QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotList } })
+      .select('_id userId quizId number amount status winPayout createdAt slotStartIso')
+      .sort({ createdAt: -1 })
+      .lean(),
+    QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotList } })
+      .select('slotStartIso quizId hintPosition')
+      .lean(),
+    getQuiz3DMultiplier(),
+  ]);
+
+  const picksBySlot = new Map();
+  for (const p of picks) {
+    if (!picksBySlot.has(p.slotStartIso)) picksBySlot.set(p.slotStartIso, new Map());
+    picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
+  }
+
+  const now = Date.now();
+  const userIds = Array.from(new Set(bets.map((b) => String(b.userId || '')).filter(Boolean)));
+  const users = userIds.length
+    ? await User.find({ _id: { $in: userIds } }).select('username phone').lean()
+    : [];
+  const userById = new Map(users.map((u) => [String(u._id), u]));
+  const overallStatsRaw = userIds.length
+    ? await QuizBet.aggregate([
+      {
+        $match: {
+          gameMode: GAME_MODE,
+          userId: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) },
+          status: { $ne: 'cancelled' },
+        },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          totalBetCountAllTime: { $sum: 1 },
+          totalStakeAllTime: { $sum: '$amount' },
+        },
+      },
+    ])
+    : [];
+  const overallStatsByUserId = new Map(
+    overallStatsRaw.map((row) => [String(row._id), {
+      totalBetCountAllTime: Number(row.totalBetCountAllTime || 0),
+      totalStakeAllTime: Number(row.totalStakeAllTime || 0),
+    }]),
+  );
+
+  const playerMap = new Map();
+  for (const bet of bets) {
+    const userId = String(bet.userId || '');
+    if (!userId) continue;
+    const slotIso = bet.slotStartIso;
+    const slotStartMs = new Date(slotIso).getTime();
+    const slotEndMs = slotStartMs + SLOT_MS;
+    const isCompleted = now >= slotEndMs;
+    const pickByQuiz = picksBySlot.get(slotIso) || new Map();
+
+    const user = userById.get(userId);
+    if (!playerMap.has(userId)) {
+      playerMap.set(userId, {
+        userId,
+        username: user?.username || 'unknown',
+        phone: user?.phone || '',
+        totalBetCountAllTime: 0,
+        totalStakeAllTime: 0,
+        betCount: 0,
+        totalStake: 0,
+        totalPayout: 0,
+        netProfitLoss: 0,
+        wins: 0,
+        losses: 0,
+        pending: 0,
+        bets: [],
+      });
+    }
+    const row = playerMap.get(userId);
+    const amount = Number(bet.amount || 0);
+    const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier });
+    row.betCount += 1;
+    if (result.outcome === 'cancelled') {
+      row.bets.push({
+        betId: String(bet._id),
+        quizId: bet.quizId,
+        setLabel: getSetLabelByQuizId(bet.quizId),
+        number: String(bet.number).padStart(3, '0'),
+        amount,
+        outcome: 'cancelled',
+        payout: 0,
+        netProfitLoss: 0,
+        createdAt: bet.createdAt,
+      });
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    row.totalStake += amount;
+    row.totalPayout += result.payout;
+    row.netProfitLoss += result.net;
+    if (result.outcome === 'win') row.wins += 1;
+    else if (result.outcome === 'lose') row.losses += 1;
+    else row.pending += 1;
+    row.bets.push({
+      betId: String(bet._id),
+      quizId: bet.quizId,
+      setLabel: getSetLabelByQuizId(bet.quizId),
+      number: String(bet.number).padStart(3, '0'),
+      amount,
+      outcome: result.outcome,
+      payout: result.payout,
+      netProfitLoss: result.net,
+      createdAt: bet.createdAt,
+    });
+  }
+
+  for (const [userId, row] of playerMap.entries()) {
+    const overall = overallStatsByUserId.get(userId);
+    row.totalBetCountAllTime = Number(overall?.totalBetCountAllTime || row.betCount || 0);
+    row.totalStakeAllTime = Number(overall?.totalStakeAllTime || row.totalStake || 0);
+    row.currentSlotBetCount = row.betCount;
+  }
+
+  return {
+    slot: {
+      view: isSingleDay ? 'day' : 'range',
+      dateFrom,
+      dateTo,
+      ...(isSingleDay ? { date: dateFrom } : {}),
+      label: isSingleDay
+        ? `All draws · ${dateFrom} (IST)`
+        : `All draws · ${dateFrom} – ${dateTo} (IST)`,
+      slotStartIso: '',
+    },
+    players: Array.from(playerMap.values()).sort((a, b) => b.totalStake - a.totalStake),
+  };
+}
+
+/**
+ * GET /admin/lottery3d/day-players?date= (legacy single day) or ?dateFrom=&dateTo=
+ */
+export const getLottery3DDayPlayers = async (req, res) => {
+  try {
+    const dateFromQ = typeof req.query.dateFrom === 'string' ? req.query.dateFrom.trim() : '';
+    const dateToQ = typeof req.query.dateTo === 'string' ? req.query.dateTo.trim() : '';
+    const dateLegacy = typeof req.query.date === 'string' ? req.query.date.trim() : '';
+
+    let dateFrom;
+    let dateTo;
+    if (dateFromQ && dateToQ) {
+      dateFrom = dateFromQ;
+      dateTo = dateToQ;
+    } else if (dateLegacy) {
+      dateFrom = dateLegacy;
+      dateTo = dateLegacy;
+    } else if (dateFromQ || dateToQ) {
+      const single = dateFromQ || dateToQ;
+      dateFrom = single;
+      dateTo = single;
+    } else {
+      const today = istDayKey();
+      dateFrom = today;
+      dateTo = today;
+    }
+
+    if (!isValidISTDayKey(dateFrom) || !isValidISTDayKey(dateTo)) {
+      return res.status(400).json({ success: false, message: 'Invalid date. Use YYYY-MM-DD (IST).' });
+    }
+    if (dateFrom > dateTo) {
+      return res.status(400).json({ success: false, message: 'dateFrom must be on or before dateTo.' });
+    }
+    const today = istDayKey();
+    if (dateTo > today) {
+      return res.status(400).json({ success: false, message: 'dateTo cannot be after today (IST).' });
+    }
+    const rangeDays = istInclusiveDaySpan(dateFrom, dateTo);
+    const MAX_RANGE_DAYS = 62;
+    if (rangeDays > MAX_RANGE_DAYS) {
+      return res.status(400).json({
+        success: false,
+        message: `Date range cannot exceed ${MAX_RANGE_DAYS} days (IST).`,
+      });
+    }
+
+    const data = await buildPlayersForISTDateRange(dateFrom, dateTo);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
 export const getLottery3DCurrentSlot = async (req, res) => {
   try {
     const ctx = getSlotContext(new Date(), '3d');

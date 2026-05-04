@@ -6,6 +6,8 @@ import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
+const ALL_DAY_SLOT_ISO = '__all_day__';
+
 const todayDate = () => {
     const now = new Date();
     const y = now.getFullYear();
@@ -15,25 +17,40 @@ const todayDate = () => {
 };
 
 const slotScheduleLabel = (s) => {
-    const tag = s.status === 'live' ? 'Live' : 'Advance';
+    const tag = s.status === 'live' ? 'Live' : s.status === 'past' ? 'Past' : 'Advance';
     return `${s.drawLabelEnd || s.slotStartIso} (${tag})`;
 };
 
-const LIVE_OR_ADVANCE = (s) => s.status === 'live' || s.status === 'upcoming';
-
 const resolveScheduleSelection = (slots, prevIso) => {
+    if (prevIso === ALL_DAY_SLOT_ISO) return ALL_DAY_SLOT_ISO;
     if (prevIso && slots.some((s) => s.slotStartIso === prevIso)) return prevIso;
-    const live = slots.find((s) => s.status === 'live');
-    if (live) return live.slotStartIso;
-    const firstUp = slots.find((s) => s.status === 'upcoming');
-    return firstUp ? firstUp.slotStartIso : '';
+    return ALL_DAY_SLOT_ISO;
+};
+
+/** Matches user id, player name, or phone (substring; phone also digit-only). */
+const rowMatchesSlotPlayerSearch = (player, raw) => {
+    const q = String(raw || '').trim();
+    if (!q) return true;
+    const ql = q.toLowerCase();
+    const uid = String(player.userId ?? '').toLowerCase();
+    const user = String(player.username || '').toLowerCase();
+    const phone = String(player.phone || '');
+    const phoneDigits = phone.replace(/\D/g, '');
+    const qDigits = q.replace(/\D/g, '');
+    if (uid.includes(ql)) return true;
+    if (user.includes(ql)) return true;
+    if (phone.toLowerCase().includes(ql)) return true;
+    if (qDigits.length >= 2 && phoneDigits.includes(qDigits)) return true;
+    return false;
 };
 
 const ThreeDCurrentSlotPlayers = () => {
     const navigate = useNavigate();
-    /** live = server current slot; bySlot = IST day + draw time (live and advance only — no past) */
+    /** live = server current slot; bySlot = IST day + draw (past, live, or advance) */
     const [viewMode, setViewMode] = useState('live');
-    const [historyDate, setHistoryDate] = useState(todayDate);
+    const t0 = todayDate();
+    const [dateFrom, setDateFrom] = useState(t0);
+    const [dateTo, setDateTo] = useState(t0);
     const [historySlots, setHistorySlots] = useState([]);
     const [selectedHistorySlotIso, setSelectedHistorySlotIso] = useState('');
     const [loadingHistorySlots, setLoadingHistorySlots] = useState(false);
@@ -47,6 +64,7 @@ const ThreeDCurrentSlotPlayers = () => {
     const [playerHistoryData, setPlayerHistoryData] = useState(null);
     const [loadingPlayerHistory, setLoadingPlayerHistory] = useState(false);
     const [playerHistoryError, setPlayerHistoryError] = useState('');
+    const [playerSearch, setPlayerSearch] = useState('');
 
     const selectedSlotIsoRef = useRef('');
     useEffect(() => {
@@ -103,8 +121,7 @@ const ThreeDCurrentSlotPlayers = () => {
             const json = await res.json();
             if (!json?.success) throw new Error(json?.message || 'Failed to load slot schedule for date');
 
-            const raw = Array.isArray(json?.data?.slots) ? json.data.slots : [];
-            const slots = raw.filter(LIVE_OR_ADVANCE);
+            const slots = Array.isArray(json?.data?.slots) ? json.data.slots : [];
 
             let chosen = '';
             setHistorySlots(slots);
@@ -133,6 +150,22 @@ const ThreeDCurrentSlotPlayers = () => {
         setLoading(true);
         setError('');
         try {
+            if (iso === ALL_DAY_SLOT_ISO) {
+                const params = new URLSearchParams({ dateFrom, dateTo });
+                const playersRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/day-players?${params.toString()}`);
+                if (playersRes.status === 401) return;
+                const playersJson = await playersRes.json();
+                if (!playersJson?.success) throw new Error(playersJson?.message || 'Failed to load day players');
+                const meta = playersJson?.data?.slot;
+                setSlotStartIso(
+                    meta?.label
+                        || (dateFrom === dateTo
+                            ? `All draws · ${dateFrom} (IST)`
+                            : `All draws · ${dateFrom} – ${dateTo} (IST)`),
+                );
+                setPlayers(Array.isArray(playersJson?.data?.players) ? playersJson.data.players : []);
+                return;
+            }
             const playersRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/${encodeURIComponent(iso)}/players`);
             if (playersRes.status === 401) return;
             const playersJson = await playersRes.json();
@@ -146,19 +179,25 @@ const ThreeDCurrentSlotPlayers = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [dateFrom, dateTo]);
 
     const refresh = useCallback(async () => {
         if (viewMode === 'live') {
             await fetchLiveSlotPlayers();
             return;
         }
+        if (dateFrom !== dateTo) {
+            setHistorySlots([]);
+            setSelectedHistorySlotIso(ALL_DAY_SLOT_ISO);
+            await fetchPlayersForSlotIso(ALL_DAY_SLOT_ISO);
+            return;
+        }
         const prevIso = selectedSlotIsoRef.current;
-        const chosen = await fetchDaySlotSchedule(historyDate);
+        const chosen = await fetchDaySlotSchedule(dateFrom);
         if (chosen && chosen === prevIso) {
             await fetchPlayersForSlotIso(chosen);
         }
-    }, [viewMode, historyDate, fetchLiveSlotPlayers, fetchDaySlotSchedule, fetchPlayersForSlotIso]);
+    }, [viewMode, dateFrom, dateTo, fetchLiveSlotPlayers, fetchDaySlotSchedule, fetchPlayersForSlotIso]);
 
     useEffect(() => {
         if (viewMode === 'live') {
@@ -167,10 +206,14 @@ const ThreeDCurrentSlotPlayers = () => {
     }, [viewMode, fetchLiveSlotPlayers]);
 
     useEffect(() => {
-        if (viewMode === 'bySlot') {
-            fetchDaySlotSchedule(historyDate);
+        if (viewMode !== 'bySlot') return;
+        if (dateFrom !== dateTo) {
+            setHistorySlots([]);
+            setSelectedHistorySlotIso(ALL_DAY_SLOT_ISO);
+            return;
         }
-    }, [viewMode, historyDate, fetchDaySlotSchedule]);
+        fetchDaySlotSchedule(dateFrom);
+    }, [viewMode, dateFrom, dateTo, fetchDaySlotSchedule]);
 
     useEffect(() => {
         if (viewMode !== 'bySlot') return;
@@ -181,7 +224,7 @@ const ThreeDCurrentSlotPlayers = () => {
             return;
         }
         fetchPlayersForSlotIso(selectedHistorySlotIso);
-    }, [viewMode, selectedHistorySlotIso, fetchPlayersForSlotIso]);
+    }, [viewMode, selectedHistorySlotIso, dateFrom, dateTo, fetchPlayersForSlotIso]);
 
     const fetchPlayerHistory = useCallback(async (userId) => {
         if (!userId) return;
@@ -232,17 +275,29 @@ const ThreeDCurrentSlotPlayers = () => {
         return rows;
     }, [playerHistoryData]);
 
-    const selectedSlotMeta = useMemo(
-        () => historySlots.find((s) => s.slotStartIso === selectedHistorySlotIso) || null,
-        [historySlots, selectedHistorySlotIso],
-    );
+    const selectedSlotMeta = useMemo(() => {
+        if (selectedHistorySlotIso === ALL_DAY_SLOT_ISO) {
+            if (dateFrom !== dateTo) {
+                return { status: 'range', dateFrom, dateTo };
+            }
+            return { status: 'day', date: dateFrom };
+        }
+        return historySlots.find((s) => s.slotStartIso === selectedHistorySlotIso) || null;
+    }, [historySlots, selectedHistorySlotIso, dateFrom, dateTo]);
+
+    const isDayOrRangeAggregate = viewMode === 'bySlot' && selectedHistorySlotIso === ALL_DAY_SLOT_ISO;
+
+    const filteredPlayers = useMemo(() => {
+        if (!playerSearch.trim()) return players;
+        return players.filter((p) => rowMatchesSlotPlayerSearch(p, playerSearch));
+    }, [players, playerSearch]);
 
     return (
-        <AdminLayout onLogout={handleLogout} title="3D Current Slot Players">
+        <AdminLayout onLogout={handleLogout} title="3D players">
             <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">3D Current Slot Players</h1>
+                        <h1 className="text-2xl font-bold text-gray-800">3D players</h1>
                         <p className="text-sm text-gray-500 break-all">Slot Start: {slotStartIso || '-'}</p>
                     </div>
                     <button
@@ -257,7 +312,9 @@ const ThreeDCurrentSlotPlayers = () => {
 
                 <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
                     <p className="text-xs text-gray-500">
-                        Calendar day is IST (Asia/Kolkata). Only the running draw and advance draws are listed — pick one to see who has bet.
+                        Dates are IST (Asia/Kolkata). Choose a range (max 62 days) or the same start/end for one day. For a
+                        single day you can pick a specific draw or &quot;All day&quot;. For a range, all draws in the range
+                        are merged.
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                         <button
@@ -286,12 +343,31 @@ const ThreeDCurrentSlotPlayers = () => {
                     {viewMode === 'bySlot' ? (
                         <div className="flex flex-wrap items-end gap-3">
                             <label className="flex flex-col gap-1 text-sm">
-                                <span className="text-gray-600 font-medium">Date (IST day)</span>
+                                <span className="text-gray-600 font-medium">From date (IST)</span>
                                 <input
                                     type="date"
-                                    value={historyDate}
+                                    value={dateFrom}
+                                    max={dateTo}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setDateFrom(v);
+                                        if (v > dateTo) setDateTo(v);
+                                    }}
+                                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                                />
+                            </label>
+                            <label className="flex flex-col gap-1 text-sm">
+                                <span className="text-gray-600 font-medium">To date (IST)</span>
+                                <input
+                                    type="date"
+                                    value={dateTo}
+                                    min={dateFrom}
                                     max={todayDate()}
-                                    onChange={(e) => setHistoryDate(e.target.value)}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setDateTo(v);
+                                        if (v < dateFrom) setDateFrom(v);
+                                    }}
                                     className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
                                 />
                             </label>
@@ -300,17 +376,21 @@ const ThreeDCurrentSlotPlayers = () => {
                                 <select
                                     value={selectedHistorySlotIso}
                                     onChange={(e) => setSelectedHistorySlotIso(e.target.value)}
-                                    disabled={loadingHistorySlots || !historySlots.length}
-                                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm w-full max-w-md"
+                                    disabled={dateFrom !== dateTo || loadingHistorySlots}
+                                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm w-full max-w-md disabled:bg-gray-100 disabled:text-gray-500"
                                 >
-                                    {!historySlots.length && !loadingHistorySlots ? (
-                                        <option value="">No live or advance draws for this IST day</option>
-                                    ) : null}
-                                    {historySlots.map((s) => (
-                                        <option key={s.slotStartIso} value={s.slotStartIso}>
-                                            {slotScheduleLabel(s)}
-                                        </option>
-                                    ))}
+                                    {dateFrom !== dateTo ? (
+                                        <option value={ALL_DAY_SLOT_ISO}>All draws in selected date range</option>
+                                    ) : (
+                                        <>
+                                            <option value={ALL_DAY_SLOT_ISO}>All day — every draw on this date</option>
+                                            {historySlots.map((s) => (
+                                                <option key={s.slotStartIso} value={s.slotStartIso}>
+                                                    {slotScheduleLabel(s)}
+                                                </option>
+                                            ))}
+                                        </>
+                                    )}
                                 </select>
                             </label>
                             {loadingHistorySlots ? (
@@ -322,9 +402,15 @@ const ThreeDCurrentSlotPlayers = () => {
                         <p className="text-xs text-gray-600">
                             Viewing:{' '}
                             <span className="font-semibold">
-                                {selectedSlotMeta.status === 'upcoming'
-                                    ? 'Advance draw (bets already placed for this future slot)'
-                                    : 'Current running slot'}
+                                {selectedSlotMeta.status === 'range'
+                                    ? `All draws from ${selectedSlotMeta.dateFrom} to ${selectedSlotMeta.dateTo} (IST)`
+                                    : selectedSlotMeta.status === 'day'
+                                      ? 'All draws on this IST date (entire day)'
+                                      : selectedSlotMeta.status === 'past'
+                                        ? 'Completed draw (historical slot)'
+                                        : selectedSlotMeta.status === 'upcoming'
+                                          ? 'Advance draw (bets already placed for this future slot)'
+                                          : 'Current running slot'}
                             </span>
                         </p>
                     ) : null}
@@ -333,16 +419,41 @@ const ThreeDCurrentSlotPlayers = () => {
                 {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div> : null}
 
                 <div className="bg-white border border-gray-200 rounded-xl p-5">
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                        <h3 className="text-lg font-semibold text-gray-800">Current Slot Playing Players</h3>
-                        {loading ? <span className="text-xs text-gray-500">Loading...</span> : null}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-3">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <h3 className="text-lg font-semibold text-gray-800">Current Slot Playing Players</h3>
+                            {loading ? <span className="text-xs text-gray-500">Loading...</span> : null}
+                            {!loading && players.length > 0 && playerSearch.trim() ? (
+                                <span className="text-xs text-gray-500">
+                                    Showing {filteredPlayers.length} of {players.length}
+                                </span>
+                            ) : null}
+                        </div>
+                        <label className="flex flex-col gap-1 text-sm w-full sm:w-72 shrink-0">
+                            <span className="text-gray-600 font-medium">Search</span>
+                            <input
+                                type="search"
+                                value={playerSearch}
+                                onChange={(e) => setPlayerSearch(e.target.value)}
+                                placeholder="User ID, player name, phone…"
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+                                autoComplete="off"
+                                spellCheck={false}
+                            />
+                        </label>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-sm">
                             <thead>
                                 <tr className="text-left text-gray-500 border-b border-gray-200">
                                     <th className="py-2 pr-3">Player</th>
-                                    <th className="py-2 pr-3 text-right">Total Bets (This Slot)</th>
+                                    <th className="py-2 pr-3 text-right">
+                                        {!isDayOrRangeAggregate
+                                            ? 'Total Bets (This Slot)'
+                                            : dateFrom !== dateTo
+                                              ? 'Total bets (range)'
+                                              : 'Total bets (day)'}
+                                    </th>
                                     <th className="py-2 pr-3 text-right">All-time Bets</th>
                                     <th className="py-2 pr-3 text-right">Stake</th>
                                     <th className="py-2 pr-3 text-right">Payout</th>
@@ -359,7 +470,14 @@ const ThreeDCurrentSlotPlayers = () => {
                                         </td>
                                     </tr>
                                 ) : null}
-                                {players.map((player) => (
+                                {players.length > 0 && !loading && !filteredPlayers.length ? (
+                                    <tr>
+                                        <td colSpan={6} className="py-4 text-center text-gray-500">
+                                            No players match your search. Try another user ID, name, or phone.
+                                        </td>
+                                    </tr>
+                                ) : null}
+                                {filteredPlayers.map((player) => (
                                     <tr key={`3d-current-${player.userId}`} className="border-b border-gray-100">
                                         <td className="py-2 pr-3">
                                             <button

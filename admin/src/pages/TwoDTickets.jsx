@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -14,17 +14,38 @@ const todayDate = () => {
 
 /** Gross win payout vs net stake lost on ticket (after settle). */
 const ticketWinLossRs = (row) => {
+  if (row?.fullyCancelled) {
+    return { fullyCancelled: true, pending: false, winRs: 0, lossRs: 0 };
+  }
   const pending = Number(row?.pendingBets || 0);
   if (pending > 0) {
-    return { pending: true, pendingN: pending, winRs: 0, lossRs: 0 };
+    return { fullyCancelled: false, pending: true, pendingN: pending, winRs: 0, lossRs: 0 };
   }
   const stake = Number(row?.totalStake || 0);
   const payout = Number(row?.totalWinPayout || 0);
   return {
+    fullyCancelled: false,
     pending: false,
     winRs: payout,
     lossRs: Math.max(0, stake - payout),
   };
+};
+
+/** Single search box: matches ticket id (full or last chars), username, or phone. */
+const rowMatchesTicketSearch = (row, raw) => {
+  const q = String(raw || '').trim();
+  if (!q) return true;
+  const ql = q.toLowerCase();
+  const tid = String(row.ticketId || '').toLowerCase();
+  const user = String(row.username || '').toLowerCase();
+  const phone = String(row.phone || '');
+  const phoneDigits = phone.replace(/\D/g, '');
+  const qDigits = q.replace(/\D/g, '');
+  if (tid.includes(ql)) return true;
+  if (user.includes(ql)) return true;
+  if (phone.toLowerCase().includes(ql)) return true;
+  if (qDigits.length >= 2 && phoneDigits.includes(qDigits)) return true;
+  return false;
 };
 
 const TwoDTickets = () => {
@@ -41,6 +62,12 @@ const TwoDTickets = () => {
   const [ticketBetsByKey, setTicketBetsByKey] = useState({});
   const [loadingTicketKey, setLoadingTicketKey] = useState('');
   const [ticketErrorByKey, setTicketErrorByKey] = useState({});
+  const [ticketSearch, setTicketSearch] = useState('');
+
+  const filteredRows = useMemo(() => {
+    if (!ticketSearch.trim()) return rows;
+    return rows.filter((r) => rowMatchesTicketSearch(r, ticketSearch));
+  }, [rows, ticketSearch]);
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -168,8 +195,9 @@ const TwoDTickets = () => {
           <div className="px-4 py-2 border-b border-gray-100 bg-gray-50">
             <h3 className="text-sm font-semibold text-gray-800">Summary</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              Totals cover the whole selected IST range. The ticket list below may be truncated. Payout sums winning-line
-              payouts; admin net is total stake minus payout.
+              Totals cover the whole selected IST range. The ticket list below may be truncated. Cancelled bet lines are
+              excluded from stake, payout, and admin net (stakes were refunded to players). Fully cancelled tickets stay
+              in the list and are labeled Cancelled.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -177,6 +205,18 @@ const TwoDTickets = () => {
               <thead>
                 <tr className="text-left text-gray-600 border-b border-gray-200 bg-white">
                   <th className="py-2.5 px-4 font-semibold whitespace-nowrap">Total tickets</th>
+                  <th
+                    className="py-2.5 px-4 font-semibold whitespace-nowrap"
+                    title="Tickets with at least one non-cancelled line (still in play or settled)."
+                  >
+                    Active tickets
+                  </th>
+                  <th
+                    className="py-2.5 px-4 font-semibold whitespace-nowrap"
+                    title="Tickets where every line was cancelled before the draw (refunded)."
+                  >
+                    Cancelled tickets
+                  </th>
                   <th className="py-2.5 px-4 font-semibold whitespace-nowrap">Total bets</th>
                   <th className="py-2.5 px-4 font-semibold whitespace-nowrap text-right">Total stake</th>
                   <th className="py-2.5 px-4 font-semibold whitespace-nowrap text-right">Total payout</th>
@@ -188,6 +228,17 @@ const TwoDTickets = () => {
                 <tr className="border-b border-gray-100">
                   <td className="py-3 px-4 font-mono font-semibold text-gray-900">
                     {loading ? '—' : Number(summary?.totalTickets ?? 0).toLocaleString('en-IN')}
+                  </td>
+                  <td className="py-3 px-4 font-mono font-semibold text-emerald-900 tabular-nums">
+                    {loading
+                      ? '—'
+                      : Number(
+                          summary?.totalActiveTickets ??
+                            Math.max(0, Number(summary?.totalTickets ?? 0) - Number(summary?.totalCancelledTickets ?? 0)),
+                        ).toLocaleString('en-IN')}
+                  </td>
+                  <td className="py-3 px-4 font-mono font-semibold text-red-800 tabular-nums">
+                    {loading ? '—' : Number(summary?.totalCancelledTickets ?? 0).toLocaleString('en-IN')}
                   </td>
                   <td className="py-3 px-4 font-mono font-semibold text-gray-900">
                     {loading ? '—' : Number(summary?.totalBets ?? 0).toLocaleString('en-IN')}
@@ -215,9 +266,28 @@ const TwoDTickets = () => {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <h3 className="text-lg font-semibold text-gray-800">All User Tickets</h3>
-            {loading ? <span className="text-xs text-gray-500">Loading...</span> : null}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h3 className="text-lg font-semibold text-gray-800">All User Tickets</h3>
+              {loading ? <span className="text-xs text-gray-500">Loading...</span> : null}
+              {!loading && rows.length > 0 && ticketSearch.trim() ? (
+                <span className="text-xs text-gray-500">
+                  Showing {filteredRows.length} of {rows.length}
+                </span>
+              ) : null}
+            </div>
+            <label className="flex flex-col gap-1 text-sm w-full sm:w-72 shrink-0">
+              <span className="text-gray-600 font-medium">Search</span>
+              <input
+                type="search"
+                value={ticketSearch}
+                onChange={(e) => setTicketSearch(e.target.value)}
+                placeholder="Ticket ID, user name, phone…"
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -246,37 +316,73 @@ const TwoDTickets = () => {
                     </td>
                   </tr>
                 ) : null}
-                {rows.map((row) => {
+                {rows.length > 0 && !loading && !filteredRows.length ? (
+                  <tr>
+                    <td colSpan={9} className="py-4 text-center text-gray-500">
+                      No tickets match your search. Try another Ticket ID, user name, or phone.
+                    </td>
+                  </tr>
+                ) : null}
+                {filteredRows.map((row) => {
                   const key = rowKey(row);
                   const isOpen = Boolean(expandedKeys[key]);
                   const betRows = ticketBetsByKey[key] || [];
                   const wl = ticketWinLossRs(row);
+                  const gross = Number(row.grossStake ?? row.totalStake ?? 0);
                   return (
                     <React.Fragment key={key}>
                       <tr
-                        className="border-b border-gray-100 cursor-pointer hover:bg-orange-50/40"
+                        className={`border-b border-gray-100 cursor-pointer hover:bg-orange-50/40 ${row.fullyCancelled ? 'bg-slate-50/80' : ''}`}
                         onClick={() => { void toggleTicket(row); }}
                       >
                         <td className="py-2 pr-3 font-mono">
                           <span className="mr-1.5 text-xs text-gray-500">{isOpen ? '▼' : '▶'}</span>
                           {String(row.ticketId || '-').slice(-8).toUpperCase()}
+                          {row.fullyCancelled ? (
+                            <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-red-100 text-red-800 border border-red-200">
+                              Cancelled
+                            </span>
+                          ) : null}
                         </td>
                         <td className="py-2 pr-3 font-semibold text-gray-800">{row.username || 'unknown'}</td>
                         <td className="py-2 pr-3 text-gray-600">{row.phone || '-'}</td>
                         <td className="py-2 pr-3 text-gray-700">{row.drawLabelEnd || '-'}</td>
                         <td className="py-2 pr-3 text-right font-mono">{Number(row.totalBets || 0).toLocaleString('en-IN')}</td>
-                        <td className="py-2 pr-3 text-right font-mono">Rs {Number(row.totalStake || 0).toLocaleString('en-IN')}</td>
                         <td
-                          className={`py-2 pr-3 text-right font-mono ${wl.pending ? 'text-amber-700 text-xs' : 'text-emerald-700'}`}
-                          title={wl.pending ? `${wl.pendingN} line(s) still pending` : 'Total win payout on this ticket'}
+                          className={`py-2 pr-3 text-right font-mono ${row.fullyCancelled ? 'text-slate-500' : ''}`}
+                          title={row.fullyCancelled ? 'Original stake; refunded to player' : undefined}
                         >
-                          {wl.pending ? `Open (${wl.pendingN})` : `Rs ${wl.winRs.toLocaleString('en-IN')}`}
+                          {row.fullyCancelled
+                            ? `Rs ${gross.toLocaleString('en-IN')} · refunded`
+                            : `Rs ${Number(row.totalStake || 0).toLocaleString('en-IN')}`}
                         </td>
                         <td
-                          className={`py-2 pr-3 text-right font-mono ${wl.pending ? 'text-amber-700 text-xs' : 'text-red-700'}`}
-                          title={wl.pending ? 'Settles after draw' : 'Stake − win payout (net kept from player)'}
+                          className={`py-2 pr-3 text-right font-mono ${
+                            wl.fullyCancelled ? 'text-slate-500 text-xs' : wl.pending ? 'text-amber-700 text-xs' : 'text-emerald-700'
+                          }`}
+                          title={
+                            wl.fullyCancelled
+                              ? 'Ticket fully cancelled before draw'
+                              : wl.pending
+                                ? `${wl.pendingN} line(s) still pending`
+                                : 'Total win payout on this ticket'
+                          }
                         >
-                          {wl.pending ? '—' : `Rs ${wl.lossRs.toLocaleString('en-IN')}`}
+                          {wl.fullyCancelled ? '—' : wl.pending ? `Open (${wl.pendingN})` : `Rs ${wl.winRs.toLocaleString('en-IN')}`}
+                        </td>
+                        <td
+                          className={`py-2 pr-3 text-right font-mono ${
+                            wl.fullyCancelled ? 'text-slate-500 text-xs' : wl.pending ? 'text-amber-700 text-xs' : 'text-red-700'
+                          }`}
+                          title={
+                            wl.fullyCancelled
+                              ? 'No loss — stake refunded'
+                              : wl.pending
+                                ? 'Settles after draw'
+                                : 'Stake − win payout (net kept from player)'
+                          }
+                        >
+                          {wl.fullyCancelled || wl.pending ? '—' : `Rs ${wl.lossRs.toLocaleString('en-IN')}`}
                         </td>
                         <td className="py-2 pr-3 text-xs text-gray-600">{row.placedAt ? new Date(row.placedAt).toLocaleString() : '-'}</td>
                       </tr>

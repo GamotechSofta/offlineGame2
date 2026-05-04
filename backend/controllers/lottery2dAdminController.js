@@ -282,6 +282,218 @@ async function buildPlayersForSlot(slotStartIso) {
   };
 }
 
+/** All bets for every slot in an IST date range (inclusive), merged per user. */
+async function buildPlayersForISTDateRange(dateFrom, dateTo) {
+  const slotList = dateFrom === dateTo
+    ? listSlotStartIsoForISTDay(dateFrom)
+    : listSlotStartIsoForISTDayRange(dateFrom, dateTo);
+  const isSingleDay = dateFrom === dateTo;
+  if (!slotList.length) {
+    return {
+      slot: {
+        view: isSingleDay ? 'day' : 'range',
+        dateFrom,
+        dateTo,
+        ...(isSingleDay ? { date: dateFrom } : {}),
+        label: isSingleDay
+          ? `All draws · ${dateFrom} (IST)`
+          : `All draws · ${dateFrom} – ${dateTo} (IST)`,
+        slotStartIso: '',
+      },
+      players: [],
+    };
+  }
+
+  const [bets, picks, winMultiplier] = await Promise.all([
+    QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotList } })
+      .select('_id userId quizId number amount status winPayout createdAt slotStartIso')
+      .sort({ createdAt: -1 })
+      .lean(),
+    QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotList } })
+      .select('slotStartIso quizId hintPosition')
+      .lean(),
+    getQuiz2DMultiplier(),
+  ]);
+
+  const picksBySlot = new Map();
+  for (const p of picks) {
+    if (!picksBySlot.has(p.slotStartIso)) picksBySlot.set(p.slotStartIso, new Map());
+    picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
+  }
+
+  const now = Date.now();
+  const userIds = Array.from(new Set(bets.map((b) => String(b.userId || '')).filter(Boolean)));
+  const users = userIds.length
+    ? await User.find({ _id: { $in: userIds } }).select('username phone').lean()
+    : [];
+  const userById = new Map(users.map((u) => [String(u._id), u]));
+  const overallStatsRaw = userIds.length
+    ? await QuizBet.aggregate([
+      {
+        $match: {
+          gameMode: GAME_MODE,
+          userId: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) },
+          status: { $ne: 'cancelled' },
+        },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          totalBetCountAllTime: { $sum: 1 },
+          totalStakeAllTime: { $sum: '$amount' },
+        },
+      },
+    ])
+    : [];
+  const overallStatsByUserId = new Map(
+    overallStatsRaw.map((row) => [String(row._id), {
+      totalBetCountAllTime: Number(row.totalBetCountAllTime || 0),
+      totalStakeAllTime: Number(row.totalStakeAllTime || 0),
+    }]),
+  );
+
+  const playerMap = new Map();
+  for (const bet of bets) {
+    const userId = String(bet.userId || '');
+    if (!userId) continue;
+    const slotIso = bet.slotStartIso;
+    const slotStartMs = new Date(slotIso).getTime();
+    const slotEndMs = slotStartMs + SLOT_MS;
+    const isCompleted = now >= slotEndMs;
+    const pickByQuiz = picksBySlot.get(slotIso) || new Map();
+
+    const user = userById.get(userId);
+    if (!playerMap.has(userId)) {
+      playerMap.set(userId, {
+        userId,
+        username: user?.username || 'unknown',
+        phone: user?.phone || '',
+        totalBetCountAllTime: 0,
+        totalStakeAllTime: 0,
+        betCount: 0,
+        totalStake: 0,
+        totalPayout: 0,
+        netProfitLoss: 0,
+        wins: 0,
+        losses: 0,
+        pending: 0,
+        bets: [],
+      });
+    }
+    const row = playerMap.get(userId);
+    const amount = Number(bet.amount || 0);
+    const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier });
+    row.betCount += 1;
+    if (result.outcome === 'cancelled') {
+      row.bets.push({
+        betId: String(bet._id),
+        quizId: bet.quizId,
+        setLabel: getQuizLabelByQuizId2d(bet.quizId),
+        number: String(bet.number).padStart(2, '0'),
+        amount,
+        outcome: 'cancelled',
+        payout: 0,
+        netProfitLoss: 0,
+        createdAt: bet.createdAt,
+      });
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    row.totalStake += amount;
+    row.totalPayout += result.payout;
+    row.netProfitLoss += result.net;
+    if (result.outcome === 'win') row.wins += 1;
+    else if (result.outcome === 'lose') row.losses += 1;
+    else row.pending += 1;
+    row.bets.push({
+      betId: String(bet._id),
+      quizId: bet.quizId,
+      setLabel: getQuizLabelByQuizId2d(bet.quizId),
+      number: String(bet.number).padStart(2, '0'),
+      amount,
+      outcome: result.outcome,
+      payout: result.payout,
+      netProfitLoss: result.net,
+      createdAt: bet.createdAt,
+    });
+  }
+
+  for (const [userId, row] of playerMap.entries()) {
+    const overall = overallStatsByUserId.get(userId);
+    row.totalBetCountAllTime = Number(overall?.totalBetCountAllTime || row.betCount || 0);
+    row.totalStakeAllTime = Number(overall?.totalStakeAllTime || row.totalStake || 0);
+    row.currentSlotBetCount = row.betCount;
+  }
+
+  return {
+    slot: {
+      view: isSingleDay ? 'day' : 'range',
+      dateFrom,
+      dateTo,
+      ...(isSingleDay ? { date: dateFrom } : {}),
+      label: isSingleDay
+        ? `All draws · ${dateFrom} (IST)`
+        : `All draws · ${dateFrom} – ${dateTo} (IST)`,
+      slotStartIso: '',
+    },
+    players: Array.from(playerMap.values()).sort((a, b) => b.totalStake - a.totalStake),
+  };
+}
+
+/**
+ * GET /admin/lottery2d/day-players?date=YYYY-MM-DD (single day, legacy)
+ * or ?dateFrom=&dateTo= (IST inclusive range, max 62 days).
+ */
+export const getLottery2DDayPlayers = async (req, res) => {
+  try {
+    const dateFromQ = typeof req.query.dateFrom === 'string' ? req.query.dateFrom.trim() : '';
+    const dateToQ = typeof req.query.dateTo === 'string' ? req.query.dateTo.trim() : '';
+    const dateLegacy = typeof req.query.date === 'string' ? req.query.date.trim() : '';
+
+    let dateFrom;
+    let dateTo;
+    if (dateFromQ && dateToQ) {
+      dateFrom = dateFromQ;
+      dateTo = dateToQ;
+    } else if (dateLegacy) {
+      dateFrom = dateLegacy;
+      dateTo = dateLegacy;
+    } else if (dateFromQ || dateToQ) {
+      const single = dateFromQ || dateToQ;
+      dateFrom = single;
+      dateTo = single;
+    } else {
+      const today = istDayKey();
+      dateFrom = today;
+      dateTo = today;
+    }
+
+    if (!isValidISTDayKey(dateFrom) || !isValidISTDayKey(dateTo)) {
+      return res.status(400).json({ success: false, message: 'Invalid date. Use YYYY-MM-DD (IST).' });
+    }
+    if (dateFrom > dateTo) {
+      return res.status(400).json({ success: false, message: 'dateFrom must be on or before dateTo.' });
+    }
+    const today = istDayKey();
+    if (dateTo > today) {
+      return res.status(400).json({ success: false, message: 'dateTo cannot be after today (IST).' });
+    }
+    const rangeDays = istInclusiveDaySpan(dateFrom, dateTo);
+    const MAX_RANGE_DAYS = 62;
+    if (rangeDays > MAX_RANGE_DAYS) {
+      return res.status(400).json({
+        success: false,
+        message: `Date range cannot exceed ${MAX_RANGE_DAYS} days (IST).`,
+      });
+    }
+
+    const data = await buildPlayersForISTDateRange(dateFrom, dateTo);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
 /**
  * GET /admin/lottery2d/slots/:slotStartIso/players
  */
@@ -367,34 +579,77 @@ export const getLottery2DTickets = async (req, res) => {
       match.slotStartIso = { $in: slotList };
     }
 
-    const ticketListPipeline = [
-      { $match: match },
-      {
-        $group: {
-          _id: {
-            ticketId: '$ticketId',
-            userId: '$userId',
-            slotStartIso: '$slotStartIso',
-          },
-          totalBets: { $sum: 1 },
-          totalStake: { $sum: '$amount' },
-          totalWinPayout: { $sum: { $ifNull: ['$winPayout', 0] } },
-          pendingBets: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'pending'] }, 1, 0],
-            },
-          },
-          placedAt: { $min: '$createdAt' },
+    /** Per-ticket roll-up: list includes fully cancelled tickets; stake/payout fields exclude cancelled lines. */
+    const ticketGroupStage = {
+      $group: {
+        _id: {
+          ticketId: '$ticketId',
+          userId: '$userId',
+          slotStartIso: '$slotStartIso',
         },
+        totalLines: { $sum: 1 },
+        activeLines: {
+          $sum: {
+            $cond: [{ $ne: ['$status', 'cancelled'] }, 1, 0],
+          },
+        },
+        cancelledLines: {
+          $sum: {
+            $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0],
+          },
+        },
+        totalStake: {
+          $sum: {
+            $cond: [{ $ne: ['$status', 'cancelled'] }, '$amount', 0],
+          },
+        },
+        grossStake: { $sum: '$amount' },
+        totalWinPayout: {
+          $sum: {
+            $cond: [{ $ne: ['$status', 'cancelled'] }, { $ifNull: ['$winPayout', 0] }, 0],
+          },
+        },
+        pendingBets: {
+          $sum: {
+            $cond: [{ $eq: ['$status', 'pending'] }, 1, 0],
+          },
+        },
+        placedAt: { $min: '$createdAt' },
       },
-      { $sort: { placedAt: -1 } },
-      { $limit: limit },
-    ];
+    };
 
-    const [rows, summaryAgg, ticketCountAgg, distinctUserIds] = await Promise.all([
-      QuizBet.aggregate(ticketListPipeline),
+    const matchNonCancelled = { ...match, status: { $ne: 'cancelled' } };
+
+    const [facetResult, summaryAgg, distinctUserIds] = await Promise.all([
       QuizBet.aggregate([
         { $match: match },
+        ticketGroupStage,
+        {
+          $facet: {
+            ticketCounts: [
+              {
+                $group: {
+                  _id: null,
+                  totalTickets: { $sum: 1 },
+                  totalActiveTickets: {
+                    $sum: {
+                      $cond: [{ $gt: ['$activeLines', 0] }, 1, 0],
+                    },
+                  },
+                  totalCancelledTickets: {
+                    $sum: {
+                      $cond: [{ $eq: ['$activeLines', 0] }, 1, 0],
+                    },
+                  },
+                },
+              },
+            ],
+            rows: [{ $sort: { placedAt: -1 } }, { $limit: limit }],
+          },
+        },
+      ]),
+      QuizBet.aggregate([
+        { $match: matchNonCancelled },
         {
           $group: {
             _id: null,
@@ -404,23 +659,20 @@ export const getLottery2DTickets = async (req, res) => {
           },
         },
       ]),
-      QuizBet.aggregate([
-        { $match: match },
-        {
-          $group: {
-            _id: { ticketId: '$ticketId', userId: '$userId', slotStartIso: '$slotStartIso' },
-          },
-        },
-        { $count: 'n' },
-      ]),
-      QuizBet.distinct('userId', match),
+      QuizBet.distinct('userId', matchNonCancelled),
     ]);
+
+    const facet = facetResult[0] || { ticketCounts: [], rows: [] };
+    const countRow = facet.ticketCounts[0] || {};
+    const rows = Array.isArray(facet.rows) ? facet.rows : [];
 
     const sum = summaryAgg[0] || {};
     const totalStake = Number(sum.totalStake || 0);
     const totalPayout = Number(sum.totalPayout || 0);
     const summary = {
-      totalTickets: Number(ticketCountAgg[0]?.n || 0),
+      totalTickets: Number(countRow.totalTickets || 0),
+      totalActiveTickets: Number(countRow.totalActiveTickets || 0),
+      totalCancelledTickets: Number(countRow.totalCancelledTickets || 0),
       totalBets: Number(sum.totalBets || 0),
       totalStake,
       totalPayout,
@@ -439,6 +691,9 @@ export const getLottery2DTickets = async (req, res) => {
       const rowSlotStartIso = String(row?._id?.slotStartIso || '');
       const rowSlotStartMs = new Date(rowSlotStartIso).getTime();
       const rowSlotEndMs = rowSlotStartMs + SLOT_MS;
+      const totalLines = Number(row?.totalLines || 0);
+      const activeLines = Number(row?.activeLines || 0);
+      const fullyCancelled = totalLines > 0 && activeLines === 0;
       return {
         ticketId: row?._id?.ticketId || '-',
         userId: uid,
@@ -446,9 +701,16 @@ export const getLottery2DTickets = async (req, res) => {
         phone: user?.phone || '',
         slotStartIso: rowSlotStartIso,
         drawLabelEnd: Number.isFinite(rowSlotEndMs) ? formatDrawLabel(rowSlotEndMs) : '-',
-        totalBets: Number(row?.totalBets || 0),
+        /** All bet lines on this ticket (including cancelled). */
+        totalBets: totalLines,
+        activeBetLines: activeLines,
+        cancelledBetLines: Number(row?.cancelledLines || 0),
+        fullyCancelled,
         pendingBets: Number(row?.pendingBets || 0),
+        /** Active stake only; 0 when fully cancelled. */
         totalStake: Number(row?.totalStake || 0),
+        /** Sum of all line amounts (useful when fully cancelled). */
+        grossStake: Number(row?.grossStake || 0),
         totalWinPayout: Number(row?.totalWinPayout || 0),
         placedAt: row?.placedAt || null,
       };
