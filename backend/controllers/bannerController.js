@@ -186,9 +186,11 @@ export const getPublicLotteryNews = async (req, res) => {
     try {
         const setting = await ensureBannerSetting();
         const message = String(setting?.lotteryNewsMessage || '').trim() || 'Welcome Diamond';
+        const speedSecRaw = Number(setting?.lotteryNewsSpeedSec);
+        const speedSec = Number.isFinite(speedSecRaw) ? Math.min(120, Math.max(5, speedSecRaw)) : 24;
         res.status(200).json({
             success: true,
-            data: { message, updatedAt: setting?.updatedAt || null },
+            data: { message, speedSec, updatedAt: setting?.updatedAt || null },
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -199,9 +201,11 @@ export const getAdminLotteryNews = async (req, res) => {
     try {
         const setting = await ensureBannerSetting();
         const message = String(setting?.lotteryNewsMessage || '').trim() || 'Welcome Diamond';
+        const speedSecRaw = Number(setting?.lotteryNewsSpeedSec);
+        const speedSec = Number.isFinite(speedSecRaw) ? Math.min(120, Math.max(5, speedSecRaw)) : 24;
         res.status(200).json({
             success: true,
-            data: { message, updatedAt: setting?.updatedAt || null },
+            data: { message, speedSec, updatedAt: setting?.updatedAt || null },
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -212,6 +216,7 @@ export const updateAdminLotteryNews = async (req, res) => {
     try {
         const setting = await ensureBannerSetting();
         const raw = req.body?.message;
+        const rawSpeed = Number(req.body?.speedSec);
         const message = String(raw == null ? '' : raw).trim();
         if (!message) {
             return res.status(400).json({ success: false, message: 'Lottery news message is required.' });
@@ -219,15 +224,23 @@ export const updateAdminLotteryNews = async (req, res) => {
         if (message.length > 500) {
             return res.status(400).json({ success: false, message: 'Lottery news message must be at most 500 characters.' });
         }
+        if (!Number.isFinite(rawSpeed) || rawSpeed < 5 || rawSpeed > 120) {
+            return res.status(400).json({ success: false, message: 'Speed must be between 5 and 120 seconds.' });
+        }
 
         setting.lotteryNewsMessage = message;
+        setting.lotteryNewsSpeedSec = Math.round(rawSpeed);
         setting.updatedBy = req.admin?._id || null;
         await setting.save();
 
         res.status(200).json({
             success: true,
             message: 'Lottery news updated successfully',
-            data: { message, updatedAt: setting.updatedAt || null },
+            data: {
+                message,
+                speedSec: Number(setting.lotteryNewsSpeedSec || 24),
+                updatedAt: setting.updatedAt || null,
+            },
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

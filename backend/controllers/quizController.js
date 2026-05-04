@@ -20,6 +20,8 @@ import { getShuffleOrderIndices } from '../services/quizShuffleService.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
 import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
+import { getRatesMap } from '../models/rate/rate.js';
+import { evaluate3DBetAgainstResult, resolve3DPayoutMultiplier } from '../services/quiz3dPayoutHelpers.js';
 import { getBetOwnerKey } from '../utils/betOwnerKey.js';
 import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js';
 import { getQuizTimingSettingsSnapshot } from '../services/quizTimingSettingsService.js';
@@ -650,6 +652,83 @@ export const getMyQuizBets = async (req, res) => {
       }
     } catch {
       // If fallback settle fails, continue with best-effort read.
+    }
+
+    // 3D payout safety reconcile:
+    // If older rows were settled with legacy fallback multiplier, repair underpaid wins.
+    if (gameMode === '3d') {
+      try {
+        const recentSettled = await QuizBet.find({
+          gameMode,
+          userId: uid,
+          status: { $in: ['win', 'lose'] },
+        })
+          .select('_id quizId slotStartIso number amount betMode status winPayout')
+          .sort({ createdAt: -1, _id: -1 })
+          .limit(2500)
+          .lean();
+
+        if (recentSettled.length) {
+          const nowForReconcile = Date.now();
+          const ended = recentSettled.filter((b) => {
+            const startMs = new Date(b.slotStartIso).getTime();
+            return Number.isFinite(startMs) && nowForReconcile >= (startMs + SLOT_MS);
+          });
+          if (ended.length) {
+            const slotSet = new Set();
+            for (const b of ended) slotSet.add(String(b.slotStartIso || '').trim());
+            const picks = await QuizSlotPick.find({
+              gameMode,
+              slotStartIso: { $in: [...slotSet] },
+            }).select('slotStartIso quizId hintPosition').lean();
+            const pickMap = new Map();
+            for (const p of picks) {
+              pickMap.set(`${p.slotStartIso}|${p.quizId}`, p.hintPosition);
+            }
+            const ratesMap = await getRatesMap();
+
+            let totalExtraCredit = 0;
+            const bulk = [];
+            for (const b of ended) {
+              if (String(b.status || '').toLowerCase() === 'cancelled') continue;
+              const hp = pickMap.get(`${b.slotStartIso}|${b.quizId}`);
+              if (!Number.isInteger(hp) || hp < 0 || hp > 999) continue;
+              const ev = evaluate3DBetAgainstResult(b.betMode || 'str', b.number, hp);
+              const expectedStatus = ev.matched ? 'win' : 'lose';
+              const expectedPayout = ev.matched
+                ? Math.round(Number(b.amount || 0) * resolve3DPayoutMultiplier(ratesMap, b.betMode || 'str', b.number, ev))
+                : 0;
+              const existingPayout = Number(b.winPayout || 0);
+              const existingStatus = String(b.status || '').toLowerCase();
+
+              // Apply only safe upgrades (never claw back user payouts).
+              if (expectedStatus === 'win' && (existingStatus !== 'win' || expectedPayout > existingPayout)) {
+                const delta = Math.max(0, expectedPayout - existingPayout);
+                if (delta > 0) totalExtraCredit += delta;
+                bulk.push({
+                  updateOne: {
+                    filter: { _id: b._id },
+                    update: { $set: { status: 'win', winPayout: expectedPayout } },
+                  },
+                });
+              }
+            }
+
+            if (bulk.length) {
+              await QuizBet.bulkWrite(bulk, { ordered: false });
+              if (totalExtraCredit > 0) {
+                await Wallet.findOneAndUpdate(
+                  { userId: uid },
+                  { $inc: { balance: totalExtraCredit } },
+                  { upsert: true },
+                );
+              }
+            }
+          }
+        }
+      } catch {
+        // Reconcile is best-effort; reads should continue.
+      }
     }
 
     const [bets, ticketAgg] = await Promise.all([

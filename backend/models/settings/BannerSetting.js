@@ -44,6 +44,12 @@ const bannerSettingSchema = new mongoose.Schema(
             trim: true,
             maxlength: 500,
         },
+        lotteryNewsSpeedSec: {
+            type: Number,
+            default: 24,
+            min: 5,
+            max: 120,
+        },
     },
     { timestamps: true }
 );

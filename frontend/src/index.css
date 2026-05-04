@@ -159,7 +159,7 @@
 .status-marquee-track {
   display: inline-block;
   min-width: max-content;
-  animation: status-marquee 14s linear infinite;
+  animation: status-marquee 24s linear infinite;
 }
 
 @keyframes status-marquee {

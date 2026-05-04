@@ -10,6 +10,7 @@ const API_BASE_URL =
 const LotteryNewsSettings = () => {
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
+  const [speedSec, setSpeedSec] = useState(24);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
@@ -30,6 +31,8 @@ const LotteryNewsSettings = () => {
         throw new Error(json?.message || `Failed to load (${res.status})`);
       }
       setMessage(String(json?.data?.message || '').trim());
+      const speed = Number(json?.data?.speedSec);
+      setSpeedSec(Number.isFinite(speed) ? Math.min(120, Math.max(5, Math.round(speed))) : 24);
     } catch (err) {
       setStatus(err?.message || 'Failed to load lottery news');
     } finally {
@@ -48,12 +51,16 @@ const LotteryNewsSettings = () => {
       setStatus('Message is required.');
       return;
     }
+    if (!Number.isFinite(Number(speedSec)) || Number(speedSec) < 5 || Number(speedSec) > 120) {
+      setStatus('Speed must be between 5 and 120 seconds.');
+      return;
+    }
     setSaving(true);
     setStatus('');
     try {
       const res = await fetchWithAuth(`${API_BASE_URL}/banner-settings/admin/lottery-news`, {
         method: 'PATCH',
-        body: JSON.stringify({ message: next }),
+        body: JSON.stringify({ message: next, speedSec: Number(speedSec) }),
       });
       if (res.status === 401) return;
       const json = await res.json().catch(() => ({}));
@@ -61,6 +68,8 @@ const LotteryNewsSettings = () => {
         throw new Error(json?.message || `Failed to update (${res.status})`);
       }
       setMessage(String(json?.data?.message || next));
+      const savedSpeed = Number(json?.data?.speedSec);
+      setSpeedSec(Number.isFinite(savedSpeed) ? Math.min(120, Math.max(5, Math.round(savedSpeed))) : Number(speedSec));
       setStatus('Lottery news updated successfully.');
     } catch (err) {
       setStatus(err?.message || 'Failed to update lottery news');
@@ -99,6 +108,32 @@ const LotteryNewsSettings = () => {
             <div className="rounded-md border border-gray-200 bg-[#2eb34f] px-3 py-2 text-sm font-semibold text-black">
               Preview: {String(message || '').trim() || 'Welcome Diamond'}
             </div>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Scroll speed (seconds per loop)</span>
+              <div className="mt-2 flex items-center gap-3">
+                <input
+                  type="range"
+                  min={5}
+                  max={120}
+                  step={1}
+                  value={speedSec}
+                  onChange={(e) => setSpeedSec(Number(e.target.value || 24))}
+                  className="w-full"
+                />
+                <input
+                  type="number"
+                  min={5}
+                  max={120}
+                  step={1}
+                  value={speedSec}
+                  onChange={(e) => setSpeedSec(Number(e.target.value || 24))}
+                  className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm"
+                />
+              </div>
+              <span className="mt-1 block text-xs text-gray-500">
+                Higher value = slower scroll
+              </span>
+            </label>
 
             {status ? (
               <p className={`text-sm ${status.toLowerCase().includes('success') ? 'text-green-600' : 'text-red-600'}`}>

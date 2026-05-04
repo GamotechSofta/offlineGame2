@@ -53,15 +53,17 @@ export async function settleQuizBetsForSlot(slotStartIso, gameMode = '2d', optio
 
     let status;
     let winPayout;
+    let isWin = false;
     if (gameMode === '3d') {
       const evalResult = evaluate3DBetAgainstResult(bet.betMode || 'str', bet.number, winningNumber);
       const mult = evalResult.matched
         ? resolve3DPayoutMultiplier(ratesMap, bet.betMode || 'str', bet.number, evalResult)
         : 0;
-      status = evalResult.matched ? 'win' : 'lose';
-      winPayout = evalResult.matched ? Math.round(bet.amount * mult) : 0;
+      isWin = Boolean(evalResult.matched);
+      status = isWin ? 'win' : 'lose';
+      winPayout = isWin ? Math.round(bet.amount * mult) : 0;
     } else {
-      const isWin = bet.number === winningNumber;
+      isWin = bet.number === winningNumber;
       status = isWin ? 'win' : 'lose';
       winPayout = isWin ? Math.round(bet.amount * mult2d) : 0;
     }
