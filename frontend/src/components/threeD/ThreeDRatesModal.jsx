@@ -43,7 +43,6 @@ export default function ThreeDRatesModal({ open, onClose, chart = {}, loading = 
               <thead>
                 <tr className="border-b border-slate-600 text-left text-slate-400">
                   <th className="py-2 pr-2 font-semibold">Play</th>
-                  <th className="py-2 pr-2 font-semibold">Code</th>
                   <th className="py-2 text-right font-semibold">× (per ₹1)</th>
                 </tr>
               </thead>
@@ -57,7 +56,6 @@ export default function ThreeDRatesModal({ open, onClose, chart = {}, loading = 
                         <div className="font-semibold text-amber-200/95">{row.code}</div>
                         <div className="mt-0.5 text-[11px] leading-snug text-slate-400">{row.desc}</div>
                       </td>
-                      <td className="py-2 pr-2 align-top font-mono text-[12px] text-slate-300">{row.key}</td>
                       <td className="py-2 text-right align-top font-mono text-base font-black text-emerald-300">
                         {val === '—' ? '—' : `×${val}`}
                       </td>
