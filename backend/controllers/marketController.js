@@ -70,8 +70,19 @@ const computeDisplayResultFromNumbers = (openingNumber, closingNumber) => {
 /** 0=Sun … 6=Sat (IST, same as JS getDay). Empty/invalid → null (store as all-week: omit or $unset). */
 function normalizeOpenDaysFromRequest(openDays) {
     if (openDays === undefined) return undefined;
-    if (!Array.isArray(openDays)) return undefined;
-    const uniq = [...new Set(openDays.map((x) => Number(x)).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort(
+    let raw = openDays;
+    if (typeof raw === 'string') {
+        const t = raw.trim();
+        if (!t) return null;
+        try {
+            const parsed = JSON.parse(t);
+            raw = Array.isArray(parsed) ? parsed : undefined;
+        } catch {
+            raw = undefined;
+        }
+    }
+    if (!Array.isArray(raw)) return undefined;
+    const uniq = [...new Set(raw.map((x) => Number(x)).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort(
         (a, b) => a - b
     );
     if (uniq.length === 0) return null;
@@ -168,6 +179,9 @@ export const getMarkets = async (req, res) => {
             return doc;
         });
         data = data.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline');
+        // Avoid CDN/browser caches serving stale payloads (e.g. missing weekly openDays after admin updates).
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.set('Pragma', 'no-cache');
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -210,6 +224,8 @@ export const getMarketById = async (req, res) => {
         }
         const response = market.toObject();
         response.displayResult = market.getDisplayResult();
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.set('Pragma', 'no-cache');
         res.status(200).json({ success: true, data: response });
     } catch (error) {
         if (error.name === 'CastError') {

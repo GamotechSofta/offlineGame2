@@ -1,9 +1,30 @@
+/** en-US short weekday → 0=Sun … 6=Sat (Asia/Kolkata calendar day). */
+const IST_WEEKDAY_SHORT = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
 /**
- * IST calendar weekday 0=Sunday … 6=Saturday (same numbering as Date.getDay).
- * Uses the date in Asia/Kolkata, not the host's local timezone — required for UTC/Linux servers in production.
- * (Parsing weekday strings can vary by ICU; falling back to getDay() used server local day and broke scheduling.)
+ * IST calendar weekday 0=Sunday … 6=Saturday (same numbering as Date.getDay in IST).
+ * Prefer Intl weekday in Asia/Kolkata (no dependency on Date string parsing across runtimes).
  */
 export function getISTWeekdayIndex(now = new Date()) {
+    try {
+        const dtf = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Kolkata',
+            weekday: 'short',
+        });
+        let wd;
+        if (typeof dtf.formatToParts === 'function') {
+            const parts = dtf.formatToParts(now);
+            wd = parts.find((p) => p.type === 'weekday')?.value;
+        } else {
+            wd = dtf.format(now);
+        }
+        if (wd) {
+            const key = wd.length >= 3 ? wd.slice(0, 3) : wd;
+            if (IST_WEEKDAY_SHORT[key] !== undefined) return IST_WEEKDAY_SHORT[key];
+        }
+    } catch {
+        // RangeError: unknown time zone, etc.
+    }
     const ymd = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Kolkata',
         year: 'numeric',
@@ -11,19 +32,23 @@ export function getISTWeekdayIndex(now = new Date()) {
         day: '2-digit',
     }).format(now);
     const ref = new Date(`${ymd}T12:00:00+05:30`);
-    if (isNaN(ref.getTime())) return 0;
-    return ref.getUTCDay();
+    if (!isNaN(ref.getTime())) return ref.getUTCDay();
+    return new Date(now.getTime()).getUTCDay();
 }
 
 /**
  * Effective open days: unique sorted 0–6. Null/omit/non-array = all week (legacy markets).
  */
 export function normalizeMarketOpenDays(openDays) {
-    if (openDays == null || !Array.isArray(openDays)) {
+    let arr = openDays;
+    if (arr != null && typeof arr === 'object' && !Array.isArray(arr)) {
+        arr = Object.values(arr);
+    }
+    if (arr == null || !Array.isArray(arr)) {
         return [0, 1, 2, 3, 4, 5, 6];
     }
     const set = new Set();
-    for (const d of openDays) {
+    for (const d of arr) {
         const n = Number(d);
         if (Number.isInteger(n) && n >= 0 && n <= 6) set.add(n);
     }
