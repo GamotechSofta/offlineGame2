@@ -16,10 +16,11 @@ const TicketListModal = ({
   loading = false,
   loadingMessage = 'Loading...',
   emptyMessage = 'No tickets available yet.',
+  combineByDrawTime = false,
 }) => {
   const normalizedTickets = useMemo(() => {
     const safeTickets = Array.isArray(tickets) ? tickets : [];
-    return [...safeTickets]
+    const normalized = [...safeTickets]
       .map((ticket) => {
         const createdAt = ticket?.createdAt ? new Date(ticket.createdAt) : new Date(Number(ticket?.id) || Date.now());
         const drawDateFallback = Number.isNaN(createdAt.getTime())
@@ -49,9 +50,60 @@ const TicketListModal = ({
           totalWin: Number(ticket?.totalWin || 0),
           isAdvanceDraw: String(ticket?.isAdvanceDraw || '').toLowerCase() === 'true' || ticket?.isAdvanceDraw === true,
         };
-      })
-      .sort(compareTicketsByDrawTimeDesc);
-  }, [tickets]);
+      });
+
+    if (!combineByDrawTime) {
+      return normalized.sort(compareTicketsByDrawTimeDesc);
+    }
+
+    const groupByDraw = new Map();
+    normalized.forEach((ticket) => {
+      const drawKey = `${ticket.drawDate}|${ticket.drawTime}|${ticket.userName}`;
+      if (!groupByDraw.has(drawKey)) {
+        groupByDraw.set(drawKey, []);
+      }
+      groupByDraw.get(drawKey).push(ticket);
+    });
+
+    const combined = [];
+    groupByDraw.forEach((drawTickets, drawKey) => {
+      const active = drawTickets.filter((t) => t.outcome !== 'cancelled');
+      const cancelled = drawTickets.filter((t) => t.outcome === 'cancelled');
+
+      const buildMerged = (rows, outcomeOverride = '') => {
+        if (!rows.length) return null;
+        const latest = [...rows].sort((a, b) => b.createdAtMs - a.createdAtMs)[0];
+        const ticketIds = rows.map((r) => String(r.ticketId || '').trim()).filter(Boolean);
+        const uniqueTicketIds = Array.from(new Set(ticketIds));
+        const mergedBets = rows.flatMap((r) => (Array.isArray(r.bets) ? r.bets : []));
+        const totalPoints = rows.reduce((sum, r) => sum + Number(r.totalPoints || 0), 0);
+        const totalWin = rows.reduce((sum, r) => sum + Number(r.totalWin || 0), 0);
+        const hasPending = rows.some((r) => r.outcome === 'pending');
+        const hasWin = rows.some((r) => r.outcome === 'win');
+        const mergedOutcome = outcomeOverride || (hasPending ? 'pending' : (hasWin ? 'win' : 'loss'));
+        const drawLabel = drawKey.split('|').slice(0, 2).join(' ');
+        return {
+          ...latest,
+          id: `merged:${drawKey}:${outcomeOverride || 'active'}`,
+          ticketId: uniqueTicketIds.join(',') || latest.ticketId || '',
+          gameId: uniqueTicketIds.length === 1 ? uniqueTicketIds[0] : `MULTI (${rows.length} tickets)`,
+          totalPoints,
+          totalWin,
+          bets: mergedBets,
+          outcome: mergedOutcome,
+          mergedTicketCount: rows.length,
+          drawLabel,
+        };
+      };
+
+      const activeMerged = buildMerged(active);
+      const cancelledMerged = buildMerged(cancelled, 'cancelled');
+      if (activeMerged) combined.push(activeMerged);
+      if (cancelledMerged) combined.push(cancelledMerged);
+    });
+
+    return combined.sort(compareTicketsByDrawTimeDesc);
+  }, [combineByDrawTime, tickets]);
 
   const renderTicketRow = (ticket, rowKey) => (
     <div

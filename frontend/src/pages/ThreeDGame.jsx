@@ -1976,6 +1976,7 @@ const ThreeDGame = () => {
       return;
     }
     if (label.toLowerCase() === 'refresh') {
+      handleClearAll();
       refreshLastDrawResult();
       refreshWalletBalance();
       setToast('Refreshed');
@@ -1995,7 +1996,7 @@ const ThreeDGame = () => {
       return;
     }
     setToast(`${label} clicked`);
-  }, [handleCancelPendingTicket, handleRotateLandscape, navigate, now, refreshLastDrawResult, refreshWalletBalance]);
+  }, [handleCancelPendingTicket, handleClearAll, handleRotateLandscape, navigate, now, refreshLastDrawResult, refreshWalletBalance]);
 
   const handleGoHome = useCallback(async () => {
     try {
@@ -2936,6 +2937,7 @@ const ThreeDGame = () => {
               open={isHistoryListOpen}
               onClose={() => setIsHistoryListOpen(false)}
               tickets={historyTicketsForModal}
+              combineByDrawTime
               title="HISTORY"
               loading={isHistoryLoading}
               loadingMessage="Loading history..."
@@ -2973,6 +2975,7 @@ const ThreeDGame = () => {
               open={isHistoryListOpen}
               onClose={() => setIsHistoryListOpen(false)}
               tickets={historyTicketsForModal}
+              combineByDrawTime
               title="HISTORY"
               loading={isHistoryLoading}
               loadingMessage="Loading history..."
