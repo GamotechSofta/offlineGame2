@@ -187,7 +187,17 @@ const ThreeDQuizStakeDetail = () => {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">{setLabel} — number-wise bets</h1>
                     <p className="text-sm text-gray-500 mt-1">
-                        Slot: {data?.drawLabelEnd || '—'} · Win multiplier ×{data?.winMultiplier ?? '—'}
+                        Slot: {data?.drawLabelEnd || '—'}
+                        {data?.payoutUsesPerPlayRates ? (
+                            <span>
+                                {' '}
+                                · Payout column uses{' '}
+                                <strong className="text-gray-700">each bet&apos;s play + Update Rate chart</strong> if that ticket
+                                number wins · fallback ×{data?.winMultiplier ?? '—'} when a mode rate is unset
+                            </span>
+                        ) : (
+                            <span> · Win multiplier ×{data?.winMultiplier ?? '—'}</span>
+                        )}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                         <span className="font-semibold text-orange-700">Hint / result number:</span>

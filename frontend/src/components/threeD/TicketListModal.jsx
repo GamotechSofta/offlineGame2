@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { compareTicketsByDrawTimeDesc } from './helpers';
 
 const drawTimeFormatter = new Intl.DateTimeFormat('en-IN', {
   hour: '2-digit',
@@ -49,23 +50,12 @@ const TicketListModal = ({
           isAdvanceDraw: String(ticket?.isAdvanceDraw || '').toLowerCase() === 'true' || ticket?.isAdvanceDraw === true,
         };
       })
-      .sort((a, b) => b.createdAtMs - a.createdAtMs);
+      .sort(compareTicketsByDrawTimeDesc);
   }, [tickets]);
 
-  const ticketSections = useMemo(() => {
-    const running = normalizedTickets.filter((t) => t.outcome === 'pending');
-    const cancelled = normalizedTickets.filter((t) => t.outcome === 'cancelled');
-    const settled = normalizedTickets.filter((t) => t.outcome === 'win' || t.outcome === 'loss');
-    return [
-      { key: 'running', label: 'Running', items: running },
-      { key: 'cancelled', label: 'Cancelled', items: cancelled },
-      { key: 'settled', label: 'Win / Loss', items: settled },
-    ].filter((s) => s.items.length > 0);
-  }, [normalizedTickets]);
-
-  const renderTicketRow = (ticket) => (
+  const renderTicketRow = (ticket, rowKey) => (
     <div
-      key={ticket.id}
+      key={rowKey}
       className="flex flex-col items-start justify-between gap-3 rounded-xl border border-[#6f6f6f] bg-[#4f4f4f] px-3 py-3 text-white sm:flex-row sm:items-center sm:gap-4 sm:px-4"
     >
       <div className="grid w-full grid-cols-1 gap-x-8 gap-y-1.5 text-[16px] sm:grid-cols-2 sm:text-[17px]">
@@ -129,14 +119,14 @@ const TicketListModal = ({
               {loadingMessage}
             </div>
           ) : normalizedTickets.length ? (
-            ticketSections.map((section) => (
-              <div key={section.key} className="space-y-2">
-                <h4 className="text-[17px] font-extrabold uppercase tracking-wide text-[#3d3d3d] sm:text-[19px]">
-                  {section.label}
-                </h4>
-                <div className="space-y-3">{section.items.map((ticket) => renderTicketRow(ticket))}</div>
-              </div>
-            ))
+            <div className="space-y-3">
+              {normalizedTickets.map((ticket, idx) =>
+                renderTicketRow(
+                  ticket,
+                  String(ticket?.id ?? ticket?.gameId ?? ticket?.ticketId ?? `ticket-${idx}`),
+                ),
+              )}
+            </div>
           ) : (
             <div className="rounded-lg bg-[#4f4f4f] px-4 py-8 text-center text-[18px] font-semibold text-white">
               {emptyMessage}

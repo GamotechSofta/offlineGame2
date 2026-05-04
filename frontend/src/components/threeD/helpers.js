@@ -43,7 +43,8 @@ const getBoxType = (num) => {
   if (hasTwoSameDigits(num)) return '3-way';
   return null;
 };
-const PAYOUT_TABLE = {
+/** Default ₹ won per ₹1 staked (matches backend seed until admin overrides). */
+export const DEFAULT_3D_PAYOUT_BY_MODE = {
   str: 900,
   box_1: 900,
   box_3: 300,
@@ -55,32 +56,58 @@ const PAYOUT_TABLE = {
   dp: 300,
   tp: 900,
 };
+
+const PAYOUT_TABLE = DEFAULT_3D_PAYOUT_BY_MODE;
+
+/** Map GET /rates/current payload → internal payout table keys. */
+export function mapQuizRateApiToPayoutTable(apiData) {
+  if (!apiData || typeof apiData !== 'object') return null;
+  const d = apiData;
+  const n = (v, fb) => {
+    const x = Number(v);
+    return Number.isFinite(x) && x >= 0 ? x : fb;
+  };
+  return {
+    str: n(d.quiz3d_str, PAYOUT_TABLE.str),
+    box_1: n(d.quiz3d_box_1way, PAYOUT_TABLE.box_1),
+    box_3: n(d.quiz3d_box_3way, PAYOUT_TABLE.box_3),
+    box_6: n(d.quiz3d_box_6way, PAYOUT_TABLE.box_6),
+    fp: n(d.quiz3d_fp, PAYOUT_TABLE.fp),
+    bp: n(d.quiz3d_bp, PAYOUT_TABLE.bp),
+    sp: n(d.quiz3d_sp, PAYOUT_TABLE.sp),
+    ap: n(d.quiz3d_ap, PAYOUT_TABLE.ap),
+    dp: n(d.quiz3d_duplicates, PAYOUT_TABLE.dp),
+    tp: n(d.quiz3d_triples, PAYOUT_TABLE.tp),
+  };
+}
 // Kept for export compatibility. SP is now Split Pair, not cycle-based.
 export const getSpCycleValue = (value) => {
   const digits = normalize3Digit(value);
   if (!digits) return null;
   return `${digits[0]}${digits[2]}`;
 };
-const getPayoutMultiplier = (mode, betNum, boxType) => {
+const getPayoutMultiplier = (mode, betNum, boxType, table = PAYOUT_TABLE) => {
   const normalizedMode = normalizeMode(mode);
-  if (normalizedMode === 'str') return PAYOUT_TABLE.str;
-  if (normalizedMode === 'dp') return PAYOUT_TABLE.dp;
-  if (normalizedMode === 'tp') return PAYOUT_TABLE.tp;
+  if (normalizedMode === 'str') return table.str;
+  if (normalizedMode === 'dp' || normalizedMode === 'duplicates') return table.dp;
+  if (normalizedMode === 'tp' || normalizedMode === 'triples') return table.tp;
   if (normalizedMode === 'box') {
     const resolvedBoxType =
       boxType ||
       (betNum && /^\d{3}$/.test(betNum) ? getBoxType(betNum) : null);
-    if (resolvedBoxType === '1-way') return PAYOUT_TABLE.box_1;
-    if (resolvedBoxType === '3-way') return PAYOUT_TABLE.box_3;
-    if (resolvedBoxType === '6-way') return PAYOUT_TABLE.box_6;
+    if (resolvedBoxType === '1-way') return table.box_1;
+    if (resolvedBoxType === '3-way') return table.box_3;
+    if (resolvedBoxType === '6-way') return table.box_6;
     return 0;
   }
-  if (normalizedMode === 'fp') return PAYOUT_TABLE.fp;
-  if (normalizedMode === 'bp') return PAYOUT_TABLE.bp;
-  if (normalizedMode === 'sp') return PAYOUT_TABLE.sp;
-  if (normalizedMode === 'ap') return PAYOUT_TABLE.ap;
+  if (normalizedMode === 'fp') return table.fp;
+  if (normalizedMode === 'bp') return table.bp;
+  if (normalizedMode === 'sp') return table.sp;
+  if (normalizedMode === 'ap') return table.ap;
   return 0;
 };
+
+export { getPayoutMultiplier };
 
 const normalizeMode = (mode) => {
   const m = String(mode || '').toLowerCase();
@@ -278,7 +305,9 @@ export const matchBet = (bet, results, options = {}) => {
   };
 };
 
-export const settleAllBets = (bets, results) => {
+export const settleAllBets = (bets, results, options = {}) => {
+  const payoutTable =
+    options.payoutTable && typeof options.payoutTable === 'object' ? options.payoutTable : PAYOUT_TABLE;
   return bets.map((bet) => {
     const evaluation = matchBet(bet, results, { returnAllMatches: true });
     const points = Number(bet.points || 0);
@@ -288,6 +317,7 @@ export const settleAllBets = (bets, results) => {
         evaluation.mode || bet.mode,
         evaluation.betNum || bet.number,
         evaluation.boxType,
+        payoutTable,
       )
       : 0;
     const winAmount = evaluation.won ? safePoints * multiplier : 0;
@@ -419,4 +449,37 @@ export const formatTimer = (seconds) => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
+/**
+ * Sort key from draw/slot — prefers `slotStartIso`, then Dr Date + Dr Time strings, then `createdAt`.
+ */
+export const getTicketDrawSortMs = (ticket) => {
+  if (!ticket || typeof ticket !== 'object') return 0;
+  const iso = String(ticket.slotStartIso || '').trim();
+  if (iso) {
+    const ms = new Date(iso).getTime();
+    if (Number.isFinite(ms)) return ms;
+  }
+  const drawDate = String(ticket.drawDate || '').trim();
+  const drawTime = String(ticket.drawTime || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(drawDate) && drawTime && drawTime !== '-') {
+    const parsed = Date.parse(`${drawDate} ${drawTime}`);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  const c = new Date(ticket.createdAt || 0).getTime();
+  return Number.isFinite(c) ? c : 0;
+};
+
+export const getTicketCreatedSortMs = (ticket) => {
+  if (!ticket || typeof ticket !== 'object') return 0;
+  const c = new Date(ticket.createdAt || 0).getTime();
+  return Number.isFinite(c) ? c : 0;
+};
+
+/** Latest draw (Dr Time) first; same draw → newest ticket first */
+export const compareTicketsByDrawTimeDesc = (a, b) => {
+  const byDraw = getTicketDrawSortMs(b) - getTicketDrawSortMs(a);
+  if (byDraw !== 0) return byDraw;
+  return getTicketCreatedSortMs(b) - getTicketCreatedSortMs(a);
 };

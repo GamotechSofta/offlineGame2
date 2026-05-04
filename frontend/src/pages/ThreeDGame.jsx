@@ -10,6 +10,7 @@ import {
   Trophy,
   UserCircle,
   X,
+  BadgePercent,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ResultPanel from '../components/threeD/ResultPanel';
@@ -17,17 +18,20 @@ import Keypad from '../components/threeD/Keypad';
 import {
   GAME_INTERVAL_SECONDS,
   calculateSettlementSummary,
+  compareTicketsByDrawTimeDesc,
   formatTimer,
   generate3DResult,
   getNextDrawTime,
   getSlotMeta,
+  mapQuizRateApiToPayoutTable,
   settleAllBets,
   validateBetForMode,
 } from '../components/threeD/helpers';
 import TicketListModal from '../components/threeD/TicketListModal';
 import TicketDetailsModal from '../components/threeD/TicketDetailsModal';
+import ThreeDRatesModal from '../components/threeD/ThreeDRatesModal';
 import AdvanceDrawModal from '../components/AdvanceDrawModal';
-import { getBalance, updateUserBalance } from '../api/bets';
+import { getBalance, getRatesCurrent, updateUserBalance } from '../api/bets';
 import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
 import { getCurrentUser, subscribeUserSession } from '../session/userSession';
 
@@ -41,6 +45,7 @@ const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
 const HISTORY_FETCH_LIMIT = 5000;
 const HEADER_MENU_ITEMS = [
   { label: 'Result', Icon: Trophy },
+  { label: 'Rates', Icon: BadgePercent },
   { label: 'Account', Icon: UserCircle },
   { label: 'Quiz', Icon: HelpCircle },
   { label: 'Cancel Bet', Icon: CircleX },
@@ -224,6 +229,8 @@ const ThreeDGame = () => {
   const [isHistoryListOpen, setIsHistoryListOpen] = useState(false);
   const [backendHistoryTickets, setBackendHistoryTickets] = useState([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  /** HISTORY modal open astana silent refresh — list fluctuate karu naye; band kelavar apply. */
+  const pendingBackendHistoryTicketsRef = useRef(null);
   const [isAdvanceDrawOpen, setIsAdvanceDrawOpen] = useState(false);
   const [selectedAdvanceSlots, setSelectedAdvanceSlots] = useState([]);
   const [advanceBuySuccess, setAdvanceBuySuccess] = useState(null);
@@ -232,6 +239,9 @@ const ThreeDGame = () => {
   const [cancelBetDialog, setCancelBetDialog] = useState(null);
   const [isCancelSubmitting, setIsCancelSubmitting] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [isRateChartOpen, setIsRateChartOpen] = useState(false);
+  const [serverRatesPayload, setServerRatesPayload] = useState(null);
+  const [ratesLoading, setRatesLoading] = useState(false);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [resultDateDay, setResultDateDay] = useState(() => String(new Date().getDate()).padStart(2, '0'));
   const [resultDateMonth, setResultDateMonth] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
@@ -296,13 +306,15 @@ const ThreeDGame = () => {
         byKey.set(key, ticket);
       }
     });
-    return [...byKey.values()].sort(
-      (a, b) => new Date(b?.slotStartIso || b?.createdAt || 0).getTime() - new Date(a?.slotStartIso || a?.createdAt || 0).getTime(),
-    );
+    return [...byKey.values()].sort(compareTicketsByDrawTimeDesc);
   }, [backendHistoryTickets, ticketHistory]);
   const formattedWalletBalance = useMemo(
     () => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Number(walletBalance) || 0),
     [walletBalance],
+  );
+  const payoutTableFromServer = useMemo(
+    () => mapQuizRateApiToPayoutTable(serverRatesPayload),
+    [serverRatesPayload],
   );
   const visibleBetCards = useMemo(
     () => (Array.isArray(bets) ? [...bets].reverse() : []),
@@ -371,8 +383,12 @@ const ThreeDGame = () => {
     }
   }, [loadStoredBalance]);
 
-  const loadBackendHistoryTickets = useCallback(async () => {
-    setIsHistoryLoading(true);
+  const loadBackendHistoryTickets = useCallback(async (opts = {}) => {
+    const background = Boolean(opts.background);
+    const skipLoadingSpinner = Boolean(opts.skipLoadingSpinner);
+    const showSpinner = !background && !skipLoadingSpinner;
+
+    if (showSpinner) setIsHistoryLoading(true);
     try {
       const j = await getMyQuizBets(HISTORY_FETCH_LIMIT, '3d');
       const rows = Array.isArray(j?.data) ? j.data : [];
@@ -468,17 +484,70 @@ const ThreeDGame = () => {
           bets,
         };
       });
-      mapped.sort((a, b) => new Date(b?.slotStartIso || b?.createdAt || 0).getTime() - new Date(a?.slotStartIso || a?.createdAt || 0).getTime());
-      setBackendHistoryTickets(mapped);
+      mapped.sort(compareTicketsByDrawTimeDesc);
+
+      if (background) {
+        pendingBackendHistoryTicketsRef.current = mapped;
+      } else {
+        pendingBackendHistoryTicketsRef.current = null;
+        setBackendHistoryTickets(mapped);
+      }
+
       await refreshWalletBalance();
     } catch (_) {
-      setBackendHistoryTickets([]);
+      if (!background) {
+        pendingBackendHistoryTicketsRef.current = null;
+        setBackendHistoryTickets([]);
+      }
     } finally {
-      setIsHistoryLoading(false);
+      if (showSpinner) setIsHistoryLoading(false);
     }
   }, [playerIdentity, refreshWalletBalance]);
 
+  useEffect(() => {
+    if (isHistoryListOpen) return undefined;
+    const pending = pendingBackendHistoryTicketsRef.current;
+    if (!pending) return undefined;
+    setBackendHistoryTickets(pending);
+    pendingBackendHistoryTicketsRef.current = null;
+    return undefined;
+  }, [isHistoryListOpen]);
+
   const pushWalletHistory = useCallback(() => {}, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const j = await getRatesCurrent();
+        if (!cancelled && j?.success && j?.data) setServerRatesPayload(j.data);
+      } catch (_) {
+        /* keep built-in payout defaults */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isRateChartOpen) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        setRatesLoading(true);
+        const j = await getRatesCurrent();
+        if (!cancelled && j?.success && j?.data) setServerRatesPayload(j.data);
+      } catch (_) {
+        /* ignore */
+      } finally {
+        if (!cancelled) setRatesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isRateChartOpen]);
 
   useEffect(() => {
     if (!quizId) return;
@@ -1461,12 +1530,12 @@ const ThreeDGame = () => {
     setSelectedModes(['box']);
     setLPickType('box');
     setSelectedAdvanceSlots([]);
-    void loadBackendHistoryTickets();
+    void loadBackendHistoryTickets(isHistoryListOpen ? { background: true } : undefined);
     return { ok: true };
     } finally {
       isBuyingRef.current = false;
     }
-  }, [bets, formatAdvanceSlotLabel, formatDrawEndLabelFromSlotStartIso, generateGameId, loadBackendHistoryTickets, nextDrawAt, now, playerIdentity, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
+  }, [bets, formatAdvanceSlotLabel, formatDrawEndLabelFromSlotStartIso, generateGameId, isHistoryListOpen, loadBackendHistoryTickets, nextDrawAt, now, playerIdentity, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
 
   const handleOpenBuyConfirm = useCallback(() => {
     if (!bets.length) {
@@ -1725,13 +1794,15 @@ const ThreeDGame = () => {
         return next;
       });
     }
-    await loadBackendHistoryTickets();
+    await loadBackendHistoryTickets(
+      isHistoryListOpen ? { skipLoadingSpinner: true } : undefined,
+    );
 
     setToast('Ticket cancelled');
     setValidationMsg(`Ticket ${ticketLabel} cancelled. Refund ₹${refundAmount} credited.`);
     setCancelBetDialog(null);
     setIsCancelSubmitting(false);
-  }, [bets, cancelBetDialog, computeSlotStartIsoFromSettleAtMs, getTicketSettleAtMs, historyTicketsForModal, isCancelSubmitting, loadBackendHistoryTickets, playerIdentity, ticketHistory]);
+  }, [bets, cancelBetDialog, computeSlotStartIsoFromSettleAtMs, getTicketSettleAtMs, historyTicketsForModal, isCancelSubmitting, isHistoryListOpen, loadBackendHistoryTickets, playerIdentity, ticketHistory]);
 
   useEffect(() => {
     if (!resultUpdatedAt) return;
@@ -1766,7 +1837,11 @@ const ThreeDGame = () => {
           nextHistory.push(ticket);
           continue;
         }
-        const settledBets = settleAllBets(ticket?.bets || [], backendPanels);
+        const settledBets = settleAllBets(
+          ticket?.bets || [],
+          backendPanels,
+          payoutTableFromServer ? { payoutTable: payoutTableFromServer } : {},
+        );
         const summary = calculateSettlementSummary(settledBets);
         const invested = Number(summary.totalInvested ?? summary.totalPoints ?? ticket?.totalPoints ?? 0);
         const wonAmount = Number(summary.totalWinAmount || 0);
@@ -1803,7 +1878,7 @@ const ThreeDGame = () => {
 
       setTicketHistory(nextHistory);
       if (isHistoryListOpen) {
-        await loadBackendHistoryTickets();
+        await loadBackendHistoryTickets({ background: true });
       }
     })();
 
@@ -1822,13 +1897,14 @@ const ThreeDGame = () => {
     ticketHistory,
     isHistoryListOpen,
     loadBackendHistoryTickets,
+    payoutTableFromServer,
   ]);
 
   useEffect(() => {
     if (!isHistoryListOpen) return undefined;
     loadBackendHistoryTickets();
     const id = setInterval(() => {
-      loadBackendHistoryTickets();
+      loadBackendHistoryTickets({ background: true });
     }, 10000);
     return () => clearInterval(id);
   }, [isHistoryListOpen, loadBackendHistoryTickets]);
@@ -1877,6 +1953,10 @@ const ThreeDGame = () => {
   }, []);
 
   const handleHeaderAction = useCallback(async (label) => {
+    if (label.toLowerCase() === 'rates') {
+      setIsRateChartOpen(true);
+      return;
+    }
     if (label.toLowerCase() === 'result') {
       const d = new Date(now);
       const day = String(d.getDate()).padStart(2, '0');
@@ -1904,7 +1984,6 @@ const ThreeDGame = () => {
     if (['history', 'my bets / ticket'].includes(label.toLowerCase())) {
       setIsHistoryListOpen(true);
       setIsTicketListOpen(false);
-      loadBackendHistoryTickets();
       return;
     }
     if (label.toLowerCase() === 'account') {
@@ -1916,7 +1995,7 @@ const ThreeDGame = () => {
       return;
     }
     setToast(`${label} clicked`);
-  }, [handleCancelPendingTicket, handleRotateLandscape, loadBackendHistoryTickets, navigate, now, refreshLastDrawResult, refreshWalletBalance]);
+  }, [handleCancelPendingTicket, handleRotateLandscape, navigate, now, refreshLastDrawResult, refreshWalletBalance]);
 
   const handleGoHome = useCallback(async () => {
     try {
@@ -2164,7 +2243,7 @@ const ThreeDGame = () => {
         </div>
 
         <div className="w-full min-h-0 rounded-lg border border-[#d6c2a5] bg-[#fff7ec] px-2 py-2">
-          <nav className="grid w-full grid-cols-6 gap-1.5" aria-label="Main menu">
+          <nav className="grid w-full grid-cols-7 gap-1.5" aria-label="Main menu">
             {HEADER_MENU_ITEMS.map(({ label, Icon }) => (
               <button
                 key={label}
@@ -2871,6 +2950,12 @@ const ThreeDGame = () => {
               ticket={selectedTicket}
               onClose={() => setSelectedTicket(null)}
             />
+            <ThreeDRatesModal
+              open={isRateChartOpen}
+              onClose={() => setIsRateChartOpen(false)}
+              chart={serverRatesPayload?.quiz3dChart || {}}
+              loading={ratesLoading}
+            />
           </>,
           document.body,
         ) : (
@@ -2901,6 +2986,12 @@ const ThreeDGame = () => {
               open={Boolean(selectedTicket)}
               ticket={selectedTicket}
               onClose={() => setSelectedTicket(null)}
+            />
+            <ThreeDRatesModal
+              open={isRateChartOpen}
+              onClose={() => setIsRateChartOpen(false)}
+              chart={serverRatesPayload?.quiz3dChart || {}}
+              loading={ratesLoading}
             />
           </>
         )}

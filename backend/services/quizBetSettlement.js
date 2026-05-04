@@ -5,21 +5,15 @@ import { getRatesMap } from '../models/rate/rate.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { resolveWinningShuffledPosition } from './quizPickPositionService.js';
 import { isSlotDeclared } from './quizDeclarationService.js';
+import { evaluate3DBetAgainstResult, resolve3DPayoutMultiplier } from './quiz3dPayoutHelpers.js';
 
-async function winMultiplier(gameMode = '2d') {
+async function quiz2dWinMultiplier() {
   try {
     const rates = await getRatesMap();
-    const m = Number(gameMode === '3d' ? rates?.quiz3d : rates?.quiz2d);
+    const m = Number(rates?.quiz2d);
     if (Number.isFinite(m) && m > 0) return m;
-  } catch {
-    // Fall back to env/default when rates are unavailable.
-  }
-  const envMultiplier = parseInt(
-    gameMode === '3d'
-      ? (process.env.QUIZ3D_BET_WIN_MULTIPLIER ?? process.env.QUIZ_BET_WIN_MULTIPLIER ?? '90')
-      : (process.env.QUIZ_BET_WIN_MULTIPLIER ?? '90'),
-    10,
-  );
+  } catch {}
+  const envMultiplier = parseInt(process.env.QUIZ_BET_WIN_MULTIPLIER ?? '90', 10);
   return Number.isFinite(envMultiplier) && envMultiplier > 0 ? envMultiplier : 90;
 }
 
@@ -36,7 +30,11 @@ export async function settleQuizBetsForSlot(slotStartIso, gameMode = '2d', optio
   const picks = await QuizSlotPick.find({ gameMode, slotStartIso }).lean();
   const pickByQuiz = new Map(picks.map((p) => [p.quizId, p]));
 
-  const mult = await winMultiplier(gameMode);
+  let ratesMap = null;
+  if (gameMode === '3d') {
+    ratesMap = await getRatesMap();
+  }
+  const mult2d = gameMode !== '3d' ? await quiz2dWinMultiplier() : null;
   let settled = 0;
 
   for (const bet of pending) {
@@ -53,9 +51,20 @@ export async function settleQuizBetsForSlot(slotStartIso, gameMode = '2d', optio
       continue;
     }
 
-    const isWin = bet.number === winningNumber;
-    const status = isWin ? 'win' : 'lose';
-    const winPayout = isWin ? Math.round(bet.amount * mult) : 0;
+    let status;
+    let winPayout;
+    if (gameMode === '3d') {
+      const evalResult = evaluate3DBetAgainstResult(bet.betMode || 'str', bet.number, winningNumber);
+      const mult = evalResult.matched
+        ? resolve3DPayoutMultiplier(ratesMap, bet.betMode || 'str', bet.number, evalResult)
+        : 0;
+      status = evalResult.matched ? 'win' : 'lose';
+      winPayout = evalResult.matched ? Math.round(bet.amount * mult) : 0;
+    } else {
+      const isWin = bet.number === winningNumber;
+      status = isWin ? 'win' : 'lose';
+      winPayout = isWin ? Math.round(bet.amount * mult2d) : 0;
+    }
 
     const up = await QuizBet.updateOne(
       { _id: bet._id, status: 'pending' },

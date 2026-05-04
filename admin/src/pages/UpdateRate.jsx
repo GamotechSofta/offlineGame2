@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { FaPencilAlt } from 'react-icons/fa';
@@ -7,16 +7,13 @@ import useModalBackHandler from '../hooks/useModalBackHandler';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
-const GAME_LABELS = {
-    single: 'Single Digit',
-    jodi: 'Jodi',
-    singlePatti: 'Single Patti',
-    doublePatti: 'Double Patti',
-    triplePatti: 'Triple Patti',
-    halfSangam: 'Half Sangam',
-    fullSangam: 'Full Sangam',
-    quiz2d: '2D',
+const SECTION_TITLES = {
+    matka: 'Matka / board',
+    quiz2d: '2D quiz',
+    quiz3d: 'Quiz 3D lottery — rate chart (₹ won per ₹1)',
 };
+
+const CATEGORY_ORDER = ['matka', 'quiz2d', 'quiz3d'];
 
 const UpdateRate = () => {
     const [rates, setRates] = useState([]);
@@ -30,6 +27,16 @@ const UpdateRate = () => {
     const [secretPassword, setSecretPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const navigate = useNavigate();
+
+    const groupedRates = useMemo(() => {
+        const buckets = { matka: [], quiz2d: [], quiz3d: [] };
+        (Array.isArray(rates) ? rates : []).forEach((item) => {
+            const cat = item.category || 'matka';
+            const key = buckets[cat] ? cat : 'matka';
+            buckets[key].push(item);
+        });
+        return buckets;
+    }, [rates]);
     const closePasswordModal = useModalBackHandler(showPasswordModal, () => {
         setShowPasswordModal(false);
         setSecretPassword('');
@@ -155,69 +162,111 @@ const UpdateRate = () => {
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">{error}</div>
             )}
             <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 text-center">Update Rate</h1>
-            <p className="text-gray-400 mb-6 text-center">Payout rate per 1 unit bet (1 =)</p>
+            <p className="text-gray-400 mb-6 text-center">
+                Payout <span className="text-gray-300 font-semibold">₹ won per ₹1</span> bet — same values used when 3D results are declared.
+            </p>
 
             {loading ? (
                 <div className="text-center py-12 text-gray-400">Loading...</div>
             ) : (
-                <div className="overflow-x-auto max-w-2xl mx-auto rounded-lg border-2 border-gray-200 bg-white">
-                    <table className="w-full border-collapse text-sm sm:text-base">
-                        <thead>
-                            <tr className="bg-white border-b-2 border-black">
-                                <th className="text-left py-3 px-4 font-bold text-orange-500 border-r border-gray-200">Sr No</th>
-                                <th className="text-left py-3 px-4 font-bold text-orange-500 border-r border-gray-200">Game</th>
-                                <th className="text-left py-3 px-4 font-bold text-orange-500">Rate (1 =)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rates.map((item, idx) => (
-                                <tr key={item.gameType} className="border-b border-gray-200 hover:bg-white/70">
-                                    <td className="py-2 sm:py-3 px-4 text-gray-600 border-r border-gray-200">{idx + 1}</td>
-                                    <td className="py-2 sm:py-3 px-4 font-medium text-gray-800 border-r border-gray-200">
-                                        {GAME_LABELS[item.gameType] || item.gameType}
-                                    </td>
-                                    <td className="py-2 sm:py-3 px-4">
-                                        {editingKey === item.gameType ? (
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    value={editValue}
-                                                    onChange={(e) => setEditValue(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                                                    className="w-24 px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-800 font-mono"
-                                                />
-                                                <button
-                                                    onClick={handleSaveRate}
-                                                    disabled={saveLoading}
-                                                    className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs font-semibold disabled:opacity-50"
-                                                >
-                                                    Save
-                                                </button>
-                                                <button
-                                                    onClick={cancelEdit}
-                                                    className="px-2 py-1 bg-gray-200 hover:bg-gray-100 rounded text-xs"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <span className="font-mono text-orange-500">{item.rate}</span>
-                                        )}
-                                        {editingKey !== item.gameType && (
-                                            <button
-                                                type="button"
-                                                onClick={() => startEdit(item)}
-                                                className="ml-2 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-800 inline-flex align-middle"
-                                                title="Edit rate"
-                                            >
-                                                <FaPencilAlt className="w-3.5 h-3.5" />
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="mx-auto max-w-4xl space-y-8">
+                    {CATEGORY_ORDER.map((category) => {
+                        const rows = groupedRates[category] || [];
+                        if (!rows.length) return null;
+                        let rowNum = 0;
+                        return (
+                            <div key={category} className="overflow-x-auto rounded-lg border-2 border-gray-200 bg-white">
+                                <div className="border-b border-gray-200 bg-orange-50 px-4 py-3">
+                                    <h2 className="text-lg font-bold text-orange-600">{SECTION_TITLES[category]}</h2>
+                                    {category === 'quiz3d' ? (
+                                        <p className="mt-1 text-sm text-gray-600">
+                                            Edit each <strong>play type</strong> separately (STR, BOX, FP, BP, …). The{' '}
+                                            <strong>Fallback</strong> row is only used if a mode does not have its own rate in the database.
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <table className="w-full border-collapse text-sm sm:text-base">
+                                    <thead>
+                                        <tr className="border-b-2 border-black bg-white">
+                                            <th className="text-left py-3 px-4 font-bold text-orange-500 border-r border-gray-200">Sr</th>
+                                            {category === 'quiz3d' ? (
+                                                <th className="text-left py-3 px-4 font-bold text-orange-500 border-r border-gray-200">Play</th>
+                                            ) : null}
+                                            <th className="text-left py-3 px-4 font-bold text-orange-500 border-r border-gray-200">Admin label</th>
+                                            <th className="text-left py-3 px-4 font-bold text-orange-500 border-r border-gray-200">Key</th>
+                                            <th className="text-left py-3 px-4 font-bold text-orange-500">₹ per ₹1</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rows.map((item) => {
+                                            rowNum += 1;
+                                            return (
+                                                <tr key={item.gameType} className="border-b border-gray-200 hover:bg-orange-50/40">
+                                                    <td className="py-2 sm:py-3 px-4 text-gray-600 border-r border-gray-200">{rowNum}</td>
+                                                    {category === 'quiz3d' ? (
+                                                        <td className="py-2 sm:py-3 px-4 font-bold text-blue-700 border-r border-gray-200 whitespace-nowrap">
+                                                            {item.playCode || '—'}
+                                                        </td>
+                                                    ) : null}
+                                                    <td className="py-2 sm:py-3 px-4 font-medium text-gray-800 border-r border-gray-200">
+                                                        {item.label || item.gameType}
+                                                        {item.note ? (
+                                                            <span className="mt-1 block text-xs font-normal text-gray-500">{item.note}</span>
+                                                        ) : null}
+                                                    </td>
+                                                    <td className="py-2 sm:py-3 px-4 border-r border-gray-200 font-mono text-xs text-gray-600">
+                                                        {item.gameType}
+                                                    </td>
+                                                    <td className="py-2 sm:py-3 px-4">
+                                                        {editingKey === item.gameType ? (
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    value={editValue}
+                                                                    onChange={(e) =>
+                                                                        setEditValue(e.target.value.replace(/\D/g, '').slice(0, 9))
+                                                                    }
+                                                                    className="w-28 px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-800 font-mono"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleSaveRate}
+                                                                    disabled={saveLoading}
+                                                                    className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs font-semibold text-white disabled:opacity-50"
+                                                                >
+                                                                    Save
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={cancelEdit}
+                                                                    className="px-2 py-1 bg-gray-200 hover:bg-gray-100 rounded text-xs"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="font-mono text-lg font-bold text-orange-600">×{item.rate}</span>
+                                                        )}
+                                                        {editingKey !== item.gameType ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => startEdit(item)}
+                                                                className="ml-2 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-800 inline-flex align-middle"
+                                                                title="Edit rate"
+                                                            >
+                                                                <FaPencilAlt className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        ) : null}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 
