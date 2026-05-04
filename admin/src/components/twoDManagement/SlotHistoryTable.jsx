@@ -16,6 +16,7 @@ const SlotHistoryTable = ({ slots, selectedSlot, onSelectSlot, loading }) => {
                         <tr className="text-left text-gray-500 border-b border-gray-200">
                             <th className="py-2 pr-3">Draw Time</th>
                             <th className="py-2 pr-3 text-right">Tickets</th>
+                            <th className="py-2 pr-3 text-right">Bets</th>
                             <th className="py-2 pr-3 text-right">Users</th>
                             <th className="py-2 pr-3 text-right">Winners</th>
                             <th className="py-2 pr-3 text-right">Revenue</th>
@@ -26,7 +27,7 @@ const SlotHistoryTable = ({ slots, selectedSlot, onSelectSlot, loading }) => {
                     <tbody>
                         {!slots.length && !loading ? (
                             <tr>
-                                <td colSpan={7} className="py-6 text-center text-gray-500">No completed slots found.</td>
+                                <td colSpan={8} className="py-6 text-center text-gray-500">No completed slots found.</td>
                             </tr>
                         ) : null}
                         {slots.map((slot) => {
@@ -38,7 +39,8 @@ const SlotHistoryTable = ({ slots, selectedSlot, onSelectSlot, loading }) => {
                                     className={`border-b border-gray-100 cursor-pointer ${active ? 'bg-orange-50' : 'hover:bg-gray-50'}`}
                                 >
                                     <td className="py-2 pr-3 font-medium text-gray-800">{slot.drawLabelEnd}</td>
-                                    <td className="py-2 pr-3 text-right font-mono">{slot.totalTickets}</td>
+                                    <td className="py-2 pr-3 text-right font-mono">{slot.totalTickets ?? 0}</td>
+                                    <td className="py-2 pr-3 text-right font-mono">{slot.totalBets ?? 0}</td>
                                     <td className="py-2 pr-3 text-right font-mono">{slot.totalUsers}</td>
                                     <td className="py-2 pr-3 text-right font-mono">{slot.winnerTickets}</td>
                                     <td className="py-2 pr-3 text-right font-mono text-green-600">

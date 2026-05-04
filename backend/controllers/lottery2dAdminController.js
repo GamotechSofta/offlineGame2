@@ -52,6 +52,11 @@ async function getQuiz2DMultiplier() {
   return Number.isFinite(fallback) && fallback > 0 ? fallback : 90;
 }
 
+function quizBetTicketKey(bet) {
+  const tid = bet.ticketId ? String(bet.ticketId).trim() : '';
+  return tid || `legacy:${String(bet._id)}`;
+}
+
 function baseQuizStatsById() {
   const map = new Map();
   for (const quizId of QUIZ_IDS) {
@@ -59,6 +64,7 @@ function baseQuizStatsById() {
       quizId,
       result: null,
       ticketCount: 0,
+      betCount: 0,
       totalBetAmount: 0,
       uniqueUsers: 0,
       winnerTickets: 0,
@@ -71,7 +77,8 @@ function baseQuizStatsById() {
 function toSlotSummary(slotStartIso, slotEndMs, bets, picksByQuiz, winMultiplier) {
   const users = new Set();
   const winnerUsers = new Set();
-  let ticketCount = 0;
+  const ticketKeys = new Set();
+  let totalBets = 0;
   let revenue = 0;
   let winnerTickets = 0;
   let winnerPayout = 0;
@@ -81,7 +88,8 @@ function toSlotSummary(slotStartIso, slotEndMs, bets, picksByQuiz, winMultiplier
       // eslint-disable-next-line no-continue
       continue;
     }
-    ticketCount += 1;
+    totalBets += 1;
+    ticketKeys.add(quizBetTicketKey(bet));
     revenue += Number(bet.amount || 0);
     if (bet.userId) users.add(String(bet.userId));
     const hp = picksByQuiz.get(bet.quizId);
@@ -97,7 +105,8 @@ function toSlotSummary(slotStartIso, slotEndMs, bets, picksByQuiz, winMultiplier
     slotEndIso: new Date(slotEndMs).toISOString(),
     drawLabelEnd: formatDrawLabel(slotEndMs),
     isCompleted: Date.now() >= slotEndMs,
-    totalTickets: ticketCount,
+    totalTickets: ticketKeys.size,
+    totalBets,
     revenue,
     totalBetAmount: revenue,
     totalUsers: users.size,
@@ -794,14 +803,14 @@ export const getLottery2DPlayerHistory = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ success: false, message: 'Invalid userId.' });
     }
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
+    const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
     const user = await User.findById(userId).select('username phone').lean();
     if (!user) {
       return res.status(404).json({ success: false, message: 'Player not found.' });
     }
 
     const bets = await QuizBet.find({ gameMode: GAME_MODE, userId })
-      .select('_id slotStartIso quizId number amount status winPayout createdAt')
+      .select('_id ticketId slotStartIso quizId number amount status winPayout createdAt')
       .sort({ slotStartIso: -1, createdAt: -1 })
       .lean();
     if (!bets.length) {
@@ -837,11 +846,18 @@ export const getLottery2DPlayerHistory = async (req, res) => {
       const amount = Number(bet.amount || 0);
       const result = getOutcomeAndPayout({ isCompleted, pickByQuiz, bet, winMultiplier });
       if (includeInSlots && !slotsMap.has(bet.slotStartIso)) {
+        const pickMap = picksBySlot.get(bet.slotStartIso) || new Map();
+        const winningQuizLabels = isCompleted
+          ? [...pickMap.entries()]
+            .sort((a, b) => Number(a[0]) - Number(b[0]))
+            .map(([quizId, hint]) => `Q${String(quizId).padStart(2, '0')}:${String(hint ?? '').padStart(2, '0')}`)
+          : [];
         slotsMap.set(bet.slotStartIso, {
           slotStartIso: bet.slotStartIso,
           slotEndIso: new Date(slotEndMs).toISOString(),
           drawLabelEnd: formatDrawLabel(slotEndMs),
           isCompleted,
+          winningQuizLabels,
           betCount: 0,
           totalStake: 0,
           totalPayout: 0,
@@ -860,6 +876,7 @@ export const getLottery2DPlayerHistory = async (req, res) => {
           slotRow.betCount += 1;
           slotRow.bets.push({
             betId: String(bet._id),
+            ticketId: bet.ticketId ? String(bet.ticketId) : null,
             quizId: bet.quizId,
             setLabel: getQuizLabelByQuizId2d(bet.quizId),
             number: String(bet.number).padStart(2, '0'),
@@ -885,6 +902,7 @@ export const getLottery2DPlayerHistory = async (req, res) => {
         else slotRow.pending += 1;
         slotRow.bets.push({
           betId: String(bet._id),
+          ticketId: bet.ticketId ? String(bet.ticketId) : null,
           quizId: bet.quizId,
           setLabel: getQuizLabelByQuizId2d(bet.quizId),
           number: String(bet.number).padStart(2, '0'),
@@ -1041,7 +1059,9 @@ export const getLottery2DCurrentSlot = async (req, res) => {
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter }).select('quizId userId number amount status winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter })
+        .select('ticketId quizId userId number amount status winPayout')
+        .lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
@@ -1057,9 +1077,11 @@ export const getLottery2DCurrentSlot = async (req, res) => {
 
     const quizUsers = new Map();
     const quizWinnerUsers = new Map();
+    const ticketKeysByQuiz = new Map();
     for (const quizId of QUIZ_IDS) {
       quizUsers.set(quizId, new Set());
       quizWinnerUsers.set(quizId, new Set());
+      ticketKeysByQuiz.set(quizId, new Set());
     }
 
     for (const bet of bets) {
@@ -1069,7 +1091,8 @@ export const getLottery2DCurrentSlot = async (req, res) => {
       }
       const row = perQuiz.get(bet.quizId);
       if (!row) continue;
-      row.ticketCount += 1;
+      row.betCount += 1;
+      ticketKeysByQuiz.get(bet.quizId).add(quizBetTicketKey(bet));
       row.totalBetAmount += Number(bet.amount || 0);
       if (bet.userId) quizUsers.get(bet.quizId).add(String(bet.userId));
 
@@ -1082,6 +1105,7 @@ export const getLottery2DCurrentSlot = async (req, res) => {
 
     for (const quizId of QUIZ_IDS) {
       const row = perQuiz.get(quizId);
+      row.ticketCount = ticketKeysByQuiz.get(quizId).size;
       row.uniqueUsers = quizUsers.get(quizId).size;
       row.winnerUsers = quizWinnerUsers.get(quizId).size;
     }
@@ -1173,7 +1197,7 @@ export const getLottery2DSlotHistory = async (req, res) => {
 
     const [bets, picks, winMultiplier] = await Promise.all([
       QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots }, ...lotteryScopeFilter })
-        .select('slotStartIso quizId userId number amount status winPayout')
+        .select('slotStartIso ticketId quizId userId number amount status winPayout')
         .lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
@@ -1330,7 +1354,9 @@ export const getLottery2DSlotDetail = async (req, res) => {
     }
 
     const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount status winPayout').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso })
+        .select('ticketId quizId userId number amount status winPayout')
+        .lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
     ]);
@@ -1347,9 +1373,11 @@ export const getLottery2DSlotDetail = async (req, res) => {
     const usersByQuiz = new Map();
     const winnerUsersByQuiz = new Map();
     const stakeOnHintByQuiz = new Map(QUIZ_IDS.map((q) => [q, 0]));
+    const ticketKeysByQuiz = new Map();
     for (const quizId of QUIZ_IDS) {
       usersByQuiz.set(quizId, new Set());
       winnerUsersByQuiz.set(quizId, new Set());
+      ticketKeysByQuiz.set(quizId, new Set());
     }
 
     for (const bet of bets) {
@@ -1359,7 +1387,8 @@ export const getLottery2DSlotDetail = async (req, res) => {
       }
       const row = perQuiz.get(bet.quizId);
       if (!row) continue;
-      row.ticketCount += 1;
+      row.betCount += 1;
+      ticketKeysByQuiz.get(bet.quizId).add(quizBetTicketKey(bet));
       row.totalBetAmount += Number(bet.amount || 0);
       if (bet.userId) usersByQuiz.get(bet.quizId).add(String(bet.userId));
 
@@ -1376,6 +1405,7 @@ export const getLottery2DSlotDetail = async (req, res) => {
 
     for (const quizId of QUIZ_IDS) {
       const row = perQuiz.get(quizId);
+      row.ticketCount = ticketKeysByQuiz.get(quizId).size;
       row.uniqueUsers = usersByQuiz.get(quizId).size;
       row.winnerUsers = winnerUsersByQuiz.get(quizId).size;
       const hp = pickByQuiz.get(quizId);

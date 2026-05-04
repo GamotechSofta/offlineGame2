@@ -28,6 +28,8 @@ import TopWinners from './pages/TopWinners';
 import TwoDManagement from './pages/TwoDManagement';
 import TwoDQuizStakeDetail from './pages/TwoDQuizStakeDetail';
 import TwoDCurrentSlotPlayers from './pages/TwoDCurrentSlotPlayers';
+import TwoDPlayersRouteLayout from './pages/TwoDPlayersRouteLayout';
+import TwoDPlayerHistoryRouteRedirect from './pages/TwoDPlayerHistoryRouteRedirect';
 import TwoDOldSlotsStats from './pages/TwoDOldSlotsStats';
 import ThreeDManagement from './pages/ThreeDManagement';
 import ThreeDQuizStakeDetail from './pages/ThreeDQuizStakeDetail';
@@ -305,10 +307,13 @@ const App = () => {
                     path="/2d-management/current-slot-players"
                     element={
                         <PrivateRoute>
-                            <TwoDCurrentSlotPlayers />
+                            <TwoDPlayersRouteLayout />
                         </PrivateRoute>
                     }
-                />
+                >
+                    <Route index element={<TwoDCurrentSlotPlayers />} />
+                    <Route path="history/:userId" element={<TwoDPlayerHistoryRouteRedirect />} />
+                </Route>
                 <Route
                     path="/2d-management/tickets"
                     element={

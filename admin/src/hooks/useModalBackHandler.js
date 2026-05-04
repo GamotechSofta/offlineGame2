@@ -7,6 +7,8 @@ import { useCallback, useEffect, useRef } from 'react';
 const useModalBackHandler = (isOpen, onClose) => {
     const stateRef = useRef({ pushed: false, isOpen: false });
     const onCloseRef = useRef(onClose);
+    /** Ignore the popstate that follows history.back() from an explicit Close click. */
+    const skipNextPopRef = useRef(false);
 
     useEffect(() => {
         onCloseRef.current = onClose;
@@ -29,6 +31,10 @@ const useModalBackHandler = (isOpen, onClose) => {
         stateRef.current.pushed = true;
 
         const onPopState = () => {
+            if (skipNextPopRef.current) {
+                skipNextPopRef.current = false;
+                return;
+            }
             stateRef.current.pushed = false;
             stateRef.current.isOpen = false;
             onCloseRef.current?.();
@@ -39,11 +45,12 @@ const useModalBackHandler = (isOpen, onClose) => {
     }, [isOpen]);
 
     return useCallback(() => {
-        if (stateRef.current.isOpen && stateRef.current.pushed) {
+        const hadPushed = stateRef.current.pushed;
+        stateRef.current.isOpen = false;
+        if (hadPushed) {
+            skipNextPopRef.current = true;
             stateRef.current.pushed = false;
-            stateRef.current.isOpen = false;
             window.history.back();
-            return;
         }
         onCloseRef.current?.();
     }, []);

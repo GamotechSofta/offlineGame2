@@ -18,6 +18,7 @@ const QuizSlotStatsTable = ({
                             <th className="py-2 pr-3">Quiz</th>
                             <th className="py-2 pr-3 text-right">Result</th>
                             <th className="py-2 pr-3 text-right">Tickets</th>
+                            <th className="py-2 pr-3 text-right">Bets</th>
                             <th className="py-2 pr-3 text-right">Users</th>
                             <th className="py-2 pr-3 text-right">Winner Tickets</th>
                             <th className="py-2 pr-3 text-right">Winner Users</th>
@@ -30,7 +31,8 @@ const QuizSlotStatsTable = ({
                             <tr key={row.quizId} className="border-b border-gray-100">
                                 <td className="py-2 pr-3 font-medium text-gray-800">{quizLabelFormatter(row.quizId)}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.result == null ? '--' : String(row.result).padStart(resultPadLength, '0')}</td>
-                                <td className="py-2 pr-3 text-right font-mono">{row.ticketCount}</td>
+                                <td className="py-2 pr-3 text-right font-mono">{row.ticketCount ?? 0}</td>
+                                <td className="py-2 pr-3 text-right font-mono">{row.betCount ?? 0}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.uniqueUsers}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.winnerTickets}</td>
                                 <td className="py-2 pr-3 text-right font-mono">{row.winnerUsers}</td>

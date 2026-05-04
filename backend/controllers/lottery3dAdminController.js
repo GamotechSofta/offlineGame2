@@ -51,6 +51,11 @@ function payoutUnsettledWin3d(bet, hintPosition, ratesMap) {
   return Math.round(Number(bet.amount || 0) * mult);
 }
 
+function quizBetTicketKey(bet) {
+  const tid = bet.ticketId ? String(bet.ticketId).trim() : '';
+  return tid || `legacy:${String(bet._id)}`;
+}
+
 function baseQuizStatsById() {
   const map = new Map();
   for (const quizId of QUIZ_IDS) {
@@ -58,6 +63,7 @@ function baseQuizStatsById() {
       quizId,
       result: null,
       ticketCount: 0,
+      betCount: 0,
       totalBetAmount: 0,
       uniqueUsers: 0,
       winnerTickets: 0,
@@ -514,7 +520,9 @@ export const getLottery3DCurrentSlot = async (req, res) => {
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
     const [bets, picks, ratesMap] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter }).select('quizId userId number amount status winPayout betMode').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter })
+        .select('ticketId quizId userId number amount status winPayout betMode')
+        .lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getRatesMap(),
     ]);
@@ -530,9 +538,11 @@ export const getLottery3DCurrentSlot = async (req, res) => {
 
     const quizUsers = new Map();
     const quizWinnerUsers = new Map();
+    const ticketKeysByQuiz = new Map();
     for (const quizId of QUIZ_IDS) {
       quizUsers.set(quizId, new Set());
       quizWinnerUsers.set(quizId, new Set());
+      ticketKeysByQuiz.set(quizId, new Set());
     }
 
     for (const bet of bets) {
@@ -542,7 +552,8 @@ export const getLottery3DCurrentSlot = async (req, res) => {
       }
       const row = perQuiz.get(bet.quizId);
       if (!row) continue;
-      row.ticketCount += 1;
+      row.betCount += 1;
+      ticketKeysByQuiz.get(bet.quizId).add(quizBetTicketKey(bet));
       row.totalBetAmount += Number(bet.amount || 0);
       if (bet.userId) quizUsers.get(bet.quizId).add(String(bet.userId));
 
@@ -555,6 +566,7 @@ export const getLottery3DCurrentSlot = async (req, res) => {
 
     for (const quizId of QUIZ_IDS) {
       const row = perQuiz.get(quizId);
+      row.ticketCount = ticketKeysByQuiz.get(quizId).size;
       row.uniqueUsers = quizUsers.get(quizId).size;
       row.winnerUsers = quizWinnerUsers.get(quizId).size;
     }
@@ -760,7 +772,9 @@ export const getLottery3DSlotDetail = async (req, res) => {
     }
 
     const [bets, picks, ratesMap] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId userId number amount status winPayout betMode').lean(),
+      QuizBet.find({ gameMode: GAME_MODE, slotStartIso })
+        .select('ticketId quizId userId number amount status winPayout betMode')
+        .lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getRatesMap(),
     ]);
@@ -777,9 +791,11 @@ export const getLottery3DSlotDetail = async (req, res) => {
     const usersByQuiz = new Map();
     const winnerUsersByQuiz = new Map();
     const payoutIfHintWinByQuiz = new Map(QUIZ_IDS.map((q) => [q, 0]));
+    const ticketKeysByQuiz = new Map();
     for (const quizId of QUIZ_IDS) {
       usersByQuiz.set(quizId, new Set());
       winnerUsersByQuiz.set(quizId, new Set());
+      ticketKeysByQuiz.set(quizId, new Set());
     }
 
     for (const bet of bets) {
@@ -789,7 +805,8 @@ export const getLottery3DSlotDetail = async (req, res) => {
       }
       const row = perQuiz.get(bet.quizId);
       if (!row) continue;
-      row.ticketCount += 1;
+      row.betCount += 1;
+      ticketKeysByQuiz.get(bet.quizId).add(quizBetTicketKey(bet));
       row.totalBetAmount += Number(bet.amount || 0);
       if (bet.userId) usersByQuiz.get(bet.quizId).add(String(bet.userId));
 
@@ -806,6 +823,7 @@ export const getLottery3DSlotDetail = async (req, res) => {
 
     for (const quizId of QUIZ_IDS) {
       const row = perQuiz.get(quizId);
+      row.ticketCount = ticketKeysByQuiz.get(quizId).size;
       row.uniqueUsers = usersByQuiz.get(quizId).size;
       row.winnerUsers = winnerUsersByQuiz.get(quizId).size;
       const hp = pickByQuiz.get(quizId);
