@@ -1,10 +1,12 @@
 import React, { memo } from 'react';
 import BoardCell from './BoardCell';
 import { getBoardNumbers, getCellKey } from '../utils/boardHelpers';
+import { FILTER_TYPES } from '../types';
 
 const NumberBoard = ({
   activeQuiz,
   selectedMap,
+  selectedNumbers,
   activeTarget,
   activeFilter,
   rowPointDisplay,
@@ -13,8 +15,8 @@ const NumberBoard = ({
 }) => {
   const numbers = getBoardNumbers();
   const isVisible = (num) => {
-    if (activeFilter === 'even') return num % 2 === 0;
-    if (activeFilter === 'odd') return num % 2 !== 0;
+    if (activeFilter === FILTER_TYPES.EVEN) return num % 2 === 0;
+    if (activeFilter === FILTER_TYPES.ODD) return num % 2 !== 0;
     return true;
   };
 
@@ -81,7 +83,7 @@ const NumberBoard = ({
                     quizNo={activeQuiz}
                     num={num}
                     value={value}
-                    selected={Boolean(value)}
+                    selected={Boolean(value) || selectedNumbers?.has(String(num).padStart(2, '0'))}
                     targetSelected={isTargetSelected}
                     onSelectTarget={onSelectTarget}
                   />

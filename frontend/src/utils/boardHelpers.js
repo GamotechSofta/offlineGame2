@@ -24,6 +24,23 @@ export const applyFilterNumbers = (filterType) => {
   return all;
 };
 
+export const getFamilyNumbers = (num) => {
+  const n = Number(num);
+  if (!Number.isInteger(n) || n < 0 || n > 99) return new Set();
+  const a = Math.floor(n / 10);
+  const b = n % 10;
+  const famA = [a, (a + 5) % 10];
+  const famB = [b, (b + 5) % 10];
+  const result = new Set();
+  for (const x of famA) {
+    for (const y of famB) {
+      result.add(`${x}${y}`);
+      result.add(`${y}${x}`);
+    }
+  }
+  return result;
+};
+
 export const getTotals = (selectedMap) => {
   const values = Object.values(selectedMap);
   const count = values.length;
