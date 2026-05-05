@@ -11,8 +11,6 @@ import {
   UserCircle,
   X,
   BadgePercent,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ResultPanel from '../components/threeD/ResultPanel';
@@ -68,10 +66,6 @@ const VALID_MODES = new Set(['single', 'str', 'box', 'sp', 'fp', 'bp', 'ap', 'du
 const LPICK_OPTIONS = ['single', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'duplicates', 'triples'];
 const BASE_WIDTH = 1536;
 const BASE_HEIGHT = 864;
-const UI_ZOOM_MIN = 0.7;
-const UI_ZOOM_MAX = 1.5;
-const UI_ZOOM_STEP = 0.1;
-const UI_ZOOM_STORAGE_KEY_3D = 'lottery-3d-ui-zoom';
 const PANEL_QUIZ_IDS = { A: 1, B: 2, C: 3 };
 const panelToQuizId = (panelRaw) => {
   const p = String(panelRaw || '').trim().toUpperCase();
@@ -208,15 +202,6 @@ const ThreeDGame = () => {
     width: typeof window !== 'undefined' ? window.innerWidth : BASE_WIDTH,
     height: typeof window !== 'undefined' ? window.innerHeight : BASE_HEIGHT,
   }));
-  const [uiZoom, setUiZoom] = useState(() => {
-    try {
-      const v = parseFloat(localStorage.getItem(UI_ZOOM_STORAGE_KEY_3D) || '');
-      if (!Number.isFinite(v)) return 1;
-      return Math.min(UI_ZOOM_MAX, Math.max(UI_ZOOM_MIN, Math.round(v * 100) / 100));
-    } catch {
-      return 1;
-    }
-  });
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [timerSeconds, setTimerSeconds] = useState(GAME_INTERVAL_SECONDS);
@@ -632,8 +617,8 @@ const ThreeDGame = () => {
   }, []);
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
-  const effectiveScaleX = useMemo(() => dashboardScaleX * uiZoom, [dashboardScaleX, uiZoom]);
-  const effectiveScaleY = useMemo(() => dashboardScaleY * uiZoom, [dashboardScaleY, uiZoom]);
+  const effectiveScaleX = useMemo(() => dashboardScaleX, [dashboardScaleX]);
+  const effectiveScaleY = useMemo(() => dashboardScaleY, [dashboardScaleY]);
   const isMobileView = useMemo(() => viewport.width <= 900, [viewport.width]);
   const isTouchDevice = useMemo(
     () => typeof window !== 'undefined' && ('ontouchstart' in window || (navigator?.maxTouchPoints || 0) > 0),
@@ -759,22 +744,6 @@ const ThreeDGame = () => {
   useEffect(() => {
     refreshLastDrawResult();
   }, [refreshLastDrawResult]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(UI_ZOOM_STORAGE_KEY_3D, String(uiZoom));
-    } catch {
-      // ignore
-    }
-  }, [uiZoom]);
-
-  const handleUiZoomIn = useCallback(() => {
-    setUiZoom((z) => Math.min(UI_ZOOM_MAX, Math.round((z + UI_ZOOM_STEP) * 100) / 100));
-  }, []);
-  const handleUiZoomOut = useCallback(() => {
-    setUiZoom((z) => Math.max(UI_ZOOM_MIN, Math.round((z - UI_ZOOM_STEP) * 100) / 100));
-  }, []);
-  const handleUiZoomReset = useCallback(() => setUiZoom(1), []);
 
   useEffect(() => {
     const onResize = () => {
@@ -3325,39 +3294,6 @@ const ThreeDGame = () => {
         </div>
       </div>
       </div>
-      </div>
-      <div
-        className="pointer-events-auto fixed bottom-3 right-3 z-[120] flex items-center gap-1 rounded-full border border-white/25 bg-[#0f172a]/92 px-2 py-1.5 text-white shadow-lg backdrop-blur-sm sm:bottom-4 sm:right-4"
-        role="toolbar"
-        aria-label="Screen zoom"
-      >
-        <button
-          type="button"
-          onClick={handleUiZoomOut}
-          disabled={uiZoom <= UI_ZOOM_MIN}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-35"
-          aria-label="Zoom out"
-        >
-          <ZoomOut className="h-5 w-5" strokeWidth={2.25} aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={handleUiZoomReset}
-          className="min-w-[2.75rem] rounded-md px-1.5 py-1 text-center text-[11px] font-bold tabular-nums text-white/95 sm:text-xs"
-          title="Reset zoom"
-          aria-label="Reset zoom to 100 percent"
-        >
-          {Math.round(uiZoom * 100)}%
-        </button>
-        <button
-          type="button"
-          onClick={handleUiZoomIn}
-          disabled={uiZoom >= UI_ZOOM_MAX}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-35"
-          aria-label="Zoom in"
-        >
-          <ZoomIn className="h-5 w-5" strokeWidth={2.25} aria-hidden />
-        </button>
       </div>
     </div>
   );
