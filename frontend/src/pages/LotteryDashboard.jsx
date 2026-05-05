@@ -16,11 +16,16 @@ import { getQuizSlot, getQuizSlotResults, postQuizBetsBatch } from '../api/quizA
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getLotterySetTotals, getTotals } from '../utils/boardHelpers';
 import { getCurrentUser, isUserLoggedIn, subscribeUserSession } from '../session/userSession';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 
 const MAX_QUIZ_NUMBERS_PER_SLOT = 100;
 /** Keypad stake entry: max 3 digits (1–999). */
 const MAX_LOTTERY_AMOUNT = 999;
 const MAX_LOTTERY_AMOUNT_DIGITS = 3;
+const UI_ZOOM_MIN = 0.7;
+const UI_ZOOM_MAX = 1.5;
+const UI_ZOOM_STEP = 0.1;
+const UI_ZOOM_STORAGE_KEY_2D = 'lottery-2d-ui-zoom';
 
 const LotteryDashboard = () => {
   const navigate = useNavigate();
@@ -38,6 +43,15 @@ const LotteryDashboard = () => {
     width: typeof window !== 'undefined' ? window.innerWidth : BASE_WIDTH,
     height: typeof window !== 'undefined' ? window.innerHeight : BASE_HEIGHT,
   }));
+  const [uiZoom, setUiZoom] = useState(() => {
+    try {
+      const v = parseFloat(localStorage.getItem(UI_ZOOM_STORAGE_KEY_2D) || '');
+      if (!Number.isFinite(v)) return 1;
+      return Math.min(UI_ZOOM_MAX, Math.max(UI_ZOOM_MIN, Math.round(v * 100) / 100));
+    } catch {
+      return 1;
+    }
+  });
   const [clockNow, setClockNow] = useState(() => new Date());
   const [activeQuiz, setActiveQuiz] = useState(1);
   const [selectedQuizzes, setSelectedQuizzes] = useState([1]);
@@ -102,6 +116,8 @@ const LotteryDashboard = () => {
   }, [searchParams, setSearchParams]);
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
+  const effectiveScaleX = useMemo(() => dashboardScaleX * uiZoom, [dashboardScaleX, uiZoom]);
+  const effectiveScaleY = useMemo(() => dashboardScaleY * uiZoom, [dashboardScaleY, uiZoom]);
   const getQuarterHourCountdown = useCallback((nowDate = new Date()) => {
     const mins = nowDate.getMinutes();
     const secs = nowDate.getSeconds();
@@ -147,6 +163,22 @@ const LotteryDashboard = () => {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(UI_ZOOM_STORAGE_KEY_2D, String(uiZoom));
+    } catch {
+      // ignore
+    }
+  }, [uiZoom]);
+
+  const handleUiZoomIn = useCallback(() => {
+    setUiZoom((z) => Math.min(UI_ZOOM_MAX, Math.round((z + UI_ZOOM_STEP) * 100) / 100));
+  }, []);
+  const handleUiZoomOut = useCallback(() => {
+    setUiZoom((z) => Math.max(UI_ZOOM_MIN, Math.round((z - UI_ZOOM_STEP) * 100) / 100));
+  }, []);
+  const handleUiZoomReset = useCallback(() => setUiZoom(1), []);
 
   useEffect(() => {
     const checkMobilePortrait = () => {
@@ -946,18 +978,25 @@ const LotteryDashboard = () => {
       <div className="w-full min-h-screen min-h-[100dvh] h-[100dvh] relative overflow-hidden bg-[#111] rounded-[14px] sm:rounded-none">
         <div className="absolute inset-0 border border-[#4c4c4c] pointer-events-none rounded-[14px] sm:rounded-none" />
         <div
-          className="absolute inset-0 overflow-hidden"
+          className="absolute inset-0 overflow-auto"
           style={{
             width: `${viewport.width}px`,
             height: `${viewport.height}px`,
           }}
         >
           <div
+            className="relative shrink-0"
+            style={{
+              width: `${BASE_WIDTH * effectiveScaleX}px`,
+              height: `${BASE_HEIGHT * effectiveScaleY}px`,
+            }}
+          >
+          <div
             className="absolute top-0 left-0 bg-[#111] border border-[#4c4c4c] flex flex-col overflow-hidden"
             style={{
               width: `${BASE_WIDTH}px`,
               height: `${BASE_HEIGHT}px`,
-              transform: `scale(${dashboardScaleX}, ${dashboardScaleY})`,
+              transform: `scale(${effectiveScaleX}, ${effectiveScaleY})`,
               transformOrigin: 'top left',
             }}
           >
@@ -1014,7 +1053,41 @@ const LotteryDashboard = () => {
               />
             </div>
           </div>
+          </div>
         </div>
+      <div
+        className="pointer-events-auto fixed bottom-3 right-3 z-[120] flex items-center gap-1 rounded-full border border-white/25 bg-[#0f172a]/92 px-2 py-1.5 text-white shadow-lg backdrop-blur-sm sm:bottom-4 sm:right-4"
+        role="toolbar"
+        aria-label="Screen zoom"
+      >
+        <button
+          type="button"
+          onClick={handleUiZoomOut}
+          disabled={uiZoom <= UI_ZOOM_MIN}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-35"
+          aria-label="Zoom out"
+        >
+          <ZoomOut className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={handleUiZoomReset}
+          className="min-w-[2.75rem] rounded-md px-1.5 py-1 text-center text-[11px] font-bold tabular-nums text-white/95 sm:text-xs"
+          title="Reset zoom"
+          aria-label="Reset zoom to 100 percent"
+        >
+          {Math.round(uiZoom * 100)}%
+        </button>
+        <button
+          type="button"
+          onClick={handleUiZoomIn}
+          disabled={uiZoom >= UI_ZOOM_MAX}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20 disabled:pointer-events-none disabled:opacity-35"
+          aria-label="Zoom in"
+        >
+          <ZoomIn className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+        </button>
+      </div>
       </div>
 
       <ResultHistoryModal
