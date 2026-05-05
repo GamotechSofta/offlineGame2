@@ -658,12 +658,33 @@ export const createUser = async (req, res) => {
             });
         }
 
-        // Super admin creates → source=super_admin, referredBy=null. Bookie creates → source=bookie, referredBy=bookie_id.
-        let finalReferredBy = referredBy;
+        // Super admin creates → default source=super_admin, referredBy can be assigned to super_admin/bookie.
+        // Bookie creates → forced source=bookie and referredBy=bookie_id.
+        let finalReferredBy = (referredBy != null && String(referredBy).trim()) ? String(referredBy).trim() : null;
         let source = 'super_admin';
         if (req.admin && req.admin.role === 'bookie') {
             finalReferredBy = req.admin._id;
             source = 'bookie';
+        } else if (req.admin?.role === 'super_admin' && finalReferredBy) {
+            if (!mongoose.Types.ObjectId.isValid(finalReferredBy)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid assignee selected',
+                });
+            }
+            const assignee = await Admin.findById(finalReferredBy).select('role status username').lean();
+            if (!assignee || assignee.status !== 'active') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Selected assignee is not active or not found',
+                });
+            }
+            // Assigned under a bookie should behave like bookie player for filters/reporting.
+            source = assignee.role === 'bookie' ? 'bookie' : 'super_admin';
+            finalReferredBy = assignee._id;
+        } else if (req.admin?.role !== 'super_admin') {
+            // Non-super-admin (and non-bookie) should not assign arbitrary admins.
+            finalReferredBy = null;
         }
 
         // Check existing user by username, email or phone (phone must be unique for login)
@@ -721,7 +742,7 @@ export const createUser = async (req, res) => {
                 performedByType: req.admin.role || 'admin',
                 targetType: 'user',
                 targetId: userId.toString(),
-                details: `Player "${derivedUsername}" created`,
+                details: `Player "${derivedUsername}" created${finalReferredBy ? ' and assigned' : ''}`,
                 ip: getClientIp(req),
             });
         }

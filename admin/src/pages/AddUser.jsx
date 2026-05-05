@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaArrowLeft, FaUserPlus, FaUser } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const PHONE_REGEX = /^[6-9]\d{9}$/;
 
@@ -20,11 +20,52 @@ const AddUser = () => {
         role: 'user',
         balance: '', // empty = 0 on submit; user can clear field
         commissionPercentage: '', // For bookie creation
+        assigneeType: '',
+        assigneeId: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [createdPlayers, setCreatedPlayers] = useState([]);
+    const [assignableSuperAdmins, setAssignableSuperAdmins] = useState([]);
+    const [assignableBookies, setAssignableBookies] = useState([]);
+
+    let adminRole = '';
+    try {
+        const raw = localStorage.getItem('admin');
+        const parsed = raw ? JSON.parse(raw) : null;
+        adminRole = parsed?.role || '';
+    } catch {
+        adminRole = '';
+    }
+    const isSuperAdmin = adminRole === 'super_admin';
+
+    useEffect(() => {
+        const loadAssignableAccounts = async () => {
+            if (!isSuperAdmin) return;
+            try {
+                const [superAdminsRes, bookiesRes] = await Promise.all([
+                    fetchWithAuth(`${API_BASE_URL}/admin/super-admins`),
+                    fetchWithAuth(`${API_BASE_URL}/admin/bookies`),
+                ]);
+                if (superAdminsRes.status !== 401) {
+                    const superAdminsJson = await superAdminsRes.json();
+                    if (superAdminsJson.success) {
+                        setAssignableSuperAdmins(superAdminsJson.data || []);
+                    }
+                }
+                if (bookiesRes.status !== 401) {
+                    const bookiesJson = await bookiesRes.json();
+                    if (bookiesJson.success) {
+                        setAssignableBookies((bookiesJson.data || []).filter((b) => b.status === 'active'));
+                    }
+                }
+            } catch {
+                // Ignore list-loading errors to keep create form usable.
+            }
+        };
+        loadAssignableAccounts();
+    }, [isSuperAdmin]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -76,6 +117,10 @@ const AddUser = () => {
             setError('Passwords do not match');
             return;
         }
+        if (isSuperAdmin && formData.role !== 'bookie' && formData.assigneeType && !formData.assigneeId) {
+            setError('Please select assignee account');
+            return;
+        }
 
         setLoading(true);
 
@@ -110,6 +155,8 @@ const AddUser = () => {
                         role: 'user',
                         balance: '',
                         commissionPercentage: '',
+                        assigneeType: '',
+                        assigneeId: '',
                     });
                     setCreatedPlayers((prev) => [
                         {
@@ -136,6 +183,9 @@ const AddUser = () => {
                     password: formData.password,
                     role: formData.role,
                     balance: formData.balance === '' ? 0 : (parseFloat(formData.balance) || 0),
+                    ...(isSuperAdmin && formData.role !== 'bookie' && formData.assigneeId
+                        ? { referredBy: formData.assigneeId }
+                        : {}),
                 };
                 const response = await fetchWithAuth(`${API_BASE_URL}/users/create`, {
                     method: 'POST',
@@ -154,6 +204,9 @@ const AddUser = () => {
                         confirmPassword: '',
                         role: 'user',
                         balance: '',
+                        commissionPercentage: '',
+                        assigneeType: '',
+                        assigneeId: '',
                     });
                     setCreatedPlayers((prev) => [
                         {
@@ -162,6 +215,7 @@ const AddUser = () => {
                             email: data.data?.email ?? formData.email,
                             phone: data.data?.phone ?? formData.phone,
                             role: data.data?.role || 'user',
+                            assignedTo: formData.assigneeId || '',
                             createdAt: new Date(),
                         },
                         ...prev,
@@ -368,6 +422,52 @@ const AddUser = () => {
                                         />
                                         <p className="mt-0.5 text-xs text-gray-500">0–100% from player bets</p>
                                     </div>
+                                )}
+                                {isSuperAdmin && formData.role !== 'bookie' && (
+                                    <>
+                                        <div>
+                                            <label htmlFor="assigneeType" className={labelClass}>Assign Player To</label>
+                                            <select
+                                                id="assigneeType"
+                                                name="assigneeType"
+                                                value={formData.assigneeType}
+                                                onChange={(e) => {
+                                                    const nextType = e.target.value;
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        assigneeType: nextType,
+                                                        assigneeId: '',
+                                                    }));
+                                                    setError('');
+                                                }}
+                                                className={`${inputClass} cursor-pointer`}
+                                            >
+                                                <option value="">Default (Super Admin)</option>
+                                                <option value="bookie">Bookie</option>
+                                            </select>
+                                        </div>
+                                        {formData.assigneeType ? (
+                                            <div>
+                                                <label htmlFor="assigneeId" className={labelClass}>
+                                                    {formData.assigneeType === 'bookie' ? 'Select Bookie' : 'Select Super Admin'}
+                                                </label>
+                                                <select
+                                                    id="assigneeId"
+                                                    name="assigneeId"
+                                                    value={formData.assigneeId}
+                                                    onChange={handleChange}
+                                                    className={`${inputClass} cursor-pointer`}
+                                                >
+                                                    <option value="">Select account</option>
+                                                    {(formData.assigneeType === 'bookie' ? assignableBookies : assignableSuperAdmins).map((acc) => (
+                                                        <option key={acc._id} value={acc._id}>
+                                                            {acc.username}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ) : null}
+                                    </>
                                 )}
                                 {formData.role !== 'bookie' && (
                                     <div>
