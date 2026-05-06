@@ -72,7 +72,7 @@ const AdvanceDrawModal = ({
               value={selectionDraft}
               onChange={(e) => handleSelectionCountChange(e.target.value)}
               placeholder="Selection"
-              className="h-6 rounded-sm border border-[#9d9d9d] bg-[#efefef] px-2 text-[9px] text-[#4b5563] md:h-9 md:px-3 md:text-[12px]"
+              className="h-8 rounded-sm border border-[#2ca44f] bg-[#f3fff6] px-2 text-center text-[18px] font-bold text-[#0f172a] md:h-10 md:px-3 md:text-[22px]"
             />
             <button
               type="button"
@@ -93,7 +93,7 @@ const AdvanceDrawModal = ({
                   key={slot.slotStartIso}
                   type="button"
                   onClick={() => onToggleSlot(slot.slotStartIso)}
-                  className={`h-11 rounded-md border-2 px-1 text-[15px] font-bold leading-tight text-white shadow-sm transition md:h-12 md:text-[16px] ${
+                  className={`h-11 rounded-md border-2 px-1 text-[17px] font-extrabold leading-tight text-white shadow-sm transition md:h-12 md:text-[20px] ${
                     isActive
                       ? 'border-[#0d2be3] bg-gradient-to-b from-[#3b82f6] to-[#1d4ed8]'
                       : 'border-[#7c3f00] bg-gradient-to-b from-[#b56a07] to-[#9a5600]'
