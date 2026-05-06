@@ -502,10 +502,8 @@ const LotteryDashboard = () => {
             if (isSameFamilySelected) return new Set();
             return new Set(family);
           }
-          const next = new Set(prev);
-          if (next.has(formatted)) next.delete(formatted);
-          else next.add(formatted);
-          return next;
+          if (prev.size === 1 && prev.has(formatted)) return new Set();
+          return new Set([formatted]);
         });
       }
       const currentKey = getTargetKey(pendingTarget);
