@@ -40,7 +40,7 @@ const ControlPanel = ({
               key={filter.key}
               type="button"
               onClick={() => (filter.key === 'family-mode' ? onToggleFamilyMode() : onApplyFilter(filter.key))}
-              className={`h-10 rounded-md border text-center text-[18px] leading-none font-bold tracking-tight transition ${
+              className={`h-10 rounded-md border text-center text-[22px] leading-none font-extrabold tracking-tight transition ${
                 (filter.key === 'family-mode' ? familyMode : activeFilter === filter.key)
                   ? 'border-[#1e88e5] bg-gradient-to-b from-[#35a7ff] to-[#0b84e5] text-white shadow-[0_4px_12px_rgba(11,132,229,0.35)]'
                   : 'border-[#9a9a9a] bg-gradient-to-b from-[#f8f8f8] to-[#e7e7e7] text-[#111] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] hover:from-[#ffffff] hover:to-[#ececec]'
