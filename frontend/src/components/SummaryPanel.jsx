@@ -15,7 +15,7 @@ const SummaryPanel = ({ totalAmount, setTotals, onBuy, buyDisabled, buyHelpLines
         TOTAL
       </div>
       {rows.map((row, idx) => (
-        <div key={idx} className={`grid grid-cols-2 text-center ${idx % 2 === 0 ? 'bg-[#d8e6f7]' : 'bg-[#c6d8f0]'}`}>
+        <div key={idx} className="grid grid-cols-2 text-center bg-[#9eb8dc]">
           <div className={`border border-[#9fb0c7] h-[56px] flex items-center justify-center text-[#111827] ${uniformCellTextClass}`}>{row.count}</div>
           <div className={`border border-[#9fb0c7] h-[56px] flex items-center justify-center text-[#111827] ${uniformCellTextClass}`}>{row.amount}</div>
         </div>
