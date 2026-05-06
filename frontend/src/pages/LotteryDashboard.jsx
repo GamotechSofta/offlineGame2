@@ -693,8 +693,52 @@ const LotteryDashboard = () => {
     setActiveFilter(filterType || FILTER_TYPES.ALL);
   }, []);
   const toggleFamilyMode = useCallback(() => {
-    setFamilyMode((prev) => !prev);
-  }, []);
+    setFamilyMode((prev) => {
+      const nextEnabled = !prev;
+      if (!nextEnabled) return nextEnabled;
+
+      setSelectedNumbers((prevSelected) => {
+        let anchorNumber = null;
+
+        if (pendingTarget?.type === 'cell') {
+          const cellNum = Number(pendingTarget.index);
+          if (Number.isInteger(cellNum) && cellNum >= 0 && cellNum <= 99) {
+            anchorNumber = cellNum;
+          }
+        }
+
+        if (anchorNumber == null && prevSelected.size > 0) {
+          const firstSelected = Number.parseInt([...prevSelected][0], 10);
+          if (Number.isInteger(firstSelected) && firstSelected >= 0 && firstSelected <= 99) {
+            anchorNumber = firstSelected;
+          }
+        }
+
+        if (anchorNumber == null) {
+          const activeQuizSet = new Set(multi ? selectedQuizzes : [activeQuiz]);
+          const firstSelectedEntry = Object.entries(selectedMap).find(([key, amount]) => {
+            if (Number(amount) <= 0) return false;
+            const [quizPart, numPart] = String(key).split('-');
+            const quizNo = Number.parseInt(quizPart, 10);
+            const num = Number.parseInt(numPart, 10);
+            return activeQuizSet.has(quizNo) && Number.isInteger(num) && num >= 0 && num <= 99;
+          });
+          if (firstSelectedEntry) {
+            const [, numPart] = String(firstSelectedEntry[0]).split('-');
+            const num = Number.parseInt(numPart, 10);
+            if (Number.isInteger(num) && num >= 0 && num <= 99) {
+              anchorNumber = num;
+            }
+          }
+        }
+
+        if (anchorNumber == null) return prevSelected;
+        return getFamilyNumbers(anchorNumber);
+      });
+
+      return nextEnabled;
+    });
+  }, [activeQuiz, multi, pendingTarget, selectedMap, selectedQuizzes]);
 
   const handleAdvanceDraw = useCallback(() => {
     setShowAdvanceDrawModal(true);
@@ -1065,6 +1109,10 @@ const LotteryDashboard = () => {
         nextLabel={serverSlot?.drawLabelNext || '-'}
         slotOptions={advanceDrawSlots}
         selectedSlots={selectedAdvanceSlots}
+        onSelectCount={(count) => {
+          const safeCount = Math.max(0, Math.min(advanceDrawSlots.length, Number(count) || 0));
+          setSelectedAdvanceSlots(advanceDrawSlots.slice(0, safeCount).map((x) => x.slotStartIso));
+        }}
         onToggleSlot={(slotStartIso) => {
           setSelectedAdvanceSlots((prev) => (
             prev.includes(slotStartIso)

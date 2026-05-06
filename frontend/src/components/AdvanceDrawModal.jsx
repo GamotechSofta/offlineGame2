@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 const AdvanceDrawModal = ({
   open,
@@ -6,6 +6,7 @@ const AdvanceDrawModal = ({
   nextLabel = '',
   slotOptions = [],
   selectedSlots = [],
+  onSelectCount,
   onToggleSlot,
   onToggleAll,
   onApply,
@@ -17,12 +18,25 @@ const AdvanceDrawModal = ({
   );
   const totalSlots = Array.isArray(slotOptions) ? slotOptions.length : 0;
   const remainingSlots = Math.max(0, totalSlots - selectedCount);
-  const selectedPreview = useMemo(
-    () => (Array.isArray(slotOptions)
-      ? slotOptions.filter((s) => selectedSlots.includes(s.slotStartIso)).slice(0, 4).map((s) => s.label)
-      : []),
-    [selectedSlots, slotOptions],
-  );
+  const [selectionDraft, setSelectionDraft] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setSelectionDraft(selectedCount > 0 ? String(selectedCount) : '');
+  }, [open, selectedCount]);
+
+  const handleSelectionCountChange = (value) => {
+    const cleaned = String(value || '').replace(/\D/g, '');
+    if (cleaned === '') {
+      setSelectionDraft('');
+      if (typeof onSelectCount === 'function') onSelectCount(0);
+      return;
+    }
+    const parsed = Number.parseInt(cleaned, 10);
+    const clampedCount = Math.max(0, Math.min(totalSlots, Number.isFinite(parsed) ? parsed : 0));
+    setSelectionDraft(String(clampedCount));
+    if (typeof onSelectCount === 'function') onSelectCount(clampedCount);
+  };
 
   if (!open) return null;
 
@@ -54,8 +68,9 @@ const AdvanceDrawModal = ({
           <div className="mt-0.5 grid grid-cols-[1fr_auto] items-center gap-1">
             <input
               type="text"
-              readOnly
-              value={selectedPreview.join(', ')}
+              inputMode="numeric"
+              value={selectionDraft}
+              onChange={(e) => handleSelectionCountChange(e.target.value)}
               placeholder="Selection"
               className="h-6 rounded-sm border border-[#9d9d9d] bg-[#efefef] px-2 text-[9px] text-[#4b5563] md:h-9 md:px-3 md:text-[12px]"
             />
