@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import BetHistoryCard from '../components/BetHistoryCard';
 import RouletteBetHistoryCard from '../components/RouletteBetHistoryCard';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash, FaWallet, FaPrint } from 'react-icons/fa';
+import { FaArrowLeft, FaCalendarAlt, FaUserSlash, FaUserCheck, FaTrash, FaWallet, FaPrint, FaFilter, FaChevronRight, FaChevronDown } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -282,6 +282,13 @@ const STATEMENT_PRESETS = [
     }},
 ];
 
+const LOTTERY_PAGE_SIZE = 25;
+const formatTicketTail = (ticketId) => {
+    const raw = String(ticketId || '').trim();
+    if (!raw) return '—';
+    return raw.slice(-8).toUpperCase();
+};
+
 const PlayerDetail = () => {
     const { userId } = useParams();
     const navigate = useNavigate();
@@ -302,6 +309,14 @@ const PlayerDetail = () => {
     const [betHistorySearch, setBetHistorySearch] = useState('');
     const [lottery2dHistory, setLottery2dHistory] = useState(null);
     const [lottery3dHistory, setLottery3dHistory] = useState(null);
+    const [lotteryHistory, setLotteryHistory] = useState({ twoD: [], threeD: [] });
+    const [lotteryHasMore, setLotteryHasMore] = useState({ twoD: false, threeD: false });
+    const [lotteryPage, setLotteryPage] = useState(1);
+    const [loadingLotteryPage, setLoadingLotteryPage] = useState(false);
+    const [expandedLotteryTickets, setExpandedLotteryTickets] = useState({});
+    const [lotterySourceFilter, setLotterySourceFilter] = useState('all_lottery');
+    const [lotteryStatusFilter, setLotteryStatusFilter] = useState('all');
+    const [lotterySearch, setLotterySearch] = useState('');
     const [loadingTab, setLoadingTab] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
     const [toggleMessage, setToggleMessage] = useState('');
@@ -496,25 +511,119 @@ const PlayerDetail = () => {
         }
     };
 
-    const fetchLotteryHistory = async () => {
+    const fetchLotteryHistory = async ({ lotteryPageToFetch = 1, appendLottery = false, lotteryOnly = false } = {}) => {
         if (!userId) return;
-        setLoadingTab(true);
+        if (lotteryOnly) setLoadingLotteryPage(true);
+        else setLoadingTab(true);
+        if (!appendLottery) {
+            setExpandedLotteryTickets({});
+        }
         try {
+            const lotteryParams = `limit=${LOTTERY_PAGE_SIZE}&page=${lotteryPageToFetch}`;
             const [res2d, res3d] = await Promise.all([
-                fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/players/${encodeURIComponent(userId)}/history?limit=100`),
-                fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/players/${encodeURIComponent(userId)}/history?limit=100`),
+                fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/players/${encodeURIComponent(userId)}/history?${lotteryParams}`),
+                fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/players/${encodeURIComponent(userId)}/history?${lotteryParams}`),
             ]);
             if (res2d.status === 401 || res3d.status === 401) return;
             const data2d = await res2d.json();
             const data3d = await res3d.json();
+
+            const toTicketStatus = (bets = []) => {
+                const outcomes = bets.map((bet) => String(bet?.outcome || 'pending').toLowerCase());
+                if (outcomes.some((outcome) => outcome === 'win')) return 'win';
+                if (outcomes.some((outcome) => outcome === 'pending')) return 'pending';
+                return outcomes.length ? 'lose' : 'pending';
+            };
+
+            const flattenLotteryRows = (slots, mode) => {
+                if (!Array.isArray(slots)) return [];
+                return slots.map((slot, index) => {
+                    const bets = Array.isArray(slot?.bets) ? slot.bets : [];
+                    const amount = bets.reduce((sum, bet) => sum + Number(bet?.amount || 0), 0);
+                    const payout = bets.reduce((sum, bet) => sum + Number(bet?.payout || 0), 0);
+                    const createdAt = slot?.slotStartIso || bets[0]?.createdAt || null;
+                    const setSummary = Array.from(new Set(
+                        bets.map((bet) => String(bet?.setLabel || '').trim()).filter(Boolean),
+                    )).join(', ');
+                    const ticketIdRaw =
+                        slot?.ticketId ||
+                        slot?.ticketNo ||
+                        slot?.ticketNumber ||
+                        bets.find((bet) => bet?.ticketId)?.ticketId ||
+                        bets.find((bet) => bet?.ticketNo)?.ticketNo ||
+                        bets.find((bet) => bet?.ticketNumber)?.ticketNumber ||
+                        '';
+                    const ticketId = String(ticketIdRaw || '').trim();
+                    const safeTicketId = ticketId || `TICKET-${mode}-${index + 1}`;
+
+                    return {
+                        id: `${mode}-${safeTicketId}-${slot?.slotStartIso || index}`,
+                        ticketId: safeTicketId,
+                        mode,
+                        slotLabel: slot?.drawLabelEnd || '—',
+                        slotStartIso: slot?.slotStartIso || '',
+                        setLabel: setSummary || '—',
+                        betCount: bets.length,
+                        bets: bets.map((bet, betIndex) => ({
+                            id: bet?.betId || bet?._id || `${slot?.slotStartIso || 'slot'}-${betIndex}`,
+                            setLabel: bet?.setLabel || '—',
+                            number: bet?.number || '—',
+                            amount: Number(bet?.amount || 0),
+                            payout: Number(bet?.payout || 0),
+                            outcome: String(bet?.outcome || 'pending').toLowerCase(),
+                            createdAt: bet?.createdAt || slot?.slotStartIso || null,
+                        })),
+                        amount,
+                        payout,
+                        outcome: toTicketStatus(bets),
+                        createdAt,
+                    };
+                });
+            };
+
+            const nextTwoD = flattenLotteryRows(data2d?.success ? data2d?.data?.slots : [], '2D');
+            const nextThreeD = flattenLotteryRows(data3d?.success ? data3d?.data?.slots : [], '3D');
             setLottery2dHistory(data2d?.success ? data2d.data || null : null);
             setLottery3dHistory(data3d?.success ? data3d.data || null : null);
+            setLotteryHasMore({
+                twoD: Boolean(data2d?.data?.pagination?.hasMore),
+                threeD: Boolean(data3d?.data?.pagination?.hasMore),
+            });
+            setLotteryPage(lotteryPageToFetch);
+            setLotteryHistory((prev) => {
+                if (!appendLottery) return { twoD: nextTwoD, threeD: nextThreeD };
+                const mergeUnique = (existingRows, newRows) => {
+                    const map = new Map();
+                    [...(existingRows || []), ...(newRows || [])].forEach((row) => {
+                        map.set(row.id, row);
+                    });
+                    return Array.from(map.values()).sort(
+                        (a, b) => new Date(b.slotStartIso || b.createdAt || 0).getTime() - new Date(a.slotStartIso || a.createdAt || 0).getTime(),
+                    );
+                };
+                return {
+                    twoD: mergeUnique(prev.twoD, nextTwoD),
+                    threeD: mergeUnique(prev.threeD, nextThreeD),
+                };
+            });
         } catch (err) {
             setLottery2dHistory(null);
             setLottery3dHistory(null);
+            setLotteryHistory({ twoD: [], threeD: [] });
+            setLotteryHasMore({ twoD: false, threeD: false });
         } finally {
-            setLoadingTab(false);
+            if (lotteryOnly) setLoadingLotteryPage(false);
+            else setLoadingTab(false);
         }
+    };
+
+    const handleLoadMoreLottery = () => {
+        fetchLotteryHistory({ lotteryPageToFetch: lotteryPage + 1, appendLottery: true, lotteryOnly: true });
+    };
+
+    const toggleLotteryTicket = (ticketId) => {
+        if (!ticketId) return;
+        setExpandedLotteryTickets((prev) => ({ ...prev, [ticketId]: !prev[ticketId] }));
     };
 
     const aviatorGameRows = buildGameRoundRows(gameTransactions, 'Aviator');
@@ -527,6 +636,48 @@ const PlayerDetail = () => {
         const betNumber = String(bet?.betNumber || '').toLowerCase();
         return betId.includes(query) || betNumber.includes(query);
     });
+    const lotteryRowsByMode = useMemo(() => ({
+        twoD: lotteryHistory.twoD || [],
+        threeD: lotteryHistory.threeD || [],
+    }), [lotteryHistory]);
+    const selectedLotteryRows = useMemo(() => {
+        if (lotterySourceFilter === 'lottery_2d') return lotteryRowsByMode.twoD;
+        if (lotterySourceFilter === 'lottery_3d') return lotteryRowsByMode.threeD;
+        return [...lotteryRowsByMode.twoD, ...lotteryRowsByMode.threeD];
+    }, [lotterySourceFilter, lotteryRowsByMode]);
+    const lotterySearchFilteredRows = useMemo(() => selectedLotteryRows.filter((row) => {
+        const q = lotterySearch.trim().toLowerCase();
+        if (!q) return true;
+        const hay = `${row.ticketId} ${row.betCount} ${row.setLabel} ${row.slotLabel} ${row.mode}`.toLowerCase();
+        return hay.includes(q);
+    }), [selectedLotteryRows, lotterySearch]);
+    const toBetStatus = (outcome) => {
+        if (outcome === 'win') return 'won';
+        if (outcome === 'lose') return 'lost';
+        return 'pending';
+    };
+    const lotteryFilteredRows = lotteryStatusFilter === 'all'
+        ? lotterySearchFilteredRows
+        : lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === lotteryStatusFilter);
+    const lotteryFilterCounts = useMemo(() => ({
+        all: lotterySearchFilteredRows.length,
+        pending: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'pending').length,
+        won: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').length,
+        lost: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'lost').length,
+    }), [lotterySearchFilteredRows]);
+    const displayedLotteryStats = useMemo(() => ({
+        total: lotterySearchFilteredRows.length,
+        won: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').length,
+        lost: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'lost').length,
+        pending: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'pending').length,
+        totalAmount: lotterySearchFilteredRows.reduce((sum, row) => sum + Number(row.amount || 0), 0),
+        totalPayout: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').reduce((sum, row) => sum + Number(row.payout || 0), 0),
+    }), [lotterySearchFilteredRows]);
+    const canLoadMoreLottery = useMemo(() => {
+        if (lotterySourceFilter === 'lottery_2d') return lotteryHasMore.twoD;
+        if (lotterySourceFilter === 'lottery_3d') return lotteryHasMore.threeD;
+        return lotteryHasMore.twoD || lotteryHasMore.threeD;
+    }, [lotterySourceFilter, lotteryHasMore]);
     const gameHistorySections = [
         { key: 'aviator', title: 'Aviator Game History', rows: aviatorGameRows, game: 'Aviator' },
         { key: 'funtimer', title: 'FunTimer Game History', rows: funTimerGameRows, game: 'FunTimer' },
@@ -1411,108 +1562,218 @@ const PlayerDetail = () => {
                         {loadingTab ? (
                             <div className="p-8 text-center text-gray-400">Loading lottery history...</div>
                         ) : (
-                            <div className="p-4 sm:p-6 space-y-6">
+                            <div className="p-4 sm:p-6 space-y-4">
                                 <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
                                     <h3 className="text-base sm:text-lg font-bold text-gray-800">Lottery Summary (Player-wise)</h3>
-                                    <p className="text-xs text-gray-500 mt-1">Combined 2D and 3D history for this player.</p>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+                                    <p className="text-xs text-gray-500 mt-1">Bookie player-history style view for 2D and 3D tickets.</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-4">
                                         <div className="rounded-lg border border-gray-200 bg-white p-3">
-                                            <p className="text-xs text-gray-500">2D Total Bets</p>
+                                            <p className="text-xs text-gray-500">2D Bets</p>
                                             <p className="text-lg font-bold text-gray-800">{formatNumber(lottery2dHistory?.summary?.totalBets)}</p>
                                         </div>
                                         <div className="rounded-lg border border-gray-200 bg-white p-3">
-                                            <p className="text-xs text-gray-500">2D Net P/L</p>
-                                            <p className={`text-lg font-bold ${Number(lottery2dHistory?.summary?.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                {formatCurrency(lottery2dHistory?.summary?.netProfitLoss)}
-                                            </p>
-                                        </div>
-                                        <div className="rounded-lg border border-gray-200 bg-white p-3">
-                                            <p className="text-xs text-gray-500">3D Total Bets</p>
+                                            <p className="text-xs text-gray-500">3D Bets</p>
                                             <p className="text-lg font-bold text-gray-800">{formatNumber(lottery3dHistory?.summary?.totalBets)}</p>
                                         </div>
                                         <div className="rounded-lg border border-gray-200 bg-white p-3">
-                                            <p className="text-xs text-gray-500">3D Net P/L</p>
-                                            <p className={`text-lg font-bold ${Number(lottery3dHistory?.summary?.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                {formatCurrency(lottery3dHistory?.summary?.netProfitLoss)}
+                                            <p className="text-xs text-gray-500">Tickets</p>
+                                            <p className="text-lg font-bold text-gray-800">{formatNumber(displayedLotteryStats.total)}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-white p-3">
+                                            <p className="text-xs text-gray-500">Total Stake</p>
+                                            <p className="text-lg font-bold text-gray-800">{formatCurrency(displayedLotteryStats.totalAmount)}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-white p-3">
+                                            <p className="text-xs text-gray-500">Total Win</p>
+                                            <p className="text-lg font-bold text-green-600">{formatCurrency(displayedLotteryStats.totalPayout)}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-gray-200 bg-white p-3">
+                                            <p className="text-xs text-gray-500">P/L</p>
+                                            <p className={`text-lg font-bold ${(displayedLotteryStats.totalPayout - displayedLotteryStats.totalAmount) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {formatCurrency(displayedLotteryStats.totalPayout - displayedLotteryStats.totalAmount)}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                                    <div className="rounded-xl border border-gray-200 overflow-hidden">
-                                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                                            <h4 className="font-semibold text-orange-500">2D Lottery History</h4>
-                                        </div>
-                                        {!lottery2dHistory?.slots?.length ? (
-                                            <div className="p-4 text-sm text-gray-500">No 2D history found.</div>
-                                        ) : (
-                                            <div className="max-h-[420px] overflow-auto divide-y divide-gray-100">
-                                                {lottery2dHistory.slots.map((slot) => (
-                                                    <div key={slot.slotStartIso} className="p-4">
-                                                        <div className="flex items-start justify-between gap-2 mb-2">
-                                                            <div>
-                                                                <p className="text-sm font-semibold text-gray-800">{slot.drawLabelEnd || '-'}</p>
-                                                                <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
-                                                            </div>
-                                                            <span className="text-xs text-gray-500">{formatNumber(slot.betCount)} bets</span>
-                                                        </div>
-                                                        <div className="grid grid-cols-3 gap-2 text-xs">
-                                                            <div className="rounded bg-gray-50 px-2 py-1">
-                                                                <p className="text-gray-500">Stake</p>
-                                                                <p className="font-semibold text-gray-800">{formatCurrency(slot.totalStake)}</p>
-                                                            </div>
-                                                            <div className="rounded bg-gray-50 px-2 py-1">
-                                                                <p className="text-gray-500">Payout</p>
-                                                                <p className="font-semibold text-gray-800">{formatCurrency(slot.totalPayout)}</p>
-                                                            </div>
-                                                            <div className="rounded bg-gray-50 px-2 py-1">
-                                                                <p className="text-gray-500">Net</p>
-                                                                <p className={`font-semibold ${Number(slot.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(slot.netProfitLoss)}</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
+                                        <FaFilter className="w-3 h-3 text-gray-400" />
+                                        {[
+                                            { id: 'all_lottery', label: 'All Lottery' },
+                                            { id: 'lottery_2d', label: '2D Lottery' },
+                                            { id: 'lottery_3d', label: '3D Lottery' },
+                                        ].map((item) => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => setLotterySourceFilter(item.id)}
+                                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                                    lotterySourceFilter === item.id
+                                                        ? 'bg-orange-500 text-white'
+                                                        : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+                                                }`}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        ))}
+                                        {['all', 'pending', 'won', 'lost'].map((status) => (
+                                            <button
+                                                key={status}
+                                                onClick={() => setLotteryStatusFilter(status)}
+                                                className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-colors ${
+                                                    lotteryStatusFilter === status
+                                                        ? 'bg-[#1B3150] text-white'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {status} ({lotteryFilterCounts[status] || 0})
+                                            </button>
+                                        ))}
+                                        <input
+                                            type="text"
+                                            value={lotterySearch}
+                                            onChange={(e) => setLotterySearch(e.target.value)}
+                                            placeholder="Search ticket / slot / set / mode"
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] min-w-[180px]"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setLotteryStatusFilter('all');
+                                                setLotterySourceFilter('all_lottery');
+                                                setLotterySearch('');
+                                            }}
+                                            className="inline-flex items-center px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors"
+                                        >
+                                            Clear
+                                        </button>
                                     </div>
 
-                                    <div className="rounded-xl border border-gray-200 overflow-hidden">
-                                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                                            <h4 className="font-semibold text-orange-500">3D Lottery History</h4>
+                                    {lotteryFilteredRows.length === 0 ? (
+                                        <div className="p-8 text-center text-gray-400">No lottery tickets found.</div>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm min-w-[700px]">
+                                                <thead className="bg-gray-50">
+                                                    <tr>
+                                                        <th className="w-10 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase" />
+                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ticket</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Slot</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bets</th>
+                                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Win (Rs)</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Loss (Rs)</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100">
+                                                    {lotteryFilteredRows.map((row, index) => {
+                                                        const rowStatus = toBetStatus(row.outcome);
+                                                        const isExpanded = Boolean(expandedLotteryTickets[row.id]);
+                                                        const winDisplay = rowStatus === 'won'
+                                                            ? formatCurrency(row.payout)
+                                                            : rowStatus === 'pending'
+                                                                ? `Open (${row.betCount || 0})`
+                                                                : formatCurrency(0);
+                                                        const lossDisplay = rowStatus === 'lost'
+                                                            ? formatCurrency(row.amount)
+                                                            : rowStatus === 'pending'
+                                                                ? '—'
+                                                                : formatCurrency(0);
+                                                        return (
+                                                            <React.Fragment key={row.id}>
+                                                                <tr className="hover:bg-gray-50">
+                                                                    <td className="px-3 py-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => toggleLotteryTicket(row.id)}
+                                                                            className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                                                                            aria-label={isExpanded ? 'Collapse ticket bets' : 'Expand ticket bets'}
+                                                                        >
+                                                                            {isExpanded ? <FaChevronDown className="w-3 h-3" /> : <FaChevronRight className="w-3 h-3" />}
+                                                                        </button>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-gray-500 text-xs font-semibold">{index + 1}</td>
+                                                                    <td className="px-3 py-2 font-mono text-xs text-gray-500">{formatTicketTail(row.ticketId)}</td>
+                                                                    <td className="px-3 py-2 font-semibold text-orange-600">{row.mode}</td>
+                                                                    <td className="px-3 py-2 text-gray-600 text-xs">{row.slotLabel || '—'}</td>
+                                                                    <td className="px-3 py-2 font-semibold text-[#1B3150]">{row.betCount || 0}</td>
+                                                                    <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(row.amount)}</td>
+                                                                    <td className={`px-3 py-2 text-xs font-semibold ${
+                                                                        rowStatus === 'won'
+                                                                            ? 'text-green-700'
+                                                                            : rowStatus === 'pending'
+                                                                                ? 'text-amber-600'
+                                                                                : 'text-gray-500'
+                                                                    }`}>{winDisplay}</td>
+                                                                    <td className={`px-3 py-2 text-xs font-semibold ${rowStatus === 'lost' ? 'text-red-600' : 'text-gray-500'}`}>{lossDisplay}</td>
+                                                                    <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{row.createdAt ? new Date(row.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+                                                                </tr>
+                                                                {isExpanded && (
+                                                                    <tr className="bg-gray-50/70">
+                                                                        <td colSpan={10} className="px-4 py-3">
+                                                                            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                                                                                <table className="w-full text-xs min-w-[560px]">
+                                                                                    <thead className="bg-gray-50">
+                                                                                        <tr>
+                                                                                            <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">#</th>
+                                                                                            <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Set</th>
+                                                                                            <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Number</th>
+                                                                                            <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Amount</th>
+                                                                                            <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Status</th>
+                                                                                            <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Payout</th>
+                                                                                        </tr>
+                                                                                    </thead>
+                                                                                    <tbody className="divide-y divide-gray-100">
+                                                                                        {(row.bets || []).map((bet, betIndex) => {
+                                                                                            const betStatus = toBetStatus(bet.outcome);
+                                                                                            return (
+                                                                                                <tr key={bet.id}>
+                                                                                                    <td className="px-3 py-2 text-gray-500 font-semibold">{betIndex + 1}</td>
+                                                                                                    <td className="px-3 py-2 text-gray-700">{bet.setLabel || '—'}</td>
+                                                                                                    <td className="px-3 py-2 font-mono text-[#1B3150]">{bet.number || '—'}</td>
+                                                                                                    <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(bet.amount)}</td>
+                                                                                                    <td className="px-3 py-2">
+                                                                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                                                                            betStatus === 'won' ? 'bg-green-100 text-green-700'
+                                                                                                                : betStatus === 'lost' ? 'bg-red-100 text-red-600'
+                                                                                                                    : 'bg-[#1B3150]/10 text-[#1B3150]'
+                                                                                                        }`}>{betStatus}</span>
+                                                                                                    </td>
+                                                                                                    <td className="px-3 py-2 text-right font-mono text-gray-800">{betStatus === 'won' ? formatCurrency(bet.payout) : formatCurrency(0)}</td>
+                                                                                                </tr>
+                                                                                            );
+                                                                                        })}
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                            </React.Fragment>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                            {canLoadMoreLottery ? (
+                                                <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                                                    <p className="text-xs text-gray-500">
+                                                        {`Loaded ${lotteryFilteredRows.length} ticket${lotteryFilteredRows.length === 1 ? '' : 's'} (Page ${lotteryPage})`}
+                                                    </p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleLoadMoreLottery}
+                                                        disabled={loadingLotteryPage}
+                                                        className="px-3 py-1.5 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    >
+                                                        {loadingLotteryPage ? 'Loading...' : 'Next Page'}
+                                                    </button>
+                                                </div>
+                                            ) : null}
                                         </div>
-                                        {!lottery3dHistory?.slots?.length ? (
-                                            <div className="p-4 text-sm text-gray-500">No 3D history found.</div>
-                                        ) : (
-                                            <div className="max-h-[420px] overflow-auto divide-y divide-gray-100">
-                                                {lottery3dHistory.slots.map((slot) => (
-                                                    <div key={slot.slotStartIso} className="p-4">
-                                                        <div className="flex items-start justify-between gap-2 mb-2">
-                                                            <div>
-                                                                <p className="text-sm font-semibold text-gray-800">{slot.drawLabelEnd || '-'}</p>
-                                                                <p className="text-xs text-gray-500">{slot.slotStartIso}</p>
-                                                            </div>
-                                                            <span className="text-xs text-gray-500">{formatNumber(slot.betCount)} bets</span>
-                                                        </div>
-                                                        <div className="grid grid-cols-3 gap-2 text-xs">
-                                                            <div className="rounded bg-gray-50 px-2 py-1">
-                                                                <p className="text-gray-500">Stake</p>
-                                                                <p className="font-semibold text-gray-800">{formatCurrency(slot.totalStake)}</p>
-                                                            </div>
-                                                            <div className="rounded bg-gray-50 px-2 py-1">
-                                                                <p className="text-gray-500">Payout</p>
-                                                                <p className="font-semibold text-gray-800">{formatCurrency(slot.totalPayout)}</p>
-                                                            </div>
-                                                            <div className="rounded bg-gray-50 px-2 py-1">
-                                                                <p className="text-gray-500">Net</p>
-                                                                <p className={`font-semibold ${Number(slot.netProfitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(slot.netProfitLoss)}</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         )}

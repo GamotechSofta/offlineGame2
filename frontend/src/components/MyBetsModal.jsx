@@ -224,7 +224,9 @@ const MyBetsModal = ({ open, onClose }) => {
     return getMyQuizBets(QUIZ_HISTORY_LIMIT, '2d', {
       ticketLimit: TICKET_PAGE_SIZE,
       page: pageToFetch,
-      scope: betFilter === BET_FILTERS.TODAY ? 'today' : 'all',
+      // Keep server scope broad; client-side IST filter below is the source of truth for "Today".
+      // This avoids backend timezone/scope mismatches hiding valid today's bets.
+      scope: 'all',
     })
       .then((j) => {
         const rows = Array.isArray(j?.data) ? j.data : [];
@@ -299,8 +301,15 @@ const MyBetsModal = ({ open, onClose }) => {
     const todayIstKey = getIstDayKey(new Date());
     return quizItems.filter((row) => {
       if (betFilter === BET_FILTERS.TODAY) {
-        const primaryDate = row?.createdAt || row?.placedAt || row?.updatedAt || row?.slotStartIso;
-        if (getIstDayKey(primaryDate) !== todayIstKey) return false;
+        const dateCandidates = [
+          row?.slotStartIso,
+          row?.createdAt,
+          row?.placedAt,
+          row?.updatedAt,
+          row?.slotEndIso,
+        ].filter(Boolean);
+        const isTodayByAnyTimestamp = dateCandidates.some((d) => getIstDayKey(d) === todayIstKey);
+        if (!isTodayByAnyTimestamp) return false;
       }
       return true;
     });
