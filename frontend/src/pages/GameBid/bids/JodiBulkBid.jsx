@@ -421,7 +421,9 @@ const JodiBulkBid = ({ market, title }) => {
                             <button
                                 key={`jodi-quick-desktop-${pts}`}
                                 type="button"
-                                onClick={() => setSelectedQuickPoint(pts)}
+                                onClick={() =>
+                                    setSelectedQuickPoint((prev) => (prev === pts ? null : pts))
+                                }
                                 className={`h-8 px-3 rounded-md font-semibold text-xs border transition-colors shrink-0 ${
                                     selectedQuickPoint === pts
                                         ? 'border-[#1B3150] bg-[#1B3150] text-white'
@@ -460,7 +462,9 @@ const JodiBulkBid = ({ market, title }) => {
                                 <button
                                     key={`jodi-quick-${pts}`}
                                     type="button"
-                                    onClick={() => setSelectedQuickPoint(pts)}
+                                    onClick={() =>
+                                        setSelectedQuickPoint((prev) => (prev === pts ? null : pts))
+                                    }
                                     className={`h-7 px-2.5 rounded-md font-semibold text-[11px] border transition-colors shrink-0 ${
                                         selectedQuickPoint === pts
                                             ? 'border-[#1B3150] bg-[#1B3150] text-white'
