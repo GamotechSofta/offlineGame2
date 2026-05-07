@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -7,6 +7,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010
 const RESULT_CONTROL_UNLOCK_SESSION_KEY = 'offlinebookie:admin:2d-result-control-unlock';
 const RESULT_CONTROL_MODE_PREF_KEY = 'offlinebookie:admin:2d-result-control:auto-mode';
 const RESULT_CONTROL_TARGET_PREF_KEY = 'offlinebookie:admin:2d-result-control:target-profit';
+const SLOT_HISTORY_PAGE_SIZE = 5;
 const todayDate = () => {
     const now = new Date();
     const y = now.getFullYear();
@@ -103,7 +104,8 @@ const TwoDResultControl = () => {
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [slotDetailMap, setSlotDetailMap] = useState({});
-    const [showAllHistorySlots, setShowAllHistorySlots] = useState(false);
+    const [slotHistoryPage, setSlotHistoryPage] = useState(1);
+    const historyListTopRef = useRef(null);
     const targetProfitNumber = Number(String(targetProfitPercent || '').trim());
     const hasValidTargetProfit = Number.isFinite(targetProfitNumber);
     const canRunTargetActions = Boolean(currentSlotStartIso) && hasValidTargetProfit && !hintsLoading;
@@ -461,7 +463,6 @@ const TwoDResultControl = () => {
     ), [slots]);
 
     const visibleHistorySlots = useMemo(() => {
-        if (showAllHistorySlots) return sortedSlots;
         if (!sortedSlots.length) return [];
 
         const declaredSlots = sortedSlots.filter((slot) => Boolean(slot?.declaration?.declared));
@@ -491,7 +492,37 @@ const TwoDResultControl = () => {
             seen.add(key);
             return true;
         });
-    }, [sortedSlots, showAllHistorySlots, currentSlotStartIso]);
+    }, [sortedSlots, currentSlotStartIso]);
+    const totalHistoryPages = useMemo(
+        () => Math.max(1, Math.ceil(visibleHistorySlots.length / SLOT_HISTORY_PAGE_SIZE)),
+        [visibleHistorySlots],
+    );
+    const pagedHistorySlots = useMemo(() => {
+        const start = (slotHistoryPage - 1) * SLOT_HISTORY_PAGE_SIZE;
+        return visibleHistorySlots.slice(start, start + SLOT_HISTORY_PAGE_SIZE);
+    }, [visibleHistorySlots, slotHistoryPage]);
+
+    useEffect(() => {
+        setSlotHistoryPage(1);
+    }, [date, currentSlotStartIso]);
+
+    useEffect(() => {
+        if (slotHistoryPage > totalHistoryPages) {
+            setSlotHistoryPage(totalHistoryPages);
+        }
+    }, [slotHistoryPage, totalHistoryPages]);
+
+    const goToNextHistoryPage = useCallback(() => {
+        setSlotHistoryPage((prev) => {
+            const next = Math.min(totalHistoryPages, prev + 1);
+            if (next !== prev) {
+                requestAnimationFrame(() => {
+                    historyListTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            }
+            return next;
+        });
+    }, [totalHistoryPages]);
 
     useEffect(() => {
         if (!sortedSlots.length) {
@@ -745,15 +776,11 @@ const TwoDResultControl = () => {
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <h2 className="text-base font-semibold text-gray-800">Step 2: Slot history (latest first)</h2>
-                                    <p className="text-xs text-gray-500 mt-1">Default: pending from next 2 slots first, then running, then declared. Use button to view all.</p>
+                                    <p className="text-xs text-gray-500 mt-1">Default: pending from next 2 slots first, then running, then declared. 5 slots per page.</p>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAllHistorySlots((prev) => !prev)}
-                                    className="shrink-0 px-3 py-1.5 rounded-lg border border-purple-300 text-xs font-semibold text-purple-700 hover:bg-purple-50"
-                                >
-                                    {showAllHistorySlots ? 'Show Limited' : 'Show All'}
-                                </button>
+                                <span className="text-[11px] text-gray-500 font-semibold">
+                                    Page {slotHistoryPage} / {totalHistoryPages}
+                                </span>
                             </div>
                             {!sortedSlots.length && !loading ? (
                                 <p className="mt-3 text-sm text-gray-500">No slots found for selected date.</p>
@@ -761,7 +788,8 @@ const TwoDResultControl = () => {
                                 <p className="mt-3 text-sm text-gray-500">No running slot or pending slots found.</p>
                             ) : (
                                 <div className="mt-3 space-y-3">
-                                    {visibleHistorySlots.map((slot) => {
+                                    <div ref={historyListTopRef} />
+                                    {pagedHistorySlots.map((slot) => {
                                         const declared = Boolean(slot?.declaration?.declared);
                                         const declaredCount = (slot?.perQuiz || []).filter((q) => q?.declared).length;
                                         const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
@@ -815,6 +843,16 @@ const TwoDResultControl = () => {
                                             </div>
                                         );
                                     })}
+                                    <div className="pt-2 flex justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={goToNextHistoryPage}
+                                            disabled={slotHistoryPage >= totalHistoryPages}
+                                            className="px-3 py-1.5 rounded-lg border border-purple-300 text-xs font-semibold text-purple-700 hover:bg-purple-50 disabled:opacity-50"
+                                        >
+                                            Next Page
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
