@@ -10,11 +10,6 @@ const BET_FILTERS = {
   TODAY: 'today',
   ALL: 'all',
 };
-const DRAW_FILTERS = {
-  ALL: 'all',
-  ADVANCE: 'advance',
-  NORMAL: 'normal',
-};
 const IST_DAY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Kolkata',
   year: 'numeric',
@@ -102,6 +97,20 @@ const summarizeTicketLines = (groupWithLines) => {
   };
 };
 
+const SLOT_MS = 15 * 60 * 1000;
+const getTicketDisplayPriority = (group) => {
+  const slotStartMs = new Date(group?.slotStartIso || 0).getTime();
+  if (!Number.isFinite(slotStartMs)) return 3;
+  const now = Date.now();
+  const slotEndMs = slotStartMs + SLOT_MS;
+  // 1) Running slot first
+  if (now >= slotStartMs && now < slotEndMs) return 0;
+  // 2) Future slots next
+  if (now < slotStartMs) return 1;
+  // 3) Declared / completed slots last
+  return 2;
+};
+
 const groupQuizRows = (items, ticketSummaryByKey = {}) => {
   const map = new Map();
   for (const row of items) {
@@ -164,13 +173,6 @@ const formatIstDateLabel = (dateInput) => {
   return IST_DATE_LABEL_FORMATTER.format(date);
 };
 
-const isAdvanceDrawRow = (row) => {
-  const createdAtMs = new Date(row?.createdAt || 0).getTime();
-  const slotStartMs = new Date(row?.slotStartIso || 0).getTime();
-  if (!Number.isFinite(createdAtMs) || !Number.isFinite(slotStartMs)) return false;
-  return slotStartMs - createdAtMs > 60 * 1000;
-};
-
 const MyBetsModal = ({ open, onClose }) => {
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [errQuiz, setErrQuiz] = useState('');
@@ -181,7 +183,6 @@ const MyBetsModal = ({ open, onClose }) => {
   const [cancelErr, setCancelErr] = useState('');
   const [pendingCancelTarget, setPendingCancelTarget] = useState(null);
   const [betFilter, setBetFilter] = useState(BET_FILTERS.TODAY);
-  const [drawFilter, setDrawFilter] = useState(DRAW_FILTERS.ALL);
   /** ticket group key → line bets table expanded */
   const [expandedBetLines, setExpandedBetLines] = useState({});
   const [ticketPage, setTicketPage] = useState(1);
@@ -267,7 +268,6 @@ const MyBetsModal = ({ open, onClose }) => {
     setCancelErr('');
     setPendingCancelTarget(null);
     setBetFilter(BET_FILTERS.TODAY);
-    setDrawFilter(DRAW_FILTERS.ALL);
     setExpandedBetLines({});
     setTicketSummaryByKey({});
     setSlotWinnersBySlot({});
@@ -302,16 +302,23 @@ const MyBetsModal = ({ open, onClose }) => {
         const primaryDate = row?.createdAt || row?.placedAt || row?.updatedAt || row?.slotStartIso;
         if (getIstDayKey(primaryDate) !== todayIstKey) return false;
       }
-      if (drawFilter === DRAW_FILTERS.ADVANCE) return isAdvanceDrawRow(row);
-      if (drawFilter === DRAW_FILTERS.NORMAL) return !isAdvanceDrawRow(row);
       return true;
     });
-  }, [betFilter, drawFilter, quizItems]);
+  }, [betFilter, quizItems]);
 
-  const quizGroups = useMemo(
-    () => groupQuizRows(filteredQuizItems, ticketSummaryByKey),
-    [filteredQuizItems, ticketSummaryByKey],
-  );
+  const quizGroups = useMemo(() => (
+    groupQuizRows(filteredQuizItems, ticketSummaryByKey)
+      .sort((a, b) => {
+        const pa = getTicketDisplayPriority(a);
+        const pb = getTicketDisplayPriority(b);
+        if (pa !== pb) return pa - pb;
+        const sa = new Date(a?.slotStartIso || 0).getTime();
+        const sb = new Date(b?.slotStartIso || 0).getTime();
+        // Advance tickets: show nearest upcoming draw first.
+        if (pa === 1) return sa - sb;
+        return sb - sa;
+      })
+  ), [filteredQuizItems, ticketSummaryByKey]);
 
   const refreshQuiz = useCallback(() => {
     loadQuiz({ pageToFetch: 1 });
@@ -319,8 +326,13 @@ const MyBetsModal = ({ open, onClose }) => {
 
   const loadNextTicketPage = useCallback(() => {
     if (loadingMoreTickets || loadingQuiz || !hasMoreTickets) return;
-    void loadQuiz({ pageToFetch: ticketPage + 1, append: true, preserveScroll: true });
+    void loadQuiz({ pageToFetch: ticketPage + 1, append: false, preserveScroll: true });
   }, [hasMoreTickets, loadQuiz, loadingMoreTickets, loadingQuiz, ticketPage]);
+
+  const loadPrevTicketPage = useCallback(() => {
+    if (loadingMoreTickets || loadingQuiz || ticketPage <= 1) return;
+    void loadQuiz({ pageToFetch: ticketPage - 1, append: false, preserveScroll: true });
+  }, [loadQuiz, loadingMoreTickets, loadingQuiz, ticketPage]);
 
   const handleCancelTicket = useCallback(
     async (ticketId) => {
@@ -414,42 +426,6 @@ const MyBetsModal = ({ open, onClose }) => {
               }`}
             >
               All Bets
-            </button>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-lg border border-[#c9dec1] bg-white/85 px-2 py-1.5 shadow-sm">
-            <span className="px-1 text-[9px] font-bold uppercase tracking-wide text-[#3d7040]">Draw Type</span>
-            <button
-              type="button"
-              onClick={() => setDrawFilter(DRAW_FILTERS.ADVANCE)}
-              className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold transition ${
-                drawFilter === DRAW_FILTERS.ADVANCE
-                  ? 'border-[#2c7a3f] bg-gradient-to-b from-[#33b05a] to-[#249748] text-white shadow-[0_2px_8px_rgba(34,197,94,0.28)]'
-                  : 'border-[#b5bfd1] bg-[#f8fafc] text-[#334155] hover:bg-[#eef2f7]'
-              }`}
-            >
-              Advance Draw
-            </button>
-            <button
-              type="button"
-              onClick={() => setDrawFilter(DRAW_FILTERS.NORMAL)}
-              className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold transition ${
-                drawFilter === DRAW_FILTERS.NORMAL
-                  ? 'border-[#2c7a3f] bg-gradient-to-b from-[#33b05a] to-[#249748] text-white shadow-[0_2px_8px_rgba(34,197,94,0.28)]'
-                  : 'border-[#b5bfd1] bg-[#f8fafc] text-[#334155] hover:bg-[#eef2f7]'
-              }`}
-            >
-              Normal Draw
-            </button>
-            <button
-              type="button"
-              onClick={() => setDrawFilter(DRAW_FILTERS.ALL)}
-              className={`rounded-md border px-2.5 py-1 text-[10px] font-semibold transition ${
-                drawFilter === DRAW_FILTERS.ALL
-                  ? 'border-[#2c7a3f] bg-gradient-to-b from-[#33b05a] to-[#249748] text-white shadow-[0_2px_8px_rgba(34,197,94,0.28)]'
-                  : 'border-[#b5bfd1] bg-[#f8fafc] text-[#334155] hover:bg-[#eef2f7]'
-              }`}
-            >
-              All Draws
             </button>
           </div>
           <button
@@ -673,16 +649,26 @@ const MyBetsModal = ({ open, onClose }) => {
           {!loadingQuiz && !errQuiz && quizGroups.length > 0 ? (
             <div className="mt-3 flex items-center justify-between border-t border-[#c9c9c9] pt-2">
               <span className="text-[10px] font-semibold text-gray-600">
-                Loaded {quizGroups.length} tickets (Page {ticketPage})
+                Showing {quizGroups.length} tickets (Page {ticketPage})
               </span>
-              <button
-                type="button"
-                onClick={loadNextTicketPage}
-                disabled={loadingMoreTickets || !hasMoreTickets}
-                className="rounded border border-[#2c5ea8] bg-[#2e7be6] px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-55"
-              >
-                {loadingMoreTickets ? 'Loading...' : 'Next Page'}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={loadPrevTicketPage}
+                  disabled={loadingMoreTickets || ticketPage <= 1}
+                  className="rounded border border-[#94a3b8] bg-[#e2e8f0] px-2.5 py-1 text-[10px] font-semibold text-[#0f172a] disabled:opacity-55"
+                >
+                  Previous Page
+                </button>
+                <button
+                  type="button"
+                  onClick={loadNextTicketPage}
+                  disabled={loadingMoreTickets || !hasMoreTickets}
+                  className="rounded border border-[#2c5ea8] bg-[#2e7be6] px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-55"
+                >
+                  {loadingMoreTickets ? 'Loading...' : 'Next Page'}
+                </button>
+              </div>
             </div>
           ) : null}
         </div>
