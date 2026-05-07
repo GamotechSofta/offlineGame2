@@ -91,8 +91,6 @@ const Layout = ({ children }) => {
     const viewportMeta = document.querySelector('meta[name="viewport"]');
     if (!viewportMeta) return undefined;
 
-    const zoomDisabledContent =
-      'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
     const zoomEnabledContent =
       'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover';
 
@@ -103,13 +101,8 @@ const Layout = ({ children }) => {
       document.msFullscreenElement ||
       null;
 
-    const isMobileLike = () =>
-      window.matchMedia('(max-width: 900px)').matches ||
-      window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-
     const applyViewport = () => {
       const isLottery2d3d = isTwoDGamePage || isThreeDGamePage || isLotteryQuizPage || isThreeDQuizPage;
-      const inFullscreen = !!getFullscreenElement();
       const rootEl = document.documentElement;
       const bodyEl = document.body;
       const setZoomClass = (enabled) => {
@@ -140,28 +133,16 @@ const Layout = ({ children }) => {
         }
       };
 
-      // iOS / many mobile browsers never set fullscreenElement for in-app lottery UIs, so pinch-zoom stayed blocked.
-      if (isLottery2d3d && isMobileLike()) {
+      // Keep pinch zoom always enabled on lottery 2D/3D pages.
+      if (isLottery2d3d) {
         viewportMeta.setAttribute('content', zoomEnabledContent);
         enablePinchGesture();
         setZoomClass(true);
         return;
       }
-      // Desktop / large viewports: keep pinch off on 2D/3D unless true fullscreen (where supported).
-      if (isLottery2d3d && !inFullscreen) {
-        viewportMeta.setAttribute('content', zoomDisabledContent);
-        resetPinchGesture();
-        setZoomClass(false);
-      } else {
-        viewportMeta.setAttribute('content', zoomEnabledContent);
-        if (isLottery2d3d && inFullscreen) {
-          enablePinchGesture();
-          setZoomClass(true);
-        } else {
-          resetPinchGesture();
-          setZoomClass(false);
-        }
-      }
+      viewportMeta.setAttribute('content', zoomEnabledContent);
+      resetPinchGesture();
+      setZoomClass(false);
     };
 
     applyViewport();
@@ -172,19 +153,7 @@ const Layout = ({ children }) => {
     document.addEventListener('mozfullscreenchange', onFs);
     document.addEventListener('MSFullscreenChange', onFs);
 
-    const mq900 = window.matchMedia('(max-width: 900px)');
-    const mqCoarse = window.matchMedia('(hover: none) and (pointer: coarse)');
     const onViewportHint = () => applyViewport();
-    const addMq = (mq) => {
-      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onViewportHint);
-      else if (typeof mq.addListener === 'function') mq.addListener(onViewportHint);
-    };
-    const removeMq = (mq) => {
-      if (typeof mq.removeEventListener === 'function') mq.removeEventListener('change', onViewportHint);
-      else if (typeof mq.removeListener === 'function') mq.removeListener(onViewportHint);
-    };
-    addMq(mq900);
-    addMq(mqCoarse);
     window.addEventListener('orientationchange', onViewportHint);
 
     return () => {
@@ -192,8 +161,6 @@ const Layout = ({ children }) => {
       document.removeEventListener('webkitfullscreenchange', onFs);
       document.removeEventListener('mozfullscreenchange', onFs);
       document.removeEventListener('MSFullscreenChange', onFs);
-      removeMq(mq900);
-      removeMq(mqCoarse);
       window.removeEventListener('orientationchange', onViewportHint);
       document.documentElement?.style.removeProperty('touch-action');
       document.documentElement?.style.removeProperty('-ms-touch-action');
