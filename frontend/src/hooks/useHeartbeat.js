@@ -3,7 +3,7 @@ import { API_BASE_URL, getAuthHeaders, clearUserSession } from '../config/api';
 import { getBalance, updateUserBalance } from '../api/bets';
 import { isUserLoggedIn } from '../session/userSession';
 
-const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also used to detect suspended accounts
+const HEARTBEAT_INTERVAL_MS = 10 * 1000; // Faster session invalidation detection across devices
 
 export const useHeartbeat = () => {
   const intervalRef = useRef(null);
