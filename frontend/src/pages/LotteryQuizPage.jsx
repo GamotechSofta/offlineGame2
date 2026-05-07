@@ -10,6 +10,7 @@ import { getVisibleQuestionCountFromSlotStart } from '../utils/quizSlotClock';
 const QUIZ_MODE = '2d';
 const DEFAULT_STUDY_MINUTES = 14.5;
 const DEFAULT_REVEAL_STAGGER_MS = 8700;
+const isAndroidDevice = () => /Android/i.test(navigator.userAgent || '');
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -137,15 +138,17 @@ const LotteryQuizPage = () => {
       const isPortrait = window.innerHeight > window.innerWidth;
       setShowRotatePrompt(isMobile && isPortrait);
 
-      if (isMobile && !isPortrait && !document.fullscreenElement) {
+      if (isMobile && !isPortrait) {
         const nowMs = Date.now();
         if (nowMs - lastLandscapeAutoFsAttemptRef.current > 1200) {
           lastLandscapeAutoFsAttemptRef.current = nowMs;
-          const root = document.documentElement;
-          if (root.requestFullscreen) {
-            root.requestFullscreen().catch(() => {
-              // Some browsers require explicit user action.
-            });
+          if (isAndroidDevice() && !document.fullscreenElement) {
+            const root = document.documentElement;
+            if (root.requestFullscreen) {
+              root.requestFullscreen().catch(() => {
+                // Some browsers require explicit user action.
+              });
+            }
           }
         }
       }
@@ -456,9 +459,11 @@ const LotteryQuizPage = () => {
 
   const handleRotateLandscape = useCallback(async () => {
     try {
-      const root = document.documentElement;
-      if (root.requestFullscreen && !document.fullscreenElement) {
-        await root.requestFullscreen();
+      if (isAndroidDevice()) {
+        const root = document.documentElement;
+        if (root.requestFullscreen && !document.fullscreenElement) {
+          await root.requestFullscreen();
+        }
       }
       if (window.screen?.orientation?.lock) {
         await window.screen.orientation.lock('landscape');
@@ -470,10 +475,10 @@ const LotteryQuizPage = () => {
 
   return (
     <AppLayout>
-      <div className="relative w-full min-h-screen min-h-[100dvh] overflow-hidden rounded-[14px] bg-[#111] sm:rounded-none">
+      <div className="relative w-full min-h-screen min-h-[100dvh] overflow-visible rounded-[14px] bg-[#111] sm:rounded-none">
         <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[#4c4c4c] sm:rounded-none" />
         <div
-          className="absolute inset-0 overflow-hidden"
+          className="absolute inset-0 overflow-auto"
           style={{
             width: `${viewport.width}px`,
             height: `${viewport.height}px`,
@@ -481,7 +486,7 @@ const LotteryQuizPage = () => {
           }}
         >
           <div
-            className="absolute top-0 left-0 flex flex-col overflow-hidden border border-[#4c4c4c] bg-[#efe6d5] text-black"
+            className="absolute top-0 left-0 flex flex-col overflow-visible border border-[#4c4c4c] bg-[#efe6d5] text-black"
             style={{
               width: `${BASE_WIDTH}px`,
               height: `${BASE_HEIGHT}px`,

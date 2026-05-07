@@ -41,6 +41,7 @@ const MODE_GROUP_SPECIAL = MODE_OPTIONS.slice(7);
 const ALL_SHORTCUT_MODES = ['box', 'str', 'sp', 'fp', 'bp', 'ap'];
 const RATE_OPTIONS = [10, 20, 30, 50, 100, 200];
 const MAX_VISIBLE_BET_CARDS = 240;
+const isAndroidDevice = () => /Android/i.test(navigator.userAgent || '');
 /** Progress bar turns red when remaining time is at or below this many seconds (5 minutes). */
 const TIMER_BAR_RED_MAX_SECONDS = 5 * 60;
 // Large multi-bet tickets can exceed 10k rows; keep fetch window high for history visibility.
@@ -772,15 +773,17 @@ const ThreeDGame = () => {
       const isMobile = window.innerWidth <= 900;
       const isPortrait = window.innerHeight > window.innerWidth;
       setShowRotatePrompt(isMobile && isPortrait);
-      if (isMobile && !isPortrait && !document.fullscreenElement) {
+      if (isMobile && !isPortrait) {
         const nowMs = Date.now();
         if (nowMs - lastLandscapeAutoFsAttemptRef.current > 1200) {
           lastLandscapeAutoFsAttemptRef.current = nowMs;
-          const root = document.documentElement;
-          if (root.requestFullscreen) {
-            root.requestFullscreen().catch(() => {
-              // Some browsers require explicit user action.
-            });
+          if (isAndroidDevice() && !document.fullscreenElement) {
+            const root = document.documentElement;
+            if (root.requestFullscreen) {
+              root.requestFullscreen().catch(() => {
+                // Some browsers require explicit user action.
+              });
+            }
           }
         }
       }
@@ -1895,9 +1898,11 @@ const ThreeDGame = () => {
 
   const handleRotateLandscape = useCallback(async () => {
     try {
-      const root = document.documentElement;
-      if (root.requestFullscreen && !document.fullscreenElement) {
-        await root.requestFullscreen();
+      if (isAndroidDevice()) {
+        const root = document.documentElement;
+        if (root.requestFullscreen && !document.fullscreenElement) {
+          await root.requestFullscreen();
+        }
       }
       if (window.screen?.orientation?.lock) {
         await window.screen.orientation.lock('landscape');
@@ -2134,7 +2139,7 @@ const ThreeDGame = () => {
   }, [activeInputIndex, addBet, canAddBet]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-[#0b1223] via-[#182a4a] to-[#1e3a5f]">
+    <div className="absolute inset-0 overflow-visible bg-gradient-to-br from-[#0b1223] via-[#182a4a] to-[#1e3a5f]">
       <div
         className="absolute inset-0 overflow-auto"
         style={{

@@ -21,6 +21,7 @@ const MAX_QUIZ_NUMBERS_PER_SLOT = 100;
 /** Keypad stake entry: max 3 digits (1–999). */
 const MAX_LOTTERY_AMOUNT = 999;
 const MAX_LOTTERY_AMOUNT_DIGITS = 3;
+const isAndroidDevice = () => /Android/i.test(navigator.userAgent || '');
 const LotteryDashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -163,15 +164,17 @@ const LotteryDashboard = () => {
         setRotatePromptDismissed(false);
       }
 
-      if (isMobile && !isPortrait && !document.fullscreenElement) {
+      if (isMobile && !isPortrait) {
         const nowMs = Date.now();
         if (nowMs - lastLandscapeAutoFsAttemptRef.current > 1200) {
           lastLandscapeAutoFsAttemptRef.current = nowMs;
-          const root = document.documentElement;
-          if (root.requestFullscreen) {
-            root.requestFullscreen().catch(() => {
-              // Some browsers require explicit user action.
-            });
+          if (isAndroidDevice() && !document.fullscreenElement) {
+            const root = document.documentElement;
+            if (root.requestFullscreen) {
+              root.requestFullscreen().catch(() => {
+                // Some browsers require explicit user action.
+              });
+            }
           }
         }
       }
@@ -189,9 +192,11 @@ const LotteryDashboard = () => {
     setRotatePromptDismissed(true);
     setShowRotatePrompt(false);
     try {
-      const root = document.documentElement;
-      if (root.requestFullscreen && !document.fullscreenElement) {
-        await root.requestFullscreen();
+      if (isAndroidDevice()) {
+        const root = document.documentElement;
+        if (root.requestFullscreen && !document.fullscreenElement) {
+          await root.requestFullscreen();
+        }
       }
       if (window.screen?.orientation?.lock) {
         await window.screen.orientation.lock('landscape');
@@ -1010,7 +1015,7 @@ const LotteryDashboard = () => {
 
   return (
     <AppLayout>
-      <div className="w-full min-h-screen min-h-[100dvh] h-[100dvh] relative overflow-hidden bg-[#111] rounded-[14px] sm:rounded-none">
+      <div className="w-full min-h-screen min-h-[100dvh] h-[100dvh] relative overflow-visible bg-[#111] rounded-[14px] sm:rounded-none">
         <div className="absolute inset-0 border border-[#4c4c4c] pointer-events-none rounded-[14px] sm:rounded-none" />
         <div
           className="absolute inset-0 overflow-auto"
@@ -1028,7 +1033,7 @@ const LotteryDashboard = () => {
             }}
           >
           <div
-            className="absolute top-0 left-0 bg-[#111] border border-[#4c4c4c] flex flex-col overflow-hidden"
+            className="absolute top-0 left-0 bg-[#111] border border-[#4c4c4c] flex flex-col overflow-visible"
             style={{
               width: `${BASE_WIDTH}px`,
               height: `${BASE_HEIGHT}px`,

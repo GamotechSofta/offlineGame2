@@ -26,6 +26,7 @@ import ThreeDGame from '../components/lottery/3d-lottery/ThreeDGame';
 import LotteryQuizPage from '../pages/LotteryQuizPage';
 import ThreeDQuizPage from '../pages/ThreeDQuizPage';
 import GamesHub from '../pages/GamesHub';
+import ZoomTestPage from '../pages/ZoomTestPage';
 import { API_BASE_URL } from '../config/api';
 import { clearCurrentUser, getCurrentUser, setCurrentUser } from '../session/userSession';
 
@@ -82,6 +83,8 @@ const Layout = ({ children }) => {
   const isLotteryQuizPage = location.pathname === '/lottery/quiz';
   const isThreeDQuizPage = location.pathname === '/lottery/3d/quiz';
   const isLotteryFullScreenPage = isTwoDGamePage || isThreeDGamePage || isLotteryQuizPage || isThreeDQuizPage;
+  const isZoomTestPage = location.pathname === '/zoom-test';
+  const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
   const [hasUser, setHasUser] = useState(null);
   const isLoginPage = location.pathname === '/login' || location.pathname === '/signup';
   const isHomePage = location.pathname === '/';
@@ -181,6 +184,57 @@ const Layout = ({ children }) => {
       viewportMeta.setAttribute('content', zoomEnabledContent);
     };
   }, [isTwoDGamePage, isThreeDGamePage, isLotteryQuizPage, isThreeDQuizPage]);
+
+  useEffect(() => {
+    const isDebugRoute = isLotteryFullScreenPage || isZoomTestPage;
+    if (!isDebugRoute) return undefined;
+    const logState = () => {
+      const viewport = document.querySelector('meta[name="viewport"]')?.getAttribute('content');
+      const htmlTouch = getComputedStyle(document.documentElement).touchAction;
+      const bodyTouch = getComputedStyle(document.body).touchAction;
+      const rootOverflow = getComputedStyle(document.getElementById('root')).overflow;
+      const visualViewportScale = window.visualViewport?.scale;
+      console.log({
+        viewport,
+        htmlTouch,
+        bodyTouch,
+        rootOverflow,
+        visualViewportScale,
+      });
+    };
+    const onPinchTouchMove = (e) => {
+      if (e.touches?.length >= 2) {
+        console.log('PINCH DETECTED');
+      }
+    };
+    logState();
+    window.visualViewport?.addEventListener('resize', logState);
+    window.addEventListener('touchmove', onPinchTouchMove, { passive: true });
+    return () => {
+      window.visualViewport?.removeEventListener('resize', logState);
+      window.removeEventListener('touchmove', onPinchTouchMove);
+    };
+  }, [isLotteryFullScreenPage, isZoomTestPage]);
+
+  useEffect(() => {
+    if (!isLotteryFullScreenPage || !isIOSDevice) return undefined;
+    const exitAnyFullscreen = async () => {
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      } catch (_) {
+        // Ignore browser policy failures.
+      }
+    };
+    exitAnyFullscreen();
+    document.addEventListener('fullscreenchange', exitAnyFullscreen);
+    document.addEventListener('webkitfullscreenchange', exitAnyFullscreen);
+    return () => {
+      document.removeEventListener('fullscreenchange', exitAnyFullscreen);
+      document.removeEventListener('webkitfullscreenchange', exitAnyFullscreen);
+    };
+  }, [isIOSDevice, isLotteryFullScreenPage]);
 
   useEffect(() => {
     const check = async () => {
@@ -315,6 +369,10 @@ const Layout = ({ children }) => {
     );
   }
 
+  if (isZoomTestPage) {
+    return <>{children}</>;
+  }
+
   // Lottery: full-screen, no header or navbar
   if (
     isLotteryFullScreenPage
@@ -378,6 +436,7 @@ const AppRoutes = () => {
           <Route path="/lottery/quiz" element={<LotteryQuizPage />} />
           <Route path="/lottery/3d/quiz" element={<ThreeDQuizPage />} />
           <Route path="/lottery/3d" element={<ThreeDGame />} />
+          <Route path="/zoom-test" element={<ZoomTestPage />} />
         </Routes>
       </Layout>
     </Router>
