@@ -190,6 +190,7 @@ const MyBetsModal = ({ open, onClose }) => {
   const [loadingMoreTickets, setLoadingMoreTickets] = useState(false);
   const listScrollRef = useRef(null);
   const lastScrollTopRef = useRef(0);
+  const suppressAutoRefreshUntilRef = useRef(0);
 
   const groupKey = (g) => `${g.ticketId || 'legacy'}-${g.slotStartIso}`;
 
@@ -293,6 +294,7 @@ const MyBetsModal = ({ open, onClose }) => {
     intervalMs: 3000,
     immediate: false,
     onRefresh: () => {
+      if (Date.now() < suppressAutoRefreshUntilRef.current) return;
       void loadQuiz({ silent: true, preserveScroll: true, pageToFetch: ticketPage });
     },
   });
@@ -335,11 +337,13 @@ const MyBetsModal = ({ open, onClose }) => {
 
   const loadNextTicketPage = useCallback(() => {
     if (loadingMoreTickets || loadingQuiz || !hasMoreTickets) return;
+    suppressAutoRefreshUntilRef.current = Date.now() + 5000;
     void loadQuiz({ pageToFetch: ticketPage + 1, append: false, preserveScroll: true });
   }, [hasMoreTickets, loadQuiz, loadingMoreTickets, loadingQuiz, ticketPage]);
 
   const loadPrevTicketPage = useCallback(() => {
     if (loadingMoreTickets || loadingQuiz || ticketPage <= 1) return;
+    suppressAutoRefreshUntilRef.current = Date.now() + 5000;
     void loadQuiz({ pageToFetch: ticketPage - 1, append: false, preserveScroll: true });
   }, [loadQuiz, loadingMoreTickets, loadingQuiz, ticketPage]);
 

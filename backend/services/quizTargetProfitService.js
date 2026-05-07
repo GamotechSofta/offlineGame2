@@ -6,10 +6,15 @@ import { evaluate3DBetAgainstResult, resolve3DPayoutMultiplier } from './quiz3dP
 const QUIZ_IDS_2D = Array.from({ length: 30 }, (_, i) => i + 1);
 const QUIZ_IDS_3D = [1, 2, 3];
 const EPSILON = 1e-9;
-const pickRandomFrom = (arr) => {
+const pickLowestNumberFrom = (arr) => {
   if (!Array.isArray(arr) || arr.length === 0) return null;
-  const idx = Math.floor(Math.random() * arr.length);
-  return arr[idx] ?? null;
+  let best = null;
+  for (const item of arr) {
+    const n = Number(item?.number);
+    if (!Number.isFinite(n)) continue;
+    if (!best || n < Number(best.number)) best = item;
+  }
+  return best;
 };
 const hashStringToPositiveInt = (input) => {
   const str = String(input || '');
@@ -20,12 +25,6 @@ const hashStringToPositiveInt = (input) => {
   }
   return Math.abs(hash);
 };
-const pickStableFrom = (arr, seedKey) => {
-  if (!Array.isArray(arr) || arr.length === 0) return null;
-  const idx = hashStringToPositiveInt(seedKey) % arr.length;
-  return arr[idx] ?? null;
-};
-
 async function getQuiz2DMultiplier() {
   try {
     const rates = await getRatesMap();
@@ -140,13 +139,8 @@ export async function build2DTargetProfitHintsWithOptions(slotStartIso, targetPr
       if (stake > 0) candidates.push(candidate);
     }
 
-    const tieSeedKey = `2d|${slotStartIso}|${quizId}|${target}`;
-    const selectedFromAbove = stableTieBreak
-      ? pickStableFrom(bestAtOrAbovePool, `${tieSeedKey}|above`)
-      : pickRandomFrom(bestAtOrAbovePool);
-    const selectedFromNearest = stableTieBreak
-      ? pickStableFrom(bestNearestPool, `${tieSeedKey}|nearest`)
-      : pickRandomFrom(bestNearestPool);
+    const selectedFromAbove = pickLowestNumberFrom(bestAtOrAbovePool);
+    const selectedFromNearest = pickLowestNumberFrom(bestNearestPool);
     const selected = selectedFromAbove
       || selectedFromNearest
       || bestAtOrAboveTarget
@@ -293,13 +287,8 @@ export async function build3DTargetProfitHintsWithOptions(slotStartIso, targetPr
       }
     }
 
-    const tieSeedKey = `3d|${slotStartIso}|${quizId}|${target}`;
-    const selectedFromAbove = stableTieBreak
-      ? pickStableFrom(bestAtOrAbovePool, `${tieSeedKey}|above`)
-      : pickRandomFrom(bestAtOrAbovePool);
-    const selectedFromNearest = stableTieBreak
-      ? pickStableFrom(bestNearestPool, `${tieSeedKey}|nearest`)
-      : pickRandomFrom(bestNearestPool);
+    const selectedFromAbove = pickLowestNumberFrom(bestAtOrAbovePool);
+    const selectedFromNearest = pickLowestNumberFrom(bestNearestPool);
     const selected = selectedFromAbove
       || selectedFromNearest
       || bestAtOrAboveTarget

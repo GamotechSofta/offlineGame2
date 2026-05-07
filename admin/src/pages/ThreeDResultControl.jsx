@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -6,7 +6,6 @@ import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const RESULT_CONTROL_UNLOCK_SESSION_KEY = 'offlinebookie:admin:3d-result-control-unlock';
 const RESULT_CONTROL_MODE_PREF_KEY = 'offlinebookie:admin:3d-result-control:auto-mode';
-const RESULT_CONTROL_TARGET_PREF_KEY = 'offlinebookie:admin:3d-result-control:target-profit';
 const setLabelByQuizId = {
     1: 'Set A',
     2: 'Set B',
@@ -71,20 +70,11 @@ const ThreeDResultControl = () => {
     const [currentSlotStartIso, setCurrentSlotStartIso] = useState('');
     const [currentSlotPhase, setCurrentSlotPhase] = useState('');
     const [currentHintRows, setCurrentHintRows] = useState([]);
-    const [targetProfitPercent, setTargetProfitPercent] = useState(() => {
-        try {
-            const v = sessionStorage.getItem(RESULT_CONTROL_TARGET_PREF_KEY);
-            return v == null || v === '' ? '0' : String(v);
-        } catch {
-            return '0';
-        }
-    });
+    const [targetProfitPercent, setTargetProfitPercent] = useState('0');
     const [armingTargetAuto, setArmingTargetAuto] = useState(false);
     const [switchingRandomAuto, setSwitchingRandomAuto] = useState(false);
     const [hintPreviewMode, setHintPreviewMode] = useState('default');
     const [autoDeclareMode, setAutoDeclareMode] = useState('random');
-    const [isEditingTargetProfit, setIsEditingTargetProfit] = useState(false);
-    const [hasTouchedTargetProfit, setHasTouchedTargetProfit] = useState(false);
     const [preferredAutoMode, setPreferredAutoMode] = useState(() => {
         try {
             const v = sessionStorage.getItem(RESULT_CONTROL_MODE_PREF_KEY);
@@ -107,6 +97,8 @@ const ThreeDResultControl = () => {
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [showAllHistorySlots, setShowAllHistorySlots] = useState(false);
+    const [activeTargetPercent, setActiveTargetPercent] = useState(null);
+    const targetProfitPercentRef = useRef('0');
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -115,6 +107,10 @@ const ThreeDResultControl = () => {
     const targetProfitNumber = Number(String(targetProfitPercent || '').trim());
     const hasValidTargetProfit = Number.isFinite(targetProfitNumber);
     const canRunTargetActions = Boolean(currentSlotStartIso) && hasValidTargetProfit && !hintsLoading;
+
+    useEffect(() => {
+        targetProfitPercentRef.current = targetProfitPercent;
+    }, [targetProfitPercent]);
 
     const fetchSlots = useCallback(async (targetDate = date, options = {}) => {
         const silent = Boolean(options?.silent);
@@ -166,7 +162,7 @@ const ThreeDResultControl = () => {
         const silent = Boolean(options?.silent);
         const mode = String(options?.mode || 'default');
         const skipPreferenceSync = Boolean(options?.skipPreferenceSync);
-        const targetInput = String(options?.targetProfitPercent ?? targetProfitPercent).trim();
+        const targetInput = String(options?.targetProfitPercent ?? targetProfitPercentRef.current).trim();
         const parsedTarget = Number(targetInput);
         const targetToUse = Number.isFinite(parsedTarget) ? parsedTarget : 0;
         if (!silent) setHintsLoading(true);
@@ -187,11 +183,10 @@ const ThreeDResultControl = () => {
             setCurrentSlotPhase(phase);
             if (Number.isFinite(persistedTarget)) {
                 setAutoDeclareMode('target');
-                if (!isEditingTargetProfit && !hasTouchedTargetProfit) {
-                    setTargetProfitPercent(String(persistedTarget));
-                }
+                setActiveTargetPercent(persistedTarget);
             } else {
                 setAutoDeclareMode('random');
+                setActiveTargetPercent(null);
             }
             if (!iso) {
                 setCurrentHintRows([]);
@@ -262,7 +257,7 @@ const ThreeDResultControl = () => {
         } finally {
             if (!silent) setHintsLoading(false);
         }
-    }, [targetProfitPercent, isEditingTargetProfit, hasTouchedTargetProfit, preferredAutoMode]);
+    }, [preferredAutoMode]);
 
     useEffect(() => {
         if (!secretCheckComplete) return;
@@ -415,10 +410,8 @@ const ThreeDResultControl = () => {
             setNotice(`Target auto-declare armed at ${value}% for current running slot.`);
             setAutoDeclareMode('target');
             setPreferredAutoMode('target');
-            setHasTouchedTargetProfit(false);
             try {
                 sessionStorage.setItem(RESULT_CONTROL_MODE_PREF_KEY, 'target');
-                sessionStorage.setItem(RESULT_CONTROL_TARGET_PREF_KEY, String(value));
             } catch {
                 // ignore storage write errors
             }
@@ -567,7 +560,9 @@ const ThreeDResultControl = () => {
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs font-semibold text-gray-600">Auto mode</span>
                                         <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${autoDeclareMode === 'target' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                            {autoDeclareMode === 'target' ? 'Target mode active' : 'Random mode active'}
+                                            {autoDeclareMode === 'target'
+                                                ? `Target mode active${Number.isFinite(Number(activeTargetPercent)) ? ` (${Number(activeTargetPercent)}%)` : ''}`
+                                                : 'Random mode active'}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -581,7 +576,11 @@ const ThreeDResultControl = () => {
                                                     : 'bg-purple-600 text-white hover:bg-purple-700'
                                             }`}
                                         >
-                                            {armingTargetAuto ? 'Activating target...' : autoDeclareMode === 'target' ? 'Target mode active' : 'Use target mode'}
+                                            {armingTargetAuto
+                                                ? 'Activating target...'
+                                                : autoDeclareMode === 'target'
+                                                    ? `Target mode active${Number.isFinite(Number(activeTargetPercent)) ? ` (${Number(activeTargetPercent)}%)` : ''}`
+                                                    : 'Use target mode'}
                                         </button>
                                         <button
                                             type="button"
@@ -599,23 +598,15 @@ const ThreeDResultControl = () => {
                                 </div>
                                 <div className="flex flex-wrap items-end gap-2">
                                     <label className="text-xs text-gray-600 font-medium">
-                                        Target profit %
+                                        Check Target profit %
                                         <input
                                             type="text"
                                             inputMode="decimal"
                                             value={targetProfitPercent}
                                             onChange={(e) => {
-                                                setHasTouchedTargetProfit(true);
                                                 const nextValue = e.target.value.replace(/[^\d.-]/g, '').slice(0, 6);
                                                 setTargetProfitPercent(nextValue);
-                                                try {
-                                                    sessionStorage.setItem(RESULT_CONTROL_TARGET_PREF_KEY, nextValue);
-                                                } catch {
-                                                    // ignore storage write errors
-                                                }
                                             }}
-                                            onFocus={() => setIsEditingTargetProfit(true)}
-                                            onBlur={() => setIsEditingTargetProfit(false)}
                                             className="ml-2 w-24 px-2 py-1.5 rounded border border-gray-300 text-sm bg-white"
                                             placeholder="0"
                                         />
@@ -626,7 +617,15 @@ const ThreeDResultControl = () => {
                                         disabled={!canRunTargetActions}
                                         className="px-3 py-1.5 rounded-lg border border-purple-300 text-xs font-semibold text-purple-700 hover:bg-purple-50 disabled:opacity-60"
                                     >
-                                        {hintsLoading ? 'Computing...' : 'Compute target hints'}
+                                        {hintsLoading ? 'Checking...' : 'Check'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={armTargetAutoDeclare}
+                                        disabled={armingTargetAuto || !currentSlotStartIso || !hasValidTargetProfit}
+                                        className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 disabled:opacity-60"
+                                    >
+                                        {armingTargetAuto ? 'Saving...' : 'Save This Target %'}
                                     </button>
                                     {!currentSlotStartIso ? (
                                         <span className="text-[11px] text-amber-700 font-medium">No running slot available now.</span>
@@ -647,6 +646,9 @@ const ThreeDResultControl = () => {
                                                 if (!currentSlotStartIso) return;
                                                 navigate(`/3d-management/set/${qid}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`);
                                             };
+                                            const visibleHint = autoDeclareMode === 'random'
+                                                ? item.hint
+                                                : '000';
                                             return (
                                         <div
                                             key={item.quizId}
@@ -661,8 +663,17 @@ const ThreeDResultControl = () => {
                                             >
                                                 <div className="flex justify-between gap-1 items-baseline">
                                                     <span className="text-gray-500 shrink-0">{setLabelByQuizId[Number(item.quizId)] || `Set ${item.quizId}`}</span>
-                                                    <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
+                                                    <span className="font-mono font-semibold text-gray-800">{visibleHint}</span>
                                                 </div>
+                                                {(hintPreviewMode === 'target' || visibleHint !== '000') ? (
+                                                    <div className={`mt-0.5 inline-flex w-fit rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                                                        hintPreviewMode === 'target'
+                                                            ? 'bg-purple-100 text-purple-700'
+                                                            : 'bg-emerald-100 text-emerald-700'
+                                                    }`}>
+                                                        {hintPreviewMode === 'target' ? 'Computed number (not fixed)' : 'Random number'}
+                                                    </div>
+                                                ) : null}
                                                 <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
                                                 {(() => {
                                                     const profitPct = formatProfitPercent(item.houseNetIfHintWins, item.totalStake);
