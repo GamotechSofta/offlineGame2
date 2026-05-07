@@ -105,11 +105,12 @@ const Layout = ({ children }) => {
 
     const isMobileLike = () =>
       window.matchMedia('(max-width: 900px)').matches ||
-      window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+      window.matchMedia('(hover: none) and (pointer: coarse)').matches ||
+      // Fallback for some Android WebViews / embedded browsers where matchMedia is unreliable.
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
 
     const applyViewport = () => {
       const isLottery2d3d = isTwoDGamePage || isThreeDGamePage;
-      const inFullscreen = !!getFullscreenElement();
       const rootEl = document.documentElement;
       const bodyEl = document.body;
 
@@ -136,21 +137,21 @@ const Layout = ({ children }) => {
         }
       };
 
-      // iOS / many mobile browsers never set fullscreenElement for in-app lottery UIs, so pinch-zoom stayed blocked.
-      if (isLottery2d3d && isMobileLike()) {
-        viewportMeta.setAttribute('content', zoomEnabledContent);
-        enablePinchGesture();
+      // Requirement: 2D/3D lottery should allow pinch-zoom only on mobile view.
+      if (isLottery2d3d) {
+        if (isMobileLike()) {
+          viewportMeta.setAttribute('content', zoomEnabledContent);
+          enablePinchGesture();
+        } else {
+          viewportMeta.setAttribute('content', zoomDisabledContent);
+          resetPinchGesture();
+        }
         return;
       }
-      // Desktop / large viewports: keep pinch off on 2D/3D unless true fullscreen (where supported).
-      if (isLottery2d3d && !inFullscreen) {
-        viewportMeta.setAttribute('content', zoomDisabledContent);
-        resetPinchGesture();
-      } else {
-        viewportMeta.setAttribute('content', zoomEnabledContent);
-        if (isLottery2d3d && inFullscreen) enablePinchGesture();
-        else resetPinchGesture();
-      }
+
+      // Non-lottery pages: keep zoom enabled.
+      viewportMeta.setAttribute('content', zoomEnabledContent);
+      resetPinchGesture();
     };
 
     applyViewport();
