@@ -12,6 +12,18 @@ export async function getSlotDeclarationRow(slotStartIso, gameMode = '2d') {
   return QuizSlotDeclaration.findOne({ gameMode: normalizeMode(gameMode), slotStartIso }).lean();
 }
 
+/**
+ * Parsed target % for apply2D/3DTargetProfitHintsToSlot before declaration.
+ * Random mode stores `null` in DB — `Number(null)` is 0 in JS; never coerce that way.
+ */
+export function getDeclaredTargetPercentForHintApply(declarationRow) {
+  const raw = declarationRow?.targetProfitPercent;
+  if (raw == null) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.min(1000, Math.max(-100, n));
+}
+
 export async function getSlotDeclarationState(slotStartIso, gameMode = '2d', slotEndMs = null) {
   const row = await getSlotDeclarationRow(slotStartIso, gameMode);
   if (!row) {

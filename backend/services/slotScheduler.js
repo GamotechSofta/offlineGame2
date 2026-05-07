@@ -7,7 +7,12 @@ import { getQuizSocketIo } from '../socket/socketHub.js';
 import { getSlotContext, SLOT_MS } from './slotService.js';
 import { getOrCreatePick } from './quizPickService.js';
 import { settleQuizBetsForSlot } from './quizBetSettlement.js';
-import { getSlotDeclarationRow, isAutoDeclareBlocked, markSlotDeclared } from './quizDeclarationService.js';
+import {
+  getDeclaredTargetPercentForHintApply,
+  getSlotDeclarationRow,
+  isAutoDeclareBlocked,
+  markSlotDeclared,
+} from './quizDeclarationService.js';
 import { apply2DTargetProfitHintsToSlot, apply3DTargetProfitHintsToSlot } from './quizTargetProfitService.js';
 const TICK_MS = 60_000;
 const INITIAL_DELAY_MS = 3_000;
@@ -60,8 +65,8 @@ async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
   if (gameMode === '2d' || gameMode === '3d') {
     const declarationRow = await getSlotDeclarationRow(slotStartIso, gameMode);
     if (declarationRow?.declaredAt) return;
-    const targetProfitPercent = Number(declarationRow?.targetProfitPercent);
-    if (Number.isFinite(targetProfitPercent)) {
+    const targetProfitPercent = getDeclaredTargetPercentForHintApply(declarationRow);
+    if (targetProfitPercent != null) {
       if (gameMode === '2d') {
         await apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
       } else {

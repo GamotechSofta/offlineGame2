@@ -25,6 +25,7 @@ import {
   blockAutoDeclare,
   enableAutoDeclare,
   ensureDeclaredResultsSnapshots,
+  getDeclaredTargetPercentForHintApply,
   getSlotDeclarationState,
   markSlotDeclared,
   setSlotTargetProfitPercent,
@@ -1766,8 +1767,8 @@ export const updateLottery2DSlotDeclaration = async (req, res) => {
           message: 'Result can be declared only after the slot is completed.',
         });
       }
-      const targetProfitPercent = Number(existingDeclaration?.targetProfitPercent);
-      if (Number.isFinite(targetProfitPercent)) {
+      const targetProfitPercent = getDeclaredTargetPercentForHintApply(existingDeclaration);
+      if (targetProfitPercent != null) {
         await apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
       }
       await markSlotDeclared(slotStartIso, GAME_MODE, req.admin?._id, { force: true, captureResults: true });
