@@ -6,9 +6,32 @@ import bcrypt from 'bcryptjs';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
-import { signUserToken } from '../utils/userJwt.js';
+import { signUserToken, verifyUserToken } from '../utils/userJwt.js';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const MASKED_DEVICE = 'Unknown Device';
+
+const prettifyDeviceName = (deviceId) => {
+    const raw = (deviceId || '').toString().trim();
+    if (!raw) return MASKED_DEVICE;
+    if (raw.startsWith('web-')) return 'Web Browser';
+    if (raw.length <= 16) return raw;
+    return `${raw.slice(0, 10)}...${raw.slice(-4)}`;
+};
+
+const getActiveDevices = (userDoc) => {
+    const activeId = String(userDoc?.lastLoginDeviceId || '').trim();
+    const devices = Array.isArray(userDoc?.loginDevices) ? userDoc.loginDevices : [];
+    if (!activeId) return [];
+
+    const found = devices.find((d) => String(d?.deviceId || '') === activeId);
+    const lastSeen = found?.lastLoginAt || userDoc?.lastActiveAt || userDoc?.updatedAt || new Date();
+    return [{
+        deviceId: activeId,
+        deviceName: prettifyDeviceName(activeId),
+        lastSeenAt: lastSeen,
+    }];
+};
 
 const addWalletBalanceToUsers = async (users) => {
     if (!users || users.length === 0) return users;
@@ -77,6 +100,20 @@ export const userLogin = async (req, res) => {
         const clientIp = getClientIp(req);
         const rawDeviceId = req.body != null && 'deviceId' in req.body ? req.body.deviceId : deviceId;
         const trimmedDeviceId = (rawDeviceId != null && String(rawDeviceId).trim()) ? String(rawDeviceId).trim() : '';
+
+        const activeDeviceId = String(user.lastLoginDeviceId || '').trim();
+        if (trimmedDeviceId && activeDeviceId && activeDeviceId !== trimmedDeviceId) {
+            return res.status(409).json({
+                success: false,
+                code: 'DEVICE_LIMIT_REACHED',
+                message: 'Login pending, device limit reached. Log out 1 device to continue.',
+                data: {
+                    activeDevices: getActiveDevices(user),
+                    limit: 1,
+                },
+            });
+        }
+
         const sessionVersion = Date.now();
         const update = {
             lastActiveAt: new Date(),
@@ -171,6 +208,33 @@ export const userHeartbeat = async (req, res) => {
 export const userLogout = async (req, res) => {
     try {
         const isProduction = process.env.NODE_ENV === 'production';
+        const authHeader = req.headers.authorization;
+        const bearerToken = authHeader && authHeader.startsWith('Bearer ')
+            ? authHeader.slice(7).trim()
+            : '';
+        const cookieToken = req.cookies?.userToken ? String(req.cookies.userToken).trim() : '';
+        const token = bearerToken || cookieToken;
+
+        if (token) {
+            try {
+                const payload = verifyUserToken(token);
+                const userId = payload?.userId;
+                if (userId) {
+                    const current = await User.findById(userId).select('sessionVersion').lean();
+                    const tokenSv = Number(payload?.sv);
+                    const currentSv = Number(current?.sessionVersion);
+                    if (!Number.isFinite(tokenSv) || !Number.isFinite(currentSv) || tokenSv === currentSv) {
+                        await User.updateOne(
+                            { _id: userId },
+                            { $set: { sessionVersion: Date.now(), lastLoginDeviceId: null } }
+                        );
+                    }
+                }
+            } catch {
+                // Ignore token parse errors; cookie will still be cleared.
+            }
+        }
+
         res.clearCookie('userToken', {
             httpOnly: true,
             secure: isProduction,
@@ -181,6 +245,48 @@ export const userLogout = async (req, res) => {
         return res.status(200).json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message || 'Logout failed' });
+    }
+};
+
+export const logoutDeviceForSingleLogin = async (req, res) => {
+    try {
+        const { username, phone, password, deviceId } = req.body || {};
+        const loginIdentifier = phone || username;
+        if (!loginIdentifier || !password || !deviceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Phone/username, password and deviceId are required',
+            });
+        }
+
+        const normalizedPhone = phone ? String(phone).replace(/\D/g, '').slice(0, 10) : '';
+        let user = normalizedPhone.length >= 10 ? await User.findOne({ phone: normalizedPhone }) : null;
+        if (!user && username) user = await User.findOne({ username: String(username).trim() });
+        if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+        const isPasswordValid = await bcrypt.compare(String(password), user.password);
+        if (!isPasswordValid) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+        const targetDeviceId = String(deviceId).trim();
+        const activeDeviceId = String(user.lastLoginDeviceId || '').trim();
+        if (!activeDeviceId || activeDeviceId !== targetDeviceId) {
+            return res.status(404).json({
+                success: false,
+                message: 'Device is not active',
+            });
+        }
+
+        await User.updateOne(
+            { _id: user._id },
+            { $set: { sessionVersion: Date.now(), lastLoginDeviceId: null } }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Device logged out successfully',
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 

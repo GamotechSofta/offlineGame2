@@ -6,6 +6,7 @@ import {
     userSignup,
     userHeartbeat,
     userLogout,
+    logoutDeviceForSingleLogin,
     getMyProfile,
     getMyBalance,
     getMyUsername,
@@ -64,6 +65,7 @@ const userSignupLimiter = rateLimit({
 
 // Public routes
 router.post('/login', userLoginLimiter, userLogin);
+router.post('/logout-device', userLoginLimiter, logoutDeviceForSingleLogin);
 router.post('/signup', userSignupLimiter, userSignup);
 router.post('/logout', userLogout);
 

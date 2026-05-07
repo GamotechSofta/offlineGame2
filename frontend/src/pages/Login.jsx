@@ -14,6 +14,8 @@ const Login = () => {
   const [isAbove18, setIsAbove18] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deviceLimit, setDeviceLimit] = useState(null);
+  const [deviceActionLoadingId, setDeviceActionLoadingId] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,6 +31,54 @@ const Login = () => {
       [name]: processedValue,
     });
     setError('');
+    setDeviceLimit(null);
+  };
+
+  const formatLastSeen = (iso) => {
+    if (!iso) return 'Last used: recently';
+    const ts = new Date(iso).getTime();
+    if (!Number.isFinite(ts)) return 'Last used: recently';
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Last used: just now';
+    if (mins < 60) return `Last used: ${mins} min ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `Last used: ${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+    const days = Math.floor(hrs / 24);
+    return `Last used: ${days} day${days > 1 ? 's' : ''} ago`;
+  };
+
+  const handleLogoutDevice = async (deviceId) => {
+    if (!deviceId || loading || deviceActionLoadingId) return;
+    setError('');
+    setDeviceActionLoadingId(deviceId);
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/logout-device`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: formData.phone,
+          password: formData.password,
+          deviceId,
+        }),
+      });
+      const data = await response.json();
+      if (!data?.success) {
+        setError(data?.message || 'Failed to log out device');
+        return;
+      }
+      setDeviceLimit(null);
+      // Retry login once device is logged out.
+      setTimeout(() => {
+        const form = document.getElementById('player-login-form');
+        if (form) form.requestSubmit();
+      }, 50);
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setDeviceActionLoadingId('');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -112,6 +162,14 @@ const Login = () => {
         // Redirect to home after login
         navigate('/');
       } else {
+        if (data?.code === 'DEVICE_LIMIT_REACHED') {
+          setDeviceLimit({
+            message: data?.message || 'Login pending, device limit reached',
+            devices: Array.isArray(data?.data?.activeDevices) ? data.data.activeDevices : [],
+          });
+          setError('');
+          return;
+        }
         setError(data.message || 'Something went wrong');
       }
     } catch (err) {
@@ -143,7 +201,7 @@ const Login = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form id="player-login-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
                 Phone Number <span className="text-[#1B3150]">*</span>
@@ -231,6 +289,31 @@ const Login = () => {
               )}
             </button>
           </form>
+
+          {deviceLimit && (
+            <div className="mt-4 rounded-xl border border-[#2a4f85] bg-[#03112d] p-4 text-white sm:border-gray-200 sm:bg-gray-50 sm:text-gray-900">
+              <h3 className="text-base font-semibold">{deviceLimit.message || 'Login Pending, Device Limit Reached'}</h3>
+              <p className="mt-1 text-xs text-gray-300 sm:text-gray-600">You can log out other devices to log in your device</p>
+              <div className="mt-3 space-y-2">
+                {(deviceLimit.devices || []).map((d) => (
+                  <div key={d.deviceId} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 p-2.5 sm:border-gray-200 sm:bg-white">
+                    <div>
+                      <div className="text-sm font-semibold">{d.deviceName || 'Active Device'}</div>
+                      <div className="text-[11px] text-gray-300 sm:text-gray-500">{formatLastSeen(d.lastSeenAt)}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleLogoutDevice(d.deviceId)}
+                      disabled={!!deviceActionLoadingId}
+                      className="rounded-md bg-[#1B3150] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                    >
+                      {deviceActionLoadingId === d.deviceId ? 'Logging out...' : 'Log Out'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <p className="mt-4 text-center text-sm text-gray-200 sm:text-gray-600">
             New here?{' '}
