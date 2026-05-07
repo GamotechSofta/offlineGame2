@@ -91,17 +91,8 @@ const Layout = ({ children }) => {
     const viewportMeta = document.querySelector('meta[name="viewport"]');
     if (!viewportMeta) return undefined;
 
-    const zoomDisabledContent =
-      'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
     const zoomEnabledContent =
       'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover';
-
-    const getFullscreenElement = () =>
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.mozFullScreenElement ||
-      document.msFullscreenElement ||
-      null;
 
     const isMobileLike = () =>
       window.matchMedia('(max-width: 900px)').matches ||
@@ -137,30 +128,20 @@ const Layout = ({ children }) => {
         }
       };
 
-      // Requirement: 2D/3D lottery should allow pinch-zoom only on mobile view.
-      if (isLottery2d3d) {
-        if (isMobileLike()) {
-          viewportMeta.setAttribute('content', zoomEnabledContent);
-          enablePinchGesture();
-        } else {
-          viewportMeta.setAttribute('content', zoomDisabledContent);
-          resetPinchGesture();
-        }
-        return;
-      }
-
-      // Non-lottery pages: keep zoom enabled.
+      /**
+       * Important: Do NOT disable zoom using the viewport meta.
+       * Some mobile browsers / PWAs / in-app webviews either ignore dynamic changes
+       * or keep the "no-zoom" state cached, resulting in pinch-zoom not working.
+       *
+       * Keep zoom enabled globally, and only enable pinch gesture handling
+       * on the 2D/3D lottery pages for mobile view.
+       */
       viewportMeta.setAttribute('content', zoomEnabledContent);
-      resetPinchGesture();
+      if (isLottery2d3d && isMobileLike()) enablePinchGesture();
+      else resetPinchGesture();
     };
 
     applyViewport();
-
-    const onFs = () => applyViewport();
-    document.addEventListener('fullscreenchange', onFs);
-    document.addEventListener('webkitfullscreenchange', onFs);
-    document.addEventListener('mozfullscreenchange', onFs);
-    document.addEventListener('MSFullscreenChange', onFs);
 
     const mq900 = window.matchMedia('(max-width: 900px)');
     const mqCoarse = window.matchMedia('(hover: none) and (pointer: coarse)');
@@ -178,10 +159,6 @@ const Layout = ({ children }) => {
     window.addEventListener('orientationchange', onViewportHint);
 
     return () => {
-      document.removeEventListener('fullscreenchange', onFs);
-      document.removeEventListener('webkitfullscreenchange', onFs);
-      document.removeEventListener('mozfullscreenchange', onFs);
-      document.removeEventListener('MSFullscreenChange', onFs);
       removeMq(mq900);
       removeMq(mqCoarse);
       window.removeEventListener('orientationchange', onViewportHint);
