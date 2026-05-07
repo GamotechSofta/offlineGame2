@@ -2140,6 +2140,7 @@ const ThreeDGame = () => {
         style={{
           width: `${viewport.width}px`,
           height: `${viewport.height}px`,
+          touchAction: 'pinch-zoom',
         }}
       >
       <div

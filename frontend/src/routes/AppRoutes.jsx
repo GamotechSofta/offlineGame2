@@ -92,7 +92,7 @@ const Layout = ({ children }) => {
     if (!viewportMeta) return undefined;
 
     const zoomEnabledContent =
-      'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover';
+      'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes';
 
     const getFullscreenElement = () =>
       document.fullscreenElement ||
@@ -138,6 +138,9 @@ const Layout = ({ children }) => {
         viewportMeta.setAttribute('content', zoomEnabledContent);
         enablePinchGesture();
         setZoomClass(true);
+        console.info('[zoom-debug] lottery viewport', viewportMeta.getAttribute('content'));
+        console.info('[zoom-debug] html.touchAction', rootEl?.style?.touchAction || '(empty)');
+        console.info('[zoom-debug] body.touchAction', bodyEl?.style?.touchAction || '(empty)');
         return;
       }
       viewportMeta.setAttribute('content', zoomEnabledContent);
@@ -155,6 +158,11 @@ const Layout = ({ children }) => {
 
     const onViewportHint = () => applyViewport();
     window.addEventListener('orientationchange', onViewportHint);
+    // iPhone Safari emits these events during pinch. We intentionally do not call preventDefault.
+    const onGesture = () => applyViewport();
+    document.addEventListener('gesturestart', onGesture);
+    document.addEventListener('gesturechange', onGesture);
+    document.addEventListener('gestureend', onGesture);
 
     return () => {
       document.removeEventListener('fullscreenchange', onFs);
@@ -162,6 +170,9 @@ const Layout = ({ children }) => {
       document.removeEventListener('mozfullscreenchange', onFs);
       document.removeEventListener('MSFullscreenChange', onFs);
       window.removeEventListener('orientationchange', onViewportHint);
+      document.removeEventListener('gesturestart', onGesture);
+      document.removeEventListener('gesturechange', onGesture);
+      document.removeEventListener('gestureend', onGesture);
       document.documentElement?.style.removeProperty('touch-action');
       document.documentElement?.style.removeProperty('-ms-touch-action');
       document.body?.style.removeProperty('touch-action');

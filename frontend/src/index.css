@@ -255,6 +255,11 @@ body {
   overscroll-behavior-x: none;
 }
 
+html,
+body {
+  touch-action: auto !important;
+}
+
 #root {
   background: #ffffff;
   min-height: 100dvh;
@@ -294,16 +299,10 @@ svg {
   }
 }
 
-/* On mobile lottery screens, allow true pinch zoom gestures everywhere. */
-@media (max-width: 900px) {
-  body.lottery-mobile-zoom-enabled button,
-  body.lottery-mobile-zoom-enabled a,
-  body.lottery-mobile-zoom-enabled input,
-  body.lottery-mobile-zoom-enabled select,
-  body.lottery-mobile-zoom-enabled textarea,
-  body.lottery-mobile-zoom-enabled [role="button"] {
-    touch-action: auto !important;
-  }
+/* On lottery pages, force pinch-zoom gesture availability across descendants. */
+body.lottery-mobile-zoom-enabled,
+body.lottery-mobile-zoom-enabled * {
+  touch-action: pinch-zoom !important;
 }
 
 /* iPhone-first hardening (375-430 widths and nearby) */

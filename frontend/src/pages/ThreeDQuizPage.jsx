@@ -544,7 +544,7 @@ const ThreeDQuizPage = () => {
         <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[#4c4c4c] sm:rounded-none" />
         <div
           className="absolute inset-0 overflow-hidden"
-          style={{ width: `${viewport.width}px`, height: `${viewport.height}px` }}
+          style={{ width: `${viewport.width}px`, height: `${viewport.height}px`, touchAction: 'pinch-zoom' }}
         >
           <div
             className="absolute top-0 left-0 flex flex-col overflow-hidden border border-[#4c4c4c] bg-[#efe6d5] text-black"
