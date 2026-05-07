@@ -11,6 +11,20 @@ const pickRandomFrom = (arr) => {
   const idx = Math.floor(Math.random() * arr.length);
   return arr[idx] ?? null;
 };
+const hashStringToPositiveInt = (input) => {
+  const str = String(input || '');
+  let hash = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+const pickStableFrom = (arr, seedKey) => {
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  const idx = hashStringToPositiveInt(seedKey) % arr.length;
+  return arr[idx] ?? null;
+};
 
 async function getQuiz2DMultiplier() {
   try {
@@ -65,7 +79,7 @@ export async function build2DTargetProfitHints(slotStartIso, targetProfitPercent
     const row = quizTotals.get(quizId) || { totalStake: 0, stakeByNumber: new Map() };
     const totalStake = Number(row.totalStake || 0);
     if (totalStake <= 0) {
-      const randomNumber = Math.floor(Math.random() * 100);
+      const randomNumber = hashStringToPositiveInt(`2d|${slotStartIso}|${quizId}|${target}`) % 100;
       return {
         quizId,
         currentResult: Number.isInteger(pickByQuiz.get(quizId)) ? pickByQuiz.get(quizId) : null,
@@ -118,8 +132,9 @@ export async function build2DTargetProfitHints(slotStartIso, targetProfitPercent
       if (stake > 0) candidates.push(candidate);
     }
 
-    const selected = pickRandomFrom(bestAtOrAbovePool)
-      || pickRandomFrom(bestNearestPool)
+    const tieSeedKey = `2d|${slotStartIso}|${quizId}|${target}`;
+    const selected = pickStableFrom(bestAtOrAbovePool, `${tieSeedKey}|above`)
+      || pickStableFrom(bestNearestPool, `${tieSeedKey}|nearest`)
       || bestAtOrAboveTarget
       || bestNearest
       || { number: 0, houseNetIfWins: 0, deltaFromTarget: 0 };
@@ -209,7 +224,7 @@ export async function build3DTargetProfitHints(slotStartIso, targetProfitPercent
     const setBets = quizRows.get(quizId) || [];
     const totalStake = setBets.reduce((sum, b) => sum + Number(b.amount || 0), 0);
     if (totalStake <= 0) {
-      const randomNumber = Math.floor(Math.random() * 1000);
+      const randomNumber = hashStringToPositiveInt(`3d|${slotStartIso}|${quizId}|${target}`) % 1000;
       return {
         quizId,
         currentResult: Number.isInteger(pickByQuiz.get(quizId)) ? pickByQuiz.get(quizId) : null,
@@ -256,8 +271,9 @@ export async function build3DTargetProfitHints(slotStartIso, targetProfitPercent
       }
     }
 
-    const selected = pickRandomFrom(bestAtOrAbovePool)
-      || pickRandomFrom(bestNearestPool)
+    const tieSeedKey = `3d|${slotStartIso}|${quizId}|${target}`;
+    const selected = pickStableFrom(bestAtOrAbovePool, `${tieSeedKey}|above`)
+      || pickStableFrom(bestNearestPool, `${tieSeedKey}|nearest`)
       || bestAtOrAboveTarget
       || bestNearest
       || { number: 0, houseNetIfWins: 0, deltaFromTarget: 0 };
