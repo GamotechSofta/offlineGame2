@@ -655,7 +655,6 @@ const ThreeDQuizPage = () => {
             </div>
           </div>
         </div>
-      </div>
       {showRotatePrompt ? (
         <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[#111] border border-[#3b3b3b] text-white p-4 text-center rounded">

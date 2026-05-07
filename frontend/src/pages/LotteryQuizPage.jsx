@@ -695,7 +695,6 @@ const LotteryQuizPage = () => {
             </div>
           </div>
         </div>
-      </div>
       {showRotatePrompt && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-sm border border-[#3b3b3b] bg-[#111] p-4 text-center text-white">

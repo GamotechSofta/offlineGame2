@@ -34,6 +34,7 @@ import { getQuizSocketIo } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply2DTargetProfitHintsToSlot, build2DTargetProfitHints } from '../services/quizTargetProfitService.js';
+import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
 
 const QUIZ_IDS = Array.from({ length: 30 }, (_, i) => i + 1);
 const GAME_MODE = '2d';
@@ -54,6 +55,30 @@ async function getQuiz2DMultiplier() {
   }
   const fallback = parseInt(process.env.QUIZ_BET_WIN_MULTIPLIER || '90', 10);
   return Number.isFinite(fallback) && fallback > 0 ? fallback : 90;
+}
+
+async function ensureRandomHintsForCurrentSlot(slotStartIso) {
+  // Ensure all slot picks exist first (Q01-Q30).
+  await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
+  const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso })
+    .select('quizId seedHex chosenIndex hintPosition')
+    .lean();
+
+  const updates = await Promise.all(
+    picks.map(async (pick) => {
+      const quizId = Number(pick?.quizId);
+      if (!Number.isInteger(quizId) || quizId < 1 || quizId > 30) return null;
+      const randomHintPosition = await resolveWinningShuffledPosition(quizId, slotStartIso, pick, GAME_MODE);
+      if (!Number.isInteger(randomHintPosition) || randomHintPosition < 0 || randomHintPosition > 99) return null;
+      if (pick.hintPosition === randomHintPosition) return null;
+      return QuizSlotPick.updateOne(
+        { gameMode: GAME_MODE, slotStartIso, quizId },
+        { $set: { hintPosition: randomHintPosition } },
+      );
+    }),
+  );
+
+  await Promise.all(updates.filter(Boolean));
 }
 
 function quizBetTicketKey(bet) {
@@ -1261,9 +1286,14 @@ export const configureLottery2DCurrentSlotTargetAutoDeclare = async (req, res) =
       return res.status(400).json({ success: false, message: 'Current slot already ended. Try next running slot.' });
     }
     if (mode === 'random') {
+      // Random mode: clear target and restore pure random slot hints/results.
       await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, null, req.admin?._id);
+      await ensureRandomHintsForCurrentSlot(slotStartIso);
     } else {
+      // Target mode: clear random influence by overriding slot hints with target-driven picks.
       await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, targetProfitPercent, req.admin?._id);
+      await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
+      await apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
     }
     const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
     const effectiveTarget = mode === 'random' ? null : targetProfitPercent;

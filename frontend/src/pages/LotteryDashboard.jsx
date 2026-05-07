@@ -1096,7 +1096,6 @@ const LotteryDashboard = () => {
           </div>
           </div>
         </div>
-      </div>
 
       <ResultHistoryModal
         open={showResults}
