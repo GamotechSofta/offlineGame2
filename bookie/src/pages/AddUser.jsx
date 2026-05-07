@@ -10,7 +10,7 @@ const AddUser = () => {
         username: '',
         password: '',
         phone: '',
-        balance: 0,
+        balance: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -21,7 +21,7 @@ const AddUser = () => {
         const { name, value } = e.target;
         setFormData({
             ...formData,
-            [name]: name === 'balance' ? parseFloat(value) || 0 : value,
+            [name]: name === 'balance' ? (value === '' ? '' : parseFloat(value) || 0) : value,
         });
     };
 
@@ -34,6 +34,7 @@ const AddUser = () => {
             const trimmedPhone = String(formData.phone || '').replace(/\D/g, '').slice(0, 10);
             const payload = {
                 ...formData,
+                balance: formData.balance === '' ? 0 : formData.balance,
                 // Keep API compatibility while removing visible email/role fields from the form.
                 email: `${trimmedPhone}@player.local`,
                 role: 'user',
@@ -52,7 +53,7 @@ const AddUser = () => {
                     username: '',
                     password: '',
                     phone: '',
-                    balance: 0,
+                    balance: '',
                 });
             } else {
                 setError(data.message || t('failedToCreateUser'));
@@ -141,6 +142,22 @@ const AddUser = () => {
                                 </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">{t('passwordRequiredForLogin')}</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-gray-600 text-sm font-medium mb-2">
+                                {t('initialBalance')} (₹)
+                            </label>
+                            <input
+                                type="number"
+                                name="balance"
+                                value={formData.balance}
+                                onChange={handleChange}
+                                min="0"
+                                step="1"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150]"
+                                placeholder="Enter initial balance"
+                            />
                         </div>
 
                         <button

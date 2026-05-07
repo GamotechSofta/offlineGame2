@@ -726,6 +726,13 @@ const PHONE_REGEX = /^[6-9]\d{9}$/;
 export const createUser = async (req, res) => {
     try {
         const { username, firstName, lastName, email, password, phone, role, balance, referredBy } = req.body;
+        const initialBalance = Number(balance ?? 0);
+        if (!Number.isFinite(initialBalance) || initialBalance < 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Initial balance must be a non-negative number',
+            });
+        }
 
         // Derive username from firstName + lastName if provided (matches frontend signup flow); otherwise require username
         const derivedUsername = (firstName != null && lastName != null)
@@ -826,7 +833,7 @@ export const createUser = async (req, res) => {
             password: hashedPassword,
             phone: trimmedPhone,
             role: role || 'user',
-            balance: balance || 0,
+            balance: initialBalance,
             isActive: true,
             source,
             referredBy: finalReferredBy || null,
@@ -834,16 +841,39 @@ export const createUser = async (req, res) => {
             updatedAt: new Date(),
         };
 
+        if (req.admin?.role === 'bookie' && initialBalance > 0) {
+            const updatedBookie = await Admin.findOneAndUpdate(
+                { _id: req.admin._id, balance: { $gte: initialBalance } },
+                { $inc: { balance: -initialBalance } },
+                { new: true }
+            ).select('balance');
+            if (!updatedBookie) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Insufficient bookie balance to set initial player balance',
+                });
+            }
+        }
+
         const user = await User.collection.insertOne(userDoc);
         const userId = user.insertedId;
 
         // Create wallet for user
         await Wallet.collection.insertOne({
             userId,
-            balance: balance || 0,
+            balance: initialBalance,
             createdAt: new Date(),
             updatedAt: new Date(),
         });
+
+        if (initialBalance > 0) {
+            await WalletTransaction.create({
+                userId,
+                type: 'credit',
+                amount: initialBalance,
+                description: `${req.admin?.role === 'bookie' ? 'Bookie' : 'Admin'} credit: ₹${initialBalance} (initial balance on player creation)`,
+            });
+        }
 
         if (req.admin) {
             await logActivity({
