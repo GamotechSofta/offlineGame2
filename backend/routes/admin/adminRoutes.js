@@ -37,6 +37,8 @@ import {
 import {
     getLottery3DCurrentSlot,
     getLottery3DCurrentSlotHints,
+    getLottery3DCurrentSlotTargetHints,
+    configureLottery3DCurrentSlotTargetAutoDeclare,
     getLottery3DSlotDetail,
     getLottery3DSlotPlayers,
     getLottery3DSlotWiseBets,
@@ -92,6 +94,8 @@ router.patch('/lottery2d/slots/declaration', verifyAdmin, updateLottery2DSlotDec
 // 3D lottery admin management
 router.get('/lottery3d/current-slot', verifyAdmin, getLottery3DCurrentSlot);
 router.post('/lottery3d/current-slot/hints', verifyAdmin, getLottery3DCurrentSlotHints);
+router.get('/lottery3d/current-slot/target-hints', verifyAdmin, getLottery3DCurrentSlotTargetHints);
+router.patch('/lottery3d/current-slot/target-auto-declare', verifyAdmin, configureLottery3DCurrentSlotTargetAutoDeclare);
 router.get('/lottery3d/slots', verifyAdmin, getLottery3DSlotHistory);
 router.get('/lottery3d/day-slot-schedule', verifyAdmin, getLottery3DDaySlotSchedule);
 router.get('/lottery3d/day-players', verifyAdmin, getLottery3DDayPlayers);

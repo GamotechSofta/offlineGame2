@@ -19,15 +19,47 @@ const todayDate = () => {
 };
 
 const formatSlotLabel = (slot) => slot?.drawLabelEnd || slot?.slotStartIso || '-';
-const formatHousePl = (value) => {
-    if (value == null || !Number.isFinite(Number(value))) {
+const getProfitRangeColorClass = (profitPercentValue) => {
+    const signedPct = Number(profitPercentValue);
+    if (!Number.isFinite(signedPct)) return 'text-gray-400';
+    if (signedPct < 0) return 'text-red-700';
+    const pct = Math.abs(signedPct);
+    if (pct <= 10) return 'text-red-600';
+    if (pct <= 20) return 'text-red-500';
+    if (pct <= 30) return 'text-orange-500';
+    if (pct <= 40) return 'text-amber-500';
+    if (pct <= 50) return 'text-yellow-500';
+    if (pct <= 60) return 'text-lime-500';
+    if (pct <= 70) return 'text-lime-600';
+    if (pct <= 80) return 'text-green-600';
+    if (pct <= 90) return 'text-sky-500';
+    return 'text-blue-600';
+};
+const formatHousePl = (value, totalStakeValue = null) => {
+    const n = Number(value);
+    if (value == null || !Number.isFinite(n)) {
         return { text: 'P/L: —', className: 'text-gray-400' };
     }
-    const n = Math.round(Number(value));
+    const totalStake = Number(totalStakeValue);
+    const profitPct = Number.isFinite(totalStake) && totalStake > 0 ? (n / totalStake) * 100 : null;
+    const className = Number.isFinite(profitPct) ? getProfitRangeColorClass(profitPct) : (n >= 0 ? 'text-green-700' : 'text-red-700');
+    const rounded = Math.round(n);
     if (n >= 0) {
-        return { text: `P/L: +₹${n.toLocaleString('en-IN')}`, className: 'text-green-700' };
+        return { text: `P/L: +₹${rounded.toLocaleString('en-IN')}`, className };
     }
-    return { text: `P/L: -₹${Math.abs(n).toLocaleString('en-IN')}`, className: 'text-red-700' };
+    return { text: `P/L: -₹${Math.abs(rounded).toLocaleString('en-IN')}`, className };
+};
+const formatProfitPercent = (houseNetValue, totalStakeValue) => {
+    const houseNet = Number(houseNetValue);
+    const totalStake = Number(totalStakeValue);
+    if (!Number.isFinite(houseNet) || !Number.isFinite(totalStake) || totalStake <= 0) {
+        return { text: 'Profit: --', className: 'text-gray-400' };
+    }
+    const pct = (houseNet / totalStake) * 100;
+    const rounded = Math.round(pct * 10) / 10;
+    const sign = rounded >= 0 ? '+' : '';
+    const cls = getProfitRangeColorClass(rounded);
+    return { text: `Profit: ${sign}${rounded}%`, className: cls };
 };
 
 const ThreeDResultControl = () => {
@@ -37,6 +69,13 @@ const ThreeDResultControl = () => {
     const [currentSlotStartIso, setCurrentSlotStartIso] = useState('');
     const [currentSlotPhase, setCurrentSlotPhase] = useState('');
     const [currentHintRows, setCurrentHintRows] = useState([]);
+    const [targetProfitPercent, setTargetProfitPercent] = useState('0');
+    const [armingTargetAuto, setArmingTargetAuto] = useState(false);
+    const [switchingRandomAuto, setSwitchingRandomAuto] = useState(false);
+    const [hintPreviewMode, setHintPreviewMode] = useState('default');
+    const [autoDeclareMode, setAutoDeclareMode] = useState('random');
+    const [isEditingTargetProfit, setIsEditingTargetProfit] = useState(false);
+    const [hasTouchedTargetProfit, setHasTouchedTargetProfit] = useState(false);
     const [manualModal, setManualModal] = useState({ open: false, slotStartIso: '', quizId: '1', result: '' });
     const [manualSaving, setManualSaving] = useState(false);
     const [manualError, setManualError] = useState('');
@@ -56,6 +95,9 @@ const ThreeDResultControl = () => {
         clearAdminSession();
         navigate('/');
     }, [navigate]);
+    const targetProfitNumber = Number(String(targetProfitPercent || '').trim());
+    const hasValidTargetProfit = Number.isFinite(targetProfitNumber);
+    const canRunTargetActions = Boolean(currentSlotStartIso) && hasValidTargetProfit && !hintsLoading;
 
     const fetchSlots = useCallback(async (targetDate = date, options = {}) => {
         const silent = Boolean(options?.silent);
@@ -105,6 +147,10 @@ const ThreeDResultControl = () => {
 
     const fetchCurrentSlotForHints = useCallback(async (options = {}) => {
         const silent = Boolean(options?.silent);
+        const mode = String(options?.mode || 'default');
+        const targetInput = String(options?.targetProfitPercent ?? targetProfitPercent).trim();
+        const parsedTarget = Number(targetInput);
+        const targetToUse = Number.isFinite(parsedTarget) ? parsedTarget : 0;
         if (!silent) setHintsLoading(true);
         try {
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/current-slot`);
@@ -117,27 +163,64 @@ const ThreeDResultControl = () => {
             }
             const iso = json?.data?.slot?.slotStartIso || '';
             const phase = json?.data?.slot?.phase || '';
+            const persistedTargetRaw = json?.data?.slot?.declaration?.targetProfitPercent;
+            const persistedTarget = typeof persistedTargetRaw === 'number' ? persistedTargetRaw : null;
             setCurrentSlotStartIso(iso);
             setCurrentSlotPhase(phase);
+            if (Number.isFinite(persistedTarget)) {
+                setAutoDeclareMode('target');
+                if (!isEditingTargetProfit && !hasTouchedTargetProfit) {
+                    setTargetProfitPercent(String(persistedTarget));
+                }
+            } else {
+                setAutoDeclareMode('random');
+            }
             if (!iso) {
                 setCurrentHintRows([]);
                 return;
             }
-            const detailRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/${encodeURIComponent(iso)}/detail`);
-            if (detailRes.status === 401) return;
-            const detailJson = await detailRes.json();
-            if (!detailJson?.success) {
-                setCurrentHintRows([]);
-                return;
+            if (mode === 'target') {
+                const targetParams = new URLSearchParams({ targetProfitPercent: String(targetToUse) });
+                const targetMetaRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/current-slot/target-hints?${targetParams.toString()}`);
+                if (targetMetaRes.status === 401) return;
+                const targetMetaJson = await targetMetaRes.json().catch(() => ({}));
+                if (!targetMetaJson?.success) {
+                    setCurrentHintRows([]);
+                    return;
+                }
+                const rows = Array.isArray(targetMetaJson?.data?.perQuiz)
+                    ? targetMetaJson.data.perQuiz.map((row) => ({
+                        quizId: row.quizId,
+                        hint: row.totalStake > 0
+                            ? (row.suggestedResultLabel == null ? '--' : String(row.suggestedResultLabel).padStart(3, '0'))
+                            : '--',
+                        houseNetIfHintWins: row.houseNetIfSuggestedWins,
+                        totalStake: row.totalStake,
+                        meetsOrExceedsTarget: Boolean(row.meetsOrExceedsTarget),
+                    }))
+                    : [];
+                setCurrentHintRows(rows);
+                setHintPreviewMode('target');
+            } else {
+                const detailRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/${encodeURIComponent(iso)}/detail`);
+                if (detailRes.status === 401) return;
+                const detailJson = await detailRes.json();
+                if (!detailJson?.success) {
+                    setCurrentHintRows([]);
+                    return;
+                }
+                const rows = Array.isArray(detailJson?.data?.perQuiz)
+                    ? detailJson.data.perQuiz.map((row) => ({
+                        quizId: row.quizId,
+                        hint: row.result == null ? '--' : String(row.result).padStart(3, '0'),
+                        houseNetIfHintWins: row.houseNetIfHintWins,
+                        totalStake: row.totalBetAmount,
+                        meetsOrExceedsTarget: null,
+                    }))
+                    : [];
+                setCurrentHintRows(rows);
+                setHintPreviewMode('default');
             }
-            const rows = Array.isArray(detailJson?.data?.perQuiz)
-                ? detailJson.data.perQuiz.map((row) => ({
-                    quizId: row.quizId,
-                    hint: row.result == null ? '--' : String(row.result).padStart(3, '0'),
-                    houseNetIfHintWins: row.houseNetIfHintWins,
-                }))
-                : [];
-            setCurrentHintRows(rows);
         } catch {
             setCurrentSlotStartIso('');
             setCurrentSlotPhase('');
@@ -145,7 +228,7 @@ const ThreeDResultControl = () => {
         } finally {
             if (!silent) setHintsLoading(false);
         }
-    }, []);
+    }, [targetProfitPercent, isEditingTargetProfit, hasTouchedTargetProfit]);
 
     useEffect(() => {
         if (!secretCheckComplete) return;
@@ -277,6 +360,57 @@ const ThreeDResultControl = () => {
         }
     }, [manualModal, closeManualModal, fetchCurrentSlotForHints]);
 
+    const armTargetAutoDeclare = useCallback(async () => {
+        const valueText = String(targetProfitPercent || '').trim();
+        const value = Number(valueText);
+        if (!Number.isFinite(value)) {
+            setError('Enter valid Target profit % first.');
+            return;
+        }
+        setArmingTargetAuto(true);
+        setError('');
+        setNotice('');
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/current-slot/target-auto-declare`, {
+                method: 'PATCH',
+                body: JSON.stringify({ targetProfitPercent: value }),
+            });
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to arm target auto declare');
+            setNotice(`Target auto-declare armed at ${value}% for current running slot.`);
+            setAutoDeclareMode('target');
+            setHasTouchedTargetProfit(false);
+            await fetchCurrentSlotForHints({ targetProfitPercent: value, mode: 'target', silent: true });
+        } catch (err) {
+            setError(err?.message || 'Failed to arm target auto declare');
+        } finally {
+            setArmingTargetAuto(false);
+        }
+    }, [targetProfitPercent, fetchCurrentSlotForHints]);
+
+    const switchToRandomAutoDeclare = useCallback(async () => {
+        setSwitchingRandomAuto(true);
+        setError('');
+        setNotice('');
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/current-slot/target-auto-declare`, {
+                method: 'PATCH',
+                body: JSON.stringify({ mode: 'random' }),
+            });
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to switch random auto declare');
+            setNotice('Switched to random auto declare for current running slot.');
+            setAutoDeclareMode('random');
+            await fetchCurrentSlotForHints({ mode: 'default', silent: true });
+        } catch (err) {
+            setError(err?.message || 'Failed to switch random auto declare');
+        } finally {
+            setSwitchingRandomAuto(false);
+        }
+    }, [fetchCurrentSlotForHints]);
+
     const sortedSlots = useMemo(() => (
         [...slots].sort((a, b) => String(b.slotStartIso || '').localeCompare(String(a.slotStartIso || '')))
     ), [slots]);
@@ -381,13 +515,80 @@ const ThreeDResultControl = () => {
                                 {' · '}
                                 Use <span className="font-semibold text-gray-600">View all bets</span> on a set to open its full betting breakdown (every number) for this slot.
                             </p>
+                            <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-semibold text-gray-600">Auto mode</span>
+                                        <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${autoDeclareMode === 'target' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                            {autoDeclareMode === 'target' ? 'Target mode active' : 'Random mode active'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={armTargetAutoDeclare}
+                                            disabled={armingTargetAuto || !canRunTargetActions}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60 ${
+                                                autoDeclareMode === 'target'
+                                                    ? 'bg-purple-700 text-white ring-2 ring-purple-300'
+                                                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                                            }`}
+                                        >
+                                            {armingTargetAuto ? 'Activating target...' : autoDeclareMode === 'target' ? 'Target mode active' : 'Use target mode'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={switchToRandomAutoDeclare}
+                                            disabled={switchingRandomAuto || !currentSlotStartIso}
+                                            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold disabled:opacity-60 ${
+                                                autoDeclareMode === 'random'
+                                                    ? 'border-emerald-400 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-200'
+                                                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {switchingRandomAuto ? 'Switching...' : autoDeclareMode === 'random' ? 'Random mode active' : 'Use random mode'}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap items-end gap-2">
+                                    <label className="text-xs text-gray-600 font-medium">
+                                        Target profit %
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={targetProfitPercent}
+                                            onChange={(e) => {
+                                                setHasTouchedTargetProfit(true);
+                                                setTargetProfitPercent(e.target.value.replace(/[^\d.-]/g, '').slice(0, 6));
+                                            }}
+                                            onFocus={() => setIsEditingTargetProfit(true)}
+                                            onBlur={() => setIsEditingTargetProfit(false)}
+                                            className="ml-2 w-24 px-2 py-1.5 rounded border border-gray-300 text-sm bg-white"
+                                            placeholder="0"
+                                        />
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => fetchCurrentSlotForHints({ targetProfitPercent, mode: 'target' })}
+                                        disabled={!canRunTargetActions}
+                                        className="px-3 py-1.5 rounded-lg border border-purple-300 text-xs font-semibold text-purple-700 hover:bg-purple-50 disabled:opacity-60"
+                                    >
+                                        {hintsLoading ? 'Computing...' : 'Compute target hints'}
+                                    </button>
+                                    {!currentSlotStartIso ? (
+                                        <span className="text-[11px] text-amber-700 font-medium">No running slot available now.</span>
+                                    ) : !hasValidTargetProfit ? (
+                                        <span className="text-[11px] text-amber-700 font-medium">Enter a valid target % to use target mode.</span>
+                                    ) : null}
+                                </div>
+                            </div>
                             {hintsLoading ? (
                                 <p className="mt-3 text-xs text-gray-500">Loading running slot...</p>
                             ) : currentHintRows.length ? (
                                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
                                     {currentHintRows.map((item) => (
                                         (() => {
-                                            const pl = formatHousePl(item.houseNetIfHintWins);
+                                            const pl = formatHousePl(item.houseNetIfHintWins, item.totalStake);
                                             const qid = String(item.quizId);
                                             const goToBetHistory = () => {
                                                 if (!currentSlotStartIso) return;
@@ -410,6 +611,15 @@ const ThreeDResultControl = () => {
                                                     <span className="font-mono font-semibold text-gray-800">{item.hint}</span>
                                                 </div>
                                                 <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
+                                                {(() => {
+                                                    const profitPct = formatProfitPercent(item.houseNetIfHintWins, item.totalStake);
+                                                    return <div className={`mt-0.5 text-[10px] font-semibold ${profitPct.className}`}>{profitPct.text}</div>;
+                                                })()}
+                                                {hintPreviewMode === 'target' ? (
+                                                    <div className={`mt-0.5 text-[10px] font-semibold ${item.meetsOrExceedsTarget ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                                        {item.meetsOrExceedsTarget ? 'Target reached' : 'Nearest to target'}
+                                                    </div>
+                                                ) : null}
                                                 <div className="mt-1 text-[10px] text-gray-600 font-semibold">View all bets →</div>
                                             </button>
                                             <button
@@ -474,7 +684,7 @@ const ThreeDResultControl = () => {
                                                         {[1, 2, 3].map((quizId) => {
                                                             const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                             const visibleResultLabel = (slot?.isCompleted || isRunning) ? (q?.resultLabel || '--') : '--';
-                                                            const pl = formatHousePl(q?.houseNetIfHintWins);
+                                                            const pl = formatHousePl(q?.houseNetIfHintWins, q?.totalBetAmount);
                                                             const setLabel = setLabelByQuizId[quizId] || `Set ${quizId}`;
                                                             return (
                                                                 <div key={`${slot.slotStartIso}-${quizId}`} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left">

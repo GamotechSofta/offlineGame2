@@ -8,7 +8,7 @@ import { getSlotContext, SLOT_MS } from './slotService.js';
 import { getOrCreatePick } from './quizPickService.js';
 import { settleQuizBetsForSlot } from './quizBetSettlement.js';
 import { getSlotDeclarationRow, isAutoDeclareBlocked, markSlotDeclared } from './quizDeclarationService.js';
-import { apply2DTargetProfitHintsToSlot } from './quizTargetProfitService.js';
+import { apply2DTargetProfitHintsToSlot, apply3DTargetProfitHintsToSlot } from './quizTargetProfitService.js';
 const TICK_MS = 60_000;
 const INITIAL_DELAY_MS = 3_000;
 
@@ -57,11 +57,15 @@ async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
   if (Date.now() < slotEndMs) return;
   if (await isAutoDeclareBlocked(slotStartIso, gameMode)) return;
 
-  if (gameMode === '2d') {
+  if (gameMode === '2d' || gameMode === '3d') {
     const declarationRow = await getSlotDeclarationRow(slotStartIso, gameMode);
     const targetProfitPercent = Number(declarationRow?.targetProfitPercent);
     if (Number.isFinite(targetProfitPercent)) {
-      await apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
+      if (gameMode === '2d') {
+        await apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
+      } else {
+        await apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
+      }
     }
   }
 

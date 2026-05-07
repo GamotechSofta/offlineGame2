@@ -346,7 +346,7 @@ const TwoDQuizStakeDetail = () => {
                                                 </td>
                                                 <td
                                                     className={`px-3 py-1.5 text-right font-mono font-semibold ${
-                                                        noBet
+                                                        houseNetPct == null
                                                             ? 'text-gray-500'
                                                             : getProfitRangeColorClass(houseNetPct)
                                                     }`}
@@ -355,11 +355,9 @@ const TwoDQuizStakeDetail = () => {
                                                 </td>
                                                 <td
                                                     className={`px-3 py-1.5 text-right font-mono font-semibold ${
-                                                        noBet
+                                                        houseNetPct == null
                                                             ? 'text-gray-500'
-                                                            : houseNetPct == null
-                                                              ? 'text-gray-500'
-                                                              : getProfitRangeColorClass(houseNetPct)
+                                                            : getProfitRangeColorClass(houseNetPct)
                                                     }`}
                                                 >
                                                     {houseNetPctLabel}

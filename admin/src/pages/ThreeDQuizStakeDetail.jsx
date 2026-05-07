@@ -5,6 +5,22 @@ import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
+const getProfitRangeColorClass = (profitPercentValue) => {
+    const signedPct = Number(profitPercentValue);
+    if (!Number.isFinite(signedPct)) return 'text-gray-400';
+    if (signedPct < 0) return 'text-red-700';
+    const pct = Math.abs(signedPct);
+    if (pct <= 10) return 'text-red-600';
+    if (pct <= 20) return 'text-red-500';
+    if (pct <= 30) return 'text-orange-500';
+    if (pct <= 40) return 'text-amber-500';
+    if (pct <= 50) return 'text-yellow-500';
+    if (pct <= 60) return 'text-lime-500';
+    if (pct <= 70) return 'text-lime-600';
+    if (pct <= 80) return 'text-green-600';
+    if (pct <= 90) return 'text-sky-500';
+    return 'text-blue-600';
+};
 
 const setLabelByQuizId = {
     1: 'Set A',
@@ -343,24 +359,18 @@ const ThreeDQuizStakeDetail = () => {
                                                 </td>
                                                 <td
                                                     className={`px-3 py-1.5 text-right font-mono font-semibold ${
-                                                        noBet
+                                                        houseNetPct == null
                                                             ? 'text-gray-500'
-                                                            : Number(row.houseNetIfWins || 0) >= 0
-                                                              ? 'text-green-700'
-                                                              : 'text-red-700'
+                                                            : getProfitRangeColorClass(houseNetPct)
                                                     }`}
                                                 >
                                                     ₹{Number(row.houseNetIfWins || 0).toLocaleString('en-IN')}
                                                 </td>
                                                 <td
                                                     className={`px-3 py-1.5 text-right font-mono font-semibold ${
-                                                        noBet
+                                                        houseNetPct == null
                                                             ? 'text-gray-500'
-                                                            : houseNetPct == null
-                                                              ? 'text-gray-500'
-                                                              : houseNetPct >= 0
-                                                                ? 'text-emerald-700'
-                                                                : 'text-red-700'
+                                                            : getProfitRangeColorClass(houseNetPct)
                                                     }`}
                                                 >
                                                     {houseNetPctLabel}
