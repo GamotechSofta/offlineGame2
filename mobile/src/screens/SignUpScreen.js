@@ -40,6 +40,16 @@ export default function SignUpScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const getMobileDeviceName = () => {
+    const constants = Platform?.constants || {};
+    const brand = (constants.Brand || constants.brand || '').toString().trim();
+    const model = (constants.Model || constants.model || '').toString().trim();
+    if (brand && model) return `${brand} ${model}`;
+    if (brand) return brand;
+    if (Platform.OS === 'ios') return 'Apple iPhone';
+    return `Mobile (${Platform.OS})`;
+  };
+
   const handleChange = (name, value) => {
     let processedValue = value;
     if (name === 'phone') {
@@ -73,6 +83,7 @@ export default function SignUpScreen() {
     setLoading(true);
     try {
       let deviceId = '';
+      let deviceName = getMobileDeviceName();
       try {
         deviceId = (await AsyncStorage.getItem('deviceId')) || '';
         if (!deviceId) {
@@ -81,6 +92,7 @@ export default function SignUpScreen() {
         }
       } catch (e) {
         deviceId = `rn-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+        deviceName = getMobileDeviceName();
       }
 
       const body = {
@@ -89,6 +101,7 @@ export default function SignUpScreen() {
         phone: formData.phone,
         password: formData.password,
         deviceId: deviceId || undefined,
+        deviceName: deviceName || undefined,
       };
       if (referredBy) {
         body.referredBy = referredBy;

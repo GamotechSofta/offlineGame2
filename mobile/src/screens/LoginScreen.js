@@ -26,6 +26,16 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const getMobileDeviceName = () => {
+    const constants = Platform?.constants || {};
+    const brand = (constants.Brand || constants.brand || '').toString().trim();
+    const model = (constants.Model || constants.model || '').toString().trim();
+    if (brand && model) return `${brand} ${model}`;
+    if (brand) return brand;
+    if (Platform.OS === 'ios') return 'Apple iPhone';
+    return `Mobile (${Platform.OS})`;
+  };
+
   const handleChange = (name, value) => {
     let processedValue = value;
     if (name === 'phone') {
@@ -53,6 +63,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       let deviceId = '';
+      let deviceName = getMobileDeviceName();
       try {
         deviceId = (await AsyncStorage.getItem('deviceId')) || '';
         if (!deviceId) {
@@ -61,6 +72,7 @@ export default function LoginScreen() {
         }
       } catch (e) {
         deviceId = `rn-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+        deviceName = getMobileDeviceName();
       }
 
       const response = await fetch(`${API_BASE_URL}/users/login`, {
@@ -70,6 +82,7 @@ export default function LoginScreen() {
           phone: formData.phone,
           password: formData.password,
           deviceId: deviceId || undefined,
+          deviceName: deviceName || undefined,
         }),
       });
 

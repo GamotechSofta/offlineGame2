@@ -145,6 +145,7 @@ const PlayerDevices = () => {
                             <table className="w-full text-sm min-w-[320px]">
                                 <thead>
                                     <tr className="border-b border-gray-200">
+                                        <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">Device Name</th>
                                         <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">Device ID</th>
                                         <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">First Login Date</th>
                                         <th className="text-left py-2.5 pr-4 text-xs font-medium text-gray-400 uppercase">Last Login Date</th>
@@ -153,6 +154,7 @@ const PlayerDevices = () => {
                                 <tbody className="divide-y divide-gray-700">
                                     {loginDevices.map((d, i) => (
                                         <tr key={(d.deviceId || i).toString()} className="hover:bg-gray-100/30">
+                                            <td className="py-2.5 pr-4 text-gray-700 font-medium">{d.deviceName || 'Unknown Mobile'}</td>
                                             <td className="py-2.5 pr-4 font-mono text-gray-600 truncate max-w-[200px] sm:max-w-none" title={d.deviceId}>{d.deviceId || '—'}</td>
                                             <td className="py-2.5 pr-4 text-gray-400">
                                                 {d.firstLoginAt ? new Date(d.firstLoginAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}

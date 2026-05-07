@@ -121,16 +121,12 @@ const Signup = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020b22] px-4 py-8 sm:bg-gray-50 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute inset-0 sm:hidden">
-        <div className="absolute -top-20 -right-16 h-64 w-64 rounded-full bg-[#2563eb]/20 blur-3xl" />
-        <div className="absolute bottom-10 -left-20 h-72 w-72 rounded-full bg-[#1d4ed8]/20 blur-3xl" />
-      </div>
+    <div className="relative min-h-screen overflow-hidden bg-gray-50 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center">
-        <div className="relative w-full rounded-2xl border border-[#244c89] bg-[#071737]/85 p-6 shadow-sm backdrop-blur-sm sm:border-gray-200 sm:bg-white sm:p-8">
+        <div className="relative w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-[#60a5fa] sm:text-3xl sm:text-[#1B3150]">Create account</h1>
-            <p className="mt-1 text-sm text-gray-200 sm:text-gray-600">
+            <h1 className="text-2xl font-bold text-[#1B3150] sm:text-3xl">Create account</h1>
+            <p className="mt-1 text-sm text-gray-600">
               Sign up to play. {referredBy ? 'You are joining via a referral link.' : ''}
             </p>
           </div>
@@ -147,7 +143,7 @@ const Signup = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
                   First name <span className="text-[#1B3150]">*</span>
                 </label>
                 <input
@@ -156,13 +152,13 @@ const Signup = () => {
                   value={formData.firstName}
                   onChange={handleChange}
                   autoComplete="given-name"
-                  className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 px-3 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#1B3150] focus:outline-none focus:ring-2 focus:ring-[#1B3150]/20"
                   placeholder="First name"
                   required
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
                   Last name <span className="text-[#1B3150]">*</span>
                 </label>
                 <input
@@ -171,7 +167,7 @@ const Signup = () => {
                   value={formData.lastName}
                   onChange={handleChange}
                   autoComplete="family-name"
-                  className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 px-3 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#1B3150] focus:outline-none focus:ring-2 focus:ring-[#1B3150]/20"
                   placeholder="Last name"
                   required
                 />
@@ -179,12 +175,12 @@ const Signup = () => {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
                 Phone number <span className="text-[#1B3150]">*</span>
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <svg className="h-5 w-5 text-gray-400 sm:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
                 </div>
@@ -195,7 +191,7 @@ const Signup = () => {
                   onChange={handleChange}
                   maxLength="10"
                   autoComplete="tel"
-                  className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 pl-10 pr-3 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
+                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 placeholder-gray-400 focus:border-[#1B3150] focus:outline-none focus:ring-2 focus:ring-[#1B3150]/20"
                   placeholder="10-digit phone number"
                   required
                 />
@@ -203,7 +199,7 @@ const Signup = () => {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-100 sm:text-gray-700">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
                 Password <span className="text-[#1B3150]">*</span>
               </label>
               <div className="relative">
@@ -218,14 +214,14 @@ const Signup = () => {
                   value={formData.password}
                   onChange={handleChange}
                   autoComplete="new-password"
-                  className="w-full rounded-lg border border-[#2a4f85] bg-[#03112d] py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-400 focus:border-[#3b82f6] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 sm:border-gray-300 sm:bg-white sm:text-gray-900 sm:focus:border-[#1B3150] sm:focus:ring-[#1B3150]/20"
+                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-sm text-gray-900 placeholder-gray-400 focus:border-[#1B3150] focus:outline-none focus:ring-2 focus:ring-[#1B3150]/20"
                   placeholder="At least 6 characters"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-300 hover:text-[#60a5fa] sm:text-gray-500 sm:hover:text-[#1B3150]"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-[#1B3150]"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
@@ -241,7 +237,7 @@ const Signup = () => {
                   onChange={(e) => setIsAbove18(e.target.checked)}
                   className="mt-1 h-4 w-4 rounded border-gray-300 text-[#1B3150] focus:ring-[#1B3150]"
                 />
-                <span className="text-xs leading-5 text-gray-200 sm:text-gray-600">
+                <span className="text-xs leading-5 text-gray-600">
                   I confirm that I am above 18 years of age and agree to the{' '}
                   <span className="text-[#1B3150] underline">Terms of Use</span> and{' '}
                   <span className="text-[#1B3150] underline">Privacy Policy</span>.
@@ -252,7 +248,7 @@ const Signup = () => {
             <button
               type="submit"
               disabled={loading || !isAbove18}
-              className="w-full rounded-lg bg-[#2563eb] py-2.5 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-60 sm:bg-[#1B3150] sm:hover:bg-[#152842]"
+              className="w-full rounded-lg bg-[#1B3150] py-2.5 text-sm font-semibold text-white transition hover:bg-[#152842] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -268,9 +264,9 @@ const Signup = () => {
             </button>
           </form>
 
-          <p className="mt-4 text-center text-sm text-gray-200 sm:text-gray-600">
+          <p className="mt-4 text-center text-sm text-gray-600">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-[#60a5fa] sm:text-[#1B3150] hover:underline">
+            <Link to="/login" className="font-semibold text-[#1B3150] hover:underline">
               Sign in
             </Link>
           </p>

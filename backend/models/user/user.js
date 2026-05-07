@@ -64,9 +64,15 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: null,
     },
+    /** Human-readable device name (e.g., Samsung M14, Chrome on Windows) */
+    lastLoginDeviceName: {
+        type: String,
+        default: null,
+    },
     /** List of devices used to log in: { deviceId, firstLoginAt, lastLoginAt } */
     loginDevices: [{
         deviceId: { type: String, required: true },
+        deviceName: { type: String, default: '' },
         firstLoginAt: { type: Date, required: true },
         lastLoginAt: { type: Date, required: true },
     }],

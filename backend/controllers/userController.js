@@ -11,6 +11,13 @@ import { signUserToken, verifyUserToken } from '../utils/userJwt.js';
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const MASKED_DEVICE = 'Unknown Device';
 
+const normalizeDeviceName = (value) => {
+    const raw = (value || '').toString().trim();
+    if (!raw) return '';
+    if (raw.length <= 80) return raw;
+    return `${raw.slice(0, 77)}...`;
+};
+
 const prettifyDeviceName = (deviceId) => {
     const raw = (deviceId || '').toString().trim();
     if (!raw) return MASKED_DEVICE;
@@ -28,7 +35,7 @@ const getActiveDevices = (userDoc) => {
     const lastSeen = found?.lastLoginAt || userDoc?.lastActiveAt || userDoc?.updatedAt || new Date();
     return [{
         deviceId: activeId,
-        deviceName: prettifyDeviceName(activeId),
+        deviceName: normalizeDeviceName(found?.deviceName || userDoc?.lastLoginDeviceName) || prettifyDeviceName(activeId),
         lastSeenAt: lastSeen,
     }];
 };
@@ -53,7 +60,7 @@ const addOnlineStatus = (users) => {
 export const userLogin = async (req, res) => {
     try {
         const isProduction = process.env.NODE_ENV === 'production';
-        const { username, phone, password, deviceId } = req.body;
+        const { username, phone, password, deviceId, deviceName } = req.body;
 
         // Support both username and phone for login (admin-created players use phone + password)
         const loginIdentifier = phone || username;
@@ -100,6 +107,7 @@ export const userLogin = async (req, res) => {
         const clientIp = getClientIp(req);
         const rawDeviceId = req.body != null && 'deviceId' in req.body ? req.body.deviceId : deviceId;
         const trimmedDeviceId = (rawDeviceId != null && String(rawDeviceId).trim()) ? String(rawDeviceId).trim() : '';
+        const resolvedDeviceName = normalizeDeviceName(req.body?.deviceName ?? deviceName);
 
         const activeDeviceId = String(user.lastLoginDeviceId || '').trim();
         if (trimmedDeviceId && activeDeviceId && activeDeviceId !== trimmedDeviceId) {
@@ -120,6 +128,7 @@ export const userLogin = async (req, res) => {
             lastLoginIp: clientIp || undefined,
             sessionVersion,
             ...(trimmedDeviceId ? { lastLoginDeviceId: trimmedDeviceId } : {}),
+            ...(resolvedDeviceName ? { lastLoginDeviceName: resolvedDeviceName } : {}),
         };
         await User.updateOne({ _id: user._id }, { $set: update });
 
@@ -130,8 +139,16 @@ export const userLogin = async (req, res) => {
             const idx = loginDevices.findIndex((d) => String(d.deviceId) === trimmedDeviceId);
             if (idx >= 0) {
                 loginDevices[idx].lastLoginAt = now;
+                if (resolvedDeviceName) {
+                    loginDevices[idx].deviceName = resolvedDeviceName;
+                }
             } else {
-                loginDevices.push({ deviceId: trimmedDeviceId, firstLoginAt: now, lastLoginAt: now });
+                loginDevices.push({
+                    deviceId: trimmedDeviceId,
+                    deviceName: resolvedDeviceName || '',
+                    firstLoginAt: now,
+                    lastLoginAt: now,
+                });
             }
             await User.updateOne({ _id: user._id }, { $set: { loginDevices } });
         }
@@ -500,6 +517,7 @@ export const userSignup = async (req, res) => {
             phone,
             referredBy: referredByBody,
             deviceId: deviceIdBody,
+            deviceName: deviceNameBody,
         } = req.body;
 
         const referredByRaw = referredByBody != null && String(referredByBody).trim()
@@ -654,11 +672,13 @@ export const userSignup = async (req, res) => {
         const trimmedDeviceId = (rawDeviceId != null && String(rawDeviceId).trim())
             ? String(rawDeviceId).trim()
             : '';
+        const resolvedDeviceName = normalizeDeviceName(req.body?.deviceName ?? deviceNameBody);
 
         const loginUpdate = {
             lastActiveAt: new Date(),
             lastLoginIp: clientIp || undefined,
             ...(trimmedDeviceId ? { lastLoginDeviceId: trimmedDeviceId } : {}),
+            ...(resolvedDeviceName ? { lastLoginDeviceName: resolvedDeviceName } : {}),
         };
         await User.updateOne({ _id: userId }, { $set: loginUpdate });
 
@@ -669,8 +689,16 @@ export const userSignup = async (req, res) => {
             const idx = loginDevices.findIndex((d) => String(d.deviceId) === trimmedDeviceId);
             if (idx >= 0) {
                 loginDevices[idx].lastLoginAt = devNow;
+                if (resolvedDeviceName) {
+                    loginDevices[idx].deviceName = resolvedDeviceName;
+                }
             } else {
-                loginDevices.push({ deviceId: trimmedDeviceId, firstLoginAt: devNow, lastLoginAt: devNow });
+                loginDevices.push({
+                    deviceId: trimmedDeviceId,
+                    deviceName: resolvedDeviceName || '',
+                    firstLoginAt: devNow,
+                    lastLoginAt: devNow,
+                });
             }
             await User.updateOne({ _id: userId }, { $set: { loginDevices } });
         }
