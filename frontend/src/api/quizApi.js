@@ -125,8 +125,15 @@ export async function getMyBoardBets(limit = 30) {
 }
 
 /** Wallet quiz tickets (requires Bearer token). */
-export async function getMyQuizBets(limit = 120, mode = '2d') {
-  const res = await fetch(`${base}/my-quiz-bets?limit=${encodeURIComponent(String(limit))}&mode=${encodeURIComponent(mode)}`, {
+export async function getMyQuizBets(limit = 120, mode = '2d', options = {}) {
+  const q = new URLSearchParams({
+    limit: String(limit),
+    mode: String(mode || '2d'),
+  });
+  if (options?.ticketLimit != null) q.set('ticketLimit', String(options.ticketLimit));
+  if (options?.page != null) q.set('page', String(options.page));
+  if (options?.scope) q.set('scope', String(options.scope));
+  const res = await fetch(`${base}/my-quiz-bets?${q.toString()}`, {
     ...cred,
     headers: { ...getAuthHeaders() },
   });

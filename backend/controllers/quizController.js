@@ -625,6 +625,11 @@ export const getMyQuizBets = async (req, res) => {
     }
 
     const limit = Math.min(50000, Math.max(1, parseInt(String(req.query.limit || '1200'), 10) || 1200));
+    const ticketLimitRaw = parseInt(String(req.query.ticketLimit || '0'), 10);
+    const ticketLimit = Number.isFinite(ticketLimitRaw) ? Math.min(100, Math.max(0, ticketLimitRaw)) : 0;
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const scope = String(req.query.scope || 'all').trim().toLowerCase();
+    const skipTickets = (page - 1) * (ticketLimit || 1);
     const uid = new mongoose.Types.ObjectId(userId);
     const gameMode = resolveGameMode(req);
 
@@ -731,16 +736,28 @@ export const getMyQuizBets = async (req, res) => {
       }
     }
 
-    const [bets, ticketAgg] = await Promise.all([
-      QuizBet.find({ gameMode, userId: uid })
-        .sort({ createdAt: -1, _id: -1 })
-        .limit(limit)
-        .lean(),
-      QuizBet.aggregate([
-        { $match: { gameMode, userId: uid } },
+    const baseMatch = { gameMode, userId: uid };
+    if (scope === 'today') {
+      const now = new Date();
+      const nowInIst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      const istMidnight = new Date(nowInIst);
+      istMidnight.setHours(0, 0, 0, 0);
+      const startUtc = new Date(istMidnight.getTime() - (5.5 * 60 * 60 * 1000));
+      const endUtc = new Date(startUtc.getTime() + (24 * 60 * 60 * 1000));
+      baseMatch.createdAt = { $gte: startUtc, $lt: endUtc };
+    }
+
+    let bets = [];
+    let ticketAgg = [];
+    let pagination = null;
+
+    if (ticketLimit > 0) {
+      const ticketPipelineBase = [
+        { $match: baseMatch },
         {
           $group: {
             _id: { ticketId: '$ticketId', slotStartIso: '$slotStartIso' },
+            createdAt: { $min: '$createdAt' },
             lineCountAll: { $sum: 1 },
             lineCountActive: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, 1] } },
             stakeAll: { $sum: '$amount' },
@@ -749,8 +766,56 @@ export const getMyQuizBets = async (req, res) => {
             totalWinPayout: { $sum: { $ifNull: ['$winPayout', 0] } },
           },
         },
-      ]),
-    ]);
+      ];
+      const ticketAggPaged = await QuizBet.aggregate([
+        ...ticketPipelineBase,
+        { $sort: { createdAt: -1, '_id.slotStartIso': -1 } },
+        { $skip: skipTickets },
+        { $limit: ticketLimit + 1 },
+      ]);
+      const hasMore = ticketAggPaged.length > ticketLimit;
+      ticketAgg = hasMore ? ticketAggPaged.slice(0, ticketLimit) : ticketAggPaged;
+      pagination = { page, ticketLimit, hasMore };
+
+      const ticketOr = ticketAgg
+        .map((row) => {
+          const ticketId = row?._id?.ticketId;
+          const slotStartIso = row?._id?.slotStartIso;
+          if (!ticketId || !slotStartIso) return null;
+          return { ticketId, slotStartIso };
+        })
+        .filter(Boolean);
+
+      bets = ticketOr.length
+        ? await QuizBet.find({ gameMode, userId: uid, $or: ticketOr })
+          .sort({ createdAt: -1, _id: -1 })
+          .limit(Math.max(limit, ticketLimit * 150))
+          .lean()
+        : [];
+    } else {
+      const result = await Promise.all([
+        QuizBet.find(baseMatch)
+          .sort({ createdAt: -1, _id: -1 })
+          .limit(limit)
+          .lean(),
+        QuizBet.aggregate([
+          { $match: baseMatch },
+          {
+            $group: {
+              _id: { ticketId: '$ticketId', slotStartIso: '$slotStartIso' },
+              lineCountAll: { $sum: 1 },
+              lineCountActive: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, 1] } },
+              stakeAll: { $sum: '$amount' },
+              stakeActive: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, '$amount'] } },
+              winLineCount: { $sum: { $cond: [{ $eq: ['$status', 'win'] }, 1, 0] } },
+              totalWinPayout: { $sum: { $ifNull: ['$winPayout', 0] } },
+            },
+          },
+        ]),
+      ]);
+      bets = result[0];
+      ticketAgg = result[1];
+    }
 
     const ticketSummaryByKey = {};
     for (const row of ticketAgg) {
@@ -850,6 +915,7 @@ export const getMyQuizBets = async (req, res) => {
       data,
       ticketSummaryByKey,
       slotWinnersBySlot,
+      ...(pagination ? { pagination } : {}),
       ...(balance != null && Number.isFinite(balance) ? { balance } : {}),
     });
   } catch (err) {

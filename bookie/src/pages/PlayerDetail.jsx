@@ -17,6 +17,8 @@ import {
     FaSyncAlt,
     FaPrint,
     FaFilter,
+    FaChevronRight,
+    FaChevronDown,
 } from 'react-icons/fa';
 
 const getTabs = (t) => [
@@ -54,6 +56,12 @@ const getDatePresets = (t) => [
 ];
 
 const formatCurrency = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+const formatTicketTail = (ticketId) => {
+    const raw = String(ticketId || '').trim();
+    if (!raw) return '—';
+    return raw.slice(-8).toUpperCase();
+};
+const LOTTERY_PAGE_SIZE = 25;
 
 const formatTxnTime = (iso) => {
     try {
@@ -289,6 +297,10 @@ const PlayerDetail = () => {
     const [betSourceFilter, setBetSourceFilter] = useState('matka'); // matka, all_lottery, lottery_2d, lottery_3d
     const [lotteryHistory, setLotteryHistory] = useState({ twoD: [], threeD: [] });
     const [visibleRows, setVisibleRows] = useState(120);
+    const [expandedLotteryTickets, setExpandedLotteryTickets] = useState({});
+    const [lotteryPage, setLotteryPage] = useState(1);
+    const [lotteryHasMore, setLotteryHasMore] = useState({ twoD: false, threeD: false });
+    const [loadingLotteryPage, setLoadingLotteryPage] = useState(false);
 
     // Market filter for fund history
     const [marketFilter, setMarketFilter] = useState('all'); // all or marketId
@@ -392,8 +404,9 @@ const PlayerDetail = () => {
         }
     };
 
-    const fetchBets = async () => {
-        setLoadingTab(true);
+    const fetchBets = async ({ lotteryPageToFetch = 1, appendLottery = false, lotteryOnly = false } = {}) => {
+        if (lotteryOnly) setLoadingLotteryPage(true);
+        else setLoadingTab(true);
         try {
             const params = new URLSearchParams({ userId });
             if (dateFrom) params.append('startDate', dateFrom);
@@ -401,20 +414,24 @@ const PlayerDetail = () => {
             if (activeTab === 'bets_by_bookie') params.append('placedBy', 'bookie');
             if (activeTab === 'bets_by_user') params.append('placedBy', 'user');
             const headers = getBookieAuthHeaders();
+            const lotteryParams = `limit=${LOTTERY_PAGE_SIZE}&page=${lotteryPageToFetch}`;
             const [res, lottery2DRes, lottery3DRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/bets/history?${params}`, { headers }),
+                lotteryOnly ? Promise.resolve(null) : fetch(`${API_BASE_URL}/bets/history?${params}`, { headers }),
                 activeTab === 'bets_by_user'
-                    ? fetch(`${API_BASE_URL}/admin/lottery2d/players/${userId}/history?limit=100`, { headers })
+                    ? fetch(`${API_BASE_URL}/admin/lottery2d/players/${userId}/history?${lotteryParams}`, { headers })
                     : Promise.resolve(null),
                 activeTab === 'bets_by_user'
-                    ? fetch(`${API_BASE_URL}/admin/lottery3d/players/${userId}/history?limit=100`, { headers })
+                    ? fetch(`${API_BASE_URL}/admin/lottery3d/players/${userId}/history?${lotteryParams}`, { headers })
                     : Promise.resolve(null),
             ]);
-            const data = await res.json();
-            setBets(data.success ? data.data || [] : []);
+            if (!lotteryOnly) {
+                const data = await res.json();
+                setBets(data.success ? data.data || [] : []);
+            }
 
             if (activeTab !== 'bets_by_user') {
                 setLotteryHistory({ twoD: [], threeD: [] });
+                setLotteryHasMore({ twoD: false, threeD: false });
                 return;
             }
 
@@ -423,34 +440,106 @@ const PlayerDetail = () => {
                 lottery3DRes ? lottery3DRes.json() : Promise.resolve({ success: false }),
             ]);
 
+            const toTicketStatus = (bets = []) => {
+                const outcomes = bets.map((bet) => String(bet?.outcome || 'pending').toLowerCase());
+                if (outcomes.some((outcome) => outcome === 'win')) return 'win';
+                if (outcomes.some((outcome) => outcome === 'pending')) return 'pending';
+                return outcomes.length ? 'lose' : 'pending';
+            };
+
             const flattenLotteryRows = (slots, mode) => {
                 if (!Array.isArray(slots)) return [];
-                return slots.flatMap((slot) =>
-                    (Array.isArray(slot?.bets) ? slot.bets : []).map((bet) => ({
-                        id: `${mode}-${bet?.betId || bet?._id || Math.random().toString(36).slice(2)}`,
+                return slots.map((slot, index) => {
+                    const bets = Array.isArray(slot?.bets) ? slot.bets : [];
+                    const amount = bets.reduce((sum, bet) => sum + Number(bet?.amount || 0), 0);
+                    const payout = bets.reduce((sum, bet) => sum + Number(bet?.payout || 0), 0);
+                    const createdAt = slot?.slotStartIso || bets[0]?.createdAt || null;
+                    const setSummary = Array.from(new Set(
+                        bets.map((bet) => String(bet?.setLabel || '').trim()).filter(Boolean),
+                    )).join(', ');
+                    const ticketIdRaw =
+                        slot?.ticketId ||
+                        slot?.ticketNo ||
+                        slot?.ticketNumber ||
+                        bets.find((bet) => bet?.ticketId)?.ticketId ||
+                        bets.find((bet) => bet?.ticketNo)?.ticketNo ||
+                        bets.find((bet) => bet?.ticketNumber)?.ticketNumber ||
+                        '';
+                    const ticketId = String(ticketIdRaw || '').trim();
+                    const safeTicketId = ticketId || `TICKET-${mode}-${index + 1}`;
+
+                    return {
+                        id: `${mode}-${safeTicketId}-${slot?.slotStartIso || index}`,
+                        ticketId: safeTicketId,
                         mode,
                         slotLabel: slot?.drawLabelEnd || '—',
                         slotStartIso: slot?.slotStartIso || '',
-                        setLabel: bet?.setLabel || '—',
-                        number: bet?.number || '—',
-                        amount: Number(bet?.amount || 0),
-                        payout: Number(bet?.payout || 0),
-                        outcome: String(bet?.outcome || 'pending').toLowerCase(),
-                        createdAt: bet?.createdAt || slot?.slotStartIso || null,
-                    })),
-                );
+                        setLabel: setSummary || '—',
+                        betCount: bets.length,
+                        bets: bets.map((bet, betIndex) => ({
+                            id: bet?.betId || bet?._id || `${slot?.slotStartIso || 'slot'}-${betIndex}`,
+                            setLabel: bet?.setLabel || '—',
+                            number: bet?.number || '—',
+                            amount: Number(bet?.amount || 0),
+                            payout: Number(bet?.payout || 0),
+                            outcome: String(bet?.outcome || 'pending').toLowerCase(),
+                            createdAt: bet?.createdAt || slot?.slotStartIso || null,
+                        })),
+                        amount,
+                        payout,
+                        outcome: toTicketStatus(bets),
+                        createdAt,
+                    };
+                });
             };
 
-            setLotteryHistory({
-                twoD: flattenLotteryRows(lottery2DData?.success ? lottery2DData?.data?.slots : [], '2D'),
-                threeD: flattenLotteryRows(lottery3DData?.success ? lottery3DData?.data?.slots : [], '3D'),
+            const nextTwoD = flattenLotteryRows(lottery2DData?.success ? lottery2DData?.data?.slots : [], '2D');
+            const nextThreeD = flattenLotteryRows(lottery3DData?.success ? lottery3DData?.data?.slots : [], '3D');
+            setLotteryHasMore({
+                twoD: Boolean(lottery2DData?.data?.pagination?.hasMore),
+                threeD: Boolean(lottery3DData?.data?.pagination?.hasMore),
+            });
+            setLotteryPage(lotteryPageToFetch);
+            setLotteryHistory((prev) => {
+                if (!appendLottery) {
+                    return { twoD: nextTwoD, threeD: nextThreeD };
+                }
+                const mergeUnique = (existingRows, newRows) => {
+                    const map = new Map();
+                    [...existingRows, ...newRows].forEach((row) => {
+                        map.set(row.id, row);
+                    });
+                    return Array.from(map.values()).sort(
+                        (a, b) => new Date(b.slotStartIso || b.createdAt || 0).getTime() - new Date(a.slotStartIso || a.createdAt || 0).getTime(),
+                    );
+                };
+                return {
+                    twoD: mergeUnique(prev.twoD || [], nextTwoD),
+                    threeD: mergeUnique(prev.threeD || [], nextThreeD),
+                };
             });
         } catch (err) {
-            setBets([]);
+            if (!lotteryOnly) {
+                setBets([]);
+            }
             setLotteryHistory({ twoD: [], threeD: [] });
+            setLotteryHasMore({ twoD: false, threeD: false });
         } finally {
-            setLoadingTab(false);
+            if (lotteryOnly) setLoadingLotteryPage(false);
+            else setLoadingTab(false);
         }
+    };
+
+    const handleLoadMoreLottery = () => {
+        fetchBets({ lotteryPageToFetch: lotteryPage + 1, appendLottery: true, lotteryOnly: true });
+    };
+
+    const toggleLotteryTicket = (ticketId) => {
+        if (!ticketId) return;
+        setExpandedLotteryTickets((prev) => ({
+            ...prev,
+            [ticketId]: !prev[ticketId],
+        }));
     };
 
     const fetchMarkets = async () => {
@@ -872,7 +961,7 @@ const PlayerDetail = () => {
     const lotterySearchFilteredRows = useMemo(() => selectedLotteryRows.filter((row) => {
         const q = betSearch.trim().toLowerCase();
         if (!q) return true;
-        const hay = `${row.number} ${row.setLabel} ${row.slotLabel} ${row.mode}`.toLowerCase();
+        const hay = `${row.ticketId} ${row.betCount} ${row.setLabel} ${row.slotLabel} ${row.mode}`.toLowerCase();
         return hay.includes(q);
     }), [selectedLotteryRows, betSearch]);
     const toBetStatus = (outcome) => {
@@ -891,8 +980,29 @@ const PlayerDetail = () => {
         totalAmount: lotterySearchFilteredRows.reduce((sum, row) => sum + Number(row.amount || 0), 0),
         totalPayout: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').reduce((sum, row) => sum + Number(row.payout || 0), 0),
     }), [lotterySearchFilteredRows]);
+    const currentBetFilterCounts = useMemo(() => {
+        if (betSourceFilter === 'matka') {
+            return {
+                all: advancedFilteredBets.length,
+                pending: advancedFilteredBets.filter((b) => b.status === 'pending').length,
+                won: advancedFilteredBets.filter((b) => b.status === 'won').length,
+                lost: advancedFilteredBets.filter((b) => b.status === 'lost').length,
+            };
+        }
+        return {
+            all: lotterySearchFilteredRows.length,
+            pending: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'pending').length,
+            won: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').length,
+            lost: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'lost').length,
+        };
+    }, [advancedFilteredBets, betSourceFilter, lotterySearchFilteredRows]);
     const visibleMatkaRows = useMemo(() => filteredBets.slice(0, visibleRows), [filteredBets, visibleRows]);
-    const visibleLotteryRows = useMemo(() => lotteryFilteredRows.slice(0, visibleRows), [lotteryFilteredRows, visibleRows]);
+    const visibleLotteryRows = useMemo(() => lotteryFilteredRows, [lotteryFilteredRows]);
+    const canLoadMoreLottery = useMemo(() => {
+        if (betSourceFilter === 'lottery_2d') return lotteryHasMore.twoD;
+        if (betSourceFilter === 'lottery_3d') return lotteryHasMore.threeD;
+        return lotteryHasMore.twoD || lotteryHasMore.threeD;
+    }, [betSourceFilter, lotteryHasMore]);
 
     const aviatorGameRows = buildGameRoundRows(gameTransactions, 'Aviator');
     const funTimerGameRows = buildAggregatedGameRoundRows(gameTransactions, 'FunTimer');
@@ -1246,8 +1356,7 @@ const PlayerDetail = () => {
                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                         }`}
                                     >
-                                        {f} {f !== 'all' && `(${advancedFilteredBets.filter((b) => b.status === f).length})`}
-                                        {f === 'all' && `(${advancedFilteredBets.length})`}
+                                        {f} ({currentBetFilterCounts[f] || 0})
                                     </button>
                                 ))}
                                 {betSourceFilter === 'matka' && (
@@ -1343,6 +1452,7 @@ const PlayerDetail = () => {
                                         <thead className="bg-gray-50">
                                             {betSourceFilter === 'matka' ? (
                                                 <tr>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
                                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
                                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Market</th>
@@ -1355,20 +1465,23 @@ const PlayerDetail = () => {
                                                 </tr>
                                             ) : (
                                                 <tr>
+                                                    <th className="w-10 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase" />
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ticket</th>
                                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
                                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Slot</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Set</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bets</th>
                                                     <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Payout</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Win (Rs)</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Loss (Rs)</th>
                                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                                                 </tr>
                                             )}
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                            {betSourceFilter === 'matka' ? visibleMatkaRows.map((b) => (
+                                            {betSourceFilter === 'matka' ? visibleMatkaRows.map((b, index) => (
                                                 <tr key={b._id} className="hover:bg-gray-50">
+                                                    <td className="px-3 py-2 text-gray-500 text-xs font-semibold">{index + 1}</td>
                                                     <td className="px-3 py-2 font-mono font-bold text-[#1B3150]">{b.betNumber || '—'}</td>
                                                     <td className="px-3 py-2 text-gray-600 text-xs">{getBetTypeLabel(b.betType, t, b.betNumber)}</td>
                                                     <td className="px-3 py-2 text-gray-600 text-xs truncate max-w-[120px]">{b.marketId?.marketName || '—'}</td>
@@ -1385,40 +1498,119 @@ const PlayerDetail = () => {
                                                     </td>
                                                     <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</td>
                                                 </tr>
-                                            )) : visibleLotteryRows.map((row) => {
+                                            )) : visibleLotteryRows.map((row, index) => {
                                                 const rowStatus = toBetStatus(row.outcome);
+                                                const isExpanded = Boolean(expandedLotteryTickets[row.id]);
+                                                const winDisplay = rowStatus === 'won'
+                                                    ? formatCurrency(row.payout)
+                                                    : rowStatus === 'pending'
+                                                        ? `Open (${row.betCount || 0})`
+                                                        : formatCurrency(0);
+                                                const lossDisplay = rowStatus === 'lost'
+                                                    ? formatCurrency(row.amount)
+                                                    : rowStatus === 'pending'
+                                                        ? '—'
+                                                        : formatCurrency(0);
                                                 return (
-                                                    <tr key={row.id} className="hover:bg-gray-50">
-                                                        <td className="px-3 py-2 font-semibold text-orange-600">{row.mode}</td>
-                                                        <td className="px-3 py-2 text-gray-600 text-xs">{row.slotLabel || '—'}</td>
-                                                        <td className="px-3 py-2 text-gray-600 text-xs">{row.setLabel || '—'}</td>
-                                                        <td className="px-3 py-2 font-mono font-bold text-[#1B3150]">{row.number || '—'}</td>
-                                                        <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(row.amount)}</td>
-                                                        <td className="px-3 py-2 text-right font-mono text-green-600">{rowStatus === 'won' ? formatCurrency(row.payout) : '—'}</td>
-                                                        <td className="px-3 py-2">
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                                                rowStatus === 'won' ? 'bg-green-100 text-green-700'
-                                                                    : rowStatus === 'lost' ? 'bg-red-100 text-red-600'
-                                                                        : 'bg-[#1B3150]/10 text-[#1B3150]'
-                                                            }`}>{rowStatus}</span>
-                                                        </td>
-                                                        <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{row.createdAt ? new Date(row.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
-                                                    </tr>
+                                                    <React.Fragment key={row.id}>
+                                                        <tr className="hover:bg-gray-50">
+                                                            <td className="px-3 py-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleLotteryTicket(row.id)}
+                                                                    className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                                                                    aria-label={isExpanded ? 'Collapse ticket bets' : 'Expand ticket bets'}
+                                                                >
+                                                                    {isExpanded ? <FaChevronDown className="w-3 h-3" /> : <FaChevronRight className="w-3 h-3" />}
+                                                                </button>
+                                                            </td>
+                                                            <td className="px-3 py-2 text-gray-500 text-xs font-semibold">{index + 1}</td>
+                                                            <td className="px-3 py-2 font-mono text-xs text-gray-500">{formatTicketTail(row.ticketId)}</td>
+                                                            <td className="px-3 py-2 font-semibold text-orange-600">{row.mode}</td>
+                                                            <td className="px-3 py-2 text-gray-600 text-xs">{row.slotLabel || '—'}</td>
+                                                            <td className="px-3 py-2 font-semibold text-[#1B3150]">{row.betCount || 0}</td>
+                                                            <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(row.amount)}</td>
+                                                            <td className={`px-3 py-2 text-xs font-semibold ${
+                                                                rowStatus === 'won'
+                                                                    ? 'text-green-700'
+                                                                    : rowStatus === 'pending'
+                                                                        ? 'text-amber-600'
+                                                                        : 'text-gray-500'
+                                                            }`}>{winDisplay}</td>
+                                                            <td className={`px-3 py-2 text-xs font-semibold ${
+                                                                rowStatus === 'lost' ? 'text-red-600' : 'text-gray-500'
+                                                            }`}>{lossDisplay}</td>
+                                                            <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{row.createdAt ? new Date(row.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+                                                        </tr>
+                                                        {isExpanded && (
+                                                            <tr className="bg-gray-50/70">
+                                                                <td colSpan={10} className="px-4 py-3">
+                                                                    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                                                                        <table className="w-full text-xs min-w-[560px]">
+                                                                            <thead className="bg-gray-50">
+                                                                                <tr>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">#</th>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Set</th>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Number</th>
+                                                                                    <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Amount</th>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Status</th>
+                                                                                    <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Payout</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="divide-y divide-gray-100">
+                                                                                {(row.bets || []).map((bet, betIndex) => {
+                                                                                    const betStatus = toBetStatus(bet.outcome);
+                                                                                    return (
+                                                                                        <tr key={bet.id}>
+                                                                                            <td className="px-3 py-2 text-gray-500 font-semibold">{betIndex + 1}</td>
+                                                                                            <td className="px-3 py-2 text-gray-700">{bet.setLabel || '—'}</td>
+                                                                                            <td className="px-3 py-2 font-mono text-[#1B3150]">{bet.number || '—'}</td>
+                                                                                            <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(bet.amount)}</td>
+                                                                                            <td className="px-3 py-2">
+                                                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                                                                    betStatus === 'won' ? 'bg-green-100 text-green-700'
+                                                                                                        : betStatus === 'lost' ? 'bg-red-100 text-red-600'
+                                                                                                            : 'bg-[#1B3150]/10 text-[#1B3150]'
+                                                                                                }`}>{betStatus}</span>
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 text-right font-mono text-gray-800">{betStatus === 'won' ? formatCurrency(bet.payout) : formatCurrency(0)}</td>
+                                                                                        </tr>
+                                                                                    );
+                                                                                })}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </React.Fragment>
                                                 );
                                             })}
                                         </tbody>
                                     </table>
-                                    {(betSourceFilter === 'matka' ? filteredBets.length : lotteryFilteredRows.length) > visibleRows && (
+                                    {(betSourceFilter === 'matka'
+                                        ? filteredBets.length > visibleRows
+                                        : canLoadMoreLottery) && (
                                         <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
                                             <p className="text-xs text-gray-500">
-                                                Showing {Math.min(visibleRows, betSourceFilter === 'matka' ? filteredBets.length : lotteryFilteredRows.length)} of {betSourceFilter === 'matka' ? filteredBets.length : lotteryFilteredRows.length}
+                                                {betSourceFilter === 'matka'
+                                                    ? `Showing ${Math.min(visibleRows, filteredBets.length)} of ${filteredBets.length}`
+                                                    : `Loaded ${lotteryFilteredRows.length} ticket${lotteryFilteredRows.length === 1 ? '' : 's'} (Page ${lotteryPage})`}
                                             </p>
                                             <button
                                                 type="button"
-                                                onClick={() => setVisibleRows((v) => v + 120)}
-                                                className="px-3 py-1.5 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white text-xs font-semibold"
+                                                onClick={() => {
+                                                    if (betSourceFilter === 'matka') {
+                                                        setVisibleRows((v) => v + 120);
+                                                        return;
+                                                    }
+                                                    if (loadingLotteryPage) return;
+                                                    handleLoadMoreLottery();
+                                                }}
+                                                disabled={betSourceFilter !== 'matka' && loadingLotteryPage}
+                                                className="px-3 py-1.5 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                                             >
-                                                Load More
+                                                {betSourceFilter === 'matka' ? 'Load More' : (loadingLotteryPage ? 'Loading...' : 'Next Page')}
                                             </button>
                                         </div>
                                     )}

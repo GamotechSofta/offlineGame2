@@ -3,8 +3,9 @@ import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets } from '../api/quizA
 import { updateUserBalance } from '../api/bets';
 import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
 
-/** Must cover large tickets; server totals always come from ticketSummaryByKey. */
+/** Per request row cap (server still paginates ticket-wise). */
 const QUIZ_HISTORY_LIMIT = 20000;
+const TICKET_PAGE_SIZE = 5;
 const BET_FILTERS = {
   TODAY: 'today',
   ALL: 'all',
@@ -183,6 +184,9 @@ const MyBetsModal = ({ open, onClose }) => {
   const [drawFilter, setDrawFilter] = useState(DRAW_FILTERS.ALL);
   /** ticket group key → line bets table expanded */
   const [expandedBetLines, setExpandedBetLines] = useState({});
+  const [ticketPage, setTicketPage] = useState(1);
+  const [hasMoreTickets, setHasMoreTickets] = useState(false);
+  const [loadingMoreTickets, setLoadingMoreTickets] = useState(false);
   const listScrollRef = useRef(null);
   const lastScrollTopRef = useRef(0);
 
@@ -195,6 +199,8 @@ const MyBetsModal = ({ open, onClose }) => {
   const loadQuiz = useCallback((options = {}) => {
     const silent = Boolean(options?.silent);
     const preserveScroll = Boolean(options?.preserveScroll);
+    const append = Boolean(options?.append);
+    const pageToFetch = Math.max(1, Number(options?.pageToFetch || 1));
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (!user?.token) {
       setQuizItems([]);
@@ -202,25 +208,32 @@ const MyBetsModal = ({ open, onClose }) => {
       setSlotWinnersBySlot({});
       setErrQuiz('');
       setLoadingQuiz(false);
+      setLoadingMoreTickets(false);
       return Promise.resolve();
     }
     if (preserveScroll && listScrollRef.current) {
       lastScrollTopRef.current = listScrollRef.current.scrollTop;
     }
-    if (!silent) {
+    if (append) {
+      setLoadingMoreTickets(true);
+    } else if (!silent) {
       setLoadingQuiz(true);
     }
     setErrQuiz('');
-    return getMyQuizBets(QUIZ_HISTORY_LIMIT)
+    return getMyQuizBets(QUIZ_HISTORY_LIMIT, '2d', {
+      ticketLimit: TICKET_PAGE_SIZE,
+      page: pageToFetch,
+      scope: betFilter === BET_FILTERS.TODAY ? 'today' : 'all',
+    })
       .then((j) => {
         const rows = Array.isArray(j?.data) ? j.data : [];
-        setQuizItems(rows);
-        setTicketSummaryByKey(
-          j?.ticketSummaryByKey && typeof j.ticketSummaryByKey === 'object' ? j.ticketSummaryByKey : {},
-        );
-        setSlotWinnersBySlot(
-          j?.slotWinnersBySlot && typeof j.slotWinnersBySlot === 'object' ? j.slotWinnersBySlot : {},
-        );
+        const nextSummary = j?.ticketSummaryByKey && typeof j.ticketSummaryByKey === 'object' ? j.ticketSummaryByKey : {};
+        const nextWinners = j?.slotWinnersBySlot && typeof j.slotWinnersBySlot === 'object' ? j.slotWinnersBySlot : {};
+        setHasMoreTickets(Boolean(j?.pagination?.hasMore));
+        setTicketPage(pageToFetch);
+        setQuizItems((prev) => (append ? [...prev, ...rows] : rows));
+        setTicketSummaryByKey((prev) => (append ? { ...prev, ...nextSummary } : nextSummary));
+        setSlotWinnersBySlot((prev) => (append ? { ...prev, ...nextWinners } : nextWinners));
         const bal = j?.balance;
         if (bal != null && Number.isFinite(Number(bal))) {
           const n = Number(bal);
@@ -233,6 +246,9 @@ const MyBetsModal = ({ open, onClose }) => {
         else setErrQuiz(e.message || 'Failed to load');
       })
       .finally(() => {
+        if (append) {
+          setLoadingMoreTickets(false);
+        }
         if (!silent) {
           setLoadingQuiz(false);
         }
@@ -244,7 +260,7 @@ const MyBetsModal = ({ open, onClose }) => {
           });
         }
       });
-  }, []);
+  }, [betFilter]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -255,15 +271,27 @@ const MyBetsModal = ({ open, onClose }) => {
     setExpandedBetLines({});
     setTicketSummaryByKey({});
     setSlotWinnersBySlot({});
-    loadQuiz();
-  }, [open, loadQuiz]);
+    setTicketPage(1);
+    setHasMoreTickets(false);
+    setLoadingMoreTickets(false);
+    return undefined;
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    setExpandedBetLines({});
+    setTicketPage(1);
+    setHasMoreTickets(false);
+    setLoadingMoreTickets(false);
+    loadQuiz({ pageToFetch: 1 });
+  }, [betFilter, open, loadQuiz]);
 
   useSectionAutoRefresh({
     enabled: open,
     intervalMs: 3000,
     immediate: false,
     onRefresh: () => {
-      void loadQuiz({ silent: true, preserveScroll: true });
+      void loadQuiz({ silent: true, preserveScroll: true, pageToFetch: ticketPage });
     },
   });
 
@@ -286,8 +314,13 @@ const MyBetsModal = ({ open, onClose }) => {
   );
 
   const refreshQuiz = useCallback(() => {
-    loadQuiz();
+    loadQuiz({ pageToFetch: 1 });
   }, [loadQuiz]);
+
+  const loadNextTicketPage = useCallback(() => {
+    if (loadingMoreTickets || loadingQuiz || !hasMoreTickets) return;
+    void loadQuiz({ pageToFetch: ticketPage + 1, append: true, preserveScroll: true });
+  }, [hasMoreTickets, loadQuiz, loadingMoreTickets, loadingQuiz, ticketPage]);
 
   const handleCancelTicket = useCallback(
     async (ticketId) => {
@@ -637,6 +670,21 @@ const MyBetsModal = ({ open, onClose }) => {
                 </div>
               );
             })}
+          {!loadingQuiz && !errQuiz && quizGroups.length > 0 ? (
+            <div className="mt-3 flex items-center justify-between border-t border-[#c9c9c9] pt-2">
+              <span className="text-[10px] font-semibold text-gray-600">
+                Loaded {quizGroups.length} tickets (Page {ticketPage})
+              </span>
+              <button
+                type="button"
+                onClick={loadNextTicketPage}
+                disabled={loadingMoreTickets || !hasMoreTickets}
+                className="rounded border border-[#2c5ea8] bg-[#2e7be6] px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-55"
+              >
+                {loadingMoreTickets ? 'Loading...' : 'Next Page'}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
       {pendingCancelTarget?.id ? (

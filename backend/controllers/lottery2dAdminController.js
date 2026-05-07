@@ -522,7 +522,7 @@ export const getLottery2DSlotPlayers = async (req, res) => {
 };
 
 /**
- * GET /admin/lottery2d/tickets?dateFrom=&dateTo=&date=&slotStartIso=&limit=
+ * GET /admin/lottery2d/tickets?dateFrom=&dateTo=&date=&slotStartIso=&limit=&page=
  * Ticket-wise view for admin with user + bet count + total stake.
  * Use dateFrom+dateTo (IST YYYY-MM-DD) for a range; omit both and pass legacy `date` for a single day.
  */
@@ -568,6 +568,8 @@ export const getLottery2DTickets = async (req, res) => {
 
     const maxLimit = rangeDays > 1 ? 5000 : 1000;
     const limit = Math.min(maxLimit, Math.max(1, parseInt(String(req.query.limit || '300'), 10) || 300));
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const skip = (page - 1) * limit;
 
     const hasSlotFilter = rawSlotStartIso.length > 0;
     const slotStartIso = hasSlotFilter ? rawSlotStartIso : getSlotContext(new Date(), '2d').slotStartIso;
@@ -655,7 +657,7 @@ export const getLottery2DTickets = async (req, res) => {
                 },
               },
             ],
-            rows: [{ $sort: { placedAt: -1 } }, { $limit: limit }],
+            rows: [{ $sort: { placedAt: -1 } }, { $skip: skip }, { $limit: limit + 1 }],
           },
         },
       ]),
@@ -675,7 +677,9 @@ export const getLottery2DTickets = async (req, res) => {
 
     const facet = facetResult[0] || { ticketCounts: [], rows: [] };
     const countRow = facet.ticketCounts[0] || {};
-    const rows = Array.isArray(facet.rows) ? facet.rows : [];
+    const rowsAll = Array.isArray(facet.rows) ? facet.rows : [];
+    const hasMore = rowsAll.length > limit;
+    const rows = hasMore ? rowsAll.slice(0, limit) : rowsAll;
 
     const sum = summaryAgg[0] || {};
     const totalStake = Number(sum.totalStake || 0);
@@ -739,6 +743,7 @@ export const getLottery2DTickets = async (req, res) => {
         },
         summary,
         tickets,
+        pagination: { page, limit, hasMore },
       },
     });
   } catch (error) {
@@ -805,28 +810,39 @@ export const getLottery2DPlayerHistory = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ success: false, message: 'Invalid userId.' });
     }
-    const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const skip = (page - 1) * limit;
     const user = await User.findById(userId).select('username phone').lean();
     if (!user) {
       return res.status(404).json({ success: false, message: 'Player not found.' });
     }
 
-    const bets = await QuizBet.find({ gameMode: GAME_MODE, userId })
-      .select('_id ticketId slotStartIso quizId number amount status winPayout createdAt')
-      .sort({ slotStartIso: -1, createdAt: -1 })
-      .lean();
-    if (!bets.length) {
+    const slotStartRows = await QuizBet.aggregate([
+      { $match: { gameMode: GAME_MODE, userId: new mongoose.Types.ObjectId(userId) } },
+      { $group: { _id: '$slotStartIso' } },
+      { $sort: { _id: -1 } },
+      { $skip: skip },
+      { $limit: limit + 1 },
+    ]);
+    const hasMore = slotStartRows.length > limit;
+    const slotStarts = slotStartRows.slice(0, limit).map((row) => row?._id).filter(Boolean);
+    if (!slotStarts.length) {
       return res.json({
         success: true,
         data: {
           player: { userId, username: user.username || 'unknown', phone: user.phone || '' },
           summary: { totalBets: 0, totalStake: 0, totalPayout: 0, netProfitLoss: 0, wins: 0, losses: 0, pending: 0 },
           slots: [],
+          pagination: { page, limit, hasMore },
         },
       });
     }
 
-    const slotStarts = Array.from(new Set(bets.map((b) => b.slotStartIso))).slice(0, limit);
+    const bets = await QuizBet.find({ gameMode: GAME_MODE, userId, slotStartIso: { $in: slotStarts } })
+      .select('_id ticketId slotStartIso quizId number amount status winPayout createdAt')
+      .sort({ slotStartIso: -1, createdAt: -1 })
+      .lean();
     const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStarts } })
       .select('slotStartIso quizId hintPosition')
       .lean();
@@ -936,6 +952,7 @@ export const getLottery2DPlayerHistory = async (req, res) => {
         player: { userId, username: user.username || 'unknown', phone: user.phone || '' },
         summary,
         slots,
+        pagination: { page, limit, hasMore },
       },
     });
   } catch (error) {

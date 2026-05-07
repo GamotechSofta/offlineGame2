@@ -5,6 +5,7 @@ import DateRangePresetFilter from '../components/DateRangePresetFilter';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
+const PAGE_SIZE = 25;
 const todayDate = () => {
   const now = new Date();
   const y = now.getFullYear();
@@ -42,31 +43,46 @@ const ThreeDTickets = () => {
   const [ticketBetsByKey, setTicketBetsByKey] = useState({});
   const [loadingTicketKey, setLoadingTicketKey] = useState('');
   const [ticketErrorByKey, setTicketErrorByKey] = useState({});
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchTickets = useCallback(async () => {
-    setLoading(true);
+  const fetchTickets = useCallback(async ({ pageToFetch = 1, append = false } = {}) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError('');
     try {
-      const q = new URLSearchParams({ limit: '1200', dateFrom, dateTo });
+      const q = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(pageToFetch), dateFrom, dateTo });
       const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/tickets?${q.toString()}`);
       if (res.status === 401) return;
       const json = await res.json();
       if (!json?.success) throw new Error(json?.message || 'Failed to load tickets');
       setSlotMeta(json?.data?.slot || null);
       setSummary(json?.data?.summary || null);
-      setRows(Array.isArray(json?.data?.tickets) ? json.data.tickets : []);
+      const nextRows = Array.isArray(json?.data?.tickets) ? json.data.tickets : [];
+      const nextHasMore = Boolean(json?.data?.pagination?.hasMore);
+      setHasMore(nextHasMore);
+      setPage(pageToFetch);
+      setRows((prev) => (append ? [...prev, ...nextRows] : nextRows));
+      if (!append) {
+        setExpandedKeys({});
+        setTicketBetsByKey({});
+        setTicketErrorByKey({});
+      }
     } catch (err) {
       setSlotMeta(null);
       setSummary(null);
       setRows([]);
+      setHasMore(false);
       setError(err?.message || 'Failed to load tickets');
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
   }, [dateFrom, dateTo]);
 
   useEffect(() => {
-    fetchTickets();
+    fetchTickets({ pageToFetch: 1, append: false });
   }, [fetchTickets]);
 
   const rowKey = (row) => `${row.ticketId}|${row.slotStartIso}|${row.userId}`;
@@ -121,8 +137,8 @@ const ThreeDTickets = () => {
           <div className="flex items-end gap-2">
             <button
               type="button"
-              onClick={fetchTickets}
-              disabled={loading}
+              onClick={() => fetchTickets({ pageToFetch: 1, append: false })}
+              disabled={loading || loadingMore}
               className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-70"
             >
               {loading ? 'Refreshing...' : 'Refresh'}
@@ -204,6 +220,7 @@ const ThreeDTickets = () => {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-200">
+                  <th className="py-2 pr-3">#</th>
                   <th className="py-2 pr-3">Ticket ID</th>
                   <th className="py-2 pr-3">User</th>
                   <th className="py-2 pr-3">Phone</th>
@@ -222,22 +239,24 @@ const ThreeDTickets = () => {
               <tbody>
                 {!rows.length && !loading ? (
                   <tr>
-                    <td colSpan={9} className="py-4 text-center text-gray-500">
+                    <td colSpan={10} className="py-4 text-center text-gray-500">
                       No tickets found for this date range.
                     </td>
                   </tr>
                 ) : null}
-                {rows.map((row) => {
+                {rows.map((row, index) => {
                   const key = rowKey(row);
                   const isOpen = Boolean(expandedKeys[key]);
                   const betRows = ticketBetsByKey[key] || [];
                   const wl = ticketWinLossRs(row);
+                  const serial = (page - 1) * PAGE_SIZE + index + 1;
                   return (
                     <React.Fragment key={key}>
                       <tr
                         className="border-b border-gray-100 cursor-pointer hover:bg-orange-50/40"
                         onClick={() => { void toggleTicket(row); }}
                       >
+                        <td className="py-2 pr-3 font-mono text-gray-600">{serial}</td>
                         <td className="py-2 pr-3 font-mono">
                           <span className="mr-1.5 text-xs text-gray-500">{isOpen ? '▼' : '▶'}</span>
                           {String(row.ticketId || '-').slice(-8).toUpperCase()}
@@ -263,7 +282,7 @@ const ThreeDTickets = () => {
                       </tr>
                       {isOpen ? (
                         <tr className="border-b border-gray-100 bg-gray-50">
-                          <td colSpan={9} className="p-3">
+                          <td colSpan={10} className="p-3">
                             {loadingTicketKey === key ? (
                               <p className="text-xs text-gray-500">Loading ticket bets...</p>
                             ) : ticketErrorByKey[key] ? (
@@ -306,6 +325,19 @@ const ThreeDTickets = () => {
                 })}
               </tbody>
             </table>
+          </div>
+          <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
+            <p className="text-xs text-gray-500">
+              Loaded {rows.length} ticket{rows.length === 1 ? '' : 's'} (Page {page})
+            </p>
+            <button
+              type="button"
+              onClick={() => fetchTickets({ pageToFetch: page + 1, append: true })}
+              disabled={loading || loadingMore || !hasMore}
+              className="px-3 py-1.5 rounded-lg bg-[#1B3150] text-white text-xs font-semibold hover:bg-[#152842] disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loadingMore ? 'Loading...' : 'Next Page'}
+            </button>
           </div>
         </div>
       </div>

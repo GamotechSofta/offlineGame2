@@ -1074,7 +1074,7 @@ export const getLottery3DSlotWiseBets = async (req, res) => {
 };
 
 /**
- * GET /admin/lottery3d/tickets?dateFrom=&dateTo=&date=&slotStartIso=&limit=
+ * GET /admin/lottery3d/tickets?dateFrom=&dateTo=&date=&slotStartIso=&limit=&page=
  * Ticket-wise view (3D) — same shape as 2D tickets API for admin UI parity.
  */
 export const getLottery3DTickets = async (req, res) => {
@@ -1119,6 +1119,8 @@ export const getLottery3DTickets = async (req, res) => {
 
     const maxLimit = rangeDays > 1 ? 5000 : 1000;
     const limit = Math.min(maxLimit, Math.max(1, parseInt(String(req.query.limit || '300'), 10) || 300));
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const skip = (page - 1) * limit;
 
     const hasSlotFilter = rawSlotStartIso.length > 0;
     const slotStartIso = hasSlotFilter ? rawSlotStartIso : getSlotContext(new Date(), '3d').slotStartIso;
@@ -1162,10 +1164,11 @@ export const getLottery3DTickets = async (req, res) => {
         },
       },
       { $sort: { placedAt: -1 } },
-      { $limit: limit },
+      { $skip: skip },
+      { $limit: limit + 1 },
     ];
 
-    const [rows, summaryAgg, ticketCountAgg, uniqueUserCountAgg] = await Promise.all([
+    const [rowsAll, summaryAgg, ticketCountAgg, uniqueUserCountAgg] = await Promise.all([
       QuizBet.aggregate(ticketListPipeline),
       QuizBet.aggregate([
         { $match: match },
@@ -1194,6 +1197,8 @@ export const getLottery3DTickets = async (req, res) => {
       ]),
     ]);
 
+    const hasMore = Array.isArray(rowsAll) && rowsAll.length > limit;
+    const rows = hasMore ? rowsAll.slice(0, limit) : (Array.isArray(rowsAll) ? rowsAll : []);
     const sum = summaryAgg[0] || {};
     const totalStake = Number(sum.totalStake || 0);
     const totalPayout = Number(sum.totalPayout || 0);
@@ -1244,6 +1249,7 @@ export const getLottery3DTickets = async (req, res) => {
         },
         summary,
         tickets,
+        pagination: { page, limit, hasMore },
       },
     });
   } catch (error) {
@@ -1311,27 +1317,38 @@ export const getLottery3DPlayerHistory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid userId.' });
     }
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const skip = (page - 1) * limit;
     const user = await User.findById(userId).select('username phone').lean();
     if (!user) {
       return res.status(404).json({ success: false, message: 'Player not found.' });
     }
 
-    const bets = await QuizBet.find({ gameMode: GAME_MODE, userId })
-      .select('_id slotStartIso quizId number amount status winPayout betMode createdAt')
-      .sort({ slotStartIso: -1, createdAt: -1 })
-      .lean();
-    if (!bets.length) {
+    const slotStartRows = await QuizBet.aggregate([
+      { $match: { gameMode: GAME_MODE, userId: new mongoose.Types.ObjectId(userId) } },
+      { $group: { _id: '$slotStartIso' } },
+      { $sort: { _id: -1 } },
+      { $skip: skip },
+      { $limit: limit + 1 },
+    ]);
+    const hasMore = slotStartRows.length > limit;
+    const slotStarts = slotStartRows.slice(0, limit).map((row) => row?._id).filter(Boolean);
+    if (!slotStarts.length) {
       return res.json({
         success: true,
         data: {
           player: { userId, username: user.username || 'unknown', phone: user.phone || '' },
           summary: { totalBets: 0, totalStake: 0, totalPayout: 0, netProfitLoss: 0, wins: 0, losses: 0, pending: 0 },
           slots: [],
+          pagination: { page, limit, hasMore },
         },
       });
     }
 
-    const slotStarts = Array.from(new Set(bets.map((b) => b.slotStartIso))).slice(0, limit);
+    const bets = await QuizBet.find({ gameMode: GAME_MODE, userId, slotStartIso: { $in: slotStarts } })
+      .select('_id ticketId slotStartIso quizId number amount status winPayout betMode createdAt')
+      .sort({ slotStartIso: -1, createdAt: -1 })
+      .lean();
     const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStarts } })
       .select('slotStartIso quizId hintPosition')
       .lean();
@@ -1432,6 +1449,7 @@ export const getLottery3DPlayerHistory = async (req, res) => {
         player: { userId, username: user.username || 'unknown', phone: user.phone || '' },
         summary,
         slots,
+        pagination: { page, limit, hasMore },
       },
     });
   } catch (error) {
