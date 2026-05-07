@@ -260,6 +260,7 @@ const setCellClass = (setName) => {
   if (setName === 'Set B') return 'bg-[#a9c9ff] border-[#6e94d1]';
   return 'bg-[#b8e6b8] border-[#77b077]';
 };
+const RESULTS_PAGE_SIZE = 5;
 
 const cellLabel = (quizId, result) => {
   const q = pad2(quizId);
@@ -277,7 +278,10 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
   const [slots, setSlots] = useState([]);
   const [fetchedDate, setFetchedDate] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const dateTriggerRef = useRef(null);
 
@@ -288,6 +292,9 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
     setSlots([]);
     setFetchedDate('');
     setError('');
+    setPage(1);
+    setHasMore(false);
+    setLoadingMore(false);
     setPickerOpen(false);
   }, [open, defaultIstDay, maxDay]);
 
@@ -308,7 +315,7 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
     return `${dd} ${MONTH_NAMES_SHORT[Number(mm) - 1]} ${yy}`;
   }, [dateKey]);
 
-  const showResult = useCallback(async () => {
+  const showResult = useCallback(async ({ pageToFetch = 1, append = false } = {}) => {
     if (!dateKey) {
       setError('Select a date.');
       return;
@@ -317,27 +324,32 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
       setError('Future date is not allowed.');
       return;
     }
-    setLoading(true);
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError('');
-    setSlots([]);
+    if (!append) setSlots([]);
     try {
-      const j = await getQuizSlotResultsForDate(dateKey);
+      const j = await getQuizSlotResultsForDate(dateKey, undefined, '2d', { limit: RESULTS_PAGE_SIZE, page: pageToFetch });
       if (!j.success || !j.data) {
         setError(j.message || 'Invalid response');
         return;
       }
       setFetchedDate(j.data.date || dateKey);
-      setSlots(Array.isArray(j.data.slots) ? j.data.slots : []);
+      const nextSlots = Array.isArray(j.data.slots) ? j.data.slots : [];
+      setHasMore(Boolean(j?.data?.pagination?.hasMore));
+      setPage(pageToFetch);
+      setSlots((prev) => (append ? [...prev, ...nextSlots] : nextSlots));
     } catch (e) {
       setError(e.message || 'Failed to load');
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
   }, [dateKey, maxDay]);
 
   useEffect(() => {
     if (!open || !dateKey) return;
-    showResult();
+    showResult({ pageToFetch: 1, append: false });
   }, [open, dateKey, showResult]);
 
   if (!open) return null;
@@ -456,6 +468,19 @@ const ResultHistoryModal = ({ open, onClose, defaultIstDay }) => {
                     </div>
                   </div>
                 ))}
+                <div className="flex items-center justify-between border-t border-neutral-300 pt-2">
+                  <span className="text-[11px] font-semibold text-neutral-600">
+                    Loaded {slots.length} old results (Page {page})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => showResult({ pageToFetch: page + 1, append: true })}
+                    disabled={loadingMore || !hasMore}
+                    className="rounded-md border border-[#2c5ea8] bg-[#2e7be6] px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-55"
+                  >
+                    {loadingMore ? 'Loading...' : 'Next Page'}
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -26,7 +26,7 @@ function formatQ(quizId, hintPos) {
 }
 
 /**
- * GET /api/v1/quiz/slot-results?date=YYYY-MM-DD&mode=2d|3d (IST)
+ * GET /api/v1/quiz/slot-results?date=YYYY-MM-DD&mode=2d|3d&limit=&page= (IST)
  * Persisted picks only: result = stored hintPosition (never chosenIndex; no recompute).
  */
 export const getSlotResultsForDate = async (req, res) => {
@@ -50,7 +50,10 @@ export const getSlotResultsForDate = async (req, res) => {
       });
     }
 
-    const maxSlots = Math.min(96, Math.max(1, parseInt(String(req.query.maxSlots || '96'), 10) || 96));
+    const limitRaw = req.query.limit ?? req.query.maxSlots ?? '96';
+    const limit = Math.min(96, Math.max(1, parseInt(String(limitRaw), 10) || 96));
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const skip = (page - 1) * limit;
     const now = Date.now();
     const allStarts = listSlotStartIsoForISTDay(date);
     const ended = allStarts.filter((iso) => new Date(iso).getTime() + SLOT_MS <= now);
@@ -62,10 +65,14 @@ export const getSlotResultsForDate = async (req, res) => {
     const declaredSet = new Set((declaredRows || []).map((r) => String(r.slotStartIso || '')).filter(Boolean));
     let completed = ended.filter((iso) => declaredSet.has(iso));
     completed.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    completed = completed.slice(0, maxSlots);
+    const hasMore = completed.length > (skip + limit);
+    completed = completed.slice(skip, skip + limit);
 
     if (completed.length === 0) {
-      return res.json({ success: true, data: { date, slots: [] } });
+      return res.json({
+        success: true,
+        data: { date, slots: [], pagination: { page, limit, hasMore } },
+      });
     }
 
     const grouped = await QuizSlotPick.aggregate([
@@ -107,7 +114,10 @@ export const getSlotResultsForDate = async (req, res) => {
       });
     }
 
-    res.json({ success: true, data: { date, gameMode, slots } });
+    res.json({
+      success: true,
+      data: { date, gameMode, slots, pagination: { page, limit, hasMore } },
+    });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('getSlotResultsForDate', err);

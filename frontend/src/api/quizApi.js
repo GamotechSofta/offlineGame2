@@ -86,9 +86,11 @@ export async function getQuizSlotResults(limit = 20, mode = '2d') {
 }
 
 /** IST calendar YYYY-MM-DD — persisted hintPosition only (GET /quiz/slot-results?date=). */
-export async function getQuizSlotResultsForDate(date, maxSlots, mode = '2d') {
+export async function getQuizSlotResultsForDate(date, maxSlots, mode = '2d', options = {}) {
   const q = new URLSearchParams({ date, mode: String(mode || '2d') });
   if (maxSlots != null) q.set('maxSlots', String(maxSlots));
+  if (options?.limit != null) q.set('limit', String(options.limit));
+  if (options?.page != null) q.set('page', String(options.page));
   const res = await fetch(`${base}/slot-results?${q}`, cred);
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
