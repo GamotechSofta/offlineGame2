@@ -1,4 +1,5 @@
 import { verifyUserToken } from '../utils/userJwt.js';
+import User from '../models/user/user.js';
 
 /**
  * Middleware to verify player authentication via JWT.
@@ -28,6 +29,27 @@ export const verifyUser = async (req, res, next) => {
                 success: false,
                 message: 'Invalid token.',
                 code: 'AUTH_REQUIRED',
+            });
+        }
+        const user = await User.findById(userId).select('isActive sessionVersion').lean();
+        if (!user || !user.isActive) {
+            return res.status(401).json({
+                success: false,
+                message: 'Session expired. Please log in again.',
+                code: 'AUTH_REQUIRED',
+            });
+        }
+        const tokenSessionVersion = Number(payload?.sv);
+        const currentSessionVersion = Number(user?.sessionVersion);
+        if (
+            Number.isFinite(tokenSessionVersion) &&
+            Number.isFinite(currentSessionVersion) &&
+            tokenSessionVersion !== currentSessionVersion
+        ) {
+            return res.status(401).json({
+                success: false,
+                message: 'Logged in on another device. Please log in again.',
+                code: 'SESSION_REVOKED',
             });
         }
         req.userId = userId;

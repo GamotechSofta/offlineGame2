@@ -77,9 +77,11 @@ export const userLogin = async (req, res) => {
         const clientIp = getClientIp(req);
         const rawDeviceId = req.body != null && 'deviceId' in req.body ? req.body.deviceId : deviceId;
         const trimmedDeviceId = (rawDeviceId != null && String(rawDeviceId).trim()) ? String(rawDeviceId).trim() : '';
+        const sessionVersion = Date.now();
         const update = {
             lastActiveAt: new Date(),
             lastLoginIp: clientIp || undefined,
+            sessionVersion,
             ...(trimmedDeviceId ? { lastLoginDeviceId: trimmedDeviceId } : {}),
         };
         await User.updateOne({ _id: user._id }, { $set: update });
@@ -111,7 +113,7 @@ export const userLogin = async (req, res) => {
         const wallet = await Wallet.findOne({ userId: user._id });
         const balance = wallet ? wallet.balance : 0;
 
-        const token = signUserToken(user);
+        const token = signUserToken({ _id: user._id, sessionVersion });
         // Also store auth token as httpOnly cookie so direct URL-bar API checks can work in browser.
         res.cookie('userToken', token, {
             httpOnly: true,
@@ -502,6 +504,7 @@ export const userSignup = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         const now = new Date();
+        const sessionVersion = Date.now();
         const userDoc = {
             username: derivedUsername,
             email: resolvedEmail,
@@ -512,6 +515,7 @@ export const userSignup = async (req, res) => {
             isActive: true,
             source,
             referredBy,
+            sessionVersion,
             lastActiveAt: now,
             createdAt: now,
             updatedAt: now,
@@ -567,7 +571,7 @@ export const userSignup = async (req, res) => {
 
         const wallet = await Wallet.findOne({ userId });
         const balance = wallet ? wallet.balance : 0;
-        const token = signUserToken({ _id: userId });
+        const token = signUserToken({ _id: userId, sessionVersion });
         res.cookie('userToken', token, {
             httpOnly: true,
             secure: isProduction,

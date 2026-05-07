@@ -13,13 +13,14 @@ if (isProduction && !SECRET) {
 const EXPIRES_IN = process.env.USER_JWT_EXPIRES_IN || '7d';
 
 /**
- * Sign a JWT for player (after login). Payload: { userId }.
+ * Sign a JWT for player (after login). Payload: { userId, sv }.
  */
 export function signUserToken(user) {
     const userId = user._id?.toString?.() || user.id;
     if (!userId) throw new Error('User must have _id or id');
+    const sessionVersion = Number(user.sessionVersion);
     return jwt.sign(
-        { userId },
+        { userId, ...(Number.isFinite(sessionVersion) ? { sv: sessionVersion } : {}) },
         SECRET,
         { expiresIn: EXPIRES_IN }
     );

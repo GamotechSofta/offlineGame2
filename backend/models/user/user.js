@@ -70,6 +70,11 @@ const userSchema = new mongoose.Schema({
         firstLoginAt: { type: Date, required: true },
         lastLoginAt: { type: Date, required: true },
     }],
+    /** Rotates on each login to enforce single active device/session */
+    sessionVersion: {
+        type: Number,
+        default: 0,
+    },
     failedLoginAttempts: {
         type: Number,
         default: 0,
