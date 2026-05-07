@@ -7,6 +7,7 @@ const HEARTBEAT_INTERVAL_MS = 10 * 1000; // Faster session invalidation detectio
 
 export const useHeartbeat = () => {
   const intervalRef = useRef(null);
+  const interactionHeartbeatInFlightRef = useRef(false);
 
   useEffect(() => {
     const sendHeartbeat = async () => {
@@ -53,6 +54,16 @@ export const useHeartbeat = () => {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    const handleUserInteraction = () => {
+      if (interactionHeartbeatInFlightRef.current) return;
+      interactionHeartbeatInFlightRef.current = true;
+      Promise.resolve(sendHeartbeat()).finally(() => {
+        interactionHeartbeatInFlightRef.current = false;
+      });
+    };
+    document.addEventListener('click', handleUserInteraction, true);
+    document.addEventListener('touchstart', handleUserInteraction, true);
+
     const handleLogout = () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -64,6 +75,8 @@ export const useHeartbeat = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('click', handleUserInteraction, true);
+      document.removeEventListener('touchstart', handleUserInteraction, true);
       window.removeEventListener('userLogout', handleLogout);
     };
   }, []);
