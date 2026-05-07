@@ -1594,11 +1594,31 @@ const MarketDetail = () => {
                 {/* Overview card – updates when Open/Closed view changes (key forces refresh) */}
                 <div key={`overview-${statusView}`} className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden mb-6 sm:mb-8">
                     <div className="bg-white border-b border-gray-200 px-4 py-3">
-                        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">{market?.marketName || 'Market'}</h1>
-                        <p className="text-gray-400 text-sm mt-0.5">Market overview & result</p>
-                        {marketId && (
-                            <p className="text-[11px] text-gray-500 mt-1 font-mono" title="Same ID as in Add Result → Check">ID: {marketId}</p>
-                        )}
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div className="min-w-0">
+                                <h1 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">{market?.marketName || 'Market'}</h1>
+                                <p className="text-gray-400 text-sm mt-0.5">Market overview & result</p>
+                                {marketId && (
+                                    <p className="text-[11px] text-gray-500 mt-1 font-mono" title="Same ID as in Add Result → Check">ID: {marketId}</p>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 sm:gap-3 flex-nowrap md:justify-end">
+                                <Link
+                                    to="/markets"
+                                    className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold border border-gray-200 transition-colors shrink-0 whitespace-nowrap text-xs sm:text-sm"
+                                >
+                                    <FaArrowLeft /> Back to Markets
+                                </Link>
+                                <Link
+                                    to="/add-result"
+                                    state={{ preselectedMarket: market }}
+                                    className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold border border-amber-400 transition-colors min-w-0 flex-1 md:flex-initial text-xs sm:text-sm"
+                                >
+                                    <FaEdit className="shrink-0" />
+                                    <span className="truncate">Add Result for {market?.marketName || 'Market'}</span>
+                                </Link>
+                            </div>
+                        </div>
                     </div>
                     <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
                         <div className="flex items-center gap-3">
@@ -1988,6 +2008,23 @@ const MarketDetail = () => {
 
                 <ProfitTargetFinder marketId={marketId} hasOpenDeclared={!!hasOpen} statusView={statusView} />
 
+                <div className="mt-8 pt-4 border-t border-gray-200 flex items-center gap-2 sm:gap-3 flex-nowrap">
+                    <Link
+                        to="/markets"
+                        className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold border border-gray-200 transition-colors shrink-0 whitespace-nowrap text-xs sm:text-sm"
+                    >
+                        <FaArrowLeft /> Back to Markets
+                    </Link>
+                    <Link
+                        to="/add-result"
+                        state={{ preselectedMarket: market }}
+                        className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold border border-amber-400 transition-colors min-w-0 flex-1 text-xs sm:text-sm"
+                    >
+                        <FaEdit className="shrink-0" />
+                        <span className="truncate">Add Result for {market?.marketName || 'Market'}</span>
+                    </Link>
+                </div>
+
                 {/* Detailed Bet Analysis Section */}
                 <SectionCard title="Detailed Bet Analysis" className="mt-8">
                     {loadingBets ? (
@@ -2128,22 +2165,6 @@ const MarketDetail = () => {
                     )}
                 </SectionCard>
 
-                <div className="mt-8 pt-4 border-t border-gray-200 flex items-center gap-2 sm:gap-3 flex-nowrap">
-                    <Link
-                        to="/markets"
-                        className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold border border-gray-200 transition-colors shrink-0 whitespace-nowrap text-xs sm:text-sm"
-                    >
-                        <FaArrowLeft /> Back to Markets
-                    </Link>
-                    <Link
-                        to="/add-result"
-                        state={{ preselectedMarket: market }}
-                        className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-gray-800 font-semibold border border-amber-400 transition-colors min-w-0 flex-1 text-xs sm:text-sm"
-                    >
-                        <FaEdit className="shrink-0" />
-                        <span className="truncate">Add Result for {market?.marketName || 'Market'}</span>
-                    </Link>
-                </div>
             </div>
         </AdminLayout>
     );
