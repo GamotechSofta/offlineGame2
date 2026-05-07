@@ -3027,6 +3027,10 @@ const ThreeDGame = () => {
               nextLabel={timeToDrawText}
               slotOptions={advanceDrawSlots}
               selectedSlots={selectedAdvanceSlots}
+              onSelectCount={(count) => {
+                const safeCount = Math.max(0, Math.min(advanceDrawSlots.length, Number(count) || 0));
+                setSelectedAdvanceSlots(advanceDrawSlots.slice(0, safeCount).map((x) => x.slotStartIso));
+              }}
               onToggleSlot={(slotStartIso) => {
                 setSelectedAdvanceSlots((prev) => (
                   prev.includes(slotStartIso)
@@ -3068,6 +3072,10 @@ const ThreeDGame = () => {
               nextLabel={timeToDrawText}
               slotOptions={advanceDrawSlots}
               selectedSlots={selectedAdvanceSlots}
+              onSelectCount={(count) => {
+                const safeCount = Math.max(0, Math.min(advanceDrawSlots.length, Number(count) || 0));
+                setSelectedAdvanceSlots(advanceDrawSlots.slice(0, safeCount).map((x) => x.slotStartIso));
+              }}
               onToggleSlot={(slotStartIso) => {
                 setSelectedAdvanceSlots((prev) => (
                   prev.includes(slotStartIso)
