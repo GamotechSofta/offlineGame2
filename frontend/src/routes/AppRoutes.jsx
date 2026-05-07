@@ -115,12 +115,13 @@ const Layout = ({ children }) => {
 
       const enablePinchGesture = () => {
         if (rootEl) {
-          rootEl.style.setProperty('touch-action', 'pinch-zoom');
-          rootEl.style.setProperty('-ms-touch-action', 'pinch-zoom');
+          // Allow normal scrolling + pinch zoom on mobile lottery screens.
+          rootEl.style.setProperty('touch-action', 'pan-x pan-y pinch-zoom');
+          rootEl.style.setProperty('-ms-touch-action', 'pan-x pan-y pinch-zoom');
         }
         if (bodyEl) {
-          bodyEl.style.setProperty('touch-action', 'pinch-zoom');
-          bodyEl.style.setProperty('-ms-touch-action', 'pinch-zoom');
+          bodyEl.style.setProperty('touch-action', 'pan-x pan-y pinch-zoom');
+          bodyEl.style.setProperty('-ms-touch-action', 'pan-x pan-y pinch-zoom');
         }
       };
 
