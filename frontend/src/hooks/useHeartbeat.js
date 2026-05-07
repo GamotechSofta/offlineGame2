@@ -7,6 +7,7 @@ const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also used to detect sus
 
 export const useHeartbeat = () => {
   const intervalRef = useRef(null);
+  const lastInteractionHeartbeatRef = useRef(0);
 
   useEffect(() => {
     const sendHeartbeat = async () => {
@@ -33,6 +34,14 @@ export const useHeartbeat = () => {
       }
     };
 
+    const triggerHeartbeatOnInteraction = () => {
+      const now = Date.now();
+      // Avoid calling heartbeat on every tap/click burst.
+      if (now - lastInteractionHeartbeatRef.current < 10000) return;
+      lastInteractionHeartbeatRef.current = now;
+      sendHeartbeat();
+    };
+
     if (!isUserLoggedIn()) return;
 
     sendHeartbeat();
@@ -52,6 +61,8 @@ export const useHeartbeat = () => {
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('click', triggerHeartbeatOnInteraction, true);
+    document.addEventListener('touchstart', triggerHeartbeatOnInteraction, true);
 
     const handleLogout = () => {
       if (intervalRef.current) {
@@ -64,6 +75,8 @@ export const useHeartbeat = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('click', triggerHeartbeatOnInteraction, true);
+      document.removeEventListener('touchstart', triggerHeartbeatOnInteraction, true);
       window.removeEventListener('userLogout', handleLogout);
     };
   }, []);
