@@ -3,6 +3,11 @@ import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
 import { getRatesMap } from '../models/rate/rate.js';
 
 const QUIZ_IDS_2D = Array.from({ length: 30 }, (_, i) => i + 1);
+const pickRandomFrom = (arr) => {
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  const idx = Math.floor(Math.random() * arr.length);
+  return arr[idx] ?? null;
+};
 
 async function getQuiz2DMultiplier() {
   try {
@@ -59,6 +64,8 @@ export async function build2DTargetProfitHints(slotStartIso, targetProfitPercent
     const targetHouseNet = (totalStake * target) / 100;
     let bestAtOrAboveTarget = null;
     let bestNearest = null;
+    let bestAtOrAbovePool = [];
+    let bestNearestPool = [];
     const candidates = [];
     for (let number = 0; number <= 99; number += 1) {
       const stake = Number(row.stakeByNumber.get(number) || 0);
@@ -73,22 +80,30 @@ export async function build2DTargetProfitHints(slotStartIso, targetProfitPercent
         if (
           !bestAtOrAboveTarget
           || candidate.deltaFromTarget < bestAtOrAboveTarget.deltaFromTarget
-          || (candidate.deltaFromTarget === bestAtOrAboveTarget.deltaFromTarget && candidate.number < bestAtOrAboveTarget.number)
         ) {
           bestAtOrAboveTarget = candidate;
+          bestAtOrAbovePool = [candidate];
+        } else if (candidate.deltaFromTarget === bestAtOrAboveTarget.deltaFromTarget) {
+          bestAtOrAbovePool.push(candidate);
         }
       }
       if (
         !bestNearest
         || candidate.absDelta < bestNearest.absDelta
-        || (candidate.absDelta === bestNearest.absDelta && candidate.number < bestNearest.number)
       ) {
         bestNearest = candidate;
+        bestNearestPool = [candidate];
+      } else if (candidate.absDelta === bestNearest.absDelta) {
+        bestNearestPool.push(candidate);
       }
       if (stake > 0) candidates.push(candidate);
     }
 
-    const selected = bestAtOrAboveTarget || bestNearest || { number: 0, houseNetIfWins: 0, deltaFromTarget: 0 };
+    const selected = pickRandomFrom(bestAtOrAbovePool)
+      || pickRandomFrom(bestNearestPool)
+      || bestAtOrAboveTarget
+      || bestNearest
+      || { number: 0, houseNetIfWins: 0, deltaFromTarget: 0 };
     const topCandidates = candidates
       .slice()
       .sort((a, b) => a.absDelta - b.absDelta || b.stake - a.stake || a.number - b.number)

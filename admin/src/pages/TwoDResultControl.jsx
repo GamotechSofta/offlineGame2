@@ -14,15 +14,36 @@ const todayDate = () => {
 };
 
 const formatSlotLabel = (slot) => slot?.drawLabelEnd || slot?.slotStartIso || '-';
-const formatHousePl = (value) => {
-    if (value == null || !Number.isFinite(Number(value))) {
+const getProfitRangeColorClass = (profitPercentValue) => {
+    const signedPct = Number(profitPercentValue);
+    if (!Number.isFinite(signedPct)) return 'text-gray-400';
+    if (signedPct < 0) return 'text-red-700';
+    const pct = Math.abs(signedPct);
+    if (pct === 0) return 'text-pink-600';
+    if (pct <= 10) return 'text-pink-600';
+    if (pct <= 20) return 'text-red-500';
+    if (pct <= 30) return 'text-orange-500';
+    if (pct <= 40) return 'text-amber-500';
+    if (pct <= 50) return 'text-yellow-500';
+    if (pct <= 60) return 'text-lime-500';
+    if (pct <= 70) return 'text-lime-600';
+    if (pct <= 80) return 'text-green-600';
+    if (pct <= 90) return 'text-sky-500';
+    return 'text-blue-600';
+};
+const formatHousePl = (value, totalStakeValue = null) => {
+    const n = Number(value);
+    if (value == null || !Number.isFinite(n)) {
         return { text: 'P/L: --', className: 'text-gray-400' };
     }
-    const n = Math.round(Number(value));
+    const totalStake = Number(totalStakeValue);
+    const profitPct = Number.isFinite(totalStake) && totalStake > 0 ? (n / totalStake) * 100 : null;
+    const className = Number.isFinite(profitPct) ? getProfitRangeColorClass(profitPct) : (n >= 0 ? 'text-green-700' : 'text-red-700');
+    const rounded = Math.round(n);
     if (n >= 0) {
-        return { text: `P/L: +₹${n.toLocaleString('en-IN')}`, className: 'text-green-700' };
+        return { text: `P/L: +₹${rounded.toLocaleString('en-IN')}`, className };
     }
-    return { text: `P/L: -₹${Math.abs(n).toLocaleString('en-IN')}`, className: 'text-red-700' };
+    return { text: `P/L: -₹${Math.abs(rounded).toLocaleString('en-IN')}`, className };
 };
 const formatProfitPercent = (houseNetValue, totalStakeValue) => {
     const houseNet = Number(houseNetValue);
@@ -33,7 +54,7 @@ const formatProfitPercent = (houseNetValue, totalStakeValue) => {
     const pct = (houseNet / totalStake) * 100;
     const rounded = Math.round(pct * 10) / 10;
     const sign = rounded >= 0 ? '+' : '';
-    const cls = rounded >= 0 ? 'text-emerald-700' : 'text-red-700';
+    const cls = getProfitRangeColorClass(rounded);
     return { text: `Profit: ${sign}${rounded}%`, className: cls };
 };
 
@@ -604,7 +625,7 @@ const TwoDResultControl = () => {
                                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2">
                                     {currentHintRows.map((item) => (
                                         (() => {
-                                            const pl = formatHousePl(item.houseNetIfHintWins);
+                                            const pl = formatHousePl(item.houseNetIfHintWins, item.totalStake);
                                             const qid = String(item.quizId);
                                             const candidateText = item?.topCandidates?.length
                                                 ? item.topCandidates
@@ -713,7 +734,10 @@ const TwoDResultControl = () => {
                                                             const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                             const detailQuiz = (slotDetailMap?.[slot.slotStartIso]?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                             const visibleResultLabel = (slot?.isCompleted || isRunning) ? (q?.resultLabel || '--') : '--';
-                                                            const pl = formatHousePl(detailQuiz?.houseNetIfHintWins ?? q?.houseNetIfHintWins);
+                                                            const pl = formatHousePl(
+                                                                detailQuiz?.houseNetIfHintWins ?? q?.houseNetIfHintWins,
+                                                                detailQuiz?.totalBetAmount ?? q?.totalBetAmount,
+                                                            );
                                                             return (
                                                                 <div key={`${slot.slotStartIso}-${quizId}`} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left">
                                                                     <div className="flex items-center justify-between">
