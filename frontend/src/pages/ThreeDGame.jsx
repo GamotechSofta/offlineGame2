@@ -2253,8 +2253,8 @@ const ThreeDGame = () => {
             </div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#fff8f2] to-[#ffefe2] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-            <div className="text-[14px] uppercase tracking-wide text-[#8a6950] font-semibold sm:text-[15px]">Last Trn</div>
-            <div className="text-[15px] font-semibold leading-none text-[#3f2a1c] truncate sm:text-[16px]" title={lastTxnId}>{lastTxnId}</div>
+            <div className="text-[14px] uppercase tracking-wide text-[#8a6950] font-semibold sm:text-[15px]">Last Bet</div>
+            <div className="text-[15px] font-semibold leading-none text-[#3f2a1c] truncate sm:text-[16px]">₹{Number(lastPoints || 0)}</div>
           </div>
           <div className="min-w-0 rounded-md border border-[#8b9ab3] bg-gradient-to-b from-[#f2fbf5] to-[#e4f6e9] flex min-h-[42px] flex-col justify-center gap-0.5 py-1 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <div className="text-[14px] uppercase tracking-wide text-[#4e7760] font-semibold sm:text-[15px]">Last Win</div>
