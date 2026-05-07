@@ -97,6 +97,7 @@ const ThreeDResultControl = () => {
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [showAllHistorySlots, setShowAllHistorySlots] = useState(false);
+    const [modeConfirm, setModeConfirm] = useState(null);
     const [activeTargetPercent, setActiveTargetPercent] = useState(null);
     const targetProfitPercentRef = useRef('0');
 
@@ -396,6 +397,10 @@ const ThreeDResultControl = () => {
             setError('Enter valid Target profit % first.');
             return;
         }
+        const previousMode = autoDeclareMode;
+        const previousActiveTarget = activeTargetPercent;
+        setAutoDeclareMode('target');
+        setActiveTargetPercent(value);
         setArmingTargetAuto(true);
         setError('');
         setNotice('');
@@ -415,15 +420,26 @@ const ThreeDResultControl = () => {
             } catch {
                 // ignore storage write errors
             }
-            await fetchCurrentSlotForHints({ targetProfitPercent: value, mode: 'target', silent: true });
+            await fetchCurrentSlotForHints({
+                targetProfitPercent: value,
+                mode: 'target',
+                silent: true,
+                skipPreferenceSync: true,
+            });
         } catch (err) {
+            setAutoDeclareMode(previousMode);
+            setActiveTargetPercent(previousActiveTarget);
             setError(err?.message || 'Failed to arm target auto declare');
         } finally {
             setArmingTargetAuto(false);
         }
-    }, [targetProfitPercent, fetchCurrentSlotForHints]);
+    }, [targetProfitPercent, fetchCurrentSlotForHints, autoDeclareMode, activeTargetPercent]);
 
     const switchToRandomAutoDeclare = useCallback(async () => {
+        const previousMode = autoDeclareMode;
+        const previousActiveTarget = activeTargetPercent;
+        setAutoDeclareMode('random');
+        setActiveTargetPercent(null);
         setSwitchingRandomAuto(true);
         setError('');
         setNotice('');
@@ -443,13 +459,31 @@ const ThreeDResultControl = () => {
             } catch {
                 // ignore storage write errors
             }
-            await fetchCurrentSlotForHints({ mode: 'default', silent: true });
+            if (typeof window !== 'undefined') {
+                window.location.reload();
+                return;
+            }
+            await fetchCurrentSlotForHints({ mode: 'default', silent: true, skipPreferenceSync: true });
         } catch (err) {
+            setAutoDeclareMode(previousMode);
+            setActiveTargetPercent(previousActiveTarget);
             setError(err?.message || 'Failed to switch random auto declare');
         } finally {
             setSwitchingRandomAuto(false);
         }
-    }, [fetchCurrentSlotForHints]);
+    }, [fetchCurrentSlotForHints, autoDeclareMode, activeTargetPercent]);
+
+    const confirmModeSwitch = useCallback(() => {
+        if (modeConfirm === 'target') {
+            setModeConfirm(null);
+            armTargetAutoDeclare();
+            return;
+        }
+        if (modeConfirm === 'random') {
+            setModeConfirm(null);
+            switchToRandomAutoDeclare();
+        }
+    }, [modeConfirm, armTargetAutoDeclare, switchToRandomAutoDeclare]);
 
     const sortedSlots = useMemo(() => (
         [...slots].sort((a, b) => String(b.slotStartIso || '').localeCompare(String(a.slotStartIso || '')))
@@ -568,7 +602,7 @@ const ThreeDResultControl = () => {
                                     <div className="flex items-center gap-2">
                                         <button
                                             type="button"
-                                            onClick={armTargetAutoDeclare}
+                                            onClick={() => setModeConfirm('target')}
                                             disabled={armingTargetAuto || !canRunTargetActions}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60 ${
                                                 autoDeclareMode === 'target'
@@ -584,7 +618,7 @@ const ThreeDResultControl = () => {
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={switchToRandomAutoDeclare}
+                                            onClick={() => setModeConfirm('random')}
                                             disabled={switchingRandomAuto || !currentSlotStartIso}
                                             className={`px-3 py-1.5 rounded-lg border text-xs font-semibold disabled:opacity-60 ${
                                                 autoDeclareMode === 'random'
@@ -832,6 +866,38 @@ const ThreeDResultControl = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            ) : null}
+            {modeConfirm ? (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm">
+                        <div className="px-4 py-3 border-b border-gray-200">
+                            <h3 className="text-base font-semibold text-gray-800">Confirm Mode Switch</h3>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            <p className="text-sm text-gray-700">
+                                {modeConfirm === 'target'
+                                    ? 'Are you sure you want to switch to target mode?'
+                                    : 'Are you sure you want to switch to random mode?'}
+                            </p>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setModeConfirm(null)}
+                                    className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={confirmModeSwitch}
+                                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                                >
+                                    Yes, Switch
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             ) : null}
