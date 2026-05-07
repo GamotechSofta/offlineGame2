@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import QuizSlotDeclaration from '../models/quiz/QuizSlotDeclaration.js';
+import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
 
 const normalizeMode = (mode) => (String(mode || '2d').toLowerCase() === '3d' ? '3d' : '2d');
 
@@ -79,12 +80,35 @@ export async function markSlotDeclared(slotStartIso, gameMode = '2d', adminId = 
   const mode = normalizeMode(gameMode);
   const updatedBy = toObjectIdOrNull(adminId);
   const force = Boolean(options?.force);
+  let declaredResults = null;
+  if (options?.captureResults) {
+    const maxQuizId = mode === '3d' ? 3 : 30;
+    const maxPos = mode === '3d' ? 999 : 99;
+    const picks = await QuizSlotPick.find({ gameMode: mode, slotStartIso })
+      .select('quizId hintPosition')
+      .lean();
+    const byQuiz = new Map(
+      picks
+        .filter((p) => Number.isInteger(p?.quizId))
+        .map((p) => [p.quizId, p.hintPosition]),
+    );
+    declaredResults = [];
+    for (let quizId = 1; quizId <= maxQuizId; quizId += 1) {
+      const hp = byQuiz.get(quizId);
+      const isValid = Number.isInteger(hp) && hp >= 0 && hp <= maxPos;
+      declaredResults.push({ quizId, result: isValid ? hp : null });
+    }
+  }
   const filter = force
     ? { gameMode: mode, slotStartIso }
     : { gameMode: mode, slotStartIso, autoDeclareBlocked: { $ne: true } };
+  const setPayload = { autoDeclareBlocked: false, declaredAt: new Date(), updatedBy };
+  if (Array.isArray(declaredResults)) {
+    setPayload.declaredResults = declaredResults;
+  }
   const updated = await QuizSlotDeclaration.findOneAndUpdate(
     filter,
-    { $set: { autoDeclareBlocked: false, declaredAt: new Date(), updatedBy } },
+    { $set: setPayload },
     { upsert: true, new: true },
   );
   return Boolean(updated);

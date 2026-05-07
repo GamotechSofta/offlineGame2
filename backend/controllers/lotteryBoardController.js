@@ -59,10 +59,13 @@ export const getSlotResultsForDate = async (req, res) => {
     const ended = allStarts.filter((iso) => new Date(iso).getTime() + SLOT_MS <= now);
     const declaredRows = ended.length
       ? await QuizSlotDeclaration.find({ gameMode, slotStartIso: { $in: ended }, declaredAt: { $ne: null } })
-        .select('slotStartIso')
+        .select('slotStartIso declaredResults')
         .lean()
       : [];
     const declaredSet = new Set((declaredRows || []).map((r) => String(r.slotStartIso || '')).filter(Boolean));
+    const declaredResultsBySlot = new Map(
+      (declaredRows || []).map((r) => [String(r.slotStartIso || ''), Array.isArray(r.declaredResults) ? r.declaredResults : []]),
+    );
     let completed = ended.filter((iso) => declaredSet.has(iso));
     completed.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     const hasMore = completed.length > (skip + limit);
@@ -99,11 +102,17 @@ export const getSlotResultsForDate = async (req, res) => {
     const slots = [];
     for (const slotStartIso of completed) {
       const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+      const snapshotRows = declaredResultsBySlot.get(slotStartIso) || [];
+      const snapshotByQuiz = new Map(
+        snapshotRows
+          .filter((r) => Number.isInteger(r?.quizId))
+          .map((r) => [r.quizId, r.result]),
+      );
       const picks = picksBySlot.get(slotStartIso) || [];
       const byQuiz = new Map(picks.map((p) => [p.quizId, p.hintPosition]));
       const results = [];
       for (let quizId = 1; quizId <= maxQuizId; quizId += 1) {
-        const hp = byQuiz.get(quizId);
+        const hp = snapshotByQuiz.has(quizId) ? snapshotByQuiz.get(quizId) : byQuiz.get(quizId);
         const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos;
         results.push({ quizId, result: ok ? hp : null });
       }
@@ -143,8 +152,11 @@ export const getSlotResultsHistory = async (req, res) => {
     const now = new Date();
 
     const declaredSlotRows = await QuizSlotDeclaration.find({ gameMode, declaredAt: { $ne: null } })
-      .select('slotStartIso')
+      .select('slotStartIso declaredResults')
       .lean();
+    const declaredResultsBySlot = new Map(
+      (declaredSlotRows || []).map((r) => [String(r.slotStartIso || ''), Array.isArray(r.declaredResults) ? r.declaredResults : []]),
+    );
     const declaredSlotStarts = (declaredSlotRows || [])
       .map((r) => String(r.slotStartIso || ''))
       .filter(Boolean);
@@ -193,10 +205,17 @@ export const getSlotResultsHistory = async (req, res) => {
       const picksRaw = [...row.picks]
         .filter((p) => Number.isInteger(p.quizId) && p.quizId >= 1 && p.quizId <= maxQuizId)
         .sort((a, b) => a.quizId - b.quizId);
-      const picks = picksRaw.map((p) => {
-        const hp = p.hintPosition;
+      const picksByQuiz = new Map(picksRaw.map((p) => [p.quizId, p.hintPosition]));
+      const snapshotRows = declaredResultsBySlot.get(slotStartIso) || [];
+      const snapshotByQuiz = new Map(
+        snapshotRows
+          .filter((r) => Number.isInteger(r?.quizId))
+          .map((r) => [r.quizId, r.result]),
+      );
+      const picks = Array.from({ length: maxQuizId }, (_, i) => i + 1).map((quizId) => {
+        const hp = snapshotByQuiz.has(quizId) ? snapshotByQuiz.get(quizId) : picksByQuiz.get(quizId);
         const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos;
-        return { quizId: p.quizId, winningPosition: ok ? hp : null };
+        return { quizId, winningPosition: ok ? hp : null };
       });
       const summary = picks.map((p) => {
         if (gameMode === '3d') {

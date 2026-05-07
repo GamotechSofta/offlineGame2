@@ -783,13 +783,15 @@ const TwoDResultControl = () => {
                                                 ) : null}
                                                 <div className="mt-1 text-[10px] text-gray-600 font-semibold">View all bets →</div>
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => openManualModal(currentSlotStartIso, qid, item.hint)}
-                                                className="w-full rounded border border-purple-200 bg-white py-1 text-[10px] text-purple-700 font-semibold hover:bg-purple-100/80"
-                                            >
-                                                Set result
-                                            </button>
+                                            {autoDeclareMode !== 'target' ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openManualModal(currentSlotStartIso, qid, item.hint)}
+                                                    className="w-full rounded border border-purple-200 bg-white py-1 text-[10px] text-purple-700 font-semibold hover:bg-purple-100/80"
+                                                >
+                                                    Set result
+                                                </button>
+                                            ) : null}
                                         </div>
                                             );
                                         })()
@@ -821,7 +823,7 @@ const TwoDResultControl = () => {
                                         const declared = Boolean(slot?.declaration?.declared);
                                         const declaredCount = (slot?.perQuiz || []).filter((q) => q?.declared).length;
                                         const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
-                                        const canManualResult = !declared && isRunning && currentSlotPhase === 'study';
+                                        const canManualResult = autoDeclareMode !== 'target' && !declared && isRunning && currentSlotPhase === 'study';
                                         return (
                                             <div key={slot.slotStartIso} className="rounded-lg border border-gray-200">
                                                 <div className="px-3 py-2.5 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">

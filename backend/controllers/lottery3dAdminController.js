@@ -1679,7 +1679,7 @@ export const updateLottery3DSlotDeclaration = async (req, res) => {
       if (Number.isFinite(targetProfitPercent)) {
         await apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
       }
-      await markSlotDeclared(slotStartIso, GAME_MODE, req.admin?._id, { force: true });
+      await markSlotDeclared(slotStartIso, GAME_MODE, req.admin?._id, { force: true, captureResults: true });
       const io = getQuizSocketIo();
       if (io) {
         const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }, { quizId: 1, hintPosition: 1, _id: 0 }).lean();

@@ -7,6 +7,15 @@ const quizSlotDeclarationSchema = new mongoose.Schema(
     autoDeclareBlocked: { type: Boolean, default: false },
     targetProfitPercent: { type: Number, default: null },
     declaredAt: { type: Date, default: null },
+    declaredResults: {
+      type: [
+        {
+          quizId: { type: Number, required: true },
+          result: { type: Number, default: null },
+        },
+      ],
+      default: [],
+    },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
   },
   { timestamps: true },

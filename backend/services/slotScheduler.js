@@ -95,7 +95,7 @@ async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
     emittedQuizResultSlots.delete(first);
   }
 
-  const declared = await markSlotDeclared(slotStartIso, gameMode, null, { force: false });
+  const declared = await markSlotDeclared(slotStartIso, gameMode, null, { force: false, captureResults: true });
   if (!declared) {
     // Slot was held while scheduler was processing; skip auto declaration.
     return;
