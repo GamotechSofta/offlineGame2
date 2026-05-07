@@ -31,7 +31,7 @@ import {
 import { getQuizSocketIo } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
-import { build3DTargetProfitHints } from '../services/quizTargetProfitService.js';
+import { apply3DTargetProfitHintsToSlot, build3DTargetProfitHints } from '../services/quizTargetProfitService.js';
 
 const QUIZ_IDS = [1, 2, 3];
 const GAME_MODE = '3d';
@@ -1638,6 +1638,10 @@ export const updateLottery3DSlotDeclaration = async (req, res) => {
           success: false,
           message: 'Result can be declared only after the slot is completed.',
         });
+      }
+      const targetProfitPercent = Number(existingDeclaration?.targetProfitPercent);
+      if (Number.isFinite(targetProfitPercent)) {
+        await apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
       }
       await markSlotDeclared(slotStartIso, GAME_MODE, req.admin?._id, { force: true });
       const io = getQuizSocketIo();
