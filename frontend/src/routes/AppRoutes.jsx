@@ -108,10 +108,15 @@ const Layout = ({ children }) => {
       window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
     const applyViewport = () => {
-      const isLottery2d3d = isTwoDGamePage || isThreeDGamePage;
+      const isLottery2d3d = isTwoDGamePage || isThreeDGamePage || isLotteryQuizPage || isThreeDQuizPage;
       const inFullscreen = !!getFullscreenElement();
       const rootEl = document.documentElement;
       const bodyEl = document.body;
+      const setZoomClass = (enabled) => {
+        if (!bodyEl) return;
+        if (enabled) bodyEl.classList.add('lottery-mobile-zoom-enabled');
+        else bodyEl.classList.remove('lottery-mobile-zoom-enabled');
+      };
 
       const enablePinchGesture = () => {
         if (rootEl) {
@@ -139,16 +144,23 @@ const Layout = ({ children }) => {
       if (isLottery2d3d && isMobileLike()) {
         viewportMeta.setAttribute('content', zoomEnabledContent);
         enablePinchGesture();
+        setZoomClass(true);
         return;
       }
       // Desktop / large viewports: keep pinch off on 2D/3D unless true fullscreen (where supported).
       if (isLottery2d3d && !inFullscreen) {
         viewportMeta.setAttribute('content', zoomDisabledContent);
         resetPinchGesture();
+        setZoomClass(false);
       } else {
         viewportMeta.setAttribute('content', zoomEnabledContent);
-        if (isLottery2d3d && inFullscreen) enablePinchGesture();
-        else resetPinchGesture();
+        if (isLottery2d3d && inFullscreen) {
+          enablePinchGesture();
+          setZoomClass(true);
+        } else {
+          resetPinchGesture();
+          setZoomClass(false);
+        }
       }
     };
 
@@ -187,9 +199,10 @@ const Layout = ({ children }) => {
       document.documentElement?.style.removeProperty('-ms-touch-action');
       document.body?.style.removeProperty('touch-action');
       document.body?.style.removeProperty('-ms-touch-action');
+      document.body?.classList.remove('lottery-mobile-zoom-enabled');
       viewportMeta.setAttribute('content', zoomEnabledContent);
     };
-  }, [isTwoDGamePage, isThreeDGamePage]);
+  }, [isTwoDGamePage, isThreeDGamePage, isLotteryQuizPage, isThreeDQuizPage]);
 
   useEffect(() => {
     const check = async () => {
