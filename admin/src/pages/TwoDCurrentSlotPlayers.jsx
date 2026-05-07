@@ -40,9 +40,13 @@ const TwoDCurrentSlotPlayers = () => {
         loadingHistorySlots,
         slotStartIso,
         players,
+        playersPage,
+        playersHasMore,
         loading,
+        loadingMorePlayers,
         error,
         refresh,
+        loadNextPlayersPage,
         navigateLogout,
         todayDate,
         openPlayerHistory,
@@ -253,6 +257,19 @@ const TwoDCurrentSlotPlayers = () => {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
+                        <p className="text-xs text-gray-500">
+                            Loaded {players.length} player{players.length === 1 ? '' : 's'} (Page {playersPage || 1})
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => loadNextPlayersPage()}
+                            disabled={loading || loadingMorePlayers || !playersHasMore}
+                            className="px-3 py-1.5 rounded-lg bg-[#1B3150] text-white text-xs font-semibold hover:bg-[#152842] disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {loadingMorePlayers ? 'Loading...' : 'Next Page'}
+                        </button>
                     </div>
                 </div>
             </div>

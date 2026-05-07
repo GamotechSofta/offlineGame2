@@ -451,6 +451,24 @@ async function buildPlayersForISTDateRange(dateFrom, dateTo) {
   };
 }
 
+const withPlayersPagination = (data, req) => {
+  const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
+  const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+  const allPlayers = Array.isArray(data?.players) ? data.players : [];
+  const skip = (page - 1) * limit;
+  const hasMore = allPlayers.length > (skip + limit);
+  return {
+    ...data,
+    players: allPlayers.slice(skip, skip + limit),
+    pagination: {
+      page,
+      limit,
+      hasMore,
+      total: allPlayers.length,
+    },
+  };
+};
+
 /**
  * GET /admin/lottery2d/day-players?date=YYYY-MM-DD (single day, legacy)
  * or ?dateFrom=&dateTo= (IST inclusive range, max 62 days).
@@ -499,7 +517,7 @@ export const getLottery2DDayPlayers = async (req, res) => {
     }
 
     const data = await buildPlayersForISTDateRange(dateFrom, dateTo);
-    return res.json({ success: true, data });
+    return res.json({ success: true, data: withPlayersPagination(data, req) });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
@@ -515,7 +533,7 @@ export const getLottery2DSlotPlayers = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid slotStartIso.' });
     }
     const data = await buildPlayersForSlot(slotStartIso);
-    return res.json({ success: true, data });
+    return res.json({ success: true, data: withPlayersPagination(data, req) });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }

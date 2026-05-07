@@ -40,7 +40,10 @@ const TwoDPlayersRouteLayout = () => {
 
     const [slotStartIso, setSlotStartIso] = useState('');
     const [players, setPlayers] = useState([]);
+    const [playersPage, setPlayersPage] = useState(1);
+    const [playersHasMore, setPlayersHasMore] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [loadingMorePlayers, setLoadingMorePlayers] = useState(false);
     const [error, setError] = useState('');
 
     const selectedSlotIsoRef = useRef('');
@@ -79,8 +82,9 @@ const TwoDPlayersRouteLayout = () => {
         navigate('/2d-management/current-slot-players', { replace: true, state: {} });
     }, [location.state, navigate]);
 
-    const fetchLiveSlotPlayers = useCallback(async () => {
-        setLoading(true);
+    const fetchLiveSlotPlayers = useCallback(async ({ pageToFetch = 1, append = false } = {}) => {
+        if (append) setLoadingMorePlayers(true);
+        else setLoading(true);
         setError('');
         try {
             const currentRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/current-slot`);
@@ -91,19 +95,28 @@ const TwoDPlayersRouteLayout = () => {
             setSlotStartIso(iso);
             if (!iso) {
                 setPlayers([]);
+                setPlayersPage(1);
+                setPlayersHasMore(false);
                 return;
             }
 
-            const playersRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(iso)}/players`);
+            const params = new URLSearchParams({ limit: '20', page: String(pageToFetch) });
+            const playersRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(iso)}/players?${params.toString()}`);
             if (playersRes.status === 401) return;
             const playersJson = await playersRes.json();
             if (!playersJson?.success) throw new Error(playersJson?.message || 'Failed to load current slot players');
-            setPlayers(Array.isArray(playersJson?.data?.players) ? playersJson.data.players : []);
+            const nextPlayers = Array.isArray(playersJson?.data?.players) ? playersJson.data.players : [];
+            setPlayersHasMore(Boolean(playersJson?.data?.pagination?.hasMore));
+            setPlayersPage(pageToFetch);
+            setPlayers((prev) => (append ? [...prev, ...nextPlayers] : nextPlayers));
         } catch (err) {
             setPlayers([]);
+            setPlayersPage(1);
+            setPlayersHasMore(false);
             setError(err?.message || 'Failed to load current slot players');
         } finally {
-            setLoading(false);
+            if (append) setLoadingMorePlayers(false);
+            else setLoading(false);
         }
     }, []);
 
@@ -136,18 +149,22 @@ const TwoDPlayersRouteLayout = () => {
         }
     }, []);
 
-    const fetchPlayersForSlotIso = useCallback(async (iso) => {
+    const fetchPlayersForSlotIso = useCallback(async (iso, { pageToFetch = 1, append = false } = {}) => {
         if (!iso) {
             setSlotStartIso('');
             setPlayers([]);
+            setPlayersPage(1);
+            setPlayersHasMore(false);
             setLoading(false);
             return;
         }
-        setLoading(true);
+        if (append) setLoadingMorePlayers(true);
+        else setLoading(true);
         setError('');
         try {
+            const paginationParams = new URLSearchParams({ limit: '20', page: String(pageToFetch) });
             if (iso === ALL_DAY_SLOT_ISO) {
-                const params = new URLSearchParams({ dateFrom, dateTo });
+                const params = new URLSearchParams({ dateFrom, dateTo, limit: '20', page: String(pageToFetch) });
                 const playersRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/day-players?${params.toString()}`);
                 if (playersRes.status === 401) return;
                 const playersJson = await playersRes.json();
@@ -159,45 +176,73 @@ const TwoDPlayersRouteLayout = () => {
                             ? `All draws · ${dateFrom} (IST)`
                             : `All draws · ${dateFrom} – ${dateTo} (IST)`),
                 );
-                setPlayers(Array.isArray(playersJson?.data?.players) ? playersJson.data.players : []);
+                const nextPlayers = Array.isArray(playersJson?.data?.players) ? playersJson.data.players : [];
+                setPlayersHasMore(Boolean(playersJson?.data?.pagination?.hasMore));
+                setPlayersPage(pageToFetch);
+                setPlayers((prev) => (append ? [...prev, ...nextPlayers] : nextPlayers));
                 return;
             }
-            const playersRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(iso)}/players`);
+            const playersRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(iso)}/players?${paginationParams.toString()}`);
             if (playersRes.status === 401) return;
             const playersJson = await playersRes.json();
             if (!playersJson?.success) throw new Error(playersJson?.message || 'Failed to load slot players');
             const meta = playersJson?.data?.slot;
             setSlotStartIso(meta?.slotStartIso || iso);
-            setPlayers(Array.isArray(playersJson?.data?.players) ? playersJson.data.players : []);
+            const nextPlayers = Array.isArray(playersJson?.data?.players) ? playersJson.data.players : [];
+            setPlayersHasMore(Boolean(playersJson?.data?.pagination?.hasMore));
+            setPlayersPage(pageToFetch);
+            setPlayers((prev) => (append ? [...prev, ...nextPlayers] : nextPlayers));
         } catch (err) {
             setPlayers([]);
+            setPlayersPage(1);
+            setPlayersHasMore(false);
             setError(err?.message || 'Failed to load slot players');
         } finally {
-            setLoading(false);
+            if (append) setLoadingMorePlayers(false);
+            else setLoading(false);
         }
     }, [dateFrom, dateTo]);
 
     const refresh = useCallback(async () => {
         if (viewMode === 'live') {
-            await fetchLiveSlotPlayers();
+            await fetchLiveSlotPlayers({ pageToFetch: 1 });
             return;
         }
         if (dateFrom !== dateTo) {
             setHistorySlots([]);
             setSelectedHistorySlotIso(ALL_DAY_SLOT_ISO);
-            await fetchPlayersForSlotIso(ALL_DAY_SLOT_ISO);
+            await fetchPlayersForSlotIso(ALL_DAY_SLOT_ISO, { pageToFetch: 1 });
             return;
         }
         const prevIso = selectedSlotIsoRef.current;
         const chosen = await fetchDaySlotSchedule(dateFrom);
         if (chosen && chosen === prevIso) {
-            await fetchPlayersForSlotIso(chosen);
+            await fetchPlayersForSlotIso(chosen, { pageToFetch: 1 });
         }
     }, [viewMode, dateFrom, dateTo, fetchLiveSlotPlayers, fetchDaySlotSchedule, fetchPlayersForSlotIso]);
 
+    const loadNextPlayersPage = useCallback(async () => {
+        if (loading || loadingMorePlayers || !playersHasMore) return;
+        const nextPage = playersPage + 1;
+        if (viewMode === 'live') {
+            await fetchLiveSlotPlayers({ pageToFetch: nextPage, append: true });
+            return;
+        }
+        await fetchPlayersForSlotIso(selectedHistorySlotIso, { pageToFetch: nextPage, append: true });
+    }, [
+        loading,
+        loadingMorePlayers,
+        playersHasMore,
+        playersPage,
+        viewMode,
+        selectedHistorySlotIso,
+        fetchLiveSlotPlayers,
+        fetchPlayersForSlotIso,
+    ]);
+
     useEffect(() => {
         if (viewMode === 'live') {
-            fetchLiveSlotPlayers();
+            fetchLiveSlotPlayers({ pageToFetch: 1 });
         }
     }, [viewMode, fetchLiveSlotPlayers]);
 
@@ -216,10 +261,12 @@ const TwoDPlayersRouteLayout = () => {
         if (!selectedHistorySlotIso) {
             setSlotStartIso('');
             setPlayers([]);
+            setPlayersPage(1);
+            setPlayersHasMore(false);
             setLoading(false);
             return;
         }
-        fetchPlayersForSlotIso(selectedHistorySlotIso);
+        fetchPlayersForSlotIso(selectedHistorySlotIso, { pageToFetch: 1 });
     }, [viewMode, selectedHistorySlotIso, dateFrom, dateTo, fetchPlayersForSlotIso]);
 
     const outletContext = useMemo(
@@ -237,9 +284,13 @@ const TwoDPlayersRouteLayout = () => {
             loadingHistorySlots,
             slotStartIso,
             players,
+            playersPage,
+            playersHasMore,
             loading,
+            loadingMorePlayers,
             error,
             refresh,
+            loadNextPlayersPage,
             navigateLogout: () => {
                 clearAdminSession();
                 navigate('/');
@@ -257,9 +308,13 @@ const TwoDPlayersRouteLayout = () => {
             loadingHistorySlots,
             slotStartIso,
             players,
+            playersPage,
+            playersHasMore,
             loading,
+            loadingMorePlayers,
             error,
             refresh,
+            loadNextPlayersPage,
             navigate,
             openPlayerHistory,
             closePlayerHistory,
