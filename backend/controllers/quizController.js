@@ -863,9 +863,22 @@ export const getMyQuizBets = async (req, res) => {
         gameMode,
         slotStartIso: { $in: slotList },
         declaredAt: { $ne: null },
-      }).select('slotStartIso').lean()
+      }).select('slotStartIso declaredResults').lean()
       : [];
     const declaredSlotSet = new Set((declaredRows || []).map((r) => String(r.slotStartIso || '')).filter(Boolean));
+    const declaredResultsBySlot = new Map(
+      (declaredRows || []).map((r) => {
+        const slotIso = String(r.slotStartIso || '');
+        const rows = Array.isArray(r.declaredResults) ? r.declaredResults : [];
+        const byQuiz = new Map(
+          rows
+            .filter((x) => Number.isInteger(x?.quizId))
+            .map((x) => [x.quizId, x.result]),
+        );
+        return [slotIso, byQuiz];
+      }),
+    );
+
     const slotWinnersBySlot = {};
     if (slotList.length) {
       const allPicks = await QuizSlotPick.find({ gameMode, slotStartIso: { $in: slotList } })
@@ -879,7 +892,8 @@ export const getMyQuizBets = async (req, res) => {
         const slotEndMs = slotStartMs + SLOT_MS;
         const slotEnded = nowMs >= slotEndMs;
         const slotDeclared = declaredSlotSet.has(String(slotIso || ''));
-        const hp = p.hintPosition;
+        const snapshotHp = declaredResultsBySlot.get(String(slotIso || ''))?.get(Number(p.quizId));
+        const hp = snapshotHp != null ? snapshotHp : p.hintPosition;
         const winningNumber =
           slotEnded && slotDeclared && hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos
             ? String(hp).padStart(padLength, '0')
@@ -896,7 +910,8 @@ export const getMyQuizBets = async (req, res) => {
       const slotEndMs = slotStartMs + SLOT_MS;
       const slotEnded = now >= slotEndMs;
       const slotDeclared = declaredSlotSet.has(String(b.slotStartIso || ''));
-      const hp = pickMap.get(pairKey(b.slotStartIso, b.quizId));
+      const snapshotHp = declaredResultsBySlot.get(String(b.slotStartIso || ''))?.get(Number(b.quizId));
+      const hp = snapshotHp != null ? snapshotHp : pickMap.get(pairKey(b.slotStartIso, b.quizId));
       const maxPos = gameMode === '3d' ? 999 : 99;
       const padLength = gameMode === '3d' ? 3 : 2;
       const winningNumber =
@@ -1075,17 +1090,30 @@ export const getMyQuizTicketLines = async (req, res) => {
         gameMode,
         slotStartIso: { $in: [...slotIsoSet] },
         declaredAt: { $ne: null },
-      }).select('slotStartIso').lean()
+      }).select('slotStartIso declaredResults').lean()
       : [];
     const declaredSlotSet = new Set((declaredRows || []).map((r) => String(r.slotStartIso || '')).filter(Boolean));
     const maxPos = gameMode === '3d' ? 999 : 99;
     const padLength = gameMode === '3d' ? 3 : 2;
+    const declaredResultsBySlot = new Map(
+      (declaredRows || []).map((r) => {
+        const slotIso = String(r.slotStartIso || '');
+        const rows = Array.isArray(r.declaredResults) ? r.declaredResults : [];
+        const byQuiz = new Map(
+          rows
+            .filter((x) => Number.isInteger(x?.quizId))
+            .map((x) => [x.quizId, x.result]),
+        );
+        return [slotIso, byQuiz];
+      }),
+    );
     const data = bets.map((b) => {
       const slotStartMs = new Date(b.slotStartIso).getTime();
       const slotEndMs = slotStartMs + SLOT_MS;
       const slotEnded = now >= slotEndMs;
       const slotDeclared = declaredSlotSet.has(String(b.slotStartIso || ''));
-      const hp = pickMap.get(pairKey(b.slotStartIso, b.quizId));
+      const snapshotHp = declaredResultsBySlot.get(String(b.slotStartIso || ''))?.get(Number(b.quizId));
+      const hp = snapshotHp != null ? snapshotHp : pickMap.get(pairKey(b.slotStartIso, b.quizId));
       const winningNumber =
         slotEnded && slotDeclared && hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos
           ? String(hp).padStart(padLength, '0')

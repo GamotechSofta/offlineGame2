@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import QuizBet from '../models/quiz/QuizBet.js';
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
+import QuizSlotDeclaration from '../models/quiz/QuizSlotDeclaration.js';
 import User from '../models/user/user.js';
 import { getRatesMap } from '../models/rate/rate.js';
 import { evaluate3DBetAgainstResult, resolve3DPayoutMultiplier } from '../services/quiz3dPayoutHelpers.js';
@@ -721,16 +722,31 @@ export const getLottery3DSlotHistory = async (req, res) => {
     }
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
-    const [bets, picks, ratesMap] = await Promise.all([
+    const [bets, picks, ratesMap, declarations] = await Promise.all([
       QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots }, ...lotteryScopeFilter }).select('slotStartIso quizId userId number amount status winPayout betMode').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } }).select('slotStartIso quizId hintPosition').lean(),
       getRatesMap(),
+      QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } })
+        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults')
+        .lean(),
     ]);
 
     const picksBySlot = new Map();
     for (const p of picks) {
       if (!picksBySlot.has(p.slotStartIso)) picksBySlot.set(p.slotStartIso, new Map());
       picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
+    }
+    const declarationBySlot = new Map((declarations || []).map((d) => [String(d.slotStartIso || ''), d]));
+    const resolvedPicksBySlot = new Map();
+    for (const slotIso of daySlots) {
+      const base = new Map(picksBySlot.get(slotIso) || []);
+      const declarationRow = declarationBySlot.get(String(slotIso || ''));
+      const snapshotRows = Array.isArray(declarationRow?.declaredResults) ? declarationRow.declaredResults : [];
+      for (const row of snapshotRows) {
+        if (!Number.isInteger(row?.quizId)) continue;
+        base.set(row.quizId, row.result);
+      }
+      resolvedPicksBySlot.set(slotIso, base);
     }
 
     const betsBySlot = new Map();
@@ -759,7 +775,7 @@ export const getLottery3DSlotHistory = async (req, res) => {
       if (!row) continue;
       const amount = Number(bet.amount || 0);
       row.totalStake += amount;
-      const hp = picksBySlot.get(slotIso)?.get(quizId);
+      const hp = resolvedPicksBySlot.get(slotIso)?.get(quizId);
       if (Number.isInteger(hp) && computedWin3d(bet, hp)) {
         row.payoutIfHintWins += payoutUnsettledWin3d(bet, hp, ratesMap);
       }
@@ -771,7 +787,7 @@ export const getLottery3DSlotHistory = async (req, res) => {
         slotStartIso,
         slotEndMs,
         betsBySlot.get(slotStartIso) || [],
-        picksBySlot.get(slotStartIso) || new Map(),
+        resolvedPicksBySlot.get(slotStartIso) || new Map(),
         ratesMap,
       );
     });
@@ -780,7 +796,7 @@ export const getLottery3DSlotHistory = async (req, res) => {
         const slotStartIso = slot.slotStartIso;
         const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
         const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
-        const pickByQuiz = picksBySlot.get(slotStartIso) || new Map();
+        const pickByQuiz = resolvedPicksBySlot.get(slotStartIso) || new Map();
         const perQuizStats = quizStatsBySlot.get(slotStartIso) || new Map();
         const perQuiz = QUIZ_IDS.map((quizId) => {
           const result = pickByQuiz.get(quizId);

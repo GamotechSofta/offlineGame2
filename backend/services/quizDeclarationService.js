@@ -101,7 +101,7 @@ export async function markSlotDeclared(slotStartIso, gameMode = '2d', adminId = 
   }
   const filter = force
     ? { gameMode: mode, slotStartIso }
-    : { gameMode: mode, slotStartIso, autoDeclareBlocked: { $ne: true } };
+    : { gameMode: mode, slotStartIso, autoDeclareBlocked: { $ne: true }, declaredAt: null };
   const setPayload = { autoDeclareBlocked: false, declaredAt: new Date(), updatedBy };
   if (Array.isArray(declaredResults)) {
     setPayload.declaredResults = declaredResults;

@@ -1312,18 +1312,33 @@ export const getLottery2DSlotHistory = async (req, res) => {
     }
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
-    const [bets, picks, winMultiplier] = await Promise.all([
+    const [bets, picks, winMultiplier, declarations] = await Promise.all([
       QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots }, ...lotteryScopeFilter })
         .select('slotStartIso ticketId quizId userId number amount status winPayout')
         .lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
+      QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } })
+        .select('slotStartIso declaredResults')
+        .lean(),
     ]);
 
     const picksBySlot = new Map();
     for (const p of picks) {
       if (!picksBySlot.has(p.slotStartIso)) picksBySlot.set(p.slotStartIso, new Map());
       picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
+    }
+    const declarationBySlot = new Map((declarations || []).map((d) => [String(d.slotStartIso || ''), d]));
+    const resolvedPicksBySlot = new Map();
+    for (const slotIso of completedSlots) {
+      const base = new Map(picksBySlot.get(slotIso) || []);
+      const declarationRow = declarationBySlot.get(String(slotIso || ''));
+      const snapshotRows = Array.isArray(declarationRow?.declaredResults) ? declarationRow.declaredResults : [];
+      for (const row of snapshotRows) {
+        if (!Number.isInteger(row?.quizId)) continue;
+        base.set(row.quizId, row.result);
+      }
+      resolvedPicksBySlot.set(slotIso, base);
     }
 
     const betsBySlot = new Map();
@@ -1339,7 +1354,7 @@ export const getLottery2DSlotHistory = async (req, res) => {
         slotStartIso,
         slotEndMs,
         betsBySlot.get(slotStartIso) || [],
-        picksBySlot.get(slotStartIso) || new Map(),
+        resolvedPicksBySlot.get(slotStartIso) || new Map(),
         winMultiplier,
       );
     });
@@ -1416,7 +1431,7 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
         .select('slotStartIso quizId hintPosition')
         .lean(),
       QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
-        .select('slotStartIso autoDeclareBlocked declaredAt')
+        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults')
         .lean(),
     ]);
 
@@ -1438,8 +1453,13 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
         declaredAt: row?.declaredAt || null,
       };
       const byQuiz = picksBySlot.get(slotStartIso) || new Map();
+      const declaredByQuiz = new Map(
+        (Array.isArray(row?.declaredResults) ? row.declaredResults : [])
+          .filter((x) => Number.isInteger(x?.quizId))
+          .map((x) => [x.quizId, x.result]),
+      );
       const perQuiz = QUIZ_IDS.map((quizId) => {
-        const result = byQuiz.get(quizId);
+        const result = declaredByQuiz.has(quizId) ? declaredByQuiz.get(quizId) : byQuiz.get(quizId);
         return {
           quizId,
           result: Number.isInteger(result) ? result : null,

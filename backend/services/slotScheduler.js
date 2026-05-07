@@ -59,6 +59,7 @@ async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
 
   if (gameMode === '2d' || gameMode === '3d') {
     const declarationRow = await getSlotDeclarationRow(slotStartIso, gameMode);
+    if (declarationRow?.declaredAt) return;
     const targetProfitPercent = Number(declarationRow?.targetProfitPercent);
     if (Number.isFinite(targetProfitPercent)) {
       if (gameMode === '2d') {
