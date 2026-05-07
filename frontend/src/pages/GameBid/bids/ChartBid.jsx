@@ -19,6 +19,7 @@ const ChartBid = ({ market, title }) => {
     const [generatedRows, setGeneratedRows] = useState([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
     const [reviewRows, setReviewRows] = useState([]);
+    const lastAutoAddKeyRef = useRef('');
     const [selectedDate, setSelectedDate] = useState(() => {
         try {
             const savedDate = localStorage.getItem('betSelectedDate');
@@ -65,6 +66,7 @@ const ChartBid = ({ market, title }) => {
         setSelectedDigit('');
         setPointsInput('');
         setGeneratedRows([]);
+        lastAutoAddKeyRef.current = '';
     };
 
     /** Add one list row per panna number from chartData[chart][digit], each with the same points. */
@@ -106,13 +108,7 @@ const ChartBid = ({ market, title }) => {
             }
             return out;
         });
-        // Force fresh selection for next add.
-        setSelectedChart('');
-        setSelectedDigit('');
-        setPointsInput('');
     };
-
-    const lastAutoAddKeyRef = useRef('');
 
     // Auto-add to list when chart + digit + points are ready (no Add-to-list button).
     useEffect(() => {

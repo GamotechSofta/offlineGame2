@@ -162,7 +162,7 @@ const SpMotorBid = ({ market, title }) => {
     if (result.data?.newBalance != null)
       updateUserBalance(result.data.newBalance);
     setIsReviewOpen(false);
-    setCombinations([]);
+    clearLocal();
     setReviewRows([]);
     const todayStr = new Date().toISOString().split('T')[0];
     setSelectedDate(todayStr);

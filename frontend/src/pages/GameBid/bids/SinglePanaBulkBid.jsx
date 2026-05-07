@@ -327,22 +327,39 @@ const SinglePanaBulkBid = ({ market, title }) => {
                                 <div className="grid grid-cols-2 gap-3 md:grid-cols-[max-content_max-content] md:justify-start md:gap-x-4 md:gap-y-2">
                                     {list.map((num) => (
                                         <div key={num} className="flex items-center gap-1.5">
-                                            <div className="w-10 h-9 bg-[#1B3150] border-2 border-gray-300 text-white flex items-center justify-center rounded-l-md font-bold text-xs shrink-0">
+                                            {(() => {
+                                                const hasBet = Number(specialInputs[num] || 0) > 0;
+                                                return (
+                                                    <>
+                                                        <div
+                                                            className={`w-10 h-9 border-2 text-white flex items-center justify-center rounded-l-md font-bold text-xs shrink-0 ${
+                                                                hasBet
+                                                                    ? 'bg-[#0f4d8a] border-[#2a9cd9]'
+                                                                    : 'bg-[#1B3150] border-gray-300'
+                                                            }`}
+                                                        >
                                                 {num}
-                                            </div>
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                placeholder="Pts"
-                                                value={specialInputs[num]}
-                                                onChange={(e) =>
-                                                    setSpecialInputs((p) => ({
-                                                        ...p,
-                                                        [num]: sanitizePoints(e.target.value),
-                                                    }))
-                                                }
-                                                className="no-spinner w-full md:w-[64px] lg:w-[72px] h-9 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-[#1B3150] px-2 text-xs md:text-[11px] font-semibold text-center"
-                                            />
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            placeholder="Pts"
+                                                            value={specialInputs[num]}
+                                                            onChange={(e) =>
+                                                                setSpecialInputs((p) => ({
+                                                                    ...p,
+                                                                    [num]: sanitizePoints(e.target.value),
+                                                                }))
+                                                            }
+                                                            className={`no-spinner w-full md:w-[64px] lg:w-[72px] h-9 bg-white border-2 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none px-2 text-xs md:text-[11px] font-semibold text-center ${
+                                                                hasBet
+                                                                    ? 'border-[#2a9cd9] bg-[#eaf6ff] focus:border-[#2a9cd9]'
+                                                                    : 'border-gray-300 focus:border-[#1B3150]'
+                                                            }`}
+                                                        />
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     ))}
                                 </div>
