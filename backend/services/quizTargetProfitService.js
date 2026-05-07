@@ -39,6 +39,12 @@ async function getQuiz2DMultiplier() {
 }
 
 export async function build2DTargetProfitHints(slotStartIso, targetProfitPercent) {
+  const stableTieBreak = true;
+  return build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak });
+}
+
+export async function build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, options = {}) {
+  const stableTieBreak = options?.stableTieBreak !== false;
   const target = Number.isFinite(Number(targetProfitPercent))
     ? Math.min(1000, Math.max(-100, Number(targetProfitPercent)))
     : 20;
@@ -79,7 +85,9 @@ export async function build2DTargetProfitHints(slotStartIso, targetProfitPercent
     const row = quizTotals.get(quizId) || { totalStake: 0, stakeByNumber: new Map() };
     const totalStake = Number(row.totalStake || 0);
     if (totalStake <= 0) {
-      const randomNumber = hashStringToPositiveInt(`2d|${slotStartIso}|${quizId}|${target}`) % 100;
+      const randomNumber = stableTieBreak
+        ? hashStringToPositiveInt(`2d|${slotStartIso}|${quizId}|${target}`) % 100
+        : Math.floor(Math.random() * 100);
       return {
         quizId,
         currentResult: Number.isInteger(pickByQuiz.get(quizId)) ? pickByQuiz.get(quizId) : null,
@@ -133,8 +141,14 @@ export async function build2DTargetProfitHints(slotStartIso, targetProfitPercent
     }
 
     const tieSeedKey = `2d|${slotStartIso}|${quizId}|${target}`;
-    const selected = pickStableFrom(bestAtOrAbovePool, `${tieSeedKey}|above`)
-      || pickStableFrom(bestNearestPool, `${tieSeedKey}|nearest`)
+    const selectedFromAbove = stableTieBreak
+      ? pickStableFrom(bestAtOrAbovePool, `${tieSeedKey}|above`)
+      : pickRandomFrom(bestAtOrAbovePool);
+    const selectedFromNearest = stableTieBreak
+      ? pickStableFrom(bestNearestPool, `${tieSeedKey}|nearest`)
+      : pickRandomFrom(bestNearestPool);
+    const selected = selectedFromAbove
+      || selectedFromNearest
       || bestAtOrAboveTarget
       || bestNearest
       || { number: 0, houseNetIfWins: 0, deltaFromTarget: 0 };
@@ -169,7 +183,7 @@ export async function build2DTargetProfitHints(slotStartIso, targetProfitPercent
 }
 
 export async function apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent) {
-  const payload = await build2DTargetProfitHints(slotStartIso, targetProfitPercent);
+  const payload = await build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak: false });
   const updates = payload.perQuiz.map((row) => (
     QuizSlotPick.updateOne(
       { gameMode: '2d', slotStartIso, quizId: row.quizId },
@@ -189,6 +203,12 @@ function payoutUnsettledWin3d(bet, hintPosition, ratesMap) {
 }
 
 export async function build3DTargetProfitHints(slotStartIso, targetProfitPercent) {
+  const stableTieBreak = true;
+  return build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak });
+}
+
+export async function build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, options = {}) {
+  const stableTieBreak = options?.stableTieBreak !== false;
   const target = Number.isFinite(Number(targetProfitPercent))
     ? Math.min(1000, Math.max(-100, Number(targetProfitPercent)))
     : 20;
@@ -224,7 +244,9 @@ export async function build3DTargetProfitHints(slotStartIso, targetProfitPercent
     const setBets = quizRows.get(quizId) || [];
     const totalStake = setBets.reduce((sum, b) => sum + Number(b.amount || 0), 0);
     if (totalStake <= 0) {
-      const randomNumber = hashStringToPositiveInt(`3d|${slotStartIso}|${quizId}|${target}`) % 1000;
+      const randomNumber = stableTieBreak
+        ? hashStringToPositiveInt(`3d|${slotStartIso}|${quizId}|${target}`) % 1000
+        : Math.floor(Math.random() * 1000);
       return {
         quizId,
         currentResult: Number.isInteger(pickByQuiz.get(quizId)) ? pickByQuiz.get(quizId) : null,
@@ -272,8 +294,14 @@ export async function build3DTargetProfitHints(slotStartIso, targetProfitPercent
     }
 
     const tieSeedKey = `3d|${slotStartIso}|${quizId}|${target}`;
-    const selected = pickStableFrom(bestAtOrAbovePool, `${tieSeedKey}|above`)
-      || pickStableFrom(bestNearestPool, `${tieSeedKey}|nearest`)
+    const selectedFromAbove = stableTieBreak
+      ? pickStableFrom(bestAtOrAbovePool, `${tieSeedKey}|above`)
+      : pickRandomFrom(bestAtOrAbovePool);
+    const selectedFromNearest = stableTieBreak
+      ? pickStableFrom(bestNearestPool, `${tieSeedKey}|nearest`)
+      : pickRandomFrom(bestNearestPool);
+    const selected = selectedFromAbove
+      || selectedFromNearest
       || bestAtOrAboveTarget
       || bestNearest
       || { number: 0, houseNetIfWins: 0, deltaFromTarget: 0 };
@@ -295,7 +323,7 @@ export async function build3DTargetProfitHints(slotStartIso, targetProfitPercent
 }
 
 export async function apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent) {
-  const payload = await build3DTargetProfitHints(slotStartIso, targetProfitPercent);
+  const payload = await build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak: false });
   const updates = payload.perQuiz.map((row) => (
     QuizSlotPick.updateOne(
       { gameMode: '3d', slotStartIso, quizId: row.quizId },
