@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import AppLayout from '../components/AppLayout';
 import TopHeader from '../components/TopHeader';
 import QuizSelector from '../components/QuizSelector';
 import StatusStrip from '../components/StatusStrip';
@@ -1014,8 +1013,7 @@ const LotteryDashboard = () => {
   }, [activeQuiz, multi, selectedQuizzes]);
 
   return (
-    <AppLayout>
-      <div className="w-full min-h-screen min-h-[100dvh] h-[100dvh] relative overflow-visible bg-[#111] rounded-[14px] sm:rounded-none">
+      <div className="fixed inset-0 overflow-hidden bg-[#111]">
         <div className="absolute inset-0 border border-[#4c4c4c] pointer-events-none rounded-[14px] sm:rounded-none" />
         <div
           className="absolute inset-0 overflow-auto"
@@ -1297,7 +1295,7 @@ const LotteryDashboard = () => {
           </div>
         </div>
       ) : null}
-    </AppLayout>
+      </div>
   );
 };
 

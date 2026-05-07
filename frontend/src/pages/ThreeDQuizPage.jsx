@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
-import AppLayout from '../components/AppLayout';
 import { getQuizQuestions, getQuizResult, getQuizSettings, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { verifyFairness } from '../utils/quizFairness';
@@ -542,8 +541,7 @@ const ThreeDQuizPage = () => {
   }, []);
 
   return (
-    <AppLayout>
-      <div className="relative w-full min-h-screen min-h-[100dvh] overflow-visible rounded-[14px] bg-[#111] sm:rounded-none">
+      <div className="fixed inset-0 overflow-hidden bg-[#111]">
         <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[#4c4c4c] sm:rounded-none" />
         <div
           className="absolute inset-0 overflow-auto"
@@ -679,7 +677,7 @@ const ThreeDQuizPage = () => {
           </div>
         </div>
       ) : null}
-    </AppLayout>
+      </div>
   );
 };
 

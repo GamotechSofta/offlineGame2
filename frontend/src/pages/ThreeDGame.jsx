@@ -2139,7 +2139,7 @@ const ThreeDGame = () => {
   }, [activeInputIndex, addBet, canAddBet]);
 
   return (
-    <div className="absolute inset-0 overflow-visible bg-gradient-to-br from-[#0b1223] via-[#182a4a] to-[#1e3a5f]">
+    <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-[#0b1223] via-[#182a4a] to-[#1e3a5f]">
       <div
         className="absolute inset-0 overflow-auto"
         style={{
