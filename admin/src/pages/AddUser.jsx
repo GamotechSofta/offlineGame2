@@ -174,6 +174,7 @@ const AddUser = () => {
                 }
             } else {
                 // Create regular player (User collection)
+                const isAssignedToBookie = isSuperAdmin && formData.role !== 'bookie' && formData.assigneeType === 'bookie';
                 const payload = {
                     firstName: trimmedFirst,
                     lastName: trimmedLast,
@@ -182,7 +183,7 @@ const AddUser = () => {
                     phone: formData.phone.replace(/\D/g, '').slice(0, 10),
                     password: formData.password,
                     role: formData.role,
-                    balance: formData.balance === '' ? 0 : (parseFloat(formData.balance) || 0),
+                    balance: isAssignedToBookie ? 0 : (formData.balance === '' ? 0 : (parseFloat(formData.balance) || 0)),
                     ...(isSuperAdmin && formData.role !== 'bookie' && formData.assigneeId
                         ? { referredBy: formData.assigneeId }
                         : {}),
@@ -469,7 +470,7 @@ const AddUser = () => {
                                         ) : null}
                                     </>
                                 )}
-                                {formData.role !== 'bookie' && (
+                                {formData.role !== 'bookie' && (!isSuperAdmin || formData.assigneeType !== 'bookie') && (
                                     <div>
                                         <label htmlFor="balance" className={labelClass}>Initial Balance (₹)</label>
                                         <input

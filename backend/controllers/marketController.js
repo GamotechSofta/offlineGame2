@@ -791,6 +791,18 @@ export const declareCloseResult = async (req, res) => {
  */
 export const clearResult = async (req, res) => {
     try {
+        const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
+        if (adminWithSecret?.secretDeclarePassword) {
+            const provided = (req.body?.secretDeclarePassword ?? '').toString().trim();
+            const isValid = await bcrypt.compare(provided, adminWithSecret.secretDeclarePassword);
+            if (!isValid) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid secret declare password. Please enter the correct password to clear result.',
+                    code: 'INVALID_SECRET_DECLARE_PASSWORD',
+                });
+            }
+        }
         const { id: marketId } = req.params;
         const market = await Market.findById(marketId);
         if (!market) {

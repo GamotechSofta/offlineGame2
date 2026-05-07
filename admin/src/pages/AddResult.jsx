@@ -42,6 +42,8 @@ const AddResult = () => {
     const [checkCloseLoading, setCheckCloseLoading] = useState(false);
     const [declareLoading, setDeclareLoading] = useState(false);
     const [clearLoading, setClearLoading] = useState(false);
+    const [clearSecretDeclarePassword, setClearSecretDeclarePassword] = useState('');
+    const [showClearSecretPrompt, setShowClearSecretPrompt] = useState(false);
     const [marketsPendingResult, setMarketsPendingResult] = useState(0);
     const [marketsPendingResultList, setMarketsPendingResultList] = useState([]);
     const [isDirectEditMode, setIsDirectEditMode] = useState(() => !!(preselectedFromNav?._id));
@@ -129,6 +131,8 @@ const AddResult = () => {
         setClosePatti(market.closingNumber || '');
         setPreview(null);
         setPreviewClose(null);
+        setClearSecretDeclarePassword('');
+        setShowClearSecretPrompt(false);
     };
 
     const closePanel = () => {
@@ -138,6 +142,8 @@ const AddResult = () => {
         setClosePatti('');
         setPreview(null);
         setPreviewClose(null);
+        setClearSecretDeclarePassword('');
+        setShowClearSecretPrompt(false);
     };
     const closePanelWithBack = useModalBackHandler(Boolean(selectedMarket) && !isDirectEditMode, closePanel);
 
@@ -276,6 +282,15 @@ const AddResult = () => {
 
     const handleClearResult = async () => {
         if (!selectedMarket) return;
+        if (!showClearSecretPrompt) {
+            setShowClearSecretPrompt(true);
+            return;
+        }
+        const secret = (clearSecretDeclarePassword || '').trim();
+        if (!secret) {
+            alert('Please enter secret declare password.');
+            return;
+        }
         const hasOpen = selectedMarket.openingNumber && /^\d{3}$/.test(selectedMarket.openingNumber);
         const hasClose = selectedMarket.closingNumber && /^\d{3}$/.test(selectedMarket.closingNumber);
         if (!hasOpen && !hasClose) {
@@ -290,7 +305,10 @@ const AddResult = () => {
         if (!window.confirm(msg)) return;
         setClearLoading(true);
         try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/markets/clear-result/${selectedMarket._id}`, { method: 'POST' });
+            const res = await fetchWithAuth(`${API_BASE_URL}/markets/clear-result/${selectedMarket._id}`, {
+                method: 'POST',
+                body: JSON.stringify({ secretDeclarePassword: secret }),
+            });
             if (res.status === 401) return;
             const data = await res.json();
             if (data.success) {
@@ -299,6 +317,8 @@ const AddResult = () => {
                 setClosePatti('');
                 setPreview(null);
                 setPreviewClose(null);
+                setClearSecretDeclarePassword('');
+                setShowClearSecretPrompt(false);
                 fetchMarkets();
             } else {
                 alert(data.message || 'Failed to clear result');
@@ -672,14 +692,42 @@ const AddResult = () => {
 
                             {(selectedMarket.openingNumber && /^\d{3}$/.test(selectedMarket.openingNumber)) ||
                              (selectedMarket.closingNumber && /^\d{3}$/.test(selectedMarket.closingNumber)) ? (
-                                <button
-                                    type="button"
-                                    onClick={handleClearResult}
-                                    disabled={clearLoading}
-                                    className="mt-3 sm:mt-4 w-full px-4 py-2.5 sm:py-3 bg-red-900/80 hover:bg-red-800 text-red-100 font-semibold rounded-lg border border-red-200 disabled:opacity-50 transition-colors text-sm sm:text-base"
-                                >
-                                    {clearLoading ? 'Clearing...' : 'Clear Result'}
-                                </button>
+                                <>
+                                    {showClearSecretPrompt && (
+                                        <div className="mt-3 sm:mt-4">
+                                            <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1">
+                                                Enter Secret Declare Password
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={clearSecretDeclarePassword}
+                                                onChange={(e) => setClearSecretDeclarePassword(e.target.value)}
+                                                placeholder="Secret declare password"
+                                                className="w-full px-3 py-2.5 sm:py-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                            />
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleClearResult}
+                                        disabled={clearLoading || (showClearSecretPrompt && !clearSecretDeclarePassword.trim())}
+                                        className="mt-2 w-full px-4 py-2.5 sm:py-3 bg-red-900/80 hover:bg-red-800 text-red-100 font-semibold rounded-lg border border-red-200 disabled:opacity-50 transition-colors text-sm sm:text-base"
+                                    >
+                                        {clearLoading ? 'Clearing...' : (showClearSecretPrompt ? 'Confirm Clear Result' : 'Clear Result')}
+                                    </button>
+                                    {showClearSecretPrompt && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowClearSecretPrompt(false);
+                                                setClearSecretDeclarePassword('');
+                                            }}
+                                            className="mt-2 w-full px-4 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg border border-gray-200 transition-colors text-sm"
+                                        >
+                                            Cancel Clear
+                                        </button>
+                                    )}
+                                </>
                             ) : null}
                             {isDirectEditMode ? (
                                 <button

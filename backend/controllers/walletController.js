@@ -5,6 +5,8 @@ import Admin from '../models/admin/admin.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 
+const getActorLabel = (admin) => (admin?.role === 'bookie' ? 'Bookie' : 'Admin');
+
 export const getAllWallets = async (req, res) => {
     try {
         const query = {};
@@ -225,7 +227,7 @@ export const adjustBalance = async (req, res) => {
             userId,
             type,
             amount: numAmount,
-            description: `Admin ${type}: ₹${numAmount}`,
+            description: `${getActorLabel(req.admin)} ${type}: ₹${numAmount}`,
         });
 
         const player = await User.findById(userId).select('username').lean();
@@ -290,11 +292,12 @@ export const setBalance = async (req, res) => {
 
         const diff = newBalance - previousBalance;
         const type = diff >= 0 ? 'credit' : 'debit';
+        const absDiff = Math.abs(diff);
         await WalletTransaction.create({
             userId,
             type,
-            amount: Math.abs(diff),
-            description: `Admin set balance to ₹${newBalance} (was ₹${previousBalance})`,
+            amount: absDiff,
+            description: `${getActorLabel(req.admin)} ${type}: ₹${absDiff} (set balance to ₹${newBalance}, was ₹${previousBalance})`,
         });
 
         const player = await User.findById(userId).select('username').lean();
