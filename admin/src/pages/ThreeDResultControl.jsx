@@ -5,6 +5,8 @@ import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const RESULT_CONTROL_UNLOCK_SESSION_KEY = 'offlinebookie:admin:3d-result-control-unlock';
+const RESULT_CONTROL_MODE_PREF_KEY = 'offlinebookie:admin:3d-result-control:auto-mode';
+const RESULT_CONTROL_TARGET_PREF_KEY = 'offlinebookie:admin:3d-result-control:target-profit';
 const setLabelByQuizId = {
     1: 'Set A',
     2: 'Set B',
@@ -69,13 +71,28 @@ const ThreeDResultControl = () => {
     const [currentSlotStartIso, setCurrentSlotStartIso] = useState('');
     const [currentSlotPhase, setCurrentSlotPhase] = useState('');
     const [currentHintRows, setCurrentHintRows] = useState([]);
-    const [targetProfitPercent, setTargetProfitPercent] = useState('0');
+    const [targetProfitPercent, setTargetProfitPercent] = useState(() => {
+        try {
+            const v = sessionStorage.getItem(RESULT_CONTROL_TARGET_PREF_KEY);
+            return v == null || v === '' ? '0' : String(v);
+        } catch {
+            return '0';
+        }
+    });
     const [armingTargetAuto, setArmingTargetAuto] = useState(false);
     const [switchingRandomAuto, setSwitchingRandomAuto] = useState(false);
     const [hintPreviewMode, setHintPreviewMode] = useState('default');
     const [autoDeclareMode, setAutoDeclareMode] = useState('random');
     const [isEditingTargetProfit, setIsEditingTargetProfit] = useState(false);
     const [hasTouchedTargetProfit, setHasTouchedTargetProfit] = useState(false);
+    const [preferredAutoMode, setPreferredAutoMode] = useState(() => {
+        try {
+            const v = sessionStorage.getItem(RESULT_CONTROL_MODE_PREF_KEY);
+            return v === 'target' ? 'target' : 'random';
+        } catch {
+            return 'random';
+        }
+    });
     const [manualModal, setManualModal] = useState({ open: false, slotStartIso: '', quizId: '1', result: '' });
     const [manualSaving, setManualSaving] = useState(false);
     const [manualError, setManualError] = useState('');
@@ -148,6 +165,7 @@ const ThreeDResultControl = () => {
     const fetchCurrentSlotForHints = useCallback(async (options = {}) => {
         const silent = Boolean(options?.silent);
         const mode = String(options?.mode || 'default');
+        const skipPreferenceSync = Boolean(options?.skipPreferenceSync);
         const targetInput = String(options?.targetProfitPercent ?? targetProfitPercent).trim();
         const parsedTarget = Number(targetInput);
         const targetToUse = Number.isFinite(parsedTarget) ? parsedTarget : 0;
@@ -178,6 +196,22 @@ const ThreeDResultControl = () => {
             if (!iso) {
                 setCurrentHintRows([]);
                 return;
+            }
+            if (!skipPreferenceSync) {
+                const shouldSyncTarget = preferredAutoMode === 'target' && !Number.isFinite(persistedTarget);
+                const shouldSyncRandom = preferredAutoMode === 'random' && Number.isFinite(persistedTarget);
+                if (shouldSyncTarget || shouldSyncRandom) {
+                    const body = shouldSyncTarget
+                        ? { targetProfitPercent: targetToUse }
+                        : { mode: 'random' };
+                    const syncRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/current-slot/target-auto-declare`, {
+                        method: 'PATCH',
+                        body: JSON.stringify(body),
+                    });
+                    if (syncRes.status === 401) return;
+                    await fetchCurrentSlotForHints({ ...options, skipPreferenceSync: true, silent: true });
+                    return;
+                }
             }
             if (mode === 'target') {
                 const targetParams = new URLSearchParams({ targetProfitPercent: String(targetToUse) });
@@ -228,7 +262,7 @@ const ThreeDResultControl = () => {
         } finally {
             if (!silent) setHintsLoading(false);
         }
-    }, [targetProfitPercent, isEditingTargetProfit, hasTouchedTargetProfit]);
+    }, [targetProfitPercent, isEditingTargetProfit, hasTouchedTargetProfit, preferredAutoMode]);
 
     useEffect(() => {
         if (!secretCheckComplete) return;
@@ -380,7 +414,14 @@ const ThreeDResultControl = () => {
             if (!data?.success) throw new Error(data?.message || 'Failed to arm target auto declare');
             setNotice(`Target auto-declare armed at ${value}% for current running slot.`);
             setAutoDeclareMode('target');
+            setPreferredAutoMode('target');
             setHasTouchedTargetProfit(false);
+            try {
+                sessionStorage.setItem(RESULT_CONTROL_MODE_PREF_KEY, 'target');
+                sessionStorage.setItem(RESULT_CONTROL_TARGET_PREF_KEY, String(value));
+            } catch {
+                // ignore storage write errors
+            }
             await fetchCurrentSlotForHints({ targetProfitPercent: value, mode: 'target', silent: true });
         } catch (err) {
             setError(err?.message || 'Failed to arm target auto declare');
@@ -403,6 +444,12 @@ const ThreeDResultControl = () => {
             if (!data?.success) throw new Error(data?.message || 'Failed to switch random auto declare');
             setNotice('Switched to random auto declare for current running slot.');
             setAutoDeclareMode('random');
+            setPreferredAutoMode('random');
+            try {
+                sessionStorage.setItem(RESULT_CONTROL_MODE_PREF_KEY, 'random');
+            } catch {
+                // ignore storage write errors
+            }
             await fetchCurrentSlotForHints({ mode: 'default', silent: true });
         } catch (err) {
             setError(err?.message || 'Failed to switch random auto declare');
@@ -559,7 +606,13 @@ const ThreeDResultControl = () => {
                                             value={targetProfitPercent}
                                             onChange={(e) => {
                                                 setHasTouchedTargetProfit(true);
-                                                setTargetProfitPercent(e.target.value.replace(/[^\d.-]/g, '').slice(0, 6));
+                                                const nextValue = e.target.value.replace(/[^\d.-]/g, '').slice(0, 6);
+                                                setTargetProfitPercent(nextValue);
+                                                try {
+                                                    sessionStorage.setItem(RESULT_CONTROL_TARGET_PREF_KEY, nextValue);
+                                                } catch {
+                                                    // ignore storage write errors
+                                                }
                                             }}
                                             onFocus={() => setIsEditingTargetProfit(true)}
                                             onBlur={() => setIsEditingTargetProfit(false)}
