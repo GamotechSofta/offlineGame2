@@ -1,4 +1,5 @@
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
+import QuizSlotDeclaration from '../models/quiz/QuizSlotDeclaration.js';
 import LotteryBoardBet from '../models/quiz/LotteryBoardBet.js';
 import { getBetOwnerKey } from '../utils/betOwnerKey.js';
 import { getCachedSlotContext } from '../services/quizCacheService.js';
@@ -52,7 +53,14 @@ export const getSlotResultsForDate = async (req, res) => {
     const maxSlots = Math.min(96, Math.max(1, parseInt(String(req.query.maxSlots || '96'), 10) || 96));
     const now = Date.now();
     const allStarts = listSlotStartIsoForISTDay(date);
-    let completed = allStarts.filter((iso) => new Date(iso).getTime() + SLOT_MS <= now);
+    const ended = allStarts.filter((iso) => new Date(iso).getTime() + SLOT_MS <= now);
+    const declaredRows = ended.length
+      ? await QuizSlotDeclaration.find({ gameMode, slotStartIso: { $in: ended }, declaredAt: { $ne: null } })
+        .select('slotStartIso')
+        .lean()
+      : [];
+    const declaredSet = new Set((declaredRows || []).map((r) => String(r.slotStartIso || '')).filter(Boolean));
+    let completed = ended.filter((iso) => declaredSet.has(iso));
     completed.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     completed = completed.slice(0, maxSlots);
 
@@ -124,8 +132,18 @@ export const getSlotResultsHistory = async (req, res) => {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const now = new Date();
 
+    const declaredSlotRows = await QuizSlotDeclaration.find({ gameMode, declaredAt: { $ne: null } })
+      .select('slotStartIso')
+      .lean();
+    const declaredSlotStarts = (declaredSlotRows || [])
+      .map((r) => String(r.slotStartIso || ''))
+      .filter(Boolean);
+    if (!declaredSlotStarts.length) {
+      return res.json({ success: true, mode: gameMode, data: [] });
+    }
+
     const rows = await QuizSlotPick.aggregate([
-      { $match: { gameMode } },
+      { $match: { gameMode, slotStartIso: { $in: declaredSlotStarts } } },
       {
         $addFields: {
           slotEnd: { $add: [{ $toDate: '$slotStartIso' }, SLOT_MS] },

@@ -20,10 +20,12 @@ export async function getSlotDeclarationState(slotStartIso, gameMode = '2d', slo
       declaredAt: null,
     };
   }
+  const rawTargetProfitPercent = row?.targetProfitPercent;
   return {
     autoDeclareBlocked: Boolean(row.autoDeclareBlocked),
     declared: Boolean(row.declaredAt),
     declaredAt: row.declaredAt || null,
+    targetProfitPercent: Number.isFinite(rawTargetProfitPercent) ? rawTargetProfitPercent : null,
   };
 }
 
@@ -54,6 +56,21 @@ export async function enableAutoDeclare(slotStartIso, gameMode = '2d', adminId =
   await QuizSlotDeclaration.findOneAndUpdate(
     { gameMode: mode, slotStartIso },
     { $set: { autoDeclareBlocked: false, updatedBy }, $setOnInsert: { declaredAt: null } },
+    { upsert: true, new: true },
+  );
+}
+
+export async function setSlotTargetProfitPercent(slotStartIso, gameMode = '2d', targetProfitPercent = null, adminId = null) {
+  const mode = normalizeMode(gameMode);
+  const updatedBy = toObjectIdOrNull(adminId);
+  const hasExplicitTarget = targetProfitPercent !== null && targetProfitPercent !== undefined && targetProfitPercent !== '';
+  const parsedTarget = hasExplicitTarget ? Number(targetProfitPercent) : NaN;
+  const normalized = Number.isFinite(parsedTarget)
+    ? Math.min(1000, Math.max(-100, parsedTarget))
+    : null;
+  await QuizSlotDeclaration.findOneAndUpdate(
+    { gameMode: mode, slotStartIso },
+    { $set: { targetProfitPercent: normalized, updatedBy }, $setOnInsert: { declaredAt: null, autoDeclareBlocked: false } },
     { upsert: true, new: true },
   );
 }

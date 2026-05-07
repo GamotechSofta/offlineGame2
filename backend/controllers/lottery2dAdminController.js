@@ -26,10 +26,12 @@ import {
   enableAutoDeclare,
   getSlotDeclarationState,
   markSlotDeclared,
+  setSlotTargetProfitPercent,
 } from '../services/quizDeclarationService.js';
 import { getQuizSocketIo } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { build2DTargetProfitHints } from '../services/quizTargetProfitService.js';
 
 const QUIZ_IDS = Array.from({ length: 30 }, (_, i) => i + 1);
 const GAME_MODE = '2d';
@@ -1165,6 +1167,86 @@ export const getLottery2DCurrentSlotHints = async (req, res) => {
           istDayKey: ctx.istDayKey,
         },
         perQuiz: QUIZ_IDS.map((q) => perQuiz.get(q)),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+export const getLottery2DCurrentSlotTargetHints = async (req, res) => {
+  try {
+    const ctx = getSlotContext(new Date(), '2d');
+    const slotStartIso = ctx.slotStartIso;
+    const targetProfitPercent = Number(req.query?.targetProfitPercent);
+    const targetPayload = await build2DTargetProfitHints(slotStartIso, targetProfitPercent);
+    const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, ctx.slotEndMs);
+
+    return res.json({
+      success: true,
+      data: {
+        slot: {
+          slotStartIso,
+          slotEndIso: new Date(ctx.slotEndMs).toISOString(),
+          drawLabelEnd: formatDrawLabel(ctx.slotEndMs),
+          phase: ctx.phase,
+          istDayKey: ctx.istDayKey,
+        },
+        declaration,
+        winMultiplier: targetPayload.winMultiplier,
+        targetProfitPercent: targetPayload.targetProfitPercent,
+        perQuiz: targetPayload.perQuiz,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+export const configureLottery2DCurrentSlotTargetAutoDeclare = async (req, res) => {
+  try {
+    if (req.admin?.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Super admin access required.' });
+    }
+    const mode = String(req.body?.mode || 'target').trim().toLowerCase();
+    const targetProfitPercentRaw = Number(req.body?.targetProfitPercent);
+    const hasTargetPercent = Number.isFinite(targetProfitPercentRaw);
+    if (mode !== 'random' && !hasTargetPercent) {
+      return res.status(400).json({ success: false, message: 'targetProfitPercent is required.' });
+    }
+    const targetProfitPercent = hasTargetPercent
+      ? Math.min(1000, Math.max(-100, targetProfitPercentRaw))
+      : null;
+    const ctx = getSlotContext(new Date(), '2d');
+    const slotStartIso = ctx.slotStartIso;
+    const slotEndMs = ctx.slotEndMs;
+    if (Date.now() >= slotEndMs) {
+      return res.status(400).json({ success: false, message: 'Current slot already ended. Try next running slot.' });
+    }
+    if (mode === 'random') {
+      await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, null, req.admin?._id);
+    } else {
+      await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, targetProfitPercent, req.admin?._id);
+    }
+    const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
+    const effectiveTarget = mode === 'random' ? null : targetProfitPercent;
+    return res.json({
+      success: true,
+      message: mode === 'random'
+        ? 'Switched to random auto declare for current running slot.'
+        : `Target auto declare armed for running slot at ${targetProfitPercent}%`,
+      data: {
+        slot: {
+          slotStartIso,
+          slotEndIso: new Date(slotEndMs).toISOString(),
+          drawLabelEnd: formatDrawLabel(slotEndMs),
+          phase: ctx.phase,
+          istDayKey: ctx.istDayKey,
+        },
+        declaration: {
+          ...declaration,
+          targetProfitPercent: effectiveTarget,
+        },
       },
     });
   } catch (error) {

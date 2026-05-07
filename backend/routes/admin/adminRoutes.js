@@ -19,6 +19,8 @@ import {
     getLottery2DCurrentSlot,
     getLottery2DAggregateStats,
     getLottery2DCurrentSlotHints,
+    getLottery2DCurrentSlotTargetHints,
+    configureLottery2DCurrentSlotTargetAutoDeclare,
     getLottery2DSlotDetail,
     getLottery2DSlotHistory,
     getLottery2DDaySlotSchedule,
@@ -72,6 +74,8 @@ router.get('/config/dp-common-list', verifyAdmin, getDpCommonList);
 router.get('/lottery2d/current-slot', verifyAdmin, getLottery2DCurrentSlot);
 router.get('/lottery2d/aggregate-stats', verifyAdmin, getLottery2DAggregateStats);
 router.post('/lottery2d/current-slot/hints', verifyAdmin, getLottery2DCurrentSlotHints);
+router.get('/lottery2d/current-slot/target-hints', verifyAdmin, getLottery2DCurrentSlotTargetHints);
+router.patch('/lottery2d/current-slot/target-auto-declare', verifyAdmin, configureLottery2DCurrentSlotTargetAutoDeclare);
 router.get('/lottery2d/slots', verifyAdmin, getLottery2DSlotHistory);
 router.get('/lottery2d/day-slot-schedule', verifyAdmin, getLottery2DDaySlotSchedule);
 router.get('/lottery2d/day-players', verifyAdmin, getLottery2DDayPlayers);

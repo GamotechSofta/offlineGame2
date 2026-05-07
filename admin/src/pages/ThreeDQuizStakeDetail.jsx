@@ -308,6 +308,9 @@ const ThreeDQuizStakeDetail = () => {
                                                 </select>
                                             </div>
                                         </th>
+                                        <th className="px-3 py-2.5 font-semibold text-right">
+                                            House net %
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -315,6 +318,12 @@ const ThreeDQuizStakeDetail = () => {
                                         const noBet = Number(row.stake || 0) <= 0;
                                         const isHint =
                                             data.hintPosition != null && Number(data.hintPosition) === Number(row.number);
+                                        const totalStake = Number(data.totalStake || 0);
+                                        const houseNet = Number(row.houseNetIfWins || 0);
+                                        const houseNetPct = totalStake > 0 ? (houseNet / totalStake) * 100 : null;
+                                        const houseNetPctLabel = houseNetPct == null
+                                            ? '--'
+                                            : `${houseNetPct >= 0 ? '+' : ''}${(Math.round(houseNetPct * 10) / 10).toFixed(1)}%`;
                                         return (
                                             <tr
                                                 key={row.number}
@@ -342,6 +351,19 @@ const ThreeDQuizStakeDetail = () => {
                                                     }`}
                                                 >
                                                     ₹{Number(row.houseNetIfWins || 0).toLocaleString('en-IN')}
+                                                </td>
+                                                <td
+                                                    className={`px-3 py-1.5 text-right font-mono font-semibold ${
+                                                        noBet
+                                                            ? 'text-gray-500'
+                                                            : houseNetPct == null
+                                                              ? 'text-gray-500'
+                                                              : houseNetPct >= 0
+                                                                ? 'text-emerald-700'
+                                                                : 'text-red-700'
+                                                    }`}
+                                                >
+                                                    {houseNetPctLabel}
                                                 </td>
                                             </tr>
                                         );
