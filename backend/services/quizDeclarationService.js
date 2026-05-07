@@ -114,3 +114,90 @@ export async function markSlotDeclared(slotStartIso, gameMode = '2d', adminId = 
   return Boolean(updated);
 }
 
+export async function ensureDeclaredResultsSnapshots(slotStartIsos, gameMode = '2d') {
+  const mode = normalizeMode(gameMode);
+  const normalizedSlots = [...new Set(
+    (Array.isArray(slotStartIsos) ? slotStartIsos : [slotStartIsos])
+      .map((s) => String(s || '').trim())
+      .filter(Boolean),
+  )];
+  if (!normalizedSlots.length) return new Map();
+
+  const maxQuizId = mode === '3d' ? 3 : 30;
+  const maxPos = mode === '3d' ? 999 : 99;
+
+  const declarationRows = await QuizSlotDeclaration.find({
+    gameMode: mode,
+    slotStartIso: { $in: normalizedSlots },
+    declaredAt: { $ne: null },
+  })
+    .select('slotStartIso declaredResults')
+    .lean();
+
+  const declaredSlotSet = new Set((declarationRows || []).map((r) => String(r.slotStartIso || '')).filter(Boolean));
+  if (!declaredSlotSet.size) return new Map();
+
+  const snapshotBySlot = new Map();
+  const missingSnapshotSlots = [];
+
+  for (const row of declarationRows || []) {
+    const slotIso = String(row?.slotStartIso || '');
+    if (!slotIso) continue;
+    const snapshotRows = Array.isArray(row?.declaredResults) ? row.declaredResults : [];
+    if (!snapshotRows.length) {
+      missingSnapshotSlots.push(slotIso);
+      continue;
+    }
+    const byQuiz = new Map();
+    for (const q of snapshotRows) {
+      if (!Number.isInteger(q?.quizId)) continue;
+      byQuiz.set(q.quizId, q.result);
+    }
+    snapshotBySlot.set(slotIso, byQuiz);
+  }
+
+  if (missingSnapshotSlots.length) {
+    const picks = await QuizSlotPick.find({
+      gameMode: mode,
+      slotStartIso: { $in: missingSnapshotSlots },
+    })
+      .select('slotStartIso quizId hintPosition')
+      .lean();
+
+    const picksBySlot = new Map();
+    for (const p of picks || []) {
+      const slotIso = String(p?.slotStartIso || '');
+      if (!slotIso) continue;
+      if (!picksBySlot.has(slotIso)) picksBySlot.set(slotIso, new Map());
+      picksBySlot.get(slotIso).set(p.quizId, p.hintPosition);
+    }
+
+    for (const slotIso of missingSnapshotSlots) {
+      const pickMap = picksBySlot.get(slotIso) || new Map();
+      const declaredResults = [];
+      const byQuiz = new Map();
+      for (let quizId = 1; quizId <= maxQuizId; quizId += 1) {
+        const hp = pickMap.get(quizId);
+        const valid = Number.isInteger(hp) && hp >= 0 && hp <= maxPos;
+        const result = valid ? hp : null;
+        declaredResults.push({ quizId, result });
+        byQuiz.set(quizId, result);
+      }
+      // Best-effort backfill for old declared rows that predate snapshot support.
+      // Guarded so we don't overwrite an existing snapshot created by another request.
+      await QuizSlotDeclaration.updateOne(
+        {
+          gameMode: mode,
+          slotStartIso: slotIso,
+          declaredAt: { $ne: null },
+          $or: [{ declaredResults: { $exists: false } }, { declaredResults: { $size: 0 } }],
+        },
+        { $set: { declaredResults } },
+      );
+      snapshotBySlot.set(slotIso, byQuiz);
+    }
+  }
+
+  return snapshotBySlot;
+}
+

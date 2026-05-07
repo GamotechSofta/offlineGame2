@@ -24,6 +24,7 @@ import { stripQuestionMetaForHint } from '../services/randomService.js';
 import {
   blockAutoDeclare,
   enableAutoDeclare,
+  ensureDeclaredResultsSnapshots,
   getSlotDeclarationState,
   markSlotDeclared,
   setSlotTargetProfitPercent,
@@ -1312,15 +1313,12 @@ export const getLottery2DSlotHistory = async (req, res) => {
     }
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
-    const [bets, picks, winMultiplier, declarations] = await Promise.all([
+    const [bets, picks, winMultiplier] = await Promise.all([
       QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots }, ...lotteryScopeFilter })
         .select('slotStartIso ticketId quizId userId number amount status winPayout')
         .lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } }).select('slotStartIso quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
-      QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: completedSlots } })
-        .select('slotStartIso declaredResults')
-        .lean(),
     ]);
 
     const picksBySlot = new Map();
@@ -1328,15 +1326,13 @@ export const getLottery2DSlotHistory = async (req, res) => {
       if (!picksBySlot.has(p.slotStartIso)) picksBySlot.set(p.slotStartIso, new Map());
       picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
     }
-    const declarationBySlot = new Map((declarations || []).map((d) => [String(d.slotStartIso || ''), d]));
+    const snapshotBySlot = await ensureDeclaredResultsSnapshots(completedSlots, GAME_MODE);
     const resolvedPicksBySlot = new Map();
     for (const slotIso of completedSlots) {
       const base = new Map(picksBySlot.get(slotIso) || []);
-      const declarationRow = declarationBySlot.get(String(slotIso || ''));
-      const snapshotRows = Array.isArray(declarationRow?.declaredResults) ? declarationRow.declaredResults : [];
-      for (const row of snapshotRows) {
-        if (!Number.isInteger(row?.quizId)) continue;
-        base.set(row.quizId, row.result);
+      const snapshot = snapshotBySlot.get(slotIso) || new Map();
+      for (const [quizId, result] of snapshot.entries()) {
+        base.set(quizId, result);
       }
       resolvedPicksBySlot.set(slotIso, base);
     }
@@ -1441,6 +1437,7 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
       picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
     }
     const declarationBySlot = new Map(declarations.map((d) => [d.slotStartIso, d]));
+    const snapshotBySlot = await ensureDeclaredResultsSnapshots(slotStartIsos, GAME_MODE);
 
     const slots = slotStartIsos.map((slotStartIso) => {
       const slotStartMs = new Date(slotStartIso).getTime();
@@ -1453,11 +1450,7 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
         declaredAt: row?.declaredAt || null,
       };
       const byQuiz = picksBySlot.get(slotStartIso) || new Map();
-      const declaredByQuiz = new Map(
-        (Array.isArray(row?.declaredResults) ? row.declaredResults : [])
-          .filter((x) => Number.isInteger(x?.quizId))
-          .map((x) => [x.quizId, x.result]),
-      );
+      const declaredByQuiz = snapshotBySlot.get(slotStartIso) || new Map();
       const perQuiz = QUIZ_IDS.map((quizId) => {
         const result = declaredByQuiz.has(quizId) ? declaredByQuiz.get(quizId) : byQuiz.get(quizId);
         return {

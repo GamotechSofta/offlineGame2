@@ -84,14 +84,11 @@ export async function build2DTargetProfitHintsWithOptions(slotStartIso, targetPr
     const row = quizTotals.get(quizId) || { totalStake: 0, stakeByNumber: new Map() };
     const totalStake = Number(row.totalStake || 0);
     if (totalStake <= 0) {
-      const randomNumber = stableTieBreak
-        ? hashStringToPositiveInt(`2d|${slotStartIso}|${quizId}|${target}`) % 100
-        : Math.floor(Math.random() * 100);
       return {
         quizId,
         currentResult: Number.isInteger(pickByQuiz.get(quizId)) ? pickByQuiz.get(quizId) : null,
-        suggestedResult: randomNumber,
-        suggestedResultLabel: String(randomNumber).padStart(2, '0'),
+        suggestedResult: 0,
+        suggestedResultLabel: '00',
         totalStake: 0,
         targetProfitPercent: target,
         targetHouseNet: 0,
@@ -238,14 +235,11 @@ export async function build3DTargetProfitHintsWithOptions(slotStartIso, targetPr
     const setBets = quizRows.get(quizId) || [];
     const totalStake = setBets.reduce((sum, b) => sum + Number(b.amount || 0), 0);
     if (totalStake <= 0) {
-      const randomNumber = stableTieBreak
-        ? hashStringToPositiveInt(`3d|${slotStartIso}|${quizId}|${target}`) % 1000
-        : Math.floor(Math.random() * 1000);
       return {
         quizId,
         currentResult: Number.isInteger(pickByQuiz.get(quizId)) ? pickByQuiz.get(quizId) : null,
-        suggestedResult: randomNumber,
-        suggestedResultLabel: String(randomNumber).padStart(3, '0'),
+        suggestedResult: 0,
+        suggestedResultLabel: '000',
         totalStake: 0,
         targetProfitPercent: target,
         targetHouseNet: 0,

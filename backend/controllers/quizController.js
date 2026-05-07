@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 import Quiz from '../models/quiz/Quiz.js';
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
 import QuizSlotSeed from '../models/quiz/QuizSlotSeed.js';
-import QuizSlotDeclaration from '../models/quiz/QuizSlotDeclaration.js';
 import QuizBet from '../models/quiz/QuizBet.js';
 import User from '../models/user/user.js';
 import { Wallet } from '../models/wallet/wallet.js';
@@ -26,7 +25,7 @@ import { evaluate3DBetAgainstResult, resolve3DPayoutMultiplier } from '../servic
 import { getBetOwnerKey } from '../utils/betOwnerKey.js';
 import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js';
 import { getQuizTimingSettingsSnapshot } from '../services/quizTimingSettingsService.js';
-import { isSlotDeclared } from '../services/quizDeclarationService.js';
+import { ensureDeclaredResultsSnapshots, isSlotDeclared } from '../services/quizDeclarationService.js';
 
 const QUIZ_BET_MIN_STAKE = 1;
 const QUIZ_BET_MAX_STAKE = 1_000_000;
@@ -858,26 +857,8 @@ export const getMyQuizBets = async (req, res) => {
     }
 
     const nowMs = Date.now();
-    const declaredRows = slotList.length
-      ? await QuizSlotDeclaration.find({
-        gameMode,
-        slotStartIso: { $in: slotList },
-        declaredAt: { $ne: null },
-      }).select('slotStartIso declaredResults').lean()
-      : [];
-    const declaredSlotSet = new Set((declaredRows || []).map((r) => String(r.slotStartIso || '')).filter(Boolean));
-    const declaredResultsBySlot = new Map(
-      (declaredRows || []).map((r) => {
-        const slotIso = String(r.slotStartIso || '');
-        const rows = Array.isArray(r.declaredResults) ? r.declaredResults : [];
-        const byQuiz = new Map(
-          rows
-            .filter((x) => Number.isInteger(x?.quizId))
-            .map((x) => [x.quizId, x.result]),
-        );
-        return [slotIso, byQuiz];
-      }),
-    );
+    const declaredResultsBySlot = await ensureDeclaredResultsSnapshots(slotList, gameMode);
+    const declaredSlotSet = new Set([...declaredResultsBySlot.keys()]);
 
     const slotWinnersBySlot = {};
     if (slotList.length) {
@@ -1085,28 +1066,10 @@ export const getMyQuizTicketLines = async (req, res) => {
 
     const now = Date.now();
     const slotIsoSet = new Set((bets || []).map((b) => String(b?.slotStartIso || '')).filter(Boolean));
-    const declaredRows = slotIsoSet.size
-      ? await QuizSlotDeclaration.find({
-        gameMode,
-        slotStartIso: { $in: [...slotIsoSet] },
-        declaredAt: { $ne: null },
-      }).select('slotStartIso declaredResults').lean()
-      : [];
-    const declaredSlotSet = new Set((declaredRows || []).map((r) => String(r.slotStartIso || '')).filter(Boolean));
+    const declaredResultsBySlot = await ensureDeclaredResultsSnapshots([...slotIsoSet], gameMode);
+    const declaredSlotSet = new Set([...declaredResultsBySlot.keys()]);
     const maxPos = gameMode === '3d' ? 999 : 99;
     const padLength = gameMode === '3d' ? 3 : 2;
-    const declaredResultsBySlot = new Map(
-      (declaredRows || []).map((r) => {
-        const slotIso = String(r.slotStartIso || '');
-        const rows = Array.isArray(r.declaredResults) ? r.declaredResults : [];
-        const byQuiz = new Map(
-          rows
-            .filter((x) => Number.isInteger(x?.quizId))
-            .map((x) => [x.quizId, x.result]),
-        );
-        return [slotIso, byQuiz];
-      }),
-    );
     const data = bets.map((b) => {
       const slotStartMs = new Date(b.slotStartIso).getTime();
       const slotEndMs = slotStartMs + SLOT_MS;

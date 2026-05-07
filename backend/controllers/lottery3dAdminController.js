@@ -25,6 +25,7 @@ import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js
 import {
   blockAutoDeclare,
   enableAutoDeclare,
+  ensureDeclaredResultsSnapshots,
   getSlotDeclarationState,
   markSlotDeclared,
   setSlotTargetProfitPercent,
@@ -722,13 +723,10 @@ export const getLottery3DSlotHistory = async (req, res) => {
     }
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
-    const [bets, picks, ratesMap, declarations] = await Promise.all([
+    const [bets, picks, ratesMap] = await Promise.all([
       QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots }, ...lotteryScopeFilter }).select('slotStartIso quizId userId number amount status winPayout betMode').lean(),
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } }).select('slotStartIso quizId hintPosition').lean(),
       getRatesMap(),
-      QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } })
-        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults')
-        .lean(),
     ]);
 
     const picksBySlot = new Map();
@@ -736,15 +734,13 @@ export const getLottery3DSlotHistory = async (req, res) => {
       if (!picksBySlot.has(p.slotStartIso)) picksBySlot.set(p.slotStartIso, new Map());
       picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
     }
-    const declarationBySlot = new Map((declarations || []).map((d) => [String(d.slotStartIso || ''), d]));
+    const snapshotBySlot = await ensureDeclaredResultsSnapshots(daySlots, GAME_MODE);
     const resolvedPicksBySlot = new Map();
     for (const slotIso of daySlots) {
       const base = new Map(picksBySlot.get(slotIso) || []);
-      const declarationRow = declarationBySlot.get(String(slotIso || ''));
-      const snapshotRows = Array.isArray(declarationRow?.declaredResults) ? declarationRow.declaredResults : [];
-      for (const row of snapshotRows) {
-        if (!Number.isInteger(row?.quizId)) continue;
-        base.set(row.quizId, row.result);
+      const snapshot = snapshotBySlot.get(slotIso) || new Map();
+      for (const [quizId, result] of snapshot.entries()) {
+        base.set(quizId, result);
       }
       resolvedPicksBySlot.set(slotIso, base);
     }
