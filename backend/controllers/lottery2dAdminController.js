@@ -1288,10 +1288,28 @@ export const configureLottery2DCurrentSlotTargetAutoDeclare = async (req, res) =
     if (mode === 'random') {
       // Random mode: clear target and restore pure random slot hints/results.
       await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, null, req.admin?._id);
+      const io = getQuizSocketIo();
+      if (io) {
+        io.emit('quiz:auto-declare-mode', {
+          gameMode: GAME_MODE,
+          slotStartIso,
+          mode: 'random',
+          targetProfitPercent: null,
+        });
+      }
       await ensureRandomHintsForCurrentSlot(slotStartIso);
     } else {
       // Target mode: clear random influence by overriding slot hints with target-driven picks.
       await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, targetProfitPercent, req.admin?._id);
+      const io = getQuizSocketIo();
+      if (io) {
+        io.emit('quiz:auto-declare-mode', {
+          gameMode: GAME_MODE,
+          slotStartIso,
+          mode: 'target',
+          targetProfitPercent,
+        });
+      }
       await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
       await apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
     }

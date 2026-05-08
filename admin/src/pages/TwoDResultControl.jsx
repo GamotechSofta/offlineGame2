@@ -291,6 +291,24 @@ const TwoDResultControl = () => {
             if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
             refreshLiveData();
         };
+        const onAutoDeclareMode = (data) => {
+            if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
+            const mode = String(data?.mode || '').toLowerCase() === 'target' ? 'target' : 'random';
+            const nextTarget = Number(data?.targetProfitPercent);
+            if (mode === 'target' && Number.isFinite(nextTarget)) {
+                setAutoDeclareMode('target');
+                setActiveTargetPercent(nextTarget);
+                fetchCurrentSlotForHints({
+                    silent: true,
+                    mode: 'target',
+                    targetProfitPercent: nextTarget,
+                });
+                return;
+            }
+            setAutoDeclareMode('random');
+            setActiveTargetPercent(null);
+            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
+        };
         const onSlotUpdate = (data) => {
             if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
             if (hintPreviewMode === 'target' && hasValidTargetProfit) {
@@ -305,11 +323,13 @@ const TwoDResultControl = () => {
         };
 
         socket.on('quiz:result', onQuizResult);
+        socket.on('quiz:auto-declare-mode', onAutoDeclareMode);
         socket.on('slot:update', onSlotUpdate);
         socket.on('connect', refreshLiveData);
 
         return () => {
             socket.off('quiz:result', onQuizResult);
+            socket.off('quiz:auto-declare-mode', onAutoDeclareMode);
             socket.off('slot:update', onSlotUpdate);
             socket.off('connect', refreshLiveData);
             socket.disconnect();
