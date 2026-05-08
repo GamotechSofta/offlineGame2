@@ -35,6 +35,7 @@ import { getQuizSocketIo } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply3DTargetProfitHintsToSlot, build3DTargetProfitHints } from '../services/quizTargetProfitService.js';
+import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
 
 const QUIZ_IDS = [1, 2, 3];
 const GAME_MODE = '3d';
@@ -59,6 +60,30 @@ function payoutUnsettledWin3d(bet, hintPosition, ratesMap) {
 function quizBetTicketKey(bet) {
   const tid = bet.ticketId ? String(bet.ticketId).trim() : '';
   return tid || `legacy:${String(bet._id)}`;
+}
+
+async function ensureRandomHintsForCurrentSlot(slotStartIso) {
+  // Ensure all slot picks exist first (Q01-Q03).
+  await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
+  const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso })
+    .select('quizId seedHex chosenIndex hintPosition')
+    .lean();
+
+  const updates = await Promise.all(
+    picks.map(async (pick) => {
+      const quizId = Number(pick?.quizId);
+      if (!QUIZ_IDS.includes(quizId)) return null;
+      const randomHintPosition = await resolveWinningShuffledPosition(quizId, slotStartIso, pick, GAME_MODE);
+      if (!Number.isInteger(randomHintPosition) || randomHintPosition < 0 || randomHintPosition > 999) return null;
+      if (pick.hintPosition === randomHintPosition) return null;
+      return QuizSlotPick.updateOne(
+        { gameMode: GAME_MODE, slotStartIso, quizId },
+        { $set: { hintPosition: randomHintPosition } },
+      );
+    }),
+  );
+
+  await Promise.all(updates.filter(Boolean));
 }
 
 function baseQuizStatsById() {
@@ -673,9 +698,14 @@ export const configureLottery3DCurrentSlotTargetAutoDeclare = async (req, res) =
       return res.status(400).json({ success: false, message: 'Current slot already ended. Try next running slot.' });
     }
     if (mode === 'random') {
+      // Random mode: clear target and restore pure random slot hints/results.
       await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, null, req.admin?._id);
+      await ensureRandomHintsForCurrentSlot(slotStartIso);
     } else {
+      // Target mode: clear random influence by overriding slot hints with target-driven picks.
       await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, targetProfitPercent, req.admin?._id);
+      await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
+      await apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
     }
     const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
     const effectiveTarget = mode === 'random' ? null : targetProfitPercent;
