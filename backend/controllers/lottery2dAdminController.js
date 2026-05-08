@@ -1554,14 +1554,19 @@ export const getLottery2DSlotDetail = async (req, res) => {
     if (!isValidISTSlotStartIso(slotStartIso)) {
       return res.status(400).json({ success: false, message: 'Invalid slotStartIso.' });
     }
-
-    const [bets, picks, winMultiplier] = await Promise.all([
+    const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+    const [bets, winMultiplier, declaration] = await Promise.all([
       QuizBet.find({ gameMode: GAME_MODE, slotStartIso })
         .select('ticketId quizId userId number amount status winPayout')
         .lean(),
-      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
       getQuiz2DMultiplier(),
+      getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs),
     ]);
+    // Self-heal running slot in random mode: keep hints aligned to random picks, not stale target values.
+    if (Date.now() < slotEndMs && declaration?.targetProfitPercent == null) {
+      await ensureRandomHintsForCurrentSlot(slotStartIso);
+    }
+    const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean();
 
     const pickByQuiz = new Map();
     for (const p of picks) pickByQuiz.set(p.quizId, p.hintPosition);
@@ -1621,7 +1626,6 @@ export const getLottery2DSlotDetail = async (req, res) => {
       }
     }
 
-    const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
     const summary = toSlotSummary(slotStartIso, slotEndMs, bets, pickByQuiz, winMultiplier);
     return res.json({
       success: true,

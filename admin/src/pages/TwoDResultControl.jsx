@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import AdminLayout from '../components/AdminLayout';
-import { clearAdminSession, fetchWithAuth, getAdminSocketUrl } from '../lib/auth';
+import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const RESULT_CONTROL_UNLOCK_SESSION_KEY = 'offlinebookie:admin:2d-result-control-unlock';
@@ -260,90 +259,6 @@ const TwoDResultControl = () => {
             setLoading(false);
         }
     }, [secretCheckComplete, hasSecretDeclarePassword, pageUnlocked]);
-
-    useEffect(() => {
-        if (hasSecretDeclarePassword && !pageUnlocked) return undefined;
-        const socketUrl = getAdminSocketUrl();
-        if (!socketUrl) return undefined;
-
-        const socket = io(socketUrl, {
-            path: '/socket.io',
-            withCredentials: true,
-            transports: ['websocket'],
-            reconnection: true,
-            reconnectionDelay: 2000,
-        });
-
-        const refreshLiveData = () => {
-            fetchSlots(date, { silent: true, limit: 96 });
-            if (hintPreviewMode === 'target' && hasValidTargetProfit) {
-                fetchCurrentSlotForHints({
-                    silent: true,
-                    mode: 'target',
-                    targetProfitPercent,
-                });
-                return;
-            }
-            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
-        };
-
-        const onQuizResult = (data) => {
-            if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
-            refreshLiveData();
-        };
-        const onAutoDeclareMode = (data) => {
-            if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
-            const mode = String(data?.mode || '').toLowerCase() === 'target' ? 'target' : 'random';
-            const nextTarget = Number(data?.targetProfitPercent);
-            if (mode === 'target' && Number.isFinite(nextTarget)) {
-                setAutoDeclareMode('target');
-                setActiveTargetPercent(nextTarget);
-                fetchCurrentSlotForHints({
-                    silent: true,
-                    mode: 'target',
-                    targetProfitPercent: nextTarget,
-                });
-                return;
-            }
-            setAutoDeclareMode('random');
-            setActiveTargetPercent(null);
-            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
-        };
-        const onSlotUpdate = (data) => {
-            if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
-            if (hintPreviewMode === 'target' && hasValidTargetProfit) {
-                fetchCurrentSlotForHints({
-                    silent: true,
-                    mode: 'target',
-                    targetProfitPercent,
-                });
-                return;
-            }
-            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
-        };
-
-        socket.on('quiz:result', onQuizResult);
-        socket.on('quiz:auto-declare-mode', onAutoDeclareMode);
-        socket.on('slot:update', onSlotUpdate);
-        socket.on('connect', refreshLiveData);
-
-        return () => {
-            socket.off('quiz:result', onQuizResult);
-            socket.off('quiz:auto-declare-mode', onAutoDeclareMode);
-            socket.off('slot:update', onSlotUpdate);
-            socket.off('connect', refreshLiveData);
-            socket.disconnect();
-        };
-    }, [
-        fetchSlots,
-        fetchCurrentSlotForHints,
-        date,
-        hasSecretDeclarePassword,
-        pageUnlocked,
-        hintPreviewMode,
-        hasValidTargetProfit,
-        targetProfitPercent,
-    ]);
 
     const unlockPage = useCallback(async () => {
         const secret = pagePassword.trim();

@@ -174,7 +174,7 @@ export async function build2DTargetProfitHintsWithOptions(slotStartIso, targetPr
 }
 
 export async function apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent) {
-  const payload = await build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak: false });
+  const payload = await build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak: true });
   const updates = payload.perQuiz.map((row) => (
     QuizSlotPick.updateOne(
       { gameMode: '2d', slotStartIso, quizId: row.quizId },
@@ -306,7 +306,7 @@ export async function build3DTargetProfitHintsWithOptions(slotStartIso, targetPr
 }
 
 export async function apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent) {
-  const payload = await build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak: false });
+  const payload = await build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak: true });
   const updates = payload.perQuiz.map((row) => (
     QuizSlotPick.updateOne(
       { gameMode: '3d', slotStartIso, quizId: row.quizId },
