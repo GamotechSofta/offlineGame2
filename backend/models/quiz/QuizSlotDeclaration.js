@@ -6,6 +6,8 @@ const quizSlotDeclarationSchema = new mongoose.Schema(
     slotStartIso: { type: String, required: true },
     autoDeclareBlocked: { type: Boolean, default: false },
     targetProfitPercent: { type: Number, default: null },
+    declaredAutoDeclareMode: { type: String, enum: ['target', 'random'], default: null },
+    declaredTargetProfitPercent: { type: Number, default: null },
     declaredAt: { type: Date, default: null },
     declaredResults: {
       type: [

@@ -1477,7 +1477,7 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
         .select('slotStartIso quizId hintPosition')
         .lean(),
       QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
-        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent')
+        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent declaredAutoDeclareMode declaredTargetProfitPercent')
         .lean(),
     ]);
 
@@ -1495,13 +1495,28 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
       const slotEnded = Date.now() >= slotEndMs;
       const row = declarationBySlot.get(slotStartIso);
       const rawTargetProfitPercent = row?.targetProfitPercent;
-      const targetProfitPercent = Number.isFinite(rawTargetProfitPercent) ? rawTargetProfitPercent : null;
+      const draftTargetProfitPercent = Number.isFinite(rawTargetProfitPercent) ? rawTargetProfitPercent : null;
+      const rawDeclaredTargetProfitPercent = row?.declaredTargetProfitPercent;
+      const declaredTargetProfitPercent = Number.isFinite(rawDeclaredTargetProfitPercent) ? rawDeclaredTargetProfitPercent : null;
+      const isDeclared = Boolean(row?.declaredAt);
+      const rawDeclaredMode = row?.declaredAutoDeclareMode;
+      const declaredAutoDeclareMode = rawDeclaredMode === 'target' || rawDeclaredMode === 'random'
+        ? rawDeclaredMode
+        : (declaredTargetProfitPercent == null ? 'random' : 'target');
+      const autoDeclareMode = isDeclared
+        ? declaredAutoDeclareMode
+        : (draftTargetProfitPercent == null ? 'random' : 'target');
+      const targetProfitPercent = isDeclared
+        ? (declaredAutoDeclareMode === 'target' ? declaredTargetProfitPercent : null)
+        : draftTargetProfitPercent;
       const declaration = {
         autoDeclareBlocked: Boolean(row?.autoDeclareBlocked) && !row?.declaredAt,
-        declared: Boolean(row?.declaredAt),
+        declared: isDeclared,
         declaredAt: row?.declaredAt || null,
         targetProfitPercent,
-        autoDeclareMode: targetProfitPercent == null ? 'random' : 'target',
+        autoDeclareMode,
+        declaredAutoDeclareMode,
+        declaredTargetProfitPercent,
       };
       const byQuiz = picksBySlot.get(slotStartIso) || new Map();
       const declaredByQuiz = snapshotBySlot.get(slotStartIso) || new Map();
