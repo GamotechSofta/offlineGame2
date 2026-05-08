@@ -49,11 +49,11 @@ const TopHeader = ({ now, walletBalance = 0, onOpenHistory, onOpenQuiz, onOpenTh
       <div className="grid grid-cols-[120px_160px_1fr] gap-2 items-center h-full">
         <div className="leading-tight pl-4">
           <div className="text-[#e5e5e5] text-[13px] font-extrabold">DR DATE</div>
-          <div className="text-[16px] font-extrabold leading-none mt-[1px]">{formattedDate}</div>
+          <div className="mt-[1px] text-[16px] font-extrabold leading-none text-white">{formattedDate}</div>
         </div>
         <div className="leading-tight pl-4">
           <div className="text-[#e5e5e5] text-[13px] font-extrabold">Time To Draw</div>
-          <div className="text-[16px] font-extrabold leading-none mt-[1px]">{formattedTimeToDraw}</div>
+          <div className="mt-[1px] text-[16px] font-extrabold leading-none text-white">{formattedTimeToDraw}</div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 h-full">
           {typeof onOpenHistory === 'function' && (
@@ -98,9 +98,9 @@ const TopHeader = ({ now, walletBalance = 0, onOpenHistory, onOpenQuiz, onOpenTh
             <Wallet size={16} strokeWidth={2.25} className="text-[#f3c36b]" />
             <span>{formattedBalance}</span>
           </button>
-          <div className="text-right leading-none text-[14px] font-extrabold">
-            <div>{formattedDate}</div>
-            <div className="mt-[3px] text-[15px] font-extrabold">{formattedTime}</div>
+          <div className="text-right leading-none text-[14px] font-extrabold text-white">
+            <div className="text-white">{formattedDate}</div>
+            <div className="mt-[3px] text-[15px] font-extrabold text-white">{formattedTime}</div>
           </div>
           {typeof onBack === 'function' && (
             <button
