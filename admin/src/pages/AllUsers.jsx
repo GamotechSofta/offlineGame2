@@ -4,8 +4,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { FaUserSlash, FaUserCheck, FaUserPlus, FaSearch } from 'react-icons/fa';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useModalBackHandler from '../hooks/useModalBackHandler';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
-import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
 import { dedupeRequest } from '../lib/requestDedupe';
 import { useTraceRender } from '../lib/runtimeTrace';
 
@@ -141,16 +139,14 @@ const AllUsers = () => {
 
     }, [navigate]);
 
-    useEffect(() => {
-        const tick = () => setNow(Date.now());
-        const id = window.setInterval(tick, 15000);
-        return () => window.clearInterval(id);
-    }, []);
-
     const usersQuery = useQuery({
         queryKey: ['all-users-data'],
         queryFn: fetchData,
         enabled: !!localStorage.getItem('admin'),
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchInterval: false,
+        staleTime: Infinity,
     });
 
     useEffect(() => {
@@ -169,19 +165,6 @@ const AllUsers = () => {
             setError(usersQuery.error?.message || 'Failed to fetch data');
         }
     }, [usersQuery.isLoading, usersQuery.isFetching, usersQuery.error]);
-
-    useSectionAutoRefresh({
-        enabled: true,
-        intervalMs: 30000,
-        onRefresh: () => queryClient.invalidateQueries({ queryKey: ['all-users-data'] }),
-        immediate: false,
-    });
-
-    useAdminLiveQueryInvalidation({
-        enabled: true,
-        queryKeys: [['all-users-data']],
-        throttleMs: 1000,
-    });
 
     const handleLogout = () => {
         clearAdminSession();
