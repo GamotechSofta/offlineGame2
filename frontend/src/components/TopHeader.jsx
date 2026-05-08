@@ -45,14 +45,14 @@ const TopHeader = ({ now, walletBalance = 0, onOpenHistory, onOpenQuiz, onOpenTh
     .replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`);
 
   return (
-    <div className="bg-black border-b border-[#3f3f3f] px-2 h-[58px] text-[11px]">
+    <div className="h-[58px] border-b border-[#3f3f3f] bg-black px-2 text-[11px] text-white">
       <div className="grid grid-cols-[120px_160px_1fr] gap-2 items-center h-full">
         <div className="leading-tight pl-4">
-          <div className="text-[#e5e5e5] text-[13px] font-extrabold">DR DATE</div>
+          <div className="text-[13px] font-extrabold text-white">DR DATE</div>
           <div className="mt-[1px] text-[16px] font-extrabold leading-none text-white">{formattedDate}</div>
         </div>
         <div className="leading-tight pl-4">
-          <div className="text-[#e5e5e5] text-[13px] font-extrabold">Time To Draw</div>
+          <div className="text-[13px] font-extrabold text-white">Time To Draw</div>
           <div className="mt-[1px] text-[16px] font-extrabold leading-none text-white">{formattedTimeToDraw}</div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 h-full">
