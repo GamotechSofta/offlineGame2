@@ -36,8 +36,8 @@ const getLoginIdentifier = (req) => {
 };
 
 const userLoginLimiter = rateLimit({
-    windowMs: 30 * 60 * 1000, // 30 minutes
-    max: 3, // 3 failed attempts in window
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 50, // keep abuse protection but avoid blocking real users
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests: true, // only failed logins consume attempts
@@ -48,7 +48,7 @@ const userLoginLimiter = rateLimit({
     },
     message: {
         success: false,
-        message: 'Too many failed login attempts. Please try again after 30 minutes.',
+        message: 'Too many failed login attempts. Please try again after a few minutes.',
     },
 });
 
@@ -65,7 +65,7 @@ const userSignupLimiter = rateLimit({
 
 // Public routes
 router.post('/login', userLoginLimiter, userLogin);
-router.post('/logout-device', userLoginLimiter, logoutDeviceForSingleLogin);
+router.post('/logout-device', logoutDeviceForSingleLogin);
 router.post('/signup', userSignupLimiter, userSignup);
 router.post('/logout', userLogout);
 
