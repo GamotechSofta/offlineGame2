@@ -37,6 +37,8 @@ export async function getSlotDeclarationState(slotStartIso, gameMode = '2d', slo
   }
   const rawTargetProfitPercent = row?.targetProfitPercent;
   const normalizedTargetProfitPercent = Number.isFinite(rawTargetProfitPercent) ? rawTargetProfitPercent : null;
+  const rawDraftMode = row?.autoDeclareMode;
+  const draftAutoDeclareMode = rawDraftMode === 'target' || rawDraftMode === 'random' ? rawDraftMode : null;
   const declared = Boolean(row.declaredAt);
   const rawDeclaredTarget = row?.declaredTargetProfitPercent;
   const normalizedDeclaredTargetProfitPercent = Number.isFinite(rawDeclaredTarget) ? rawDeclaredTarget : null;
@@ -44,12 +46,12 @@ export async function getSlotDeclarationState(slotStartIso, gameMode = '2d', slo
   const normalizedDeclaredMode = rawDeclaredMode === 'target' || rawDeclaredMode === 'random'
     ? rawDeclaredMode
     : (normalizedDeclaredTargetProfitPercent == null ? 'random' : 'target');
-  const effectiveMode = declared
-    ? normalizedDeclaredMode
-    : (normalizedTargetProfitPercent == null ? 'random' : 'target');
+  const effectiveModeUndeclared = draftAutoDeclareMode
+    ?? (normalizedTargetProfitPercent == null ? 'random' : 'target');
+  const effectiveMode = declared ? normalizedDeclaredMode : effectiveModeUndeclared;
   const effectiveTargetProfitPercent = declared
     ? (normalizedDeclaredMode === 'target' ? normalizedDeclaredTargetProfitPercent : null)
-    : normalizedTargetProfitPercent;
+    : (effectiveModeUndeclared === 'target' ? normalizedTargetProfitPercent : null);
   return {
     autoDeclareBlocked: Boolean(row.autoDeclareBlocked),
     declared,
@@ -100,9 +102,17 @@ export async function setSlotTargetProfitPercent(slotStartIso, gameMode = '2d', 
   const normalized = Number.isFinite(parsedTarget)
     ? Math.min(1000, Math.max(-100, parsedTarget))
     : null;
+  const autoDeclareMode = normalized == null ? 'random' : 'target';
   await QuizSlotDeclaration.findOneAndUpdate(
     { gameMode: mode, slotStartIso },
-    { $set: { targetProfitPercent: normalized, updatedBy }, $setOnInsert: { declaredAt: null, autoDeclareBlocked: false } },
+    {
+      $set: {
+        targetProfitPercent: normalized,
+        autoDeclareMode,
+        updatedBy,
+      },
+      $setOnInsert: { declaredAt: null, autoDeclareBlocked: false },
+    },
     { upsert: true, new: true },
   );
 }
@@ -112,13 +122,25 @@ export async function markSlotDeclared(slotStartIso, gameMode = '2d', adminId = 
   const updatedBy = toObjectIdOrNull(adminId);
   const force = Boolean(options?.force);
   const currentDeclarationRow = await QuizSlotDeclaration.findOne({ gameMode: mode, slotStartIso })
-    .select('targetProfitPercent declaredAutoDeclareMode declaredTargetProfitPercent')
+    .select('targetProfitPercent autoDeclareMode declaredAutoDeclareMode declaredTargetProfitPercent')
     .lean();
   const currentTargetProfitPercent = Number.isFinite(currentDeclarationRow?.targetProfitPercent)
     ? Number(currentDeclarationRow.targetProfitPercent)
     : null;
-  const declaredAutoDeclareMode = currentTargetProfitPercent == null ? 'random' : 'target';
-  const declaredTargetProfitPercent = declaredAutoDeclareMode === 'target' ? currentTargetProfitPercent : null;
+  const rawDraft = currentDeclarationRow?.autoDeclareMode;
+  const draftMode = rawDraft === 'target' || rawDraft === 'random' ? rawDraft : null;
+  let declaredAutoDeclareMode;
+  let declaredTargetProfitPercent;
+  if (draftMode === 'random') {
+    declaredAutoDeclareMode = 'random';
+    declaredTargetProfitPercent = null;
+  } else if (draftMode === 'target') {
+    declaredAutoDeclareMode = 'target';
+    declaredTargetProfitPercent = currentTargetProfitPercent;
+  } else {
+    declaredAutoDeclareMode = currentTargetProfitPercent == null ? 'random' : 'target';
+    declaredTargetProfitPercent = declaredAutoDeclareMode === 'target' ? currentTargetProfitPercent : null;
+  }
   let declaredResults = null;
   if (options?.captureResults) {
     const maxQuizId = mode === '3d' ? 3 : 30;

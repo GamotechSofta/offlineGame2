@@ -1477,7 +1477,7 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
         .select('slotStartIso quizId hintPosition')
         .lean(),
       QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
-        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent declaredAutoDeclareMode declaredTargetProfitPercent')
+        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent autoDeclareMode declaredAutoDeclareMode declaredTargetProfitPercent')
         .lean(),
     ]);
 
@@ -1496,6 +1496,8 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
       const row = declarationBySlot.get(slotStartIso);
       const rawTargetProfitPercent = row?.targetProfitPercent;
       const draftTargetProfitPercent = Number.isFinite(rawTargetProfitPercent) ? rawTargetProfitPercent : null;
+      const rawDraftMode = row?.autoDeclareMode;
+      const draftAutoDeclareMode = rawDraftMode === 'target' || rawDraftMode === 'random' ? rawDraftMode : null;
       const rawDeclaredTargetProfitPercent = row?.declaredTargetProfitPercent;
       const declaredTargetProfitPercent = Number.isFinite(rawDeclaredTargetProfitPercent) ? rawDeclaredTargetProfitPercent : null;
       const isDeclared = Boolean(row?.declaredAt);
@@ -1503,12 +1505,12 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
       const declaredAutoDeclareMode = rawDeclaredMode === 'target' || rawDeclaredMode === 'random'
         ? rawDeclaredMode
         : (declaredTargetProfitPercent == null ? 'random' : 'target');
-      const autoDeclareMode = isDeclared
-        ? declaredAutoDeclareMode
-        : (draftTargetProfitPercent == null ? 'random' : 'target');
+      const undeclaredMode = draftAutoDeclareMode
+        ?? (draftTargetProfitPercent == null ? 'random' : 'target');
+      const autoDeclareMode = isDeclared ? declaredAutoDeclareMode : undeclaredMode;
       const targetProfitPercent = isDeclared
         ? (declaredAutoDeclareMode === 'target' ? declaredTargetProfitPercent : null)
-        : draftTargetProfitPercent;
+        : (undeclaredMode === 'target' ? draftTargetProfitPercent : null);
       const declaration = {
         autoDeclareBlocked: Boolean(row?.autoDeclareBlocked) && !row?.declaredAt,
         declared: isDeclared,
