@@ -1477,7 +1477,7 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
         .select('slotStartIso quizId hintPosition')
         .lean(),
       QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
-        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults')
+        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent')
         .lean(),
     ]);
 
@@ -1494,10 +1494,14 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
       const slotEndMs = slotStartMs + SLOT_MS;
       const slotEnded = Date.now() >= slotEndMs;
       const row = declarationBySlot.get(slotStartIso);
+      const rawTargetProfitPercent = row?.targetProfitPercent;
+      const targetProfitPercent = Number.isFinite(rawTargetProfitPercent) ? rawTargetProfitPercent : null;
       const declaration = {
         autoDeclareBlocked: Boolean(row?.autoDeclareBlocked) && !row?.declaredAt,
         declared: Boolean(row?.declaredAt),
         declaredAt: row?.declaredAt || null,
+        targetProfitPercent,
+        autoDeclareMode: targetProfitPercent == null ? 'random' : 'target',
       };
       const byQuiz = picksBySlot.get(slotStartIso) || new Map();
       const declaredByQuiz = snapshotBySlot.get(slotStartIso) || new Map();

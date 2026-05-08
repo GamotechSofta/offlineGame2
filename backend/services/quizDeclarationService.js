@@ -31,14 +31,18 @@ export async function getSlotDeclarationState(slotStartIso, gameMode = '2d', slo
       autoDeclareBlocked: false,
       declared: false,
       declaredAt: null,
+      autoDeclareMode: 'random',
+      targetProfitPercent: null,
     };
   }
   const rawTargetProfitPercent = row?.targetProfitPercent;
+  const normalizedTargetProfitPercent = Number.isFinite(rawTargetProfitPercent) ? rawTargetProfitPercent : null;
   return {
     autoDeclareBlocked: Boolean(row.autoDeclareBlocked),
     declared: Boolean(row.declaredAt),
     declaredAt: row.declaredAt || null,
-    targetProfitPercent: Number.isFinite(rawTargetProfitPercent) ? rawTargetProfitPercent : null,
+    targetProfitPercent: normalizedTargetProfitPercent,
+    autoDeclareMode: normalizedTargetProfitPercent == null ? 'random' : 'target',
   };
 }
 
