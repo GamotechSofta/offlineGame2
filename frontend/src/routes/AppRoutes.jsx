@@ -96,59 +96,18 @@ const Layout = ({ children }) => {
 
     const zoomEnabledContent =
       'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes';
-
-    const getFullscreenElement = () =>
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.mozFullScreenElement ||
-      document.msFullscreenElement ||
-      null;
+    const zoomDisabledContent =
+      'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
 
     const applyViewport = () => {
       const isLottery2d3d = isTwoDGamePage || isThreeDGamePage || isLotteryQuizPage || isThreeDQuizPage;
-      const rootEl = document.documentElement;
       const bodyEl = document.body;
-      const setZoomClass = (enabled) => {
-        if (!bodyEl) return;
-        if (enabled) bodyEl.classList.add('lottery-mobile-zoom-enabled');
-        else bodyEl.classList.remove('lottery-mobile-zoom-enabled');
-      };
-
-      const enablePinchGesture = () => {
-        if (rootEl) {
-          rootEl.style.setProperty('touch-action', 'pinch-zoom');
-          rootEl.style.setProperty('-ms-touch-action', 'pinch-zoom');
-        }
-        if (bodyEl) {
-          bodyEl.style.setProperty('touch-action', 'pinch-zoom');
-          bodyEl.style.setProperty('-ms-touch-action', 'pinch-zoom');
-        }
-      };
-
-      const resetPinchGesture = () => {
-        if (rootEl) {
-          rootEl.style.removeProperty('touch-action');
-          rootEl.style.removeProperty('-ms-touch-action');
-        }
-        if (bodyEl) {
-          bodyEl.style.removeProperty('touch-action');
-          bodyEl.style.removeProperty('-ms-touch-action');
-        }
-      };
-
-      // Keep pinch zoom always enabled on lottery 2D/3D pages.
+      if (bodyEl) bodyEl.classList.remove('lottery-mobile-zoom-enabled');
       if (isLottery2d3d) {
-        viewportMeta.setAttribute('content', zoomEnabledContent);
-        enablePinchGesture();
-        setZoomClass(true);
-        console.info('[zoom-debug] lottery viewport', viewportMeta.getAttribute('content'));
-        console.info('[zoom-debug] html.touchAction', rootEl?.style?.touchAction || '(empty)');
-        console.info('[zoom-debug] body.touchAction', bodyEl?.style?.touchAction || '(empty)');
+        viewportMeta.setAttribute('content', zoomDisabledContent);
         return;
       }
       viewportMeta.setAttribute('content', zoomEnabledContent);
-      resetPinchGesture();
-      setZoomClass(false);
     };
 
     applyViewport();
@@ -161,11 +120,6 @@ const Layout = ({ children }) => {
 
     const onViewportHint = () => applyViewport();
     window.addEventListener('orientationchange', onViewportHint);
-    // iPhone Safari emits these events during pinch. We intentionally do not call preventDefault.
-    const onGesture = () => applyViewport();
-    document.addEventListener('gesturestart', onGesture);
-    document.addEventListener('gesturechange', onGesture);
-    document.addEventListener('gestureend', onGesture);
 
     return () => {
       document.removeEventListener('fullscreenchange', onFs);
@@ -173,13 +127,6 @@ const Layout = ({ children }) => {
       document.removeEventListener('mozfullscreenchange', onFs);
       document.removeEventListener('MSFullscreenChange', onFs);
       window.removeEventListener('orientationchange', onViewportHint);
-      document.removeEventListener('gesturestart', onGesture);
-      document.removeEventListener('gesturechange', onGesture);
-      document.removeEventListener('gestureend', onGesture);
-      document.documentElement?.style.removeProperty('touch-action');
-      document.documentElement?.style.removeProperty('-ms-touch-action');
-      document.body?.style.removeProperty('touch-action');
-      document.body?.style.removeProperty('-ms-touch-action');
       document.body?.classList.remove('lottery-mobile-zoom-enabled');
       viewportMeta.setAttribute('content', zoomEnabledContent);
     };

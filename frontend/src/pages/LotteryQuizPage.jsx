@@ -476,11 +476,10 @@ const LotteryQuizPage = () => {
       <div className="fixed inset-0 overflow-hidden bg-[#111]">
         <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[#4c4c4c] sm:rounded-none" />
         <div
-          className="absolute inset-0 overflow-auto"
+          className="absolute inset-0 overflow-auto ios-scroll-touch"
           style={{
             width: `${viewport.width}px`,
             height: `${viewport.height}px`,
-            touchAction: 'pinch-zoom',
           }}
         >
           <div

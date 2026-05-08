@@ -2141,11 +2141,10 @@ const ThreeDGame = () => {
   return (
     <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-[#0b1223] via-[#182a4a] to-[#1e3a5f]">
       <div
-        className="absolute inset-0 overflow-auto"
+        className="absolute inset-0 overflow-auto ios-scroll-touch"
         style={{
           width: `${viewport.width}px`,
           height: `${viewport.height}px`,
-          touchAction: 'pinch-zoom',
         }}
       >
       <div

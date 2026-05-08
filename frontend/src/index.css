@@ -299,12 +299,6 @@ svg {
   }
 }
 
-/* On lottery pages, force pinch-zoom gesture availability across descendants. */
-body.lottery-mobile-zoom-enabled,
-body.lottery-mobile-zoom-enabled * {
-  touch-action: pinch-zoom !important;
-}
-
 /* iPhone-first hardening (375-430 widths and nearby) */
 @media (max-width: 430px) {
   html,
