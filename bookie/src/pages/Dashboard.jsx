@@ -19,7 +19,7 @@ import {
     FaDice,
 } from 'react-icons/fa';
 
-const LOTTERY_LIVE_REFRESH_MS = 2000;
+const LOTTERY_LIVE_REFRESH_MS = 10000;
 
 const getPresets = (t) => [
     { id: 'all', label: t('all'), getRange: () => {
@@ -187,116 +187,68 @@ const Dashboard = () => {
         fetchMarkets();
     }, []);
 
-    const getTodayDateKey = () => {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    };
-
-    const listDateKeysInRange = (from, to) => {
-        if (!from || !to) return [getTodayDateKey()];
-        const start = new Date(`${from}T00:00:00`);
-        const end = new Date(`${to}T00:00:00`);
-        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
-            return [getTodayDateKey()];
-        }
-        const out = [];
-        const cursor = new Date(start);
-        const MAX_DAYS = 31;
-        while (cursor <= end && out.length < MAX_DAYS) {
-            out.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`);
-            cursor.setDate(cursor.getDate() + 1);
-        }
-        return out;
-    };
-
-    const dateKeyFromMs = (ms) => {
-        if (!Number.isFinite(ms) || ms <= 0) return '';
-        const d = new Date(ms);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-
     const fetchLotteryModeStats = async (mode, rangeOverride) => {
         const modeKey = mode === '2d' ? 'twoD' : 'threeD';
         const nonce = Date.now();
         const headers = getBookieAuthHeaders();
         const currentEndpoint = `${API_BASE_URL}/admin/lottery${mode}/current-slot?_=${nonce}`;
         const effectiveRange = rangeOverride || getFromTo();
-        const currentRes = await fetch(currentEndpoint, { headers, cache: 'no-store' });
-        const currentJson = await currentRes.json();
+        const aggParams = new URLSearchParams();
+        if (effectiveRange?.from) aggParams.set('dateFrom', effectiveRange.from);
+        if (effectiveRange?.to) aggParams.set('dateTo', effectiveRange.to);
+        aggParams.set('_', String(nonce));
+
+        const [currentRes, aggRes] = await Promise.all([
+            fetch(currentEndpoint, { headers, cache: 'no-store' }),
+            fetch(`${API_BASE_URL}/admin/lottery${mode}/aggregate-stats?${aggParams.toString()}`, {
+                headers,
+                cache: 'no-store',
+            }),
+        ]);
+        const [currentJson, aggJson] = await Promise.all([currentRes.json(), aggRes.json()]);
         if (!currentJson?.success) {
             throw new Error(currentJson?.message || `Failed to load ${mode.toUpperCase()} current slot`);
         }
-        const currentSlotIso = currentJson?.data?.slot?.slotStartIso || '';
-        const currentSlotMs = currentSlotIso ? new Date(currentSlotIso).getTime() : 0;
-        const previousSlotMs = Number.isFinite(currentSlotMs) && currentSlotMs > 0
-            ? (currentSlotMs - (15 * 60 * 1000))
-            : 0;
-        const rangeDateKeys = listDateKeysInRange(effectiveRange?.from, effectiveRange?.to);
-        const mustHaveDateKeys = [dateKeyFromMs(currentSlotMs), dateKeyFromMs(previousSlotMs)].filter(Boolean);
-        const dateKeys = [...new Set([...rangeDateKeys, ...mustHaveDateKeys])];
-        const historyResList = await Promise.all(
-            dateKeys.map((dateKey) =>
-                fetch(`${API_BASE_URL}/admin/lottery${mode}/slots?date=${encodeURIComponent(dateKey)}&limit=96&_=${nonce}`, {
-                    headers,
-                    cache: 'no-store',
-                }),
-            ),
-        );
-        const historyJsonList = await Promise.all(historyResList.map((res) => res.json()));
-        if (historyJsonList.some((json) => !json?.success)) {
-            const bad = historyJsonList.find((json) => !json?.success);
-            throw new Error(bad?.message || `Failed to load ${mode.toUpperCase()} all slots`);
-        }
-        const historySlots = historyJsonList.flatMap((json) => (Array.isArray(json?.data?.slots) ? json.data.slots : []));
-        const normalizedSlots = historySlots
-            .map((slot) => {
-                const slotStartMs = new Date(slot?.slotStartIso || 0).getTime();
-                return {
-                    ...slot,
-                    slotStartMs: Number.isFinite(slotStartMs) ? slotStartMs : 0,
-                };
-            })
-            .filter((slot) => slot.slotStartMs > 0);
-
-        const uptoCurrentSlots = normalizedSlots.filter((slot) => (currentSlotMs ? slot.slotStartMs <= currentSlotMs : true));
-        const completedSlots = uptoCurrentSlots.filter((slot) => Boolean(slot?.isCompleted));
-        const latestSlot = previousSlotMs
-            ? (completedSlots.find((slot) => slot.slotStartMs === previousSlotMs)
-                || [...completedSlots].sort((a, b) => b.slotStartMs - a.slotStartMs)[0]
-                || null)
-            : ([...completedSlots].sort((a, b) => b.slotStartMs - a.slotStartMs)[0] || null);
-        const nextUpcomingSlot = currentSlotMs
-            ? [...normalizedSlots]
-                .filter((slot) => slot.slotStartMs > currentSlotMs)
-                .sort((a, b) => a.slotStartMs - b.slotStartMs)[0] || null
-            : null;
         const currentSummary = currentJson?.data?.summary || {};
-        const historyTotals = completedSlots.reduce((acc, slot) => {
-            acc.tickets += Number(slot?.totalTickets || 0);
-            acc.bets += Number(slot?.totalBets ?? slot?.totalTickets ?? 0);
-            acc.revenue += Number(slot?.revenue || 0);
-            acc.payout += Number(slot?.winnerPayout || 0);
-            acc.net += Number(slot?.amountRemaining || 0);
-            return acc;
-        }, { tickets: 0, bets: 0, revenue: 0, payout: 0, net: 0 });
-
-        const currentBets = Number(currentSummary?.totalBets ?? currentSummary?.totalTickets ?? 0);
-        const allSlots = {
-            tickets: historyTotals.tickets + Number(currentSummary?.totalTickets || 0),
-            bets: historyTotals.bets + currentBets,
-            revenue: historyTotals.revenue + Number(currentSummary?.revenue || 0),
-            payout: historyTotals.payout + Number(currentSummary?.winnerPayout || 0),
-            net: historyTotals.net + Number(currentSummary?.amountRemaining || 0),
+        const aggregate = aggJson?.success ? (aggJson?.data || {}) : {};
+        const aggregateHasSignal = (
+            Number(aggregate?.slotCount || 0) > 0 ||
+            Number(aggregate?.totalTickets || 0) > 0 ||
+            Number(aggregate?.totalBets || 0) > 0 ||
+            Number(aggregate?.totalStake || 0) > 0 ||
+            Number(aggregate?.totalPayout || 0) > 0
+        );
+        const currentHasSignal = (
+            Number(currentSummary?.totalTickets || 0) > 0 ||
+            Number(currentSummary?.totalBets || 0) > 0 ||
+            Number(currentSummary?.revenue || 0) > 0 ||
+            Number(currentSummary?.winnerPayout || 0) > 0
+        );
+        const allSlots = aggregateHasSignal ? {
+            tickets: Number(aggregate?.totalTickets || 0),
+            bets: Number(aggregate?.totalBets || aggregate?.totalTickets || 0),
+            revenue: Number(aggregate?.totalStake || 0),
+            payout: Number(aggregate?.totalPayout || 0),
+            net: Number(aggregate?.adminNet || 0),
+        } : currentHasSignal ? {
+            tickets: Number(currentSummary?.totalTickets || 0),
+            bets: Number(currentSummary?.totalBets || currentSummary?.totalTickets || 0),
+            revenue: Number(currentSummary?.revenue || 0),
+            payout: Number(currentSummary?.winnerPayout || 0),
+            net: Number(currentSummary?.amountRemaining || 0),
+        } : {
+            tickets: 0,
+            bets: 0,
+            revenue: 0,
+            payout: 0,
+            net: 0,
         };
 
         return {
             modeKey,
             current: currentJson?.data || null,
-            latest: latestSlot,
-            nextUpcoming: nextUpcomingSlot,
+            latest: null,
+            nextUpcoming: null,
             allSlots,
             error: '',
         };
@@ -409,8 +361,8 @@ const Dashboard = () => {
                     .sort((a, b) => (Number(b?.walletBalance ?? 0) || 0) - (Number(a?.walletBalance ?? 0) || 0))
                     .slice(0, 3);
                 setTopWalletPlayers(topPlayers);
-                await fetchMarketReport(rangeOverride);
-                await fetchLotteryDashboardStats(rangeOverride);
+                void fetchMarketReport(rangeOverride);
+                void fetchLotteryDashboardStats(rangeOverride);
             }
             else setError(statsData.message || 'Failed to fetch dashboard stats');
         } catch (err) {
