@@ -76,7 +76,7 @@ const ThreeDResultControl = () => {
     const [switchingRandomAuto, setSwitchingRandomAuto] = useState(false);
     const [hintPreviewMode, setHintPreviewMode] = useState('default');
     const [autoDeclareMode, setAutoDeclareMode] = useState('random');
-    const [preferredAutoMode, setPreferredAutoMode] = useState(() => {
+    const [, setPreferredAutoMode] = useState(() => {
         try {
             const v = sessionStorage.getItem(RESULT_CONTROL_MODE_PREF_KEY);
             return v === 'target' ? 'target' : 'random';
@@ -163,7 +163,6 @@ const ThreeDResultControl = () => {
     const fetchCurrentSlotForHints = useCallback(async (options = {}) => {
         const silent = Boolean(options?.silent);
         const mode = String(options?.mode || 'default');
-        const skipPreferenceSync = Boolean(options?.skipPreferenceSync);
         const targetInput = String(options?.targetProfitPercent ?? targetProfitPercentRef.current).trim();
         const parsedTarget = Number(targetInput);
         const targetToUse = Number.isFinite(parsedTarget) ? parsedTarget : 0;
@@ -193,22 +192,6 @@ const ThreeDResultControl = () => {
             if (!iso) {
                 setCurrentHintRows([]);
                 return;
-            }
-            if (!skipPreferenceSync) {
-                const shouldSyncTarget = preferredAutoMode === 'target' && !Number.isFinite(persistedTarget);
-                const shouldSyncRandom = preferredAutoMode === 'random' && Number.isFinite(persistedTarget);
-                if (shouldSyncTarget || shouldSyncRandom) {
-                    const body = shouldSyncTarget
-                        ? { targetProfitPercent: targetToUse }
-                        : { mode: 'random' };
-                    const syncRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/current-slot/target-auto-declare`, {
-                        method: 'PATCH',
-                        body: JSON.stringify(body),
-                    });
-                    if (syncRes.status === 401) return;
-                    await fetchCurrentSlotForHints({ ...options, skipPreferenceSync: true, silent: true });
-                    return;
-                }
             }
             if (mode === 'target') {
                 const targetParams = new URLSearchParams({ targetProfitPercent: String(targetToUse) });
@@ -259,7 +242,7 @@ const ThreeDResultControl = () => {
         } finally {
             if (!silent) setHintsLoading(false);
         }
-    }, [preferredAutoMode]);
+    }, []);
 
     useEffect(() => {
         if (!secretCheckComplete) return;
@@ -319,12 +302,26 @@ const ThreeDResultControl = () => {
             if (String(data?.gameMode || '').toLowerCase() !== '3d') return;
             refreshLiveData();
         };
+        const onSlotUpdate = (data) => {
+            if (String(data?.gameMode || '').toLowerCase() !== '3d') return;
+            if (hintPreviewMode === 'target' && hasValidTargetProfit) {
+                fetchCurrentSlotForHints({
+                    silent: true,
+                    mode: 'target',
+                    targetProfitPercent,
+                });
+                return;
+            }
+            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
+        };
 
         socket.on('quiz:result', onQuizResult);
+        socket.on('slot:update', onSlotUpdate);
         socket.on('connect', refreshLiveData);
 
         return () => {
             socket.off('quiz:result', onQuizResult);
+            socket.off('slot:update', onSlotUpdate);
             socket.off('connect', refreshLiveData);
             socket.disconnect();
         };
@@ -476,7 +473,6 @@ const ThreeDResultControl = () => {
                 targetProfitPercent: value,
                 mode: 'target',
                 silent: true,
-                skipPreferenceSync: true,
             });
         } catch (err) {
             setAutoDeclareMode(previousMode);
@@ -515,7 +511,7 @@ const ThreeDResultControl = () => {
                 window.location.reload();
                 return;
             }
-            await fetchCurrentSlotForHints({ mode: 'default', silent: true, skipPreferenceSync: true });
+            await fetchCurrentSlotForHints({ mode: 'default', silent: true });
         } catch (err) {
             setAutoDeclareMode(previousMode);
             setActiveTargetPercent(previousActiveTarget);

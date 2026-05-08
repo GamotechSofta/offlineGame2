@@ -31,7 +31,7 @@ import {
   markSlotDeclared,
   setSlotTargetProfitPercent,
 } from '../services/quizDeclarationService.js';
-import { getQuizSocketIo } from '../socket/socketHub.js';
+import { getQuizSocketIo, syncQuizSlotUpdates } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply3DTargetProfitHintsToSlot, build3DTargetProfitHints } from '../services/quizTargetProfitService.js';
@@ -707,6 +707,7 @@ export const configureLottery3DCurrentSlotTargetAutoDeclare = async (req, res) =
       await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
       await apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
     }
+    syncQuizSlotUpdates();
     const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
     const effectiveTarget = mode === 'random' ? null : targetProfitPercent;
     return res.json({

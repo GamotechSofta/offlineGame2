@@ -74,7 +74,7 @@ const TwoDResultControl = () => {
     const [pageUnlockError, setPageUnlockError] = useState('');
     const [currentHintRows, setCurrentHintRows] = useState([]);
     const [targetProfitPercent, setTargetProfitPercent] = useState('0');
-    const [preferredAutoMode, setPreferredAutoMode] = useState(() => {
+    const [, setPreferredAutoMode] = useState(() => {
         try {
             const v = sessionStorage.getItem(RESULT_CONTROL_MODE_PREF_KEY);
             return v === 'target' ? 'target' : 'random';
@@ -169,7 +169,6 @@ const TwoDResultControl = () => {
     const fetchCurrentSlotForHints = useCallback(async (options = {}) => {
         const silent = Boolean(options?.silent);
         const mode = String(options?.mode || 'default');
-        const skipPreferenceSync = Boolean(options?.skipPreferenceSync);
         const targetInput = String(options?.targetProfitPercent ?? targetProfitPercentRef.current).trim();
         const parsedTarget = Number(targetInput);
         const targetToUse = Number.isFinite(parsedTarget) ? parsedTarget : 0;
@@ -195,22 +194,6 @@ const TwoDResultControl = () => {
                 if (!iso) {
                     setCurrentHintRows([]);
                     return;
-                }
-                if (!skipPreferenceSync) {
-                    const shouldSyncTarget = preferredAutoMode === 'target' && !Number.isFinite(persistedTarget);
-                    const shouldSyncRandom = preferredAutoMode === 'random' && Number.isFinite(persistedTarget);
-                    if (shouldSyncTarget || shouldSyncRandom) {
-                        const body = shouldSyncTarget
-                            ? { targetProfitPercent: targetToUse }
-                            : { mode: 'random' };
-                        const syncRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/current-slot/target-auto-declare`, {
-                            method: 'PATCH',
-                            body: JSON.stringify(body),
-                        });
-                        if (syncRes.status === 401) return;
-                        await fetchCurrentSlotForHints({ ...options, skipPreferenceSync: true, silent: true });
-                        return;
-                    }
                 }
                 if (mode === 'target') {
                     const targetParams = new URLSearchParams({ targetProfitPercent: String(targetToUse) });
@@ -263,7 +246,7 @@ const TwoDResultControl = () => {
         } finally {
             if (!silent) setHintsLoading(false);
         }
-    }, [preferredAutoMode]);
+    }, []);
 
     useEffect(() => {
         if (!secretCheckComplete) return;
@@ -308,12 +291,26 @@ const TwoDResultControl = () => {
             if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
             refreshLiveData();
         };
+        const onSlotUpdate = (data) => {
+            if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
+            if (hintPreviewMode === 'target' && hasValidTargetProfit) {
+                fetchCurrentSlotForHints({
+                    silent: true,
+                    mode: 'target',
+                    targetProfitPercent,
+                });
+                return;
+            }
+            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
+        };
 
         socket.on('quiz:result', onQuizResult);
+        socket.on('slot:update', onSlotUpdate);
         socket.on('connect', refreshLiveData);
 
         return () => {
             socket.off('quiz:result', onQuizResult);
+            socket.off('slot:update', onSlotUpdate);
             socket.off('connect', refreshLiveData);
             socket.disconnect();
         };
@@ -466,7 +463,6 @@ const TwoDResultControl = () => {
                 targetProfitPercent: value,
                 mode: 'target',
                 silent: true,
-                skipPreferenceSync: true,
             });
         } catch (err) {
             setAutoDeclareMode(previousMode);
@@ -505,7 +501,7 @@ const TwoDResultControl = () => {
                 window.location.reload();
                 return;
             }
-            await fetchCurrentSlotForHints({ mode: 'default', silent: true, skipPreferenceSync: true });
+            await fetchCurrentSlotForHints({ mode: 'default', silent: true });
         } catch (err) {
             setAutoDeclareMode(previousMode);
             setActiveTargetPercent(previousActiveTarget);
@@ -592,6 +588,18 @@ const TwoDResultControl = () => {
             return next;
         });
     }, [totalHistoryPages]);
+
+    const goToPreviousHistoryPage = useCallback(() => {
+        setSlotHistoryPage((prev) => {
+            const next = Math.max(1, prev - 1);
+            if (next !== prev) {
+                requestAnimationFrame(() => {
+                    historyListTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            }
+            return next;
+        });
+    }, []);
 
     useEffect(() => {
         if (!sortedSlots.length) {
@@ -952,7 +960,15 @@ const TwoDResultControl = () => {
                                             </div>
                                         );
                                     })}
-                                    <div className="pt-2 flex justify-end">
+                                    <div className="pt-2 flex justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={goToPreviousHistoryPage}
+                                            disabled={slotHistoryPage <= 1}
+                                            className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                        >
+                                            Previous Page
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={goToNextHistoryPage}
