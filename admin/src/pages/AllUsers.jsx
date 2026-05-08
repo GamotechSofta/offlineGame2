@@ -2,15 +2,20 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaUserSlash, FaUserCheck, FaUserPlus, FaSearch } from 'react-icons/fa';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useModalBackHandler from '../hooks/useModalBackHandler';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
+import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
+import { dedupeRequest } from '../lib/requestDedupe';
+import { useTraceRender } from '../lib/runtimeTrace';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
 
-const computeIsOnline = (item) => {
+const computeIsOnline = (item, nowMs) => {
     const lastActive = item?.lastActiveAt ? new Date(item.lastActiveAt).getTime() : 0;
-    return lastActive > 0 && Date.now() - lastActive < ONLINE_THRESHOLD_MS;
+    return lastActive > 0 && nowMs - lastActive < ONLINE_THRESHOLD_MS;
 };
 
 const TABS = [
@@ -20,8 +25,46 @@ const TABS = [
     { id: 'bookie_users', label: 'All Bookies Players', value: 'bookie_users' },
     { id: 'super_admin_users', label: 'Super Admin Players', value: 'super_admin_users' },
 ];
+const USERS_PAGE_LIMIT = 100;
+
+const toggleUserInCache = (previous, userId) => {
+    if (!previous) return previous;
+    const flipUser = (user) => {
+        if (!user || user._id !== userId) return user;
+        const nextIsActive = !Boolean(user.isActive);
+        return {
+            ...user,
+            isActive: nextIsActive,
+            status: nextIsActive ? 'active' : 'inactive',
+        };
+    };
+    return {
+        ...previous,
+        allUsers: (previous.allUsers || []).map(flipUser),
+        superAdminUsersList: (previous.superAdminUsersList || []).map(flipUser),
+        bookieUsersList: (previous.bookieUsersList || []).map(flipUser),
+    };
+};
+
+const toggleBookieInCache = (previous, bookieId) => {
+    if (!previous) return previous;
+    const flipBookie = (bookie) => {
+        if (!bookie || bookie._id !== bookieId) return bookie;
+        const nextStatus = bookie.status === 'active' ? 'suspended' : 'active';
+        return {
+            ...bookie,
+            status: nextStatus,
+            isActive: nextStatus === 'active',
+        };
+    };
+    return {
+        ...previous,
+        allBookies: (previous.allBookies || []).map(flipBookie),
+    };
+};
 
 const AllUsers = () => {
+    useTraceRender('AllUsers');
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('all');
     const [expandedBookieId, setExpandedBookieId] = useState(null);
@@ -35,12 +78,13 @@ const AllUsers = () => {
     const [success, setSuccess] = useState('');
     const [togglingId, setTogglingId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [, setTick] = useState(0);
+    const [now, setNow] = useState(Date.now());
     const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [secretPassword, setSecretPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [pendingAction, setPendingAction] = useState(null);
+    const queryClient = useQueryClient();
     const closePasswordModal = useModalBackHandler(showPasswordModal, () => {
         setShowPasswordModal(false);
         setPendingAction(null);
@@ -48,33 +92,37 @@ const AllUsers = () => {
         setPasswordError('');
     });
 
-    const fetchData = async (showLoader = true) => {
-        if (showLoader) setLoading(true);
-        if (showLoader) setError('');
-        try {
+    const fetchData = async () => {
+        return dedupeRequest('all-users:data', async () => {
             const [allRes, superAdminRes, bookieRes, bookiesRes, adminsRes] = await Promise.all([
-                fetchWithAuth(`${API_BASE_URL}/users`),
-                fetchWithAuth(`${API_BASE_URL}/users?filter=super_admin`),
-                fetchWithAuth(`${API_BASE_URL}/users?filter=bookie`),
+                fetchWithAuth(`${API_BASE_URL}/users?page=1&limit=${USERS_PAGE_LIMIT}`),
+                fetchWithAuth(`${API_BASE_URL}/users?filter=super_admin&page=1&limit=${USERS_PAGE_LIMIT}`),
+                fetchWithAuth(`${API_BASE_URL}/users?filter=bookie&page=1&limit=${USERS_PAGE_LIMIT}`),
                 fetchWithAuth(`${API_BASE_URL}/admin/bookies`),
                 fetchWithAuth(`${API_BASE_URL}/admin/super-admins`),
             ]);
-            if (allRes.status === 401 || superAdminRes.status === 401 || bookieRes.status === 401 || bookiesRes.status === 401 || adminsRes.status === 401) return;
+            if (allRes.status === 401 || superAdminRes.status === 401 || bookieRes.status === 401 || bookiesRes.status === 401 || adminsRes.status === 401) {
+                return {
+                    allUsers: [],
+                    superAdminUsersList: [],
+                    bookieUsersList: [],
+                    allBookies: [],
+                    superAdminsList: [],
+                };
+            }
             const allData = await allRes.json();
             const superAdminData = await superAdminRes.json();
             const bookieData = await bookieRes.json();
             const bookiesData = await bookiesRes.json();
             const adminsData = await adminsRes.json();
-            if (allData.success) setAllUsers(allData.data || []);
-            if (superAdminData.success) setSuperAdminUsersList(superAdminData.data || []);
-            if (bookieData.success) setBookieUsersList(bookieData.data || []);
-            if (bookiesData.success) setAllBookies(bookiesData.data || []);
-            if (adminsData.success) setSuperAdminsList(adminsData.data || []);
-        } catch (err) {
-            if (showLoader) setError('Failed to fetch data');
-        } finally {
-            if (showLoader) setLoading(false);
-        }
+            return {
+                allUsers: allData.success ? (allData.data || []) : [],
+                superAdminUsersList: superAdminData.success ? (superAdminData.data || []) : [],
+                bookieUsersList: bookieData.success ? (bookieData.data || []) : [],
+                allBookies: bookiesData.success ? (bookiesData.data || []) : [],
+                superAdminsList: adminsData.success ? (adminsData.data || []) : [],
+            };
+        });
     };
 
     useEffect(() => {
@@ -83,7 +131,7 @@ const AllUsers = () => {
             navigate('/');
             return;
         }
-        fetchData(true);
+        setLoading(true);
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
             .then((res) => { if (res.status === 401) return; return res.json(); })
             .then((json) => {
@@ -91,81 +139,143 @@ const AllUsers = () => {
             })
             .catch(() => setHasSecretDeclarePassword(false));
 
-        const refreshInterval = setInterval(() => fetchData(false), 15000);
-        const tickInterval = setInterval(() => setTick((t) => t + 1), 5000);
-        return () => {
-            clearInterval(refreshInterval);
-            clearInterval(tickInterval);
-        };
     }, [navigate]);
+
+    useEffect(() => {
+        const tick = () => setNow(Date.now());
+        const id = window.setInterval(tick, 15000);
+        return () => window.clearInterval(id);
+    }, []);
+
+    const usersQuery = useQuery({
+        queryKey: ['all-users-data'],
+        queryFn: fetchData,
+        enabled: !!localStorage.getItem('admin'),
+    });
+
+    useEffect(() => {
+        if (!usersQuery.data) return;
+        setAllUsers(usersQuery.data.allUsers || []);
+        setSuperAdminUsersList(usersQuery.data.superAdminUsersList || []);
+        setBookieUsersList(usersQuery.data.bookieUsersList || []);
+        setAllBookies(usersQuery.data.allBookies || []);
+        setSuperAdminsList(usersQuery.data.superAdminsList || []);
+        setError('');
+    }, [usersQuery.data]);
+
+    useEffect(() => {
+        setLoading(usersQuery.isLoading || usersQuery.isFetching);
+        if (usersQuery.error) {
+            setError(usersQuery.error?.message || 'Failed to fetch data');
+        }
+    }, [usersQuery.isLoading, usersQuery.isFetching, usersQuery.error]);
+
+    useSectionAutoRefresh({
+        enabled: true,
+        intervalMs: 30000,
+        onRefresh: () => queryClient.invalidateQueries({ queryKey: ['all-users-data'] }),
+        immediate: false,
+    });
+
+    useAdminLiveQueryInvalidation({
+        enabled: true,
+        queryKeys: [['all-users-data']],
+        throttleMs: 1000,
+    });
 
     const handleLogout = () => {
         clearAdminSession();
         navigate('/');
     };
 
-    const performTogglePlayerStatus = async (userId, secretDeclarePasswordValue) => {
-        setTogglingId(userId);
-        setError('');
-        setSuccess('');
-        setPasswordError('');
-        try {
+    const togglePlayerMutation = useMutation({
+        mutationFn: async ({ userId, secretDeclarePasswordValue }) => {
             const opts = { method: 'PATCH' };
             if (secretDeclarePasswordValue) opts.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
             const res = await fetchWithAuth(`${API_BASE_URL}/users/${userId}/toggle-status`, opts);
-            if (res.status === 401) return;
-            const data = await res.json();
-            if (data.success) {
-                setShowPasswordModal(false);
-                setPendingAction(null);
-                setSecretPassword('');
-                setSuccess(`Player ${data.data.isActive ? 'unsuspended' : 'suspended'} successfully`);
-                fetchData(false);
-                setTimeout(() => setSuccess(''), 3000);
-            } else {
-                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
-                    setPasswordError(data.message || 'Invalid secret password');
-                } else {
-                    setError(data.message || 'Failed to update status');
-                }
-            }
-        } catch (err) {
+            if (res.status === 401) return { success: false, unauthorized: true };
+            return res.json();
+        },
+        onMutate: async ({ userId }) => {
+            setTogglingId(userId);
+            setError('');
+            setSuccess('');
+            setPasswordError('');
+            await queryClient.cancelQueries({ queryKey: ['all-users-data'] });
+            const previous = queryClient.getQueryData(['all-users-data']);
+            queryClient.setQueryData(['all-users-data'], (old) => toggleUserInCache(old, userId));
+            return { previous };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previous) queryClient.setQueryData(['all-users-data'], context.previous);
             setError('Network error. Please try again.');
-        } finally {
+        },
+        onSuccess: async (data, vars, context) => {
+            if (!data?.success) {
+                if (context?.previous) queryClient.setQueryData(['all-users-data'], context.previous);
+                if (data?.code === 'INVALID_SECRET_DECLARE_PASSWORD') setPasswordError(data.message || 'Invalid secret password');
+                else if (!data?.unauthorized) setError(data?.message || 'Failed to update status');
+                return;
+            }
+            setShowPasswordModal(false);
+            setPendingAction(null);
+            setSecretPassword('');
+            setSuccess(`Player ${data.data.isActive ? 'unsuspended' : 'suspended'} successfully`);
+            setTimeout(() => setSuccess(''), 3000);
+            await queryClient.invalidateQueries({ queryKey: ['all-users-data'] });
+        },
+        onSettled: () => {
             setTogglingId(null);
-        }
-    };
+        },
+    });
 
-    const performToggleBookieStatus = async (bookieId, secretDeclarePasswordValue) => {
-        setTogglingId(bookieId);
-        setError('');
-        setSuccess('');
-        setPasswordError('');
-        try {
+    const toggleBookieMutation = useMutation({
+        mutationFn: async ({ bookieId, secretDeclarePasswordValue }) => {
             const opts = { method: 'PATCH' };
             if (secretDeclarePasswordValue) opts.body = JSON.stringify({ secretDeclarePassword: secretDeclarePasswordValue });
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/bookies/${bookieId}/toggle-status`, opts);
-            if (res.status === 401) return;
-            const data = await res.json();
-            if (data.success) {
-                setShowPasswordModal(false);
-                setPendingAction(null);
-                setSecretPassword('');
-                setSuccess(`Bookie ${data.data.status === 'active' ? 'unsuspended' : 'suspended'} successfully`);
-                fetchData(false);
-                setTimeout(() => setSuccess(''), 3000);
-            } else {
-                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
-                    setPasswordError(data.message || 'Invalid secret password');
-                } else {
-                    setError(data.message || 'Failed to update status');
-                }
-            }
-        } catch (err) {
+            if (res.status === 401) return { success: false, unauthorized: true };
+            return res.json();
+        },
+        onMutate: async ({ bookieId }) => {
+            setTogglingId(bookieId);
+            setError('');
+            setSuccess('');
+            setPasswordError('');
+            await queryClient.cancelQueries({ queryKey: ['all-users-data'] });
+            const previous = queryClient.getQueryData(['all-users-data']);
+            queryClient.setQueryData(['all-users-data'], (old) => toggleBookieInCache(old, bookieId));
+            return { previous };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previous) queryClient.setQueryData(['all-users-data'], context.previous);
             setError('Network error. Please try again.');
-        } finally {
+        },
+        onSuccess: async (data, _vars, context) => {
+            if (!data?.success) {
+                if (context?.previous) queryClient.setQueryData(['all-users-data'], context.previous);
+                if (data?.code === 'INVALID_SECRET_DECLARE_PASSWORD') setPasswordError(data.message || 'Invalid secret password');
+                else if (!data?.unauthorized) setError(data?.message || 'Failed to update status');
+                return;
+            }
+            setShowPasswordModal(false);
+            setPendingAction(null);
+            setSecretPassword('');
+            setSuccess(`Bookie ${data.data.status === 'active' ? 'unsuspended' : 'suspended'} successfully`);
+            setTimeout(() => setSuccess(''), 3000);
+            await queryClient.invalidateQueries({ queryKey: ['all-users-data'] });
+        },
+        onSettled: () => {
             setTogglingId(null);
-        }
+        },
+    });
+
+    const performTogglePlayerStatus = async (userId, secretDeclarePasswordValue) => {
+        await togglePlayerMutation.mutateAsync({ userId, secretDeclarePasswordValue });
+    };
+
+    const performToggleBookieStatus = async (bookieId, secretDeclarePasswordValue) => {
+        await toggleBookieMutation.mutateAsync({ bookieId, secretDeclarePasswordValue });
     };
 
     const handleTogglePlayerStatus = (userId) => {
@@ -419,7 +529,7 @@ const AllUsers = () => {
                                                                                         <td className="px-4 py-2.5 text-gray-600 hidden lg:table-cell">{u.phone || '—'}</td>
                                                                                         <td className="px-4 py-2.5">
                                                                                             {(() => {
-                                                                                                const isOnline = computeIsOnline(u);
+                                                                                                const isOnline = computeIsOnline(u, now);
                                                                                                 return (
                                                                                                     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs border ${isOnline ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
                                                                                                         <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
@@ -522,9 +632,9 @@ const AllUsers = () => {
                                                             <div className="flex flex-col gap-2 mb-1.5">
                                                                 <Link to={`/all-users/${u._id}`} className="font-medium text-orange-500 hover:text-orange-600 hover:underline text-sm truncate">{u.username}</Link>
                                                                 <div className="flex items-center gap-1.5">
-                                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border ${computeIsOnline(u) ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${computeIsOnline(u) ? 'bg-emerald-500' : 'bg-slate-500'}`} />
-                                                                        {computeIsOnline(u) ? 'Online' : 'Offline'}
+                                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border ${computeIsOnline(u, now) ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+                                                                        <span className={`w-1.5 h-1.5 rounded-full ${computeIsOnline(u, now) ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+                                                                        {computeIsOnline(u, now) ? 'Online' : 'Offline'}
                                                                     </span>
                                                                     <span className={`px-1.5 py-0.5 rounded text-xs font-medium border ${u.isActive !== false ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-rose-100 text-rose-700 border-rose-300'}`}>
                                                                         {u.isActive !== false ? 'Active' : 'Suspended'}
@@ -621,7 +731,7 @@ const AllUsers = () => {
                                                 </span>
                                             ) : (
                                                 (() => {
-                                                    const isOnline = computeIsOnline(item);
+                                                    const isOnline = computeIsOnline(item, now);
                                                     return (
                                                         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border ${
                                                             isOnline

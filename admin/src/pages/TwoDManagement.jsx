@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import useModalBackHandler from '../hooks/useModalBackHandler';
@@ -6,6 +7,9 @@ import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import CurrentSlotOverview from '../components/twoDManagement/CurrentSlotOverview';
 import TwoDAggregateStatsCard from '../components/twoDManagement/TwoDAggregateStatsCard';
 import OldSlotsSection from '../components/twoDManagement/OldSlotsSection';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
+import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
+import { dedupeRequest } from '../lib/requestDedupe';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -22,6 +26,7 @@ const todayDate = () => {
 
 const TwoDManagement = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const location = useLocation();
     const isOldSlotsPage = location.pathname === '/2d-management/old-slots';
     const [date, setDate] = useState(todayDate());
@@ -117,6 +122,24 @@ const TwoDManagement = () => {
             setLoadingPlayerHistory(false);
         }
     }, []);
+
+    const fetchPlayerHistoryQuery = useCallback(async () => {
+        if (!selectedPlayer?.userId) return null;
+        return dedupeRequest(`2d:player-history:${selectedPlayer.userId}`, async () => {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/players/${encodeURIComponent(selectedPlayer.userId)}/history?limit=40`);
+            if (res.status === 401) return null;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load player history');
+            return data.data || null;
+        });
+    }, [selectedPlayer?.userId]);
+
+    const playerHistoryQuery = useQuery({
+        queryKey: ['2d-player-history', selectedPlayer?.userId || ''],
+        queryFn: fetchPlayerHistoryQuery,
+        enabled: showPlayerHistoryModal && Boolean(selectedPlayer?.userId),
+        staleTime: 15000,
+    });
 
     const fetchCurrent = useCallback(async () => {
         setLoadingCurrent(true);
@@ -375,6 +398,22 @@ const TwoDManagement = () => {
     }, [fetchAggregateStats]);
 
     useEffect(() => {
+        if (playerHistoryQuery.data !== undefined) {
+            setPlayerHistoryData(playerHistoryQuery.data || null);
+            setPlayerHistoryError('');
+            setLoadingPlayerHistory(false);
+        }
+    }, [playerHistoryQuery.data]);
+
+    useEffect(() => {
+        setLoadingPlayerHistory(playerHistoryQuery.isLoading || playerHistoryQuery.isFetching);
+        if (playerHistoryQuery.error) {
+            setPlayerHistoryError(playerHistoryQuery.error?.message || 'Failed to load player history');
+            setPlayerHistoryData(null);
+        }
+    }, [playerHistoryQuery.isLoading, playerHistoryQuery.isFetching, playerHistoryQuery.error]);
+
+    useEffect(() => {
         if (hasSecretDeclarePassword) {
             setTimingUnlocked(false);
             setTimingUnlockedSecret('');
@@ -587,6 +626,105 @@ const TwoDManagement = () => {
         setShowPlayerHistoryModal(true);
         await fetchPlayerHistory(player.userId);
     };
+
+    useSectionAutoRefresh({
+        enabled: true,
+        intervalMs: 30000,
+        onRefresh: () => {
+            queryClient.invalidateQueries({ queryKey: ['2d-management-current'] });
+            queryClient.invalidateQueries({ queryKey: ['2d-management-aggregate', appliedStatsDateFrom, appliedStatsDateTo] });
+            queryClient.invalidateQueries({ queryKey: ['2d-management-history', date] });
+            if (showPlayerHistoryModal && selectedPlayer?.userId) {
+                queryClient.invalidateQueries({ queryKey: ['2d-player-history', selectedPlayer.userId] });
+            }
+        },
+        immediate: false,
+    });
+
+    useAdminLiveQueryInvalidation({
+        enabled: true,
+        queryKeys: [
+            ['2d-management-current'],
+            ['2d-management-aggregate', appliedStatsDateFrom, appliedStatsDateTo],
+            ['2d-management-history', date],
+            ['2d-player-history', selectedPlayer?.userId || ''],
+        ],
+        throttleMs: 900,
+    });
+
+    const currentQuery = useQuery({
+        queryKey: ['2d-management-current'],
+        queryFn: async () => {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/current-slot`);
+            if (res.status === 401) return null;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load current slot');
+            return data.data || null;
+        },
+        enabled: !!localStorage.getItem('admin'),
+    });
+
+    const aggregateQuery = useQuery({
+        queryKey: ['2d-management-aggregate', appliedStatsDateFrom, appliedStatsDateTo],
+        queryFn: async () => {
+            const params = new URLSearchParams();
+            if (appliedStatsDateFrom && appliedStatsDateTo) {
+                params.set('dateFrom', appliedStatsDateFrom);
+                params.set('dateTo', appliedStatsDateTo);
+            }
+            const q = params.toString() ? `?${params.toString()}` : '';
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/aggregate-stats${q}`);
+            if (res.status === 401) return null;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load 2D aggregate stats');
+            return data.data || null;
+        },
+        enabled: !!localStorage.getItem('admin'),
+    });
+
+    const historyQuery = useQuery({
+        queryKey: ['2d-management-history', date],
+        queryFn: async () => {
+            const params = new URLSearchParams({ date, limit: '40' });
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots?${params.toString()}`);
+            if (res.status === 401) return [];
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load slot history');
+            return data?.data?.slots || [];
+        },
+        enabled: !!localStorage.getItem('admin'),
+    });
+
+    useEffect(() => {
+        if (currentQuery.data) {
+            setCurrentSlotData(currentQuery.data);
+            setLoadingCurrent(false);
+            const iso = currentQuery.data?.slot?.slotStartIso;
+            if (iso) fetchSlotPlayers(iso);
+        }
+    }, [currentQuery.data, fetchSlotPlayers]);
+
+    useEffect(() => {
+        if (aggregateQuery.data !== undefined) {
+            setAggregateStats(aggregateQuery.data);
+            setLoadingAggregateStats(false);
+            setAggregateStatsError('');
+        }
+    }, [aggregateQuery.data]);
+
+    useEffect(() => {
+        if (historyQuery.data) {
+            const slots = historyQuery.data || [];
+            setHistorySlots(slots);
+            setLoadingHistory(false);
+            if (slots.length) {
+                setSelectedSlot((prev) => (prev && slots.some((slot) => slot.slotStartIso === prev) ? prev : slots[0].slotStartIso));
+            } else {
+                setSelectedSlot('');
+                setDetailData(null);
+            }
+        }
+    }, [historyQuery.data]);
 
     return (
         <AdminLayout onLogout={handleLogout} title="2D Management">

@@ -50,6 +50,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             children: [
                 { path: '/2d-management/current-slot-players', label: '2D players' },
                 { path: '/2d-management/result-control', label: 'Result Control' },
+                { path: '/2d-management/slot-history', label: 'Slot History' },
                 { path: '/2d-management/tickets', label: 'All User Tickets' },
                 { path: '/2d-management/old-slots', label: 'Old Slots Stats' },
             ],
@@ -61,6 +62,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             children: [
                 { path: '/3d-management/current-slot-players', label: '3D players' },
                 { path: '/3d-management/result-control', label: 'Result Control' },
+                { path: '/3d-management/slot-history', label: 'Slot History' },
                 { path: '/3d-management/tickets', label: 'All User Tickets' },
                 { path: '/3d-management/old-slots', label: 'Old Slots Stats' },
             ],

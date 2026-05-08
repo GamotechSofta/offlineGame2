@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -6,16 +6,6 @@ import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const RESULT_CONTROL_UNLOCK_SESSION_KEY = 'offlinebookie:admin:2d-result-control-unlock';
 const RESULT_CONTROL_MODE_PREF_KEY = 'offlinebookie:admin:2d-result-control:auto-mode';
-const SLOT_HISTORY_PAGE_SIZE = 5;
-const todayDate = () => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-};
-
-const formatSlotLabel = (slot) => slot?.drawLabelEnd || slot?.slotStartIso || '-';
 const getProfitRangeColorClass = (profitPercentValue) => {
     const signedPct = Number(profitPercentValue);
     if (!Number.isFinite(signedPct)) return 'text-gray-400';
@@ -62,8 +52,6 @@ const formatProfitPercent = (houseNetValue, totalStakeValue) => {
 
 const TwoDResultControl = () => {
     const navigate = useNavigate();
-    const [date, setDate] = useState(todayDate());
-    const [slots, setSlots] = useState([]);
     const [currentSlotStartIso, setCurrentSlotStartIso] = useState('');
     const [currentSlotPhase, setCurrentSlotPhase] = useState('');
     const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
@@ -86,7 +74,6 @@ const TwoDResultControl = () => {
     const [manualError, setManualError] = useState('');
     const [armingTargetAuto, setArmingTargetAuto] = useState(false);
     const [switchingRandomAuto, setSwitchingRandomAuto] = useState(false);
-    const [loading, setLoading] = useState(true);
     const [hintsLoading, setHintsLoading] = useState(true);
     const [hintPreviewMode, setHintPreviewMode] = useState('default');
     const [autoDeclareMode, setAutoDeclareMode] = useState('random');
@@ -94,10 +81,7 @@ const TwoDResultControl = () => {
     const [secretCheckComplete, setSecretCheckComplete] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
-    const [slotDetailMap, setSlotDetailMap] = useState({});
-    const [slotHistoryPage, setSlotHistoryPage] = useState(1);
     const [modeConfirm, setModeConfirm] = useState(null);
-    const historyListTopRef = useRef(null);
     const targetProfitPercentRef = useRef('0');
     const targetProfitNumber = Number(String(targetProfitPercent || '').trim());
     const hasValidTargetProfit = Number.isFinite(targetProfitNumber);
@@ -111,37 +95,6 @@ const TwoDResultControl = () => {
         clearAdminSession();
         navigate('/');
     }, [navigate]);
-
-    const fetchSlots = useCallback(async (targetDate = date, options = {}) => {
-        const silent = Boolean(options?.silent);
-        const limit = Math.min(96, Math.max(1, Number(options?.limit || 96)));
-        if (!silent) {
-            setLoading(true);
-        }
-        setError('');
-        try {
-            const params = new URLSearchParams({ date: targetDate, limit: String(limit) });
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/declaration-matrix?${params.toString()}`);
-            if (res.status === 401) return;
-            const data = await res.json();
-            if (!data?.success) throw new Error(data?.message || 'Failed to load slots');
-            setSlots(Array.isArray(data?.data?.slots) ? data.data.slots : []);
-        } catch (err) {
-            setError(err.message || 'Failed to load slots');
-            setSlots([]);
-        } finally {
-            if (!silent) {
-                setLoading(false);
-            }
-        }
-    }, [date]);
-
-    useEffect(() => {
-        if (!secretCheckComplete) return;
-        if (hasSecretDeclarePassword && !pageUnlocked) return;
-        fetchSlots(date, { limit: 24 });
-        fetchSlots(date, { silent: true, limit: 96 });
-    }, [fetchSlots, date, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
 
     useEffect(() => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
@@ -256,7 +209,6 @@ const TwoDResultControl = () => {
     useEffect(() => {
         if (secretCheckComplete && hasSecretDeclarePassword && !pageUnlocked) {
             setHintsLoading(false);
-            setLoading(false);
         }
     }, [secretCheckComplete, hasSecretDeclarePassword, pageUnlocked]);
 
@@ -341,19 +293,6 @@ const TwoDResultControl = () => {
             if (!data?.success) throw new Error(data?.message || 'Failed to set manual result');
 
             const padded = String(result).padStart(2, '0');
-            setSlots((prev) => prev.map((slot) => {
-                if (slot.slotStartIso !== slotStartIso) return slot;
-                return {
-                    ...slot,
-                    perQuiz: Array.isArray(slot.perQuiz)
-                        ? slot.perQuiz.map((q) => (
-                            Number(q.quizId) === quizId
-                                ? { ...q, result, resultLabel: padded }
-                                : q
-                        ))
-                        : slot.perQuiz,
-                };
-            }));
             setNotice(`Manual result set for Q${String(quizId).padStart(2, '0')} = ${padded}.`);
             await fetchCurrentSlotForHints({ silent: true });
             closeManualModal();
@@ -458,123 +397,6 @@ const TwoDResultControl = () => {
         }
     }, [modeConfirm, armTargetAutoDeclare, switchToRandomAutoDeclare]);
 
-    const sortedSlots = useMemo(() => (
-        [...slots].sort((a, b) => String(b.slotStartIso || '').localeCompare(String(a.slotStartIso || '')))
-    ), [slots]);
-
-    const visibleHistorySlots = useMemo(() => {
-        if (!sortedSlots.length) return [];
-
-        const declaredSlots = sortedSlots.filter((slot) => Boolean(slot?.declaration?.declared));
-        const runningSlot = sortedSlots.find((slot) => (
-            Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted
-        ));
-        const chronologicalSlots = [...sortedSlots].sort((a, b) => String(a.slotStartIso || '').localeCompare(String(b.slotStartIso || '')));
-        const runningIndex = chronologicalSlots.findIndex((slot) => (
-            Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted
-        ));
-        const limitedPending = [];
-        if (runningIndex >= 0) {
-            for (let i = runningIndex + 1; i < chronologicalSlots.length && limitedPending.length < 2; i += 1) {
-                const slot = chronologicalSlots[i];
-                if (!slot) continue;
-                const declared = Boolean(slot?.declaration?.declared);
-                if (!declared) {
-                    limitedPending.push(slot);
-                }
-            }
-        }
-        const combined = [...[...limitedPending].reverse(), ...(runningSlot ? [runningSlot] : []), ...declaredSlots];
-        const seen = new Set();
-        return combined.filter((slot) => {
-            const key = String(slot?.slotStartIso || '');
-            if (!key || seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        });
-    }, [sortedSlots, currentSlotStartIso]);
-    const totalHistoryPages = useMemo(
-        () => Math.max(1, Math.ceil(visibleHistorySlots.length / SLOT_HISTORY_PAGE_SIZE)),
-        [visibleHistorySlots],
-    );
-    const pagedHistorySlots = useMemo(() => {
-        const start = (slotHistoryPage - 1) * SLOT_HISTORY_PAGE_SIZE;
-        return visibleHistorySlots.slice(start, start + SLOT_HISTORY_PAGE_SIZE);
-    }, [visibleHistorySlots, slotHistoryPage]);
-
-    useEffect(() => {
-        setSlotHistoryPage(1);
-    }, [date, currentSlotStartIso]);
-
-    useEffect(() => {
-        if (slotHistoryPage > totalHistoryPages) {
-            setSlotHistoryPage(totalHistoryPages);
-        }
-    }, [slotHistoryPage, totalHistoryPages]);
-
-    const goToNextHistoryPage = useCallback(() => {
-        setSlotHistoryPage((prev) => {
-            const next = Math.min(totalHistoryPages, prev + 1);
-            if (next !== prev) {
-                requestAnimationFrame(() => {
-                    historyListTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                });
-            }
-            return next;
-        });
-    }, [totalHistoryPages]);
-
-    const goToPreviousHistoryPage = useCallback(() => {
-        setSlotHistoryPage((prev) => {
-            const next = Math.max(1, prev - 1);
-            if (next !== prev) {
-                requestAnimationFrame(() => {
-                    historyListTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                });
-            }
-            return next;
-        });
-    }, []);
-
-    useEffect(() => {
-        if (!sortedSlots.length) {
-            setSlotDetailMap({});
-            return;
-        }
-        let cancelled = false;
-        const loadSlotDetails = async () => {
-            try {
-                const settled = await Promise.allSettled(
-                    sortedSlots.map(async (slot) => {
-                        const slotStartIso = slot?.slotStartIso;
-                        if (!slotStartIso) return [null, null];
-                        const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(slotStartIso)}/detail`);
-                        if (res.status === 401) return [slotStartIso, null];
-                        const json = await res.json();
-                        if (!json?.success) return [slotStartIso, null];
-                        return [slotStartIso, json?.data || null];
-                    }),
-                );
-                if (cancelled) return;
-                const nextMap = {};
-                settled.forEach((entry) => {
-                    if (entry.status !== 'fulfilled') return;
-                    const [slotStartIso, detail] = entry.value || [];
-                    if (slotStartIso) nextMap[slotStartIso] = detail;
-                });
-                setSlotDetailMap(nextMap);
-            } catch {
-                if (!cancelled) {
-                    setSlotDetailMap({});
-                }
-            }
-        };
-        loadSlotDetails();
-        return () => {
-            cancelled = true;
-        };
-    }, [sortedSlots]);
-
     return (
         <AdminLayout onLogout={handleLogout} title="2D Result Control">
             <div className="relative min-h-[60vh] space-y-5">
@@ -585,23 +407,13 @@ const TwoDResultControl = () => {
                         <p className="text-sm text-gray-500">Simple flow: edit running slot first, then review history.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            className="px-3 py-2 rounded-lg border border-gray-300 text-sm"
-                        />
                         <button
                             type="button"
-                            onClick={() => {
-                                if (typeof window !== 'undefined') {
-                                    window.location.reload();
-                                }
-                            }}
+                            onClick={() => fetchCurrentSlotForHints()}
                             className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold"
-                            disabled={loading}
+                            disabled={hintsLoading}
                         >
-                            {loading ? 'Refreshing...' : 'Refresh'}
+                            {hintsLoading ? 'Refreshing...' : 'Refresh'}
                         </button>
                     </div>
                 </div>
@@ -824,121 +636,6 @@ const TwoDResultControl = () => {
                             )}
                         </div>
 
-                        <div className="bg-white border border-gray-200 rounded-xl p-5">
-                            <div className="flex items-center justify-between gap-3">
-                                <div>
-                                    <h2 className="text-base font-semibold text-gray-800">Step 2: Slot history (latest first)</h2>
-                                    <p className="text-xs text-gray-500 mt-1">Default: pending from next 2 slots first, then running, then declared. 5 slots per page.</p>
-                                </div>
-                                <span className="text-[11px] text-gray-500 font-semibold">
-                                    Page {slotHistoryPage} / {totalHistoryPages}
-                                </span>
-                            </div>
-                            {!sortedSlots.length && !loading ? (
-                                <p className="mt-3 text-sm text-gray-500">No slots found for selected date.</p>
-                            ) : !visibleHistorySlots.length ? (
-                                <p className="mt-3 text-sm text-gray-500">No running slot or pending slots found.</p>
-                            ) : (
-                                <div className="mt-3 space-y-3">
-                                    <div ref={historyListTopRef} />
-                                    {pagedHistorySlots.map((slot) => {
-                                        const declared = Boolean(slot?.declaration?.declared);
-                                        const declaredCount = (slot?.perQuiz || []).filter((q) => q?.declared).length;
-                                        const dec = slot?.declaration;
-                                        const apiDeclaredMode = dec?.autoDeclareMode === 'random' || dec?.autoDeclareMode === 'target'
-                                            ? dec.autoDeclareMode
-                                            : null;
-                                        const rawDeclaredPct = dec?.targetProfitPercent;
-                                        const hasDeclaredTarget = rawDeclaredPct != null && rawDeclaredPct !== ''
-                                            && Number.isFinite(Number(rawDeclaredPct));
-                                        const declaredMode = declared
-                                            ? (apiDeclaredMode ?? (hasDeclaredTarget ? 'target' : 'random'))
-                                            : null;
-                                        const declaredTargetPercent = declaredMode === 'target' && hasDeclaredTarget
-                                            ? Number(rawDeclaredPct)
-                                            : null;
-                                        const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
-                                        const canManualResult = autoDeclareMode !== 'target' && !declared && isRunning && currentSlotPhase === 'study';
-                                        return (
-                                            <div key={slot.slotStartIso} className="rounded-lg border border-gray-200">
-                                                <div className="px-3 py-2.5 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
-                                                    <div>
-                                                        <div className="font-semibold text-gray-800">{formatSlotLabel(slot)}</div>
-                                                        <div className="text-[11px] text-gray-500 mt-0.5">{slot.slotStartIso}</div>
-                                                    </div>
-                                                    <div className="flex flex-wrap items-center gap-1.5">
-                                                        <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${declared ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                                                            {declared ? 'Declared' : 'Pending'}
-                                                        </span>
-                                                        {declaredMode === 'target' && declaredTargetPercent != null ? (
-                                                            <span className="text-[10px] px-2 py-1 rounded-full bg-violet-100 text-violet-700 font-semibold">{`Target mode (${declaredTargetPercent}%)`}</span>
-                                                        ) : null}
-                                                        {declaredMode === 'random' ? (
-                                                            <span className="text-[10px] px-2 py-1 rounded-full bg-sky-100 text-sky-700 font-semibold">Random mode</span>
-                                                        ) : null}
-                                                        <span className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-semibold">{`${declaredCount}/30 declared`}</span>
-                                                        {isRunning ? <span className="text-[10px] px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">Running Slot</span> : null}
-                                                    </div>
-                                                </div>
-                                                <div className="p-2.5">
-                                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2">
-                                                        {Array.from({ length: 30 }, (_, idx) => idx + 1).map((quizId) => {
-                                                            const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
-                                                            const detailQuiz = (slotDetailMap?.[slot.slotStartIso]?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
-                                                            const visibleResultLabel = (slot?.isCompleted || isRunning) ? (q?.resultLabel || '--') : '--';
-                                                            const cardHouseNet = detailQuiz?.houseNetIfHintWins ?? q?.houseNetIfHintWins;
-                                                            const cardTotalStake = detailQuiz?.totalBetAmount ?? q?.totalBetAmount;
-                                                            const pl = formatHousePl(
-                                                                cardHouseNet,
-                                                                cardTotalStake,
-                                                            );
-                                                            const profitPct = formatProfitPercent(cardHouseNet, cardTotalStake);
-                                                            return (
-                                                                <div key={`${slot.slotStartIso}-${quizId}`} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <span className="text-gray-500">{`Q${String(quizId).padStart(2, '0')}`}</span>
-                                                                        <span className="font-mono font-semibold text-gray-800">{visibleResultLabel}</span>
-                                                                    </div>
-                                                                    <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
-                                                                    <div className={`mt-0.5 text-[10px] font-semibold ${profitPct.className}`}>{profitPct.text}</div>
-                                                                    {canManualResult ? (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => openManualModal(slot.slotStartIso, String(quizId), q?.resultLabel || '--')}
-                                                                            className="mt-1 text-[10px] text-purple-700 font-semibold hover:underline"
-                                                                        >
-                                                                            Set Result
-                                                                        </button>
-                                                                    ) : null}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    <div className="pt-2 flex justify-end gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={goToPreviousHistoryPage}
-                                            disabled={slotHistoryPage <= 1}
-                                            className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                                        >
-                                            Previous Page
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={goToNextHistoryPage}
-                                            disabled={slotHistoryPage >= totalHistoryPages}
-                                            className="px-3 py-1.5 rounded-lg border border-purple-300 text-xs font-semibold text-purple-700 hover:bg-purple-50 disabled:opacity-50"
-                                        >
-                                            Next Page
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
                     </>
                 )}
                 </div>

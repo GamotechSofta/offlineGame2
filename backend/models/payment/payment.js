@@ -93,6 +93,11 @@ const paymentSchema = new mongoose.Schema({
 // Indexes for faster queries
 paymentSchema.index({ userId: 1, type: 1, status: 1 });
 paymentSchema.index({ status: 1, createdAt: -1 });
+paymentSchema.index({ userId: 1, createdAt: -1 });
+paymentSchema.index({ type: 1, status: 1, createdAt: -1 });
+paymentSchema.index({ processedBy: 1, processedAt: -1 });
+paymentSchema.index({ webhookRefId: 1 }, { sparse: true });
+paymentSchema.index({ upiTransactionId: 1 }, { sparse: true });
 
 const Payment = mongoose.model('Payment', paymentSchema);
 export default Payment;

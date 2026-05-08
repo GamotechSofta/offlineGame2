@@ -7,6 +7,7 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signUserToken, verifyUserToken } from '../utils/userJwt.js';
+import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const MASKED_DEVICE = 'Unknown Device';
@@ -908,6 +909,7 @@ export const createUser = async (req, res) => {
             createdAt: new Date(),
             updatedAt: new Date(),
         });
+        await invalidateAdminReadCaches('player_created');
 
         if (initialBalance > 0) {
             await WalletTransaction.create({
@@ -961,6 +963,9 @@ export const createUser = async (req, res) => {
 export const getUsers = async (req, res) => {
     try {
         const { filter = 'all' } = req.query;
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(200, Math.max(20, parseInt(req.query.limit, 10) || 100));
+        const skip = (page - 1) * limit;
         const bookieUserIds = await getBookieUserIds(req.admin);
         const query = {};
 
@@ -979,12 +984,18 @@ export const getUsers = async (req, res) => {
             query.referredBy = { $ne: null, $exists: true };
         }
 
-        let users = await User.find(query)
-            .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt toGive toTake')
-            .populate('referredBy', 'username')
-            .sort(filter === 'bookie' ? { referredBy: 1, createdAt: -1 } : { createdAt: -1 })
-            .limit(500)
-            .lean();
+        const [usersRaw, total] = await Promise.all([
+            User.find(query)
+                .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt toGive toTake')
+                .populate('referredBy', 'username')
+                .sort(filter === 'bookie' ? { referredBy: 1, createdAt: -1 } : { createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            User.countDocuments(query),
+        ]);
+
+        let users = usersRaw;
 
         if (filter === 'bookie' && users.length > 0) {
             users.sort((a, b) => {
@@ -998,7 +1009,18 @@ export const getUsers = async (req, res) => {
         users = await addWalletBalanceToUsers(users);
         users = addOnlineStatus(users);
 
-        res.status(200).json({ success: true, data: users });
+        res.status(200).json({
+            success: true,
+            data: users,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.max(1, Math.ceil(total / limit)),
+                hasNextPage: skip + users.length < total,
+                hasPrevPage: page > 1,
+            },
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -1088,6 +1110,7 @@ export const updatePlayerToGiveToTake = async (req, res) => {
         }
 
         await user.save();
+        await invalidateAdminReadCaches('player_to_give_take_updated');
 
         await logActivity({
             action: 'update_player_to_give_take',
@@ -1143,6 +1166,7 @@ export const updatePlayerPassword = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(String(password), salt);
         await User.updateOne({ _id: id }, { $set: { password: hashedPassword, updatedAt: new Date() } });
+        await invalidateAdminReadCaches('player_password_updated');
 
         await logActivity({
             action: 'reset_player_password',
@@ -1200,6 +1224,7 @@ export const togglePlayerStatus = async (req, res) => {
 
         user.isActive = !user.isActive;
         await user.save();
+        await invalidateAdminReadCaches('player_status_toggled');
 
         const action = user.isActive ? 'unsuspend_player' : 'suspend_player';
         await logActivity({
@@ -1264,6 +1289,7 @@ export const deletePlayer = async (req, res) => {
 
         await Wallet.deleteOne({ userId: user._id });
         await User.findByIdAndDelete(user._id);
+        await invalidateAdminReadCaches('player_deleted');
 
         await logActivity({
             action: 'delete_player',

@@ -2,12 +2,14 @@ import { Server } from 'socket.io';
 import { formatDrawLabel, getSlotContext, getStudySecondsForMode } from '../services/slotService.js';
 import QuizSlotSeed from '../models/quiz/QuizSlotSeed.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
+import { noteSocketEmit, noteSocketListener } from '../services/traceMetricsService.js';
 
 /** @type {Server | null} */
 let io = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let slotChangeTimerId = null;
 const slotModes = ['2d', '3d'];
+const ADMIN_ROOM = 'admin:live';
 /** @type {Map<string, { slotStartIso: string, phase: string }>} */
 const lastEmittedSlotState = new Map();
 /** @type {Map<string, string>} */
@@ -104,8 +106,10 @@ function emitSlotUpdates({ force = false, targetSocket = null } = {}) {
     const shouldEmit = force || hasSlotStateChanged(prevState, nextState);
     if (!shouldEmit) continue;
     if (targetSocket) {
+      noteSocketEmit('slot:update');
       targetSocket.emit('slot:update', snapshot);
     } else {
+      noteSocketEmit('slot:update');
       io.emit('slot:update', snapshot);
     }
     lastEmittedSlotState.set(gameMode, nextState);
@@ -169,11 +173,19 @@ export function initQuizSocket(httpServer, opts) {
       socket.data.hintQuizId = quizId;
       if (!quizId) return;
       try {
+        noteSocketListener('hint:subscribe', socket.listeners('hint:subscribe').length + 1);
         await emitHintUpdateToSocket(socket);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error(JSON.stringify({ tag: '[socket:hint:subscribe:error]', gameMode, quizId, message: err?.message || String(err) }));
       }
+    });
+
+    socket.on('admin:subscribe', () => {
+      noteSocketListener('admin:subscribe', socket.listeners('admin:subscribe').length);
+      socket.join(ADMIN_ROOM);
+      noteSocketEmit('admin:subscribed');
+      socket.emit('admin:subscribed', { ok: true, ts: Date.now() });
     });
   });
 
@@ -194,4 +206,22 @@ export function getQuizSocketIo() {
 export function syncQuizSlotUpdates() {
   emitSlotUpdates({ force: true });
   scheduleNextSlotChangeCheck();
+}
+
+export function emitAdminDashboardUpdate(payload = {}) {
+  if (!io) return;
+  noteSocketEmit('admin:dashboard:update');
+  io.to(ADMIN_ROOM).emit('admin:dashboard:update', {
+    ts: Date.now(),
+    ...payload,
+  });
+}
+
+export function emitAdminMarketUpdate(payload = {}) {
+  if (!io) return;
+  noteSocketEmit('admin:market:update');
+  io.to(ADMIN_ROOM).emit('admin:market:update', {
+    ts: Date.now(),
+    ...payload,
+  });
 }

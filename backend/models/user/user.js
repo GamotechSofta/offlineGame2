@@ -124,5 +124,12 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
 };
 
+// Query acceleration for admin dashboard, all-users, and bookie scoping.
+userSchema.index({ referredBy: 1, createdAt: -1 });
+userSchema.index({ referredBy: 1, isActive: 1, createdAt: -1 });
+userSchema.index({ source: 1, referredBy: 1, createdAt: -1 });
+userSchema.index({ isActive: 1, createdAt: -1 });
+userSchema.index({ lastActiveAt: -1 });
+
 const User = mongoose.model('User', userSchema);
 export default User;

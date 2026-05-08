@@ -81,5 +81,12 @@ const betSchema = new mongoose.Schema({
     timestamps: true,
 });
 
+// Common read paths: dashboard totals, reports, and market/date scoped analytics.
+betSchema.index({ userId: 1, createdAt: -1 });
+betSchema.index({ marketId: 1, createdAt: -1 });
+betSchema.index({ status: 1, createdAt: -1 });
+betSchema.index({ userId: 1, marketId: 1, status: 1, createdAt: -1 });
+betSchema.index({ isScheduled: 1, scheduledDate: 1, createdAt: -1 });
+
 const Bet = mongoose.model('Bet', betSchema);
 export default Bet;

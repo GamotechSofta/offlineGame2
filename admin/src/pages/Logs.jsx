@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
+import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
+import { useTraceRender } from '../lib/runtimeTrace';
 
 const ACTION_LABELS = {
     admin_login: 'Admin Login',
@@ -38,7 +43,9 @@ const TYPE_LABELS = {
 };
 
 const Logs = () => {
+    useTraceRender('Logs');
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -48,29 +55,39 @@ const Logs = () => {
     const [filterPerformedBy, setFilterPerformedBy] = useState('');
     const [filterType, setFilterType] = useState('');
     const [sortOrder, setSortOrder] = useState('desc');
+    const [bootstrapped, setBootstrapped] = useState(false);
+    const desktopListRef = useRef(null);
+    const mobileListRef = useRef(null);
+    const desktopVirtualizer = useVirtualizer({
+        count: logs.length,
+        getScrollElement: () => desktopListRef.current,
+        estimateSize: () => 64,
+        overscan: 8,
+    });
+    const mobileVirtualizer = useVirtualizer({
+        count: logs.length,
+        getScrollElement: () => mobileListRef.current,
+        estimateSize: () => 132,
+        overscan: 6,
+    });
+    const desktopRows = useMemo(() => desktopVirtualizer.getVirtualItems(), [desktopVirtualizer, logs.length]);
+    const mobileRows = useMemo(() => mobileVirtualizer.getVirtualItems(), [mobileVirtualizer, logs.length]);
 
-    const fetchLogs = async (showLoader = true) => {
-        if (showLoader) setLoading(true);
-        if (showLoader) setError('');
-        try {
-            const params = new URLSearchParams({ page, limit: 50, sort: sortOrder });
-            if (filterAction) params.append('action', filterAction);
-            if (filterPerformedBy) params.append('performedBy', filterPerformedBy);
-            if (filterType) params.append('performedByType', filterType);
-            const response = await fetchWithAuth(`${API_BASE_URL}/admin/logs?${params}`);
-            if (response.status === 401) return;
-            const data = await response.json();
-            if (data.success) {
-                setLogs(data.data || []);
-                setPagination(data.pagination || { page: 1, totalPages: 1, total: 0 });
-            } else {
-                if (showLoader) setError(data.message || 'Failed to fetch logs');
-            }
-        } catch (err) {
-            if (showLoader) setError('Failed to fetch logs');
-        } finally {
-            if (showLoader) setLoading(false);
+    const fetchLogs = async () => {
+        const params = new URLSearchParams({ page, limit: 50, sort: sortOrder });
+        if (filterAction) params.append('action', filterAction);
+        if (filterPerformedBy) params.append('performedBy', filterPerformedBy);
+        if (filterType) params.append('performedByType', filterType);
+        const response = await fetchWithAuth(`${API_BASE_URL}/admin/logs?${params.toString()}`);
+        if (response.status === 401) return { data: [], pagination: { page: 1, totalPages: 1, total: 0 } };
+        const data = await response.json();
+        if (!data?.success) {
+            throw new Error(data?.message || 'Failed to fetch logs');
         }
+        return {
+            data: data.data || [],
+            pagination: data.pagination || { page: 1, totalPages: 1, total: 0 },
+        };
     };
 
     useEffect(() => {
@@ -79,10 +96,42 @@ const Logs = () => {
             navigate('/');
             return;
         }
-        fetchLogs(true);
-        const interval = setInterval(() => fetchLogs(false), 15000);
-        return () => clearInterval(interval);
-    }, [navigate, page, filterAction, filterPerformedBy, filterType, sortOrder]);
+        setBootstrapped(true);
+    }, [navigate]);
+
+    const logsQuery = useQuery({
+        queryKey: ['admin-logs', page, filterAction, filterPerformedBy, filterType, sortOrder],
+        queryFn: fetchLogs,
+        enabled: bootstrapped,
+    });
+
+    useEffect(() => {
+        const payload = logsQuery.data;
+        if (!payload) return;
+        setLogs(payload.data || []);
+        setPagination(payload.pagination || { page: 1, totalPages: 1, total: 0 });
+        setError('');
+    }, [logsQuery.data]);
+
+    useEffect(() => {
+        setLoading(logsQuery.isLoading || logsQuery.isFetching);
+        if (logsQuery.error) {
+            setError(logsQuery.error?.message || 'Failed to fetch logs');
+        }
+    }, [logsQuery.isLoading, logsQuery.isFetching, logsQuery.error]);
+
+    useSectionAutoRefresh({
+        enabled: bootstrapped,
+        intervalMs: 30000,
+        onRefresh: () => queryClient.invalidateQueries({ queryKey: ['admin-logs'] }),
+        immediate: false,
+    });
+
+    useAdminLiveQueryInvalidation({
+        enabled: bootstrapped,
+        queryKeys: [['admin-logs']],
+        throttleMs: 1200,
+    });
 
     const handleLogout = () => {
         clearAdminSession();
@@ -172,67 +221,87 @@ const Logs = () => {
                     </div>
                 ) : (
                     <>
-                        {/* Desktop table */}
-                        <div className="hidden md:block overflow-x-auto">
-                            <table className="w-full text-sm sm:text-base">
-                                <thead className="bg-gray-100">
-                                    <tr>
-                                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">#</th>
-                                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Timestamp</th>
-                                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase min-w-[140px]">Action</th>
-                                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Performed By</th>
-                                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Type</th>
-                                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Details</th>
-                                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Target</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-700">
-                                    {logs.map((log, index) => (
-                                        <tr key={log._id} className="hover:bg-gray-50">
-                                            <td className="px-4 sm:px-6 py-3 text-gray-400 whitespace-nowrap">{(pagination.page - 1) * 50 + index + 1}</td>
-                                            <td className="px-4 sm:px-6 py-3 text-gray-600 font-mono text-xs whitespace-nowrap">{formatTimestamp(log.createdAt)}</td>
-                                            <td className="px-4 sm:px-6 py-3 min-w-0">
-                                                <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-orange-50 text-orange-600 border border-orange-200 break-words max-w-full">
-                                                    {getActionLabel(log.action)}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 sm:px-6 py-3 font-medium text-gray-800 break-words max-w-[120px]">{log.performedBy || '—'}</td>
-                                            <td className="px-4 sm:px-6 py-3">
-                                                <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700 capitalize">
-                                                    {TYPE_LABELS[log.performedByType] || log.performedByType || '—'}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 sm:px-6 py-3 text-gray-600 break-words max-w-[200px]">{log.details || '—'}</td>
-                                            <td className="px-4 sm:px-6 py-3 text-gray-400 text-xs">{log.targetType && (log.targetId ? `${log.targetType}: ${String(log.targetId).slice(-8)}` : log.targetType)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        {/* Desktop virtualized table */}
+                        <div className="hidden md:block">
+                            <div className="grid grid-cols-[70px_170px_160px_160px_120px_1fr_170px] bg-gray-100 px-4 py-3 text-xs font-medium text-gray-600 uppercase">
+                                <div>#</div>
+                                <div>Timestamp</div>
+                                <div>Action</div>
+                                <div>Performed By</div>
+                                <div>Type</div>
+                                <div>Details</div>
+                                <div>Target</div>
+                            </div>
+                            <div ref={desktopListRef} className="overflow-auto" style={{ maxHeight: 560 }}>
+                                <div style={{ height: desktopVirtualizer.getTotalSize(), position: 'relative' }}>
+                                    {desktopRows.map((virtualRow) => {
+                                        const log = logs[virtualRow.index];
+                                        if (!log) return null;
+                                        return (
+                                            <div
+                                                key={virtualRow.key}
+                                                className="absolute left-0 top-0 w-full border-b border-gray-200 px-4 hover:bg-gray-50"
+                                                style={{ transform: `translateY(${virtualRow.start}px)`, height: `${virtualRow.size}px` }}
+                                            >
+                                                <div className="grid h-full grid-cols-[70px_170px_160px_160px_120px_1fr_170px] items-center text-sm">
+                                                    <div className="text-gray-400">{(pagination.page - 1) * 50 + virtualRow.index + 1}</div>
+                                                    <div className="font-mono text-xs text-gray-600">{formatTimestamp(log.createdAt)}</div>
+                                                    <div>
+                                                        <span className="inline-block rounded border border-orange-200 bg-orange-50 px-2 py-1 text-xs font-medium text-orange-600">
+                                                            {getActionLabel(log.action)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="truncate font-medium text-gray-800">{log.performedBy || '—'}</div>
+                                                    <div>
+                                                        <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-700 capitalize">
+                                                            {TYPE_LABELS[log.performedByType] || log.performedByType || '—'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="truncate pr-3 text-gray-600">{log.details || '—'}</div>
+                                                    <div className="text-xs text-gray-400">
+                                                        {log.targetType && (log.targetId ? `${log.targetType}: ${String(log.targetId).slice(-8)}` : log.targetType)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Mobile card layout */}
-                        <div className="md:hidden divide-y divide-gray-700">
-                            {logs.map((log, index) => (
-                                <div key={log._id} className="p-4 hover:bg-gray-100/30">
-                                    <div className="flex flex-wrap items-start gap-2 mb-2">
-                                        <span className="px-2 py-1 rounded text-xs font-medium bg-orange-50 text-orange-600 border border-orange-200 break-words">
-                                            {getActionLabel(log.action)}
-                                        </span>
-                                        <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700 capitalize">
-                                            {TYPE_LABELS[log.performedByType] || log.performedByType || '—'}
-                                        </span>
-                                    </div>
-                                    <div className="text-xs text-gray-400 space-y-1">
-                                        <p><span className="text-gray-500">By:</span> <span className="text-gray-800 font-medium">{log.performedBy || '—'}</span></p>
-                                        <p><span className="text-gray-500">When:</span> {formatTimestamp(log.createdAt)}</p>
-                                        <p className="text-gray-600 break-words">{log.details || '—'}</p>
-                                        {log.targetType && (
-                                            <p className="text-gray-500">{log.targetType}{log.targetId ? `: ${String(log.targetId).slice(-8)}` : ''}</p>
-                                        )}
-                                    </div>
-                                    <p className="text-gray-500 text-[10px] mt-1">#{(pagination.page - 1) * 50 + index + 1}</p>
-                                </div>
-                            ))}
+                        {/* Mobile card virtualized layout */}
+                        <div ref={mobileListRef} className="md:hidden overflow-auto" style={{ maxHeight: 560 }}>
+                            <div style={{ height: mobileVirtualizer.getTotalSize(), position: 'relative' }}>
+                                {mobileRows.map((virtualRow) => {
+                                    const log = logs[virtualRow.index];
+                                    if (!log) return null;
+                                    return (
+                                        <div
+                                            key={virtualRow.key}
+                                            className="absolute left-0 top-0 w-full border-b border-gray-200 p-4 hover:bg-gray-100/30"
+                                            style={{ transform: `translateY(${virtualRow.start}px)`, height: `${virtualRow.size}px` }}
+                                        >
+                                            <div className="mb-2 flex flex-wrap items-start gap-2">
+                                                <span className="rounded border border-orange-200 bg-orange-50 px-2 py-1 text-xs font-medium text-orange-600 break-words">
+                                                    {getActionLabel(log.action)}
+                                                </span>
+                                                <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-700 capitalize">
+                                                    {TYPE_LABELS[log.performedByType] || log.performedByType || '—'}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-1 text-xs text-gray-400">
+                                                <p><span className="text-gray-500">By:</span> <span className="font-medium text-gray-800">{log.performedBy || '—'}</span></p>
+                                                <p><span className="text-gray-500">When:</span> {formatTimestamp(log.createdAt)}</p>
+                                                <p className="break-words text-gray-600">{log.details || '—'}</p>
+                                                {log.targetType && (
+                                                    <p className="text-gray-500">{log.targetType}{log.targetId ? `: ${String(log.targetId).slice(-8)}` : ''}</p>
+                                                )}
+                                            </div>
+                                            <p className="mt-1 text-[10px] text-gray-500">#{(pagination.page - 1) * 50 + virtualRow.index + 1}</p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </>
                 )}

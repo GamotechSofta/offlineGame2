@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, Link } from 'react-router-dom';
 import { SkeletonCard } from '../components/Skeleton';
@@ -20,10 +20,16 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
+import { subscribeAdminLive } from '../lib/adminSocket';
+import { useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { dedupeRequest } from '../lib/requestDedupe';
+import { useTraceRender } from '../lib/runtimeTrace';
 
-const LOTTERY_LIVE_REFRESH_MS = 2000;
+const LOTTERY_LIVE_REFRESH_MS = 20000;
 /** Main dashboard KPIs (bets, wallet, payments) — keep in sync with live activity without full page reload */
-const DASHBOARD_SECTION_REFRESH_MS = 2000;
+const DASHBOARD_SECTION_REFRESH_MS = 20000;
 
 const PRESETS = [
     { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
@@ -78,6 +84,11 @@ const PRESETS = [
     }},
 ];
 
+const createEmptyLotteryStats = () => ({
+    twoD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
+    threeD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
+});
+
 const formatRangeLabel = (from, to) => {
     if (!from || !to) return 'Today';
     if (from === to) {
@@ -122,7 +133,9 @@ const StatRow = ({ label, value, subValue, colorClass = 'text-gray-800' }) => (
 );
 
 const AdminDashboard = () => {
+    useTraceRender('AdminDashboard');
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -134,12 +147,10 @@ const AdminDashboard = () => {
     const [refreshing, setRefreshing] = useState(false);
     const [rangeUpdating, setRangeUpdating] = useState(false);
     const [adminRole, setAdminRole] = useState('');
-    const [marketOptions, setMarketOptions] = useState([]);
+    const [bootstrapped, setBootstrapped] = useState(false);
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [selectedMarketId, setSelectedMarketId] = useState('');
-    const [lotteryStats, setLotteryStats] = useState({
-        twoD: { current: null, latest: null, error: '' },
-        threeD: { current: null, latest: null, error: '' },
-    });
+    const [lotteryStats, setLotteryStats] = useState(() => createEmptyLotteryStats());
     const dashboardPollBusyRef = useRef(false);
     const lotteryPollBusyRef = useRef(false);
 
@@ -162,8 +173,13 @@ const AdminDashboard = () => {
     const getFromTo = () => {
         if (customMode && customFrom && customTo) return { from: customFrom, to: customTo };
         const preset = PRESETS.find((p) => p.id === datePreset);
-        return preset ? preset.getRange() : PRESETS[0].getRange();
+        const todayPreset = PRESETS.find((p) => p.id === 'today') || PRESETS[0];
+        return preset ? preset.getRange() : todayPreset.getRange();
     };
+    const effectiveRange = useMemo(
+        () => (customMode && customFrom && customTo ? { from: customFrom, to: customTo } : getFromTo()),
+        [customMode, customFrom, customTo, datePreset],
+    );
 
     useEffect(() => {
         const admin = localStorage.getItem('admin');
@@ -175,50 +191,27 @@ const AdminDashboard = () => {
             const parsed = JSON.parse(admin);
             setAdminRole(parsed.role || '');
         } catch (_) {}
-        fetchDashboardStats();
-        fetchMarketOptions();
-        fetchLotteryDashboardStats();
+        setBootstrapped(true);
     }, [navigate]);
 
-    const getTodayDateKey = () => {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    };
-
-    const listDateKeysInRange = (from, to) => {
-        if (!from || !to) {
-            return [getTodayDateKey()];
-        }
-        const start = new Date(`${from}T00:00:00`);
-        const end = new Date(`${to}T00:00:00`);
-        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
-            return [getTodayDateKey()];
-        }
-        const out = [];
-        const cursor = new Date(start);
-        // Keep calls bounded for performance; enough for dashboard overviews.
-        const MAX_DAYS = 31;
-        while (cursor <= end && out.length < MAX_DAYS) {
-            out.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`);
-            cursor.setDate(cursor.getDate() + 1);
-        }
-        return out;
-    };
-    const dateKeyFromMs = (ms) => {
-        if (!Number.isFinite(ms) || ms <= 0) return '';
-        const d = new Date(ms);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-
     const fetchLotteryModeStats = async (mode, rangeOverride) => {
-        const modeKey = mode === '2d' ? 'twoD' : 'threeD';
         const nonce = Date.now();
         const currentEndpoint = `${API_BASE_URL}/admin/lottery${mode}/current-slot?_=${nonce}`;
         const effectiveRange = rangeOverride || getFromTo();
-        const currentRes = await fetchWithAuth(currentEndpoint, { cache: 'no-store' });
+        let historyTotals = { tickets: 0, bets: 0, revenue: 0, payout: 0, net: 0, users: 0 };
+        let latestSlot = null;
+        let nextUpcomingSlot = null;
+        const aggParams = new URLSearchParams();
+        if (effectiveRange?.from && effectiveRange?.to) {
+            aggParams.set('dateFrom', effectiveRange.from);
+            aggParams.set('dateTo', effectiveRange.to);
+        }
+        aggParams.set('_', String(nonce));
+        const [currentRes, aggRes] = await Promise.all([
+            fetchWithAuth(currentEndpoint, { cache: 'no-store' }),
+            fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/aggregate-stats?${aggParams.toString()}`, { cache: 'no-store' }),
+        ]);
+
         if (currentRes.status === 401) {
             return null;
         }
@@ -227,77 +220,56 @@ const AdminDashboard = () => {
         if (!currentJson?.success) {
             throw new Error(currentJson?.message || `Failed to load ${mode.toUpperCase()} current slot`);
         }
-        const currentSlotIso = currentJson?.data?.slot?.slotStartIso || '';
-        const currentSlotMs = currentSlotIso ? new Date(currentSlotIso).getTime() : 0;
-        const previousSlotMs = Number.isFinite(currentSlotMs) && currentSlotMs > 0
-            ? (currentSlotMs - (15 * 60 * 1000))
-            : 0;
-        const rangeDateKeys = listDateKeysInRange(effectiveRange?.from, effectiveRange?.to);
-        const mustHaveDateKeys = [
-            dateKeyFromMs(currentSlotMs),
-            dateKeyFromMs(previousSlotMs),
-        ].filter(Boolean);
-        const dateKeys = [...new Set([...rangeDateKeys, ...mustHaveDateKeys])];
-        const historyResList = await Promise.all(
-            dateKeys.map((dateKey) =>
-                fetchWithAuth(`${API_BASE_URL}/admin/lottery${mode}/slots?date=${encodeURIComponent(dateKey)}&limit=96&_=${nonce}`, { cache: 'no-store' }),
-            ),
-        );
-        if (historyResList.some((r) => r.status === 401)) {
-            return null;
-        }
-        const historyJsonList = await Promise.all(historyResList.map((res) => res.json()));
-        if (historyJsonList.some((json) => !json?.success)) {
-            const bad = historyJsonList.find((json) => !json?.success);
-            throw new Error(bad?.message || `Failed to load ${mode.toUpperCase()} all slots`);
-        }
-        const historySlots = historyJsonList.flatMap((json) => (Array.isArray(json?.data?.slots) ? json.data.slots : []));
-        const normalizedSlots = historySlots
-            .map((slot) => {
-                const slotStartMs = new Date(slot?.slotStartIso || 0).getTime();
-                return {
-                    ...slot,
-                    slotStartMs: Number.isFinite(slotStartMs) ? slotStartMs : 0,
-                };
-            })
-            .filter((slot) => slot.slotStartMs > 0);
-
-        // Exclude future/upcoming slots so dashboard current/latest remain intuitive.
-        const uptoCurrentSlots = normalizedSlots.filter((slot) => (currentSlotMs ? slot.slotStartMs <= currentSlotMs : true));
-        const completedSlots = uptoCurrentSlots.filter((slot) => Boolean(slot?.isCompleted));
-        const latestSlot = previousSlotMs
-            ? (completedSlots.find((slot) => slot.slotStartMs === previousSlotMs)
-                || [...completedSlots].sort((a, b) => b.slotStartMs - a.slotStartMs)[0]
-                || null)
-            : ([...completedSlots].sort((a, b) => b.slotStartMs - a.slotStartMs)[0] || null);
-        const nextUpcomingSlot = currentSlotMs
-            ? [...normalizedSlots]
-                .filter((slot) => slot.slotStartMs > currentSlotMs)
-                .sort((a, b) => a.slotStartMs - b.slotStartMs)[0] || null
-            : null;
         const currentSummary = currentJson?.data?.summary || {};
-        const historyTotals = completedSlots.reduce((acc, slot) => {
-            acc.tickets += Number(slot?.totalTickets || 0);
-            acc.bets += Number(slot?.totalBets ?? slot?.totalTickets ?? 0);
-            acc.revenue += Number(slot?.revenue || 0);
-            acc.payout += Number(slot?.winnerPayout || 0);
-            acc.net += Number(slot?.amountRemaining || 0);
-            acc.users += Number(slot?.totalUsers || 0);
-            return acc;
-        }, { tickets: 0, bets: 0, revenue: 0, payout: 0, net: 0, users: 0 });
 
+        const aggJson = await aggRes.json().catch(() => null);
+        if (aggJson?.success && aggJson?.data) {
+            const ticketKey = mode === '2d' ? 'total2DTickets' : 'total3DTickets';
+            const userKey = mode === '2d' ? 'uniqueUsers2D' : 'uniqueUsers3D';
+            historyTotals = {
+                tickets: Number(aggJson.data[ticketKey] || 0),
+                bets: Number(aggJson.data.totalBets || 0),
+                revenue: Number(aggJson.data.totalStake || 0),
+                payout: Number(aggJson.data.totalPayout || 0),
+                net: Number(aggJson.data.adminNet || 0),
+                users: Number(aggJson.data[userKey] || 0),
+            };
+        }
+
+        const aggregateHasSignal = (
+            historyTotals.tickets > 0
+            || historyTotals.bets > 0
+            || historyTotals.revenue > 0
+            || historyTotals.payout > 0
+            || historyTotals.net !== 0
+            || historyTotals.users > 0
+        );
         const currentBets = Number(currentSummary?.totalBets ?? currentSummary?.totalTickets ?? 0);
-        const allSlots = {
-            tickets: historyTotals.tickets + Number(currentSummary?.totalTickets || 0),
-            bets: historyTotals.bets + currentBets,
-            revenue: historyTotals.revenue + Number(currentSummary?.revenue || 0),
-            payout: historyTotals.payout + Number(currentSummary?.winnerPayout || 0),
-            net: historyTotals.net + Number(currentSummary?.amountRemaining || 0),
-            users: historyTotals.users + Number(currentSummary?.totalUsers || 0),
-        };
+        const currentHasSignal = (
+            Number(currentSummary?.totalTickets || 0) > 0
+            || currentBets > 0
+            || Number(currentSummary?.revenue || 0) > 0
+            || Number(currentSummary?.winnerPayout || 0) > 0
+            || Number(currentSummary?.amountRemaining || 0) !== 0
+            || Number(currentSummary?.totalUsers || 0) > 0
+        );
+        // Defensive fallback: if aggregate endpoint returns empty while current slot has values,
+        // keep cards consistent by at least reflecting current slot totals.
+        const allSlots = aggregateHasSignal
+            ? historyTotals
+            : (currentHasSignal
+                ? {
+                    tickets: Number(currentSummary?.totalTickets || 0),
+                    bets: currentBets,
+                    revenue: Number(currentSummary?.revenue || 0),
+                    payout: Number(currentSummary?.winnerPayout || 0),
+                    net: Number(currentSummary?.amountRemaining || 0),
+                    users: Number(currentSummary?.totalUsers || 0),
+                }
+                : historyTotals);
 
         return {
-            modeKey,
+            modeKey: mode === '2d' ? 'twoD' : 'threeD',
             current: currentJson?.data || null,
             latest: latestSlot,
             nextUpcoming: nextUpcomingSlot,
@@ -327,24 +299,26 @@ const AdminDashboard = () => {
     };
 
     const fetchMarketOptions = async () => {
-        try {
-            const response = await fetchWithAuth(`${API_BASE_URL}/markets/list-for-dashboard`);
-            if (response.status === 401) return;
-            const data = await response.json();
-            if (data?.success && Array.isArray(data?.data)) {
-                const options = data.data
-                    .map((m) => ({
-                        id: m?._id != null ? String(m._id) : '',
-                        name: (m?.displayLabel || m?.marketName || m?.gameName || '').toString().trim(),
-                    }))
-                    .filter((m) => m.id && m.name)
-                    .sort((a, b) => a.name.localeCompare(b.name));
-                setMarketOptions(options);
-            }
-        } catch (_) {
-            // keep empty on error
-        }
+        const response = await fetchWithAuth(`${API_BASE_URL}/markets/list-for-dashboard`);
+        if (response.status === 401) return [];
+        const data = await response.json();
+        if (!data?.success || !Array.isArray(data?.data)) return [];
+        return data.data
+            .map((m) => ({
+                id: m?._id != null ? String(m._id) : '',
+                name: (m?.displayLabel || m?.marketName || m?.gameName || '').toString().trim(),
+            }))
+            .filter((m) => m.id && m.name)
+            .sort((a, b) => a.name.localeCompare(b.name));
     };
+
+    const { data: marketOptionsData = [] } = useQuery({
+        queryKey: ['dashboard-market-options'],
+        queryFn: fetchMarketOptions,
+        staleTime: 5 * 60 * 1000,
+        retry: 1,
+    });
+    const marketOptions = marketOptionsData;
 
     const fetchDashboardStats = async (rangeOverride, options = {}) => {
         const isRefresh = options.refresh === true;
@@ -383,32 +357,124 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleRefresh = () => fetchDashboardStats(undefined, { refresh: true });
-    const handleRefreshAll = () => {
-        const range = customMode && customFrom && customTo
-            ? { from: customFrom, to: customTo }
-            : getFromTo();
-        fetchDashboardStats(undefined, { refresh: true });
-        fetchLotteryDashboardStats(range);
+    const fetchDashboardStatsQuery = async () => {
+        const { from, to } = effectiveRange || {};
+        const params = new URLSearchParams();
+        if (from && to) { params.set('from', from); params.set('to', to); }
+        if (selectedMarketId) params.set('marketId', selectedMarketId);
+        const key = `dashboard:stats:${params.toString()}`;
+        return dedupeRequest(key, async () => {
+            const url = `${API_BASE_URL}/dashboard/stats${params.toString() ? `?${params.toString()}` : ''}`;
+            const response = await fetchWithAuth(url);
+            if (response.status === 401) return null;
+            const data = await response.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to fetch dashboard stats');
+            return data.data || null;
+        });
     };
-    const applyRangeUpdate = async (range, marketIdOverride) => {
+
+    const dashboardStatsQuery = useQuery({
+        queryKey: ['dashboard-stats', effectiveRange?.from || '', effectiveRange?.to || '', selectedMarketId || ''],
+        queryFn: fetchDashboardStatsQuery,
+        enabled: bootstrapped && !!localStorage.getItem('admin'),
+    });
+
+    useEffect(() => {
+        if (!dashboardStatsQuery.data) return;
+        // Replace full payload for selected range/market to avoid showing stale mixed values.
+        setStats(dashboardStatsQuery.data);
+        setHasLoadedOnce(true);
+        setLoading(false);
+        setRangeUpdating(false);
+        setError('');
+    }, [dashboardStatsQuery.data]);
+
+    useEffect(() => {
+        if (dashboardStatsQuery.error) {
+            setStats(null);
+            setHasLoadedOnce(true);
+            setError(dashboardStatsQuery.error?.message || 'Failed to fetch dashboard stats');
+            setLoading(false);
+            setRangeUpdating(false);
+        }
+    }, [dashboardStatsQuery.error]);
+
+    const lotteryStatsQuery = useQuery({
+        queryKey: ['dashboard-lottery', effectiveRange?.from || '', effectiveRange?.to || ''],
+        queryFn: async () => {
+            const [twoD, threeD] = await Promise.all([
+                fetchLotteryModeStats('2d', effectiveRange),
+                fetchLotteryModeStats('3d', effectiveRange),
+            ]);
+            return {
+                twoD: twoD || { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
+                threeD: threeD || { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
+            };
+        },
+        enabled: bootstrapped && !!localStorage.getItem('admin'),
+    });
+
+    useEffect(() => {
+        if (!lotteryStatsQuery.data) return;
+        setLotteryStats(lotteryStatsQuery.data);
+    }, [lotteryStatsQuery.data]);
+
+    useEffect(() => {
+        if (!lotteryStatsQuery.error) return;
+        const message = lotteryStatsQuery.error?.message || 'Failed to load lottery stats';
+        setLotteryStats((prev) => ({
+            twoD: prev.twoD?.current || prev.twoD?.latest ? prev.twoD : { ...prev.twoD, error: message },
+            threeD: prev.threeD?.current || prev.threeD?.latest ? prev.threeD : { ...prev.threeD, error: message },
+        }));
+    }, [lotteryStatsQuery.error]);
+
+    useEffect(() => {
+        // Guard against stuck "Updating selected range data..." when query data is unchanged
+        // (React Query may preserve object reference and skip data-effect callbacks).
+        if (!dashboardStatsQuery.isFetching && !lotteryStatsQuery.isFetching) {
+            setRangeUpdating(false);
+        }
+    }, [dashboardStatsQuery.isFetching, lotteryStatsQuery.isFetching]);
+
+    useEffect(() => {
+        // First load should be blocking; later range switches should be non-blocking.
+        setRangeUpdating(true);
+        if (!hasLoadedOnce) {
+            setStats(null);
+            setLotteryStats(createEmptyLotteryStats());
+            setLoading(true);
+        }
+    }, [effectiveRange?.from, effectiveRange?.to, selectedMarketId, hasLoadedOnce]);
+
+    const handleRefresh = () => {
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    };
+    const handleRefreshAll = () => {
+        setRefreshing(true);
+        Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] }),
+            queryClient.invalidateQueries({ queryKey: ['dashboard-lottery'] }),
+        ]).finally(() => setRefreshing(false));
+    };
+    const applyRangeUpdate = async () => {
         setRangeUpdating(true);
         try {
             await Promise.all([
-                fetchDashboardStats(range, { silent: true, marketIdOverride }),
-                fetchLotteryDashboardStats(range),
+                queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] }),
+                queryClient.invalidateQueries({ queryKey: ['dashboard-lottery'] }),
             ]);
         } finally {
             setRangeUpdating(false);
         }
     };
     const handlePresetSelect = (presetId) => {
+        if (!customMode && datePreset === presetId) {
+            handleRefreshAll();
+            return;
+        }
         setDatePreset(presetId);
         setCustomMode(false);
         setCustomOpen(false);
-        const preset = PRESETS.find((p) => p.id === presetId);
-        const range = preset ? preset.getRange() : PRESETS[0].getRange();
-        applyRangeUpdate(range);
     };
     const handleCustomToggle = () => { setCustomMode(true); setCustomOpen((o) => !o); };
     const handleCustomApply = () => {
@@ -416,8 +482,6 @@ const AdminDashboard = () => {
         if (new Date(customFrom) > new Date(customTo)) return;
         setCustomMode(true);
         setCustomOpen(false);
-        const range = { from: customFrom, to: customTo };
-        applyRangeUpdate(range);
     };
 
     const handleLogout = () => {
@@ -425,55 +489,60 @@ const AdminDashboard = () => {
         navigate('/');
     };
 
+    const getEffectiveRange = () => effectiveRange;
+
+    const refreshDashboardSections = () => {
+        if (rangeUpdating || dashboardPollBusyRef.current) return;
+        dashboardPollBusyRef.current = true;
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] }).finally(() => {
+            dashboardPollBusyRef.current = false;
+        });
+    };
+
+    const refreshLotterySections = () => {
+        if (rangeUpdating || lotteryPollBusyRef.current) return;
+        lotteryPollBusyRef.current = true;
+        Promise.resolve(queryClient.invalidateQueries({ queryKey: ['dashboard-lottery'] })).finally(() => {
+            lotteryPollBusyRef.current = false;
+        });
+    };
+
+    useSectionAutoRefresh({
+        enabled: !loading,
+        intervalMs: DASHBOARD_SECTION_REFRESH_MS,
+        onRefresh: refreshDashboardSections,
+        immediate: false,
+    });
+
+    useSectionAutoRefresh({
+        enabled: !loading,
+        intervalMs: LOTTERY_LIVE_REFRESH_MS,
+        onRefresh: refreshLotterySections,
+        immediate: false,
+    });
+
     useEffect(() => {
         if (loading) return undefined;
-        const getEffectiveRange = () => (
-            customMode && customFrom && customTo
-                ? { from: customFrom, to: customTo }
-                : getFromTo()
-        );
-
-        const refreshDashboardSections = () => {
-            if (document.visibilityState !== 'visible') return;
-            if (rangeUpdating || dashboardPollBusyRef.current) return;
-            dashboardPollBusyRef.current = true;
-            fetchDashboardStats(getEffectiveRange(), { refresh: true, silent: true }).finally(() => {
-                dashboardPollBusyRef.current = false;
-            });
-        };
-
-        const refreshLotterySections = () => {
-            if (document.visibilityState !== 'visible') return;
-            if (rangeUpdating || lotteryPollBusyRef.current) return;
-            lotteryPollBusyRef.current = true;
-            Promise.resolve(fetchLotteryDashboardStats(getEffectiveRange())).finally(() => {
-                lotteryPollBusyRef.current = false;
-            });
-        };
-
-        const dashboardTimer = setInterval(refreshDashboardSections, DASHBOARD_SECTION_REFRESH_MS);
-        const lotteryTimer = setInterval(refreshLotterySections, LOTTERY_LIVE_REFRESH_MS);
-
-        const onVisible = () => {
-            if (document.visibilityState === 'visible') {
+        let throttleTimer = null;
+        const triggerRefresh = () => {
+            if (throttleTimer) return;
+            throttleTimer = window.setTimeout(() => {
+                throttleTimer = null;
                 refreshDashboardSections();
                 refreshLotterySections();
-            }
+            }, 600);
         };
-
-        window.addEventListener('focus', onVisible);
-        document.addEventListener('visibilitychange', onVisible);
-
+        const unsubscribe = subscribeAdminLive(triggerRefresh, triggerRefresh);
         return () => {
-            clearInterval(dashboardTimer);
-            clearInterval(lotteryTimer);
-            window.removeEventListener('focus', onVisible);
-            document.removeEventListener('visibilitychange', onVisible);
+            unsubscribe?.();
+            if (throttleTimer) window.clearTimeout(throttleTimer);
         };
-    }, [customFrom, customMode, customTo, datePreset, loading, selectedMarketId, rangeUpdating]);
+    }, [loading, rangeUpdating, selectedMarketId, customMode, customFrom, customTo, datePreset]);
 
     const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
     const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN');
+    const formatCurrencyMaybe = (amount) => (amount == null ? '—' : formatCurrency(amount));
+    const formatNumberMaybe = (value) => (value == null ? '—' : formatNumber(value));
     const formatDrawTime = (label) => {
         if (!label) return '-';
         return label;
@@ -501,29 +570,31 @@ const AdminDashboard = () => {
     const threeDCurrent = lotteryStats?.threeD?.current?.summary || {};
     const twoDAllSlots = lotteryStats?.twoD?.allSlots || {};
     const threeDAllSlots = lotteryStats?.threeD?.allSlots || {};
+    const isLotteryReady = Boolean(lotteryStatsQuery.data);
+    const isLotteryLoading = lotteryStatsQuery.isFetching && !isLotteryReady;
     const gameWiseRevenue = stats?.gameWiseRevenue || {};
-    const twoDCurrentRevenue = Number(twoDCurrent.revenue || 0);
-    const threeDCurrentRevenue = Number(threeDCurrent.revenue || 0);
-    const twoDCurrentNet = Number(twoDCurrent.amountRemaining || 0);
-    const threeDCurrentNet = Number(threeDCurrent.amountRemaining || 0);
-    const twoDCurrentUsers = Number(twoDCurrent.totalUsers || 0);
-    const threeDCurrentUsers = Number(threeDCurrent.totalUsers || 0);
-    const twoDCurrentBets = Number(twoDCurrent.totalTickets || 0);
-    const threeDCurrentBets = Number(threeDCurrent.totalTickets || 0);
-    const lotteryCurrentTotalTickets = Number(twoDCurrent.totalTickets || 0) + Number(threeDCurrent.totalTickets || 0);
-    const lotteryCurrentTotalRevenue = Number(twoDCurrent.revenue || 0) + Number(threeDCurrent.revenue || 0);
-    const lotteryCurrentTotalNet = Number(twoDCurrent.amountRemaining || 0) + Number(threeDCurrent.amountRemaining || 0);
-    const twoDAllSlotsPayout = Number(twoDAllSlots.payout || 0);
-    const threeDAllSlotsPayout = Number(threeDAllSlots.payout || 0);
-    const lotteryAllSlotsTotalTickets = Number(twoDAllSlots.tickets || 0) + Number(threeDAllSlots.tickets || 0);
-    const lotteryAllSlotsTotalRevenue = Number(twoDAllSlots.revenue || 0) + Number(threeDAllSlots.revenue || 0);
-    const lotteryAllSlotsTotalPayout = twoDAllSlotsPayout + threeDAllSlotsPayout;
-    const lotteryAllSlotsTotalNet = Number(twoDAllSlots.net || 0) + Number(threeDAllSlots.net || 0);
-    const lotteryAllSlotsTotalUsers = Number(twoDAllSlots.users || 0) + Number(threeDAllSlots.users || 0);
+    const twoDCurrentRevenue = isLotteryReady ? Number(twoDCurrent.revenue || 0) : null;
+    const threeDCurrentRevenue = isLotteryReady ? Number(threeDCurrent.revenue || 0) : null;
+    const twoDCurrentNet = isLotteryReady ? Number(twoDCurrent.amountRemaining || 0) : null;
+    const threeDCurrentNet = isLotteryReady ? Number(threeDCurrent.amountRemaining || 0) : null;
+    const twoDCurrentUsers = isLotteryReady ? Number(twoDCurrent.totalUsers || 0) : null;
+    const threeDCurrentUsers = isLotteryReady ? Number(threeDCurrent.totalUsers || 0) : null;
+    const twoDCurrentBets = isLotteryReady ? Number(twoDCurrent.totalTickets || 0) : null;
+    const threeDCurrentBets = isLotteryReady ? Number(threeDCurrent.totalTickets || 0) : null;
+    const lotteryCurrentTotalTickets = isLotteryReady ? (Number(twoDCurrent.totalTickets || 0) + Number(threeDCurrent.totalTickets || 0)) : null;
+    const lotteryCurrentTotalRevenue = isLotteryReady ? (Number(twoDCurrent.revenue || 0) + Number(threeDCurrent.revenue || 0)) : null;
+    const lotteryCurrentTotalNet = isLotteryReady ? (Number(twoDCurrent.amountRemaining || 0) + Number(threeDCurrent.amountRemaining || 0)) : null;
+    const twoDAllSlotsPayout = isLotteryReady ? Number(twoDAllSlots.payout || 0) : null;
+    const threeDAllSlotsPayout = isLotteryReady ? Number(threeDAllSlots.payout || 0) : null;
+    const lotteryAllSlotsTotalTickets = isLotteryReady ? (Number(twoDAllSlots.tickets || 0) + Number(threeDAllSlots.tickets || 0)) : null;
+    const lotteryAllSlotsTotalRevenue = isLotteryReady ? (Number(twoDAllSlots.revenue || 0) + Number(threeDAllSlots.revenue || 0)) : null;
+    const lotteryAllSlotsTotalPayout = isLotteryReady ? ((twoDAllSlotsPayout || 0) + (threeDAllSlotsPayout || 0)) : null;
+    const lotteryAllSlotsTotalNet = isLotteryReady ? (Number(twoDAllSlots.net || 0) + Number(threeDAllSlots.net || 0)) : null;
+    const lotteryAllSlotsTotalUsers = isLotteryReady ? (Number(twoDAllSlots.users || 0) + Number(threeDAllSlots.users || 0)) : null;
     const gameRevenueTotal = Number(gameWiseRevenue?.total?.revenue || 0);
-    const mainRevenueWithLottery = Number(stats?.revenue?.total || 0) + lotteryAllSlotsTotalRevenue + gameRevenueTotal;
-    const mainNetWithLottery = Number(stats?.revenue?.netProfit || 0) + lotteryAllSlotsTotalNet;
-    const mainBetsWithLottery = Number(stats?.bets?.total || 0) + lotteryAllSlotsTotalTickets;
+    const mainRevenueWithLottery = Number(stats?.revenue?.total || 0) + Number(lotteryAllSlotsTotalRevenue || 0) + gameRevenueTotal;
+    const mainNetWithLottery = Number(stats?.revenue?.netProfit || 0) + Number(lotteryAllSlotsTotalNet || 0);
+    const mainBetsWithLottery = Number(stats?.bets?.total || 0) + Number(lotteryAllSlotsTotalTickets || 0);
 
     const pendingPayments = stats?.payments?.pending || 0;
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
@@ -539,7 +610,7 @@ const AdminDashboard = () => {
     // Help Desk open tickets should not trigger the "Action Required" banner.
     const hasActionRequired = pendingPayments > 0 || marketsPendingResult > 0;
 
-    if (loading) {
+    if (loading && !hasLoadedOnce) {
         return (
             <AdminLayout onLogout={handleLogout} title="Dashboard">
                 <div className="mb-6">
@@ -652,10 +723,7 @@ const AdminDashboard = () => {
                             onChange={(e) => {
                                 const nextMarketId = e.target.value;
                                 setSelectedMarketId(nextMarketId);
-                                const range = customMode && customFrom && customTo
-                                    ? { from: customFrom, to: customTo }
-                                    : getFromTo();
-                                applyRangeUpdate(range, nextMarketId);
+                                applyRangeUpdate();
                             }}
                             className="w-full sm:w-auto min-w-[260px] px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800"
                         >
@@ -714,12 +782,18 @@ const AdminDashboard = () => {
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Revenue (period)</p>
                     <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(mainRevenueWithLottery)}</p>
                     <p className="text-xs text-gray-500 mt-1">Bet amount collected in selected range</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        2D: <span className="font-medium">{formatCurrency(twoDCurrentRevenue)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDCurrentRevenue)}</span> · Total: <span className="font-medium text-green-600">{formatCurrency(lotteryCurrentTotalRevenue)}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        All slots total - 2D: <span className="font-medium">{formatCurrency(twoDAllSlots.revenue)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDAllSlots.revenue)}</span> · Total: <span className="font-medium text-green-600">{formatCurrency(lotteryAllSlotsTotalRevenue)}</span>
-                    </p>
+                    {isLotteryLoading ? (
+                        <p className="text-xs text-blue-600 mt-1 font-medium">Loading 2D/3D lottery totals...</p>
+                    ) : (
+                        <>
+                            <p className="text-xs text-gray-500 mt-1">
+                                2D: <span className="font-medium">{formatCurrencyMaybe(twoDCurrentRevenue)}</span> · 3D: <span className="font-medium">{formatCurrencyMaybe(threeDCurrentRevenue)}</span> · Total: <span className="font-medium text-green-600">{formatCurrencyMaybe(lotteryCurrentTotalRevenue)}</span>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                All slots total - 2D: <span className="font-medium">{formatCurrencyMaybe(isLotteryReady ? Number(twoDAllSlots.revenue || 0) : null)}</span> · 3D: <span className="font-medium">{formatCurrencyMaybe(isLotteryReady ? Number(threeDAllSlots.revenue || 0) : null)}</span> · Total: <span className="font-medium text-green-600">{formatCurrencyMaybe(lotteryAllSlotsTotalRevenue)}</span>
+                            </p>
+                        </>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">
                         Games total - Aviator/FunTimer/Roulette: <span className="font-medium text-green-600">{formatCurrency(gameRevenueTotal)}</span>
                     </p>
@@ -728,34 +802,52 @@ const AdminDashboard = () => {
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Net Profit (period)</p>
                     <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(mainNetWithLottery)}</p>
                     <p className="text-xs text-gray-500 mt-1">Revenue − Payouts in selected range</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        2D net: <span className="font-medium">{formatCurrency(twoDCurrentNet)}</span> · 3D net: <span className="font-medium">{formatCurrency(threeDCurrentNet)}</span> · Total net: <span className="font-medium text-blue-600">{formatCurrency(lotteryCurrentTotalNet)}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        All slots net - 2D: <span className="font-medium">{formatCurrency(twoDAllSlots.net)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDAllSlots.net)}</span> · Total: <span className="font-medium text-blue-600">{formatCurrency(lotteryAllSlotsTotalNet)}</span>
-                    </p>
+                    {isLotteryLoading ? (
+                        <p className="text-xs text-blue-600 mt-1 font-medium">Loading 2D/3D lottery net...</p>
+                    ) : (
+                        <>
+                            <p className="text-xs text-gray-500 mt-1">
+                                2D net: <span className="font-medium">{formatCurrencyMaybe(twoDCurrentNet)}</span> · 3D net: <span className="font-medium">{formatCurrencyMaybe(threeDCurrentNet)}</span> · Total net: <span className="font-medium text-blue-600">{formatCurrencyMaybe(lotteryCurrentTotalNet)}</span>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                All slots net - 2D: <span className="font-medium">{formatCurrencyMaybe(isLotteryReady ? Number(twoDAllSlots.net || 0) : null)}</span> · 3D: <span className="font-medium">{formatCurrencyMaybe(isLotteryReady ? Number(threeDAllSlots.net || 0) : null)}</span> · Total: <span className="font-medium text-blue-600">{formatCurrencyMaybe(lotteryAllSlotsTotalNet)}</span>
+                            </p>
+                        </>
+                    )}
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Players (all-time)</p>
                     <p className="text-2xl font-bold text-purple-600 font-mono">{stats?.users?.total ?? 0}</p>
                     <p className="text-xs text-gray-500 mt-1">{stats?.users?.active ?? 0} active · {stats?.users?.newToday ?? 0} new in range</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        2D users: <span className="font-medium">{formatNumber(twoDCurrentUsers)}</span> · 3D users: <span className="font-medium">{formatNumber(threeDCurrentUsers)}</span> · Total: <span className="font-medium">{formatNumber(twoDCurrentUsers + threeDCurrentUsers)}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        All slots users - 2D: <span className="font-medium">{formatNumber(twoDAllSlots.users)}</span> · 3D: <span className="font-medium">{formatNumber(threeDAllSlots.users)}</span> · Total: <span className="font-medium">{formatNumber(lotteryAllSlotsTotalUsers)}</span>
-                    </p>
+                    {isLotteryLoading ? (
+                        <p className="text-xs text-blue-600 mt-1 font-medium">Loading 2D/3D lottery user stats...</p>
+                    ) : (
+                        <>
+                            <p className="text-xs text-gray-500 mt-1">
+                                2D users: <span className="font-medium">{formatNumberMaybe(twoDCurrentUsers)}</span> · 3D users: <span className="font-medium">{formatNumberMaybe(threeDCurrentUsers)}</span> · Total: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? ((twoDCurrentUsers || 0) + (threeDCurrentUsers || 0)) : null)}</span>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                All slots users - 2D: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? Number(twoDAllSlots.users || 0) : null)}</span> · 3D: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? Number(threeDAllSlots.users || 0) : null)}</span> · Total: <span className="font-medium">{formatNumberMaybe(lotteryAllSlotsTotalUsers)}</span>
+                            </p>
+                        </>
+                    )}
                 </div>
                 <div className="bg-gradient-to-br from-orange-50 to-transparent rounded-xl p-5 border border-orange-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Bets (period)</p>
                     <p className="text-2xl font-bold text-orange-500 font-mono">{formatNumber(mainBetsWithLottery)}</p>
                     <p className="text-xs text-gray-500 mt-1">Win rate: {stats?.bets?.winRate ?? 0}%</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        2D bets: <span className="font-medium">{formatNumber(twoDCurrentBets)}</span> · 3D bets: <span className="font-medium">{formatNumber(threeDCurrentBets)}</span> · Total: <span className="font-medium text-orange-600">{formatNumber(lotteryCurrentTotalTickets)}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        All slots bets - 2D: <span className="font-medium">{formatNumber(twoDAllSlots.tickets)}</span> · 3D: <span className="font-medium">{formatNumber(threeDAllSlots.tickets)}</span> · Total: <span className="font-medium text-orange-600">{formatNumber(lotteryAllSlotsTotalTickets)}</span>
-                    </p>
+                    {isLotteryLoading ? (
+                        <p className="text-xs text-blue-600 mt-1 font-medium">Loading 2D/3D lottery bet stats...</p>
+                    ) : (
+                        <>
+                            <p className="text-xs text-gray-500 mt-1">
+                                2D bets: <span className="font-medium">{formatNumberMaybe(twoDCurrentBets)}</span> · 3D bets: <span className="font-medium">{formatNumberMaybe(threeDCurrentBets)}</span> · Total: <span className="font-medium text-orange-600">{formatNumberMaybe(lotteryCurrentTotalTickets)}</span>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                All slots bets - 2D: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? Number(twoDAllSlots.tickets || 0) : null)}</span> · 3D: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? Number(threeDAllSlots.tickets || 0) : null)}</span> · Total: <span className="font-medium text-orange-600">{formatNumberMaybe(lotteryAllSlotsTotalTickets)}</span>
+                            </p>
+                        </>
+                    )}
                 </div>
             </div>
 

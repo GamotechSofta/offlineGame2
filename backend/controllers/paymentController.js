@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
+import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 
 const SCREENSHOT_WEBHOOK_URL =
     process.env.SCREENSHOT_WEBHOOK_URL || 'https://api.thefashionista.in/api/v1/webhook/screenshot-uploaded';
@@ -223,6 +224,7 @@ export const createDepositRequest = async (req, res) => {
         });
         payment.webhookRefId = `upload_${payment._id}`;
         await payment.save();
+        await invalidateAdminReadCaches('deposit_request_created');
         console.log('✅ Payment created:', payment._id);
         console.log('---------------- DEPOSIT LOG START ----------------');
         console.log('Saved deposit data:', JSON.stringify({
@@ -338,6 +340,7 @@ export const createWithdrawalRequest = async (req, res) => {
             bankDetailId: bankDetailId || null,
             userNote: userNote || '',
         });
+        await invalidateAdminReadCaches('withdrawal_request_created');
 
         await logActivity({
             action: 'withdrawal_request_created',
@@ -425,6 +428,9 @@ export const getMyWithdrawals = async (req, res) => {
 export const getPayments = async (req, res) => {
     try {
         const { status, type } = req.query;
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(100, Math.max(10, parseInt(req.query.limit, 10) || 50));
+        const skip = (page - 1) * limit;
         const query = {};
 
         const bookieUserIds = await getBookieUserIds(req.admin);
@@ -434,13 +440,18 @@ export const getPayments = async (req, res) => {
         if (status) query.status = status;
         if (type) query.type = type;
 
-        const payments = await Payment.find(query)
-            .populate('userId', 'username email phone')
-            .populate('bankDetailId', 'accountHolderName bankName accountNumber upiId ifscCode')
-            .populate('processedBy', 'username')
-            .sort({ createdAt: -1 })
-            .limit(1000)
-            .lean();
+        const [payments, total] = await Promise.all([
+            Payment.find(query)
+                .select('userId type amount method status screenshot screenshotUrl upiTransactionId webhookRefId userNote adminRemarks processedBy processedAt bankDetailId createdAt updatedAt')
+                .populate('userId', 'username email phone')
+                .populate('bankDetailId', 'accountHolderName bankName accountNumber upiId ifscCode')
+                .populate('processedBy', 'username')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Payment.countDocuments(query),
+        ]);
 
         // Process payments - use Cloudinary URL if available, otherwise fallback to buffer endpoint
         const paymentsWithScreenshotUrl = payments.map(payment => {
@@ -457,7 +468,18 @@ export const getPayments = async (req, res) => {
             return paymentObj;
         });
 
-        res.status(200).json({ success: true, data: paymentsWithScreenshotUrl });
+        res.status(200).json({
+            success: true,
+            data: paymentsWithScreenshotUrl,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.max(1, Math.ceil(total / limit)),
+                hasNextPage: skip + paymentsWithScreenshotUrl.length < total,
+                hasPrevPage: page > 1,
+            },
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -631,6 +653,7 @@ export const approvePayment = async (req, res) => {
         payment.processedBy = req.admin._id;
         payment.processedAt = new Date();
         await payment.save();
+        await invalidateAdminReadCaches('payment_approved');
 
         // Update wallet
         let wallet = await Wallet.findOne({ userId: payment.userId._id });
@@ -710,6 +733,7 @@ export const rejectPayment = async (req, res) => {
         payment.processedBy = req.admin._id;
         payment.processedAt = new Date();
         await payment.save();
+        await invalidateAdminReadCaches('payment_rejected');
 
         await logActivity({
             action: `payment_${payment.type}_rejected`,
@@ -758,6 +782,7 @@ export const updatePaymentStatus = async (req, res) => {
         payment.processedBy = req.admin._id;
         payment.processedAt = new Date();
         await payment.save();
+        await invalidateAdminReadCaches('payment_status_updated');
 
         res.status(200).json({ success: true, data: payment });
     } catch (error) {

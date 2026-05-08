@@ -34,9 +34,19 @@ import { getQuizSocketIo, syncQuizSlotUpdates } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply2DTargetProfitHintsToSlot, build2DTargetProfitHints } from '../services/quizTargetProfitService.js';
+import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
+import { cacheGet, cacheSet } from '../services/cacheService.js';
+import { getRuntimeMetrics } from '../services/runtimeMonitorService.js';
 
 const QUIZ_IDS = Array.from({ length: 30 }, (_, i) => i + 1);
 const GAME_MODE = '2d';
+const SLOT_DETAIL_CACHE_TTL_SECONDS = 4;
+const DECLARATION_MATRIX_CACHE_TTL_SECONDS = 4;
+const CURRENT_SLOT_CACHE_TTL_SECONDS = 3;
+const SLOT_DETAIL_INFLIGHT = new Map();
+const DECLARATION_MATRIX_INFLIGHT = new Map();
+const CURRENT_SLOT_INFLIGHT = new Map();
+const BACKPRESSURE_ACTIVE_REQUESTS = 30;
 
 async function getLotteryScopeFilter(req) {
   const bookieUserIds = await getBookieUserIds(req.admin);
@@ -102,6 +112,203 @@ function baseQuizStatsById() {
     });
   }
   return map;
+}
+
+function lotteryScopeKey(req, lotteryScopeFilter) {
+  if (!lotteryScopeFilter?.userId?.$in) return `admin:${String(req.admin?._id || 'root')}:all`;
+  return `admin:${String(req.admin?._id || 'root')}:scoped`;
+}
+
+function slotDetailCacheKey(req, slotStartIso, lotteryScopeFilter) {
+  return `lottery2d:slot-detail:${lotteryScopeKey(req, lotteryScopeFilter)}:${slotStartIso}`;
+}
+
+function declarationMatrixCacheKey(req, date, limit, lotteryScopeFilter) {
+  return `lottery2d:decl-matrix:${lotteryScopeKey(req, lotteryScopeFilter)}:${date}:${limit}`;
+}
+
+function currentSlotCacheKey(req, slotStartIso, lotteryScopeFilter) {
+  return `lottery2d:current-slot:${lotteryScopeKey(req, lotteryScopeFilter)}:${slotStartIso}`;
+}
+
+async function buildLottery2DCurrentSlotPayload(ctx, lotteryScopeFilter) {
+  const slotStartIso = ctx.slotStartIso;
+  const slotEndMs = ctx.slotEndMs;
+  const [bets, picks, winMultiplier] = await Promise.all([
+    QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter })
+      .select('ticketId quizId userId number amount status winPayout')
+      .lean(),
+    QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
+    getQuiz2DMultiplier(),
+  ]);
+
+  const pickByQuiz = new Map();
+  for (const p of picks) pickByQuiz.set(p.quizId, p.hintPosition);
+  const perQuiz = baseQuizStatsById();
+
+  for (const p of picks) {
+    const row = perQuiz.get(p.quizId);
+    if (row) row.result = Number.isInteger(p.hintPosition) ? p.hintPosition : null;
+  }
+
+  const quizUsers = new Map();
+  const quizWinnerUsers = new Map();
+  const ticketKeysByQuiz = new Map();
+  for (const quizId of QUIZ_IDS) {
+    quizUsers.set(quizId, new Set());
+    quizWinnerUsers.set(quizId, new Set());
+    ticketKeysByQuiz.set(quizId, new Set());
+  }
+
+  for (const bet of bets) {
+    if (String(bet?.status || '').toLowerCase() === 'cancelled') {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    const row = perQuiz.get(bet.quizId);
+    if (!row) continue;
+    row.betCount += 1;
+    ticketKeysByQuiz.get(bet.quizId).add(quizBetTicketKey(bet));
+    row.totalBetAmount += Number(bet.amount || 0);
+    if (bet.userId) quizUsers.get(bet.quizId).add(String(bet.userId));
+
+    const hp = pickByQuiz.get(bet.quizId);
+    if (Number.isInteger(hp) && hp === bet.number) {
+      row.winnerTickets += 1;
+      if (bet.userId) quizWinnerUsers.get(bet.quizId).add(String(bet.userId));
+    }
+  }
+
+  for (const quizId of QUIZ_IDS) {
+    const row = perQuiz.get(quizId);
+    row.ticketCount = ticketKeysByQuiz.get(quizId).size;
+    row.uniqueUsers = quizUsers.get(quizId).size;
+    row.winnerUsers = quizWinnerUsers.get(quizId).size;
+  }
+
+  const slotSummary = toSlotSummary(slotStartIso, slotEndMs, bets, pickByQuiz, winMultiplier);
+  const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
+  return {
+    slot: {
+      slotStartIso,
+      slotEndIso: new Date(slotEndMs).toISOString(),
+      drawLabelEnd: formatDrawLabel(slotEndMs),
+      phase: ctx.phase,
+      istDayKey: ctx.istDayKey,
+      declaration,
+    },
+    summary: slotSummary,
+  };
+}
+
+async function buildLottery2DSlotDetailData(slotStartIso, lotteryScopeFilter) {
+  const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+  const [bets, winMultiplier, declaration] = await Promise.all([
+    QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter })
+      .select('ticketId quizId userId number amount status winPayout')
+      .lean(),
+    getQuiz2DMultiplier(),
+    getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs),
+  ]);
+  if (Date.now() < slotEndMs && declaration?.targetProfitPercent == null) {
+    await ensureRandomHintsForCurrentSlot(slotStartIso);
+  }
+  const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean();
+
+  const pickByQuiz = new Map();
+  for (const p of picks) pickByQuiz.set(p.quizId, p.hintPosition);
+
+  const perQuiz = baseQuizStatsById();
+  for (const p of picks) {
+    const row = perQuiz.get(p.quizId);
+    if (row) row.result = Number.isInteger(p.hintPosition) ? p.hintPosition : null;
+  }
+
+  const usersByQuiz = new Map();
+  const winnerUsersByQuiz = new Map();
+  const stakeOnHintByQuiz = new Map(QUIZ_IDS.map((q) => [q, 0]));
+  const ticketKeysByQuiz = new Map();
+  for (const quizId of QUIZ_IDS) {
+    usersByQuiz.set(quizId, new Set());
+    winnerUsersByQuiz.set(quizId, new Set());
+    ticketKeysByQuiz.set(quizId, new Set());
+  }
+
+  for (const bet of bets) {
+    if (String(bet?.status || '').toLowerCase() === 'cancelled') continue;
+    const row = perQuiz.get(bet.quizId);
+    if (!row) continue;
+    row.betCount += 1;
+    ticketKeysByQuiz.get(bet.quizId).add(quizBetTicketKey(bet));
+    row.totalBetAmount += Number(bet.amount || 0);
+    if (bet.userId) usersByQuiz.get(bet.quizId).add(String(bet.userId));
+
+    const hp = pickByQuiz.get(bet.quizId);
+    if (Number.isInteger(hp) && hp === bet.number) {
+      stakeOnHintByQuiz.set(
+        bet.quizId,
+        (stakeOnHintByQuiz.get(bet.quizId) || 0) + Number(bet.amount || 0),
+      );
+      row.winnerTickets += 1;
+      if (bet.userId) winnerUsersByQuiz.get(bet.quizId).add(String(bet.userId));
+    }
+  }
+
+  for (const quizId of QUIZ_IDS) {
+    const row = perQuiz.get(quizId);
+    row.ticketCount = ticketKeysByQuiz.get(quizId).size;
+    row.uniqueUsers = usersByQuiz.get(quizId).size;
+    row.winnerUsers = winnerUsersByQuiz.get(quizId).size;
+    const hp = pickByQuiz.get(quizId);
+    const totalStake = Number(row.totalBetAmount || 0);
+    if (!Number.isInteger(hp)) {
+      row.houseNetIfHintWins = null;
+    } else {
+      const stakeOnHint = stakeOnHintByQuiz.get(quizId) || 0;
+      const payoutIfHintWins = Math.round(stakeOnHint * winMultiplier);
+      row.houseNetIfHintWins = totalStake - payoutIfHintWins;
+    }
+  }
+
+  const summary = toSlotSummary(slotStartIso, slotEndMs, bets, pickByQuiz, winMultiplier);
+  return {
+    slot: {
+      slotStartIso,
+      slotEndIso: new Date(slotEndMs).toISOString(),
+      drawLabelEnd: formatDrawLabel(slotEndMs),
+    },
+    summary,
+    perQuiz: QUIZ_IDS.map((q) => perQuiz.get(q)),
+  };
+}
+
+async function getLottery2DSlotDetailWithCoalescing(req, slotStartIso, lotteryScopeFilter) {
+  const cacheKey = slotDetailCacheKey(req, slotStartIso, lotteryScopeFilter);
+  const cached = await cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const inflightKey = `${cacheKey}`;
+  const inFlight = SLOT_DETAIL_INFLIGHT.get(inflightKey);
+  if (inFlight) return inFlight;
+
+  const backpressureActive = Number(getRuntimeMetrics()?.activeRequests || 0);
+  if (backpressureActive >= BACKPRESSURE_ACTIVE_REQUESTS) {
+    const stale = await cacheGet(cacheKey);
+    if (stale) return stale;
+  }
+
+  const promise = (async () => {
+    const data = await buildLottery2DSlotDetailData(slotStartIso, lotteryScopeFilter);
+    await cacheSet(cacheKey, data, SLOT_DETAIL_CACHE_TTL_SECONDS);
+    return data;
+  })();
+
+  SLOT_DETAIL_INFLIGHT.set(inflightKey, promise);
+  try {
+    return await promise;
+  } finally {
+    SLOT_DETAIL_INFLIGHT.delete(inflightKey);
+  }
 }
 
 function toSlotSummary(slotStartIso, slotEndMs, bets, picksByQuiz, winMultiplier) {
@@ -1120,77 +1327,31 @@ export const getLottery2DCurrentSlot = async (req, res) => {
   try {
     const ctx = getSlotContext(new Date(), '2d');
     const slotStartIso = ctx.slotStartIso;
-    const slotEndMs = ctx.slotEndMs;
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
-
-    const [bets, picks, winMultiplier] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter })
-        .select('ticketId quizId userId number amount status winPayout')
-        .lean(),
-      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
-      getQuiz2DMultiplier(),
-    ]);
-
-    const pickByQuiz = new Map();
-    for (const p of picks) pickByQuiz.set(p.quizId, p.hintPosition);
-    const perQuiz = baseQuizStatsById();
-
-    for (const p of picks) {
-      const row = perQuiz.get(p.quizId);
-      if (row) row.result = Number.isInteger(p.hintPosition) ? p.hintPosition : null;
+    const cacheKey = currentSlotCacheKey(req, slotStartIso, lotteryScopeFilter);
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached, cached: true });
     }
 
-    const quizUsers = new Map();
-    const quizWinnerUsers = new Map();
-    const ticketKeysByQuiz = new Map();
-    for (const quizId of QUIZ_IDS) {
-      quizUsers.set(quizId, new Set());
-      quizWinnerUsers.set(quizId, new Set());
-      ticketKeysByQuiz.set(quizId, new Set());
+    const inFlight = CURRENT_SLOT_INFLIGHT.get(cacheKey);
+    if (inFlight) {
+      const payload = await inFlight;
+      return res.json({ success: true, data: payload, deduped: true });
     }
 
-    for (const bet of bets) {
-      if (String(bet?.status || '').toLowerCase() === 'cancelled') {
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-      const row = perQuiz.get(bet.quizId);
-      if (!row) continue;
-      row.betCount += 1;
-      ticketKeysByQuiz.get(bet.quizId).add(quizBetTicketKey(bet));
-      row.totalBetAmount += Number(bet.amount || 0);
-      if (bet.userId) quizUsers.get(bet.quizId).add(String(bet.userId));
-
-      const hp = pickByQuiz.get(bet.quizId);
-      if (Number.isInteger(hp) && hp === bet.number) {
-        row.winnerTickets += 1;
-        if (bet.userId) quizWinnerUsers.get(bet.quizId).add(String(bet.userId));
-      }
+    const computePromise = (async () => {
+      const payload = await buildLottery2DCurrentSlotPayload(ctx, lotteryScopeFilter);
+      await cacheSet(cacheKey, payload, CURRENT_SLOT_CACHE_TTL_SECONDS);
+      return payload;
+    })();
+    CURRENT_SLOT_INFLIGHT.set(cacheKey, computePromise);
+    try {
+      const payload = await computePromise;
+      return res.json({ success: true, data: payload });
+    } finally {
+      CURRENT_SLOT_INFLIGHT.delete(cacheKey);
     }
-
-    for (const quizId of QUIZ_IDS) {
-      const row = perQuiz.get(quizId);
-      row.ticketCount = ticketKeysByQuiz.get(quizId).size;
-      row.uniqueUsers = quizUsers.get(quizId).size;
-      row.winnerUsers = quizWinnerUsers.get(quizId).size;
-    }
-
-    const slotSummary = toSlotSummary(slotStartIso, slotEndMs, bets, pickByQuiz, winMultiplier);
-    const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
-    return res.json({
-      success: true,
-      data: {
-        slot: {
-          slotStartIso,
-          slotEndIso: new Date(slotEndMs).toISOString(),
-          drawLabelEnd: formatDrawLabel(slotEndMs),
-          phase: ctx.phase,
-          istDayKey: ctx.istDayKey,
-          declaration,
-        },
-        summary: slotSummary,
-      },
-    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
@@ -1314,6 +1475,7 @@ export const configureLottery2DCurrentSlotTargetAutoDeclare = async (req, res) =
       await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
       await apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
     }
+    await invalidateAdminReadCaches('lottery2d_auto_declare_configured');
     syncQuizSlotUpdates();
     const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
     const effectiveTarget = mode === 'random' ? null : targetProfitPercent;
@@ -1473,14 +1635,28 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
       return res.json({ success: true, data: { date, slots: [] } });
     }
 
-    const [picks, declarations] = await Promise.all([
-      QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
-        .select('slotStartIso quizId hintPosition')
-        .lean(),
-      QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
-        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent autoDeclareMode declaredAutoDeclareMode declaredTargetProfitPercent')
-        .lean(),
-    ]);
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
+    const cacheKey = declarationMatrixCacheKey(req, date, limit, lotteryScopeFilter);
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached, cached: true });
+    }
+
+    const inFlight = DECLARATION_MATRIX_INFLIGHT.get(cacheKey);
+    if (inFlight) {
+      const payload = await inFlight;
+      return res.json({ success: true, data: payload, deduped: true });
+    }
+
+    const computePromise = (async () => {
+      const [picks, declarations] = await Promise.all([
+        QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
+          .select('slotStartIso quizId hintPosition')
+          .lean(),
+        QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
+          .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent autoDeclareMode declaredAutoDeclareMode declaredTargetProfitPercent')
+          .lean(),
+      ]);
 
     const picksBySlot = new Map();
     for (const p of picks) {
@@ -1490,7 +1666,7 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
     const declarationBySlot = new Map(declarations.map((d) => [d.slotStartIso, d]));
     const snapshotBySlot = await ensureDeclaredResultsSnapshots(slotStartIsos, GAME_MODE);
 
-    const slots = slotStartIsos.map((slotStartIso) => {
+      const slots = slotStartIsos.map((slotStartIso) => {
       const slotStartMs = new Date(slotStartIso).getTime();
       const slotEndMs = slotStartMs + SLOT_MS;
       const slotEnded = Date.now() >= slotEndMs;
@@ -1542,7 +1718,18 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
       };
     });
 
-    return res.json({ success: true, data: { date, slots } });
+      const payload = { date, slots };
+      await cacheSet(cacheKey, payload, DECLARATION_MATRIX_CACHE_TTL_SECONDS);
+      return payload;
+    })();
+
+    DECLARATION_MATRIX_INFLIGHT.set(cacheKey, computePromise);
+    try {
+      const payload = await computePromise;
+      return res.json({ success: true, data: payload });
+    } finally {
+      DECLARATION_MATRIX_INFLIGHT.delete(cacheKey);
+    }
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
@@ -1554,91 +1741,36 @@ export const getLottery2DSlotDetail = async (req, res) => {
     if (!isValidISTSlotStartIso(slotStartIso)) {
       return res.status(400).json({ success: false, message: 'Invalid slotStartIso.' });
     }
-    const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
-    const [bets, winMultiplier, declaration] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso })
-        .select('ticketId quizId userId number amount status winPayout')
-        .lean(),
-      getQuiz2DMultiplier(),
-      getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs),
-    ]);
-    // Self-heal running slot in random mode: keep hints aligned to random picks, not stale target values.
-    if (Date.now() < slotEndMs && declaration?.targetProfitPercent == null) {
-      await ensureRandomHintsForCurrentSlot(slotStartIso);
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
+    const data = await getLottery2DSlotDetailWithCoalescing(req, slotStartIso, lotteryScopeFilter);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+export const getLottery2DSlotDetailsBatch = async (req, res) => {
+  try {
+    const slots = Array.isArray(req.body?.slots) ? req.body.slots : [];
+    if (!slots.length) {
+      return res.status(400).json({ success: false, message: 'slots[] is required' });
     }
-    const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean();
-
-    const pickByQuiz = new Map();
-    for (const p of picks) pickByQuiz.set(p.quizId, p.hintPosition);
-
-    const perQuiz = baseQuizStatsById();
-    for (const p of picks) {
-      const row = perQuiz.get(p.quizId);
-      if (row) row.result = Number.isInteger(p.hintPosition) ? p.hintPosition : null;
-    }
-
-    const usersByQuiz = new Map();
-    const winnerUsersByQuiz = new Map();
-    const stakeOnHintByQuiz = new Map(QUIZ_IDS.map((q) => [q, 0]));
-    const ticketKeysByQuiz = new Map();
-    for (const quizId of QUIZ_IDS) {
-      usersByQuiz.set(quizId, new Set());
-      winnerUsersByQuiz.set(quizId, new Set());
-      ticketKeysByQuiz.set(quizId, new Set());
+    const normalized = Array.from(new Set(
+      slots
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter((s) => isValidISTSlotStartIso(s)),
+    )).slice(0, 120);
+    if (!normalized.length) {
+      return res.status(400).json({ success: false, message: 'No valid slotStartIso entries found' });
     }
 
-    for (const bet of bets) {
-      if (String(bet?.status || '').toLowerCase() === 'cancelled') {
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-      const row = perQuiz.get(bet.quizId);
-      if (!row) continue;
-      row.betCount += 1;
-      ticketKeysByQuiz.get(bet.quizId).add(quizBetTicketKey(bet));
-      row.totalBetAmount += Number(bet.amount || 0);
-      if (bet.userId) usersByQuiz.get(bet.quizId).add(String(bet.userId));
-
-      const hp = pickByQuiz.get(bet.quizId);
-      if (Number.isInteger(hp) && hp === bet.number) {
-        stakeOnHintByQuiz.set(
-          bet.quizId,
-          (stakeOnHintByQuiz.get(bet.quizId) || 0) + Number(bet.amount || 0),
-        );
-        row.winnerTickets += 1;
-        if (bet.userId) winnerUsersByQuiz.get(bet.quizId).add(String(bet.userId));
-      }
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
+    const results = {};
+    for (const slotStartIso of normalized) {
+      // Intentional serial execution to avoid concurrency spikes in hot-path CPU work.
+      results[slotStartIso] = await getLottery2DSlotDetailWithCoalescing(req, slotStartIso, lotteryScopeFilter);
     }
-
-    for (const quizId of QUIZ_IDS) {
-      const row = perQuiz.get(quizId);
-      row.ticketCount = ticketKeysByQuiz.get(quizId).size;
-      row.uniqueUsers = usersByQuiz.get(quizId).size;
-      row.winnerUsers = winnerUsersByQuiz.get(quizId).size;
-      const hp = pickByQuiz.get(quizId);
-      const totalStake = Number(row.totalBetAmount || 0);
-      if (!Number.isInteger(hp)) {
-        row.houseNetIfHintWins = null;
-      } else {
-        const stakeOnHint = stakeOnHintByQuiz.get(quizId) || 0;
-        const payoutIfHintWins = Math.round(stakeOnHint * winMultiplier);
-        row.houseNetIfHintWins = totalStake - payoutIfHintWins;
-      }
-    }
-
-    const summary = toSlotSummary(slotStartIso, slotEndMs, bets, pickByQuiz, winMultiplier);
-    return res.json({
-      success: true,
-      data: {
-        slot: {
-          slotStartIso,
-          slotEndIso: new Date(slotEndMs).toISOString(),
-          drawLabelEnd: formatDrawLabel(slotEndMs),
-        },
-        summary,
-        perQuiz: QUIZ_IDS.map((q) => perQuiz.get(q)),
-      },
-    });
+    return res.json({ success: true, data: results });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
@@ -1710,6 +1842,7 @@ export const updateLottery2DSlotResult = async (req, res) => {
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Slot result not found.' });
     }
+    await invalidateAdminReadCaches('lottery2d_slot_result_updated');
 
     return res.json({
       success: true,
@@ -1856,6 +1989,7 @@ export const updateLottery2DSlotDeclaration = async (req, res) => {
       }
       await settleQuizBetsForSlot(slotStartIso, GAME_MODE);
     }
+    await invalidateAdminReadCaches('lottery2d_slot_declaration_updated');
 
     const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
     return res.json({ success: true, data: { slotStartIso, declaration } });

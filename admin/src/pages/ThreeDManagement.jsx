@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import useModalBackHandler from '../hooks/useModalBackHandler';
@@ -6,9 +7,13 @@ import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import CurrentSlotOverview from '../components/twoDManagement/CurrentSlotOverview';
 import OldSlotsSection from '../components/threeDManagement/OldSlotsSection';
 import SlotWiseBetsSection from '../components/SlotWiseBetsSection';
+import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
+import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
+import { dedupeRequest } from '../lib/requestDedupe';
 
 const ThreeDManagement = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
     const todayDate = () => {
@@ -508,16 +513,126 @@ const ThreeDManagement = () => {
         setSelectedPlayer(player);
         setShowPlayerHistoryModal(true);
         setPlayerHistoryLastUpdatedAt(null);
-        await fetchPlayerHistory(player.userId);
     };
 
+    useSectionAutoRefresh({
+        enabled: showPlayerHistoryModal && Boolean(selectedPlayer?.userId),
+        intervalMs: 10000,
+        onRefresh: () => queryClient.invalidateQueries({ queryKey: ['3d-player-history', selectedPlayer?.userId || ''] }),
+        immediate: false,
+    });
+
+    useSectionAutoRefresh({
+        enabled: true,
+        intervalMs: 30000,
+        onRefresh: () => {
+            queryClient.invalidateQueries({ queryKey: ['3d-management-current'] });
+            queryClient.invalidateQueries({ queryKey: ['3d-management-history', date] });
+        },
+        immediate: false,
+    });
+
+    useAdminLiveQueryInvalidation({
+        enabled: true,
+        queryKeys: [
+            ['3d-management-current'],
+            ['3d-management-history', date],
+            ['3d-management-detail', selectedSlot || ''],
+            ['3d-player-history', selectedPlayer?.userId || ''],
+        ],
+        throttleMs: 900,
+    });
+
+    const currentQuery = useQuery({
+        queryKey: ['3d-management-current'],
+        queryFn: async () => {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/current-slot`);
+            if (res.status === 401) return null;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load current slot');
+            return data.data || null;
+        },
+        enabled: !!localStorage.getItem('admin'),
+    });
+
+    const historyQuery = useQuery({
+        queryKey: ['3d-management-history', date],
+        queryFn: async () => {
+            const params = new URLSearchParams({ date, limit: '40' });
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots?${params.toString()}`);
+            if (res.status === 401) return [];
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load slot history');
+            return data?.data?.slots || [];
+        },
+        enabled: !!localStorage.getItem('admin'),
+    });
+
+    const detailQuery = useQuery({
+        queryKey: ['3d-management-detail', selectedSlot || ''],
+        queryFn: async () => {
+            if (!selectedSlot) return null;
+            return dedupeRequest(`3d:detail:${selectedSlot}`, async () => {
+                const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/${encodeURIComponent(selectedSlot)}/detail`);
+                if (res.status === 401) return null;
+                const data = await res.json();
+                if (!data?.success) throw new Error(data?.message || 'Failed to load slot detail');
+                return data.data || null;
+            });
+        },
+        enabled: !!selectedSlot,
+    });
+
+    const playerHistoryQuery = useQuery({
+        queryKey: ['3d-player-history', selectedPlayer?.userId || ''],
+        queryFn: async () => {
+            if (!selectedPlayer?.userId) return null;
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/players/${encodeURIComponent(selectedPlayer.userId)}/history?limit=40`);
+            if (res.status === 401) return null;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load player history');
+            return data.data || null;
+        },
+        enabled: showPlayerHistoryModal && Boolean(selectedPlayer?.userId),
+        staleTime: 10000,
+    });
+
     useEffect(() => {
-        if (!showPlayerHistoryModal || !selectedPlayer?.userId) return undefined;
-        const timer = setInterval(() => {
-            fetchPlayerHistory(selectedPlayer.userId, { silent: true });
-        }, 3000);
-        return () => clearInterval(timer);
-    }, [showPlayerHistoryModal, selectedPlayer?.userId, fetchPlayerHistory]);
+        if (currentQuery.data !== undefined) {
+            setCurrentSlotData(currentQuery.data);
+            setLoadingCurrent(false);
+        }
+    }, [currentQuery.data]);
+
+    useEffect(() => {
+        if (historyQuery.data) {
+            const slots = historyQuery.data || [];
+            setHistorySlots(slots);
+            setLoadingHistory(false);
+            if (slots.length) {
+                setSelectedSlot((prev) => (prev && slots.some((slot) => slot.slotStartIso === prev) ? prev : slots[0].slotStartIso));
+            } else {
+                setSelectedSlot('');
+                setDetailData(null);
+            }
+        }
+    }, [historyQuery.data]);
+
+    useEffect(() => {
+        if (detailQuery.data !== undefined) {
+            setDetailData(detailQuery.data);
+            setLoadingDetail(false);
+        }
+    }, [detailQuery.data]);
+
+    useEffect(() => {
+        if (playerHistoryQuery.data !== undefined) {
+            setPlayerHistoryData(playerHistoryQuery.data || null);
+            setPlayerHistoryError('');
+            setLoadingPlayerHistory(false);
+            if (playerHistoryQuery.data) setPlayerHistoryLastUpdatedAt(new Date());
+        }
+    }, [playerHistoryQuery.data]);
 
     const handleUnlockHints = async () => {
         if (hasSecretDeclarePassword && !hintPassword.trim()) {
@@ -554,6 +669,44 @@ const ThreeDManagement = () => {
         setShowEditHintModal(true);
     };
 
+    const editHintMutation = useMutation({
+        mutationFn: async ({ slotStartIso, quizId, result }) => {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/${encodeURIComponent(slotStartIso)}/result`, {
+                method: 'PATCH',
+                body: JSON.stringify({ quizId, result }),
+            });
+            if (res.status === 401) return null;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to update result');
+            return data;
+        },
+        onMutate: async ({ quizId, result }) => {
+            setSavingResult(true);
+            setCurrentHintRows((prev) => prev.map((r) => (
+                Number(r.quizId) === Number(quizId) ? { ...r, hint: String(result).padStart(3, '0') } : r
+            )));
+        },
+        onSuccess: async (_data, vars) => {
+            setNotice(`Running slot ${getThreeDQuizLabel(vars.quizId)} hint updated to ${String(vars.result).padStart(3, '0')}.`);
+            closeEditHintModal();
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['3d-management-current'] }),
+                queryClient.invalidateQueries({ queryKey: ['3d-management-history', date] }),
+                queryClient.invalidateQueries({ queryKey: ['3d-management-detail', selectedSlot || ''] }),
+            ]);
+            if (hintUnlocked || !hasSecretDeclarePassword) {
+                await fetchCurrentHints(unlockedHintPassword);
+            }
+        },
+        onError: (err) => {
+            setEditHintError(err?.message || 'Failed to update result');
+            queryClient.invalidateQueries({ queryKey: ['3d-management-current'] });
+        },
+        onSettled: () => {
+            setSavingResult(false);
+        },
+    });
+
     const submitEditCurrentHint = async (e) => {
         e.preventDefault();
         const quizId = Number(editHintForm.quizId);
@@ -573,26 +726,7 @@ const ThreeDManagement = () => {
             return;
         }
 
-        setSavingResult(true);
-        try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots/${encodeURIComponent(currentSlotData.slot.slotStartIso)}/result`, {
-                method: 'PATCH',
-                body: JSON.stringify({ quizId, result }),
-            });
-            if (res.status === 401) return;
-            const data = await res.json();
-            if (!data?.success) throw new Error(data?.message || 'Failed to update result');
-            setNotice(`Running slot ${getThreeDQuizLabel(quizId)} hint updated to ${String(result).padStart(3, '0')}.`);
-            closeEditHintModal();
-            await fetchCurrent();
-            if (hintUnlocked || !hasSecretDeclarePassword) {
-                await fetchCurrentHints(unlockedHintPassword);
-            }
-        } catch (err) {
-            setEditHintError(err.message || 'Failed to update result');
-        } finally {
-            setSavingResult(false);
-        }
+        await editHintMutation.mutateAsync({ slotStartIso: currentSlotData.slot.slotStartIso, quizId, result });
     };
 
     const selectedSlotMeta = historySlots.find((slot) => slot.slotStartIso === selectedSlot) || null;

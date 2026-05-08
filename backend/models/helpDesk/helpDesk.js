@@ -33,5 +33,9 @@ const helpDeskSchema = new mongoose.Schema({
     timestamps: true,
 });
 
+helpDeskSchema.index({ userId: 1, createdAt: -1 });
+helpDeskSchema.index({ status: 1, createdAt: -1 });
+helpDeskSchema.index({ userId: 1, status: 1, createdAt: -1 });
+
 const HelpDesk = mongoose.model('HelpDesk', helpDeskSchema);
 export default HelpDesk;

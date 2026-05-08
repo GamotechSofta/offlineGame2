@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import AdminLayout from '../components/AdminLayout';
@@ -12,15 +12,6 @@ const setLabelByQuizId = {
     2: 'Set B',
     3: 'Set C',
 };
-const todayDate = () => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-};
-
-const formatSlotLabel = (slot) => slot?.drawLabelEnd || slot?.slotStartIso || '-';
 const getProfitRangeColorClass = (profitPercentValue) => {
     const signedPct = Number(profitPercentValue);
     if (!Number.isFinite(signedPct)) return 'text-gray-400';
@@ -66,8 +57,6 @@ const formatProfitPercent = (houseNetValue, totalStakeValue) => {
 
 const ThreeDResultControl = () => {
     const navigate = useNavigate();
-    const [date, setDate] = useState(todayDate());
-    const [slots, setSlots] = useState([]);
     const [currentSlotStartIso, setCurrentSlotStartIso] = useState('');
     const [currentSlotPhase, setCurrentSlotPhase] = useState('');
     const [currentHintRows, setCurrentHintRows] = useState([]);
@@ -92,15 +81,19 @@ const ThreeDResultControl = () => {
     const [pageUnlocked, setPageUnlocked] = useState(false);
     const [unlockingPage, setUnlockingPage] = useState(false);
     const [pageUnlockError, setPageUnlockError] = useState('');
-    const [loading, setLoading] = useState(true);
     const [hintsLoading, setHintsLoading] = useState(true);
     const [secretCheckComplete, setSecretCheckComplete] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
-    const [showAllHistorySlots, setShowAllHistorySlots] = useState(false);
     const [modeConfirm, setModeConfirm] = useState(null);
     const [activeTargetPercent, setActiveTargetPercent] = useState(null);
     const targetProfitPercentRef = useRef('0');
+    const hintPreviewModeRef = useRef('default');
+    const hasValidTargetProfitRef = useRef(false);
+    const liveRefreshBusyRef = useRef(false);
+    const liveRefreshQueuedRef = useRef(false);
+    const liveRefreshTimerRef = useRef(null);
+    const liveRefreshOverrideRef = useRef(null);
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -113,30 +106,12 @@ const ThreeDResultControl = () => {
     useEffect(() => {
         targetProfitPercentRef.current = targetProfitPercent;
     }, [targetProfitPercent]);
-
-    const fetchSlots = useCallback(async (targetDate = date, options = {}) => {
-        const silent = Boolean(options?.silent);
-        const limit = Math.min(96, Math.max(1, Number(options?.limit || 24)));
-        if (!silent) {
-            setLoading(true);
-        }
-        setError('');
-        try {
-            const params = new URLSearchParams({ date: targetDate, limit: String(limit) });
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots?${params.toString()}`);
-            if (res.status === 401) return;
-            const data = await res.json();
-            if (!data?.success) throw new Error(data?.message || 'Failed to load slots');
-            setSlots(Array.isArray(data?.data?.slots) ? data.data.slots : []);
-        } catch (err) {
-            setError(err.message || 'Failed to load slots');
-            setSlots([]);
-        } finally {
-            if (!silent) {
-                setLoading(false);
-            }
-        }
-    }, [date]);
+    useEffect(() => {
+        hintPreviewModeRef.current = hintPreviewMode;
+    }, [hintPreviewMode]);
+    useEffect(() => {
+        hasValidTargetProfitRef.current = hasValidTargetProfit;
+    }, [hasValidTargetProfit]);
 
     useEffect(() => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
@@ -247,28 +222,12 @@ const ThreeDResultControl = () => {
     useEffect(() => {
         if (!secretCheckComplete) return;
         if (hasSecretDeclarePassword && !pageUnlocked) return;
-        // Keep first paint fast with a compact slot window.
-        fetchSlots(date, { limit: 24 });
-    }, [fetchSlots, date, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
-
-    useEffect(() => {
-        if (!secretCheckComplete) return;
-        if (hasSecretDeclarePassword && !pageUnlocked) return;
-        if (!showAllHistorySlots) return;
-        // When admin asks "Show All", hydrate full day slots so all declared rows appear.
-        fetchSlots(date, { silent: true, limit: 96 });
-    }, [showAllHistorySlots, fetchSlots, date, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
-
-    useEffect(() => {
-        if (!secretCheckComplete) return;
-        if (hasSecretDeclarePassword && !pageUnlocked) return;
         fetchCurrentSlotForHints();
     }, [fetchCurrentSlotForHints, hasSecretDeclarePassword, pageUnlocked, secretCheckComplete]);
 
     useEffect(() => {
         if (secretCheckComplete && hasSecretDeclarePassword && !pageUnlocked) {
             setHintsLoading(false);
-            setLoading(false);
         }
     }, [secretCheckComplete, hasSecretDeclarePassword, pageUnlocked]);
 
@@ -285,22 +244,47 @@ const ThreeDResultControl = () => {
             reconnectionDelay: 2000,
         });
 
-        const refreshLiveData = () => {
-            fetchSlots(date, { silent: true, limit: showAllHistorySlots ? 96 : 24 });
-            if (hintPreviewMode === 'target' && hasValidTargetProfit) {
-                fetchCurrentSlotForHints({
-                    silent: true,
-                    mode: 'target',
-                    targetProfitPercent,
-                });
-                return;
+        const scheduleLiveRefresh = (override = null) => {
+            if (override && typeof override === 'object') {
+                liveRefreshOverrideRef.current = override;
             }
-            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
+            if (liveRefreshTimerRef.current) return;
+            liveRefreshTimerRef.current = window.setTimeout(() => {
+                liveRefreshTimerRef.current = null;
+                if (liveRefreshBusyRef.current) {
+                    liveRefreshQueuedRef.current = true;
+                    return;
+                }
+                liveRefreshBusyRef.current = true;
+                const nextOverride = liveRefreshOverrideRef.current;
+                liveRefreshOverrideRef.current = null;
+                const shouldUseTarget =
+                    nextOverride?.mode === 'target'
+                    || (
+                        !nextOverride?.mode
+                        && hintPreviewModeRef.current === 'target'
+                        && hasValidTargetProfitRef.current
+                    );
+                const nextOptions = shouldUseTarget
+                    ? {
+                        silent: true,
+                        mode: 'target',
+                        targetProfitPercent: nextOverride?.targetProfitPercent ?? targetProfitPercentRef.current,
+                    }
+                    : { silent: true, mode: 'default' };
+                Promise.resolve(fetchCurrentSlotForHints(nextOptions)).finally(() => {
+                    liveRefreshBusyRef.current = false;
+                    if (liveRefreshQueuedRef.current) {
+                        liveRefreshQueuedRef.current = false;
+                        scheduleLiveRefresh();
+                    }
+                });
+            }, 700);
         };
 
         const onQuizResult = (data) => {
             if (String(data?.gameMode || '').toLowerCase() !== '3d') return;
-            refreshLiveData();
+            scheduleLiveRefresh();
         };
         const onAutoDeclareMode = (data) => {
             if (String(data?.gameMode || '').toLowerCase() !== '3d') return;
@@ -309,8 +293,7 @@ const ThreeDResultControl = () => {
             if (mode === 'target' && Number.isFinite(nextTarget)) {
                 setAutoDeclareMode('target');
                 setActiveTargetPercent(nextTarget);
-                fetchCurrentSlotForHints({
-                    silent: true,
+                scheduleLiveRefresh({
                     mode: 'target',
                     targetProfitPercent: nextTarget,
                 });
@@ -318,43 +301,36 @@ const ThreeDResultControl = () => {
             }
             setAutoDeclareMode('random');
             setActiveTargetPercent(null);
-            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
+            scheduleLiveRefresh({ mode: 'default' });
         };
         const onSlotUpdate = (data) => {
             if (String(data?.gameMode || '').toLowerCase() !== '3d') return;
-            if (hintPreviewMode === 'target' && hasValidTargetProfit) {
-                fetchCurrentSlotForHints({
-                    silent: true,
-                    mode: 'target',
-                    targetProfitPercent,
-                });
-                return;
-            }
-            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
+            scheduleLiveRefresh();
         };
 
         socket.on('quiz:result', onQuizResult);
         socket.on('quiz:auto-declare-mode', onAutoDeclareMode);
         socket.on('slot:update', onSlotUpdate);
-        socket.on('connect', refreshLiveData);
+        socket.on('connect', scheduleLiveRefresh);
 
         return () => {
             socket.off('quiz:result', onQuizResult);
             socket.off('quiz:auto-declare-mode', onAutoDeclareMode);
             socket.off('slot:update', onSlotUpdate);
-            socket.off('connect', refreshLiveData);
+            socket.off('connect', scheduleLiveRefresh);
+            if (liveRefreshTimerRef.current) {
+                window.clearTimeout(liveRefreshTimerRef.current);
+                liveRefreshTimerRef.current = null;
+            }
+            liveRefreshBusyRef.current = false;
+            liveRefreshQueuedRef.current = false;
+            liveRefreshOverrideRef.current = null;
             socket.disconnect();
         };
     }, [
-        fetchSlots,
         fetchCurrentSlotForHints,
-        date,
-        showAllHistorySlots,
         hasSecretDeclarePassword,
         pageUnlocked,
-        hintPreviewMode,
-        hasValidTargetProfit,
-        targetProfitPercent,
     ]);
 
     const unlockPage = useCallback(async () => {
@@ -436,19 +412,6 @@ const ThreeDResultControl = () => {
             if (!data?.success) throw new Error(data?.message || 'Failed to set manual result');
 
             const padded = String(result).padStart(3, '0');
-            setSlots((prev) => prev.map((slot) => {
-                if (slot.slotStartIso !== slotStartIso) return slot;
-                return {
-                    ...slot,
-                    perQuiz: Array.isArray(slot.perQuiz)
-                        ? slot.perQuiz.map((q) => (
-                            Number(q.quizId) === quizId
-                                ? { ...q, result, resultLabel: padded }
-                                : q
-                        ))
-                        : slot.perQuiz,
-                };
-            }));
             setNotice(`Manual result set for ${setLabelByQuizId[quizId] || `Set ${quizId}`} = ${padded}.`);
             await fetchCurrentSlotForHints({ silent: true });
             closeManualModal();
@@ -553,43 +516,6 @@ const ThreeDResultControl = () => {
         }
     }, [modeConfirm, armTargetAutoDeclare, switchToRandomAutoDeclare]);
 
-    const sortedSlots = useMemo(() => (
-        [...slots].sort((a, b) => String(b.slotStartIso || '').localeCompare(String(a.slotStartIso || '')))
-    ), [slots]);
-
-    const visibleHistorySlots = useMemo(() => {
-        if (showAllHistorySlots) return sortedSlots;
-        if (!sortedSlots.length) return [];
-
-        const declaredSlots = sortedSlots.filter((slot) => Boolean(slot?.declaration?.declared));
-        const runningSlot = sortedSlots.find((slot) => (
-            Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted
-        ));
-        const chronologicalSlots = [...sortedSlots].sort((a, b) => String(a.slotStartIso || '').localeCompare(String(b.slotStartIso || '')));
-        const runningIndex = chronologicalSlots.findIndex((slot) => (
-            Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted
-        ));
-        const limitedPending = [];
-        if (runningIndex >= 0) {
-            for (let i = runningIndex + 1; i < chronologicalSlots.length && limitedPending.length < 2; i += 1) {
-                const slot = chronologicalSlots[i];
-                if (!slot) continue;
-                const declared = Boolean(slot?.declaration?.declared);
-                if (!declared) {
-                    limitedPending.push(slot);
-                }
-            }
-        }
-        const combined = [...[...limitedPending].reverse(), ...(runningSlot ? [runningSlot] : []), ...declaredSlots];
-        const seen = new Set();
-        return combined.filter((slot) => {
-            const key = String(slot?.slotStartIso || '');
-            if (!key || seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        });
-    }, [sortedSlots, showAllHistorySlots, currentSlotStartIso]);
-
     return (
         <AdminLayout onLogout={handleLogout} title="3D Result Control">
             <div className="relative min-h-[60vh] space-y-5">
@@ -600,19 +526,13 @@ const ThreeDResultControl = () => {
                         <p className="text-sm text-gray-500">Simple flow: set running slot results, then review history.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input
-                            type="date"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            className="px-3 py-2 rounded-lg border border-gray-300 text-sm"
-                        />
                         <button
                             type="button"
-                            onClick={() => fetchSlots(date)}
+                            onClick={() => fetchCurrentSlotForHints()}
                             className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold"
-                            disabled={loading}
+                            disabled={hintsLoading}
                         >
-                            {loading ? 'Refreshing...' : 'Refresh'}
+                            {hintsLoading ? 'Refreshing...' : 'Refresh'}
                         </button>
                     </div>
                 </div>
@@ -807,101 +727,6 @@ const ThreeDResultControl = () => {
                             )}
                         </div>
 
-                        <div className="bg-white border border-gray-200 rounded-xl p-5">
-                            <div className="flex items-center justify-between gap-3">
-                                <div>
-                                    <h2 className="text-base font-semibold text-gray-800">Step 2: Slot history (latest first)</h2>
-                                    <p className="text-xs text-gray-500 mt-1">Default: pending from next 2 slots first, then running, then declared. Use button to view all.</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAllHistorySlots((prev) => !prev)}
-                                    className="shrink-0 px-3 py-1.5 rounded-lg border border-purple-300 text-xs font-semibold text-purple-700 hover:bg-purple-50"
-                                >
-                                    {showAllHistorySlots ? 'Show Limited' : 'Show All'}
-                                </button>
-                            </div>
-                            {!sortedSlots.length && !loading ? (
-                                <p className="mt-3 text-sm text-gray-500">No slots found for selected date.</p>
-                            ) : !visibleHistorySlots.length ? (
-                                <p className="mt-3 text-sm text-gray-500">No running slot or pending slots found.</p>
-                            ) : (
-                                <div className="mt-3 space-y-3">
-                                    {visibleHistorySlots.map((slot) => {
-                                        const declared = Boolean(slot?.declaration?.declared);
-                                        const declaredCount = (slot?.perQuiz || []).filter((q) => q?.declared).length;
-                                        const dec = slot?.declaration;
-                                        const apiDeclaredMode = dec?.autoDeclareMode === 'random' || dec?.autoDeclareMode === 'target'
-                                            ? dec.autoDeclareMode
-                                            : null;
-                                        const rawDeclaredPct = dec?.targetProfitPercent;
-                                        const hasDeclaredTarget = rawDeclaredPct != null && rawDeclaredPct !== ''
-                                            && Number.isFinite(Number(rawDeclaredPct));
-                                        const declaredMode = declared
-                                            ? (apiDeclaredMode ?? (hasDeclaredTarget ? 'target' : 'random'))
-                                            : null;
-                                        const declaredTargetPercent = declaredMode === 'target' && hasDeclaredTarget
-                                            ? Number(rawDeclaredPct)
-                                            : null;
-                                        const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
-                                        const canManualResult = autoDeclareMode !== 'target' && !declared && isRunning && currentSlotPhase === 'study';
-                                        return (
-                                            <div key={slot.slotStartIso} className="rounded-lg border border-gray-200">
-                                                <div className="px-3 py-2.5 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
-                                                    <div>
-                                                        <div className="font-semibold text-gray-800">{formatSlotLabel(slot)}</div>
-                                                        <div className="text-[11px] text-gray-500 mt-0.5">{slot.slotStartIso}</div>
-                                                    </div>
-                                                    <div className="flex flex-wrap items-center gap-1.5">
-                                                        <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${declared ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                                                            {declared ? 'Declared' : 'Pending'}
-                                                        </span>
-                                                        {declaredMode === 'target' && declaredTargetPercent != null ? (
-                                                            <span className="text-[10px] px-2 py-1 rounded-full bg-violet-100 text-violet-700 font-semibold">{`Target mode (${declaredTargetPercent}%)`}</span>
-                                                        ) : null}
-                                                        {declaredMode === 'random' ? (
-                                                            <span className="text-[10px] px-2 py-1 rounded-full bg-sky-100 text-sky-700 font-semibold">Random mode</span>
-                                                        ) : null}
-                                                        <span className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-semibold">{`${declaredCount}/3 declared`}</span>
-                                                        {isRunning ? <span className="text-[10px] px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">Running Slot</span> : null}
-                                                    </div>
-                                                </div>
-                                                <div className="p-2.5">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                                        {[1, 2, 3].map((quizId) => {
-                                                            const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
-                                                            const visibleResultLabel = (slot?.isCompleted || isRunning) ? (q?.resultLabel || '--') : '--';
-                                                            const pl = formatHousePl(q?.houseNetIfHintWins, q?.totalBetAmount);
-                                                            const profitPct = formatProfitPercent(q?.houseNetIfHintWins, q?.totalBetAmount);
-                                                            const setLabel = setLabelByQuizId[quizId] || `Set ${quizId}`;
-                                                            return (
-                                                                <div key={`${slot.slotStartIso}-${quizId}`} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left">
-                                                                    <div className="flex items-center justify-between gap-1">
-                                                                        <span className="text-gray-500 shrink-0">{setLabel}</span>
-                                                                        <span className="font-mono font-semibold text-gray-800">{visibleResultLabel}</span>
-                                                                    </div>
-                                                                    <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
-                                                                    <div className={`mt-0.5 text-[10px] font-semibold ${profitPct.className}`}>{profitPct.text}</div>
-                                                                    {canManualResult ? (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => openManualModal(slot.slotStartIso, String(quizId), q?.resultLabel || '--')}
-                                                                            className="mt-1 text-[10px] text-purple-700 font-semibold hover:underline"
-                                                                        >
-                                                                            Set Result
-                                                                        </button>
-                                                                    ) : null}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
                     </>
                 )}
                 </div>

@@ -2,6 +2,8 @@
  * Shared auth for Super Admin panel.
  * Uses JWT (Bearer) only; no password stored or sent.
  */
+import { isAdminTraceEnabled, traceApi } from './runtimeTrace';
+
 export function getAuthHeaders() {
     const token = localStorage.getItem('adminToken');
     const headers = { 'Content-Type': 'application/json' };
@@ -17,7 +19,26 @@ export function getAuthHeaders() {
  */
 export async function fetchWithAuth(url, options = {}) {
     const headers = { ...getAuthHeaders(), ...(options.headers || {}) };
+    const method = options.method || 'GET';
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const res = await fetch(url, { ...options, headers });
+    if (isAdminTraceEnabled()) {
+        let responseBytes = 0;
+        try {
+            const clone = res.clone();
+            const text = await clone.text();
+            responseBytes = new Blob([text]).size;
+        } catch {
+            responseBytes = 0;
+        }
+        const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        traceApi({
+            method,
+            url,
+            durationMs: Number((endedAt - startedAt).toFixed(2)),
+            responseBytes,
+        });
+    }
     if (res.status === 401) {
         clearAdminSession();
         window.location.href = '/';

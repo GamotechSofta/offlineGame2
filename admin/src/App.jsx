@@ -1,21 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
-import AdminDashboard from './pages/AdminDashboard';
-import Markets from './pages/Markets';
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const Markets = lazy(() => import('./pages/Markets'));
 import AddUser from './pages/AddUser';
 import AddMarket from './pages/AddMarket';
-import BetHistory from './pages/BetHistory';
-import Reports from './pages/Reports';
-import Revenue from './pages/Revenue';
+const BetHistory = lazy(() => import('./pages/BetHistory'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Revenue = lazy(() => import('./pages/Revenue'));
 import BookieDetail from './pages/BookieDetail';
-import PaymentManagement from './pages/PaymentManagement';
-import Wallet from './pages/Wallet';
-import HelpDesk from './pages/HelpDesk';
-import Logs from './pages/Logs';
-import BookieManagement from './pages/BookieManagement';
-import AllUsers from './pages/AllUsers';
-import PlayerDetail from './pages/PlayerDetail';
+const PaymentManagement = lazy(() => import('./pages/PaymentManagement'));
+const Wallet = lazy(() => import('./pages/Wallet'));
+const HelpDesk = lazy(() => import('./pages/HelpDesk'));
+const Logs = lazy(() => import('./pages/Logs'));
+const BookieManagement = lazy(() => import('./pages/BookieManagement'));
+const AllUsers = lazy(() => import('./pages/AllUsers'));
+const PlayerDetail = lazy(() => import('./pages/PlayerDetail'));
 import PlayerDevices from './pages/PlayerDevices';
 import AddResult from './pages/AddResult';
 import DeclareConfirm from './pages/DeclareConfirm';
@@ -25,16 +25,18 @@ import MarketDetail from './pages/MarketDetail';
 import Settings from './pages/Settings';
 import BannerSettings from './pages/BannerSettings';
 import TopWinners from './pages/TopWinners';
-import TwoDManagement from './pages/TwoDManagement';
+const TwoDManagement = lazy(() => import('./pages/TwoDManagement'));
 import TwoDQuizStakeDetail from './pages/TwoDQuizStakeDetail';
 import TwoDCurrentSlotPlayers from './pages/TwoDCurrentSlotPlayers';
 import TwoDPlayersRouteLayout from './pages/TwoDPlayersRouteLayout';
 import TwoDPlayerHistoryRouteRedirect from './pages/TwoDPlayerHistoryRouteRedirect';
 import TwoDOldSlotsStats from './pages/TwoDOldSlotsStats';
-import ThreeDManagement from './pages/ThreeDManagement';
+const ThreeDManagement = lazy(() => import('./pages/ThreeDManagement'));
 import ThreeDQuizStakeDetail from './pages/ThreeDQuizStakeDetail';
 import TwoDResultControl from './pages/TwoDResultControl';
 import ThreeDResultControl from './pages/ThreeDResultControl';
+import TwoDSlotHistory from './pages/TwoDSlotHistory';
+import ThreeDSlotHistory from './pages/ThreeDSlotHistory';
 import ThreeDCurrentSlotPlayers from './pages/ThreeDCurrentSlotPlayers';
 import ThreeDOldSlotsStats from './pages/ThreeDOldSlotsStats';
 import BookieCommissions from './pages/BookieCommissions';
@@ -67,6 +69,7 @@ const App = () => {
     return (
         <Router>
             <ScrollToTop />
+            <Suspense fallback={<div className="min-h-screen w-full flex items-center justify-center text-gray-500">Loading...</div>}>
             <Routes>
                 <Route path="/" element={<Login />} />
                 <Route
@@ -304,6 +307,14 @@ const App = () => {
                     }
                 />
                 <Route
+                    path="/2d-management/slot-history"
+                    element={
+                        <PrivateRoute>
+                            <TwoDSlotHistory />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
                     path="/2d-management/current-slot-players"
                     element={
                         <PrivateRoute>
@@ -327,6 +338,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <ThreeDResultControl />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/3d-management/slot-history"
+                    element={
+                        <PrivateRoute>
+                            <ThreeDSlotHistory />
                         </PrivateRoute>
                     }
                 />
@@ -391,6 +410,7 @@ const App = () => {
                 {/* Catch-all fallback to avoid "No routes matched" warnings in admin app. */}
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
+            </Suspense>
         </Router>
     );
 };

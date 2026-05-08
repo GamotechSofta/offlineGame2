@@ -9,8 +9,28 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import HelpDesk from '../models/helpDesk/helpDesk.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBettingClosed, isMarketOpenOnISTDay } from '../utils/marketTiming.js';
+import { cacheGet, cacheSet, getCacheMetrics } from '../services/cacheService.js';
+import { getRuntimeMetrics } from '../services/runtimeMonitorService.js';
+import { getTraceMetrics } from '../services/traceMetricsService.js';
 
 const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
+const DASHBOARD_CACHE_TTL_SECONDS = 12;
+const DASHBOARD_STATS_INFLIGHT = new Map();
+const DASHBOARD_SUMMARY_INFLIGHT = new Map();
+
+function getDashboardCacheKey(req) {
+    const adminId = String(req.admin?._id || 'guest');
+    const role = String(req.admin?.role || '');
+    const q = req.query || {};
+    const keyPayload = {
+        adminId,
+        role,
+        from: q.from || '',
+        to: q.to || '',
+        marketId: q.marketId || '',
+    };
+    return `dashboard:stats:${Buffer.from(JSON.stringify(keyPayload)).toString('base64url')}`;
+}
 
 /** Parse from/to query (YYYY-MM-DD). Returns { start, end } in UTC-like range for DB. 
  * If fromStr and toStr are not provided, returns null to indicate "all time" */
@@ -43,6 +63,20 @@ function getDateRange(fromStr, toStr) {
 
 export const getDashboardStats = async (req, res) => {
     try {
+        const cacheKey = getDashboardCacheKey(req);
+        const cached = await cacheGet(cacheKey);
+        if (cached) {
+            res.set('X-Cache', 'HIT');
+            return res.status(200).json({ success: true, data: cached, cached: true });
+        }
+        const inFlight = DASHBOARD_STATS_INFLIGHT.get(cacheKey);
+        if (inFlight) {
+            const payload = await inFlight;
+            res.set('X-Cache', 'DEDUPED');
+            return res.status(200).json({ success: true, data: payload, deduped: true });
+        }
+        res.set('X-Cache', 'MISS');
+        const computePromise = (async () => {
         // Get all user IDs that belong to this bookie (via referredBy field)
         // Returns null for super_admin (no filter - see all), array of IDs for bookie, empty array if no users
         const bookieUserIds = await getBookieUserIds(req.admin);
@@ -100,8 +134,8 @@ export const getDashboardStats = async (req, res) => {
             pendingDeposits,
             pendingWithdrawals,
             totalWalletBalance,
-            walletBalances,
-            usersWithToGiveTake,
+            walletFlowAgg,
+            toGiveTakeAgg,
             totalAdvance,
             totalLoss,
             totalTickets,
@@ -114,7 +148,7 @@ export const getDashboardStats = async (req, res) => {
             User.countDocuments({ ...userFilter, isActive: true }),
             User.countDocuments({ ...userFilter, ...dateMatch }),
             Market.countDocuments(),
-            Market.find().lean(),
+            Market.find().select('_id marketName marketType startingTime closingTime days openingNumber closingNumber').lean(),
             Market.countDocuments({ marketType: { $ne: 'startline' } }),
             Market.countDocuments({ marketType: 'startline' }),
             Bet.aggregate([{ $match: revenueMatch }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
@@ -131,8 +165,34 @@ export const getDashboardStats = async (req, res) => {
             Payment.countDocuments({ type: 'deposit', status: 'pending', ...dateMatch, ...paymentFilter }),
             Payment.countDocuments({ type: 'withdrawal', status: 'pending', ...dateMatch, ...paymentFilter }),
             Wallet.aggregate([...(Object.keys(walletMatch).length ? [{ $match: walletMatch }] : []), { $group: { _id: null, total: { $sum: '$balance' } } }]),
-            Wallet.find(walletMatch).select('balance').lean(),
-            User.find(userFilter).select('toGive toTake').lean(),
+            Wallet.aggregate([
+                ...(Object.keys(walletMatch).length ? [{ $match: walletMatch }] : []),
+                {
+                    $group: {
+                        _id: null,
+                        toGive: {
+                            $sum: {
+                                $cond: [{ $gt: ['$balance', 0] }, '$balance', 0],
+                            },
+                        },
+                        toReceive: {
+                            $sum: {
+                                $cond: [{ $lt: ['$balance', 0] }, { $abs: '$balance' }, 0],
+                            },
+                        },
+                    },
+                },
+            ]),
+            User.aggregate([
+                ...(Object.keys(userFilter).length ? [{ $match: userFilter }] : []),
+                {
+                    $group: {
+                        _id: null,
+                        toGive: { $sum: { $ifNull: ['$toGive', 0] } },
+                        toTake: { $sum: { $ifNull: ['$toTake', 0] } },
+                    },
+                },
+            ]),
             Payment.aggregate([{ $match: { type: 'deposit', status: { $in: ['approved', 'completed'] }, ...paymentFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
             Bet.aggregate([{ $match: lossMatch }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
             HelpDesk.countDocuments(helpDeskFilter),
@@ -218,7 +278,10 @@ export const getDashboardStats = async (req, res) => {
             ...dateMatch,
             ...(bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {}),
         };
-        const gameTransactions = await WalletTransaction.find(gameRevenueMatch)
+        const gameTransactions = await WalletTransaction.find({
+            ...gameRevenueMatch,
+            type: { $in: ['debit', 'credit'] },
+        })
             .select('userId type amount description referenceId')
             .lean();
         const detectGameKey = (text) => {
@@ -299,19 +362,10 @@ export const getDashboardStats = async (req, res) => {
             ? scopedMarkets.filter((m) => (m.marketType || '').toString().toLowerCase() === 'startline').length
             : starlineMarkets;
 
-        let toGiveFromWallet = 0;
-        let toReceiveFromWallet = 0;
-        walletBalances.forEach(w => {
-            const bal = w.balance || 0;
-            if (bal > 0) toGiveFromWallet += bal;
-            else if (bal < 0) toReceiveFromWallet += Math.abs(bal);
-        });
-        let toGive = 0;
-        let toTake = 0;
-        usersWithToGiveTake.forEach(u => {
-            toGive += u.toGive || 0;
-            toTake += u.toTake || 0;
-        });
+        const toGiveFromWallet = Number(walletFlowAgg?.[0]?.toGive || 0);
+        const toReceiveFromWallet = Number(walletFlowAgg?.[0]?.toReceive || 0);
+        const toGive = Number(toGiveTakeAgg?.[0]?.toGive || 0);
+        const toTake = Number(toGiveTakeAgg?.[0]?.toTake || 0);
 
         const bookies = { total: bookiesTotal || 0, active: bookiesActive || 0 };
 
@@ -323,9 +377,7 @@ export const getDashboardStats = async (req, res) => {
         const totalProfit = netProfit + (toTake - toGive);
         const winRate = totalBets > 0 ? ((winningBets / totalBets) * 100).toFixed(2) : 0;
 
-        res.status(200).json({
-            success: true,
-            data: {
+        const responseData = {
                 selectedMarketId,
                 dateRange: { 
                     from: rangeStart ? rangeStart.toISOString() : null, 
@@ -393,10 +445,118 @@ export const getDashboardStats = async (req, res) => {
                 marketsPendingResultList,
                 marketWise,
                 gameWiseRevenue,
+            };
+        await cacheSet(cacheKey, responseData, DASHBOARD_CACHE_TTL_SECONDS);
+        return responseData;
+        })();
+
+        DASHBOARD_STATS_INFLIGHT.set(cacheKey, computePromise);
+        try {
+            const payload = await computePromise;
+            return res.status(200).json({ success: true, data: payload });
+        } finally {
+            DASHBOARD_STATS_INFLIGHT.delete(cacheKey);
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getDashboardSummary = async (req, res) => {
+    try {
+        const cacheKey = `${getDashboardCacheKey(req)}:summary`;
+        const cached = await cacheGet(cacheKey);
+        if (cached) {
+            return res.status(200).json({ success: true, data: cached, cached: true });
+        }
+        const inFlight = DASHBOARD_SUMMARY_INFLIGHT.get(cacheKey);
+        if (inFlight) {
+            const payload = await inFlight;
+            return res.status(200).json({ success: true, data: payload, deduped: true });
+        }
+        const computePromise = (async () => {
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        const userFilter = bookieUserIds !== null ? { _id: { $in: bookieUserIds } } : {};
+        const betFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
+        const paymentFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
+        const { from, to } = req.query;
+        const { start: rangeStart, end: rangeEnd } = getDateRange(from, to);
+        const dateMatch = (rangeStart === null || rangeEnd === null)
+            ? {}
+            : { createdAt: { $gte: rangeStart, $lte: rangeEnd } };
+
+        const [
+            totalUsers,
+            activeUsers,
+            totalMarkets,
+            pendingPayments,
+            totalBets,
+            totalRevenueAgg,
+            totalPayoutAgg,
+            totalWalletBalanceAgg,
+        ] = await Promise.all([
+            User.countDocuments(userFilter),
+            User.countDocuments({ ...userFilter, isActive: true }),
+            Market.countDocuments(),
+            Payment.countDocuments({ ...paymentFilter, ...dateMatch, status: 'pending' }),
+            Bet.countDocuments({ ...betFilter, ...dateMatch, status: { $ne: 'cancelled' } }),
+            Bet.aggregate([{ $match: { ...betFilter, ...dateMatch, status: { $ne: 'cancelled' } } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+            Bet.aggregate([{ $match: { ...betFilter, ...dateMatch, status: 'won' } }, { $group: { _id: null, total: { $sum: '$payout' } } }]),
+            Wallet.aggregate([...(bookieUserIds !== null ? [{ $match: { userId: { $in: bookieUserIds } } }] : []), { $group: { _id: null, total: { $sum: '$balance' } } }]),
+        ]);
+
+        const revenue = Number(totalRevenueAgg?.[0]?.total || 0);
+        const payouts = Number(totalPayoutAgg?.[0]?.total || 0);
+        const payload = {
+            users: { total: totalUsers, active: activeUsers },
+            markets: { total: totalMarkets },
+            bets: { total: totalBets },
+            payments: { pending: pendingPayments },
+            wallet: { totalBalance: Number(totalWalletBalanceAgg?.[0]?.total || 0) },
+            revenue: {
+                total: revenue,
+                payouts,
+                netProfit: revenue - payouts,
+            },
+            dateRange: {
+                from: rangeStart ? rangeStart.toISOString() : null,
+                to: rangeEnd ? rangeEnd.toISOString() : null,
+            },
+        };
+        await cacheSet(cacheKey, payload, DASHBOARD_CACHE_TTL_SECONDS);
+        return payload;
+        })();
+        DASHBOARD_SUMMARY_INFLIGHT.set(cacheKey, computePromise);
+        try {
+            const payload = await computePromise;
+            return res.status(200).json({ success: true, data: payload });
+        } finally {
+            DASHBOARD_SUMMARY_INFLIGHT.delete(cacheKey);
+        }
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getDashboardPerfMetrics = async (req, res) => {
+    try {
+        if (req.admin?.role !== 'super_admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Super admin access required',
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            data: {
+                cache: getCacheMetrics(),
+                runtime: getRuntimeMetrics(),
+                trace: getTraceMetrics(),
+                sampledAt: new Date().toISOString(),
             },
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 

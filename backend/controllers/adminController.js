@@ -8,6 +8,7 @@ import { SP_COMMON_LIST } from '../config/spCommonList.js';
 import { DP_COMMON_LIST } from '../config/dpCommonList.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signAdminToken } from '../utils/adminJwt.js';
+import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 
 /**
  * Admin login
@@ -226,6 +227,7 @@ export const createBookie = async (req, res) => {
             balance: initialBalance,
         });
         await bookie.save();
+        await invalidateAdminReadCaches('bookie_created');
         
         console.log(`[Bookie Created] ID: ${bookie._id}, Username: ${bookie.username}, Phone: ${bookie.phone}, Balance: ${bookie.balance}, canManagePayments: ${bookie.canManagePayments}, Status: ${bookie.status}`);
         
@@ -529,6 +531,7 @@ export const updateBookie = async (req, res) => {
         }
 
         await bookie.save();
+        await invalidateAdminReadCaches('bookie_updated');
 
         await logActivity({
             action: 'update_bookie',
@@ -605,6 +608,7 @@ export const deleteBookie = async (req, res) => {
 
         const username = bookie.username;
         await Admin.findByIdAndDelete(id);
+        await invalidateAdminReadCaches('bookie_deleted');
 
         await logActivity({
             action: 'delete_bookie',
@@ -662,6 +666,7 @@ export const toggleBookieStatus = async (req, res) => {
 
         bookie.status = bookie.status === 'active' ? 'inactive' : 'active';
         await bookie.save();
+        await invalidateAdminReadCaches('bookie_status_toggled');
 
         await logActivity({
             action: 'toggle_bookie_status',

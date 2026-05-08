@@ -20,6 +20,7 @@ import bannerRoutes from './routes/banner/bannerRoutes.js';
 
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import compression from 'compression';
 import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -28,8 +29,13 @@ import gamesRouter from './routes/games/gamesRoutes.js';
 import quizRoutes from './routes/quiz/quizRoutes.js';
 import { startQuizSlotPickScheduler } from './services/slotScheduler.js';
 import { initQuizSocket } from './socket/socketHub.js';
+import { emitAdminDashboardUpdate, emitAdminMarketUpdate } from './socket/socketHub.js';
 import { getClientIp } from './utils/activityLogger.js';
 import { startMidnightResetScheduler } from './utils/midnightReset.js';
+import { startAdminRealtimeMonitor } from './services/adminRealtimeService.js';
+import { createRuntimeRequestTracker, startRuntimeMonitoring } from './services/runtimeMonitorService.js';
+import { apiPerfLogger } from './middleware/perfLogger.js';
+import { installMongoTracing } from './services/mongoTraceService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +86,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(cookieParser());
+app.use(compression());
+app.use(createRuntimeRequestTracker());
+app.use(apiPerfLogger);
 // Large 3D batch buys can send very big payloads (thousands of bet lines).
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
@@ -127,12 +136,18 @@ app.use('/api/v1/banner-settings', bannerRoutes);
 
 async function startServer() {
     await connectDB();
+    installMongoTracing();
     const httpServer = http.createServer(app);
     initQuizSocket(httpServer, { allowedOrigins, isProduction });
     httpServer.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
+        startRuntimeMonitoring();
         startMidnightResetScheduler();
         startQuizSlotPickScheduler();
+        startAdminRealtimeMonitor((snapshot) => {
+            emitAdminDashboardUpdate(snapshot);
+            emitAdminMarketUpdate(snapshot);
+        });
     });
 }
 

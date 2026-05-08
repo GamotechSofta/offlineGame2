@@ -13,7 +13,9 @@ export const getLogs = async (req, res) => {
         }
 
         const { page = 1, limit = 100, action, performedBy, performedByType, sort = 'desc' } = req.query;
-        const skip = (Math.max(1, parseInt(page, 10)) - 1) * Math.min(500, Math.max(1, parseInt(limit, 10)));
+        const normalizedPage = Math.max(1, parseInt(page, 10) || 1);
+        const normalizedLimit = Math.min(200, Math.max(20, parseInt(limit, 10) || 100));
+        const skip = (normalizedPage - 1) * normalizedLimit;
 
         const query = {};
         if (action) query.action = new RegExp(action, 'i');
@@ -24,9 +26,10 @@ export const getLogs = async (req, res) => {
 
         const [logs, total] = await Promise.all([
             ActivityLog.find(query)
+                .select('action performedBy performedByType details targetType targetId createdAt')
                 .sort({ createdAt: sort === 'asc' ? 1 : -1 })
                 .skip(skip)
-                .limit(Math.min(500, Math.max(1, parseInt(limit, 10))))
+                .limit(normalizedLimit)
                 .lean(),
             ActivityLog.countDocuments(query),
         ]);
@@ -35,10 +38,12 @@ export const getLogs = async (req, res) => {
             success: true,
             data: logs,
             pagination: {
-                page: parseInt(page, 10),
-                limit: parseInt(limit, 10),
+                page: normalizedPage,
+                limit: normalizedLimit,
                 total,
-                totalPages: Math.ceil(total / parseInt(limit, 10)),
+                totalPages: Math.max(1, Math.ceil(total / normalizedLimit)),
+                hasNextPage: skip + logs.length < total,
+                hasPrevPage: normalizedPage > 1,
             },
         });
     } catch (error) {

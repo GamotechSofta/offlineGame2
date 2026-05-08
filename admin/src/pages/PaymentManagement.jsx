@@ -3,19 +3,33 @@ import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowDown, FaArrowUp, FaClock, FaFilter, FaEye, FaCheck, FaTimes, FaImage, FaWallet } from 'react-icons/fa';
 import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
+import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTraceRender } from '../lib/runtimeTrace';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const PaymentManagement = () => {
+    useTraceRender('PaymentManagement');
     const navigate = useNavigate();
+    const PAGE_SIZE = 50;
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [pendingCounts, setPendingCounts] = useState({ deposits: 0, withdrawals: 0, total: 0 });
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: PAGE_SIZE,
+        total: 0,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+    });
     const [filters, setFilters] = useState({
         status: '',
         type: '',
     });
+    const [currentPage, setCurrentPage] = useState(1);
 
     // Modal state
     const [actionModal, setActionModal] = useState({ show: false, payment: null, action: '' });
@@ -34,11 +48,7 @@ const PaymentManagement = () => {
     const [expandedPaymentId, setExpandedPaymentId] = useState(null);
     const actionModalHistoryPushedRef = useRef(false);
     const detailModalHistoryPushedRef = useRef(false);
-
-    useEffect(() => {
-        fetchPayments();
-        fetchPendingCounts();
-    }, [filters]);
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
@@ -49,49 +59,113 @@ const PaymentManagement = () => {
             .catch(() => setHasSecretDeclarePassword(false));
     }, []);
 
-    const fetchPayments = async (options = {}) => {
-        const isSilent = options.silent === true;
+    const fetchPayments = async () => {
         try {
-            if (!isSilent) setLoading(true);
             const queryParams = new URLSearchParams();
             if (filters.status) queryParams.append('status', filters.status);
             if (filters.type) queryParams.append('type', filters.type);
+            queryParams.append('page', String(currentPage));
+            queryParams.append('limit', String(PAGE_SIZE));
 
             const response = await fetchWithAuth(`${API_BASE_URL}/payments?${queryParams}`);
-            if (response.status === 401) return;
+            if (response.status === 401) {
+                return {
+                    data: [],
+                    pagination: { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+                };
+            }
             const data = await response.json();
             if (data.success) {
-                setPayments(data.data);
+                return {
+                    data: data.data || [],
+                    pagination: data.pagination || { page: currentPage, limit: PAGE_SIZE, total: 0, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+                };
             }
+            return {
+                data: [],
+                pagination: { page: currentPage, limit: PAGE_SIZE, total: 0, totalPages: 1, hasNextPage: false, hasPrevPage: currentPage > 1 },
+            };
         } catch (err) {
             console.error('Error fetching payments:', err);
-        } finally {
-            if (!isSilent) setLoading(false);
+            return {
+                data: [],
+                pagination: { page: currentPage, limit: PAGE_SIZE, total: 0, totalPages: 1, hasNextPage: false, hasPrevPage: currentPage > 1 },
+            };
         }
     };
 
     const fetchPendingCounts = async () => {
         try {
             const response = await fetchWithAuth(`${API_BASE_URL}/payments/pending-count`);
-            if (response.status === 401) return;
+            if (response.status === 401) return { deposits: 0, withdrawals: 0, total: 0 };
             const data = await response.json();
             if (data.success) {
-                setPendingCounts(data.data);
+                return data.data || { deposits: 0, withdrawals: 0, total: 0 };
             }
+            return { deposits: 0, withdrawals: 0, total: 0 };
         } catch (err) {
             console.error('Error fetching pending counts:', err);
+            return { deposits: 0, withdrawals: 0, total: 0 };
         }
     };
+
+    const paymentsQuery = useQuery({
+        queryKey: ['payments-list', filters.status || '', filters.type || '', currentPage],
+        queryFn: () => fetchPayments(),
+        enabled: !!localStorage.getItem('admin'),
+    });
+
+    const pendingCountsQuery = useQuery({
+        queryKey: ['payments-pending-count'],
+        queryFn: fetchPendingCounts,
+        enabled: !!localStorage.getItem('admin'),
+    });
+
+    useEffect(() => {
+        if (!paymentsQuery.data) return;
+        setPayments(paymentsQuery.data.data || []);
+        setPagination(paymentsQuery.data.pagination || {
+            page: currentPage,
+            limit: PAGE_SIZE,
+            total: 0,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: currentPage > 1,
+        });
+    }, [paymentsQuery.data]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filters.status, filters.type]);
+
+    useEffect(() => {
+        if (pendingCountsQuery.data) setPendingCounts(pendingCountsQuery.data);
+    }, [pendingCountsQuery.data]);
+
+    useEffect(() => {
+        setLoading(paymentsQuery.isLoading || paymentsQuery.isFetching || pendingCountsQuery.isLoading || pendingCountsQuery.isFetching);
+    }, [
+        paymentsQuery.isLoading,
+        paymentsQuery.isFetching,
+        pendingCountsQuery.isLoading,
+        pendingCountsQuery.isFetching,
+    ]);
 
     useSectionAutoRefresh({
         enabled: true,
         intervalMs: 12000,
         onRefresh: () => {
-            fetchPayments({ silent: true });
-            fetchPendingCounts();
+            queryClient.invalidateQueries({ queryKey: ['payments-list'] });
+            queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] });
         },
         immediate: false,
         refreshOnVisible: true,
+    });
+
+    useAdminLiveQueryInvalidation({
+        enabled: true,
+        queryKeys: [['payments-list'], ['payments-pending-count']],
+        throttleMs: 1000,
     });
 
     const openActionModal = (payment, action) => {
@@ -122,48 +196,89 @@ const PaymentManagement = () => {
         setDetailModal({ show: false, payment: null });
     };
 
+    const actionMutation = useMutation({
+        mutationFn: async ({ payment, action, remarks, secretDeclarePassword }) => {
+            const endpoint = action === 'approve'
+                ? `${API_BASE_URL}/payments/${payment._id}/approve`
+                : `${API_BASE_URL}/payments/${payment._id}/reject`;
+            const body = { adminRemarks: remarks };
+            if (action === 'approve' && hasSecretDeclarePassword) {
+                body.secretDeclarePassword = secretDeclarePassword?.trim() || '';
+            }
+            const response = await fetchWithAuth(endpoint, {
+                method: 'POST',
+                body: JSON.stringify(body),
+            });
+            if (response.status === 401) return { success: false, unauthorized: true };
+            return response.json();
+        },
+        onMutate: ({ payment, action, remarks }) => {
+            setProcessing(true);
+            setActionPasswordError('');
+            const nextStatus = action === 'approve' ? 'approved' : 'rejected';
+            setPayments((prev) => prev.map((item) => (
+                item._id === payment._id
+                    ? { ...item, status: nextStatus, adminRemarks: remarks || item.adminRemarks }
+                    : item
+            )));
+            setPendingCounts((prev) => {
+                if (payment.status !== 'pending') return prev;
+                const next = { ...prev };
+                if (payment.type === 'deposit') next.deposits = Math.max(0, (next.deposits || 0) - 1);
+                if (payment.type === 'withdrawal') next.withdrawals = Math.max(0, (next.withdrawals || 0) - 1);
+                next.total = Math.max(0, (next.total || 0) - 1);
+                return next;
+            });
+        },
+        onSuccess: async (data) => {
+            if (data?.success) {
+                await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
+                    queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] }),
+                ]);
+                closeActionModal();
+                return;
+            }
+            if (data?.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
+                setActionPasswordError(data.message || 'Invalid secret password');
+                await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
+                    queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] }),
+                ]);
+                return;
+            }
+            if (!data?.unauthorized) {
+                alert(data?.message || 'Action failed');
+            }
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
+                queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] }),
+            ]);
+        },
+        onError: async () => {
+            alert('Error processing action');
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
+                queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] }),
+            ]);
+        },
+        onSettled: () => {
+            setProcessing(false);
+        },
+    });
+
     const handleAction = async () => {
         if (!actionModal.payment || !actionModal.action) return;
         if (actionModal.action === 'approve' && hasSecretDeclarePassword && !secretPassword.trim()) {
             setActionPasswordError('Please enter the secret declare password');
             return;
         }
-
-        setProcessing(true);
-        setActionPasswordError('');
-        try {
-            const endpoint = actionModal.action === 'approve'
-                ? `${API_BASE_URL}/payments/${actionModal.payment._id}/approve`
-                : `${API_BASE_URL}/payments/${actionModal.payment._id}/reject`;
-
-            const body = { adminRemarks };
-            if (actionModal.action === 'approve' && hasSecretDeclarePassword) {
-                body.secretDeclarePassword = secretPassword.trim();
-            }
-
-            const response = await fetchWithAuth(endpoint, {
-                method: 'POST',
-                body: JSON.stringify(body),
-            });
-            if (response.status === 401) return;
-            const data = await response.json();
-            if (data.success) {
-                fetchPayments();
-                fetchPendingCounts();
-                closeActionModal();
-            } else {
-                if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
-                    setActionPasswordError(data.message || 'Invalid secret password');
-                } else {
-                    alert(data.message || 'Action failed');
-                }
-            }
-        } catch (err) {
-            console.error('Error processing action:', err);
-            alert('Error processing action');
-        } finally {
-            setProcessing(false);
-        }
+        await actionMutation.mutateAsync({
+            payment: actionModal.payment,
+            action: actionModal.action,
+            remarks: adminRemarks,
+            secretDeclarePassword: secretPassword,
+        });
     };
 
     const handleLogout = () => {
@@ -389,7 +504,8 @@ const PaymentManagement = () => {
             {!loading && (
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <p className="text-sm text-gray-400">
-                        Showing <span className="font-semibold text-gray-800">{payments.length}</span> payment{payments.length !== 1 ? 's' : ''}
+                        Showing <span className="font-semibold text-gray-800">{payments.length}</span> of{' '}
+                        <span className="font-semibold text-gray-800">{pagination.total}</span> payment{pagination.total !== 1 ? 's' : ''}{' '}
                         {hasActiveFilters && (
                             <span className="ml-2 text-orange-500">(filtered)</span>
                         )}
@@ -400,6 +516,30 @@ const PaymentManagement = () => {
                             Some payments need your approval
                         </p>
                     )}
+                </div>
+            )}
+
+            {!loading && pagination.totalPages > 1 && (
+                <div className="mb-4 flex items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        disabled={!pagination.hasPrevPage}
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        className="px-3 py-1.5 rounded-md border border-gray-200 text-sm text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Prev
+                    </button>
+                    <span className="text-sm text-gray-500">
+                        Page {pagination.page} / {pagination.totalPages}
+                    </span>
+                    <button
+                        type="button"
+                        disabled={!pagination.hasNextPage}
+                        onClick={() => setCurrentPage((prev) => prev + 1)}
+                        className="px-3 py-1.5 rounded-md border border-gray-200 text-sm text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Next
+                    </button>
                 </div>
             )}
 

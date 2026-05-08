@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { subscribeGlobalTicker } from '../lib/globalTicker';
 
 /**
  * Lightweight section-level auto refresh.
@@ -12,42 +13,46 @@ const useSectionAutoRefresh = ({
     refreshOnVisible = true,
 }) => {
     const onRefreshRef = useRef(onRefresh);
+    const lastRefreshAtRef = useRef(0);
 
     useEffect(() => {
         onRefreshRef.current = onRefresh;
     }, [onRefresh]);
 
     useEffect(() => {
-        if (!enabled || typeof onRefreshRef.current !== 'function') return undefined;
+        if (!enabled || typeof onRefreshRef.current !== 'function') return;
+        if (immediate && lastRefreshAtRef.current === 0) {
+            lastRefreshAtRef.current = Date.now();
+            onRefreshRef.current?.();
+        }
+    }, [enabled, immediate]);
 
-        const refreshNow = () => {
+    useEffect(() => {
+        if (!enabled || typeof onRefreshRef.current !== 'function') return undefined;
+        const unsubscribe = subscribeGlobalTicker(({ now, isVisible }) => {
+            if (!isVisible) return;
+            const elapsed = now - (lastRefreshAtRef.current || 0);
+            if (elapsed < intervalMs) return;
+            lastRefreshAtRef.current = now;
+            onRefreshRef.current?.();
+        });
+        return unsubscribe;
+    }, [enabled, intervalMs]);
+
+    useEffect(() => {
+        if (!enabled || !refreshOnVisible || typeof onRefreshRef.current !== 'function') return undefined;
+        const onVisible = () => {
             if (document.visibilityState !== 'visible') return;
+            lastRefreshAtRef.current = Date.now();
             onRefreshRef.current?.();
         };
-
-        if (immediate) refreshNow();
-        const timerId = window.setInterval(refreshNow, intervalMs);
-
-        const onVisible = () => {
-            if (!refreshOnVisible) return;
-            if (document.visibilityState === 'visible') {
-                onRefreshRef.current?.();
-            }
-        };
-
-        if (refreshOnVisible) {
-            window.addEventListener('focus', onVisible);
-            document.addEventListener('visibilitychange', onVisible);
-        }
-
+        window.addEventListener('focus', onVisible);
+        document.addEventListener('visibilitychange', onVisible);
         return () => {
-            window.clearInterval(timerId);
-            if (refreshOnVisible) {
-                window.removeEventListener('focus', onVisible);
-                document.removeEventListener('visibilitychange', onVisible);
-            }
+            window.removeEventListener('focus', onVisible);
+            document.removeEventListener('visibilitychange', onVisible);
         };
-    }, [enabled, intervalMs, immediate, refreshOnVisible]);
+    }, [enabled, refreshOnVisible]);
 };
 
 export default useSectionAutoRefresh;
