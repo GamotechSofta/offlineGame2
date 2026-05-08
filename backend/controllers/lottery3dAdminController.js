@@ -35,7 +35,6 @@ import { getQuizSocketIo, syncQuizSlotUpdates } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply3DTargetProfitHintsToSlot, build3DTargetProfitHints } from '../services/quizTargetProfitService.js';
-import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
 
 const QUIZ_IDS = [1, 2, 3];
 const GAME_MODE = '3d';
@@ -73,7 +72,9 @@ async function ensureRandomHintsForCurrentSlot(slotStartIso) {
     picks.map(async (pick) => {
       const quizId = Number(pick?.quizId);
       if (!QUIZ_IDS.includes(quizId)) return null;
-      const randomHintPosition = await resolveWinningShuffledPosition(quizId, slotStartIso, pick, GAME_MODE);
+      if (!pick?.seedHex || !Number.isInteger(pick?.chosenIndex)) return null;
+      const order = await getShuffleOrderIndices(quizId, slotStartIso, pick.seedHex, GAME_MODE, 1000);
+      const randomHintPosition = order.indexOf(pick.chosenIndex);
       if (!Number.isInteger(randomHintPosition) || randomHintPosition < 0 || randomHintPosition > 999) return null;
       if (pick.hintPosition === randomHintPosition) return null;
       return QuizSlotPick.updateOne(
