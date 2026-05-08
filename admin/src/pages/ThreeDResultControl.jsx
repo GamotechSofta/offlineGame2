@@ -748,9 +748,9 @@ const ThreeDResultControl = () => {
                                                 if (!currentSlotStartIso) return;
                                                 navigate(`/3d-management/set/${qid}/stake?slotStartIso=${encodeURIComponent(currentSlotStartIso)}`);
                                             };
-                                            const visibleHint = autoDeclareMode === 'random'
-                                                ? item.hint
-                                                : '000';
+                                            const visibleHint = hintPreviewMode === 'target'
+                                                ? (item.hint && item.hint !== '--' ? item.hint : '--')
+                                                : (autoDeclareMode === 'random' ? item.hint : '000');
                                             return (
                                         <div
                                             key={item.quizId}
@@ -773,7 +773,7 @@ const ThreeDResultControl = () => {
                                                             ? 'bg-purple-100 text-purple-700'
                                                             : 'bg-emerald-100 text-emerald-700'
                                                     }`}>
-                                                        {hintPreviewMode === 'target' ? 'Computed number (not fixed)' : 'Random number'}
+                                                        {hintPreviewMode === 'target' ? 'Check preview · not saved' : 'Random number'}
                                                     </div>
                                                 ) : null}
                                                 <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
@@ -830,9 +830,18 @@ const ThreeDResultControl = () => {
                                     {visibleHistorySlots.map((slot) => {
                                         const declared = Boolean(slot?.declaration?.declared);
                                         const declaredCount = (slot?.perQuiz || []).filter((q) => q?.declared).length;
-                                        const declaredTargetPercent = Number(slot?.declaration?.targetProfitPercent);
+                                        const dec = slot?.declaration;
+                                        const apiDeclaredMode = dec?.autoDeclareMode === 'random' || dec?.autoDeclareMode === 'target'
+                                            ? dec.autoDeclareMode
+                                            : null;
+                                        const rawDeclaredPct = dec?.targetProfitPercent;
+                                        const hasDeclaredTarget = rawDeclaredPct != null && rawDeclaredPct !== ''
+                                            && Number.isFinite(Number(rawDeclaredPct));
                                         const declaredMode = declared
-                                            ? (Number.isFinite(declaredTargetPercent) ? 'target' : 'random')
+                                            ? (apiDeclaredMode ?? (hasDeclaredTarget ? 'target' : 'random'))
+                                            : null;
+                                        const declaredTargetPercent = declaredMode === 'target' && hasDeclaredTarget
+                                            ? Number(rawDeclaredPct)
                                             : null;
                                         const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
                                         const canManualResult = autoDeclareMode !== 'target' && !declared && isRunning && currentSlotPhase === 'study';
@@ -847,7 +856,7 @@ const ThreeDResultControl = () => {
                                                         <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${declared ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                                             {declared ? 'Declared' : 'Pending'}
                                                         </span>
-                                                        {declaredMode === 'target' ? (
+                                                        {declaredMode === 'target' && declaredTargetPercent != null ? (
                                                             <span className="text-[10px] px-2 py-1 rounded-full bg-violet-100 text-violet-700 font-semibold">{`Target mode (${declaredTargetPercent}%)`}</span>
                                                         ) : null}
                                                         {declaredMode === 'random' ? (

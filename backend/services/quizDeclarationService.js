@@ -17,6 +17,7 @@ export async function getSlotDeclarationRow(slotStartIso, gameMode = '2d') {
  * Random mode stores `null` in DB — `Number(null)` is 0 in JS; never coerce that way.
  */
 export function getDeclaredTargetPercentForHintApply(declarationRow) {
+  if (declarationRow?.autoDeclareMode === 'random') return null;
   const raw = declarationRow?.targetProfitPercent;
   if (raw == null) return null;
   const n = Number(raw);
