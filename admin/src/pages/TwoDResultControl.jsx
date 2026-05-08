@@ -929,6 +929,10 @@ const TwoDResultControl = () => {
                                     {pagedHistorySlots.map((slot) => {
                                         const declared = Boolean(slot?.declaration?.declared);
                                         const declaredCount = (slot?.perQuiz || []).filter((q) => q?.declared).length;
+                                        const declaredTargetPercent = Number(slot?.declaration?.targetProfitPercent);
+                                        const declaredMode = declared
+                                            ? (Number.isFinite(declaredTargetPercent) ? 'target' : 'random')
+                                            : null;
                                         const isRunning = Boolean(currentSlotStartIso) && slot.slotStartIso === currentSlotStartIso && !slot?.isCompleted;
                                         const canManualResult = autoDeclareMode !== 'target' && !declared && isRunning && currentSlotPhase === 'study';
                                         return (
@@ -942,6 +946,12 @@ const TwoDResultControl = () => {
                                                         <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${declared ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                                             {declared ? 'Declared' : 'Pending'}
                                                         </span>
+                                                        {declaredMode === 'target' ? (
+                                                            <span className="text-[10px] px-2 py-1 rounded-full bg-violet-100 text-violet-700 font-semibold">{`Target mode (${declaredTargetPercent}%)`}</span>
+                                                        ) : null}
+                                                        {declaredMode === 'random' ? (
+                                                            <span className="text-[10px] px-2 py-1 rounded-full bg-sky-100 text-sky-700 font-semibold">Random mode</span>
+                                                        ) : null}
                                                         <span className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-semibold">{`${declaredCount}/30 declared`}</span>
                                                         {isRunning ? <span className="text-[10px] px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">Running Slot</span> : null}
                                                     </div>
@@ -952,10 +962,13 @@ const TwoDResultControl = () => {
                                                             const q = (slot?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                             const detailQuiz = (slotDetailMap?.[slot.slotStartIso]?.perQuiz || []).find((row) => Number(row.quizId) === quizId);
                                                             const visibleResultLabel = (slot?.isCompleted || isRunning) ? (q?.resultLabel || '--') : '--';
+                                                            const cardHouseNet = detailQuiz?.houseNetIfHintWins ?? q?.houseNetIfHintWins;
+                                                            const cardTotalStake = detailQuiz?.totalBetAmount ?? q?.totalBetAmount;
                                                             const pl = formatHousePl(
-                                                                detailQuiz?.houseNetIfHintWins ?? q?.houseNetIfHintWins,
-                                                                detailQuiz?.totalBetAmount ?? q?.totalBetAmount,
+                                                                cardHouseNet,
+                                                                cardTotalStake,
                                                             );
+                                                            const profitPct = formatProfitPercent(cardHouseNet, cardTotalStake);
                                                             return (
                                                                 <div key={`${slot.slotStartIso}-${quizId}`} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-xs text-left">
                                                                     <div className="flex items-center justify-between">
@@ -963,6 +976,7 @@ const TwoDResultControl = () => {
                                                                         <span className="font-mono font-semibold text-gray-800">{visibleResultLabel}</span>
                                                                     </div>
                                                                     <div className={`mt-0.5 text-[10px] font-semibold ${pl.className}`}>{pl.text}</div>
+                                                                    <div className={`mt-0.5 text-[10px] font-semibold ${profitPct.className}`}>{profitPct.text}</div>
                                                                     {canManualResult ? (
                                                                         <button
                                                                             type="button"
