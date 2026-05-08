@@ -4,6 +4,7 @@ import Bet from '../models/bet/bet.js';
 import Admin from '../models/admin/admin.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
+import { emitUserWalletUpdate } from '../socket/socketHub.js';
 
 const getActorLabel = (admin) => (admin?.role === 'bookie' ? 'Bookie' : 'Admin');
 
@@ -230,6 +231,12 @@ export const adjustBalance = async (req, res) => {
             description: `${getActorLabel(req.admin)} ${type}: ₹${numAmount}`,
         });
 
+        emitUserWalletUpdate({
+            userId: String(userId),
+            balance: Number(wallet.balance || 0),
+            reason: `admin_adjust_${type}`,
+        });
+
         const player = await User.findById(userId).select('username').lean();
         if (req.admin) {
             await logActivity({
@@ -298,6 +305,12 @@ export const setBalance = async (req, res) => {
             type,
             amount: absDiff,
             description: `${getActorLabel(req.admin)} ${type}: ₹${absDiff} (set balance to ₹${newBalance}, was ₹${previousBalance})`,
+        });
+
+        emitUserWalletUpdate({
+            userId: String(userId),
+            balance: Number(wallet.balance || 0),
+            reason: 'admin_set_balance',
         });
 
         const player = await User.findById(userId).select('username').lean();

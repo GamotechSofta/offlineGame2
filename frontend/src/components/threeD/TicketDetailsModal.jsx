@@ -30,7 +30,7 @@ const formatQuizLabel = (ticket) => {
 const MODAL_BASE_WIDTH = 980;
 const MODAL_BASE_HEIGHT = 620;
 
-const TicketDetailsModal = ({ open, onClose, ticket }) => {
+const TicketDetailsModal = ({ open, onClose, ticket, loading = false }) => {
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -183,6 +183,11 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
             </div>
             <div className="min-h-0 overflow-hidden rounded-xl border border-[#6d6d6d] bg-[#4f4f4f] p-4">
               <div className="mb-3 text-[22px] font-bold text-white">Ticket Items</div>
+              {loading ? (
+                <div className="flex h-[520px] items-center justify-center rounded-md border border-white/20 bg-black/10 text-[18px] font-semibold text-white">
+                  Loading ticket items...
+                </div>
+              ) : (
               <div className="grid max-h-[520px] grid-cols-2 gap-3 overflow-y-auto">
                 <div className="space-y-2">
                   {leftCol.map((item) => (
@@ -239,6 +244,7 @@ const TicketDetailsModal = ({ open, onClose, ticket }) => {
                   ))}
                 </div>
               </div>
+              )}
             </div>
           </div>
         </div>

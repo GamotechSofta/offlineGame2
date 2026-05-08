@@ -225,3 +225,18 @@ export function emitAdminMarketUpdate(payload = {}) {
     ...payload,
   });
 }
+
+export function emitUserWalletUpdate(payload = {}) {
+  if (!io) return;
+  const userId = String(payload?.userId || '').trim();
+  if (!userId) return;
+  const balanceNum = Number(payload?.balance);
+  if (!Number.isFinite(balanceNum)) return;
+  noteSocketEmit('wallet:update');
+  io.emit('wallet:update', {
+    ts: Date.now(),
+    userId,
+    balance: balanceNum,
+    reason: payload?.reason || 'wallet_updated',
+  });
+}

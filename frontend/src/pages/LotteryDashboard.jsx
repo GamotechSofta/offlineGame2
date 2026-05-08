@@ -360,11 +360,24 @@ const LotteryDashboard = () => {
         .catch(() => {});
     };
 
+    const onWalletUpdate = (payload) => {
+      const current = getCurrentUser() || {};
+      const currentUserId = String(current?.id || current?._id || '').trim();
+      const targetUserId = String(payload?.userId || '').trim();
+      if (!currentUserId || !targetUserId || currentUserId !== targetUserId) return;
+      const nextBalance = Number(payload?.balance);
+      if (!Number.isFinite(nextBalance)) return;
+      updateUserBalance(nextBalance);
+      setWalletBalance(nextBalance);
+    };
+
     socket.on('slot:update', onSlotUpdate);
     socket.on('quiz:result', onQuizResult);
+    socket.on('wallet:update', onWalletUpdate);
     return () => {
       socket.off('slot:update', onSlotUpdate);
       socket.off('quiz:result', onQuizResult);
+      socket.off('wallet:update', onWalletUpdate);
       socket.disconnect();
     };
   }, [refreshLatestDeclaredResults]);
