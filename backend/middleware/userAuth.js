@@ -31,7 +31,7 @@ export const verifyUser = async (req, res, next) => {
                 code: 'AUTH_REQUIRED',
             });
         }
-        const user = await User.findById(userId).select('isActive sessionVersion').lean();
+        const user = await User.findById(userId).select('isActive sessionVersion currentAuthToken').lean();
         if (!user || !user.isActive) {
             return res.status(401).json({
                 success: false,
@@ -46,6 +46,14 @@ export const verifyUser = async (req, res, next) => {
             Number.isFinite(currentSessionVersion) &&
             tokenSessionVersion !== currentSessionVersion
         ) {
+            return res.status(401).json({
+                success: false,
+                message: 'Logged in on another device. Please log in again.',
+                code: 'SESSION_REVOKED',
+            });
+        }
+        const activeToken = user?.currentAuthToken ? String(user.currentAuthToken).trim() : '';
+        if (activeToken && activeToken !== String(token).trim()) {
             return res.status(401).json({
                 success: false,
                 message: 'Logged in on another device. Please log in again.',

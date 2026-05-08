@@ -81,6 +81,11 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
+    /** Latest active JWT token for strict single-device login */
+    currentAuthToken: {
+        type: String,
+        default: null,
+    },
     failedLoginAttempts: {
         type: Number,
         default: 0,

@@ -185,6 +185,12 @@ const Layout = ({ children }) => {
 
   useEffect(() => {
     const check = async () => {
+      const isPublicNow = PUBLIC_PATHS.includes(location.pathname);
+      if (isPublicNow) {
+        const user = getCurrentUser();
+        setHasUser(!!(user && (user.id || user._id)));
+        return;
+      }
       const user = getCurrentUser();
       if (user && (user.id || user._id)) {
         setHasUser(true);
@@ -218,7 +224,7 @@ const Layout = ({ children }) => {
       window.removeEventListener('userLogin', check);
       window.removeEventListener('userLogout', check);
     };
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (isLotteryFullScreenPage) return;

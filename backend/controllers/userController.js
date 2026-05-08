@@ -168,6 +168,10 @@ export const userLogin = async (req, res) => {
         const balance = wallet ? wallet.balance : 0;
 
         const token = signUserToken({ _id: user._id, sessionVersion });
+        await User.updateOne(
+            { _id: user._id },
+            { $set: { currentAuthToken: token, updatedAt: new Date() } }
+        );
         // Also store auth token as httpOnly cookie so direct URL-bar API checks can work in browser.
         res.cookie('userToken', token, {
             httpOnly: true,
@@ -237,13 +241,20 @@ export const userLogout = async (req, res) => {
                 const payload = verifyUserToken(token);
                 const userId = payload?.userId;
                 if (userId) {
-                    const current = await User.findById(userId).select('sessionVersion').lean();
+                    const current = await User.findById(userId).select('sessionVersion currentAuthToken').lean();
                     const tokenSv = Number(payload?.sv);
                     const currentSv = Number(current?.sessionVersion);
-                    if (!Number.isFinite(tokenSv) || !Number.isFinite(currentSv) || tokenSv === currentSv) {
+                    const activeToken = current?.currentAuthToken ? String(current.currentAuthToken).trim() : '';
+                    const providedToken = String(token).trim();
+                    if (
+                        !Number.isFinite(tokenSv) ||
+                        !Number.isFinite(currentSv) ||
+                        tokenSv === currentSv ||
+                        (activeToken && activeToken === providedToken)
+                    ) {
                         await User.updateOne(
                             { _id: userId },
-                            { $set: { sessionVersion: Date.now(), lastLoginDeviceId: null } }
+                            { $set: { sessionVersion: Date.now(), lastLoginDeviceId: null, currentAuthToken: null } }
                         );
                     }
                 }
@@ -295,7 +306,7 @@ export const logoutDeviceForSingleLogin = async (req, res) => {
 
         await User.updateOne(
             { _id: user._id },
-            { $set: { sessionVersion: Date.now(), lastLoginDeviceId: null } }
+            { $set: { sessionVersion: Date.now(), lastLoginDeviceId: null, currentAuthToken: null } }
         );
 
         return res.status(200).json({
@@ -706,6 +717,10 @@ export const userSignup = async (req, res) => {
         const wallet = await Wallet.findOne({ userId });
         const balance = wallet ? wallet.balance : 0;
         const token = signUserToken({ _id: userId, sessionVersion });
+        await User.updateOne(
+            { _id: userId },
+            { $set: { currentAuthToken: token, updatedAt: new Date() } }
+        );
         res.cookie('userToken', token, {
             httpOnly: true,
             secure: isProduction,
