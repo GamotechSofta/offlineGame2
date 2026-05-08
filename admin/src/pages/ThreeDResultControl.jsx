@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import AdminLayout from '../components/AdminLayout';
-import { clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { clearAdminSession, fetchWithAuth, getAdminSocketUrl } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const RESULT_CONTROL_UNLOCK_SESSION_KEY = 'offlinebookie:admin:3d-result-control-unlock';
@@ -287,6 +288,57 @@ const ThreeDResultControl = () => {
             setLoading(false);
         }
     }, [secretCheckComplete, hasSecretDeclarePassword, pageUnlocked]);
+
+    useEffect(() => {
+        if (hasSecretDeclarePassword && !pageUnlocked) return undefined;
+        const socketUrl = getAdminSocketUrl();
+        if (!socketUrl) return undefined;
+
+        const socket = io(socketUrl, {
+            path: '/socket.io',
+            withCredentials: true,
+            transports: ['websocket'],
+            reconnection: true,
+            reconnectionDelay: 2000,
+        });
+
+        const refreshLiveData = () => {
+            fetchSlots(date, { silent: true, limit: showAllHistorySlots ? 96 : 24 });
+            if (hintPreviewMode === 'target' && hasValidTargetProfit) {
+                fetchCurrentSlotForHints({
+                    silent: true,
+                    mode: 'target',
+                    targetProfitPercent,
+                });
+                return;
+            }
+            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
+        };
+
+        const onQuizResult = (data) => {
+            if (String(data?.gameMode || '').toLowerCase() !== '3d') return;
+            refreshLiveData();
+        };
+
+        socket.on('quiz:result', onQuizResult);
+        socket.on('connect', refreshLiveData);
+
+        return () => {
+            socket.off('quiz:result', onQuizResult);
+            socket.off('connect', refreshLiveData);
+            socket.disconnect();
+        };
+    }, [
+        fetchSlots,
+        fetchCurrentSlotForHints,
+        date,
+        showAllHistorySlots,
+        hasSecretDeclarePassword,
+        pageUnlocked,
+        hintPreviewMode,
+        hasValidTargetProfit,
+        targetProfitPercent,
+    ]);
 
     const unlockPage = useCallback(async () => {
         const secret = pagePassword.trim();

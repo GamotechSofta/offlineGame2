@@ -16,9 +16,12 @@ import {
 import { apply2DTargetProfitHintsToSlot, apply3DTargetProfitHintsToSlot } from './quizTargetProfitService.js';
 const TICK_MS = 60_000;
 const INITIAL_DELAY_MS = 3_000;
+const SLOT_END_TRIGGER_DELAY_MS = 150;
 
 /** @type {ReturnType<typeof setInterval> | null} */
 let intervalId = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let slotBoundaryTimeoutId = null;
 
 /** Avoid re-emitting the same completed slot every minute. */
 const emittedQuizResultSlots = new Set();
@@ -131,6 +134,43 @@ async function tick() {
     await emitCompletedSlotResults(slotStartIso, '3d');
   }
 }
+
+function getMsUntilNextSlotBoundary(nowMs = Date.now()) {
+  const remainder = nowMs % SLOT_MS;
+  const msUntilBoundary = remainder === 0 ? SLOT_MS : SLOT_MS - remainder;
+  return msUntilBoundary + SLOT_END_TRIGGER_DELAY_MS;
+}
+
+async function processJustEndedSlot() {
+  const now = new Date();
+  const ctx = getSlotContext(now);
+  const justEndedSlotStartIso = ctx.previousSlotStartIso;
+  if (!justEndedSlotStartIso) return;
+
+  await ensureAllPicksForSlot(justEndedSlotStartIso, '2d');
+  await ensureAllPicksForSlot(justEndedSlotStartIso, '3d');
+  await emitCompletedSlotResults(justEndedSlotStartIso, '2d');
+  await emitCompletedSlotResults(justEndedSlotStartIso, '3d');
+}
+
+function scheduleNextSlotBoundaryRun() {
+  if (slotBoundaryTimeoutId) {
+    clearTimeout(slotBoundaryTimeoutId);
+    slotBoundaryTimeoutId = null;
+  }
+
+  const delayMs = getMsUntilNextSlotBoundary(Date.now());
+  slotBoundaryTimeoutId = setTimeout(() => {
+    processJustEndedSlot()
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(JSON.stringify({ tag: '[slot:boundary:fatal]', message: err?.message || String(err) }));
+      })
+      .finally(() => {
+        scheduleNextSlotBoundaryRun();
+      });
+  }, delayMs);
+}
 /**
  * Run every minute + once shortly after startup (covers restart mid-slot).
  * Set QUIZ_SLOT_SCHEDULER=0 to disable.
@@ -156,11 +196,16 @@ export function startQuizSlotPickScheduler() {
 
   intervalId = setInterval(run, TICK_MS);
   setTimeout(run, INITIAL_DELAY_MS);
+  scheduleNextSlotBoundaryRun();
 }
 
 export function stopQuizSlotPickScheduler() {
   if (intervalId) {
     clearInterval(intervalId);
     intervalId = null;
+  }
+  if (slotBoundaryTimeoutId) {
+    clearTimeout(slotBoundaryTimeoutId);
+    slotBoundaryTimeoutId = null;
   }
 }

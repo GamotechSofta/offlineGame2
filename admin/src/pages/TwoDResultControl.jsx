@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import AdminLayout from '../components/AdminLayout';
-import { clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { clearAdminSession, fetchWithAuth, getAdminSocketUrl } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const RESULT_CONTROL_UNLOCK_SESSION_KEY = 'offlinebookie:admin:2d-result-control-unlock';
@@ -279,19 +280,43 @@ const TwoDResultControl = () => {
 
     useEffect(() => {
         if (hasSecretDeclarePassword && !pageUnlocked) return undefined;
-        const timer = setInterval(() => {
-            fetchSlots(date, { silent: true });
+        const socketUrl = getAdminSocketUrl();
+        if (!socketUrl) return undefined;
+
+        const socket = io(socketUrl, {
+            path: '/socket.io',
+            withCredentials: true,
+            transports: ['websocket'],
+            reconnection: true,
+            reconnectionDelay: 2000,
+        });
+
+        const refreshLiveData = () => {
+            fetchSlots(date, { silent: true, limit: 96 });
             if (hintPreviewMode === 'target' && hasValidTargetProfit) {
                 fetchCurrentSlotForHints({
                     silent: true,
                     mode: 'target',
                     targetProfitPercent,
                 });
-            } else {
-                fetchCurrentSlotForHints({ silent: true, mode: 'default' });
+                return;
             }
-        }, 15000);
-        return () => clearInterval(timer);
+            fetchCurrentSlotForHints({ silent: true, mode: 'default' });
+        };
+
+        const onQuizResult = (data) => {
+            if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
+            refreshLiveData();
+        };
+
+        socket.on('quiz:result', onQuizResult);
+        socket.on('connect', refreshLiveData);
+
+        return () => {
+            socket.off('quiz:result', onQuizResult);
+            socket.off('connect', refreshLiveData);
+            socket.disconnect();
+        };
     }, [
         fetchSlots,
         fetchCurrentSlotForHints,
@@ -625,7 +650,11 @@ const TwoDResultControl = () => {
                         />
                         <button
                             type="button"
-                            onClick={() => fetchSlots(date)}
+                            onClick={() => {
+                                if (typeof window !== 'undefined') {
+                                    window.location.reload();
+                                }
+                            }}
                             className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold"
                             disabled={loading}
                         >
@@ -668,7 +697,23 @@ const TwoDResultControl = () => {
                 {hasSecretDeclarePassword && !pageUnlocked ? null : (
                     <>
                         <div className="bg-white border border-gray-200 rounded-xl p-5">
-                            <h2 className="text-base font-semibold text-gray-800">Step 1: Running slot quick edit</h2>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h2 className="text-base font-semibold text-gray-800">Step 1: Running slot quick edit</h2>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (hintPreviewMode === 'target' && hasValidTargetProfit) {
+                                            fetchCurrentSlotForHints({ mode: 'target', targetProfitPercent });
+                                            return;
+                                        }
+                                        fetchCurrentSlotForHints({ mode: 'default' });
+                                    }}
+                                    disabled={hintsLoading}
+                                    className="px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-500 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+                                >
+                                    {hintsLoading ? 'Refreshing...' : 'Refresh Card'}
+                                </button>
+                            </div>
                             <p className="text-xs text-gray-500 mt-1">
                                 Current slot: {currentSlotStartIso || '-'}
                                 {' · '}

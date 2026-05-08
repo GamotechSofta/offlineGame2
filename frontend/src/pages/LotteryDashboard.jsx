@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import TopHeader from '../components/TopHeader';
 import QuizSelector from '../components/QuizSelector';
 import StatusStrip from '../components/StatusStrip';
@@ -12,6 +13,7 @@ import ResultHistoryModal from '../components/ResultHistoryModal';
 import MyBetsModal from '../components/MyBetsModal';
 import { getBalance, updateUserBalance } from '../api/bets';
 import { getQuizSlot, getQuizSlotResults, postQuizBetsBatch } from '../api/quizApi';
+import { getQuizSocketUrl } from '../config/api';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getFamilyNumbers, getLotterySetTotals, getTotals } from '../utils/boardHelpers';
 import { getCurrentUser, isUserLoggedIn, subscribeUserSession } from '../session/userSession';
@@ -52,6 +54,7 @@ const LotteryDashboard = () => {
   const [selectedAdvanceSlots, setSelectedAdvanceSlots] = useState([]);
   const [advanceSelectionNotice, setAdvanceSelectionNotice] = useState('');
   const [serverSlot, setServerSlot] = useState(null);
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const [slotSyncErr, setSlotSyncErr] = useState('');
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [rotatePromptDismissed, setRotatePromptDismissed] = useState(false);
@@ -73,6 +76,29 @@ const LotteryDashboard = () => {
   const [prevSlotDrawEndLabel, setPrevSlotDrawEndLabel] = useState('');
   const [walletBalance, setWalletBalance] = useState(0);
   const ALL_QUIZZES = useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), []);
+
+  const refreshLatestDeclaredResults = useCallback(async () => {
+    const j = await getQuizSlotResults(1, '2d');
+    const slot = Array.isArray(j?.data) ? j.data[0] : null;
+    const timeLabel =
+      typeof slot?.drawLabelEnd === 'string' && slot.drawLabelEnd.trim() !== ''
+        ? slot.drawLabelEnd.trim()
+        : '';
+    setPrevSlotDrawEndLabel(timeLabel);
+    const picks = slot?.picks;
+    if (!Array.isArray(picks)) {
+      setLastSlotByQuiz({});
+      return;
+    }
+    const next = {};
+    for (const p of picks) {
+      const q = p?.quizId;
+      if (Number.isInteger(q) && q >= 1 && q <= 30) {
+        next[q] = p.winningPosition ?? null;
+      }
+    }
+    setLastSlotByQuiz(next);
+  }, []);
 
   useEffect(() => {
     const quiz = searchParams.get('quiz');
@@ -111,6 +137,15 @@ const LotteryDashboard = () => {
     const elapsedInQuarter = (mins % 15) * 60 + secs;
     const remaining = DEFAULT_TIMER_SECONDS - elapsedInQuarter;
     return remaining <= 0 ? DEFAULT_TIMER_SECONDS : remaining;
+  }, []);
+
+  const getServerSlotCountdown = useCallback((slot, offsetMs, nowMs = Date.now()) => {
+    const slotEndMs = slot?.slotEndIso ? new Date(slot.slotEndIso).getTime() : NaN;
+    const effectiveNowMs = nowMs + Number(offsetMs || 0);
+    if (Number.isFinite(slotEndMs)) {
+      return Math.max(0, Math.floor((slotEndMs - effectiveNowMs) / 1000));
+    }
+    return Math.max(0, Number(slot?.secondsUntilSlotEnd ?? 0));
   }, []);
 
   const loadStoredBalance = useCallback(() => {
@@ -209,12 +244,16 @@ const LotteryDashboard = () => {
     const syncClockAndTimer = () => {
       const now = new Date();
       setClockNow(now);
-      setTimerSeconds(getQuarterHourCountdown(now));
+      if (serverSlot?.slotStartIso) {
+        setTimerSeconds(getServerSlotCountdown(serverSlot, serverOffsetMs, now.getTime()));
+      } else {
+        setTimerSeconds(getQuarterHourCountdown(now));
+      }
     };
     syncClockAndTimer();
     const timer = setInterval(syncClockAndTimer, 1000);
     return () => clearInterval(timer);
-  }, [getQuarterHourCountdown]);
+  }, [getQuarterHourCountdown, getServerSlotCountdown, serverOffsetMs, serverSlot]);
 
   useEffect(() => {
     let stop = false;
@@ -222,8 +261,15 @@ const LotteryDashboard = () => {
       getQuizSlot()
         .then((j) => {
           if (stop) return;
-          if (j.success && j.data) setServerSlot(j.data);
-          else setServerSlot(null);
+          if (j.success && j.data) {
+            setServerSlot(j.data);
+            const serverNowMs = j?.data?.serverNowIso ? new Date(j.data.serverNowIso).getTime() : NaN;
+            if (Number.isFinite(serverNowMs)) {
+              setServerOffsetMs(serverNowMs - Date.now());
+            }
+          } else {
+            setServerSlot(null);
+          }
           setSlotSyncErr('');
         })
         .catch((e) => {
@@ -254,36 +300,15 @@ const LotteryDashboard = () => {
 
   useEffect(() => {
     let stop = false;
-    const loadLastSlot = () => {
-      getQuizSlotResults(1, '2d')
-        .then((j) => {
-          if (stop) return;
-          const slot = Array.isArray(j?.data) ? j.data[0] : null;
-          const timeLabel =
-            typeof slot?.drawLabelEnd === 'string' && slot.drawLabelEnd.trim() !== ''
-              ? slot.drawLabelEnd.trim()
-              : '';
-          setPrevSlotDrawEndLabel(timeLabel);
-          const picks = slot?.picks;
-          if (!Array.isArray(picks)) {
-            setLastSlotByQuiz({});
-            return;
-          }
-          const next = {};
-          for (const p of picks) {
-            const q = p?.quizId;
-            if (Number.isInteger(q) && q >= 1 && q <= 30) {
-              next[q] = p.winningPosition ?? null;
-            }
-          }
-          setLastSlotByQuiz(next);
-        })
-        .catch(() => {
-          if (!stop) {
-            setLastSlotByQuiz({});
-            setPrevSlotDrawEndLabel('');
-          }
-        });
+    const loadLastSlot = async () => {
+      try {
+        await refreshLatestDeclaredResults();
+      } catch {
+        if (!stop) {
+          setLastSlotByQuiz({});
+          setPrevSlotDrawEndLabel('');
+        }
+      }
     };
     loadLastSlot();
     const onVisible = () => {
@@ -294,7 +319,55 @@ const LotteryDashboard = () => {
       stop = true;
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [refreshLatestDeclaredResults]);
+
+  useEffect(() => {
+    const socketUrl = getQuizSocketUrl();
+    if (!socketUrl) return undefined;
+
+    const socket = io(socketUrl, {
+      path: '/socket.io',
+      withCredentials: true,
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionDelay: 2000,
+    });
+
+    const onSlotUpdate = (data) => {
+      if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
+      if (!data?.slotStartIso) return;
+      setServerSlot(data);
+      const serverNowMs = data?.serverNowIso ? new Date(data.serverNowIso).getTime() : NaN;
+      if (Number.isFinite(serverNowMs)) {
+        setServerOffsetMs(serverNowMs - Date.now());
+      }
+      setSlotSyncErr('');
+    };
+
+    const onQuizResult = (data) => {
+      if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
+      refreshLatestDeclaredResults().catch(() => {});
+      getQuizSlot()
+        .then((j) => {
+          if (j?.success && j?.data) {
+            setServerSlot(j.data);
+            const serverNowMs = j?.data?.serverNowIso ? new Date(j.data.serverNowIso).getTime() : NaN;
+            if (Number.isFinite(serverNowMs)) {
+              setServerOffsetMs(serverNowMs - Date.now());
+            }
+          }
+        })
+        .catch(() => {});
+    };
+
+    socket.on('slot:update', onSlotUpdate);
+    socket.on('quiz:result', onQuizResult);
+    return () => {
+      socket.off('slot:update', onSlotUpdate);
+      socket.off('quiz:result', onQuizResult);
+      socket.disconnect();
+    };
+  }, [refreshLatestDeclaredResults]);
 
   useEffect(() => {
     loadStoredBalance();
