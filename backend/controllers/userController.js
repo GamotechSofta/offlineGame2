@@ -10,6 +10,9 @@ import { signUserToken, verifyUserToken } from '../utils/userJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+/** Escape user input for safe use inside MongoDB $regex. */
+const escapeMongoRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const MASKED_DEVICE = 'Unknown Device';
 
 const normalizeDeviceName = (value) => {
@@ -963,26 +966,48 @@ export const createUser = async (req, res) => {
 export const getUsers = async (req, res) => {
     try {
         const { filter = 'all' } = req.query;
+        const searchRaw = (req.query.search ?? req.query.q ?? '').toString().trim();
+        const searchTrim = searchRaw.slice(0, 120);
         const page = Math.max(1, parseInt(req.query.page, 10) || 1);
         const limit = Math.min(200, Math.max(20, parseInt(req.query.limit, 10) || 100));
         const skip = (page - 1) * limit;
         const bookieUserIds = await getBookieUserIds(req.admin);
-        const query = {};
+
+        const conditions = [];
 
         if (bookieUserIds !== null) {
-            query._id = { $in: bookieUserIds };
+            conditions.push({ _id: { $in: bookieUserIds } });
         }
 
         if (filter === 'super_admin') {
             // Self-registered players have source: super_admin and referredBy: null — same pool as admin-created players.
-            query.$or = [
-                { source: 'super_admin' },
-                { referredBy: null },
-                { referredBy: { $exists: false } },
-            ];
+            conditions.push({
+                $or: [
+                    { source: 'super_admin' },
+                    { referredBy: null },
+                    { referredBy: { $exists: false } },
+                ],
+            });
         } else if (filter === 'bookie') {
-            query.referredBy = { $ne: null, $exists: true };
+            conditions.push({ referredBy: { $ne: null, $exists: true } });
         }
+
+        if (searchTrim) {
+            const escaped = escapeMongoRegex(searchTrim);
+            conditions.push({
+                $or: [
+                    { username: { $regex: escaped, $options: 'i' } },
+                    { phone: { $regex: escaped } },
+                ],
+            });
+        }
+
+        const query =
+            conditions.length === 0
+                ? {}
+                : conditions.length === 1
+                  ? conditions[0]
+                  : { $and: conditions };
 
         const [usersRaw, total] = await Promise.all([
             User.find(query)

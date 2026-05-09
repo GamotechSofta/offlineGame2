@@ -87,6 +87,8 @@ const AllUsers = () => {
     const [success, setSuccess] = useState('');
     const [togglingId, setTogglingId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    /** Debounced value sent to GET /users as `search` (server searches all players, not only current page). */
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [now, setNow] = useState(Date.now());
     const [hasSecretDeclarePassword, setHasSecretDeclarePassword] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -102,13 +104,17 @@ const AllUsers = () => {
     });
 
     const fetchData = async ({ queryKey }) => {
-        const [, pAll, pSuper, pBookie] = queryKey;
-        const dedupeKey = `all-users:data:${pAll}:${pSuper}:${pBookie}`;
+        const [, pAll, pSuper, pBookie, searchStr] = queryKey;
+        const searchParam =
+            searchStr && String(searchStr).trim()
+                ? `&search=${encodeURIComponent(String(searchStr).trim())}`
+                : '';
+        const dedupeKey = `all-users:data:${pAll}:${pSuper}:${pBookie}:${searchStr || ''}`;
         return dedupeRequest(dedupeKey, async () => {
             const [allRes, superAdminRes, bookieRes, bookiesRes, adminsRes] = await Promise.all([
-                fetchWithAuth(`${API_BASE_URL}/users?page=${pAll}&limit=${USERS_PAGE_LIMIT}`),
-                fetchWithAuth(`${API_BASE_URL}/users?filter=super_admin&page=${pSuper}&limit=${USERS_PAGE_LIMIT}`),
-                fetchWithAuth(`${API_BASE_URL}/users?filter=bookie&page=${pBookie}&limit=${USERS_PAGE_LIMIT}`),
+                fetchWithAuth(`${API_BASE_URL}/users?page=${pAll}&limit=${USERS_PAGE_LIMIT}${searchParam}`),
+                fetchWithAuth(`${API_BASE_URL}/users?filter=super_admin&page=${pSuper}&limit=${USERS_PAGE_LIMIT}${searchParam}`),
+                fetchWithAuth(`${API_BASE_URL}/users?filter=bookie&page=${pBookie}&limit=${USERS_PAGE_LIMIT}${searchParam}`),
                 fetchWithAuth(`${API_BASE_URL}/admin/bookies`),
                 fetchWithAuth(`${API_BASE_URL}/admin/super-admins`),
             ]);
@@ -158,8 +164,20 @@ const AllUsers = () => {
 
     }, [navigate]);
 
+    useEffect(() => {
+        const id = window.setTimeout(() => {
+            const next = searchQuery.trim();
+            setDebouncedSearch((prev) => {
+                if (prev === next) return prev;
+                setPlayerListPages({ all: 1, super_admin_users: 1, bookie_users: 1 });
+                return next;
+            });
+        }, 400);
+        return () => window.clearTimeout(id);
+    }, [searchQuery]);
+
     const usersQuery = useQuery({
-        queryKey: ['all-users-data', playerListPages.all, playerListPages.super_admin_users, playerListPages.bookie_users],
+        queryKey: ['all-users-data', playerListPages.all, playerListPages.super_admin_users, playerListPages.bookie_users, debouncedSearch],
         queryFn: fetchData,
         enabled: !!localStorage.getItem('admin'),
         refetchOnWindowFocus: false,
@@ -344,13 +362,15 @@ const AllUsers = () => {
             : 0;
 
     const q = searchQuery.trim().toLowerCase();
-    const filteredList = q
-        ? list.filter((item) => {
-            const username = (item.username || '').toLowerCase();
-            const phone = (item.phone || '').toString();
-            return username.includes(q) || phone.includes(q);
-        })
-        : list;
+    const filteredList = isUserList
+        ? list
+        : q
+          ? list.filter((item) => {
+                const username = (item.username || '').toLowerCase();
+                const phone = (item.phone || '').toString();
+                return username.includes(q) || phone.includes(q);
+            })
+          : list;
 
     const getUsersForBookie = (bookieId) => {
         return bookieUsersList.filter(
@@ -877,7 +897,7 @@ const AllUsers = () => {
 
             {!loading && list.length > 0 && (
                 <p className="mt-4 text-gray-400 text-sm">
-                    {isUserList && paginationForActiveUserTab && !q ? (
+                    {isUserList && paginationForActiveUserTab ? (
                         <>
                             Showing{' '}
                             {filteredList.length > 0 ? `${(rowOffset + 1).toLocaleString('en-IN')}–${(rowOffset + filteredList.length).toLocaleString('en-IN')}` : '0'}
@@ -887,7 +907,7 @@ const AllUsers = () => {
                     ) : (
                         <>
                             Showing {filteredList.length} {TABS.find((t) => t.id === activeTab)?.label?.toLowerCase()}
-                            {searchQuery && filteredList.length !== list.length && (
+                            {!isUserList && searchQuery && filteredList.length !== list.length && (
                                 <span> (filtered from {list.length})</span>
                             )}
                         </>
