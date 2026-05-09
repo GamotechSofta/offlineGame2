@@ -721,7 +721,6 @@ const AllUsers = () => {
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Name</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Phone</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Wallet</th>
-                                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Role</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Account</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Created</th>
@@ -748,15 +747,6 @@ const AllUsers = () => {
                                             ) : (
                                                 <span className="font-mono font-medium text-green-600 text-xs sm:text-sm">
                                                     ₹{Number(item.walletBalance ?? 0).toLocaleString('en-IN')}
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-2 sm:px-3 py-2 sm:py-3">
-                                            {(activeTab === 'super_admins') ? (
-                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700">Super Admin</span>
-                                            ) : (
-                                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700 capitalize">
-                                                    {item.role === 'user' ? 'Player' : (item.role || 'Player')}
                                                 </span>
                                             )}
                                         </td>
