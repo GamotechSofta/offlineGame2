@@ -22,6 +22,7 @@ const OldSlotsSection = ({
     detailSectionRef,
     loadingDetail,
     detailData,
+    currentSlotData,
 }) => (
     <>
         <div className="bg-white border border-gray-200 rounded-xl p-2">
@@ -53,6 +54,47 @@ const OldSlotsSection = ({
 
         {activeSection === 'oldSlots' ? (
             <>
+                <div className="bg-white border border-gray-200 rounded-xl p-5">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-800">Current Slot</h3>
+                            <p className="text-sm text-gray-500">Only running slot is shown here.</p>
+                        </div>
+                    </div>
+                    {!currentSlotData?.slot ? (
+                        <div className="text-sm text-gray-500">No running slot found.</div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-gray-500 border-b border-gray-200">
+                                        <th className="py-2 pr-3">Draw Time</th>
+                                        <th className="py-2 pr-3 text-right">Tickets</th>
+                                        <th className="py-2 pr-3 text-right">Bets</th>
+                                        <th className="py-2 pr-3 text-right">Users</th>
+                                        <th className="py-2 pr-3 text-right">Winners</th>
+                                        <th className="py-2 pr-3 text-right">Revenue</th>
+                                        <th className="py-2 pr-3 text-right">Winner Payout</th>
+                                        <th className="py-2 pr-3 text-right">Remaining</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr className="border-b border-gray-100">
+                                        <td className="py-2 pr-3 font-medium text-gray-800">{currentSlotData?.slot?.drawLabelEnd || '-'}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">{currentSlotData?.summary?.totalTickets ?? 0}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">{currentSlotData?.summary?.totalBets ?? 0}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">{currentSlotData?.summary?.totalUsers ?? 0}</td>
+                                        <td className="py-2 pr-3 text-right font-mono">{currentSlotData?.summary?.winnerTickets ?? 0}</td>
+                                        <td className="py-2 pr-3 text-right font-mono text-green-600">₹{Number((currentSlotData?.summary?.revenue ?? currentSlotData?.summary?.totalBetAmount) || 0).toLocaleString('en-IN')}</td>
+                                        <td className="py-2 pr-3 text-right font-mono text-red-500">₹{Number(currentSlotData?.summary?.winnerPayout || 0).toLocaleString('en-IN')}</td>
+                                        <td className="py-2 pr-3 text-right font-mono text-blue-600">₹{Number(currentSlotData?.summary?.amountRemaining || 0).toLocaleString('en-IN')}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
                 <div className="bg-white border border-gray-200 rounded-xl p-5">
                     <div className="flex flex-wrap items-end gap-4">
                         <div className="min-w-[180px]">

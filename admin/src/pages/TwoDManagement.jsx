@@ -328,25 +328,39 @@ const TwoDManagement = () => {
             setHistoryPlayersMap({});
             return;
         }
+        const withTickets = list.filter((slot) => Number(slot?.totalTickets || 0) > 0);
+        const capped = withTickets.length ? withTickets.slice(0, 20) : list.slice(0, 12);
         setLoadingAllHistoryPlayers(true);
         try {
-            const settled = await Promise.allSettled(
-                list.map(async (slot) => {
-                    const slotStartIso = slot?.slotStartIso;
-                    if (!slotStartIso) return [null, []];
-                    const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(slotStartIso)}/players`);
-                    if (res.status === 401) return [slotStartIso, []];
-                    const data = await res.json();
-                    if (!data?.success) return [slotStartIso, []];
-                    return [slotStartIso, Array.isArray(data?.data?.players) ? data.data.players : []];
-                }),
-            );
             const next = {};
-            settled.forEach((entry) => {
-                if (entry.status !== 'fulfilled') return;
-                const [k, v] = entry.value || [];
-                if (k) next[k] = v;
-            });
+            const CONCURRENCY = 2;
+            for (let i = 0; i < capped.length; i += CONCURRENCY) {
+                const chunk = capped.slice(i, i + CONCURRENCY);
+                // eslint-disable-next-line no-await-in-loop
+                const settled = await Promise.allSettled(
+                    chunk.map(async (slot) => {
+                        const slotStartIso = slot?.slotStartIso;
+                        if (!slotStartIso) return [null, []];
+                        const params = new URLSearchParams({
+                            lite: '1',
+                            limit: '200',
+                            page: '1',
+                        });
+                        const res = await fetchWithAuth(
+                            `${API_BASE_URL}/admin/lottery2d/slots/${encodeURIComponent(slotStartIso)}/players?${params.toString()}`,
+                        );
+                        if (res.status === 401) return [slotStartIso, []];
+                        const data = await res.json();
+                        if (!data?.success) return [slotStartIso, []];
+                        return [slotStartIso, Array.isArray(data?.data?.players) ? data.data.players : []];
+                    }),
+                );
+                settled.forEach((entry) => {
+                    if (entry.status !== 'fulfilled') return;
+                    const [k, v] = entry.value || [];
+                    if (k) next[k] = v;
+                });
+            }
             setHistoryPlayersMap(next);
         } catch {
             setHistoryPlayersMap({});

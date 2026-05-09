@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import DateRangePresetFilter from '../components/DateRangePresetFilter';
+import useAdminLiveInvalidation from '../hooks/useAdminLiveInvalidation';
 
 const slotScheduleLabel = (s) => {
     const tag = s.status === 'live' ? 'Live' : s.status === 'past' ? 'Past' : 'Advance';
@@ -23,6 +24,16 @@ const rowMatchesSlotPlayerSearch = (player, raw) => {
     if (phone.toLowerCase().includes(ql)) return true;
     if (qDigits.length >= 2 && phoneDigits.includes(qDigits)) return true;
     return false;
+};
+
+const dateKeyMinusDays = (dateKey, days) => {
+    const dt = new Date(`${dateKey}T00:00:00`);
+    if (Number.isNaN(dt.getTime())) return dateKey;
+    dt.setDate(dt.getDate() - days);
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
 };
 
 const TwoDCurrentSlotPlayers = () => {
@@ -53,6 +64,12 @@ const TwoDCurrentSlotPlayers = () => {
     } = useOutletContext();
 
     const [playerSearch, setPlayerSearch] = useState('');
+    const liveRefreshBusyRef = useRef(false);
+    const todayKey = useMemo(
+        () => (typeof todayDate === 'function' ? todayDate() : todayDate),
+        [todayDate],
+    );
+    const maxWindowFrom = useMemo(() => dateKeyMinusDays(todayKey, 61), [todayKey]);
 
     const selectedSlotMeta = useMemo(() => {
         if (selectedHistorySlotIso === ALL_DAY_SLOT_ISO) {
@@ -70,6 +87,18 @@ const TwoDCurrentSlotPlayers = () => {
         if (!playerSearch.trim()) return players;
         return players.filter((p) => rowMatchesSlotPlayerSearch(p, playerSearch));
     }, [players, playerSearch]);
+
+    useAdminLiveInvalidation({
+        enabled: viewMode === 'live',
+        throttleMs: 1200,
+        onInvalidate: () => {
+            if (liveRefreshBusyRef.current || loading || loadingHistorySlots || loadingMorePlayers) return;
+            liveRefreshBusyRef.current = true;
+            Promise.resolve(refresh()).finally(() => {
+                liveRefreshBusyRef.current = false;
+            });
+        },
+    });
 
     return (
         <AdminLayout onLogout={navigateLogout} title="2D players">
@@ -126,6 +155,7 @@ const TwoDCurrentSlotPlayers = () => {
                                 dateTo={dateTo}
                                 setDateFrom={setDateFrom}
                                 setDateTo={setDateTo}
+                                allPresetFrom={maxWindowFrom}
                                 className="w-full"
                             />
                             <label className="flex flex-col gap-1 text-sm min-w-[220px] flex-1">

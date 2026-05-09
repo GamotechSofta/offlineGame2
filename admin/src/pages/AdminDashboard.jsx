@@ -20,16 +20,10 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
-import { subscribeAdminLive } from '../lib/adminSocket';
 import { useQuery } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { dedupeRequest } from '../lib/requestDedupe';
 import { useTraceRender } from '../lib/runtimeTrace';
-
-const LOTTERY_LIVE_REFRESH_MS = 20000;
-/** Main dashboard KPIs (bets, wallet, payments) — keep in sync with live activity without full page reload */
-const DASHBOARD_SECTION_REFRESH_MS = 20000;
 
 const PRESETS = [
     { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
@@ -51,10 +45,9 @@ const PRESETS = [
         const day = d.getDay();
         const sun = new Date(d);
         sun.setDate(d.getDate() - day);
-        const sat = new Date(sun);
-        sat.setDate(sun.getDate() + 6);
         const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
-        return { from: fmt(sun), to: fmt(sat) };
+        // Keep end bounded to today so APIs that disallow future dates still return current data.
+        return { from: fmt(sun), to: fmt(d) };
     }},
     { id: 'last_week', label: 'Last Week', getRange: () => {
         const d = new Date();
@@ -69,9 +62,8 @@ const PRESETS = [
     { id: 'this_month', label: 'This Month', getRange: () => {
         const d = new Date();
         const y = d.getFullYear(), m = d.getMonth();
-        const last = new Date(y, m + 1, 0);
         const from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
-        const to = `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+        const to = `${y}-${String(m + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         return { from, to };
     }},
     { id: 'last_month', label: 'Last Month', getRange: () => {
@@ -149,10 +141,9 @@ const AdminDashboard = () => {
     const [adminRole, setAdminRole] = useState('');
     const [bootstrapped, setBootstrapped] = useState(false);
     const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-    const [selectedMarketId, setSelectedMarketId] = useState('');
     const [lotteryStats, setLotteryStats] = useState(() => createEmptyLotteryStats());
-    const dashboardPollBusyRef = useRef(false);
-    const lotteryPollBusyRef = useRef(false);
+    /** Avoid clearing stats on mount: React Query may hydrate cache before this effect sees updated `hasLoadedOnce`, which previously wiped synced data and showed zeros until refetch. */
+    const rangeMarketEffectPrimedRef = useRef(false);
 
     const hasChanged = (a, b) => JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
     const mergeSectionStats = (prev, next) => {
@@ -298,28 +289,6 @@ const AdminDashboard = () => {
         }
     };
 
-    const fetchMarketOptions = async () => {
-        const response = await fetchWithAuth(`${API_BASE_URL}/markets/list-for-dashboard`);
-        if (response.status === 401) return [];
-        const data = await response.json();
-        if (!data?.success || !Array.isArray(data?.data)) return [];
-        return data.data
-            .map((m) => ({
-                id: m?._id != null ? String(m._id) : '',
-                name: (m?.displayLabel || m?.marketName || m?.gameName || '').toString().trim(),
-            }))
-            .filter((m) => m.id && m.name)
-            .sort((a, b) => a.name.localeCompare(b.name));
-    };
-
-    const { data: marketOptionsData = [] } = useQuery({
-        queryKey: ['dashboard-market-options'],
-        queryFn: fetchMarketOptions,
-        staleTime: 5 * 60 * 1000,
-        retry: 1,
-    });
-    const marketOptions = marketOptionsData;
-
     const fetchDashboardStats = async (rangeOverride, options = {}) => {
         const isRefresh = options.refresh === true;
         const isSilent = options.silent === true;
@@ -332,8 +301,6 @@ const AdminDashboard = () => {
             const { from, to } = rangeOverride || getFromTo();
             const params = new URLSearchParams();
             if (from && to) { params.set('from', from); params.set('to', to); }
-            const marketId = options.marketIdOverride !== undefined ? options.marketIdOverride : selectedMarketId;
-            if (marketId) params.set('marketId', marketId);
             if (isRefresh) params.set('_', String(Date.now()));
             const query = params.toString();
             const url = `${API_BASE_URL}/dashboard/stats${query ? `?${query}` : ''}`;
@@ -361,7 +328,6 @@ const AdminDashboard = () => {
         const { from, to } = effectiveRange || {};
         const params = new URLSearchParams();
         if (from && to) { params.set('from', from); params.set('to', to); }
-        if (selectedMarketId) params.set('marketId', selectedMarketId);
         const key = `dashboard:stats:${params.toString()}`;
         return dedupeRequest(key, async () => {
             const url = `${API_BASE_URL}/dashboard/stats${params.toString() ? `?${params.toString()}` : ''}`;
@@ -374,7 +340,7 @@ const AdminDashboard = () => {
     };
 
     const dashboardStatsQuery = useQuery({
-        queryKey: ['dashboard-stats', effectiveRange?.from || '', effectiveRange?.to || '', selectedMarketId || ''],
+        queryKey: ['dashboard-stats', effectiveRange?.from || '', effectiveRange?.to || ''],
         queryFn: fetchDashboardStatsQuery,
         enabled: bootstrapped && !!localStorage.getItem('admin'),
     });
@@ -437,6 +403,10 @@ const AdminDashboard = () => {
     }, [dashboardStatsQuery.isFetching, lotteryStatsQuery.isFetching]);
 
     useEffect(() => {
+        if (!rangeMarketEffectPrimedRef.current) {
+            rangeMarketEffectPrimedRef.current = true;
+            return;
+        }
         // First load should be blocking; later range switches should be non-blocking.
         setRangeUpdating(true);
         if (!hasLoadedOnce) {
@@ -444,7 +414,7 @@ const AdminDashboard = () => {
             setLotteryStats(createEmptyLotteryStats());
             setLoading(true);
         }
-    }, [effectiveRange?.from, effectiveRange?.to, selectedMarketId, hasLoadedOnce]);
+    }, [effectiveRange?.from, effectiveRange?.to, hasLoadedOnce]);
 
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
@@ -455,17 +425,6 @@ const AdminDashboard = () => {
             queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] }),
             queryClient.invalidateQueries({ queryKey: ['dashboard-lottery'] }),
         ]).finally(() => setRefreshing(false));
-    };
-    const applyRangeUpdate = async () => {
-        setRangeUpdating(true);
-        try {
-            await Promise.all([
-                queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] }),
-                queryClient.invalidateQueries({ queryKey: ['dashboard-lottery'] }),
-            ]);
-        } finally {
-            setRangeUpdating(false);
-        }
     };
     const handlePresetSelect = (presetId) => {
         if (!customMode && datePreset === presetId) {
@@ -490,54 +449,6 @@ const AdminDashboard = () => {
     };
 
     const getEffectiveRange = () => effectiveRange;
-
-    const refreshDashboardSections = () => {
-        if (rangeUpdating || dashboardPollBusyRef.current) return;
-        dashboardPollBusyRef.current = true;
-        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] }).finally(() => {
-            dashboardPollBusyRef.current = false;
-        });
-    };
-
-    const refreshLotterySections = () => {
-        if (rangeUpdating || lotteryPollBusyRef.current) return;
-        lotteryPollBusyRef.current = true;
-        Promise.resolve(queryClient.invalidateQueries({ queryKey: ['dashboard-lottery'] })).finally(() => {
-            lotteryPollBusyRef.current = false;
-        });
-    };
-
-    useSectionAutoRefresh({
-        enabled: !loading,
-        intervalMs: DASHBOARD_SECTION_REFRESH_MS,
-        onRefresh: refreshDashboardSections,
-        immediate: false,
-    });
-
-    useSectionAutoRefresh({
-        enabled: !loading,
-        intervalMs: LOTTERY_LIVE_REFRESH_MS,
-        onRefresh: refreshLotterySections,
-        immediate: false,
-    });
-
-    useEffect(() => {
-        if (loading) return undefined;
-        let throttleTimer = null;
-        const triggerRefresh = () => {
-            if (throttleTimer) return;
-            throttleTimer = window.setTimeout(() => {
-                throttleTimer = null;
-                refreshDashboardSections();
-                refreshLotterySections();
-            }, 600);
-        };
-        const unsubscribe = subscribeAdminLive(triggerRefresh, triggerRefresh);
-        return () => {
-            unsubscribe?.();
-            if (throttleTimer) window.clearTimeout(throttleTimer);
-        };
-    }, [loading, rangeUpdating, selectedMarketId, customMode, customFrom, customTo, datePreset]);
 
     const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
     const formatNumber = (value) => Number(value || 0).toLocaleString('en-IN');
@@ -644,7 +555,6 @@ const AdminDashboard = () => {
     }
 
     const displayLabel = customMode && customFrom && customTo ? formatRangeLabel(customFrom, customTo) : (PRESETS.find((p) => p.id === datePreset)?.label || 'Today');
-    const selectedMarketName = marketOptions.find((m) => m.id === selectedMarketId)?.name || 'All Markets';
 
     return (
         <AdminLayout onLogout={handleLogout} title="Dashboard">
@@ -716,24 +626,6 @@ const AdminDashboard = () => {
                     {rangeUpdating && (
                         <p className="text-xs text-blue-600 mt-2 font-medium">Updating selected range data...</p>
                     )}
-                    <div className="mt-3">
-                        <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Market</p>
-                        <select
-                            value={selectedMarketId}
-                            onChange={(e) => {
-                                const nextMarketId = e.target.value;
-                                setSelectedMarketId(nextMarketId);
-                                applyRangeUpdate();
-                            }}
-                            className="w-full sm:w-auto min-w-[260px] px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800"
-                        >
-                            <option value="">All Markets</option>
-                            {marketOptions.map((m) => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                            ))}
-                        </select>
-                        <p className="text-xs text-gray-500 mt-2">Selected market: <span className="text-orange-500 font-medium">{selectedMarketName}</span></p>
-                    </div>
                 </div>
             </div>
 
@@ -940,15 +832,13 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            {isSuperAdmin && !selectedMarketId && (
+            {isSuperAdmin && (
                 <div className="bg-white rounded-xl p-5 border border-gray-200 mb-6">
                     <h3 className="text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
                         <FaChartBar className="w-4 h-4 text-orange-500" />
                         Market-wise stats (selected period)
                     </h3>
-                    <p className="text-xs text-gray-500 mb-3">
-                        Bet volume, revenue, and payouts by market. Use the Market filter above to focus summary cards on one market.
-                    </p>
+                    <p className="text-xs text-gray-500 mb-3">Bet volume, revenue, and payouts by market.</p>
                     {!stats?.marketWise?.length ? (
                         <p className="text-sm text-gray-500">No bets in this period.</p>
                     ) : (

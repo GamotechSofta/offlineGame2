@@ -74,14 +74,16 @@ export async function postQuizBetsBatch(rounds, mode = '2d', options = {}) {
   return json;
 }
 
-export async function getQuizSlotResults(limit = 20, mode = '2d') {
+export async function getQuizSlotResults(limit = 20, mode = '2d', options = {}) {
   const q = new URLSearchParams({
     limit: String(limit),
     mode: String(mode || '2d'),
   });
+  if (options.includeSale === false) q.set('includeSale', '0');
   const res = await fetch(`${base}/slot-results?${q}`, cred);
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+  if (json.success === false) throw new Error(json.message || 'Slot results unavailable');
   return json;
 }
 

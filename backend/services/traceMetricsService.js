@@ -1,5 +1,5 @@
 const TRACE_ENABLED = process.env.TRACE_RUNTIME === '1';
-const SLOW_API_MS = Number(process.env.TRACE_SLOW_API_MS || 250);
+const SLOW_API_MS = Number(process.env.TRACE_SLOW_API_MS || 500);
 const SLOW_MONGO_MS = Number(process.env.TRACE_SLOW_MONGO_MS || 150);
 const LARGE_PAYLOAD_BYTES = Number(process.env.TRACE_LARGE_PAYLOAD_BYTES || 250_000);
 

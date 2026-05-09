@@ -1,5 +1,5 @@
 import { isTraceEnabled, noteApiTrace } from '../services/traceMetricsService.js';
-const DEFAULT_SLOW_MS = 250;
+const DEFAULT_SLOW_MS = Number(process.env.API_PERF_SLOW_MS || 500);
 const LOG_ALL_REQUESTS = process.env.API_PERF_LOG_ALL === '1';
 
 export const apiPerfLogger = (req, res, next) => {

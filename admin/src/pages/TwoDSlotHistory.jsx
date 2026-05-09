@@ -146,14 +146,14 @@ const TwoDSlotHistory = () => {
   }, [slotHistoryPage, totalHistoryPages]);
 
   useEffect(() => {
-    if (!sortedSlots.length) {
+    if (!pagedHistorySlots.length) {
       setSlotDetailMap({});
       return;
     }
     let cancelled = false;
     const load = async () => {
       try {
-        const slotIsos = sortedSlots.map((slot) => slot?.slotStartIso).filter(Boolean);
+        const slotIsos = pagedHistorySlots.map((slot) => slot?.slotStartIso).filter(Boolean);
         const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots/details-batch`, {
           method: 'POST',
           body: JSON.stringify({ slots: slotIsos }),
@@ -175,7 +175,7 @@ const TwoDSlotHistory = () => {
     return () => {
       cancelled = true;
     };
-  }, [sortedSlots]);
+  }, [pagedHistorySlots]);
 
   const goToNextPage = useCallback(() => {
     setSlotHistoryPage((prev) => {

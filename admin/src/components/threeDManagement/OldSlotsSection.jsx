@@ -23,6 +23,18 @@ const OldSlotsSection = ({
     slotPlayerListRows,
     handleOpenPlayerHistory,
 }) => {
+    const isRunningSlot = (slot) => {
+        const startMs = new Date(slot?.slotStartIso || '').getTime();
+        const endMs = new Date(slot?.slotEndIso || '').getTime();
+        if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return false;
+        const nowMs = Date.now();
+        return nowMs >= startMs && nowMs < endMs;
+    };
+
+    const runningHistorySlots = Array.isArray(historySlots)
+        ? historySlots.filter((slot) => !slot?.isCompleted && isRunningSlot(slot))
+        : [];
+
     const completedHistorySlots = Array.isArray(historySlots)
         ? historySlots.filter((slot) => Boolean(slot?.isCompleted))
         : [];
@@ -58,6 +70,53 @@ const OldSlotsSection = ({
 
             {activeSection === 'oldSlots' ? (
                 <>
+                    <div className="bg-white border border-gray-200 rounded-xl p-5">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-800">Current Slot</h3>
+                                <p className="text-sm text-gray-500">Only running slot is shown here.</p>
+                            </div>
+                        </div>
+                        {!runningHistorySlots.length ? (
+                            <div className="text-sm text-gray-500">No running slot found.</div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm">
+                                    <thead>
+                                        <tr className="text-left text-gray-500 border-b border-gray-200">
+                                            <th className="py-2 pr-3">Draw Time</th>
+                                            <th className="py-2 pr-3 text-right">Tickets</th>
+                                            <th className="py-2 pr-3 text-right">Bets</th>
+                                            <th className="py-2 pr-3 text-right">Users</th>
+                                            <th className="py-2 pr-3 text-right">Winners</th>
+                                            <th className="py-2 pr-3 text-right">Revenue</th>
+                                            <th className="py-2 pr-3 text-right">Winner Payout</th>
+                                            <th className="py-2 pr-3 text-right">Remaining</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {runningHistorySlots.map((slot) => (
+                                            <tr
+                                                key={`running-${slot.slotStartIso}`}
+                                                className="border-b border-gray-100 cursor-pointer hover:bg-gray-50"
+                                                onClick={() => handleSelectSlot(slot.slotStartIso)}
+                                            >
+                                                <td className="py-2 pr-3 font-medium text-gray-800">{slot.drawLabelEnd}</td>
+                                                <td className="py-2 pr-3 text-right font-mono">{slot.totalTickets ?? 0}</td>
+                                                <td className="py-2 pr-3 text-right font-mono">{slot.totalBets ?? 0}</td>
+                                                <td className="py-2 pr-3 text-right font-mono">{slot.totalUsers}</td>
+                                                <td className="py-2 pr-3 text-right font-mono">{slot.winnerTickets}</td>
+                                                <td className="py-2 pr-3 text-right font-mono text-green-600">₹{Number((slot.revenue ?? slot.totalBetAmount) || 0).toLocaleString('en-IN')}</td>
+                                                <td className="py-2 pr-3 text-right font-mono text-red-500">₹{Number(slot.winnerPayout || 0).toLocaleString('en-IN')}</td>
+                                                <td className="py-2 pr-3 text-right font-mono text-blue-600">₹{Number(slot.amountRemaining || 0).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="bg-white border border-gray-200 rounded-xl p-5">
                         <div className="flex flex-wrap items-end gap-4">
                             <div className="min-w-[180px]">

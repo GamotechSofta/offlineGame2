@@ -35,7 +35,7 @@ import { getQuizSocketIo, syncQuizSlotUpdates } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply3DTargetProfitHintsToSlot, build3DTargetProfitHints } from '../services/quizTargetProfitService.js';
-import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
+import { bustQuizPublicLastSlotResultsCaches, invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { cacheGet, cacheSet } from '../services/cacheService.js';
 
 const QUIZ_IDS = [1, 2, 3];
@@ -395,7 +395,7 @@ async function buildPlayersForSlot(slotStartIso, { includeBets = false } = {}) {
 }
 
 /** All bets for every slot in an IST date range (inclusive), merged per user. */
-async function buildPlayersForISTDateRange(dateFrom, dateTo, { includeBets = false } = {}) {
+async function buildPlayersForISTDateRange(dateFrom, dateTo, { includeBets = false, lotteryScopeFilter = {} } = {}) {
   const slotList = dateFrom === dateTo
     ? listSlotStartIsoForISTDay(dateFrom)
     : listSlotStartIsoForISTDayRange(dateFrom, dateTo);
@@ -416,11 +416,17 @@ async function buildPlayersForISTDateRange(dateFrom, dateTo, { includeBets = fal
     };
   }
 
+  const betsQuery = QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotList }, ...lotteryScopeFilter })
+    .select(includeBets
+      ? '_id userId quizId number amount status winPayout betMode createdAt slotStartIso'
+      : '_id userId quizId number amount status winPayout betMode slotStartIso')
+    .lean();
+  if (includeBets) {
+    betsQuery.sort({ createdAt: -1 });
+  }
+
   const [bets, picks, ratesMap] = await Promise.all([
-    QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotList } })
-      .select('_id userId quizId number amount status winPayout betMode createdAt slotStartIso')
-      .sort({ createdAt: -1 })
-      .lean(),
+    betsQuery,
     QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotList } })
       .select('slotStartIso quizId hintPosition')
       .lean(),
@@ -548,11 +554,127 @@ const withPlayersPagination = (data, req) => {
   };
 };
 
+async function buildPlayersForISTDateRangePage(dateFrom, dateTo, { lotteryScopeFilter = {}, page = 1, limit = 20 } = {}) {
+  const slotList = dateFrom === dateTo
+    ? listSlotStartIsoForISTDay(dateFrom)
+    : listSlotStartIsoForISTDayRange(dateFrom, dateTo);
+  const isSingleDay = dateFrom === dateTo;
+  if (!slotList.length) {
+    return {
+      slot: {
+        view: isSingleDay ? 'day' : 'range',
+        dateFrom,
+        dateTo,
+        ...(isSingleDay ? { date: dateFrom } : {}),
+        label: isSingleDay
+          ? `All draws · ${dateFrom} (IST)`
+          : `All draws · ${dateFrom} – ${dateTo} (IST)`,
+        slotStartIso: '',
+      },
+      players: [],
+      pagination: { page, limit, hasMore: false, total: 0 },
+    };
+  }
+
+  const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
+  const safePage = Math.max(1, Number(page) || 1);
+  const skip = (safePage - 1) * safeLimit;
+  const match = { gameMode: GAME_MODE, slotStartIso: { $in: slotList }, ...lotteryScopeFilter };
+
+  const [agg] = await QuizBet.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: '$userId',
+        betCount: { $sum: 1 },
+        totalStake: {
+          $sum: {
+            $cond: [{ $eq: ['$status', 'cancelled'] }, 0, { $ifNull: ['$amount', 0] }],
+          },
+        },
+        totalPayout: {
+          $sum: {
+            $cond: [{ $eq: ['$status', 'cancelled'] }, 0, { $ifNull: ['$winPayout', 0] }],
+          },
+        },
+        wins: { $sum: { $cond: [{ $eq: ['$status', 'win'] }, 1, 0] } },
+        losses: { $sum: { $cond: [{ $eq: ['$status', 'lose'] }, 1, 0] } },
+        pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+      },
+    },
+    { $match: { _id: { $ne: null } } },
+    { $sort: { totalStake: -1, _id: 1 } },
+    {
+      $facet: {
+        rows: [
+          { $skip: skip },
+          { $limit: safeLimit + 1 },
+        ],
+        totalRows: [{ $count: 'n' }],
+      },
+    },
+  ]);
+
+  const rows = Array.isArray(agg?.rows) ? agg.rows : [];
+  const hasMore = rows.length > safeLimit;
+  const pageRows = hasMore ? rows.slice(0, safeLimit) : rows;
+  const total = Number(agg?.totalRows?.[0]?.n || 0);
+  const userIds = pageRows.map((row) => row._id).filter(Boolean);
+  const users = userIds.length
+    ? await User.find({ _id: { $in: userIds } }).select('_id username phone').lean()
+    : [];
+  const userById = new Map(users.map((u) => [String(u._id), u]));
+
+  const players = pageRows.map((row) => {
+    const userId = String(row._id);
+    const user = userById.get(userId);
+    const totalStake = Number(row.totalStake || 0);
+    const totalPayout = Number(row.totalPayout || 0);
+    const betCount = Number(row.betCount || 0);
+    return {
+      userId,
+      username: user?.username || 'unknown',
+      phone: user?.phone || '',
+      totalBetCountAllTime: betCount,
+      totalStakeAllTime: totalStake,
+      currentSlotBetCount: betCount,
+      betCount,
+      totalStake,
+      totalPayout,
+      netProfitLoss: totalPayout - totalStake,
+      wins: Number(row.wins || 0),
+      losses: Number(row.losses || 0),
+      pending: Number(row.pending || 0),
+    };
+  });
+
+  return {
+    slot: {
+      view: isSingleDay ? 'day' : 'range',
+      dateFrom,
+      dateTo,
+      ...(isSingleDay ? { date: dateFrom } : {}),
+      label: isSingleDay
+        ? `All draws · ${dateFrom} (IST)`
+        : `All draws · ${dateFrom} – ${dateTo} (IST)`,
+      slotStartIso: '',
+    },
+    players,
+    pagination: {
+      page: safePage,
+      limit: safeLimit,
+      hasMore,
+      total,
+    },
+  };
+}
+
 /**
  * GET /admin/lottery3d/day-players?date= (legacy single day) or ?dateFrom=&dateTo=
  */
 export const getLottery3DDayPlayers = async (req, res) => {
   try {
+    const lotteryScopeFilter = await getLotteryScopeFilter(req);
     const dateFromQ = typeof req.query.dateFrom === 'string' ? req.query.dateFrom.trim() : '';
     const dateToQ = typeof req.query.dateTo === 'string' ? req.query.dateTo.trim() : '';
     const dateLegacy = typeof req.query.date === 'string' ? req.query.date.trim() : '';
@@ -594,8 +716,14 @@ export const getLottery3DDayPlayers = async (req, res) => {
       });
     }
 
-    const data = await buildPlayersForISTDateRange(dateFrom, dateTo);
-    return res.json({ success: true, data: withPlayersPagination(data, req) });
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
+    const data = await buildPlayersForISTDateRangePage(dateFrom, dateTo, {
+      lotteryScopeFilter,
+      page,
+      limit,
+    });
+    return res.json({ success: true, data });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
@@ -913,19 +1041,79 @@ export const getLottery3DSlotHistory = async (req, res) => {
     }
 
     const limit = Math.min(96, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
-    const daySlots = listSlotStartIsoForISTDay(date)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-      .slice(0, limit);
+    const allDaySlots = listSlotStartIsoForISTDay(date)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    let daySlots = allDaySlots.slice(0, limit);
+    if (date === today) {
+      const runningSlotIso = getSlotContext(new Date(), '3d').slotStartIso;
+      const runningStartMs = new Date(runningSlotIso).getTime();
+      const pastAndRunningSlots = allDaySlots.filter((iso) => new Date(iso).getTime() <= runningStartMs);
+      const futureSlots = allDaySlots.filter((iso) => new Date(iso).getTime() > runningStartMs);
+      daySlots = [...pastAndRunningSlots, ...futureSlots].slice(0, limit);
+    }
+    if (date === today) {
+      const runningSlotIso = getSlotContext(new Date(), '3d').slotStartIso;
+      if (runningSlotIso && !daySlots.includes(runningSlotIso)) {
+        daySlots.push(runningSlotIso);
+      }
+    }
 
     if (!daySlots.length) {
       return res.json({ success: true, data: { date, slots: [] } });
     }
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
 
-    const [bets, picks, ratesMap] = await Promise.all([
-      QuizBet.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots }, ...lotteryScopeFilter }).select('slotStartIso quizId userId number amount status winPayout betMode').lean(),
+    const [picks, slotSummaryAgg, quizSummaryAgg] = await Promise.all([
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } }).select('slotStartIso quizId hintPosition').lean(),
-      getRatesMap(),
+      QuizBet.aggregate([
+        { $match: { gameMode: GAME_MODE, slotStartIso: { $in: daySlots }, ...lotteryScopeFilter } },
+        {
+          $group: {
+            _id: '$slotStartIso',
+            totalTickets: {
+              $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, 1] },
+            },
+            revenue: {
+              $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, { $ifNull: ['$amount', 0] }] },
+            },
+            users: {
+              $addToSet: { $cond: [{ $eq: ['$status', 'cancelled'] }, null, '$userId'] },
+            },
+            winnerTickets: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $ne: ['$status', 'cancelled'] },
+                      {
+                        $or: [
+                          { $eq: ['$status', 'win'] },
+                          { $gt: [{ $ifNull: ['$winPayout', 0] }, 0] },
+                        ],
+                      },
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+            winnerPayout: {
+              $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, { $ifNull: ['$winPayout', 0] }] },
+            },
+          },
+        },
+      ]),
+      QuizBet.aggregate([
+        { $match: { gameMode: GAME_MODE, slotStartIso: { $in: daySlots }, ...lotteryScopeFilter, status: { $ne: 'cancelled' } } },
+        {
+          $group: {
+            _id: { slotStartIso: '$slotStartIso', quizId: '$quizId' },
+            totalStake: { $sum: { $ifNull: ['$amount', 0] } },
+            payoutIfHintWins: { $sum: { $ifNull: ['$winPayout', 0] } },
+          },
+        },
+      ]),
     ]);
 
     const picksBySlot = new Map();
@@ -944,12 +1132,7 @@ export const getLottery3DSlotHistory = async (req, res) => {
       resolvedPicksBySlot.set(slotIso, base);
     }
 
-    const betsBySlot = new Map();
-    for (const slotIso of daySlots) betsBySlot.set(slotIso, []);
-    for (const b of bets) {
-      if (!betsBySlot.has(b.slotStartIso)) betsBySlot.set(b.slotStartIso, []);
-      betsBySlot.get(b.slotStartIso).push(b);
-    }
+    const slotSummaryByIso = new Map(slotSummaryAgg.map((row) => [row._id, row]));
 
     const quizStatsBySlot = new Map();
     for (const slotIso of daySlots) {
@@ -959,38 +1142,79 @@ export const getLottery3DSlotHistory = async (req, res) => {
       });
       quizStatsBySlot.set(slotIso, perQuizMap);
     }
-
-    for (const bet of bets) {
-      if (String(bet?.status || '').toLowerCase() === 'cancelled') continue;
-      const slotIso = String(bet.slotStartIso || '');
+    for (const row of quizSummaryAgg) {
+      const slotIso = String(row?._id?.slotStartIso || '');
+      const quizId = Number(row?._id?.quizId);
       const perQuizMap = quizStatsBySlot.get(slotIso);
-      if (!perQuizMap) continue;
-      const quizId = Number(bet.quizId);
-      const row = perQuizMap.get(quizId);
-      if (!row) continue;
-      const amount = Number(bet.amount || 0);
-      row.totalStake += amount;
-      const hp = resolvedPicksBySlot.get(slotIso)?.get(quizId);
-      if (Number.isInteger(hp) && computedWin3d(bet, hp)) {
-        row.payoutIfHintWins += payoutUnsettledWin3d(bet, hp, ratesMap);
-      }
+      if (!perQuizMap || !perQuizMap.has(quizId)) continue;
+      perQuizMap.set(quizId, {
+        totalStake: Number(row?.totalStake || 0),
+        payoutIfHintWins: Number(row?.payoutIfHintWins || 0),
+      });
     }
+
+    const declarationRows = await QuizSlotDeclaration.find({
+      gameMode: GAME_MODE,
+      slotStartIso: { $in: daySlots },
+    })
+      .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent autoDeclareMode declaredAutoDeclareMode declaredTargetProfitPercent')
+      .lean();
+    const declarationBySlot = new Map(declarationRows.map((row) => [row.slotStartIso, row]));
 
     const slotsBase = daySlots.map((slotStartIso) => {
       const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
-      return toSlotSummary(
+      const sum = slotSummaryByIso.get(slotStartIso) || {};
+      const totalTickets = Number(sum.totalTickets || 0);
+      const revenue = Number(sum.revenue || 0);
+      const winnerPayout = Number(sum.winnerPayout || 0);
+      const uniqueUsers = Array.isArray(sum.users)
+        ? sum.users.filter((u) => u != null).length
+        : 0;
+      return {
         slotStartIso,
-        slotEndMs,
-        betsBySlot.get(slotStartIso) || [],
-        resolvedPicksBySlot.get(slotStartIso) || new Map(),
-        ratesMap,
-      );
+        slotEndIso: new Date(slotEndMs).toISOString(),
+        drawLabelEnd: formatDrawLabel(slotEndMs),
+        isCompleted: Date.now() >= slotEndMs,
+        totalTickets,
+        revenue,
+        totalBetAmount: revenue,
+        totalUsers: uniqueUsers,
+        winnerTickets: Number(sum.winnerTickets || 0),
+        winnerUsers: 0,
+        winnerPayout,
+        amountRemaining: revenue - winnerPayout,
+      };
     });
-    const slots = await Promise.all(
-      slotsBase.map(async (slot) => {
+    const slots = slotsBase.map((slot) => {
         const slotStartIso = slot.slotStartIso;
-        const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
-        const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
+        const row = declarationBySlot.get(slotStartIso);
+        const rawTargetProfitPercent = row?.targetProfitPercent;
+        const draftTargetProfitPercent = Number.isFinite(rawTargetProfitPercent) ? rawTargetProfitPercent : null;
+        const rawDraftMode = row?.autoDeclareMode;
+        const draftAutoDeclareMode = rawDraftMode === 'target' || rawDraftMode === 'random' ? rawDraftMode : null;
+        const rawDeclaredTargetProfitPercent = row?.declaredTargetProfitPercent;
+        const declaredTargetProfitPercent = Number.isFinite(rawDeclaredTargetProfitPercent) ? rawDeclaredTargetProfitPercent : null;
+        const isDeclared = Boolean(row?.declaredAt);
+        const rawDeclaredMode = row?.declaredAutoDeclareMode;
+        const declaredAutoDeclareMode = rawDeclaredMode === 'target' || rawDeclaredMode === 'random'
+          ? rawDeclaredMode
+          : (declaredTargetProfitPercent == null ? 'random' : 'target');
+        const undeclaredMode = draftAutoDeclareMode
+          ?? (draftTargetProfitPercent == null ? 'random' : 'target');
+        const autoDeclareMode = isDeclared ? declaredAutoDeclareMode : undeclaredMode;
+        const targetProfitPercent = isDeclared
+          ? (declaredAutoDeclareMode === 'target' ? declaredTargetProfitPercent : null)
+          : (undeclaredMode === 'target' ? draftTargetProfitPercent : null);
+        const declaration = {
+          autoDeclareBlocked: Boolean(row?.autoDeclareBlocked) && !row?.declaredAt,
+          declared: isDeclared,
+          declaredAt: row?.declaredAt || null,
+          declaredResults: row?.declaredResults || null,
+          targetProfitPercent,
+          autoDeclareMode,
+          declaredAutoDeclareMode,
+          declaredTargetProfitPercent,
+        };
         const pickByQuiz = resolvedPicksBySlot.get(slotStartIso) || new Map();
         const perQuizStats = quizStatsBySlot.get(slotStartIso) || new Map();
         const perQuiz = QUIZ_IDS.map((quizId) => {
@@ -1010,8 +1234,7 @@ export const getLottery3DSlotHistory = async (req, res) => {
           declaration,
           perQuiz,
         };
-      }),
-    );
+      });
 
     return res.json({ success: true, data: { date, slots } });
   } catch (error) {
@@ -1749,6 +1972,7 @@ export const updateLottery3DSlotResult = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Slot result not found.' });
     }
     await invalidateAdminReadCaches('lottery3d_slot_result_updated');
+    await bustQuizPublicLastSlotResultsCaches();
 
     return res.json({
       success: true,
@@ -1902,6 +2126,7 @@ export const updateLottery3DSlotDeclaration = async (req, res) => {
       await settleQuizBetsForSlot(slotStartIso, GAME_MODE);
     }
     await invalidateAdminReadCaches('lottery3d_slot_declaration_updated');
+    await bustQuizPublicLastSlotResultsCaches();
 
     const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
     return res.json({ success: true, data: { slotStartIso, declaration } });

@@ -47,16 +47,18 @@ export async function getShuffleOrderIndices(quizId, slotStartIso, seedHexIfKnow
   orderCache.set(key, { at: Date.now(), order });
   cachePrune();
 
-  // eslint-disable-next-line no-console
-  console.log(
-    JSON.stringify({
-      tag: '[quiz:shuffle]',
+  if (process.env.LOG_QUIZ_SHUFFLE === '1') {
+    // eslint-disable-next-line no-console
+    console.log(
+      JSON.stringify({
+        tag: '[quiz:shuffle]',
         gameMode,
-      quizId,
-      slotStartIso,
-      first5Indices: order.slice(0, 5),
-    }),
-  );
+        quizId,
+        slotStartIso,
+        first5Indices: order.slice(0, 5),
+      }),
+    );
+  }
   return order;
 }
 

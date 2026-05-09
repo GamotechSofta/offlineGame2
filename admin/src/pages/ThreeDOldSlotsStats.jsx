@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
-import DateRangePresetFilter from '../components/DateRangePresetFilter';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import OldSlotsSection from '../components/threeDManagement/OldSlotsSection';
@@ -16,21 +15,9 @@ const todayDate = () => {
     return `${y}-${m}-${d}`;
 };
 
-const listDateKeysBetween = (from, to) => {
-    if (!from || !to || from > to) return [];
-    const out = [];
-    const start = new Date(`${from}T12:00:00`);
-    const end = new Date(`${to}T12:00:00`);
-    for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
-        out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-    }
-    return out;
-};
-
 const ThreeDOldSlotsStats = () => {
     const navigate = useNavigate();
-    const [dateFrom, setDateFrom] = useState(todayDate());
-    const [dateTo, setDateTo] = useState(todayDate());
+    const [date, setDate] = useState(todayDate());
     const [historySlots, setHistorySlots] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState('');
     const [activeSection, setActiveSection] = useState('oldSlots');
@@ -65,29 +52,30 @@ const ThreeDOldSlotsStats = () => {
         navigate('/');
     }, [navigate]);
 
-    const fetchHistory = useCallback(async (fromDate, toDate) => {
+    const fetchHistory = useCallback(async (targetDate) => {
         setLoadingHistory(true);
         try {
-            const days = listDateKeysBetween(fromDate, toDate);
-            const settled = await Promise.allSettled(days.map(async (d) => {
-                const params = new URLSearchParams({ date: d, limit: '96' });
-                const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots?${params.toString()}`);
-                if (res.status === 401) return [];
-                const data = await res.json();
-                if (!data?.success) return [];
-                return Array.isArray(data?.data?.slots) ? data.data.slots : [];
-            }));
-            const mergedSlots = settled.flatMap((entry) => (entry.status === 'fulfilled' ? entry.value : []));
-            const uniqueMap = new Map();
-            mergedSlots.forEach((slot) => {
-                const key = String(slot?.slotStartIso || '');
-                if (key) uniqueMap.set(key, slot);
-            });
-            const slots = Array.from(uniqueMap.values())
+            const params = new URLSearchParams({ date: targetDate, limit: '24' });
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots?${params.toString()}`);
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load slot history');
+            const slots = (Array.isArray(data?.data?.slots) ? data.data.slots : [])
                 .sort((a, b) => new Date(b.slotStartIso).getTime() - new Date(a.slotStartIso).getTime());
             setHistorySlots(slots);
+            const nowMs = Date.now();
+            const visibleSlots = slots.filter((slot) => {
+                const endMs = new Date(slot?.slotEndIso || '').getTime();
+                const startMs = new Date(slot?.slotStartIso || '').getTime();
+                const running = Number.isFinite(startMs) && Number.isFinite(endMs) && nowMs >= startMs && nowMs < endMs;
+                return Boolean(slot?.isCompleted) || running;
+            });
             if (slots.length) {
-                setSelectedSlot((prev) => (prev && slots.some((slot) => slot.slotStartIso === prev) ? prev : slots[0].slotStartIso));
+                setSelectedSlot((prev) => (
+                    prev && visibleSlots.some((slot) => slot.slotStartIso === prev)
+                        ? prev
+                        : (visibleSlots[0]?.slotStartIso || slots[0].slotStartIso)
+                ));
             } else {
                 setSelectedSlot('');
             }
@@ -138,7 +126,7 @@ const ThreeDOldSlotsStats = () => {
         setLoadingPlayerHistory(true);
         setPlayerHistoryError('');
         try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/players/${encodeURIComponent(userId)}/history?limit=100`);
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/players/${encodeURIComponent(userId)}/history?limit=30`);
             if (res.status === 401) return;
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to load player history');
@@ -152,15 +140,15 @@ const ThreeDOldSlotsStats = () => {
     }, []);
 
     useEffect(() => {
-        fetchHistory(dateFrom, dateTo);
-    }, [dateFrom, dateTo, fetchHistory]);
+        fetchHistory(date);
+    }, [date, fetchHistory]);
 
     const playerFetchSlots = useMemo(() => {
         if (activeSection !== 'playerHistory') return [];
         const slotsWithBets = historySlots.filter((slot) => Number(slot?.totalTickets || 0) > 0);
-        if (slotsWithBets.length) return slotsWithBets.slice(0, 48);
+        if (slotsWithBets.length) return slotsWithBets.slice(0, 16);
         // fallback: if summaries are zero/missing, still try recent slots
-        return historySlots.slice(0, 24);
+        return historySlots.slice(0, 12);
     }, [activeSection, historySlots]);
 
     useEffect(() => {
@@ -251,7 +239,7 @@ const ThreeDOldSlotsStats = () => {
                     </div>
                     <button
                         type="button"
-                        onClick={() => fetchHistory(dateFrom, dateTo)}
+                        onClick={() => fetchHistory(date)}
                         className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold"
                     >
                         Refresh
@@ -260,23 +248,11 @@ const ThreeDOldSlotsStats = () => {
 
                 {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div> : null}
                 {notice ? <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700">{notice}</div> : null}
-                <div className="rounded-xl border border-gray-200 bg-white p-4">
-                    <DateRangePresetFilter
-                        dateFrom={dateFrom}
-                        dateTo={dateTo}
-                        setDateFrom={setDateFrom}
-                        setDateTo={setDateTo}
-                    />
-                </div>
-
                 <OldSlotsSection
                     activeSection={activeSection}
                     setActiveSection={setActiveSection}
-                    date={dateFrom}
-                    setDate={(d) => {
-                        setDateFrom(d);
-                        setDateTo(d);
-                    }}
+                    date={date}
+                    setDate={setDate}
                     setNotice={setNotice}
                     setError={setError}
                     isTimeDropdownOpen={isTimeDropdownOpen}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
@@ -18,6 +18,7 @@ import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
 import { formatTimer, getCellKey, getFamilyNumbers, getLotterySetTotals, getTotals } from '../utils/boardHelpers';
 import { getCurrentUser, isUserLoggedIn, subscribeUserSession } from '../session/userSession';
 
+const LAST_2D_SLOT_RESULTS_STORAGE_KEY = 'lottery2d:lastPublicSlotResultsV1';
 const MAX_QUIZ_NUMBERS_PER_SLOT = 100;
 /** Keypad stake entry: max 3 digits (1–999). */
 const MAX_LOTTERY_AMOUNT = 999;
@@ -77,9 +78,15 @@ const LotteryDashboard = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const ALL_QUIZZES = useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), []);
 
-  const refreshLatestDeclaredResults = useCallback(async () => {
-    const j = await getQuizSlotResults(1, '2d');
+  const hydrateDeclaredResultsPayload = useCallback((j) => {
     const slot = Array.isArray(j?.data) ? j.data[0] : null;
+    const clearStoredBanner = () => {
+      try {
+        sessionStorage.removeItem(LAST_2D_SLOT_RESULTS_STORAGE_KEY);
+      } catch (_) {
+        /* ignore */
+      }
+    };
     const timeLabel =
       typeof slot?.drawLabelEnd === 'string' && slot.drawLabelEnd.trim() !== ''
         ? slot.drawLabelEnd.trim()
@@ -88,6 +95,7 @@ const LotteryDashboard = () => {
     const picks = slot?.picks;
     if (!Array.isArray(picks)) {
       setLastSlotByQuiz({});
+      clearStoredBanner();
       return;
     }
     const next = {};
@@ -98,7 +106,39 @@ const LotteryDashboard = () => {
       }
     }
     setLastSlotByQuiz(next);
+    try {
+      if (
+        j?.success
+        && slot
+        && typeof slot.slotStartIso === 'string'
+        && picks.length > 0
+      ) {
+        sessionStorage.setItem(LAST_2D_SLOT_RESULTS_STORAGE_KEY, JSON.stringify(j));
+      } else if (!j?.success || !slot) {
+        clearStoredBanner();
+      }
+    } catch (_) {
+      /* ignore quota / privacy mode */
+    }
   }, []);
+
+  useLayoutEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(LAST_2D_SLOT_RESULTS_STORAGE_KEY);
+      if (!raw) return;
+      const j = JSON.parse(raw);
+      if (j?.success && Array.isArray(j.data) && j.data[0]?.picks?.length) {
+        hydrateDeclaredResultsPayload(j);
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }, [hydrateDeclaredResultsPayload]);
+
+  const refreshLatestDeclaredResults = useCallback(async () => {
+    const j = await getQuizSlotResults(1, '2d', { includeSale: false });
+    hydrateDeclaredResultsPayload(j);
+  }, [hydrateDeclaredResultsPayload]);
 
   useEffect(() => {
     const quiz = searchParams.get('quiz');
@@ -257,24 +297,32 @@ const LotteryDashboard = () => {
 
   useEffect(() => {
     let stop = false;
+    const applySlotPayload = (j) => {
+      if (stop) return;
+      if (j.success && j.data) {
+        setServerSlot(j.data);
+        const serverNowMs = j?.data?.serverNowIso ? new Date(j.data.serverNowIso).getTime() : NaN;
+        if (Number.isFinite(serverNowMs)) {
+          setServerOffsetMs(serverNowMs - Date.now());
+        }
+      } else {
+        setServerSlot(null);
+      }
+      setSlotSyncErr('');
+    };
     const sync = () => {
-      getQuizSlot()
-        .then((j) => {
+      void Promise.allSettled([getQuizSlot(), getQuizSlotResults(1, '2d', { includeSale: false })]).then(
+        ([sjRes, rjRes]) => {
           if (stop) return;
-          if (j.success && j.data) {
-            setServerSlot(j.data);
-            const serverNowMs = j?.data?.serverNowIso ? new Date(j.data.serverNowIso).getTime() : NaN;
-            if (Number.isFinite(serverNowMs)) {
-              setServerOffsetMs(serverNowMs - Date.now());
-            }
-          } else {
-            setServerSlot(null);
+          if (sjRes.status === 'fulfilled') applySlotPayload(sjRes.value);
+          else setSlotSyncErr(sjRes.reason?.message || 'Slot sync failed');
+          if (rjRes.status === 'fulfilled') hydrateDeclaredResultsPayload(rjRes.value);
+          else {
+            setLastSlotByQuiz({});
+            setPrevSlotDrawEndLabel('');
           }
-          setSlotSyncErr('');
-        })
-        .catch((e) => {
-          if (!stop) setSlotSyncErr(e.message || '');
-        });
+        },
+      );
     };
     sync();
     const onVisible = () => {
@@ -285,7 +333,7 @@ const LotteryDashboard = () => {
       stop = true;
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [hydrateDeclaredResultsPayload]);
   useEffect(() => {
     if (!advanceSelectionNotice) return undefined;
     const t = setTimeout(() => setAdvanceSelectionNotice(''), 1400);
@@ -300,7 +348,7 @@ const LotteryDashboard = () => {
 
   useEffect(() => {
     let stop = false;
-    const loadLastSlot = async () => {
+    const pollResultsOnly = async () => {
       try {
         await refreshLatestDeclaredResults();
       } catch {
@@ -310,14 +358,15 @@ const LotteryDashboard = () => {
         }
       }
     };
-    loadLastSlot();
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') loadLastSlot();
-    };
-    document.addEventListener('visibilitychange', onVisible);
+    // Initial + tab focus: bundled with `/quiz/slot` in the effect above so both load in parallel.
+    const pollMs = 45000;
+    const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible' || stop) return;
+      pollResultsOnly();
+    }, pollMs);
     return () => {
       stop = true;
-      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(interval);
     };
   }, [refreshLatestDeclaredResults]);
 

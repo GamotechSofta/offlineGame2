@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import DateRangePresetFilter from '../components/DateRangePresetFilter';
 import useModalBackHandler from '../hooks/useModalBackHandler';
+import useAdminLiveInvalidation from '../hooks/useAdminLiveInvalidation';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -45,11 +46,21 @@ const rowMatchesSlotPlayerSearch = (player, raw) => {
     return false;
 };
 
+const dateKeyMinusDays = (dateKey, days) => {
+    const dt = new Date(`${dateKey}T00:00:00`);
+    dt.setDate(dt.getDate() - days);
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
 const ThreeDCurrentSlotPlayers = () => {
     const navigate = useNavigate();
     /** live = server current slot; bySlot = IST day + draw (past, live, or advance) */
     const [viewMode, setViewMode] = useState('live');
     const t0 = todayDate();
+    const maxWindowFrom = useMemo(() => dateKeyMinusDays(t0, 61), [t0]);
     const [dateFrom, setDateFrom] = useState(t0);
     const [dateTo, setDateTo] = useState(t0);
     const [historySlots, setHistorySlots] = useState([]);
@@ -71,6 +82,7 @@ const ThreeDCurrentSlotPlayers = () => {
     const [playerSearch, setPlayerSearch] = useState('');
 
     const selectedSlotIsoRef = useRef('');
+    const liveRefreshBusyRef = useRef(false);
     useEffect(() => {
         selectedSlotIsoRef.current = selectedHistorySlotIso;
     }, [selectedHistorySlotIso]);
@@ -245,6 +257,18 @@ const ThreeDCurrentSlotPlayers = () => {
         fetchPlayersForSlotIso,
     ]);
 
+    useAdminLiveInvalidation({
+        enabled: viewMode === 'live',
+        throttleMs: 1200,
+        onInvalidate: () => {
+            if (liveRefreshBusyRef.current || loading || loadingHistorySlots || loadingMorePlayers) return;
+            liveRefreshBusyRef.current = true;
+            Promise.resolve(refresh()).finally(() => {
+                liveRefreshBusyRef.current = false;
+            });
+        },
+    });
+
     useEffect(() => {
         if (viewMode === 'live') {
             fetchLiveSlotPlayers({ pageToFetch: 1 });
@@ -395,6 +419,7 @@ const ThreeDCurrentSlotPlayers = () => {
                                 dateTo={dateTo}
                                 setDateFrom={setDateFrom}
                                 setDateTo={setDateTo}
+                                allPresetFrom={maxWindowFrom}
                                 className="w-full"
                             />
                             <label className="flex flex-col gap-1 text-sm min-w-[220px] flex-1">

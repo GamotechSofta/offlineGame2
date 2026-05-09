@@ -20,8 +20,9 @@ export function getAuthHeaders() {
 export async function fetchWithAuth(url, options = {}) {
     const headers = { ...getAuthHeaders(), ...(options.headers || {}) };
     const method = options.method || 'GET';
+    const cache = options.cache ?? 'no-store';
     const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const res = await fetch(url, { ...options, headers });
+    const res = await fetch(url, { ...options, headers, cache });
     if (isAdminTraceEnabled()) {
         let responseBytes = 0;
         try {

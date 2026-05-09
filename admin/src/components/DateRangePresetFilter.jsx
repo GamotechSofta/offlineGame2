@@ -64,6 +64,7 @@ const DateRangePresetFilter = ({
   dateTo,
   setDateFrom,
   setDateTo,
+  allPresetFrom = '2020-01-01',
   className = '',
 }) => {
   const [preset, setPreset] = React.useState('today');
@@ -82,7 +83,7 @@ const DateRangePresetFilter = ({
     if (presetId === 'custom') return;
     const { from, to } = getPresetRange(presetId);
     const today = toDateKey(getToday());
-    setDateFrom(from || '2020-01-01');
+    setDateFrom(from || allPresetFrom);
     setDateTo(to || today);
   };
 

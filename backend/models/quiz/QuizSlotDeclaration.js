@@ -26,6 +26,11 @@ const quizSlotDeclarationSchema = new mongoose.Schema(
 );
 
 quizSlotDeclarationSchema.index({ gameMode: 1, slotStartIso: 1 }, { unique: true });
+/** Speeds public `GET /quiz/slot-results` (recent declared, ended slots first). */
+quizSlotDeclarationSchema.index(
+  { gameMode: 1, slotStartIso: -1 },
+  { partialFilterExpression: { declaredAt: { $ne: null } } },
+);
 
 export default mongoose.model('QuizSlotDeclaration', quizSlotDeclarationSchema);
 

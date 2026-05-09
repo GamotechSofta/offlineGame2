@@ -13,9 +13,57 @@ import {
 } from '../services/slotService.js';
 import { getOrCreatePick } from '../services/quizPickService.js';
 import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
+import { QUIZ_PUBLIC_LAST_SLOT_RESULTS_PREFIX } from '../services/cacheInvalidationService.js';
+import { cacheGet, cacheSet } from '../services/cacheService.js';
 
 const resolveGameMode = (req) =>
   (String(req.query?.mode || req.body?.mode || '2d').toLowerCase() === '3d' ? '3d' : '2d');
+
+const QUIZ_LAST_SLOT_PUBLIC_CACHE_TTL_SECONDS = 12;
+
+/** One legacy history row for GET `/quiz/slot-results` (no `date`). */
+function buildLegacySlotResultsEntry(slotStartIso, picksInput, declaredResultsArray, sale, gameMode) {
+  const maxPos = gameMode === '3d' ? 999 : 99;
+  const padLen = gameMode === '3d' ? 3 : 2;
+  const maxQuizId = gameMode === '3d' ? 3 : 30;
+  const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+  const picksRaw = [...(picksInput || [])]
+    .filter((p) => Number.isInteger(p.quizId) && p.quizId >= 1 && p.quizId <= maxQuizId)
+    .sort((a, b) => a.quizId - b.quizId);
+  const picksByQuiz = new Map(picksRaw.map((p) => [p.quizId, p.hintPosition]));
+  const snapshotByQuiz = new Map(
+    (Array.isArray(declaredResultsArray) ? declaredResultsArray : [])
+      .filter((r) => Number.isInteger(r?.quizId))
+      .map((r) => [r.quizId, r.result]),
+  );
+  const picks = Array.from({ length: maxQuizId }, (_, i) => i + 1).map((quizId) => {
+    const hp = snapshotByQuiz.has(quizId) ? snapshotByQuiz.get(quizId) : picksByQuiz.get(quizId);
+    const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos;
+    return { quizId, winningPosition: ok ? hp : null };
+  });
+  const summary = picks.map((p) => {
+    if (gameMode === '3d') {
+      const setLabel = p.quizId === 1 ? 'A' : p.quizId === 2 ? 'B' : p.quizId === 3 ? 'C' : `Q${String(p.quizId).padStart(2, '0')}`;
+      if (p.winningPosition == null) return `Set ${setLabel}--`;
+      return `Set ${setLabel}-${String(p.winningPosition).padStart(padLen, '0')}`;
+    }
+    const q = String(p.quizId).padStart(2, '0');
+    if (p.winningPosition == null) return `Q${q}--`;
+    return `Q${q}-${String(p.winningPosition).padStart(padLen, '0')}`;
+  }).join(', ');
+  const ymd = new Date(slotEndMs).toISOString().slice(2, 10).replace(/-/g, '');
+  const drawLabel = `GM${ymd}${String(picks.length).padStart(2, '0')}`;
+  return {
+    slotStartIso,
+    slotEndIso: new Date(slotEndMs).toISOString(),
+    drawLabel,
+    drawLabelEnd: formatDrawLabel(slotEndMs),
+    resultsSummary: summary,
+    picks,
+    sale: sale ?? 0,
+    at: new Date(slotEndMs).toISOString(),
+  };
+}
 
 function formatQ(quizId, hintPos) {
   const q = String(quizId).padStart(2, '0');
@@ -138,6 +186,7 @@ export const getSlotResultsForDate = async (req, res) => {
  * GET /api/v1/quiz/slot-results
  * - ?date=YYYY-MM-DD&mode=2d|3d — IST day chart (persisted hintPosition only); optional &maxSlots= (default 96).
  * - ?limit=N&mode=2d|3d — legacy last N completed slots (summary + sale); hintPosition from DB only.
+ * - ?includeSale=0 — skip board sale rollup on 2D (faster; optional with limit=1 “last draw” callers).
  */
 export const getSlotResultsHistory = async (req, res) => {
   if (req.query.date != null && String(req.query.date).trim() !== '') {
@@ -145,13 +194,65 @@ export const getSlotResultsHistory = async (req, res) => {
   }
   try {
     const gameMode = resolveGameMode(req);
-    const maxPos = gameMode === '3d' ? 999 : 99;
-    const padLen = gameMode === '3d' ? 3 : 2;
-    const maxQuizId = gameMode === '3d' ? 3 : 30;
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const now = new Date();
+    const wantSale = gameMode === '2d' && String(req.query?.includeSale ?? '1').trim() !== '0';
+    const slotEndedExpr = {
+      $expr: {
+        $lte: [{ $add: [{ $toDate: '$slotStartIso' }, SLOT_MS] }, now],
+      },
+    };
 
-    const declaredSlotRows = await QuizSlotDeclaration.find({ gameMode, declaredAt: { $ne: null } })
+    /** Lottery board only needs one row → indexed reads + short public cache (`includeSale=0` callers). */
+    if (limit === 1) {
+      const cacheKey = `${QUIZ_PUBLIC_LAST_SLOT_RESULTS_PREFIX}${gameMode}:sale${wantSale ? '1' : '0'}`;
+      const cachedPayload = await cacheGet(cacheKey);
+      if (cachedPayload?.success === true && Array.isArray(cachedPayload.data)) {
+        return res.json(cachedPayload);
+      }
+
+      const decl = await QuizSlotDeclaration.findOne({
+        gameMode,
+        declaredAt: { $ne: null },
+        ...slotEndedExpr,
+      })
+        .sort({ slotStartIso: -1 })
+        .select('slotStartIso declaredResults')
+        .lean();
+      if (!decl?.slotStartIso) {
+        return res.json({ success: true, mode: gameMode, data: [] });
+      }
+      const slotStartIso = String(decl.slotStartIso);
+      const pickDocs = await QuizSlotPick.find({ gameMode, slotStartIso })
+        .select('quizId hintPosition')
+        .lean();
+      let sale = 0;
+      if (wantSale) {
+        const [agg] = await LotteryBoardBet.aggregate([
+          { $match: { slotStartIso } },
+          { $group: { _id: '$slotStartIso', sale: { $sum: '$totalAmount' } } },
+        ]);
+        sale = agg?.sale ?? 0;
+      }
+      const data = [
+        buildLegacySlotResultsEntry(slotStartIso, pickDocs, decl.declaredResults, sale, gameMode),
+      ];
+      const payload = { success: true, mode: gameMode, data };
+      if (data.length > 0) {
+        await cacheSet(cacheKey, payload, QUIZ_LAST_SLOT_PUBLIC_CACHE_TTL_SECONDS);
+      }
+      return res.json(payload);
+    }
+
+    // Only consider ended slots; cap how many declarations we load (was: entire collection → slow at scale).
+    const candidateLimit = Math.min(500, Math.max(80, limit * 30));
+    const declaredSlotRows = await QuizSlotDeclaration.find({
+      gameMode,
+      declaredAt: { $ne: null },
+      ...slotEndedExpr,
+    })
+      .sort({ slotStartIso: -1 })
+      .limit(candidateLimit)
       .select('slotStartIso declaredResults')
       .lean();
     const declaredResultsBySlot = new Map(
@@ -189,7 +290,7 @@ export const getSlotResultsHistory = async (req, res) => {
 
     const slotKeys = rows.map((r) => r._id);
     const saleBySlot = {};
-    if (gameMode === '2d' && slotKeys.length) {
+    if (wantSale && slotKeys.length) {
       const sales = await LotteryBoardBet.aggregate([
         { $match: { slotStartIso: { $in: slotKeys } } },
         { $group: { _id: '$slotStartIso', sale: { $sum: '$totalAmount' } } },
@@ -199,47 +300,13 @@ export const getSlotResultsHistory = async (req, res) => {
       });
     }
 
-    const data = rows.map((row) => {
-      const slotStartIso = row._id;
-      const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
-      const picksRaw = [...row.picks]
-        .filter((p) => Number.isInteger(p.quizId) && p.quizId >= 1 && p.quizId <= maxQuizId)
-        .sort((a, b) => a.quizId - b.quizId);
-      const picksByQuiz = new Map(picksRaw.map((p) => [p.quizId, p.hintPosition]));
-      const snapshotRows = declaredResultsBySlot.get(slotStartIso) || [];
-      const snapshotByQuiz = new Map(
-        snapshotRows
-          .filter((r) => Number.isInteger(r?.quizId))
-          .map((r) => [r.quizId, r.result]),
-      );
-      const picks = Array.from({ length: maxQuizId }, (_, i) => i + 1).map((quizId) => {
-        const hp = snapshotByQuiz.has(quizId) ? snapshotByQuiz.get(quizId) : picksByQuiz.get(quizId);
-        const ok = hp != null && Number.isInteger(hp) && hp >= 0 && hp <= maxPos;
-        return { quizId, winningPosition: ok ? hp : null };
-      });
-      const summary = picks.map((p) => {
-        if (gameMode === '3d') {
-          const setLabel = p.quizId === 1 ? 'A' : p.quizId === 2 ? 'B' : p.quizId === 3 ? 'C' : `Q${String(p.quizId).padStart(2, '0')}`;
-          if (p.winningPosition == null) return `Set ${setLabel}--`;
-          return `Set ${setLabel}-${String(p.winningPosition).padStart(padLen, '0')}`;
-        }
-        const q = String(p.quizId).padStart(2, '0');
-        if (p.winningPosition == null) return `Q${q}--`;
-        return `Q${q}-${String(p.winningPosition).padStart(padLen, '0')}`;
-      }).join(', ');
-      const ymd = new Date(slotEndMs).toISOString().slice(2, 10).replace(/-/g, '');
-      const drawLabel = `GM${ymd}${String(picks.length).padStart(2, '0')}`;
-      return {
-        slotStartIso,
-        slotEndIso: new Date(slotEndMs).toISOString(),
-        drawLabel,
-        drawLabelEnd: formatDrawLabel(slotEndMs),
-        resultsSummary: summary,
-        picks,
-        sale: saleBySlot[slotStartIso] ?? 0,
-        at: new Date(slotEndMs).toISOString(),
-      };
-    });
+    const data = rows.map((row) => buildLegacySlotResultsEntry(
+      row._id,
+      row.picks,
+      declaredResultsBySlot.get(row._id) || [],
+      saleBySlot[row._id] ?? 0,
+      gameMode,
+    ));
 
     res.json({ success: true, mode: gameMode, data });
   } catch (err) {

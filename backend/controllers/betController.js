@@ -11,6 +11,7 @@ import { BET_TYPES as VALID_BET_TYPES } from '../models/bet/betTypeConstants.js'
 import { parseChartBet } from '../utils/chartBet.js';
 import { isSpCommon } from '../config/spCommonList.js';
 import { isValidDoublePana } from '../utils/doublePanaValidate.js';
+import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 const THREE_DIGITS = /^\d{3}$/;
 /** CP (Common Pana): 3-digit chart single, chart double, or triple (matches frontend generateCPCommon). */
 const isValidCpCommonThreeDigit = (sn) =>
@@ -334,6 +335,7 @@ export const placeBet = async (req, res) => {
             throw txErr;
         }
 
+        await invalidateAdminReadCaches('market_bet_placed');
         res.status(201).json({
             success: true,
             message: 'Bet placed successfully',
@@ -575,6 +577,7 @@ export const placeBetForPlayer = async (req, res) => {
         // Note: No wallet transaction for user since bookie pays from their balance
         // Bookie's balance is already deducted above
 
+        await invalidateAdminReadCaches('bookie_market_bet_placed');
         res.status(201).json({
             success: true,
             message: `Bet placed successfully for ${user.username}`,

@@ -18,6 +18,7 @@ const TwoDOldSlotsStats = () => {
     const navigate = useNavigate();
     const [date, setDate] = useState(todayDate());
     const [historySlots, setHistorySlots] = useState([]);
+    const [currentSlotData, setCurrentSlotData] = useState(null);
     const [selectedSlot, setSelectedSlot] = useState('');
     const [detailData, setDetailData] = useState(null);
     const [loadingHistory, setLoadingHistory] = useState(true);
@@ -37,7 +38,7 @@ const TwoDOldSlotsStats = () => {
     const fetchHistory = useCallback(async (targetDate) => {
         setLoadingHistory(true);
         try {
-            const params = new URLSearchParams({ date: targetDate, limit: '96' });
+            const params = new URLSearchParams({ date: targetDate, limit: '24' });
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots?${params.toString()}`);
             if (res.status === 401) return;
             const data = await res.json();
@@ -75,9 +76,25 @@ const TwoDOldSlotsStats = () => {
         }
     }, []);
 
+    const fetchCurrentSlot = useCallback(async () => {
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/current-slot`);
+            if (res.status === 401) return;
+            const data = await res.json();
+            if (!data?.success) throw new Error(data?.message || 'Failed to load current slot');
+            setCurrentSlotData(data?.data || null);
+        } catch {
+            setCurrentSlotData(null);
+        }
+    }, []);
+
     useEffect(() => {
         fetchHistory(date);
     }, [date, fetchHistory]);
+
+    useEffect(() => {
+        fetchCurrentSlot();
+    }, [fetchCurrentSlot]);
 
     useEffect(() => {
         if (selectedSlot) fetchDetail(selectedSlot);
@@ -97,7 +114,6 @@ const TwoDOldSlotsStats = () => {
         setSelectedSlot(slotStartIso);
         setNotice('');
         setError('');
-        await fetchDetail(slotStartIso);
         setActiveSection('quizStats');
         setNotice('Slot detail loaded. Scroll below for quiz-wise view.');
         if (detailSectionRef.current) {
@@ -117,7 +133,10 @@ const TwoDOldSlotsStats = () => {
                     </div>
                     <button
                         type="button"
-                        onClick={() => fetchHistory(date)}
+                        onClick={() => {
+                            fetchHistory(date);
+                            fetchCurrentSlot();
+                        }}
                         className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold"
                     >
                         Refresh
@@ -146,6 +165,7 @@ const TwoDOldSlotsStats = () => {
                     detailSectionRef={detailSectionRef}
                     loadingDetail={loadingDetail}
                     detailData={detailData}
+                    currentSlotData={currentSlotData}
                 />
             </div>
         </AdminLayout>

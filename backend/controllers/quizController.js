@@ -26,6 +26,7 @@ import { getBetOwnerKey } from '../utils/betOwnerKey.js';
 import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js';
 import { getQuizTimingSettingsSnapshot } from '../services/quizTimingSettingsService.js';
 import { ensureDeclaredResultsSnapshots, isSlotDeclared } from '../services/quizDeclarationService.js';
+import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 
 const QUIZ_BET_MIN_STAKE = 1;
 const QUIZ_BET_MAX_STAKE = 1_000_000;
@@ -428,6 +429,7 @@ export const postQuizBet = async (req, res) => {
     }
 
     await applyInsertsOrRefund(userId, totalStake, insertDocs);
+    await invalidateAdminReadCaches('quiz_bet_placed');
 
     res.status(201).json({
       success: true,
@@ -590,6 +592,7 @@ export const postQuizBetsBatch = async (req, res) => {
 
     const flatInserts = roundsData.flatMap((r) => r.insertDocs);
     await applyInsertsOrRefund(userId, totalStake, flatInserts);
+    await invalidateAdminReadCaches('quiz_batch_bet_placed');
 
     res.status(201).json({
       success: true,

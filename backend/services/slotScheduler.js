@@ -14,6 +14,7 @@ import {
   markSlotDeclared,
 } from './quizDeclarationService.js';
 import { apply2DTargetProfitHintsToSlot, apply3DTargetProfitHintsToSlot } from './quizTargetProfitService.js';
+import { bustQuizPublicLastSlotResultsCaches } from './cacheInvalidationService.js';
 const TICK_MS = 60_000;
 const INITIAL_DELAY_MS = 3_000;
 const SLOT_END_TRIGGER_DELAY_MS = 150;
@@ -111,6 +112,7 @@ async function emitCompletedSlotResults(slotStartIso, gameMode = '2d') {
   }
 
   io.emit('quiz:result', { gameMode, slotStartIso, results });
+  bustQuizPublicLastSlotResultsCaches().catch(() => {});
   // eslint-disable-next-line no-console
   console.log(JSON.stringify({ tag: '[socket:emit]', event: 'quiz:result', gameMode, slotStartIso }));
 
