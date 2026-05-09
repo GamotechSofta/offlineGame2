@@ -940,6 +940,16 @@ const PlayerDetail = () => {
         return sorted[0]?.deviceId || null;
     })();
 
+    const bonusBalanceOwner = player?.source === 'bookie'
+        ? {
+            type: 'bookie',
+            name: player?.referredBy?.username || 'Unknown',
+        }
+        : {
+            type: 'admin',
+            name: 'Admin',
+        };
+
     if (loading) {
         return (
             <AdminLayout onLogout={handleLogout} title="Player">
@@ -1100,6 +1110,17 @@ const PlayerDetail = () => {
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Bonus Balance</p>
                             <p className="text-gray-600">0</p>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="uppercase tracking-wider text-xs text-blue-600">
+                                {bonusBalanceOwner.type === 'bookie' ? 'Bookie' : 'Admin'}
+                            </p>
+                            <p
+                                className="text-sm whitespace-nowrap text-blue-700"
+                                title={bonusBalanceOwner.name}
+                            >
+                                {bonusBalanceOwner.name}
+                            </p>
                         </div>
                     </div>
                 </div>
