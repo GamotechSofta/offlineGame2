@@ -65,6 +65,17 @@ const AllUsers = () => {
     useTraceRender('AllUsers');
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('all');
+    /** Server pagination for GET /users (100 per page, separate page per tab). */
+    const [playerListPages, setPlayerListPages] = useState({
+        all: 1,
+        super_admin_users: 1,
+        bookie_users: 1,
+    });
+    const [paginationByTab, setPaginationByTab] = useState({
+        all: null,
+        super_admin_users: null,
+        bookie_users: null,
+    });
     const [expandedBookieId, setExpandedBookieId] = useState(null);
     const [allUsers, setAllUsers] = useState([]);
     const [superAdminUsersList, setSuperAdminUsersList] = useState([]);
@@ -90,12 +101,14 @@ const AllUsers = () => {
         setPasswordError('');
     });
 
-    const fetchData = async () => {
-        return dedupeRequest('all-users:data', async () => {
+    const fetchData = async ({ queryKey }) => {
+        const [, pAll, pSuper, pBookie] = queryKey;
+        const dedupeKey = `all-users:data:${pAll}:${pSuper}:${pBookie}`;
+        return dedupeRequest(dedupeKey, async () => {
             const [allRes, superAdminRes, bookieRes, bookiesRes, adminsRes] = await Promise.all([
-                fetchWithAuth(`${API_BASE_URL}/users?page=1&limit=${USERS_PAGE_LIMIT}`),
-                fetchWithAuth(`${API_BASE_URL}/users?filter=super_admin&page=1&limit=${USERS_PAGE_LIMIT}`),
-                fetchWithAuth(`${API_BASE_URL}/users?filter=bookie&page=1&limit=${USERS_PAGE_LIMIT}`),
+                fetchWithAuth(`${API_BASE_URL}/users?page=${pAll}&limit=${USERS_PAGE_LIMIT}`),
+                fetchWithAuth(`${API_BASE_URL}/users?filter=super_admin&page=${pSuper}&limit=${USERS_PAGE_LIMIT}`),
+                fetchWithAuth(`${API_BASE_URL}/users?filter=bookie&page=${pBookie}&limit=${USERS_PAGE_LIMIT}`),
                 fetchWithAuth(`${API_BASE_URL}/admin/bookies`),
                 fetchWithAuth(`${API_BASE_URL}/admin/super-admins`),
             ]);
@@ -106,6 +119,9 @@ const AllUsers = () => {
                     bookieUsersList: [],
                     allBookies: [],
                     superAdminsList: [],
+                    paginationAll: null,
+                    paginationSuperAdmin: null,
+                    paginationBookie: null,
                 };
             }
             const allData = await allRes.json();
@@ -119,6 +135,9 @@ const AllUsers = () => {
                 bookieUsersList: bookieData.success ? (bookieData.data || []) : [],
                 allBookies: bookiesData.success ? (bookiesData.data || []) : [],
                 superAdminsList: adminsData.success ? (adminsData.data || []) : [],
+                paginationAll: allData.success ? allData.pagination : null,
+                paginationSuperAdmin: superAdminData.success ? superAdminData.pagination : null,
+                paginationBookie: bookieData.success ? bookieData.pagination : null,
             };
         });
     };
@@ -140,7 +159,7 @@ const AllUsers = () => {
     }, [navigate]);
 
     const usersQuery = useQuery({
-        queryKey: ['all-users-data'],
+        queryKey: ['all-users-data', playerListPages.all, playerListPages.super_admin_users, playerListPages.bookie_users],
         queryFn: fetchData,
         enabled: !!localStorage.getItem('admin'),
         refetchOnWindowFocus: false,
@@ -156,6 +175,11 @@ const AllUsers = () => {
         setBookieUsersList(usersQuery.data.bookieUsersList || []);
         setAllBookies(usersQuery.data.allBookies || []);
         setSuperAdminsList(usersQuery.data.superAdminsList || []);
+        setPaginationByTab({
+            all: usersQuery.data.paginationAll ?? null,
+            super_admin_users: usersQuery.data.paginationSuperAdmin ?? null,
+            bookie_users: usersQuery.data.paginationBookie ?? null,
+        });
         setError('');
     }, [usersQuery.data]);
 
@@ -306,6 +330,19 @@ const AllUsers = () => {
     const list = getCurrentList();
     const isUserList = ['all', 'super_admin_users', 'bookie_users'].includes(activeTab);
 
+    const paginationForActiveUserTab =
+        activeTab === 'all'
+            ? paginationByTab.all
+            : activeTab === 'super_admin_users'
+              ? paginationByTab.super_admin_users
+              : activeTab === 'bookie_users'
+                ? paginationByTab.bookie_users
+                : null;
+    const rowOffset =
+        isUserList && paginationForActiveUserTab
+            ? (paginationForActiveUserTab.page - 1) * (paginationForActiveUserTab.limit || USERS_PAGE_LIMIT)
+            : 0;
+
     const q = searchQuery.trim().toLowerCase();
     const filteredList = q
         ? list.filter((item) => {
@@ -320,6 +357,24 @@ const AllUsers = () => {
             (u) => u.referredBy && (u.referredBy._id === bookieId || u.referredBy === bookieId)
         );
     };
+
+    useEffect(() => {
+        setPlayerListPages((prev) => {
+            const next = { ...prev };
+            let changed = false;
+            const clamp = (tabKey, pag) => {
+                if (!pag?.totalPages || pag.totalPages < 1) return;
+                if (prev[tabKey] > pag.totalPages) {
+                    next[tabKey] = pag.totalPages;
+                    changed = true;
+                }
+            };
+            clamp('all', paginationByTab.all);
+            clamp('super_admin_users', paginationByTab.super_admin_users);
+            clamp('bookie_users', paginationByTab.bookie_users);
+            return changed ? next : prev;
+        });
+    }, [paginationByTab.all, paginationByTab.super_admin_users, paginationByTab.bookie_users]);
 
     return (
         <AdminLayout onLogout={handleLogout} title="All Players">
@@ -676,7 +731,9 @@ const AllUsers = () => {
                             <tbody className="divide-y divide-gray-700">
                                 {filteredList.map((item, index) => (
                                     <tr key={item._id} className="hover:bg-gray-50">
-                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{index + 1}</td>
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">
+                                            {isUserList ? rowOffset + index + 1 : index + 1}
+                                        </td>
                                         <td className="px-2 sm:px-3 py-2 sm:py-3 font-medium">
                                             {isUserList ? (
                                                 <Link to={`/all-users/${item._id}`} className="text-orange-500 hover:text-orange-600 hover:underline truncate block max-w-[120px]">{item.username}</Link>
@@ -784,15 +841,66 @@ const AllUsers = () => {
                             </tbody>
                         </table>
                         </div>
+                        {isUserList && paginationForActiveUserTab && (
+                            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50">
+                                <p className="text-sm text-gray-600">
+                                    Page <span className="font-semibold text-gray-800">{paginationForActiveUserTab.page}</span>
+                                    {' '}of{' '}
+                                    <span className="font-semibold text-gray-800">{paginationForActiveUserTab.totalPages}</span>
+                                    <span className="text-gray-500">
+                                        {' '}({paginationForActiveUserTab.total.toLocaleString('en-IN')} total)
+                                    </span>
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        disabled={loading || !paginationForActiveUserTab.hasPrevPage}
+                                        onClick={() =>
+                                            setPlayerListPages((p) => ({
+                                                ...p,
+                                                [activeTab]: Math.max(1, (p[activeTab] || 1) - 1),
+                                            }))
+                                        }
+                                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-800 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Previous
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={loading || !paginationForActiveUserTab.hasNextPage}
+                                        onClick={() =>
+                                            setPlayerListPages((p) => ({
+                                                ...p,
+                                                [activeTab]: (p[activeTab] || 1) + 1,
+                                            }))
+                                        }
+                                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 text-gray-900 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
 
             {!loading && list.length > 0 && (
                 <p className="mt-4 text-gray-400 text-sm">
-                    Showing {filteredList.length} {TABS.find(t => t.id === activeTab)?.label?.toLowerCase()}
-                    {searchQuery && filteredList.length !== list.length && (
-                        <span> (filtered from {list.length})</span>
+                    {isUserList && paginationForActiveUserTab && !q ? (
+                        <>
+                            Showing{' '}
+                            {filteredList.length > 0 ? `${(rowOffset + 1).toLocaleString('en-IN')}–${(rowOffset + filteredList.length).toLocaleString('en-IN')}` : '0'}
+                            {' '}of {paginationForActiveUserTab.total.toLocaleString('en-IN')}{' '}
+                            {TABS.find((t) => t.id === activeTab)?.label?.toLowerCase()}
+                        </>
+                    ) : (
+                        <>
+                            Showing {filteredList.length} {TABS.find((t) => t.id === activeTab)?.label?.toLowerCase()}
+                            {searchQuery && filteredList.length !== list.length && (
+                                <span> (filtered from {list.length})</span>
+                            )}
+                        </>
                     )}
                 </p>
             )}
