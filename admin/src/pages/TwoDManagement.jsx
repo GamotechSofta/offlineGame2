@@ -10,6 +10,7 @@ import OldSlotsSection from '../components/twoDManagement/OldSlotsSection';
 import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
 import { dedupeRequest } from '../lib/requestDedupe';
+import { getTodayIST } from '../utils/istDate';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -67,8 +68,8 @@ const TwoDManagement = () => {
     const [aggregateStats, setAggregateStats] = useState(null);
     const [loadingAggregateStats, setLoadingAggregateStats] = useState(true);
     const [aggregateStatsError, setAggregateStatsError] = useState('');
-    const [appliedStatsDateFrom, setAppliedStatsDateFrom] = useState('');
-    const [appliedStatsDateTo, setAppliedStatsDateTo] = useState('');
+    const [appliedStatsDateFrom, setAppliedStatsDateFrom] = useState(() => getTodayIST());
+    const [appliedStatsDateTo, setAppliedStatsDateTo] = useState(() => getTodayIST());
     const detailSectionRef = useRef(null);
     const timeDropdownRef = useRef(null);
     const currentSlotIsoRef = useRef('');
