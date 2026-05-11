@@ -188,6 +188,10 @@ const ThreeDGame = () => {
   const [searchParams] = useSearchParams();
   const quizId = searchParams.get('quiz');
   const slotRef = useRef('');
+  const hasSeenFirstSlotKeyRef = useRef(false);
+  const previousSlotKeyForTransitionRef = useRef('');
+  const [slotTransitionSeconds, setSlotTransitionSeconds] = useState(0);
+  const slotTransitionTimerRef = useRef(null);
   const backendResultCacheRef = useRef(new Map());
   const lastLandscapeAutoFsAttemptRef = useRef(0);
   const inputNumberRef = useRef(null);
@@ -282,6 +286,7 @@ const ThreeDGame = () => {
     () => String(toast || '').toLowerCase() === 'bet placed successfully',
     [toast],
   );
+  const slotTransitionActive = slotTransitionSeconds > 0;
   const canUsePortal = typeof document !== 'undefined';
   const lastTicket = useMemo(() => (ticketHistory.length ? ticketHistory[0] : null), [ticketHistory]);
   const lastWinAmount = useMemo(() => {
@@ -830,6 +835,31 @@ const ThreeDGame = () => {
   const runClockTick = useCallback(() => {
     const current = new Date();
     const meta = getSlotMeta(current);
+    const currentKey = meta.slotKey;
+    if (!hasSeenFirstSlotKeyRef.current) {
+      hasSeenFirstSlotKeyRef.current = true;
+      previousSlotKeyForTransitionRef.current = currentKey;
+    } else if (previousSlotKeyForTransitionRef.current !== currentKey) {
+      previousSlotKeyForTransitionRef.current = currentKey;
+      if (slotTransitionTimerRef.current) {
+        clearInterval(slotTransitionTimerRef.current);
+        slotTransitionTimerRef.current = null;
+      }
+      setSlotTransitionSeconds(5);
+      slotTransitionTimerRef.current = setInterval(() => {
+        setSlotTransitionSeconds((prev) => {
+          if (prev <= 1) {
+            if (slotTransitionTimerRef.current) {
+              clearInterval(slotTransitionTimerRef.current);
+              slotTransitionTimerRef.current = null;
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
     setNow(current);
     setTimerSeconds(meta.remainingSeconds);
     setNextDrawAt(meta.nextDraw);
@@ -845,6 +875,20 @@ const ThreeDGame = () => {
     const id = setInterval(runClockTick, 1000);
     return () => clearInterval(id);
   }, [runClockTick]);
+
+  useEffect(
+    () => () => {
+      if (slotTransitionTimerRef.current) {
+        clearInterval(slotTransitionTimerRef.current);
+        slotTransitionTimerRef.current = null;
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (slotTransitionActive) setShowBuyConfirm(false);
+  }, [slotTransitionActive]);
 
   useEffect(() => {
     refreshLastDrawResult();
@@ -1427,6 +1471,9 @@ const ThreeDGame = () => {
       return { ok: false, error: msg };
     };
     if (isBuyingRef.current) return { ok: false, error: 'Buy already in progress. Please wait.' };
+    if (slotTransitionActive) {
+      return fail(`Slot time ended. New slot is loading, please wait ${slotTransitionSeconds}s.`);
+    }
     if (!bets.length) {
       return fail('Add at least one bet before BUY.');
     }
@@ -1597,15 +1644,36 @@ const ThreeDGame = () => {
     } finally {
       isBuyingRef.current = false;
     }
-  }, [bets, formatAdvanceSlotLabel, formatDrawEndLabelFromSlotStartIso, generateGameId, isHistoryListOpen, loadBackendHistoryTickets, nextDrawAt, now, playerIdentity, refreshWalletBalance, selectedAdvanceSlots, selectedQuizId, totalPoints, walletBalance]);
+  }, [
+    bets,
+    formatAdvanceSlotLabel,
+    formatDrawEndLabelFromSlotStartIso,
+    generateGameId,
+    isHistoryListOpen,
+    loadBackendHistoryTickets,
+    nextDrawAt,
+    now,
+    playerIdentity,
+    refreshWalletBalance,
+    selectedAdvanceSlots,
+    selectedQuizId,
+    slotTransitionActive,
+    slotTransitionSeconds,
+    totalPoints,
+    walletBalance,
+  ]);
 
   const handleOpenBuyConfirm = useCallback(() => {
+    if (slotTransitionActive) {
+      setValidationMsg(`Slot time ended. New slot is loading, please wait ${slotTransitionSeconds}s.`);
+      return;
+    }
     if (!bets.length) {
       setValidationMsg('Add at least one bet before BUY.');
       return;
     }
     setShowBuyConfirm(true);
-  }, [bets.length]);
+  }, [bets.length, slotTransitionActive, slotTransitionSeconds]);
 
   const handleConfirmBuy = useCallback(async () => {
     setShowBuyConfirm(false);
@@ -2702,7 +2770,8 @@ const ThreeDGame = () => {
                       <button
                         type="button"
                         onClick={handleOpenBuyConfirm}
-                        className={`${isZoomCompactView ? 'min-h-[3.55rem] basis-[4.5rem] px-2 py-3 text-[18px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[3.95rem] basis-[5.25rem] px-3 py-3.5 text-[21px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98]`}
+                        disabled={slotTransitionActive}
+                        className={`${isZoomCompactView ? 'min-h-[3.55rem] basis-[4.5rem] px-2 py-3 text-[18px] sm:min-h-[2.5rem] sm:text-[17px]' : 'min-h-[3.95rem] basis-[5.25rem] px-3 py-3.5 text-[21px] sm:min-h-[3.25rem] sm:basis-0 sm:px-7 sm:text-[23px]'} flex-1 rounded-xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 font-bold tracking-wide text-white shadow-[0_4px_16px_rgba(5,150,105,0.42)] ring-1 ring-white/35 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:brightness-100`}
                       >
                         BUY
                       </button>
@@ -2840,7 +2909,7 @@ const ThreeDGame = () => {
                 <button
                   type="button"
                   onClick={handleConfirmBuy}
-                  disabled={!bets.length}
+                  disabled={!bets.length || slotTransitionActive}
                   className="h-[5.25rem] w-full rounded-lg border border-[#1c87cd] bg-gradient-to-b from-[#38bdf8] to-[#0ea5e9] px-4 text-[30px] font-extrabold leading-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-[4rem] sm:flex-1 sm:text-[22px]"
                 >
                   Confirm & Place
@@ -3407,6 +3476,20 @@ const ThreeDGame = () => {
                 <div className="rounded border border-[#c4ccd8] bg-white px-3 py-2">Email: <span className="font-bold">{accountDetails.email}</span></div>
                 <div className="rounded border border-[#c4ccd8] bg-white px-3 py-2">Wallet: <span className="font-bold text-emerald-700">₹{accountDetails.wallet}</span></div>
               </div>
+            </div>
+          </div>
+        ) : null}
+        {slotTransitionActive ? (
+          <div className="fixed inset-0 z-[96] flex items-center justify-center bg-[#020617]/82 p-4 backdrop-blur-[3px]">
+            <div className="w-full max-w-md rounded-2xl border border-[#38bdf8]/60 bg-gradient-to-b from-[#0f172a] to-[#111827] p-6 text-center text-white shadow-[0_24px_70px_rgba(2,6,23,0.65)]">
+              <h3 className="text-[24px] font-black text-[#7dd3fc]">Slot Time End</h3>
+              <p className="mt-3 text-[16px] font-semibold text-[#e2e8f0]">
+                New slot is loading. Please wait...
+              </p>
+              <p className="mt-3 text-[30px] font-black text-[#facc15]">{slotTransitionSeconds}</p>
+              <p className="mt-1 text-[12px] font-semibold text-[#cbd5e1]">
+                Betting is temporarily locked until the new slot window is ready.
+              </p>
             </div>
           </div>
         ) : null}

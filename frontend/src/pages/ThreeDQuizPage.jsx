@@ -287,8 +287,11 @@ const ThreeDQuizPage = () => {
 
     const onHintUpdate = (data) => {
       if (!data?.slotStartIso) return;
+      const payloadQuizId = Number(data?.quizId);
+      const payloadHintPosition = Number(data?.hintPosition);
       setHintData({
-        quizId: selectedQuizRef.current,
+        quizId: Number.isInteger(payloadQuizId) ? payloadQuizId : selectedQuizRef.current,
+        hintPosition: Number.isInteger(payloadHintPosition) ? payloadHintPosition : null,
         questionText: data.questionText,
         slotStartIso: data.slotStartIso,
         seedHash: data.seedHash,
@@ -625,13 +628,42 @@ const ThreeDQuizPage = () => {
                   />
                 )}
 
-                {slotOpenForBuy && hintPhase && hintData && (
+                {slotOpenForBuy && (
                   <div className="mx-auto mt-4 w-full max-w-[1100px] rounded-sm border border-[#8b7355] bg-[#f5f0e6] shadow-md">
-                    <div className="border-b border-[#dcb] px-3 py-2 text-sm leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
-                      <p className="mb-2 font-medium text-[#4a1515]">Hint text shown for 3D quiz. Question number is hidden until result.</p>
-                      <p className="text-[14px] font-semibold text-black">{hintData.questionText}</p>
-                    </div>
-                    {guessFeedback && <div className="px-3 py-2 text-sm font-semibold text-[#3d1515]">{guessFeedback}</div>}
+                    {hintPhase && hintData && hintData.quizId === selectedQuiz ? (
+                      <div className="flex flex-col gap-0 sm:flex-row">
+                        <div
+                          className="flex w-full shrink-0 items-center justify-center border-b border-[#8b7355] px-3 py-6 text-lg font-bold text-[#1a6b2e] sm:w-[88px] sm:border-b-0 sm:border-r"
+                          style={{ backgroundColor: '#e8f5e9' }}
+                        >
+                          Hint
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="border-b border-[#dcb] px-3 py-2 text-sm leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
+                            <p className="mb-2 font-medium text-[#4a1515]">
+                              इस प्रश्न का उत्तर इस प्रश्न का क्रमांक है
+                            </p>
+                            {Number.isInteger(hintData.hintPosition) ? (
+                              <p className="mb-1 text-[12px] font-bold text-[#7a1f1f]">
+                                Hint Number: {pad3(hintData.hintPosition)}
+                              </p>
+                            ) : null}
+                            <p className="text-[14px] font-semibold text-black">{hintData.questionText}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                    {guessFeedback && (
+                      <div className="border-t border-[#8b7355] bg-[#efe6d5] px-3 py-2">
+                        <p className="text-sm font-semibold text-[#3d1515]">{guessFeedback}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {hintPhase && slotOpenForBuy && (!hintData || hintData.quizId !== selectedQuiz) && (
+                  <div className="mx-auto py-6 text-center text-sm text-[#5c2222]">
+                    Loading hint for QUIZ{pad2(selectedQuiz)}...
                   </div>
                 )}
 
