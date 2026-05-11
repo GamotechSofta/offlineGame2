@@ -561,15 +561,6 @@ const MyBetsModal = ({ open, onClose }) => {
                         <span className="rounded bg-[#1d4ed8] px-2 py-0.5 text-white">Advance Draw</span>
                       ) : null}
                     </div>
-                    {quizWinLabels.length > 0 ? (
-                      <div
-                        className="mt-2 w-full max-h-20 overflow-y-auto rounded border border-[#bfdbfe] bg-[#f0f9ff] px-2 py-1.5 text-[10px] font-semibold leading-snug text-[#1e3a5f]"
-                        title={quizWinLabels.join(' ')}
-                      >
-                        <span className="text-[#64748b]">Winning numbers (full draw, all quizzes): </span>
-                        <span className="font-mono break-all">{quizWinLabels.join(' · ')}</span>
-                      </div>
-                    ) : null}
                     {g.ticketStatsFromServer && tableLineCount < lineCount ? (
                       <p className="mt-1 w-full text-[10px] text-amber-900">
                         Line table lists {tableLineCount} row(s) under current filters; summary totals are for all{' '}
