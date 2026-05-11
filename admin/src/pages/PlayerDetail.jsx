@@ -1387,7 +1387,7 @@ const PlayerDetail = () => {
                                     <div className="p-8 text-center text-gray-500">No matching bets found.</div>
                                 ) : (
                                     <div className="p-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                                        <div className="grid grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
                                             {filteredBets.map((b, index) => (
                                                 <BetHistoryCard
                                                     key={b._id}
@@ -1472,7 +1472,7 @@ const PlayerDetail = () => {
                                                 No {section.game} game history found.
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                                            <div className="grid grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
                                                 {section.rows.map((row) => {
                                                     const betAmount = Number(row.betAmount || 0) || 0;
                                                     const payout = Number(row.cashOutAmount || 0) || 0;
