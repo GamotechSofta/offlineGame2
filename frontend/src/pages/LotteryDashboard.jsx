@@ -601,10 +601,18 @@ const LotteryDashboard = () => {
     appliedAmountByTargetRef.current = {};
     setMulti(true);
     setSelectedQuizzes((prev) => {
+      const base = Array.isArray(prev) ? prev : [];
       if (checked) {
-        return setQuizNos;
+        const rangeValues = Object.values(setRanges);
+        const preservedSetQuizzes = rangeValues.flatMap(([rangeStart, rangeEnd]) => {
+          const quizzes = Array.from({ length: rangeEnd - rangeStart + 1 }, (_, idx) => rangeStart + idx);
+          const isWholeSetSelected = quizzes.every((quizNo) => base.includes(quizNo));
+          return isWholeSetSelected ? quizzes : [];
+        });
+        const merged = new Set([...preservedSetQuizzes, ...setQuizNos]);
+        return [...merged].sort((a, b) => a - b);
       }
-      const next = (Array.isArray(prev) ? prev : []).filter((q) => !setQuizNos.includes(q));
+      const next = base.filter((q) => !setQuizNos.includes(q));
       return next.length ? next : [activeQuiz];
     });
     if (checked) setActiveQuiz(start);
