@@ -2,19 +2,19 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import HeroSection from '../components/HeroSection';
 import Section1 from '../components/Section1';
+import lotteryTileDesktop from '../assets/Untitled (1225 x 211 px) (1).png';
+import gamesTileDesktop from '../assets/Untitled (1225 x 211 px) (2).png';
 
 const BANNER_TILES = [
   {
     srcMobile: '/Lottery%20(1200%20x%20600%20px)%20(1).png',
-    srcDesktop:
-      '/Lottery%20(1200%20x%20600%20px)%20(2400%20x%20600%20px).png',
+    srcDesktop: lotteryTileDesktop,
     path: '/lottery',
     label: 'Lottery — open lottery dashboard',
   },
   {
     srcMobile: '/Lottery%20(1200%20x%20600%20px).png',
-    srcDesktop:
-      '/Lottery%20(1200%20x%20600%20px)%20(2400%20x%20600%20px)%20(1).png',
+    srcDesktop: gamesTileDesktop,
     path: '/games',
     label: 'Games — open games hub',
   },
