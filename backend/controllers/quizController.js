@@ -17,7 +17,7 @@ import {
 } from '../services/slotService.js';
 import { buildSeedHashHex } from '../services/randomService.js';
 import { getShuffleOrderIndices } from '../services/quizShuffleService.js';
-import { getOrCreatePick } from '../services/quizPickService.js';
+import { getOrCreatePick, resolveHintQuestionTextByPosition } from '../services/quizPickService.js';
 import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getRatesMap } from '../models/rate/rate.js';
@@ -197,10 +197,13 @@ export const getHint = async (req, res) => {
     const pick = await getOrCreatePick(quizId, ctx.slotStartIso, gameMode);
     const seedRow = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso: ctx.slotStartIso }).lean();
 
+    const resolvedQuestionText = await resolveHintQuestionTextByPosition(quizId, pick.hintPosition, gameMode);
     res.json({
       success: true,
       data: {
-        questionText: pick.hintQuestionText,
+        quizId,
+        hintPosition: pick.hintPosition,
+        questionText: resolvedQuestionText || pick.hintQuestionText,
         slotStartIso: ctx.slotStartIso,
         seedHash: seedRow?.seedHash ?? null,
       },
@@ -632,13 +635,22 @@ export const getMyQuizBets = async (req, res) => {
     const ticketLimit = Number.isFinite(ticketLimitRaw) ? Math.min(100, Math.max(0, ticketLimitRaw)) : 0;
     const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
     const scope = String(req.query.scope || 'all').trim().toLowerCase();
+    const skipSettle =
+      String(req.query.skipSettle || '').trim() === '1'
+      || String(req.query.skipSettle || '').toLowerCase() === 'true';
+    const ticketsOnlyRaw =
+      String(req.query.ticketsOnly || '').trim() === '1'
+      || String(req.query.ticketsOnly || '').toLowerCase() === 'true';
+    /** Shell list only when paginating tickets (skip heavy per-line find). */
+    const ticketsOnly = Boolean(ticketsOnlyRaw && ticketLimit > 0);
     const skipTickets = (page - 1) * (ticketLimit || 1);
     const uid = new mongoose.Types.ObjectId(userId);
     const gameMode = resolveGameMode(req);
 
     // Safety net: settle ended pending slots on demand so winners are credited
     // even if scheduler execution was delayed/restarted.
-    try {
+    // Skip on lightweight polls (caller passes skipSettle=1).
+    if (!skipSettle) try {
       const pendingSlotStarts = await QuizBet.distinct('slotStartIso', { gameMode, userId: uid, status: 'pending' });
       const endedPendingSlotStarts = (Array.isArray(pendingSlotStarts) ? pendingSlotStarts : []).filter((slotStartIso) => {
         const slotStartMs = new Date(slotStartIso).getTime();
@@ -766,6 +778,7 @@ export const getMyQuizBets = async (req, res) => {
             stakeAll: { $sum: '$amount' },
             stakeActive: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 0, '$amount'] } },
             winLineCount: { $sum: { $cond: [{ $eq: ['$status', 'win'] }, 1, 0] } },
+            pendingLineCount: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
             totalWinPayout: { $sum: { $ifNull: ['$winPayout', 0] } },
           },
         },
@@ -789,12 +802,21 @@ export const getMyQuizBets = async (req, res) => {
         })
         .filter(Boolean);
 
-      bets = ticketOr.length
-        ? await QuizBet.find({ gameMode, userId: uid, $or: ticketOr })
-          .sort({ createdAt: -1, _id: -1 })
-          .limit(Math.max(limit, ticketLimit * 150))
-          .lean()
-        : [];
+      if (ticketsOnly) {
+        bets = [];
+      } else {
+        // Cap lines fetched per page: client used to send limit=20k which forced huge reads.
+        const lineFetchLimit = Math.min(
+          20000,
+          Math.max(ticketLimit * 200, Math.min(limit, ticketLimit * 4000)),
+        );
+        bets = ticketOr.length
+          ? await QuizBet.find({ gameMode, userId: uid, $or: ticketOr })
+            .sort({ createdAt: -1, _id: -1 })
+            .limit(lineFetchLimit)
+            .lean()
+          : [];
+      }
     } else {
       const result = await Promise.all([
         QuizBet.find(baseMatch)
@@ -832,6 +854,7 @@ export const getMyQuizBets = async (req, res) => {
         stakeAll: Number(row.stakeAll || 0),
         stakeActive: Number(row.stakeActive || 0),
         winLineCount: Number(row.winLineCount || 0),
+        pendingLineCount: Number(row.pendingLineCount || 0),
         totalWinPayout: Number(row.totalWinPayout || 0),
       };
     }
@@ -860,6 +883,36 @@ export const getMyQuizBets = async (req, res) => {
     }
 
     const nowMs = Date.now();
+
+    let ticketsPage = null;
+    if (ticketsOnly && ticketLimit > 0 && Array.isArray(ticketAgg)) {
+      ticketsPage = ticketAgg.map((row) => {
+        const slotIso = String(row?._id?.slotStartIso || '');
+        const tid = row?._id?.ticketId;
+        const slotStartMs = new Date(slotIso).getTime();
+        const slotEndMs = slotStartMs + SLOT_MS;
+        const slotEnded = Number.isFinite(slotEndMs) ? nowMs >= slotEndMs : false;
+        const createdAtMs = row?.createdAt ? new Date(row.createdAt).getTime() : NaN;
+        const isAdvanceDraw = Number.isFinite(createdAtMs) && Number.isFinite(slotStartMs)
+          ? slotStartMs - createdAtMs > SLOT_MS + (60 * 1000)
+          : false;
+        return {
+          ticketId: tid,
+          slotStartIso: slotIso,
+          createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+          drawLabelEnd: Number.isFinite(slotEndMs) ? formatDrawLabel(slotEndMs) : '-',
+          slotEnded,
+          isAdvanceDraw,
+          lineCountAll: Number(row.lineCountAll || 0),
+          lineCountActive: Number(row.lineCountActive || 0),
+          pendingLineCount: Number(row.pendingLineCount || 0),
+          stakeActive: Number(row.stakeActive || 0),
+          winLineCount: Number(row.winLineCount || 0),
+          totalWinPayout: Number(row.totalWinPayout || 0),
+        };
+      });
+    }
+
     const declaredResultsBySlot = await ensureDeclaredResultsSnapshots(slotList, gameMode);
     const declaredSlotSet = new Set([...declaredResultsBySlot.keys()]);
 
@@ -927,6 +980,7 @@ export const getMyQuizBets = async (req, res) => {
       data,
       ticketSummaryByKey,
       slotWinnersBySlot,
+      ...(ticketsPage ? { ticketsPage } : {}),
       ...(pagination ? { pagination } : {}),
       ...(balance != null && Number.isFinite(balance) ? { balance } : {}),
     });

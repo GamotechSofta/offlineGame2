@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets } from '../api/quizApi';
+import { flushSync } from 'react-dom';
+import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets, getMyQuizTicketLines } from '../api/quizApi';
 import { updateUserBalance } from '../api/bets';
-import { useSectionAutoRefresh } from '../hooks/useSectionAutoRefresh';
 
-/** Per request row cap (server still paginates ticket-wise). */
-const QUIZ_HISTORY_LIMIT = 20000;
 const TICKET_PAGE_SIZE = 5;
+/** Max bet lines per request when using ticket pagination (server caps too). */
+const QUIZ_LINES_LIMIT_PAGED = Math.min(15000, TICKET_PAGE_SIZE * 3000);
 const BET_FILTERS = {
   TODAY: 'today',
   ALL: 'all',
@@ -161,6 +161,54 @@ const groupQuizRows = (items, ticketSummaryByKey = {}) => {
   });
 };
 
+const pairKeyTicketSlot = (ticketId, slotStartIso) => {
+  if (!ticketId || !slotStartIso) return '';
+  return `${String(ticketId).trim()}|${slotStartIso}`;
+};
+
+/** Ticket shells from fast API path + per-ticket lines loaded on expand. */
+const buildGroupsFromShells = (shells, ticketSummaryByKey, linesByKey) => {
+  return shells.map((s) => {
+    const summaryKey = pairKeyTicketSlot(s.ticketId, s.slotStartIso);
+    const srv = summaryKey && ticketSummaryByKey[summaryKey] ? ticketSummaryByKey[summaryKey] : null;
+    const linesRaw = summaryKey && linesByKey[summaryKey] ? linesByKey[summaryKey] : [];
+    const linesSorted = [...linesRaw].sort(
+      (a, b) => (Number(a.quizId) - Number(b.quizId)) || (Number(a.number) - Number(b.number)),
+    );
+    const pendingFromLines = linesSorted.filter((line) => String(line.status || '').toLowerCase() === 'pending');
+    const pendingCount = linesSorted.length ? pendingFromLines.length : Number(s.pendingLineCount || 0);
+    const groupForStats = {
+      ticketId: s.ticketId,
+      slotStartIso: s.slotStartIso,
+      drawLabelEnd: s.drawLabelEnd,
+      slotEnded: s.slotEnded,
+      winningNumber: linesSorted[0]?.winningNumber ?? null,
+      isAdvanceDraw: Boolean(s.isAdvanceDraw),
+      lines: linesSorted,
+    };
+    const { betLineCount, winningLineCount, totalWinPayoutSum } = summarizeTicketLines(groupForStats);
+    const cancelledLines = srv ? Math.max(0, (srv.lineCountAll || 0) - (srv.lineCountActive || 0)) : 0;
+    return {
+      ticketId: s.ticketId,
+      slotStartIso: s.slotStartIso,
+      createdAt: s.createdAt,
+      drawLabelEnd: s.drawLabelEnd,
+      slotEnded: s.slotEnded,
+      winningNumber: groupForStats.winningNumber,
+      isAdvanceDraw: Boolean(s.isAdvanceDraw),
+      lines: linesSorted,
+      totalAmount: srv ? srv.stakeActive : Number(s.stakeActive || 0),
+      pendingCount,
+      betLineCount: srv ? srv.lineCountActive : betLineCount,
+      winningLineCount: srv ? srv.winLineCount : winningLineCount,
+      totalWinPayoutSum: srv ? srv.totalWinPayout : totalWinPayoutSum,
+      ticketStatsFromServer: Boolean(srv),
+      cancelledLines,
+      linesLoaded: linesSorted.length,
+    };
+  });
+};
+
 const getIstDayKey = (dateInput) => {
   const date = new Date(dateInput);
   if (Number.isNaN(date.getTime())) return '';
@@ -177,6 +225,11 @@ const MyBetsModal = ({ open, onClose }) => {
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [errQuiz, setErrQuiz] = useState('');
   const [quizItems, setQuizItems] = useState([]);
+  /** Fast list: ticket rows without bet lines (lines load on "Show line bets"). */
+  const [ticketsShells, setTicketsShells] = useState([]);
+  const [ticketLinesByKey, setTicketLinesByKey] = useState({});
+  const [loadingLinesKey, setLoadingLinesKey] = useState('');
+  const ticketLinesRef = useRef({});
   const [ticketSummaryByKey, setTicketSummaryByKey] = useState({});
   const [slotWinnersBySlot, setSlotWinnersBySlot] = useState({});
   const [cancellingId, setCancellingId] = useState('');
@@ -190,12 +243,36 @@ const MyBetsModal = ({ open, onClose }) => {
   const [loadingMoreTickets, setLoadingMoreTickets] = useState(false);
   const listScrollRef = useRef(null);
   const lastScrollTopRef = useRef(0);
-  const suppressAutoRefreshUntilRef = useRef(0);
 
   const groupKey = (g) => `${g.ticketId || 'legacy'}-${g.slotStartIso}`;
 
-  const toggleBetLinesExpanded = useCallback((key) => {
-    setExpandedBetLines((prev) => ({ ...prev, [key]: !prev[key] }));
+  useEffect(() => {
+    ticketLinesRef.current = ticketLinesByKey;
+  }, [ticketLinesByKey]);
+
+  const handleToggleLineBets = useCallback((key, g) => {
+    let nextOpen = false;
+    flushSync(() => {
+      setExpandedBetLines((prev) => {
+        nextOpen = !prev[key];
+        return { ...prev, [key]: nextOpen };
+      });
+    });
+    if (!nextOpen || !g?.ticketId) return;
+    const pk = pairKeyTicketSlot(g.ticketId, g.slotStartIso);
+    if (!pk || (ticketLinesRef.current[pk] || []).length > 0) return;
+    setLoadingLinesKey(pk);
+    getMyQuizTicketLines(g.ticketId, g.slotStartIso, '2d')
+      .then((j) => {
+        const rows = Array.isArray(j?.data) ? j.data : [];
+        setTicketLinesByKey((prev) => ({ ...prev, [pk]: rows }));
+      })
+      .catch(() => {
+        setTicketLinesByKey((prev) => ({ ...prev, [pk]: [] }));
+      })
+      .finally(() => {
+        setLoadingLinesKey('');
+      });
   }, []);
 
   const loadQuiz = useCallback((options = {}) => {
@@ -206,6 +283,8 @@ const MyBetsModal = ({ open, onClose }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (!user?.token) {
       setQuizItems([]);
+      setTicketsShells([]);
+      setTicketLinesByKey({});
       setTicketSummaryByKey({});
       setSlotWinnersBySlot({});
       setErrQuiz('');
@@ -222,20 +301,35 @@ const MyBetsModal = ({ open, onClose }) => {
       setLoadingQuiz(true);
     }
     setErrQuiz('');
-    return getMyQuizBets(QUIZ_HISTORY_LIMIT, '2d', {
+    const skipSettleEff = options.skipSettle !== undefined ? Boolean(options.skipSettle) : silent;
+    return getMyQuizBets(QUIZ_LINES_LIMIT_PAGED, '2d', {
       ticketLimit: TICKET_PAGE_SIZE,
       page: pageToFetch,
       // Keep server scope broad; client-side IST filter below is the source of truth for "Today".
       // This avoids backend timezone/scope mismatches hiding valid today's bets.
       scope: 'all',
+      skipSettle: skipSettleEff,
+      ticketsOnly: true,
     })
       .then((j) => {
         const rows = Array.isArray(j?.data) ? j.data : [];
+        const hasShellPayload = Array.isArray(j?.ticketsPage);
+        const shells = hasShellPayload ? j.ticketsPage : null;
         const nextSummary = j?.ticketSummaryByKey && typeof j.ticketSummaryByKey === 'object' ? j.ticketSummaryByKey : {};
         const nextWinners = j?.slotWinnersBySlot && typeof j.slotWinnersBySlot === 'object' ? j.slotWinnersBySlot : {};
         setHasMoreTickets(Boolean(j?.pagination?.hasMore));
         setTicketPage(pageToFetch);
-        setQuizItems((prev) => (append ? [...prev, ...rows] : rows));
+        if (hasShellPayload) {
+          setTicketsShells((prev) => (append ? [...prev, ...shells] : shells));
+          setQuizItems([]);
+        } else {
+          setTicketsShells([]);
+          setQuizItems((prev) => (append ? [...prev, ...rows] : rows));
+        }
+        if (!append) {
+          setTicketLinesByKey({});
+          setExpandedBetLines({});
+        }
         setTicketSummaryByKey((prev) => (append ? { ...prev, ...nextSummary } : nextSummary));
         setSlotWinnersBySlot((prev) => (append ? { ...prev, ...nextWinners } : nextWinners));
         const bal = j?.balance;
@@ -272,6 +366,9 @@ const MyBetsModal = ({ open, onClose }) => {
     setPendingCancelTarget(null);
     setBetFilter(BET_FILTERS.TODAY);
     setExpandedBetLines({});
+    setTicketsShells([]);
+    setQuizItems([]);
+    setTicketLinesByKey({});
     setTicketSummaryByKey({});
     setSlotWinnersBySlot({});
     setTicketPage(1);
@@ -286,18 +383,8 @@ const MyBetsModal = ({ open, onClose }) => {
     setTicketPage(1);
     setHasMoreTickets(false);
     setLoadingMoreTickets(false);
-    loadQuiz({ pageToFetch: 1 });
+    loadQuiz({ pageToFetch: 1, skipSettle: true });
   }, [betFilter, open, loadQuiz]);
-
-  useSectionAutoRefresh({
-    enabled: open,
-    intervalMs: 3000,
-    immediate: false,
-    onRefresh: () => {
-      if (Date.now() < suppressAutoRefreshUntilRef.current) return;
-      void loadQuiz({ silent: true, preserveScroll: true, pageToFetch: ticketPage });
-    },
-  });
 
   const filteredQuizItems = useMemo(() => {
     const todayIstKey = getIstDayKey(new Date());
@@ -317,34 +404,45 @@ const MyBetsModal = ({ open, onClose }) => {
     });
   }, [betFilter, quizItems]);
 
-  const quizGroups = useMemo(() => (
-    groupQuizRows(filteredQuizItems, ticketSummaryByKey)
-      .sort((a, b) => {
-        const pa = getTicketDisplayPriority(a);
-        const pb = getTicketDisplayPriority(b);
-        if (pa !== pb) return pa - pb;
-        const sa = new Date(a?.slotStartIso || 0).getTime();
-        const sb = new Date(b?.slotStartIso || 0).getTime();
-        // Advance tickets: show nearest upcoming draw first.
-        if (pa === 1) return sa - sb;
-        return sb - sa;
-      })
-  ), [filteredQuizItems, ticketSummaryByKey]);
+  const filteredTicketShells = useMemo(() => {
+    const todayIstKey = getIstDayKey(new Date());
+    return ticketsShells.filter((s) => {
+      if (betFilter === BET_FILTERS.TODAY) {
+        const dateCandidates = [s?.slotStartIso, s?.createdAt].filter(Boolean);
+        return dateCandidates.some((d) => getIstDayKey(d) === todayIstKey);
+      }
+      return true;
+    });
+  }, [betFilter, ticketsShells]);
+
+  const quizGroups = useMemo(() => {
+    const sorter = (a, b) => {
+      const pa = getTicketDisplayPriority(a);
+      const pb = getTicketDisplayPriority(b);
+      if (pa !== pb) return pa - pb;
+      const sa = new Date(a?.slotStartIso || 0).getTime();
+      const sb = new Date(b?.slotStartIso || 0).getTime();
+      if (pa === 1) return sa - sb;
+      return sb - sa;
+    };
+    if (ticketsShells.length) {
+      return buildGroupsFromShells(filteredTicketShells, ticketSummaryByKey, ticketLinesByKey).sort(sorter);
+    }
+    return groupQuizRows(filteredQuizItems, ticketSummaryByKey).sort(sorter);
+  }, [ticketsShells, filteredTicketShells, ticketSummaryByKey, ticketLinesByKey, filteredQuizItems]);
 
   const refreshQuiz = useCallback(() => {
-    loadQuiz({ pageToFetch: 1 });
+    loadQuiz({ pageToFetch: 1, skipSettle: false });
   }, [loadQuiz]);
 
   const loadNextTicketPage = useCallback(() => {
     if (loadingMoreTickets || loadingQuiz || !hasMoreTickets) return;
-    suppressAutoRefreshUntilRef.current = Date.now() + 5000;
-    void loadQuiz({ pageToFetch: ticketPage + 1, append: false, preserveScroll: true });
+    void loadQuiz({ pageToFetch: ticketPage + 1, append: false, preserveScroll: true, skipSettle: true });
   }, [hasMoreTickets, loadQuiz, loadingMoreTickets, loadingQuiz, ticketPage]);
 
   const loadPrevTicketPage = useCallback(() => {
     if (loadingMoreTickets || loadingQuiz || ticketPage <= 1) return;
-    suppressAutoRefreshUntilRef.current = Date.now() + 5000;
-    void loadQuiz({ pageToFetch: ticketPage - 1, append: false, preserveScroll: true });
+    void loadQuiz({ pageToFetch: ticketPage - 1, append: false, preserveScroll: true, skipSettle: true });
   }, [loadQuiz, loadingMoreTickets, loadingQuiz, ticketPage]);
 
   const handleCancelTicket = useCallback(
@@ -363,7 +461,7 @@ const MyBetsModal = ({ open, onClose }) => {
             : row
         )));
         // Keep server data in sync without triggering blocking loading state.
-        void loadQuiz({ silent: true, preserveScroll: true });
+        void loadQuiz({ silent: true, preserveScroll: true, skipSettle: true });
       } catch (e) {
         setCancelErr(e.message || 'Cancel failed');
       } finally {
@@ -387,7 +485,7 @@ const MyBetsModal = ({ open, onClose }) => {
             ? { ...row, status: 'cancelled' }
             : row
         )));
-        void loadQuiz({ silent: true, preserveScroll: true });
+        void loadQuiz({ silent: true, preserveScroll: true, skipSettle: true });
       } catch (e) {
         setCancelErr(e.message || 'Cancel failed');
       } finally {
@@ -460,13 +558,14 @@ const MyBetsModal = ({ open, onClose }) => {
             <p className="text-center text-[12px] font-medium text-gray-700">wait your bet is loading</p>
           ) : null}
           {errQuiz && <p className="text-center text-red-700">{errQuiz}</p>}
-          {!loadingQuiz && !errQuiz && filteredQuizItems.length === 0 && (
+          {!loadingQuiz && !errQuiz && quizGroups.length === 0 && (
             <p className="text-center text-gray-600">No quiz tickets yet or not logged in.</p>
           )}
           {!loadingQuiz &&
             !errQuiz &&
             quizGroups.map((g) => {
               const gKey = groupKey(g);
+              const linePk = pairKeyTicketSlot(g.ticketId, g.slotStartIso);
               const linesOpen = Boolean(expandedBetLines[gKey]);
               const lineCount = g.betLineCount ?? g.lines?.length ?? 0;
               const resultSettled = Boolean(g.slotEnded);
@@ -482,7 +581,6 @@ const MyBetsModal = ({ open, onClose }) => {
                       computeDisplayStatus(line, g) === 'win' &&
                       String(line.status || '').toLowerCase() === 'pending',
                   ));
-              const tableLineCount = g.lines?.length ?? 0;
               const stakeNum = Number(g.totalAmount || 0);
               const payoutNum = winPayoutPending ? 0 : Number(g.totalWinPayoutSum || 0);
               const netLossRs =
@@ -493,7 +591,7 @@ const MyBetsModal = ({ open, onClose }) => {
                     <button
                       type="button"
                       aria-expanded={linesOpen}
-                      onClick={() => toggleBetLinesExpanded(gKey)}
+                      onClick={() => handleToggleLineBets(gKey, g)}
                       className="flex shrink-0 items-center gap-1 rounded border border-[#93b4d4] bg-[#e8f1fb] px-2 py-1 text-[10px] font-bold text-[#1a4d6e] hover:bg-[#dceaf7]"
                     >
                       <span className="font-mono text-[11px]" aria-hidden>
@@ -525,7 +623,7 @@ const MyBetsModal = ({ open, onClose }) => {
                       </span>
                       <span className="rounded bg-[#eef2ff] px-2 py-0.5 text-[#374151]">
                         Date:{' '}
-                        {formatIstDateLabel(g.lines?.[0]?.createdAt || g.lines?.[0]?.slotStartIso || g.slotStartIso)}
+                        {formatIstDateLabel(g.lines?.[0]?.createdAt || g.createdAt || g.lines?.[0]?.slotStartIso || g.slotStartIso)}
                       </span>
                       {resultSettled ? (
                         <span
@@ -561,12 +659,6 @@ const MyBetsModal = ({ open, onClose }) => {
                         <span className="rounded bg-[#1d4ed8] px-2 py-0.5 text-white">Advance Draw</span>
                       ) : null}
                     </div>
-                    {g.ticketStatsFromServer && tableLineCount < lineCount ? (
-                      <p className="mt-1 w-full text-[10px] text-amber-900">
-                        Line table lists {tableLineCount} row(s) under current filters; summary totals are for all{' '}
-                        {lineCount} active line(s) on this ticket.
-                      </p>
-                    ) : null}
                     {g.pendingCount > 0 && !g.slotEnded && String(g.ticketId || '').length > 0 ? (
                       <button
                         type="button"
@@ -594,6 +686,13 @@ const MyBetsModal = ({ open, onClose }) => {
                         </tr>
                       </thead>
                       <tbody>
+                        {loadingLinesKey === linePk && (g.lines?.length ?? 0) === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="border border-[#a0a0a0] bg-[#f8fafc] p-3 text-center font-semibold text-[#475569]">
+                              Loading line bets…
+                            </td>
+                          </tr>
+                        ) : null}
                         {g.lines.map((row) => {
                           const displayStatus = computeDisplayStatus(row, g);
                           return (

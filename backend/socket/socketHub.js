@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { formatDrawLabel, getSlotContext, getStudySecondsForMode } from '../services/slotService.js';
 import QuizSlotSeed from '../models/quiz/QuizSlotSeed.js';
-import { getOrCreatePick } from '../services/quizPickService.js';
+import { getOrCreatePick, resolveHintQuestionTextByPosition } from '../services/quizPickService.js';
 import { noteSocketEmit, noteSocketListener } from '../services/traceMetricsService.js';
 
 /** @type {Server | null} */
@@ -48,9 +48,12 @@ async function buildHintSnapshot(quizId, gameMode = '2d') {
   const ctx = getSlotContext(new Date(), gameMode);
   if (ctx.phase !== 'hint') return null;
   const pick = await getOrCreatePick(quizId, ctx.slotStartIso, gameMode);
+  const resolvedQuestionText = await resolveHintQuestionTextByPosition(quizId, pick.hintPosition, gameMode);
   const seedRow = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso: ctx.slotStartIso }).lean();
   return {
-    questionText: pick.hintQuestionText,
+    quizId,
+    hintPosition: pick.hintPosition,
+    questionText: resolvedQuestionText || pick.hintQuestionText,
     slotStartIso: ctx.slotStartIso,
     seedHash: seedRow?.seedHash ?? null,
   };

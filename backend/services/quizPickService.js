@@ -7,6 +7,22 @@ import { stripQuestionMetaForHint, buildSeedHex, buildSeedHashHex, computeHintPo
 import { getShuffleOrderIndices } from './quizShuffleService.js';
 import { ensure3DQuizQuestionBank } from './quizQuestionBankService.js';
 
+const parseQuestionOrderKey = (row, fallback = null) => {
+  const explicitOrderRaw = row?.order ?? row?.questionNo ?? row?.position ?? row?.seq;
+  const explicitOrder = Number(
+    typeof explicitOrderRaw === 'string' ? explicitOrderRaw.replace(/[^\d.-]/g, '') : explicitOrderRaw,
+  );
+  if (Number.isFinite(explicitOrder)) return explicitOrder;
+  const questionText = String(row?.question || '');
+  const fromLabelMatch = questionText.match(/\(\s*\d{1,2}\s*-\s*(\d{1,3})\s*\)/);
+  if (fromLabelMatch) {
+    const parsed = Number(fromLabelMatch[1]);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (fallback != null) return fallback;
+  return null;
+};
+
 /** Seed hex from DB if committed, else deterministic formula (no DB write). */
 async function loadOrDeriveSeedHex(quizId, slotStartIso, gameMode = '2d') {
   const doc = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso }).lean();
@@ -157,4 +173,21 @@ export async function peekPickForSlotResult(quizId, slotStartIso, gameMode = '2d
   }
   const seedHex = await loadOrDeriveSeedHex(quizId, slotStartIso, gameMode);
   return computePickFields(quizId, slotStartIso, seedHex, gameMode);
+}
+
+/** Resolve hint question text by hint position (00-99 / 000-999) from quiz bank. */
+export async function resolveHintQuestionTextByPosition(quizId, hintPosition, gameMode = '2d') {
+  if (!Number.isInteger(hintPosition) || hintPosition < 0) return null;
+  const quiz = gameMode === '3d'
+    ? await ensure3DQuizQuestionBank(quizId)
+    : await Quiz.findOne({ gameMode, quizId }).lean();
+  if (!quiz || !Array.isArray(quiz.questions) || !quiz.questions.length) return null;
+
+  const direct = quiz.questions.find((q) => parseQuestionOrderKey(q) === hintPosition);
+  if (direct?.question) return stripQuestionMetaForHint(direct.question);
+
+  // Fallback: index-based compatibility for legacy question banks.
+  const byIndex = quiz.questions[hintPosition];
+  if (byIndex?.question) return stripQuestionMetaForHint(byIndex.question);
+  return null;
 }

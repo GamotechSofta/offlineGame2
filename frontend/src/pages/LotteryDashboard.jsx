@@ -59,6 +59,7 @@ const LotteryDashboard = () => {
   const [slotSyncErr, setSlotSyncErr] = useState('');
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
   const [rotatePromptDismissed, setRotatePromptDismissed] = useState(false);
+  const [slotTransitionSeconds, setSlotTransitionSeconds] = useState(0);
   const [uiNotice, setUiNotice] = useState('');
   const [uiToast, setUiToast] = useState('');
   const [enteredAmount, setEnteredAmount] = useState(2);
@@ -76,6 +77,9 @@ const LotteryDashboard = () => {
   /** Draw end time label for that slot (IST, same as Old Results chart), e.g. "4:00 PM". */
   const [prevSlotDrawEndLabel, setPrevSlotDrawEndLabel] = useState('');
   const [walletBalance, setWalletBalance] = useState(0);
+  const previousSlotStartIsoRef = useRef('');
+  const slotTransitionTimerRef = useRef(null);
+  const hasSeenFirstSlotRef = useRef(false);
   const ALL_QUIZZES = useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), []);
 
   const hydrateDeclaredResultsPayload = useCallback((j) => {
@@ -296,6 +300,47 @@ const LotteryDashboard = () => {
   }, [getQuarterHourCountdown, getServerSlotCountdown, serverOffsetMs, serverSlot]);
 
   useEffect(() => {
+    const currentSlotStartIso = String(serverSlot?.slotStartIso || '').trim();
+    if (!currentSlotStartIso) return undefined;
+
+    // First observed slot should not trigger the transition popup.
+    if (!hasSeenFirstSlotRef.current) {
+      hasSeenFirstSlotRef.current = true;
+      previousSlotStartIsoRef.current = currentSlotStartIso;
+      return undefined;
+    }
+
+    if (previousSlotStartIsoRef.current === currentSlotStartIso) return undefined;
+    previousSlotStartIsoRef.current = currentSlotStartIso;
+
+    if (slotTransitionTimerRef.current) {
+      clearInterval(slotTransitionTimerRef.current);
+      slotTransitionTimerRef.current = null;
+    }
+    setSlotTransitionSeconds(5);
+    slotTransitionTimerRef.current = setInterval(() => {
+      setSlotTransitionSeconds((prev) => {
+        if (prev <= 1) {
+          if (slotTransitionTimerRef.current) {
+            clearInterval(slotTransitionTimerRef.current);
+            slotTransitionTimerRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return undefined;
+  }, [serverSlot?.slotStartIso]);
+
+  useEffect(() => () => {
+    if (slotTransitionTimerRef.current) {
+      clearInterval(slotTransitionTimerRef.current);
+      slotTransitionTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
     let stop = false;
     const applySlotPayload = (j) => {
       if (stop) return;
@@ -506,6 +551,7 @@ const LotteryDashboard = () => {
     if (serverSlot.acceptsBets === false) return false;
     return serverSlot.phase === 'hint';
   }, [serverSlot]);
+  const slotTransitionActive = slotTransitionSeconds > 0;
 
   const buyHelpLines = useMemo(() => {
     const lines = [];
@@ -515,6 +561,10 @@ const LotteryDashboard = () => {
     }
     if (!serverSlot?.slotStartIso) {
       lines.push('Server slot is loading. Please wait.');
+      return lines;
+    }
+    if (slotTransitionActive) {
+      lines.push(`Previous slot ended. New slot is loading... (${slotTransitionSeconds}s)`);
       return lines;
     }
     if (!slotOpenForBuy) {
@@ -529,7 +579,7 @@ const LotteryDashboard = () => {
       lines.push(`Advance Draw: ${selectedAdvanceSlots.length} future slot(s) selected.`);
     }
     return lines;
-  }, [slotSyncErr, serverSlot, exceedsMaxNumbersPerQuiz, slotOpenForBuy, selectedAdvanceSlots.length]);
+  }, [slotSyncErr, serverSlot, slotTransitionActive, slotTransitionSeconds, exceedsMaxNumbersPerQuiz, slotOpenForBuy, selectedAdvanceSlots.length]);
 
   const formatAdvanceSlotLabel = useCallback((iso) => {
     const d = new Date(iso);
@@ -559,6 +609,7 @@ const LotteryDashboard = () => {
   const buyDisabled =
     totals.totalAmount <= 0 ||
     !!slotSyncErr ||
+    slotTransitionActive ||
     !serverSlot?.slotStartIso ||
     (!slotOpenForBuy && selectedAdvanceSlots.length === 0) ||
     exceedsMaxNumbersPerQuiz;
@@ -989,6 +1040,9 @@ const LotteryDashboard = () => {
     if (!isUserLoggedIn()) {
       return fail('Please login to buy tickets (account / wallet).');
     }
+    if (slotTransitionActive) {
+      return fail(`Slot time ended. New slot is loading, please wait ${slotTransitionSeconds}s.`);
+    }
     if (!serverSlot?.slotStartIso) {
       return fail('Server slot not available. Please try again.');
     }
@@ -1076,7 +1130,7 @@ const LotteryDashboard = () => {
               : e.message || 'BUY failed';
       return fail(msg);
     }
-  }, [betLines, selectedAdvanceSlots, serverSlot, slotOpenForBuy, walletBalance]);
+  }, [betLines, selectedAdvanceSlots, serverSlot, slotOpenForBuy, slotTransitionActive, slotTransitionSeconds, walletBalance]);
 
   const handleRemoveBetLine = useCallback((lineKey) => {
     setSelectedMap((prev) => {
@@ -1094,6 +1148,10 @@ const LotteryDashboard = () => {
   }, []);
 
   const handleOpenBuyConfirm = useCallback(() => {
+    if (slotTransitionActive) {
+      setUiNotice(`Slot time ended. New slot is loading, please wait ${slotTransitionSeconds}s.`);
+      return;
+    }
     if (!betLines.length) {
       setUiNotice('Please add amount on board first.');
       return;
@@ -1102,7 +1160,7 @@ const LotteryDashboard = () => {
     setBuyProcessing(false);
     buyConfirmInFlightRef.current = false;
     setShowBuyConfirm(true);
-  }, [betLines.length]);
+  }, [betLines.length, slotTransitionActive, slotTransitionSeconds]);
 
   const handleConfirmBuy = useCallback(async () => {
     if (buyConfirmInFlightRef.current) return;
@@ -1405,6 +1463,20 @@ const LotteryDashboard = () => {
           </div>
         </div>
       )}
+      {slotTransitionActive ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#020617]/82 p-4 backdrop-blur-[3px]">
+          <div className="w-full max-w-md rounded-2xl border border-[#38bdf8]/60 bg-gradient-to-b from-[#0f172a] to-[#111827] p-6 text-center text-white shadow-[0_24px_70px_rgba(2,6,23,0.65)]">
+            <h3 className="text-[24px] font-black text-[#7dd3fc]">Slot Time End</h3>
+            <p className="mt-3 text-[16px] font-semibold text-[#e2e8f0]">
+              New slot is loading. Please wait...
+            </p>
+            <p className="mt-3 text-[30px] font-black text-[#facc15]">{slotTransitionSeconds}</p>
+            <p className="mt-1 text-[12px] font-semibold text-[#cbd5e1]">
+              Betting is temporarily locked until slot sync completes.
+            </p>
+          </div>
+        </div>
+      ) : null}
       {uiNotice && (
         <div className="fixed inset-0 z-[85] flex items-center justify-center bg-[#020617]/75 p-4 backdrop-blur-[2px]">
           <div className="w-full max-w-sm rounded-2xl border border-[#334155] bg-gradient-to-b from-[#0f172a] to-[#111827] p-5 text-center text-white shadow-[0_18px_50px_rgba(2,6,23,0.5)]">

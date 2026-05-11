@@ -137,6 +137,8 @@ export async function getMyQuizBets(limit = 120, mode = '2d', options = {}) {
   if (options?.ticketLimit != null) q.set('ticketLimit', String(options.ticketLimit));
   if (options?.page != null) q.set('page', String(options.page));
   if (options?.scope) q.set('scope', String(options.scope));
+  if (options?.skipSettle) q.set('skipSettle', '1');
+  if (options?.ticketsOnly) q.set('ticketsOnly', '1');
   const res = await fetch(`${base}/my-quiz-bets?${q.toString()}`, {
     ...cred,
     headers: { ...getAuthHeaders() },
