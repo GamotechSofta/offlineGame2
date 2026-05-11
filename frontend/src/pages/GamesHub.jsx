@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, getAuthHeaders } from '../config/api';
-import { GAME_EMBED_LAUNCH_STORAGE_KEY } from './GameLaunchEmbed';
 
 const CARD_THEMES = [
   { accent: 'from-sky-600 to-indigo-700' },
@@ -27,7 +25,6 @@ const getInitials = (value) => {
 };
 
 const GamesHub = () => {
-  const navigate = useNavigate();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -117,10 +114,8 @@ const GamesHub = () => {
         '';
 
       if (launchUrl) {
-        try {
-          sessionStorage.setItem(GAME_EMBED_LAUNCH_STORAGE_KEY, launchUrl);
-        } catch (_) {}
-        navigate('/games/play', { state: { launchUrl } });
+        // Full top-level navigation: partner games (e.g. roulette) often block <iframe> via X-Frame-Options / CSP.
+        window.location.assign(launchUrl);
       }
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Failed to launch game');
