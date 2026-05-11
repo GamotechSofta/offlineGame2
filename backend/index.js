@@ -56,7 +56,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const allowedOriginsRaw = process.env.ALLOWED_ORIGINS;
 if (isProduction && (!allowedOriginsRaw || !allowedOriginsRaw.trim())) {
     throw new Error(
-        'ALLOWED_ORIGINS must be set in production. Set it to your frontend origin(s), e.g. ALLOWED_ORIGINS=https://yourdomain.com,https://admin.yourdomain.com'
+        'D:/bulk-load-tester-fixed.html'
     );
 }
 const allowedOrigins = allowedOriginsRaw

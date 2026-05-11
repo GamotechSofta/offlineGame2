@@ -1,0 +1,2663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoadForge — Bulk Load Testing Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #0f1218;
+    --panel: #141820;
+    --border: #1e2530;
+    --border2: #252d3d;
+    --accent: #00d4ff;
+    --accent2: #00ff88;
+    --accent3: #ff4d6d;
+    --accent4: #ffd700;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; }
+
+  /* Header */
+  header {
+    background: linear-gradient(135deg, #0f1218 0%, #141c28 100%);
+    border-bottom: 1px solid var(--border2);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .brand-name {
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .brand-sub {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 1px;
+  }
+
+  .header-badges {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .badge-cyan { background: rgba(0,212,255,0.15); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+  .badge-green { background: rgba(0,255,136,0.15); color: var(--accent2); border: 1px solid rgba(0,255,136,0.3); }
+
+  /* Layout */
+  .container {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: calc(100vh - 64px);
+  }
+
+  /* Sidebar */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  input, select, textarea {
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    width: 100%;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+  }
+
+  select option { background: var(--panel); }
+
+  textarea { resize: vertical; min-height: 60px; }
+
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+  }
+
+  .toggle-label {
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .toggle {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    cursor: pointer;
+  }
+
+  .toggle input { display: none; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border2);
+    border-radius: 10px;
+    transition: background 0.2s;
+  }
+
+  .toggle input:checked ~ .toggle-track { background: var(--accent); }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+
+  /* Buttons */
+  .btn {
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 10px 20px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    color: #000;
+    box-shadow: 0 4px 15px rgba(0,212,255,0.3);
+  }
+
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,212,255,0.4); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-danger {
+    background: linear-gradient(135deg, var(--accent3), #cc2244);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255,77,109,0.2);
+  }
+
+  .btn-danger:hover { transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+  }
+
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-row .btn { flex: 1; }
+
+  /* Main area */
+  .main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-cell {
+    background: var(--surface);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-cell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .stat-cell.active::before { opacity: 1; }
+  .stat-cell.success::before { background: var(--accent2); opacity: 1; }
+  .stat-cell.error::before { background: var(--accent3); opacity: 1; }
+  .stat-cell.warn::before { background: var(--accent4); opacity: 1; }
+
+  .stat-val {
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .stat-key {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .stat-unit {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* Progress */
+  .progress-wrap {
+    height: 3px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    width: 0%;
+    transition: width 0.3s;
+    box-shadow: 0 0 8px rgba(0,212,255,0.6);
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 16px;
+  }
+
+  .tab {
+    padding: 10px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .tab-count {
+    background: var(--border2);
+    color: var(--muted);
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 10px;
+  }
+
+  .tab.active .tab-count { background: rgba(0,212,255,0.2); color: var(--accent); }
+
+  /* Content panels */
+  .tab-content { display: none; flex: 1; overflow: hidden; }
+  .tab-content.active { display: flex; flex-direction: column; }
+
+  /* Log terminal */
+  .terminal {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    font-size: 11px;
+    line-height: 1.7;
+    background: var(--bg);
+  }
+
+  .terminal::-webkit-scrollbar { width: 4px; }
+  .terminal::-webkit-scrollbar-track { background: transparent; }
+  .terminal::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .log-line {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 1px 0;
+    animation: fadeIn 0.1s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+
+  .log-time { color: var(--muted); flex-shrink: 0; min-width: 80px; }
+  .log-tag {
+    flex-shrink: 0;
+    min-width: 70px;
+    font-weight: 700;
+    font-size: 10px;
+  }
+
+  .log-tag.INFO { color: var(--accent); }
+  .log-tag.OK { color: var(--accent2); }
+  .log-tag.ERR { color: var(--accent3); }
+  .log-tag.WARN { color: var(--accent4); }
+  .log-tag.SYS { color: #a78bfa; }
+  .log-tag.BET { color: #fb923c; }
+
+  .log-msg { flex: 1; word-break: break-all; }
+  .log-msg.err-msg { color: var(--accent3); }
+  .log-msg.ok-msg { color: rgba(226,232,240,0.8); }
+
+  /* Charts area */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .chart-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .chart-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  canvas { width: 100% !important; }
+
+  /* Results table */
+  .results-wrap {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  thead tr {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+  }
+
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(30,37,48,0.6);
+    color: var(--text);
+    font-size: 11px;
+  }
+
+  tr:hover td { background: rgba(20,24,32,0.6); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .pill-green { background: rgba(0,255,136,0.1); color: var(--accent2); border: 1px solid rgba(0,255,136,0.2); }
+  .pill-red { background: rgba(255,77,109,0.1); color: var(--accent3); border: 1px solid rgba(255,77,109,0.2); }
+  .pill-yellow { background: rgba(255,215,0,0.1); color: var(--accent4); border: 1px solid rgba(255,215,0,0.2); }
+  .pill-blue { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+
+  /* Waterfall bars */
+  .rps-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .rps-label { min-width: 60px; color: var(--muted); font-size: 10px; }
+
+  .rps-track {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .rps-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s;
+  }
+
+  .rps-val { min-width: 40px; text-align: right; font-size: 10px; color: var(--text); }
+
+  /* Worker pool visualizer */
+  .worker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12px, 1fr));
+    gap: 2px;
+    max-height: 120px;
+    overflow: hidden;
+  }
+
+  .worker-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--border2);
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  .worker-dot.busy { background: var(--accent); transform: scale(1.1); }
+  .worker-dot.done { background: var(--accent2); }
+  .worker-dot.fail { background: var(--accent3); }
+
+  /* Phase indicator */
+  .phase-strip {
+    display: flex;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .phase-item {
+    flex: 1;
+    text-align: center;
+    padding: 6px 4px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+    transition: all 0.2s;
+    cursor: default;
+  }
+
+  .phase-item.current { background: rgba(0,212,255,0.15); color: var(--accent); }
+  .phase-item.done { background: rgba(0,255,136,0.1); color: var(--accent2); }
+
+  /* Empty state */
+  .empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .empty-icon { font-size: 36px; opacity: 0.3; }
+
+  /* Alert */
+  .alert {
+    margin: 8px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .alert-warn { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.2); color: var(--accent4); }
+  .alert-info { background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); color: var(--accent); }
+  .alert-err  { background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.2); color: var(--accent3); }
+
+  /* Spin */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; animation: spin 0.8s linear infinite; }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* scrollbar global */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .separator { height: 1px; background: var(--border); margin: 4px 0; }
+
+  .text-green { color: var(--accent2); }
+  .text-red { color: var(--accent3); }
+  .text-yellow { color: var(--accent4); }
+  .text-blue { color: var(--accent); }
+  .text-muted { color: var(--muted); }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 11px;
+    border-bottom: 1px solid rgba(30,37,48,0.5);
+  }
+
+  .info-key { color: var(--muted); }
+  .info-val { font-weight: 600; }
+
+  /* ─── Game-mode tab segmented control ─── */
+  .seg {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 4px;
+  }
+  .seg-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 8px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .seg-btn .seg-emoji { font-size: 16px; }
+  .seg-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.03); }
+  .seg-btn.active {
+    background: linear-gradient(135deg, rgba(0,212,255,0.18), rgba(0,255,136,0.12));
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px rgba(0,212,255,0.3);
+  }
+  .seg-btn.active.market { color: var(--accent); }
+  .seg-btn.active.twod   { background: linear-gradient(135deg, rgba(167,139,250,0.18), rgba(0,212,255,0.10)); color: #a78bfa; box-shadow: inset 0 0 0 1px rgba(167,139,250,0.3); }
+  .seg-btn.active.threed { background: linear-gradient(135deg, rgba(251,146,60,0.18), rgba(255,215,0,0.10)); color: #fb923c; box-shadow: inset 0 0 0 1px rgba(251,146,60,0.3); }
+
+  .mode-panel { display: none; flex-direction: column; gap: 12px; }
+  .mode-panel.active { display: flex; }
+
+  .slot-card {
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+  .slot-card .slot-row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .slot-card .slot-row .k { color: var(--muted); }
+  .slot-card .slot-row .v { font-weight: 600; }
+  .slot-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .slot-pill.open  { background: rgba(0,255,136,0.12); color: var(--accent2); border: 1px solid rgba(0,255,136,0.3); }
+  .slot-pill.closed{ background: rgba(255,77,109,0.12); color: var(--accent3); border: 1px solid rgba(255,77,109,0.3); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">⚡</div>
+    <div>
+      <div class="brand-name">LoadForge</div>
+      <div class="brand-sub">Number Platform — Bulk Test Harness</div>
+    </div>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-cyan" id="status-badge">IDLE</span>
+    <span class="badge badge-green" id="phase-badge">READY</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <div class="section-label">Target</div>
+    <div class="panel">
+      <div class="field">
+        <label>API Base URL</label>
+        <input id="baseUrl" type="text" value="http://localhost:3010/api/v1" placeholder="http://localhost:3010/api/v1">
+      </div>
+      <div class="field">
+        <label>Market</label>
+        <select id="marketDropdown" onchange="onMarketDropdownChange()">
+          <option value="">— Click 🔄 Fetch Markets —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Market ID (auto-filled from dropdown, or paste manually)</label>
+        <input id="marketId" type="text" placeholder="Paste MongoDB ObjectId here">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" style="font-size:11px;padding:7px 12px" onclick="fetchMarkets()">🔄 Fetch Markets</button>
+      </div>
+      <div id="marketStatus" style="display:none;padding:6px 10px;border-radius:6px;font-size:11px;margin-top:4px;"></div>
+      <div class="alert alert-info">
+        💡 Bets need a real market ID. Click <b>Fetch Markets</b> to load the list. Markets marked <span class="text-green">OPEN</span> can accept bets right now in the chosen session.
+      </div>
+    </div>
+
+    <div class="section-label">Scale</div>
+    <div class="panel">
+      <div class="field-row">
+        <div class="field">
+          <label>Total Users</label>
+          <input id="totalUsers" type="number" value="500" min="1" max="50000">
+        </div>
+        <div class="field">
+          <label>Concurrency</label>
+          <input id="concurrency" type="number" value="50" min="1" max="500">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Bets / User</label>
+          <input id="betsPerUser" type="number" value="3" min="1" max="20">
+        </div>
+        <div class="field">
+          <label>Bet Amount (₹)</label>
+          <input id="betAmount" type="number" value="10" min="1">
+        </div>
+      </div>
+      <div class="field">
+        <label>Ramp-up (seconds)</label>
+        <input id="rampUp" type="number" value="10" min="0" max="300">
+      </div>
+      <div class="alert alert-warn">
+        ⚠️ For 40k–50k users, set Concurrency 200–500 and ensure backend can handle load. Start small.
+      </div>
+    </div>
+
+    <div class="section-label">User Generation</div>
+    <div class="panel">
+      <div class="field">
+        <label>Username Prefix</label>
+        <input id="prefix" type="text" value="lf_user_" maxlength="20">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Start Index</label>
+          <input id="startIndex" type="number" value="1">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="password" type="text" value="Test@1234">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Phone First Digit</label>
+          <select id="phoneFirstDigit">
+            <option value="6" selected>6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Phone Base Offset</label>
+          <input id="phoneOffset" type="number" value="0" min="0" title="Added to (Start Index + i) before building the phone number">
+        </div>
+      </div>
+      <div class="field">
+        <label>Email Pattern</label>
+        <input id="emailPattern" type="text" value="{{prefix}}{{idx}}@{{domain}}" placeholder="{{prefix}}{{idx}}@{{domain}}">
+      </div>
+      <div class="field">
+        <label>Email Domain</label>
+        <input id="emailDomain" type="text" value="loadforge.test" placeholder="loadforge.test">
+      </div>
+      <div class="btn-row" style="margin-top:-4px">
+        <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="bumpStartIndex()" title="Set Start Index to a fresh timestamp-based value so this run creates brand-new users">🔄 Fresh Start Index</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px" onclick="previewUser()" title="Preview the first generated user">👁 Preview User</button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Auto-bump Start Index each run</span>
+        <label class="toggle">
+          <input type="checkbox" id="autoBumpStart" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Send deviceId (enables single-device limit)</span>
+        <label class="toggle">
+          <input type="checkbox" id="sendDeviceId">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="alert alert-info" style="font-size:10px;line-height:1.5">
+        💡 Leave <b>Send deviceId</b> OFF. Backend's single-device limit revokes the previous session's token when a new device logs in (causes 401 on bets when a user is reused across runs).
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Register new users (Signup)</span>
+        <label class="toggle">
+          <input type="checkbox" id="doSignup" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">If signup says "already exists" → login instead</span>
+        <label class="toggle">
+          <input type="checkbox" id="reuseOnConflict" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Login after signup</span>
+        <label class="toggle">
+          <input type="checkbox" id="doLogin" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Credit balance to users</span>
+        <label class="toggle">
+          <input type="checkbox" id="doCreditBalance" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Place bets after login</span>
+        <label class="toggle">
+          <input type="checkbox" id="doBet" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+
+    <div class="section-label">Admin Credentials</div>
+    <div class="panel">
+      <div class="field">
+        <label>Admin Username</label>
+        <input id="adminUsername" type="text" value="admin" placeholder="Super admin username">
+      </div>
+      <div class="field">
+        <label>Admin Password</label>
+        <input id="adminPassword" type="password" value="admin@123" placeholder="Super admin password">
+      </div>
+      <div class="field">
+        <label>Balance to Credit (₹)</label>
+        <input id="balanceToCredit" type="number" value="1000" min="1">
+      </div>
+      <div class="field">
+        <label>Admin Login Endpoint</label>
+        <input id="adminLoginEndpoint" type="text" value="/admin/login" placeholder="/admin/login">
+      </div>
+      <div class="field">
+        <label>Credit Wallet Endpoint</label>
+        <input id="adminCreditEndpoint" type="text" value="/wallet/adjust" placeholder="/wallet/adjust">
+      </div>
+      <div class="field">
+        <label>Credit Request Body (JSON)</label>
+        <textarea id="adminCreditBody" rows="3" style="font-size:11px">{"userId":"{{userId}}","amount":{{amount}},"type":"credit"}</textarea>
+      </div>
+      <div class="alert alert-info">
+        ℹ️ Default matches backend <code>POST /api/v1/wallet/adjust</code> with body <code>{ userId, amount, type:"credit" }</code>.
+        Use <code>{{userId}}</code> and <code>{{amount}}</code> as placeholders. Admin logs in once; credit runs per user.
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Abort run if admin login fails</span>
+        <label class="toggle">
+          <input type="checkbox" id="abortOnAdminFail" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div id="adminStatus" style="display:none;padding:6px 10px;border-radius:6px;font-size:11px;margin-top:4px;"></div>
+    </div>
+
+    <div class="btn-row" style="margin-top:-8px">
+      <button class="btn btn-ghost" style="font-size:11px;padding:7px 12px" onclick="testAdminLogin()">🔐 Test Admin Login</button>
+    </div>
+
+    <div class="section-label">Bet Config</div>
+    <div class="panel">
+      <div class="field">
+        <label>Game Mode</label>
+        <div class="seg" role="tablist">
+          <button type="button" class="seg-btn market active" data-mode="market" onclick="setGameMode('market')" title="Bet on Markets via /api/v1/bets/place">
+            <span class="seg-emoji">🎯</span><span>Market</span>
+          </button>
+          <button type="button" class="seg-btn twod" data-mode="2d" onclick="setGameMode('2d')" title="Bet on 2D Quiz slots via /api/v1/quiz/bet?mode=2d">
+            <span class="seg-emoji">🎲</span><span>2D Quiz</span>
+          </button>
+          <button type="button" class="seg-btn threed" data-mode="3d" onclick="setGameMode('3d')" title="Bet on 3D Quiz slots via /api/v1/quiz/bet?mode=3d">
+            <span class="seg-emoji">🎰</span><span>3D Quiz</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── MARKET MODE ─── -->
+      <div class="mode-panel active" id="modePanel-market">
+        <div class="field">
+          <label>Bet Type</label>
+          <select id="betType">
+            <option value="single">Single (0–9)</option>
+            <option value="jodi">Jodi (00–99)</option>
+            <option value="panna">Panna (3-digit)</option>
+            <option value="sp-motor">SP Motor</option>
+            <option value="dp-motor">DP Motor</option>
+            <option value="odd-even">Odd / Even</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Session</label>
+          <select id="betSession">
+            <option value="open">Open</option>
+            <option value="close">Close</option>
+          </select>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Randomize bet numbers</span>
+          <label class="toggle">
+            <input type="checkbox" id="randomBetNum" checked>
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- ─── 2D QUIZ MODE ─── -->
+      <div class="mode-panel" id="modePanel-2d">
+        <div class="slot-card" id="slot-card-2d">
+          <div class="slot-row"><span class="k">Slot status</span><span class="v"><span class="slot-pill closed" id="slotPill-2d">UNKNOWN</span></span></div>
+          <div class="slot-row"><span class="k">Phase</span><span class="v" id="slotPhase-2d">—</span></div>
+          <div class="slot-row"><span class="k">Slot start (IST)</span><span class="v" id="slotStart-2d">—</span></div>
+          <div class="slot-row"><span class="k">Ends in</span><span class="v" id="slotEnds-2d">—</span></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" style="font-size:11px;padding:7px 12px" onclick="fetchQuizSlot('2d')">🔄 Fetch 2D Slot</button>
+        </div>
+        <div class="field">
+          <label>Bet Mode (all lines in this ticket)</label>
+          <select id="quizBetMode2d">
+            <option value="str" selected>STR (Single)</option>
+            <option value="box">BOX</option>
+            <option value="fp">FP (First Pair)</option>
+            <option value="bp">BP (Back Pair)</option>
+            <option value="sp">SP</option>
+            <option value="ap">AP</option>
+            <option value="duplicates">Duplicates</option>
+            <option value="triples">Triples</option>
+          </select>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Multiple quizzes (one batch ticket)</span>
+          <label class="toggle">
+            <input type="checkbox" id="quizUseBatch2d" onchange="toggleQuizBatch2dUI()">
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div id="quizBatch2dWrap" style="display:none;flex-direction:column;gap:10px">
+          <div class="field">
+            <label>Quiz IDs (1–30)</label>
+            <textarea id="quizIds2d" rows="2" placeholder="e.g. 1,2,3 or 1-5 or 1,4,10-12">1,2,3</textarea>
+          </div>
+          <div class="field">
+            <label>Bets per quiz (each round in the batch)</label>
+            <input id="quizBetsPerQuiz2d" type="number" value="1" min="1" max="50">
+          </div>
+          <div class="alert alert-info" style="font-size:10px;line-height:1.45;margin:0">
+            Uses <code>POST /quiz/bet-batch?mode=2d</code> — one wallet debit, one ticket, multiple <code>rounds</code> (one per quizId). Duplicate <code>number|betMode</code> within a quiz is merged server-side.
+          </div>
+        </div>
+        <div id="quizSingle2dWrap" class="field">
+          <label>Quiz ID (1–30)</label>
+          <input id="quizId2d" type="number" value="1" min="1" max="30">
+        </div>
+        <div class="toggle-row" id="quizRandomQuizIdRow2d">
+          <span class="toggle-label">Random Quiz ID per user (1–30)</span>
+          <label class="toggle">
+            <input type="checkbox" id="quizIdRandom2d">
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Randomize numbers (0–99)</span>
+          <label class="toggle">
+            <input type="checkbox" id="quizRandomNum2d" checked>
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="alert alert-info" style="font-size:10px;line-height:1.5">
+          🎲 <b>2D Quiz</b> — numbers <b>0–99</b>, quiz <b>1–30</b>. Turn on <b>Multiple quizzes</b> to call <code>POST /quiz/bet-batch?mode=2d</code> (one ticket, many quiz rounds). Otherwise <code>POST /quiz/bet?mode=2d</code> with <b>Bets / User</b> as line count. Slot must be <b>OPEN</b>.
+        </div>
+      </div>
+
+      <!-- ─── 3D QUIZ MODE ─── -->
+      <div class="mode-panel" id="modePanel-3d">
+        <div class="slot-card" id="slot-card-3d">
+          <div class="slot-row"><span class="k">Slot status</span><span class="v"><span class="slot-pill closed" id="slotPill-3d">UNKNOWN</span></span></div>
+          <div class="slot-row"><span class="k">Phase</span><span class="v" id="slotPhase-3d">—</span></div>
+          <div class="slot-row"><span class="k">Slot start (IST)</span><span class="v" id="slotStart-3d">—</span></div>
+          <div class="slot-row"><span class="k">Ends in</span><span class="v" id="slotEnds-3d">—</span></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" style="font-size:11px;padding:7px 12px" onclick="fetchQuizSlot('3d')">🔄 Fetch 3D Slot</button>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Quiz ID (1–3)</label>
+            <input id="quizId3d" type="number" value="1" min="1" max="3">
+          </div>
+          <div class="field">
+            <label>Bet Mode</label>
+            <select id="quizBetMode3d">
+              <option value="str" selected>STR (Single)</option>
+              <option value="box">BOX</option>
+              <option value="fp">FP (First Pair)</option>
+              <option value="bp">BP (Back Pair)</option>
+              <option value="sp">SP</option>
+              <option value="ap">AP</option>
+              <option value="duplicates">Duplicates</option>
+              <option value="triples">Triples</option>
+            </select>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Random Quiz ID per user (1–3)</span>
+          <label class="toggle">
+            <input type="checkbox" id="quizIdRandom3d">
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Randomize numbers (0–999)</span>
+          <label class="toggle">
+            <input type="checkbox" id="quizRandomNum3d" checked>
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="alert alert-info" style="font-size:10px;line-height:1.5">
+          🎰 <b>3D Quiz</b> — number range <b>0–999</b>, quizId <b>1–3</b>. Endpoint <code>POST /quiz/bet?mode=3d</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Report</div>
+    <div class="panel">
+      <div class="toggle-row">
+        <span class="toggle-label">Save results to CSV</span>
+        <label class="toggle">
+          <input type="checkbox" id="saveCsv" checked>
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Verbose log (all requests)</span>
+        <label class="toggle">
+          <input type="checkbox" id="verbose">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnStart" onclick="startTest()">▶ Run Test</button>
+      <button class="btn btn-danger" id="btnStop" onclick="stopTest()" disabled>■ Stop</button>
+    </div>
+    <button class="btn btn-ghost" onclick="exportCsv()">⬇ Export CSV</button>
+    <button class="btn btn-ghost" onclick="clearAll()">✕ Clear</button>
+
+  </div><!-- /sidebar -->
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- Stats bar -->
+    <div class="stats-bar">
+      <div class="stat-cell" id="sc-total">
+        <div class="stat-val" id="sv-total">0</div>
+        <div class="stat-key">Total Users</div>
+      </div>
+      <div class="stat-cell success" id="sc-success">
+        <div class="stat-val" id="sv-success">0</div>
+        <div class="stat-key">Signed Up</div>
+      </div>
+      <div class="stat-cell success" id="sc-loggedin">
+        <div class="stat-val" id="sv-loggedin">0</div>
+        <div class="stat-key">Logged In</div>
+      </div>
+      <div class="stat-cell success" id="sc-credited">
+        <div class="stat-val" id="sv-credited">0</div>
+        <div class="stat-key">Balance Added</div>
+      </div>
+      <div class="stat-cell" id="sc-bets">
+        <div class="stat-val" id="sv-bets">0</div>
+        <div class="stat-key">Bets Placed</div>
+      </div>
+      <div class="stat-cell error" id="sc-errors">
+        <div class="stat-val" id="sv-errors">0</div>
+        <div class="stat-key">Errors</div>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-fill" id="progress"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('log')" id="tab-log">📟 Live Log <span class="tab-count" id="cnt-log">0</span></div>
+      <div class="tab" onclick="switchTab('workers')" id="tab-workers">⚙ Workers <span class="tab-count" id="cnt-workers">0</span></div>
+      <div class="tab" onclick="switchTab('results')" id="tab-results">📊 Results <span class="tab-count" id="cnt-results">0</span></div>
+      <div class="tab" onclick="switchTab('charts')" id="tab-charts">📈 Charts</div>
+      <div class="tab" onclick="switchTab('summary')" id="tab-summary">📋 Summary</div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div class="tab-content active" id="tc-log">
+      <div class="terminal" id="terminal">
+        <div class="log-line">
+          <span class="log-time">00:00:00</span>
+          <span class="log-tag SYS">SYS</span>
+          <span class="log-msg">LoadForge ready. Configure parameters and click ▶ Run Test.</span>
+        </div>
+        <div class="log-line">
+          <span class="log-time">00:00:00</span>
+          <span class="log-tag SYS">SYS</span>
+          <span class="log-msg text-muted">Make sure your backend is running and accessible at the configured URL.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- WORKERS TAB -->
+    <div class="tab-content" id="tc-workers">
+      <div style="padding:16px; display:flex; flex-direction:column; gap:16px; overflow-y:auto; flex:1;">
+        <div class="panel">
+          <div class="chart-title">Phase Progress</div>
+          <div class="phase-strip" id="phase-strip">
+            <div class="phase-item" id="ph-signup">① Signup</div>
+            <div class="phase-item" id="ph-login">② Login</div>
+            <div class="phase-item" id="ph-admin">③ Admin</div>
+            <div class="phase-item" id="ph-credit">④ Credit</div>
+            <div class="phase-item" id="ph-bet">⑤ Bet</div>
+            <div class="phase-item" id="ph-done">⑥ Done</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="chart-title">Worker Pool — <span id="worker-count">0</span> active</div>
+          <div class="worker-grid" id="worker-grid"></div>
+        </div>
+        <div class="panel">
+          <div class="chart-title">Throughput (req/s per phase)</div>
+          <div id="rps-bars"></div>
+        </div>
+        <div class="panel">
+          <div class="chart-title">Queue State</div>
+          <div id="queue-info">
+            <div class="info-row"><span class="info-key">Queue Length</span><span class="info-val" id="qi-queue">0</span></div>
+            <div class="info-row"><span class="info-key">Active Workers</span><span class="info-val" id="qi-active">0</span></div>
+            <div class="info-row"><span class="info-key">Completed</span><span class="info-val text-green" id="qi-done">0</span></div>
+            <div class="info-row"><span class="info-key">Failed</span><span class="info-val text-red" id="qi-fail">0</span></div>
+            <div class="info-row"><span class="info-key">Elapsed</span><span class="info-val" id="qi-elapsed">0s</span></div>
+            <div class="info-row"><span class="info-key">ETA</span><span class="info-val" id="qi-eta">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTS TAB -->
+    <div class="tab-content" id="tc-results">
+      <div class="results-wrap">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Username</th>
+              <th>Phone</th>
+              <th>Signup</th>
+              <th>Login</th>
+              <th>Balance</th>
+              <th>Bets</th>
+              <th>Bet Status</th>
+              <th>Latency</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody id="results-body">
+            <tr><td colspan="10" style="text-align:center; padding:40px; color:var(--muted)">No results yet. Run the test first.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CHARTS TAB -->
+    <div class="tab-content" id="tc-charts">
+      <div class="chart-grid">
+        <div class="chart-box">
+          <div class="chart-title">Signup Success Rate (rolling %)</div>
+          <canvas id="chart-signup" height="160"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Login Success Rate (rolling %)</div>
+          <canvas id="chart-login" height="160"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Requests per Second</div>
+          <canvas id="chart-rps" height="160"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Error Distribution</div>
+          <canvas id="chart-errors" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY TAB -->
+    <div class="tab-content" id="tc-summary">
+      <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:16px;">
+        <div class="panel" id="summary-panel">
+          <div style="text-align:center; color:var(--muted); padding:40px">Run a test to see the summary report.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /container -->
+</div><!-- /app -->
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let running = false;
+let abortFlag = false;
+let results = [];
+let stats = { total:0, signupOk:0, loginOk:0, creditedOk:0, betsOk:0, errors:0, reqCount:0 };
+let startTime = null;
+let logCount = 0;
+let rpsWindow = [];
+let chartData = { signup:[], login:[], credit:[], rps:[], errTypes:{} };
+let workerStates = {};
+let errorCounts = {};
+let phaseRps = { signup:0, login:0, credit:0, bet:0 };
+let adminToken = null;
+let gameMode = 'market'; // 'market' | '2d' | '3d'
+let quizSlotInfo = { '2d': null, '3d': null };
+
+// ============================================================
+// GAME-MODE TABS
+// ============================================================
+function setGameMode(mode) {
+  gameMode = (mode === '2d' || mode === '3d') ? mode : 'market';
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === gameMode));
+  document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+  const activePanel = document.getElementById('modePanel-' + gameMode);
+  if (activePanel) activePanel.classList.add('active');
+  if (gameMode === '2d') toggleQuizBatch2dUI();
+  // Update header phase badge
+  const badge = document.getElementById('phase-badge');
+  if (badge) badge.textContent = gameMode === 'market' ? 'MARKET MODE' : (gameMode === '2d' ? '2D QUIZ MODE' : '3D QUIZ MODE');
+  log('SYS', `🎮 Game Mode → ${gameMode === 'market' ? 'Markets (/bets/place)' : gameMode === '2d' ? '2D Quiz (/quiz/bet?mode=2d)' : '3D Quiz (/quiz/bet?mode=3d)'}`);
+}
+
+// ============================================================
+// QUIZ SLOT FETCH (2D / 3D)
+// ============================================================
+async function fetchQuizSlot(mode) {
+  const baseUrl = document.getElementById('baseUrl').value.replace(/\/$/, '');
+  const url = `${baseUrl}/quiz/slot?mode=${mode}`;
+  log('SYS', `🔄 Fetching ${mode.toUpperCase()} quiz slot from ${url} …`);
+  const r = await apiCall(url, 'GET');
+  if (!r.ok || !r.data?.success || !r.data?.data) {
+    log('ERR', `✗ Failed to fetch ${mode} slot: ${r.data?.message || `HTTP ${r.status}`}`, 'err-msg');
+    return null;
+  }
+  const d = r.data.data;
+  quizSlotInfo[mode] = d;
+  // Update card UI
+  const pill = document.getElementById(`slotPill-${mode}`);
+  const phaseEl = document.getElementById(`slotPhase-${mode}`);
+  const startEl = document.getElementById(`slotStart-${mode}`);
+  const endsEl = document.getElementById(`slotEnds-${mode}`);
+  if (pill) {
+    pill.textContent = d.acceptsBets ? 'OPEN' : 'CLOSED';
+    pill.className = 'slot-pill ' + (d.acceptsBets ? 'open' : 'closed');
+  }
+  if (phaseEl) phaseEl.textContent = d.phase || '—';
+  if (startEl) startEl.textContent = d.slotStartIso ? new Date(d.slotStartIso).toLocaleTimeString() : '—';
+  if (endsEl) endsEl.textContent = (d.secondsUntilSlotEnd != null) ? `${d.secondsUntilSlotEnd}s` : '—';
+  log(d.acceptsBets ? 'OK' : 'WARN',
+      `${d.acceptsBets ? '✓' : '⚠'} ${mode.toUpperCase()} slot: phase="${d.phase}", acceptsBets=${d.acceptsBets}, ends in ${d.secondsUntilSlotEnd}s, slotStart=${d.slotStartIso}`,
+      d.acceptsBets ? 'ok-msg' : 'err-msg');
+  return d;
+}
+
+function genQuizNumber(mode) {
+  const max = mode === '3d' ? 1000 : 100; // 0..999 / 0..99
+  return Math.floor(Math.random() * max);
+}
+
+/** Parse "1,2,5-8" → unique sorted ids in [1, maxId] */
+function parseQuizIdList(raw, maxId) {
+  const text = String(raw || '').trim();
+  if (!text) return [];
+  const out = [];
+  for (const part of text.split(/[\s,;]+/).filter(Boolean)) {
+    const range = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (range) {
+      let a = parseInt(range[1], 10);
+      let b = parseInt(range[2], 10);
+      if (a > b) [a, b] = [b, a];
+      for (let i = a; i <= b; i++) out.push(i);
+    } else {
+      const n = parseInt(part, 10);
+      if (!Number.isNaN(n)) out.push(n);
+    }
+  }
+  const set = new Set();
+  for (const n of out) {
+    if (Number.isInteger(n) && n >= 1 && n <= maxId) set.add(n);
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+/** Build up to `count` unique {number, amount, betMode} lines for one quiz round */
+function buildQuizRoundBets(gameMode, count, betAmount, betMode, randomNumber) {
+  const usedKeys = new Set();
+  const bets = [];
+  let attempts = 0;
+  const maxAttempts = Math.max(count * 25, 50);
+  while (bets.length < count && attempts < maxAttempts) {
+    attempts++;
+    const number = randomNumber ? genQuizNumber(gameMode) : (gameMode === '3d' ? 5 : 5);
+    const key = `${number}|${betMode}`;
+    if (usedKeys.has(key)) continue;
+    usedKeys.add(key);
+    bets.push({ number, amount: betAmount, betMode });
+  }
+  return bets;
+}
+
+function toggleQuizBatch2dUI() {
+  const batch = document.getElementById('quizUseBatch2d')?.checked;
+  const wrap = document.getElementById('quizBatch2dWrap');
+  const single = document.getElementById('quizSingle2dWrap');
+  const randRow = document.getElementById('quizRandomQuizIdRow2d');
+  if (wrap) {
+    wrap.style.display = batch ? 'flex' : 'none';
+    wrap.style.flexDirection = 'column';
+  }
+  if (single) single.style.display = batch ? 'none' : 'block';
+  if (randRow) randRow.style.display = batch ? 'none' : 'flex';
+}
+
+// ============================================================
+// CHART (lightweight canvas charts, no deps)
+// ============================================================
+function drawLineChart(canvasId, data, color, label, yMax) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = 160;
+  canvas.width = W; canvas.height = H;
+  ctx.clearRect(0,0,W,H);
+
+  // BG
+  ctx.fillStyle = '#0a0c10';
+  ctx.fillRect(0,0,W,H);
+
+  if (data.length < 2) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('Waiting for data...', W/2, H/2);
+    return;
+  }
+
+  const max = yMax || Math.max(...data, 1);
+  const pad = { t:10, r:10, b:30, l:40 };
+  const gW = W - pad.l - pad.r;
+  const gH = H - pad.t - pad.b;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(30,37,48,0.8)';
+  ctx.lineWidth = 1;
+  for (let i=0;i<=4;i++) {
+    const y = pad.t + (i/4)*gH;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+gW,y); ctx.stroke();
+    ctx.fillStyle = '#64748b'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(max*(1-i/4)), pad.l-4, y+3);
+  }
+
+  // Area fill
+  const pts = data.map((v,i) => ({
+    x: pad.l + (i/(data.length-1))*gW,
+    y: pad.t + gH - (v/max)*gH
+  }));
+
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t+gH);
+  grad.addColorStop(0, color + '44');
+  grad.addColorStop(1, color + '00');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pad.t+gH);
+  pts.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.lineTo(pts[pts.length-1].x, pad.t+gH);
+  ctx.closePath(); ctx.fill();
+
+  // Line
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = color; ctx.shadowBlur = 6;
+  ctx.beginPath();
+  pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Axis label
+  ctx.fillStyle = '#64748b'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'center';
+  ctx.fillText(label, pad.l + gW/2, H-6);
+}
+
+function drawBarChart(canvasId, errCounts) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = 160;
+  canvas.width = W; canvas.height = H;
+  ctx.fillStyle = '#0a0c10'; ctx.fillRect(0,0,W,H);
+
+  const entries = Object.entries(errCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  if (!entries.length) {
+    ctx.fillStyle = '#00ff88'; ctx.font = '12px JetBrains Mono'; ctx.textAlign='center';
+    ctx.fillText('No errors!', W/2, H/2);
+    return;
+  }
+
+  const colors = ['#ff4d6d','#ffd700','#00d4ff','#a78bfa','#fb923c','#00ff88'];
+  const max = Math.max(...entries.map(e=>e[1]), 1);
+  const bW = Math.min(60, (W-40)/entries.length - 8);
+  const pad = 30;
+
+  entries.forEach(([label,val],i) => {
+    const x = 20 + i*(bW+8);
+    const bH = ((val/max)*(H-pad-20));
+    const y = H - pad - bH;
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(x, y, bW, bH);
+    ctx.fillStyle = '#64748b'; ctx.font = '8px JetBrains Mono'; ctx.textAlign='center';
+    const lbl = label.length > 10 ? label.slice(0,10)+'…' : label;
+    ctx.fillText(lbl, x+bW/2, H-10);
+    ctx.fillStyle = colors[i]; ctx.font = '9px JetBrains Mono';
+    ctx.fillText(val, x+bW/2, y-4);
+  });
+}
+
+function refreshCharts() {
+  const tail = n => arr => arr.slice(-n);
+  const t50 = tail(50);
+  drawLineChart('chart-signup', t50(chartData.signup), '#00ff88', 'Signup OK %', 100);
+  drawLineChart('chart-login',  t50(chartData.login),  '#00d4ff', 'Login OK %', 100);
+  drawLineChart('chart-rps',    t50(chartData.rps),    '#ffd700', 'Req/s', null);
+  drawBarChart('chart-errors', chartData.errTypes);
+}
+
+// ============================================================
+// LOGGING
+// ============================================================
+function log(tag, msg, cls='ok-msg') {
+  logCount++;
+  document.getElementById('cnt-log').textContent = logCount;
+  const term = document.getElementById('terminal');
+  const el = document.createElement('div');
+  el.className = 'log-line';
+  const now = new Date();
+  const t = [now.getHours(), now.getMinutes(), now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  el.innerHTML = `<span class="log-time">${t}</span><span class="log-tag ${tag}">${tag}</span><span class="log-msg ${cls}">${msg}</span>`;
+  term.appendChild(el);
+  // Keep last 2000 lines
+  while (term.children.length > 2000) term.removeChild(term.firstChild);
+  term.scrollTop = term.scrollHeight;
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+// Build a valid Indian mobile (starts 6–9, exactly 10 digits) from an index.
+// firstDigit ∈ {6,7,8,9}. We use a 9-digit suffix so the full phone is always 10 digits.
+function genPhone(index, firstDigit = 6, offset = 0) {
+  const safeFirst = String(firstDigit || 6);
+  const safeIdx = Math.abs(Math.floor(Number(index) || 0) + Math.floor(Number(offset) || 0));
+  // 9-digit suffix: pad / wrap modulo 1e9 so the last 9 digits are unique up to 1B users.
+  const suffix = String(safeIdx % 1000000000).padStart(9, '0');
+  return safeFirst + suffix;
+}
+
+function genEmail(prefix, index, pattern, domain) {
+  const tpl = pattern || '{{prefix}}{{idx}}@{{domain}}';
+  return tpl
+    .replace(/{{prefix}}/g, prefix || '')
+    .replace(/{{idx}}/g, String(index))
+    .replace(/{{domain}}/g, domain || 'loadforge.test');
+}
+
+// Preview the first user that the next run will generate
+function previewUser() {
+  const prefix = document.getElementById('prefix').value || 'lf_user_';
+  const startIdx = parseInt(document.getElementById('startIndex').value) || 1;
+  const phoneFirstDigit = document.getElementById('phoneFirstDigit')?.value || '6';
+  const phoneOffset = parseInt(document.getElementById('phoneOffset')?.value) || 0;
+  const emailPattern = document.getElementById('emailPattern')?.value || '{{prefix}}{{idx}}@{{domain}}';
+  const emailDomain = document.getElementById('emailDomain')?.value || 'loadforge.test';
+  const u = `${prefix}${startIdx}`;
+  const p = genPhone(startIdx, phoneFirstDigit, phoneOffset);
+  const e = genEmail(prefix, startIdx, emailPattern, emailDomain);
+  log('SYS', `👁 Preview first user → username="${u}", phone="${p}", email="${e}"`);
+}
+
+function randomBetNumber(betType) {
+  switch(betType) {
+    case 'single': return String(Math.floor(Math.random()*10));
+    case 'jodi': return String(Math.floor(Math.random()*100)).padStart(2,'0');
+    case 'panna': {
+      const nums = [0,1,2,3,4,5,6,7,8,9];
+      const a=nums[Math.floor(Math.random()*10)];
+      const b=nums[Math.floor(Math.random()*10)];
+      const c=nums[Math.floor(Math.random()*10)];
+      return [a,b,c].sort().join('');
+    }
+    case 'sp-motor': return String(Math.floor(Math.random()*10));
+    case 'dp-motor': {
+      const d = Math.floor(Math.random()*10);
+      const e = Math.floor(Math.random()*10);
+      return d===e ? `${d}${d}${(d+1)%10}` : `${Math.min(d,e)}${Math.min(d,e)}${Math.max(d,e)}`;
+    }
+    case 'odd-even': return Math.random()<0.5 ? 'odd' : 'even';
+    default: return String(Math.floor(Math.random()*10));
+  }
+}
+
+async function apiCall(url, method='GET', body=null, token=null) {
+  const t0 = Date.now();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  try {
+    const opts = { method, headers, credentials: 'include' };
+    if (body) opts.body = JSON.stringify(body);
+    const resp = await fetch(url, opts);
+    const data = await resp.json().catch(() => ({}));
+    return { ok: resp.ok, status: resp.status, data, latency: Date.now()-t0 };
+  } catch(e) {
+    return { ok: false, status: 0, data: { message: e.message }, latency: Date.now()-t0 };
+  }
+}
+
+// ============================================================
+// WORKER POOL
+// ============================================================
+async function runWorkerPool(tasks, concurrency, processor, onProgress) {
+  let idx = 0;
+  let active = 0;
+  const results = new Array(tasks.length);
+
+  return new Promise(resolve => {
+    function next() {
+      while (active < concurrency && idx < tasks.length && !abortFlag) {
+        const i = idx++;
+        active++;
+        processor(tasks[i], i).then(r => {
+          results[i] = r;
+          active--;
+          onProgress && onProgress(i, r, active, idx);
+          next();
+          if (active === 0 && idx >= tasks.length) resolve(results);
+        });
+      }
+      if (active === 0 && idx >= tasks.length) resolve(results);
+    }
+    next();
+  });
+}
+
+// ============================================================
+// RPS TRACKING
+// ============================================================
+let rpsInterval = null;
+function startRpsTracking() {
+  rpsWindow = [];
+  rpsInterval = setInterval(() => {
+    const now = Date.now();
+    rpsWindow.push({ t: now, count: stats.reqCount });
+    if (rpsWindow.length > 10) rpsWindow.shift();
+    if (rpsWindow.length >= 2) {
+      const dt = (rpsWindow[rpsWindow.length-1].t - rpsWindow[0].t) / 1000;
+      const dc = rpsWindow[rpsWindow.length-1].count - rpsWindow[0].count;
+      const rps = dt > 0 ? Math.round(dc/dt) : 0;
+      chartData.rps.push(rps);
+    }
+    updateWorkerUI();
+    refreshCharts();
+  }, 1000);
+}
+
+function stopRpsTracking() {
+  if (rpsInterval) { clearInterval(rpsInterval); rpsInterval = null; }
+}
+
+// ============================================================
+// WORKER VISUALIZATION
+// ============================================================
+let workerDots = [];
+
+function initWorkerGrid(count) {
+  const grid = document.getElementById('worker-grid');
+  grid.innerHTML = '';
+  workerDots = [];
+  const n = Math.min(count, 400);
+  for(let i=0;i<n;i++){
+    const d = document.createElement('div');
+    d.className = 'worker-dot';
+    grid.appendChild(d);
+    workerDots.push(d);
+  }
+  document.getElementById('cnt-workers').textContent = n;
+}
+
+function setWorkerState(idx, state) {
+  if (workerDots[idx]) {
+    workerDots[idx].className = 'worker-dot ' + state;
+  }
+}
+
+function updateWorkerUI() {
+  const active = Object.values(workerStates).filter(s=>s==='busy').length;
+  document.getElementById('worker-count').textContent = active;
+  document.getElementById('qi-active').textContent = active;
+  document.getElementById('qi-queue').textContent = Math.max(0, stats.total - stats.signupOk - stats.errors);
+  document.getElementById('qi-done').textContent = stats.signupOk;
+  document.getElementById('qi-fail').textContent = stats.errors;
+
+  if (startTime) {
+    const elapsed = Math.floor((Date.now()-startTime)/1000);
+    document.getElementById('qi-elapsed').textContent = elapsed+'s';
+    const done = stats.signupOk + stats.errors;
+    if (done > 0 && stats.total > 0) {
+      const rate = done / elapsed;
+      const remaining = stats.total - done;
+      const eta = rate > 0 ? Math.ceil(remaining/rate) : 0;
+      document.getElementById('qi-eta').textContent = eta > 0 ? eta+'s' : '~done';
+    }
+  }
+
+  // RPS bars
+  const bars = [
+    { label:'Signup', val: phaseRps.signup, color: '#00ff88' },
+    { label:'Login',  val: phaseRps.login,  color: '#00d4ff' },
+    { label:'Credit', val: phaseRps.credit, color: '#a78bfa' },
+    { label:'Bet',    val: phaseRps.bet,    color: '#ffd700' },
+  ];
+  const maxRps = Math.max(...bars.map(b=>b.val), 1);
+  document.getElementById('rps-bars').innerHTML = bars.map(b => `
+    <div class="rps-bar">
+      <div class="rps-label">${b.label}</div>
+      <div class="rps-track"><div class="rps-fill" style="width:${(b.val/maxRps)*100}%;background:${b.color}"></div></div>
+      <div class="rps-val">${b.val}</div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// RESULTS TABLE
+// ============================================================
+let tableRows = 0;
+function addResultRow(r) {
+  tableRows++;
+  document.getElementById('cnt-results').textContent = tableRows;
+  const tbody = document.getElementById('results-body');
+  if (tableRows === 1) tbody.innerHTML = '';
+  const tr = document.createElement('tr');
+  const signupPill = r.signupOk ? '<span class="pill pill-green">OK</span>' : '<span class="pill pill-red">FAIL</span>';
+  const loginPill = !r.doLogin ? '<span class="pill pill-yellow">SKIP</span>' : r.loginOk ? '<span class="pill pill-green">OK</span>' : '<span class="pill pill-red">FAIL</span>';
+  const creditPill = r.creditOk===null ? '<span class="pill pill-yellow">SKIP</span>' : r.creditOk ? '<span class="pill pill-green">OK</span>' : '<span class="pill pill-red">FAIL</span>';
+  const betPill = r.betOk===null ? '<span class="pill pill-yellow">SKIP</span>' : r.betOk ? '<span class="pill pill-green">OK</span>' : '<span class="pill pill-red">FAIL</span>';
+  tr.innerHTML = `
+    <td class="text-muted">${tableRows}</td>
+    <td>${r.username}</td>
+    <td>${r.phone}</td>
+    <td>${signupPill}</td>
+    <td>${loginPill}</td>
+    <td>${creditPill}</td>
+    <td>${r.betsPlaced || 0}</td>
+    <td>${betPill}</td>
+    <td>${r.totalLatency}ms</td>
+    <td style="color:var(--accent3);font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.error||''}</td>
+  `;
+  tbody.appendChild(tr);
+  // Only keep last 500 rows in DOM for perf
+  while (tbody.children.length > 500) tbody.removeChild(tbody.firstChild);
+}
+
+// ============================================================
+// TEST ADMIN LOGIN (standalone button)
+// ============================================================
+async function testAdminLogin() {
+  const baseUrl = document.getElementById('baseUrl').value.replace(/\/$/, '');
+  const adminUsername = document.getElementById('adminUsername').value.trim();
+  const adminPassword = document.getElementById('adminPassword').value.trim();
+  const adminLoginEndpoint = document.getElementById('adminLoginEndpoint').value.trim() || '/admin/login';
+  const adminStatusEl = document.getElementById('adminStatus');
+
+  if (!adminUsername || !adminPassword) {
+    adminStatusEl.style.display = 'block';
+    adminStatusEl.style.background = 'rgba(255,215,0,0.1)';
+    adminStatusEl.style.border = '1px solid rgba(255,215,0,0.3)';
+    adminStatusEl.style.color = 'var(--accent4)';
+    adminStatusEl.textContent = '⚠ Enter admin username and password first';
+    return;
+  }
+
+  adminStatusEl.style.display = 'block';
+  adminStatusEl.style.background = 'rgba(0,212,255,0.1)';
+  adminStatusEl.style.border = '1px solid rgba(0,212,255,0.2)';
+  adminStatusEl.style.color = 'var(--accent)';
+  adminStatusEl.textContent = '⏳ Testing admin login…';
+
+  const adminUrl = `${baseUrl}${adminLoginEndpoint}`;
+  log('SYS', `🔐 Testing admin login at: ${adminUrl}`);
+
+  const r = await apiCall(adminUrl, 'POST', { username: adminUsername, password: adminPassword });
+  if (r.ok && (r.data.success || r.data.token || r.data.data?.token || r.data.accessToken)) {
+    const tok = r.data.token || r.data.data?.token || r.data.accessToken || r.data.data?.accessToken;
+    adminStatusEl.style.background = 'rgba(0,255,136,0.1)';
+    adminStatusEl.style.border = '1px solid rgba(0,255,136,0.3)';
+    adminStatusEl.style.color = 'var(--accent2)';
+    adminStatusEl.textContent = `✓ Admin login OK! Token: ${tok ? tok.slice(0,20)+'…' : 'received'} (${r.latency}ms)`;
+    log('OK', `✓ Admin test login success (${r.latency}ms) — response keys: ${Object.keys(r.data).join(', ')}`, 'ok-msg');
+  } else {
+    const errMsg = r.data?.message || r.data?.error || `HTTP ${r.status}`;
+    adminStatusEl.style.background = 'rgba(255,77,109,0.1)';
+    adminStatusEl.style.border = '1px solid rgba(255,77,109,0.3)';
+    adminStatusEl.style.color = 'var(--accent3)';
+    adminStatusEl.textContent = `✗ Failed: ${errMsg}`;
+    log('ERR', `✗ Admin test login failed: ${errMsg} — response: ${JSON.stringify(r.data).slice(0,200)}`, 'err-msg');
+    log('WARN', `Try changing Admin Login Endpoint. Common patterns: /admin/login, /users/admin/login, /auth/admin, /superadmin/login`, 'err-msg');
+  }
+}
+
+// ============================================================
+// MARKET LOADER
+// ============================================================
+let cachedMarkets = [];
+
+function isMarketOpenForSessionLocal(market, session, now = new Date()) {
+  // Mirror backend isBettingAllowedForSession (open: until openingTime - betClosureTime; close: until closingTime - betClosureTime)
+  try {
+    const startStr = market.startingTime || market.openingTime || '';
+    const closeStr = market.closingTime || '';
+    const closureSec = Number(market.betClosureTime) || 0;
+    if (!startStr || !closeStr) return { allowed: false, reason: 'no timing' };
+    const [sh, sm] = startStr.split(':').map(Number);
+    const [ch, cm] = closeStr.split(':').map(Number);
+    const t = (h, m) => { const d = new Date(now); d.setHours(h, m, 0, 0); return d.getTime(); };
+    const openAt = t(sh, sm);
+    const closeAt = t(ch, cm);
+    const lastOpenBetAt = openAt - closureSec * 1000;
+    const lastCloseBetAt = closeAt - closureSec * 1000;
+    const nowMs = now.getTime();
+    if (session === 'close') {
+      return nowMs <= lastCloseBetAt ? { allowed: true } : { allowed: false, reason: 'close window passed' };
+    }
+    if (nowMs >= openAt) return { allowed: false, reason: 'opening time passed (use close)' };
+    if (nowMs > lastOpenBetAt) return { allowed: false, reason: `open closes ${closureSec}s before opening` };
+    return { allowed: true };
+  } catch { return { allowed: false, reason: 'unknown' }; }
+}
+
+async function fetchMarkets() {
+  const baseUrl = document.getElementById('baseUrl').value.replace(/\/$/, '');
+  const session = document.getElementById('betSession')?.value || 'open';
+  const status = document.getElementById('marketStatus');
+  const dd = document.getElementById('marketDropdown');
+  status.style.display = 'block';
+  status.style.background = 'rgba(0,212,255,0.1)';
+  status.style.border = '1px solid rgba(0,212,255,0.2)';
+  status.style.color = 'var(--accent)';
+  status.textContent = '⏳ Loading markets…';
+  log('SYS', `🔄 Fetching markets from ${baseUrl}/markets/get-markets …`);
+
+  const r = await apiCall(`${baseUrl}/markets/get-markets`, 'GET');
+  if (!r.ok || !Array.isArray(r.data?.data)) {
+    status.style.background = 'rgba(255,77,109,0.1)';
+    status.style.border = '1px solid rgba(255,77,109,0.3)';
+    status.style.color = 'var(--accent3)';
+    status.textContent = `✗ Failed: ${r.data?.message || `HTTP ${r.status}`}`;
+    log('ERR', `✗ Failed to fetch markets: ${r.data?.message || `HTTP ${r.status}`}`, 'err-msg');
+    return;
+  }
+
+  cachedMarkets = r.data.data;
+  dd.innerHTML = '<option value="">— Select a market —</option>';
+  let openCount = 0, firstOpenId = '';
+  cachedMarkets.forEach((m) => {
+    const id = m._id || m.id;
+    if (!id) return;
+    const gate = isMarketOpenForSessionLocal(m, session);
+    const tag = gate.allowed ? '🟢 OPEN' : '🔴 CLOSED';
+    if (gate.allowed) { openCount++; if (!firstOpenId) firstOpenId = id; }
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = `${tag} • ${m.marketName || m.name || '(no name)'} • ${m.startingTime || '?'}–${m.closingTime || '?'}`;
+    dd.appendChild(opt);
+  });
+
+  if (firstOpenId) {
+    dd.value = firstOpenId;
+    document.getElementById('marketId').value = firstOpenId;
+    status.style.background = 'rgba(0,255,136,0.1)';
+    status.style.border = '1px solid rgba(0,255,136,0.3)';
+    status.style.color = 'var(--accent2)';
+    status.textContent = `✓ Loaded ${cachedMarkets.length} markets (${openCount} open for "${session}"). Auto-selected first OPEN market.`;
+    log('OK', `✓ Loaded ${cachedMarkets.length} markets, ${openCount} open for "${session}". Picked: ${firstOpenId}`, 'ok-msg');
+  } else {
+    status.style.background = 'rgba(255,215,0,0.1)';
+    status.style.border = '1px solid rgba(255,215,0,0.3)';
+    status.style.color = 'var(--accent4)';
+    status.textContent = `⚠ Loaded ${cachedMarkets.length} markets but NONE are open for "${session}" right now. Try the other session, or pick one anyway (bets will fail with BETTING_CLOSED).`;
+    log('WARN', `⚠ ${cachedMarkets.length} markets loaded, 0 open for "${session}" session`, 'err-msg');
+  }
+}
+
+function onMarketDropdownChange() {
+  const dd = document.getElementById('marketDropdown');
+  document.getElementById('marketId').value = dd.value || '';
+}
+
+// ============================================================
+// FRESH-USER HELPERS
+// ============================================================
+// Generates a startIndex large enough to (almost) never collide with previous runs.
+// Phone formula is `6000000000 + index` so index must stay <= 3,999,999,999 to keep
+// the phone valid (10 digits, starts with 6–9). We derive ~9 unique digits from time.
+function makeFreshStartIndex() {
+  // (Date.now() / 1000) gives ~10-digit seconds; mod keeps it in valid phone range
+  // and shifting by *100 leaves room for 100 users without overflowing into 11 digits.
+  const sec = Math.floor(Date.now() / 1000);
+  return (sec * 100) % 3000000000; // <= 2.999B → phone <= 8,999,999,999 (10 digits)
+}
+
+function bumpStartIndex() {
+  const v = makeFreshStartIndex();
+  document.getElementById('startIndex').value = v;
+  log('SYS', `🔄 Start Index bumped to ${v} — this run will create brand-new users.`);
+}
+
+// ============================================================
+// MAIN TEST RUNNER
+// ============================================================
+async function startTest() {
+  if (running) return;
+
+  // Gather config
+  const baseUrl = document.getElementById('baseUrl').value.replace(/\/$/, '');
+  const marketId = document.getElementById('marketId').value.trim();
+  const totalUsers = parseInt(document.getElementById('totalUsers').value) || 100;
+  const concurrency = parseInt(document.getElementById('concurrency').value) || 50;
+  const betsPerUser = parseInt(document.getElementById('betsPerUser').value) || 3;
+  const betAmount = parseInt(document.getElementById('betAmount').value) || 10;
+  const rampUp = parseInt(document.getElementById('rampUp').value) || 0;
+  const prefix = document.getElementById('prefix').value || 'lf_user_';
+  const autoBumpStart = document.getElementById('autoBumpStart')?.checked ?? true;
+  if (autoBumpStart) bumpStartIndex();
+  const startIdx = parseInt(document.getElementById('startIndex').value) || 1;
+  const password = document.getElementById('password').value || 'Test@1234';
+  const phoneFirstDigit = document.getElementById('phoneFirstDigit')?.value || '6';
+  const phoneOffset = parseInt(document.getElementById('phoneOffset')?.value) || 0;
+  const emailPattern = document.getElementById('emailPattern')?.value || '{{prefix}}{{idx}}@{{domain}}';
+  const emailDomain = document.getElementById('emailDomain')?.value || 'loadforge.test';
+  const sendDeviceId = document.getElementById('sendDeviceId')?.checked ?? false;
+  const doSignup = document.getElementById('doSignup').checked;
+  const doLogin = document.getElementById('doLogin').checked;
+  const reuseOnConflict = document.getElementById('reuseOnConflict')?.checked ?? true;
+  const doCreditBalance = document.getElementById('doCreditBalance').checked;
+  const doBet = document.getElementById('doBet').checked;
+  const adminUsername = document.getElementById('adminUsername').value.trim();
+  const adminPassword = document.getElementById('adminPassword').value.trim();
+  const balanceToCredit = parseInt(document.getElementById('balanceToCredit').value) || 1000;
+  const adminLoginEndpoint = document.getElementById('adminLoginEndpoint').value.trim() || '/admin/login';
+  const adminCreditEndpoint = document.getElementById('adminCreditEndpoint').value.trim() || '/wallet/adjust';
+  const adminCreditBodyTpl = document.getElementById('adminCreditBody').value.trim();
+  const abortOnAdminFail = document.getElementById('abortOnAdminFail')?.checked ?? true;
+  const betType = document.getElementById('betType').value;
+  const betSession = document.getElementById('betSession').value;
+  const randomBet = document.getElementById('randomBetNum').checked;
+  const verbose = document.getElementById('verbose').checked;
+
+  // 2D / 3D quiz config (only used when gameMode === '2d' / '3d')
+  const useBatch2d = gameMode === '2d' && (document.getElementById('quizUseBatch2d')?.checked ?? false);
+  const quizIds2dParsed = useBatch2d
+    ? parseQuizIdList(document.getElementById('quizIds2d')?.value, 30)
+    : [];
+  const betsPerQuiz2d = Math.min(50, Math.max(1, parseInt(document.getElementById('quizBetsPerQuiz2d')?.value, 10) || 1));
+
+  const quizCfg = {
+    quizId: gameMode === '3d'
+      ? (parseInt(document.getElementById('quizId3d')?.value) || 1)
+      : (parseInt(document.getElementById('quizId2d')?.value) || 1),
+    betMode: (gameMode === '3d'
+      ? document.getElementById('quizBetMode3d')?.value
+      : document.getElementById('quizBetMode2d')?.value) || 'str',
+    randomQuizId: gameMode === '3d'
+      ? (document.getElementById('quizIdRandom3d')?.checked ?? false)
+      : (document.getElementById('quizIdRandom2d')?.checked ?? false),
+    randomNumber: gameMode === '3d'
+      ? (document.getElementById('quizRandomNum3d')?.checked ?? true)
+      : (document.getElementById('quizRandomNum2d')?.checked ?? true),
+    quizIdMax: gameMode === '3d' ? 3 : 30,
+    useBatch2d,
+    quizIds2d: quizIds2dParsed,
+    betsPerQuiz2d,
+  };
+
+  if (!baseUrl) { log('ERR','Base URL is required', 'err-msg'); return; }
+  if (doCreditBalance && (!adminUsername || !adminPassword)) { log('WARN','Admin credentials empty — balance credit will fail', 'err-msg'); }
+
+  // Pre-flight: market mode requires a marketId; quiz modes require an open slot
+  if (doBet && gameMode === 'market') {
+    if (!marketId) {
+      log('ERR', '⛔ Aborting — "Place bets" is ON but Market ID is empty. Click 🔄 Fetch Markets and pick one.', 'err-msg');
+      const ms = document.getElementById('marketStatus');
+      if (ms) {
+        ms.style.display = 'block';
+        ms.style.background = 'rgba(255,77,109,0.1)';
+        ms.style.border = '1px solid rgba(255,77,109,0.3)';
+        ms.style.color = 'var(--accent3)';
+        ms.textContent = '✗ Market ID is required for Market mode. Click 🔄 Fetch Markets above.';
+      }
+      return;
+    }
+    if (!/^[a-f0-9]{24}$/i.test(marketId)) {
+      log('ERR', `⛔ Aborting — "${marketId}" is not a valid Mongo ObjectId (must be 24 hex chars). Use the dropdown.`, 'err-msg');
+      return;
+    }
+  }
+  if (doBet && (gameMode === '2d' || gameMode === '3d')) {
+    // Auto-fetch slot if not yet fetched, then verify it accepts bets
+    let slot = quizSlotInfo[gameMode];
+    if (!slot) {
+      log('SYS', `🔄 Auto-fetching ${gameMode.toUpperCase()} slot before run…`);
+      slot = await fetchQuizSlot(gameMode);
+    }
+    if (!slot || !slot.acceptsBets) {
+      log('ERR', `⛔ Aborting — ${gameMode.toUpperCase()} quiz slot is NOT open for bets right now (phase=${slot?.phase || 'unknown'}). Bets would all 403 SLOT_CLOSED.`, 'err-msg');
+      return;
+    }
+    if (gameMode === '2d' && quizCfg.useBatch2d) {
+      if (!quizCfg.quizIds2d.length) {
+        log('ERR', '⛔ Aborting — 2D batch mode is ON but Quiz IDs list is empty or invalid. Enter e.g. 1,2,3 or 1-5.', 'err-msg');
+        return;
+      }
+    } else if (!Number.isInteger(quizCfg.quizId) || quizCfg.quizId < 1 || quizCfg.quizId > quizCfg.quizIdMax) {
+      log('ERR', `⛔ Aborting — Quiz ID must be 1–${quizCfg.quizIdMax} for ${gameMode.toUpperCase()}.`, 'err-msg');
+      return;
+    }
+  }
+
+  // Reset
+  running = true; abortFlag = false;
+  results = [];
+  stats = { total: totalUsers, signupOk:0, loginOk:0, creditedOk:0, betsOk:0, errors:0, reqCount:0 };
+  chartData = { signup:[], login:[], credit:[], rps:[], errTypes:{} };
+  workerStates = {};
+  errorCounts = {};
+  phaseRps = { signup:0, login:0, credit:0, bet:0 };
+  adminToken = null;
+  tableRows = 0;
+  logCount = 0;
+  startTime = Date.now();
+
+  document.getElementById('results-body').innerHTML = '';
+  document.getElementById('cnt-results').textContent = '0';
+  document.getElementById('cnt-log').textContent = '0';
+  document.getElementById('terminal').innerHTML = '';
+  document.getElementById('sv-total').textContent = totalUsers;
+  document.getElementById('sv-success').textContent = '0';
+  document.getElementById('sv-loggedin').textContent = '0';
+  document.getElementById('sv-credited').textContent = '0';
+  document.getElementById('sv-bets').textContent = '0';
+  document.getElementById('sv-errors').textContent = '0';
+  document.getElementById('progress').style.width = '0%';
+  document.getElementById('status-badge').textContent = 'RUNNING';
+  document.getElementById('status-badge').style.background = 'rgba(0,212,255,0.15)';
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnStop').disabled = false;
+
+  initWorkerGrid(Math.min(concurrency, 400));
+  startRpsTracking();
+
+  // Phase display
+  setPhase('signup');
+
+  log('SYS', `🚀 LoadForge started — ${totalUsers} users, concurrency ${concurrency}`);
+  log('SYS', `Target: ${baseUrl}`);
+  const modeLabel = gameMode === 'market'
+    ? `Market (marketId=${marketId.slice(0,8)}…)`
+    : gameMode === '2d' && quizCfg.useBatch2d
+      ? `2D batch — ${quizCfg.quizIds2d.length} quizzes [${quizCfg.quizIds2d.slice(0, 8).join(',')}${quizCfg.quizIds2d.length > 8 ? '…' : ''}], ${quizCfg.betsPerQuiz2d} line(s)/quiz, betMode=${quizCfg.betMode}`
+      : `${gameMode.toUpperCase()} Quiz (quizId=${quizCfg.randomQuizId ? `random 1–${quizCfg.quizIdMax}` : quizCfg.quizId}, betMode=${quizCfg.betMode})`;
+  log('SYS', `🎮 Bet target: ${modeLabel}`);
+  log('SYS', `Phases: ${[doSignup?'Signup':'',doLogin?'Login':'',doCreditBalance?'CreditBalance':'',doBet?'Bet':''].filter(Boolean).join(' → ')}`);
+  if (rampUp > 0) log('SYS', `Ramp-up: ${rampUp}s`);
+  if (doCreditBalance) log('SYS', `💰 Will credit ₹${balanceToCredit} to each user`);
+
+  // Build task list — phone derives directly from idx so a fresh startIdx
+  // (timestamp-based) yields fresh phone numbers every run.
+  const tasks = [];
+  for (let i = 0; i < totalUsers; i++) {
+    const idx = startIdx + i;
+    tasks.push({
+      username: `${prefix}${idx}`,
+      phone: genPhone(idx, phoneFirstDigit, phoneOffset),
+      email: genEmail(prefix, idx, emailPattern, emailDomain),
+      password,
+      index: i,
+    });
+  }
+  log('SYS', `👤 First user: ${tasks[0].username} / ${tasks[0].phone} / ${tasks[0].email}`);
+  log('SYS', `👤 Last  user: ${tasks[tasks.length-1].username} / ${tasks[tasks.length-1].phone} / ${tasks[tasks.length-1].email}`);
+  if (!sendDeviceId) log('SYS', `🔓 deviceId NOT sent — single-device limit disabled (avoids 401 SESSION_REVOKED on rerun).`);
+
+  let phaseSignupOk = 0, phaseSignupFail = 0;
+  let phaseLoginOk = 0, phaseLoginFail = 0;
+  let phaseCreditOk = 0, phaseCreditFail = 0;
+  let phaseBetOk = 0, phaseBetFail = 0;
+  let phaseSignupReqs = 0, phaseLoginReqs = 0, phaseCreditReqs = 0, phaseBetReqs = 0;
+  const phaseStart = { signup: Date.now(), login: 0, credit: 0, bet: 0 };
+
+  const processor = async (task, i) => {
+    if (abortFlag) return null;
+    const workerIdx = i % Math.min(concurrency, 400);
+    setWorkerState(workerIdx, 'busy');
+    workerStates[workerIdx] = 'busy';
+
+    const result = {
+      username: task.username,
+      phone: task.phone,
+      userId: null,
+      signupOk: false,
+      loginOk: false,
+      creditOk: null,
+      betOk: null,
+      betsPlaced: 0,
+      totalLatency: 0,
+      error: '',
+      doLogin,
+    };
+
+    let token = null;
+
+    // PHASE 1: SIGNUP
+    if (doSignup && !abortFlag) {
+      stats.reqCount++; phaseSignupReqs++;
+      const signupBody = {
+        username: task.username,
+        email: task.email,
+        phone: task.phone,
+        password: task.password,
+      };
+      if (sendDeviceId) {
+        signupBody.deviceId = `lf-device-${task.index}`;
+        signupBody.deviceName = 'LoadForge Test Client';
+      }
+      const r = await apiCall(`${baseUrl}/users/signup`, 'POST', signupBody);
+      result.totalLatency += r.latency;
+      if (r.ok && r.data.success) {
+        result.signupOk = true;
+        // Backend returns { success, data: { id, token, ... } } — id is the user's ObjectId
+        const rawId = r.data.data?.id || r.data.data?._id || r.data.id || r.data._id;
+        result.userId = rawId ? String(rawId) : null;
+        phaseSignupOk++;
+        stats.signupOk++;
+        const svSuccess = document.getElementById('sv-success');
+        if (svSuccess) svSuccess.textContent = stats.signupOk;
+        if (verbose) log('OK', `✓ Signup: ${task.username} → userId=${result.userId} (${r.latency}ms)`, 'ok-msg');
+        // capture token from signup if provided (login below will overwrite with fresh one)
+        token = r.data.data?.token || r.data.token || token;
+      } else {
+        const errMsg = r.data?.message || `HTTP ${r.status}`;
+        const isConflict = r.status === 409 || /already exists|already taken/i.test(errMsg);
+
+        // Auto-recover from "user already exists" by treating it as if signup succeeded
+        // and letting PHASE 2 (Login) take over with the same phone+password.
+        if (isConflict && reuseOnConflict && doLogin) {
+          result.signupOk = true; // for reporting purposes — treat as "already there"
+          result.error = `Signup: ${errMsg} — reusing existing user via login`;
+          phaseSignupOk++;
+          stats.signupOk++;
+          const svSuccess = document.getElementById('sv-success');
+          if (svSuccess) svSuccess.textContent = stats.signupOk;
+          if (verbose) log('WARN', `↻ Signup conflict for ${task.username} — falling through to login`, 'err-msg');
+          const rate = phaseSignupReqs>0 ? Math.round((phaseSignupOk/phaseSignupReqs)*100) : 0;
+          chartData.signup.push(rate);
+          // do NOT return — fall through into PHASE 2 (Login)
+        } else {
+          phaseSignupFail++;
+          stats.errors++;
+          result.error = `Signup: ${errMsg}`;
+          chartData.errTypes[errMsg] = (chartData.errTypes[errMsg]||0)+1;
+          // Always log signup failures so the user can see WHY (e.g. 409 conflict)
+          log('ERR', `✗ Signup: ${task.username} (${task.phone}) — ${errMsg}`, 'err-msg');
+          if (isConflict) {
+            log('WARN', `   → Hit "already exists". Click 🔄 Fresh Start Index, or enable "Auto-bump Start Index each run".`, 'err-msg');
+          }
+          const svErrSu = document.getElementById('sv-errors');
+          if (svErrSu) svErrSu.textContent = stats.errors;
+          setWorkerState(workerIdx, 'fail');
+          workerStates[workerIdx] = 'fail';
+          // rolling chart
+          const rate = phaseSignupReqs>0 ? Math.round((phaseSignupOk/phaseSignupReqs)*100) : 0;
+          chartData.signup.push(rate);
+          addResultRow(result);
+          updateProgress(i, totalUsers);
+          return result;
+        }
+      }
+    }
+
+    // PHASE 2: LOGIN
+    if (doLogin && !abortFlag) {
+      stats.reqCount++; phaseLoginReqs++;
+      const loginBody = {
+        phone: task.phone,
+        password: task.password,
+      };
+      if (sendDeviceId) {
+        loginBody.deviceId = `lf-device-${task.index}`;
+        loginBody.deviceName = 'LoadForge Test Client';
+      }
+      const r = await apiCall(`${baseUrl}/users/login`, 'POST', loginBody);
+      result.totalLatency += r.latency;
+      if (r.ok && r.data.success) {
+        result.loginOk = true;
+        phaseLoginOk++;
+        stats.loginOk++;
+        const svLoggedIn = document.getElementById('sv-loggedin');
+        if (svLoggedIn) svLoggedIn.textContent = stats.loginOk;
+        token = r.data.data?.token || r.data.token || token;
+        // Capture userId from login if not already captured from signup
+        if (!result.userId) {
+          const rawId = r.data.data?.id || r.data.data?._id || r.data.data?.userId;
+          result.userId = rawId ? String(rawId) : null;
+        }
+        if (verbose) log('OK', `✓ Login: ${task.username} (${r.latency}ms)`, 'ok-msg');
+      } else {
+        phaseLoginFail++;
+        stats.errors++;
+        const errMsg = r.data?.message || `HTTP ${r.status}`;
+        result.error = `Login: ${errMsg}`;
+        chartData.errTypes[errMsg] = (chartData.errTypes[errMsg]||0)+1;
+        // Always log login failures — they always cause downstream bet failures
+        log('ERR', `✗ Login: ${task.username} (${task.phone}) — ${errMsg} [HTTP ${r.status}]`, 'err-msg');
+        if (r.status === 401) {
+          log('WARN', `   → 401 likely means: wrong password for an existing user, or single-device limit revoked the session. Try OFF "Send deviceId", or use Fresh Start Index.`, 'err-msg');
+        } else if (r.status === 409) {
+          log('WARN', `   → 409 means single-device limit. Toggle OFF "Send deviceId".`, 'err-msg');
+        }
+        const svErrLg = document.getElementById('sv-errors');
+        if (svErrLg) svErrLg.textContent = stats.errors;
+        setWorkerState(workerIdx, 'fail');
+        workerStates[workerIdx] = 'fail';
+        const loginRate = phaseLoginReqs>0 ? Math.round((phaseLoginOk/phaseLoginReqs)*100) : 0;
+        chartData.login.push(loginRate);
+        addResultRow(result);
+        updateProgress(i, totalUsers);
+        return result;
+      }
+    }
+
+    // PHASE 3: CREDIT BALANCE (Admin adds balance to user)
+    if (doCreditBalance && !abortFlag) {
+      if (!adminToken) {
+        result.creditOk = false;
+        result.error = (result.error ? result.error+'; ' : '') + 'Credit: Admin not authenticated';
+        // Always log this — silent skip is what made bets fail with 0 balance
+        log('WARN', `⚠ Credit skipped for ${task.username} — admin not authenticated. Bets will fail with insufficient balance.`, 'err-msg');
+      } else if (!result.userId) {
+        result.creditOk = false;
+        result.error = (result.error ? result.error+'; ' : '') + 'Credit: No userId captured from signup/login';
+        log('ERR', `✗ Credit: ${task.username} — no userId captured (signup/login response missing data.id)`, 'err-msg');
+      } else {
+        stats.reqCount++; phaseCreditReqs++;
+        // Build credit body from template
+        let creditBody;
+        try {
+          const tpl = adminCreditBodyTpl
+            .replace(/{{userId}}/g, result.userId || '')
+            .replace(/{{amount}}/g, balanceToCredit);
+          creditBody = JSON.parse(tpl);
+        } catch(e) {
+          // fallback body matches backend POST /wallet/adjust
+          creditBody = { userId: result.userId, amount: balanceToCredit, type: 'credit' };
+        }
+        const creditUrl = `${baseUrl}${adminCreditEndpoint}`;
+        const r = await apiCall(creditUrl, 'POST', creditBody, adminToken);
+        result.totalLatency += r.latency;
+        if (r.ok && (r.data.success || r.data.data || r.status === 200 || r.status === 201)) {
+          result.creditOk = true;
+          phaseCreditOk++;
+          stats.creditedOk++;
+          const svCredited = document.getElementById('sv-credited');
+          if (svCredited) svCredited.textContent = stats.creditedOk;
+          if (verbose) log('OK', `✓ Credit: ${task.username} +₹${balanceToCredit} (${r.latency}ms)`, 'ok-msg');
+        } else {
+          result.creditOk = false;
+          phaseCreditFail++;
+          stats.errors++;
+          const errMsg = r.data?.message || r.data?.error || `HTTP ${r.status}`;
+          result.error = (result.error ? result.error+'; ' : '') + `Credit: ${errMsg}`;
+          chartData.errTypes['Credit: '+errMsg] = (chartData.errTypes['Credit: '+errMsg]||0)+1;
+          // Always log credit failures — silent failures are the #1 cause of "all bets failed"
+          log('ERR', `✗ Credit: ${task.username} — ${errMsg} (URL: ${creditUrl}, body: ${JSON.stringify(creditBody).slice(0,160)})`, 'err-msg');
+          const svErrors = document.getElementById('sv-errors');
+          if (svErrors) svErrors.textContent = stats.errors;
+        }
+      }
+    }
+
+    // PHASE 4: BET — dispatch by gameMode (market | 2d | 3d)
+    if (doBet && !abortFlag) {
+      let betUrl = '';
+      let betBody = null;
+      let betCount = 0;
+      let canRun = true;
+
+      if (gameMode === 'market') {
+        if (!marketId) { canRun = false; result.error = 'No Market ID configured'; }
+        else {
+          const bets = [];
+          for (let b=0; b<betsPerUser; b++) {
+            bets.push({
+              betType,
+              betNumber: randomBet ? randomBetNumber(betType) : '5',
+              amount: betAmount,
+              betOn: betSession,
+            });
+          }
+          betUrl = `${baseUrl}/bets/place`;
+          betBody = { marketId, bets };
+          betCount = bets.length;
+        }
+      } else if (gameMode === '2d' || gameMode === '3d') {
+        const slot = quizSlotInfo[gameMode];
+        if (gameMode === '2d' && quizCfg.useBatch2d && quizCfg.quizIds2d.length) {
+          const rounds = quizCfg.quizIds2d.map((quizId) => ({
+            quizId,
+            bets: buildQuizRoundBets('2d', quizCfg.betsPerQuiz2d, betAmount, quizCfg.betMode, quizCfg.randomNumber),
+          }));
+          betUrl = `${baseUrl}/quiz/bet-batch?mode=2d`;
+          betBody = { mode: '2d', rounds };
+          if (slot?.slotStartIso) betBody.slotStartIso = slot.slotStartIso;
+          betCount = rounds.reduce((sum, r) => sum + r.bets.length, 0);
+        } else {
+          const bets = buildQuizRoundBets(gameMode, betsPerUser, betAmount, quizCfg.betMode, quizCfg.randomNumber);
+          const quizId = quizCfg.randomQuizId
+            ? Math.floor(Math.random() * quizCfg.quizIdMax) + 1
+            : quizCfg.quizId;
+          betUrl = `${baseUrl}/quiz/bet?mode=${gameMode}`;
+          betBody = { quizId, bets, mode: gameMode };
+          if (slot?.slotStartIso) betBody.slotStartIso = slot.slotStartIso;
+          betCount = bets.length;
+        }
+      }
+
+      if (canRun && betUrl) {
+        stats.reqCount++; phaseBetReqs++;
+        const r = await apiCall(betUrl, 'POST', betBody, token);
+        result.totalLatency += r.latency;
+        const okBet = r.ok && (r.data?.success || r.data?.data != null || r.data?.bets);
+        if (okBet) {
+          result.betOk = true;
+          result.betsPlaced = betCount;
+          phaseBetOk++;
+          stats.betsOk++;
+          const svBets = document.getElementById('sv-bets');
+          if (svBets) svBets.textContent = stats.betsOk;
+          if (verbose) log('BET', `✓ ${gameMode.toUpperCase()} bet: ${task.username} x${betCount} (${r.latency}ms)`, 'ok-msg');
+        } else {
+          result.betOk = false;
+          phaseBetFail++;
+          stats.errors++;
+          const errMsg = r.data?.message || `HTTP ${r.status}`;
+          const errCode = r.data?.code ? ` [${r.data.code}]` : '';
+          result.error = (result.error ? result.error+'; ' : '') + `Bet: ${errMsg}${errCode}`;
+          chartData.errTypes[`Bet: ${errMsg}`] = (chartData.errTypes[`Bet: ${errMsg}`]||0)+1;
+          log('ERR', `✗ ${gameMode.toUpperCase()} bet: ${task.username} — ${errMsg}${errCode} [HTTP ${r.status}] (URL: ${betUrl})`, 'err-msg');
+          if (r.status === 401) {
+            log('WARN', `   → 401. Token mismatch (single-device limit revoked it). Toggle OFF "Send deviceId" and re-run.`, 'err-msg');
+          } else if (/insufficient balance/i.test(errMsg) || r.data?.code === 'INSUFFICIENT_BALANCE') {
+            log('WARN', `   → User has ₹0. Admin credit phase didn't run or failed. Check admin login + /wallet/adjust above.`, 'err-msg');
+          } else if (r.data?.code === 'SLOT_CLOSED' || r.data?.code === 'INVALID_SLOT') {
+            log('WARN', `   → ${gameMode.toUpperCase()} quiz slot has closed mid-run. Re-fetch slot and re-run.`, 'err-msg');
+          } else if (/betting (is )?(not allowed|closed)/i.test(errMsg) || r.data?.code === 'BETTING_CLOSED') {
+            log('WARN', `   → Market is closed for "${betSession}" session. Open a market in admin or change Session.`, 'err-msg');
+          }
+          const svErrBet = document.getElementById('sv-errors');
+          if (svErrBet) svErrBet.textContent = stats.errors;
+        }
+      } else if (!canRun) {
+        result.betOk = false;
+      }
+    }
+
+    // Rolling chart push
+    const signupRate = phaseSignupReqs>0 ? Math.round((phaseSignupOk/phaseSignupReqs)*100) : 100;
+    const loginRate = phaseLoginReqs>0 ? Math.round((phaseLoginOk/phaseLoginReqs)*100) : 100;
+    const creditRate = phaseCreditReqs>0 ? Math.round((phaseCreditOk/phaseCreditReqs)*100) : 100;
+    chartData.signup.push(signupRate);
+    chartData.login.push(loginRate);
+    chartData.credit.push(creditRate);
+
+    // Phase RPS
+    const elapsed = (Date.now()-startTime)/1000;
+    if (elapsed > 0) {
+      phaseRps.signup = Math.round(phaseSignupReqs/elapsed);
+      phaseRps.login = Math.round(phaseLoginReqs/elapsed);
+      phaseRps.credit = Math.round(phaseCreditReqs/elapsed);
+      phaseRps.bet = Math.round(phaseBetReqs/elapsed);
+    }
+
+    setWorkerState(workerIdx, 'done');
+    workerStates[workerIdx] = 'done';
+
+    addResultRow(result);
+    updateProgress(i+1, totalUsers);
+
+    // Ramp-up delay
+    if (rampUp > 0 && i < concurrency) {
+      await sleep((rampUp * 1000) / concurrency);
+    }
+
+    return result;
+  };
+
+  log('SYS', `⚙ Starting worker pool with concurrency ${concurrency}...`);
+
+  // Admin login (once, for balance credits)
+  if (doCreditBalance && adminUsername && adminPassword) {
+    log('SYS', `🔐 Authenticating admin: ${adminUsername}...`);
+    const adminUrl = `${baseUrl}${adminLoginEndpoint}`;
+    log('SYS', `Admin login URL: ${adminUrl}`);
+    const r = await apiCall(adminUrl, 'POST', {
+      username: adminUsername,
+      password: adminPassword,
+    });
+    if (r.ok && (r.data.success || r.data.token || r.data.data?.token || r.data.accessToken)) {
+      adminToken = r.data.token || r.data.data?.token || r.data.accessToken || r.data.data?.accessToken;
+      log('OK', `✓ Admin authenticated. Token: ${adminToken ? adminToken.slice(0,20)+'…' : 'FOUND'}`, 'ok-msg');
+      const adminStatusEl = document.getElementById('adminStatus');
+      adminStatusEl.style.display = 'block';
+      adminStatusEl.style.background = 'rgba(0,255,136,0.1)';
+      adminStatusEl.style.border = '1px solid rgba(0,255,136,0.3)';
+      adminStatusEl.style.color = 'var(--accent2)';
+      adminStatusEl.textContent = '✓ Admin logged in — balance credit enabled';
+    } else {
+      const errMsg = r.data?.message || r.data?.error || `HTTP ${r.status} — Check admin endpoint & credentials`;
+      log('ERR', `✗ Admin login failed: ${errMsg}`, 'err-msg');
+      log('WARN', `Endpoint tried: ${adminUrl}`, 'err-msg');
+      const adminStatusEl = document.getElementById('adminStatus');
+      adminStatusEl.style.display = 'block';
+      adminStatusEl.style.background = 'rgba(255,77,109,0.1)';
+      adminStatusEl.style.border = '1px solid rgba(255,77,109,0.3)';
+      adminStatusEl.style.color = 'var(--accent3)';
+      adminStatusEl.textContent = `✗ Admin login failed: ${errMsg}`;
+
+      if (abortOnAdminFail) {
+        log('ERR', `⛔ Aborting run — admin login is required to credit balances. Toggle "Abort run if admin login fails" off to ignore.`, 'err-msg');
+        running = false;
+        stopRpsTracking();
+        document.getElementById('status-badge').textContent = 'ABORTED';
+        document.getElementById('phase-badge').textContent = 'ADMIN LOGIN FAILED';
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('btnStop').disabled = true;
+        return;
+      } else {
+        log('WARN', `Continuing without admin token — credit phase will be skipped, all bets will fail with insufficient balance.`, 'err-msg');
+      }
+    }
+  }
+
+  try {
+    results = await runWorkerPool(tasks, concurrency, processor, null);
+  } catch(e) {
+    log('ERR', `Worker pool error: ${e.message}`, 'err-msg');
+  }
+
+  // Done
+  running = false;
+  stopRpsTracking();
+  document.getElementById('status-badge').textContent = abortFlag ? 'STOPPED' : 'DONE';
+  document.getElementById('phase-badge').textContent = abortFlag ? 'ABORTED' : 'COMPLETE';
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStop').disabled = true;
+  setPhase('done');
+
+  const elapsed = ((Date.now()-startTime)/1000).toFixed(1);
+  log('SYS', `✅ Test complete in ${elapsed}s`);
+  log('SYS', `Signup: ${phaseSignupOk}/${phaseSignupReqs} OK | Login: ${phaseLoginOk}/${phaseLoginReqs} OK | Credit: ${phaseCreditOk}/${phaseCreditReqs} OK | Bets: ${phaseBetOk}/${phaseBetReqs} OK`);
+  log('SYS', `Total errors: ${stats.errors} | Avg RPS: ${Math.round(stats.reqCount/elapsed)}`);
+
+  buildSummary(elapsed, phaseSignupOk, phaseSignupReqs, phaseLoginOk, phaseLoginReqs, phaseCreditOk, phaseCreditReqs, phaseBetOk, phaseBetReqs);
+  refreshCharts();
+
+  if (document.getElementById('saveCsv').checked) exportCsv();
+}
+
+function updateProgress(done, total) {
+  const pct = Math.min(100, Math.round((done/total)*100));
+  document.getElementById('progress').style.width = pct+'%';
+}
+
+function setPhase(phase) {
+  ['signup','login','admin','credit','bet','done'].forEach(p => {
+    const el = document.getElementById('ph-'+p);
+    if (!el) return;
+    el.className = 'phase-item' + (p===phase?' current': (
+      (['signup','login','admin','credit','bet','done'].indexOf(p) < ['signup','login','admin','credit','bet','done'].indexOf(phase)) ? ' done' : ''
+    ));
+  });
+  document.getElementById('phase-badge').textContent = phase.toUpperCase();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function stopTest() {
+  if (!running) return;
+  abortFlag = true;
+  log('WARN', '⛔ Stop signal sent — waiting for in-flight requests...', 'err-msg');
+  document.getElementById('btnStop').disabled = true;
+}
+
+// ============================================================
+// SUMMARY
+// ============================================================
+function buildSummary(elapsed, signupOk, signupTotal, loginOk, loginTotal, creditOk, creditTotal, betOk, betTotal) {
+  const successRate = signupTotal>0 ? ((signupOk/signupTotal)*100).toFixed(1) : 'N/A';
+  const loginRate = loginTotal>0 ? ((loginOk/loginTotal)*100).toFixed(1) : 'N/A';
+  const creditRate = creditTotal>0 ? ((creditOk/creditTotal)*100).toFixed(1) : 'N/A';
+  const betRate = betTotal>0 ? ((betOk/betTotal)*100).toFixed(1) : 'N/A';
+  const avgRps = elapsed > 0 ? Math.round(stats.reqCount/elapsed) : 0;
+  const topErrors = Object.entries(chartData.errTypes).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  document.getElementById('summary-panel').innerHTML = `
+    <div class="section-label" style="margin-bottom:12px">Test Summary Report</div>
+    <div class="info-row"><span class="info-key">Test Duration</span><span class="info-val">${elapsed}s</span></div>
+    <div class="info-row"><span class="info-key">Total Users Targeted</span><span class="info-val">${stats.total}</span></div>
+    <div class="info-row"><span class="info-key">Total API Requests</span><span class="info-val">${stats.reqCount}</span></div>
+    <div class="info-row"><span class="info-key">Avg Requests/sec</span><span class="info-val text-yellow">${avgRps}</span></div>
+    <div class="separator" style="margin:12px 0"></div>
+    <div class="info-row"><span class="info-key">Signup Success</span><span class="info-val text-green">${signupOk} / ${signupTotal} (${successRate}%)</span></div>
+    <div class="info-row"><span class="info-key">Login Success</span><span class="info-val text-green">${loginOk} / ${loginTotal} (${loginRate}%)</span></div>
+    <div class="info-row"><span class="info-key">Balance Credit Success</span><span class="info-val text-green">${creditOk} / ${creditTotal} (${creditRate}%)</span></div>
+    <div class="info-row"><span class="info-key">Bets Placed</span><span class="info-val text-green">${betOk} / ${betTotal} (${betRate}%)</span></div>
+    <div class="info-row"><span class="info-key">Total Errors</span><span class="info-val text-red">${stats.errors}</span></div>
+    <div class="separator" style="margin:12px 0"></div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Top Errors</div>
+    ${topErrors.length ? topErrors.map(([msg,cnt]) => `
+      <div class="info-row">
+        <span class="info-key" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${msg}</span>
+        <span class="info-val text-red">${cnt}x</span>
+      </div>
+    `).join('') : '<div style="color:var(--accent2);font-size:11px">🎉 No errors recorded!</div>'}
+    <div class="separator" style="margin:12px 0"></div>
+    <div style="color:var(--muted);font-size:10px">Report generated at ${new Date().toLocaleString()}</div>
+  `;
+}
+
+// ============================================================
+// CSV EXPORT
+// ============================================================
+function exportCsv() {
+  const rows = Array.from(document.getElementById('results-body').querySelectorAll('tr'));
+  if (!rows.length) { log('WARN','No results to export'); return; }
+
+  const headers = 'Index,Username,Phone,Signup,Login,Balance,Bets Placed,Bet Status,Latency(ms),Error\n';
+  const allRows = [];
+
+  results.forEach((r,i) => {
+    if (!r) return;
+    allRows.push([
+      i+1,
+      r.username,
+      r.phone,
+      r.signupOk?'OK':'FAIL',
+      r.loginOk?'OK':(r.doLogin?'FAIL':'SKIP'),
+      r.creditOk===null?'SKIP':r.creditOk?'OK':'FAIL',
+      r.betsPlaced||0,
+      r.betOk===null?'SKIP':r.betOk?'OK':'FAIL',
+      r.totalLatency,
+      `"${(r.error||'').replace(/"/g,"'")}"`
+    ].join(','));
+  });
+
+  const csv = headers + allRows.join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `loadforge_${Date.now()}.csv`;
+  a.click();
+  log('SYS', `📥 CSV exported: loadforge_${Date.now()}.csv`);
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('tc-'+name).classList.add('active');
+  if (name==='charts') setTimeout(refreshCharts, 50);
+}
+
+// ============================================================
+// CLEAR
+// ============================================================
+function clearAll() {
+  if (running) { log('WARN','Stop the test first'); return; }
+  results = [];
+  stats = { total:0, signupOk:0, loginOk:0, creditedOk:0, betsOk:0, errors:0, reqCount:0 };
+  chartData = { signup:[], login:[], credit:[], rps:[], errTypes:{} };
+  logCount = 0;
+  tableRows = 0;
+  adminToken = null;
+  document.getElementById('terminal').innerHTML = '';
+  document.getElementById('results-body').innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--muted)">Cleared.</td></tr>';
+  ['sv-total','sv-success','sv-loggedin','sv-credited','sv-bets','sv-errors'].forEach(id => document.getElementById(id).textContent = '0');
+  document.getElementById('progress').style.width='0%';
+  document.getElementById('status-badge').textContent='IDLE';
+  document.getElementById('phase-badge').textContent='READY';
+  document.getElementById('cnt-log').textContent='0';
+  document.getElementById('cnt-results').textContent='0';
+  document.getElementById('summary-panel').innerHTML='<div style="text-align:center;color:var(--muted);padding:40px">Run a test to see the summary report.</div>';
+  refreshCharts();
+  ['ph-signup','ph-login','ph-admin','ph-credit','ph-bet','ph-done'].forEach(id => { const el=document.getElementById(id); if(el) el.className='phase-item'; });
+  log('SYS','Workspace cleared');
+}
+
+// Init charts + a fresh start index on first load so re-opening the page doesn't
+// reuse the same usernames/phones from a previous tab.
+window.addEventListener('load', () => {
+  refreshCharts();
+  try { bumpStartIndex(); } catch (e) { /* no-op if helper missing */ }
+  try { setGameMode('market'); } catch (e) { /* no-op */ }
+});
+window.addEventListener('resize', () => { if (document.getElementById('tc-charts').classList.contains('active')) refreshCharts(); });
+</script>
+</body>
+</html>

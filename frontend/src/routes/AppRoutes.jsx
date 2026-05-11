@@ -26,6 +26,7 @@ import ThreeDGame from '../components/lottery/3d-lottery/ThreeDGame';
 import LotteryQuizPage from '../pages/LotteryQuizPage';
 import ThreeDQuizPage from '../pages/ThreeDQuizPage';
 import GamesHub from '../pages/GamesHub';
+import GameLaunchEmbed from '../pages/GameLaunchEmbed';
 import ZoomTestPage from '../pages/ZoomTestPage';
 import { API_BASE_URL } from '../config/api';
 import { clearCurrentUser, getCurrentUser, setCurrentUser } from '../session/userSession';
@@ -82,6 +83,7 @@ const Layout = ({ children }) => {
   const isThreeDGamePage = location.pathname === '/lottery/3d';
   const isLotteryQuizPage = location.pathname === '/lottery/quiz';
   const isThreeDQuizPage = location.pathname === '/lottery/3d/quiz';
+  const isGameLaunchEmbedPage = location.pathname === '/games/play';
   const isLotteryFullScreenPage = isTwoDGamePage || isThreeDGamePage || isLotteryQuizPage || isThreeDQuizPage;
   const isZoomTestPage = location.pathname === '/zoom-test';
   const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
@@ -255,7 +257,9 @@ const Layout = ({ children }) => {
     const checkPortraitNeed = () => {
       const isMobile = window.innerWidth <= 900;
       const isLandscape = window.innerWidth > window.innerHeight;
-      setShowPortraitPrompt(!isLotteryFullScreenPage && !isLoginPage && isMobile && isLandscape);
+      setShowPortraitPrompt(
+        !isLotteryFullScreenPage && !isGameLaunchEmbedPage && !isLoginPage && isMobile && isLandscape
+      );
     };
     checkPortraitNeed();
     window.addEventListener('resize', checkPortraitNeed);
@@ -264,7 +268,7 @@ const Layout = ({ children }) => {
       window.removeEventListener('resize', checkPortraitNeed);
       window.removeEventListener('orientationchange', checkPortraitNeed);
     };
-  }, [isLoginPage, isLotteryFullScreenPage, location.pathname]);
+  }, [isGameLaunchEmbedPage, isLoginPage, isLotteryFullScreenPage, location.pathname]);
 
   const handleRotatePortrait = async () => {
     try {
@@ -326,10 +330,8 @@ const Layout = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Lottery: full-screen, no header or navbar
-  if (
-    isLotteryFullScreenPage
-  ) {
+  // Lottery / embedded partner game: full-screen, no header or navbar
+  if (isLotteryFullScreenPage || isGameLaunchEmbedPage) {
     return <>{children}</>;
   }
 
@@ -385,6 +387,7 @@ const AppRoutes = () => {
           <Route path="/top-winners" element={<TopWinners />} />
           <Route path="/game-rate" element={<GameRate />} />
           <Route path="/games" element={<GamesHub />} />
+          <Route path="/games/play" element={<GameLaunchEmbed />} />
           <Route path="/lottery" element={<LotteryDashboard />} />
           <Route path="/lottery/quiz" element={<LotteryQuizPage />} />
           <Route path="/lottery/3d/quiz" element={<ThreeDQuizPage />} />
