@@ -105,10 +105,10 @@ const formatCurrency = (amount) =>
     );
 
 const TotalMetricCard = ({ label, value, valueClass }) => (
-    <div className="flex min-h-0 min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white p-2 text-center shadow-sm sm:p-5">
-        <p className="mb-1 line-clamp-2 text-[10px] font-medium leading-tight text-gray-500 sm:mb-2 sm:text-sm">{label}</p>
+    <div className="flex min-h-0 min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-center shadow-sm sm:p-5">
+        <p className="mb-1.5 line-clamp-2 text-xs font-medium leading-snug text-gray-500 sm:mb-2 sm:text-sm">{label}</p>
         <p
-            className={`min-w-0 max-w-full break-words text-xs font-bold leading-tight sm:text-xl md:text-2xl ${valueClass}`}
+            className={`min-w-0 max-w-full break-words text-xl font-bold leading-tight sm:text-2xl md:text-2xl ${valueClass}`}
             style={{ fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}
         >
             {value}
@@ -374,8 +374,8 @@ const GamesRevenue = () => {
                 ) : (
                     <div className="min-w-0 space-y-6">
                         <section className="min-w-0">
-                            <h2 className="text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Total Games Revenue</h2>
-                            <div className="grid min-w-0 w-full max-w-full grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
+                            <h2 className="mb-3 text-lg font-semibold text-gray-800 sm:mb-4 sm:text-xl">Total Games Revenue</h2>
+                            <div className="grid min-w-0 w-full max-w-full grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-4">
                                 <TotalMetricCard
                                     label="Total Revenue"
                                     value={formatCurrency(allGames.revenue)}
