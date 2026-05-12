@@ -17,6 +17,11 @@ export const BACKEND_BASE_URL =
     ? import.meta.env.VITE_DEV_PROXY_TARGET?.replace(/\/$/, '') || 'https://api.singlepana.in'
     : _api.replace(/\/api\/v1\/?$/, ''));
 
+/** Android APK for "Download App" (navbar, menu, download page). Override with VITE_ANDROID_APK_URL. */
+export const ANDROID_APK_URL =
+  import.meta.env.VITE_ANDROID_APK_URL ||
+  'https://shri-balaji-app.s3.ap-south-1.amazonaws.com/app-release.apk';
+
 /**
  * Origin for Socket.IO (no /api/v1 path).
  * Override with VITE_SOCKET_URL (e.g. http://localhost:3010).

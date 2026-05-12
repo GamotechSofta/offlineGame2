@@ -1,19 +1,27 @@
 import ActivityLog from '../models/activityLog/activityLog.js';
 
+const IPV4_DOTTED = /^\d{1,3}(\.\d{1,3}){3}$/;
+
 /**
- * Map IPv4-mapped IPv6 (::ffff:x.x.x.x) to dotted IPv4 for storage/display.
- * Leaves true IPv6 and plain IPv4 unchanged.
+ * Normalize client IP for storage: prefer IPv6 textual form.
+ * - Strips zone id (e.g. fe80::1%eth0).
+ * - Keeps IPv4-mapped IPv6 as ::ffff:x.x.x.x (does not collapse to IPv4).
+ * - Plain dotted IPv4 becomes ::ffff:x.x.x.x so DB shows an IPv6-style address.
  */
 export const normalizeClientIp = (ip) => {
     if (ip == null) return null;
-    const s = String(ip).trim();
+    let s = String(ip).trim();
     if (!s) return null;
+    const zi = s.indexOf('%');
+    if (zi !== -1) s = s.slice(0, zi);
     const lower = s.toLowerCase();
     if (lower.startsWith('::ffff:')) {
-        const tail = s.slice(7).split('%')[0];
-        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(tail)) return tail;
+        const tail = s.slice(7);
+        if (IPV4_DOTTED.test(tail)) return `::ffff:${tail}`;
+        return s;
     }
-    return s;
+    if (IPV4_DOTTED.test(s)) return `::ffff:${s}`;
+    return s.includes(':') ? lower : s;
 };
 
 /**

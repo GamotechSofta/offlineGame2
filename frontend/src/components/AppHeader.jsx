@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getBalance, updateUserBalance } from '../api/bets';
-import { API_BASE_URL, BACKEND_BASE_URL } from '../config/api';
+import { API_BASE_URL, ANDROID_APK_URL } from '../config/api';
 import { clearCurrentUser, getCurrentUser, subscribeUserSession } from '../session/userSession';
 
 const AppHeader = () => {
@@ -186,7 +186,7 @@ const AppHeader = () => {
           {/* Download App - direct in navbar */}
           <button
             type="button"
-            onClick={() => window.open(`${BACKEND_BASE_URL}/downloads/myapp.apk`, '_blank', 'noopener,noreferrer')}
+            onClick={() => window.open(ANDROID_APK_URL, '_blank', 'noopener,noreferrer')}
             className="flex shrink-0 items-center gap-1.5 rounded-lg bg-gray-50 border-2 border-gray-300 px-2 md:px-2.5 py-1 md:py-1.5 hover:bg-gray-100 hover:border-gray-400 transition-colors"
             title="Download App"
           >
@@ -305,7 +305,7 @@ const AppHeader = () => {
                     if (item.label === 'Logout') {
                       handleLogout();
                     } else if (item.isDownload) {
-                      window.open(`${BACKEND_BASE_URL}/downloads/myapp.apk`, '_blank', 'noopener,noreferrer');
+                      window.open(ANDROID_APK_URL, '_blank', 'noopener,noreferrer');
                     } else {
                       navigate(item.path);
                     }

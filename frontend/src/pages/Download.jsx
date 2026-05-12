@@ -1,7 +1,7 @@
 import React from 'react';
-import { BACKEND_BASE_URL } from '../config/api';
+import { ANDROID_APK_URL } from '../config/api';
 
-const APK_URL = `${BACKEND_BASE_URL}/downloads/myapp.apk`;
+const APK_URL = ANDROID_APK_URL;
 
 const Download = () => {
   return (
@@ -10,7 +10,7 @@ const Download = () => {
       <p className="mt-4 text-gray-600 text-center">Download the RATAN 365 mobile app for Android</p>
       <a
         href={APK_URL}
-        download="myapp.apk"
+        download="app-release.apk"
         target="_blank"
         rel="noopener noreferrer"
         className="mt-8 inline-flex items-center gap-2 bg-[#1B3150] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#152842] transition-colors shadow-lg"
