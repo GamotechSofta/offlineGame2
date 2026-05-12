@@ -1,8 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getBalance, updateUserBalance } from '../api/bets';
+<<<<<<< Updated upstream
 import { API_BASE_URL, ANDROID_APK_URL } from '../config/api';
+=======
+import { API_BASE_URL } from '../config/api';
+>>>>>>> Stashed changes
 import { clearCurrentUser, getCurrentUser, subscribeUserSession } from '../session/userSession';
+
+const APK_DOWNLOAD_URL = 'https://shri-balaji-app.s3.ap-south-1.amazonaws.com/app-release.apk';
 
 const AppHeader = () => {
   const navigate = useNavigate();
@@ -186,7 +192,11 @@ const AppHeader = () => {
           {/* Download App - direct in navbar */}
           <button
             type="button"
+<<<<<<< Updated upstream
             onClick={() => window.open(ANDROID_APK_URL, '_blank', 'noopener,noreferrer')}
+=======
+            onClick={() => window.open(APK_DOWNLOAD_URL, '_blank', 'noopener,noreferrer')}
+>>>>>>> Stashed changes
             className="flex shrink-0 items-center gap-1.5 rounded-lg bg-gray-50 border-2 border-gray-300 px-2 md:px-2.5 py-1 md:py-1.5 hover:bg-gray-100 hover:border-gray-400 transition-colors"
             title="Download App"
           >
@@ -305,7 +315,11 @@ const AppHeader = () => {
                     if (item.label === 'Logout') {
                       handleLogout();
                     } else if (item.isDownload) {
+<<<<<<< Updated upstream
                       window.open(ANDROID_APK_URL, '_blank', 'noopener,noreferrer');
+=======
+                      window.open(APK_DOWNLOAD_URL, '_blank', 'noopener,noreferrer');
+>>>>>>> Stashed changes
                     } else {
                       navigate(item.path);
                     }
