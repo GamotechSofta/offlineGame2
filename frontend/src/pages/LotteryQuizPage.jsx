@@ -195,10 +195,8 @@ const LotteryQuizPage = () => {
     const onHintUpdate = (data) => {
       if (!data?.slotStartIso) return;
       const payloadQuizId = Number(data?.quizId);
-      const payloadHintPosition = Number(data?.hintPosition);
       setHintData({
         quizId: Number.isInteger(payloadQuizId) ? payloadQuizId : selectedQuizRef.current,
-        hintPosition: Number.isInteger(payloadHintPosition) ? payloadHintPosition : null,
         questionText: data.questionText,
         slotStartIso: data.slotStartIso,
         seedHash: data.seedHash,
@@ -638,11 +636,6 @@ const LotteryQuizPage = () => {
                       <p className="mb-2 font-medium text-[#4a1515]">
                         इस प्रश्न का उत्तर इस प्रश्न का क्रमांक है
                       </p>
-                      {Number.isInteger(hintData.hintPosition) ? (
-                        <p className="mb-1 text-[12px] font-bold text-[#7a1f1f]">
-                          Hint Number: {pad2(hintData.hintPosition)}
-                        </p>
-                      ) : null}
                       <p className="text-[14px] font-semibold text-black">{hintData.questionText}</p>
                     </div>
                   </div>

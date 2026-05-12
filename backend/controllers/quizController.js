@@ -18,7 +18,6 @@ import {
 import { buildSeedHashHex } from '../services/randomService.js';
 import { getShuffleOrderIndices } from '../services/quizShuffleService.js';
 import { getOrCreatePick, resolveHintQuestionTextByPosition } from '../services/quizPickService.js';
-import { resolveWinningShuffledPosition } from '../services/quizPickPositionService.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getRatesMap } from '../models/rate/rate.js';
 import { evaluate3DBetAgainstResult, resolve3DPayoutMultiplier } from '../services/quiz3dPayoutHelpers.js';
@@ -168,7 +167,7 @@ export const getQuestions = async (req, res) => {
       slotStartIso: ctx.slotStartIso,
       questions,
     };
-    if (process.env.DEBUG_QUIZ_SHUFFLE === '1') {
+    if (process.env.DEBUG_QUIZ_SHUFFLE === '1' && process.env.NODE_ENV !== 'production') {
       data.shuffledIndices = order;
     }
     res.json({ success: true, data });
@@ -202,7 +201,6 @@ export const getHint = async (req, res) => {
       success: true,
       data: {
         quizId,
-        hintPosition: pick.hintPosition,
         questionText: resolvedQuestionText || pick.hintQuestionText,
         slotStartIso: ctx.slotStartIso,
         seedHash: seedRow?.seedHash ?? null,
@@ -270,19 +268,6 @@ export const getResult = async (req, res) => {
     if (!seedRow || buildSeedHashHex(seedRow.seed) !== seedRow.seedHash) {
       return res.status(404).json({ success: false, message: 'No seed record for this slot.' });
     }
-
-    const winningPos = await resolveWinningShuffledPosition(quizId, slotStartIso, pick, gameMode);
-
-    // eslint-disable-next-line no-console
-    console.log(
-      JSON.stringify({
-        tag: '[quiz:result]',
-        quizId,
-        slotStartIso,
-        hintPosition: winningPos,
-        seedHash: seedRow.seedHash,
-      }),
-    );
 
     res.json({
       success: true,
