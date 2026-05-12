@@ -19,6 +19,7 @@ import {
     FaDice,
     FaImage,
     FaBullhorn,
+    FaGamepad,
 } from 'react-icons/fa';
 
 const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
@@ -67,6 +68,7 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
                 { path: '/3d-management/old-slots', label: 'Old Slots Stats' },
             ],
         },
+        { path: '/games-revenue', label: 'Games Revenue', icon: FaGamepad },
         { path: '/add-result', label: 'Add Result', icon: FaEdit },
         { path: '/update-rate', label: 'Update Rate', icon: FaCoins },
         { path: '/reports', label: 'Report', icon: FaChartLine },
@@ -80,8 +82,11 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
     ];
 
     if (adminRole === 'super_admin') {
-        menuItems.splice(9, 0, { path: '/bookie-commissions', label: 'Bookie Commissions', icon: FaMoneyBillWave });
-        menuItems.splice(10, 0, { path: '/help-desk', label: 'Help Desk Issues', icon: FaLifeRing });
+        // Insert before "Revenue" (index shifts when items are added above, e.g. Games Revenue).
+        const revenueIdx = menuItems.findIndex((item) => item.path === '/revenue');
+        const insertAt = revenueIdx >= 0 ? revenueIdx : 10;
+        menuItems.splice(insertAt, 0, { path: '/bookie-commissions', label: 'Bookie Commissions', icon: FaMoneyBillWave });
+        menuItems.splice(insertAt + 1, 0, { path: '/help-desk', label: 'Help Desk Issues', icon: FaLifeRing });
     }
 
     const isActive = (path) => {

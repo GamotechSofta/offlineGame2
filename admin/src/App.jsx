@@ -39,6 +39,7 @@ import TwoDSlotHistory from './pages/TwoDSlotHistory';
 import ThreeDSlotHistory from './pages/ThreeDSlotHistory';
 import ThreeDCurrentSlotPlayers from './pages/ThreeDCurrentSlotPlayers';
 import ThreeDOldSlotsStats from './pages/ThreeDOldSlotsStats';
+const GamesRevenue = lazy(() => import('./pages/GamesRevenue'));
 import BookieCommissions from './pages/BookieCommissions';
 import ThreeDSlotWiseBets from './pages/ThreeDSlotWiseBets';
 import TwoDTickets from './pages/TwoDTickets';
@@ -378,6 +379,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <ThreeDOldSlotsStats />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/games-revenue"
+                    element={
+                        <PrivateRoute>
+                            <GamesRevenue />
                         </PrivateRoute>
                     }
                 />
