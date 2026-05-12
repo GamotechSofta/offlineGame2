@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowDown, FaArrowUp, FaClock, FaFilter, FaEye, FaCheck, FaTimes, FaImage, FaWallet } from 'react-icons/fa';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
-import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTraceRender } from '../lib/runtimeTrace';
 
@@ -113,12 +111,18 @@ const PaymentManagement = () => {
         queryKey: ['payments-list', filters.status || '', filters.type || '', currentPage],
         queryFn: () => fetchPayments(),
         enabled: !!localStorage.getItem('admin'),
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 
     const pendingCountsQuery = useQuery({
         queryKey: ['payments-pending-count'],
         queryFn: fetchPendingCounts,
         enabled: !!localStorage.getItem('admin'),
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 
     useEffect(() => {
@@ -150,23 +154,6 @@ const PaymentManagement = () => {
         pendingCountsQuery.isLoading,
         pendingCountsQuery.isFetching,
     ]);
-
-    useSectionAutoRefresh({
-        enabled: true,
-        intervalMs: 12000,
-        onRefresh: () => {
-            queryClient.invalidateQueries({ queryKey: ['payments-list'] });
-            queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] });
-        },
-        immediate: false,
-        refreshOnVisible: true,
-    });
-
-    useAdminLiveQueryInvalidation({
-        enabled: true,
-        queryKeys: [['payments-list'], ['payments-pending-count']],
-        throttleMs: 1000,
-    });
 
     const openActionModal = (payment, action) => {
         setActionModal({ show: true, payment, action });
