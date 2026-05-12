@@ -585,7 +585,7 @@ const AdminDashboard = () => {
                             Refresh
                         </button>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="grid grid-cols-4 gap-x-1.5 gap-y-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
                         {PRESETS.map((p) => {
                             const isActive = !customMode && datePreset === p.id;
                             return (
@@ -593,7 +593,7 @@ const AdminDashboard = () => {
                                     key={p.id}
                                     type="button"
                                     onClick={() => handlePresetSelect(p.id)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-orange-500 text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
+                                    className={`min-w-0 px-1 py-1.5 text-[10px] sm:px-4 sm:py-2 sm:text-sm font-semibold leading-snug text-center rounded-md transition-all sm:rounded-lg ${isActive ? 'bg-orange-500 text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     {p.label}
                                 </button>
@@ -602,19 +602,19 @@ const AdminDashboard = () => {
                         <button
                             type="button"
                             onClick={handleCustomToggle}
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${customMode ? 'bg-orange-500 text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
+                            className={`min-w-0 px-1 py-1.5 text-[10px] sm:px-4 sm:py-2 sm:text-sm font-semibold leading-snug text-center rounded-md transition-all sm:rounded-lg ${customMode ? 'bg-orange-500 text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
                         >
                             Custom
                         </button>
                         {customOpen && (
-                            <div className="flex flex-wrap items-end gap-3 w-full mt-3 p-3 rounded-lg bg-white border border-gray-200">
+                            <div className="col-span-4 w-full flex flex-wrap items-end gap-2 sm:gap-3 mt-1 p-2 sm:mt-3 sm:p-3 rounded-lg bg-gray-50 border border-gray-200 sm:basis-full">
                                 <div>
                                     <label className="block text-xs text-gray-400 mb-1">From</label>
-                                    <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800" />
+                                    <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-800" />
                                 </div>
                                 <div>
                                     <label className="block text-xs text-gray-400 mb-1">To</label>
-                                    <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800" />
+                                    <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-800" />
                                 </div>
                                 <button type="button" onClick={handleCustomApply} className="px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold text-sm">
                                     Apply
