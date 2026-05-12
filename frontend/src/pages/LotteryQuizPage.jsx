@@ -5,7 +5,7 @@ import { io } from 'socket.io-client';
 import { getQuizQuestions, getQuizResult, getQuizSettings, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { verifyFairness } from '../utils/quizFairness';
-import { getVisibleQuestionCountFromSlotStart } from '../utils/quizSlotClock';
+import { getVisibleQuestionCountFromSlotStart, SLOT_SECONDS, formatISTTimeFromDaySeconds } from '../utils/quizSlotClock';
 const QUIZ_MODE = '2d';
 const DEFAULT_STUDY_MINUTES = 14.5;
 const DEFAULT_REVEAL_STAGGER_MS = 8700;
@@ -15,6 +15,8 @@ const pad2 = (n) => String(n).padStart(2, '0');
 
 const btnInactive = 'bg-[#5c2222] text-white border-2 border-[#3d1515] shadow-inner';
 const btnActive = 'bg-[#f5e14a] text-black border-2 border-[#c9b429] shadow-sm';
+const slotChipActive = `${btnActive} ring-2 ring-[#f59e0b] shadow-[0_0_0_2px_rgba(245,158,11,0.25)]`;
+const normalizeTimeLabel = (value) => String(value || '').replace(/\s+/g, ' ').trim().toUpperCase();
 
 const formatCountdown = (totalSeconds) => {
   const m = Math.floor(totalSeconds / 60);
@@ -88,15 +90,35 @@ const LotteryQuizPage = () => {
   const selectedQuizRef = useRef(selectedQuiz);
   const lastHintSlotRef = useRef(null);
   const lastLandscapeAutoFsAttemptRef = useRef(0);
+  const slotStripRef = useRef(null);
+  const slotChipRefs = useRef({});
   const socketRef = useRef(null);
 
   const quizLabel = `QUIZ${pad2(selectedQuiz)}`;
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
+  const allDrawLabels = useMemo(() => {
+    const n = Math.floor(86400 / SLOT_SECONDS);
+    return Array.from({ length: n }, (_, idx) =>
+      formatISTTimeFromDaySeconds(((idx + 1) * SLOT_SECONDS) % 86400),
+    );
+  }, []);
 
   useEffect(() => {
     selectedQuizRef.current = selectedQuiz;
   }, [selectedQuiz]);
+
+  useLayoutEffect(() => {
+    const currentLabel = normalizeTimeLabel(slotData?.drawLabelCurrent);
+    if (!currentLabel) return;
+    const strip = slotStripRef.current;
+    const chip = slotChipRefs.current[currentLabel];
+    if (!strip || !chip) return;
+    const stripRect = strip.getBoundingClientRect();
+    const chipRect = chip.getBoundingClientRect();
+    const targetLeft = strip.scrollLeft + (chipRect.left - stripRect.left) - ((stripRect.width - chipRect.width) / 2);
+    strip.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+  }, [slotData?.drawLabelCurrent]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -513,15 +535,23 @@ const LotteryQuizPage = () => {
 
               <div className="flex flex-1 flex-col px-2 pb-24 sm:px-4">
           <div className="sticky z-[9] -mx-2 mb-3 bg-[#efe6d5]/95 px-2 pt-1 pb-2 backdrop-blur-sm sm:mx-0 sm:px-0" style={{ top: '52px' }}>
-            <div className="mb-3 flex justify-center gap-2 sm:gap-3">
-              <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnInactive} opacity-90`}>
-                {slotData?.drawLabelPrev ?? '—'}
-              </div>
-              <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnActive}`}>
-                {slotData?.drawLabelCurrent ?? '—'}
-              </div>
-              <div className={`rounded-xl px-4 py-2.5 text-sm font-bold sm:px-6 sm:py-3 sm:text-base ${btnInactive} opacity-90`}>
-                {slotData?.drawLabelNext ?? '—'}
+            <div ref={slotStripRef} className="mb-3 overflow-x-auto pb-1">
+              <div className="flex min-w-max items-center gap-2">
+                {allDrawLabels.map((label) => {
+                  const normalizedLabel = normalizeTimeLabel(label);
+                  const isCurrent = normalizedLabel === normalizeTimeLabel(slotData?.drawLabelCurrent);
+                  return (
+                    <div
+                      key={label}
+                      ref={(el) => {
+                        if (el) slotChipRefs.current[normalizedLabel] = el;
+                      }}
+                      className={`rounded-xl px-3 py-2 text-xs font-bold transition-all sm:px-4 sm:py-2.5 sm:text-sm ${isCurrent ? slotChipActive : `${btnInactive} opacity-90`}`}
+                    >
+                      {label}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -632,11 +662,11 @@ const LotteryQuizPage = () => {
                     Hint
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="border-b border-[#dcb] px-3 py-2 text-sm leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
-                      <p className="mb-2 font-medium text-[#4a1515]">
+                    <div className="border-b border-[#dcb] px-6 py-4 text-sm leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
+                      <p className="mb-2 text-[28px] font-medium leading-snug text-[#4a1515] sm:text-[28px]">
                         इस प्रश्न का उत्तर इस प्रश्न का क्रमांक है
                       </p>
-                      <p className="text-[14px] font-semibold text-black">{hintData.questionText}</p>
+                      <p className="text-[18px] font-semibold leading-snug text-black sm:text-[20px]">{hintData.questionText}</p>
                     </div>
                   </div>
                 </div>

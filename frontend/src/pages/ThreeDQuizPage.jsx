@@ -154,9 +154,9 @@ const ThreeDQuizPage = () => {
   const dashboardScaleX = useMemo(() => viewport.width / BASE_WIDTH, [viewport.width]);
   const dashboardScaleY = useMemo(() => viewport.height / BASE_HEIGHT, [viewport.height]);
   const allDrawLabels = useMemo(() => {
-    // Show complete day slots (96 x 15-min) so current slot is always present.
+    // Draw-end labels (match server drawLabelCurrent) for all 96 IST 15-min slots.
     return Array.from({ length: Math.floor(86400 / SLOT_SECONDS) }, (_, idx) =>
-      formatISTTimeFromDaySeconds((idx * SLOT_SECONDS) % 86400),
+      formatISTTimeFromDaySeconds(((idx + 1) * SLOT_SECONDS) % 86400),
     );
   }, []);
 
@@ -637,11 +637,11 @@ const ThreeDQuizPage = () => {
                           Hint
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="border-b border-[#dcb] px-3 py-2 text-sm leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
-                            <p className="mb-2 font-medium text-[#4a1515]">
+                          <div className="border-b border-[#dcb] px-6 py-4 text-sm leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
+                            <p className="mb-2 text-[28px] font-medium leading-snug text-[#4a1515] sm:text-[28px]">
                               इस प्रश्न का उत्तर इस प्रश्न का क्रमांक है
                             </p>
-                            <p className="text-[14px] font-semibold text-black">{hintData.questionText}</p>
+                            <p className="text-[18px] font-semibold leading-snug text-black sm:text-[20px]">{hintData.questionText}</p>
                           </div>
                         </div>
                       </div>
