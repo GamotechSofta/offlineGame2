@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, getAuthHeaders } from '../config/api';
+
+const GAME_LAUNCH_URL_KEY_PREFIX = 'og2GameEmbedLaunchUrl::';
+const GAME_LAUNCH_NAME_KEY_PREFIX = 'og2GameEmbedName::';
 
 const CARD_THEMES = [
   { accent: 'from-sky-600 to-indigo-700' },
@@ -25,6 +29,7 @@ const getInitials = (value) => {
 };
 
 const GamesHub = () => {
+  const navigate = useNavigate();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -114,8 +119,20 @@ const GamesHub = () => {
         '';
 
       if (launchUrl) {
-        // Full top-level navigation: partner games (e.g. roulette) often block <iframe> via X-Frame-Options / CSP.
-        window.location.assign(launchUrl);
+        // Keep the partner URL OUT of the address bar — render it inside the embed page on
+        // /games/play/:gameCode. We pass the URL via router state and also persist it in
+        // sessionStorage (keyed per game) so a hard refresh on the embed route still works.
+        const codeForRoute = encodeURIComponent(gameCode);
+        const gameName = String(game?.name || gameCode);
+        try {
+          sessionStorage.setItem(`${GAME_LAUNCH_URL_KEY_PREFIX}${gameCode}`, launchUrl);
+          sessionStorage.setItem(`${GAME_LAUNCH_NAME_KEY_PREFIX}${gameCode}`, gameName);
+        } catch (_) {}
+        navigate(`/games/play/${codeForRoute}`, {
+          state: { launchUrl, gameName },
+        });
+      } else {
+        setError('No launch URL returned by server.');
       }
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Failed to launch game');

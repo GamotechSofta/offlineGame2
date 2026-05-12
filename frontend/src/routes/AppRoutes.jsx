@@ -26,6 +26,7 @@ import ThreeDGame from '../components/lottery/3d-lottery/ThreeDGame';
 import LotteryQuizPage from '../pages/LotteryQuizPage';
 import ThreeDQuizPage from '../pages/ThreeDQuizPage';
 import GamesHub from '../pages/GamesHub';
+import GameLaunchEmbed from '../pages/GameLaunchEmbed';
 import ZoomTestPage from '../pages/ZoomTestPage';
 import { API_BASE_URL } from '../config/api';
 import { clearCurrentUser, getCurrentUser, setCurrentUser } from '../session/userSession';
@@ -383,6 +384,7 @@ const AppRoutes = () => {
           <Route path="/top-winners" element={<TopWinners />} />
           <Route path="/game-rate" element={<GameRate />} />
           <Route path="/games" element={<GamesHub />} />
+          <Route path="/games/play/:gameCode" element={<GameLaunchEmbed />} />
           <Route path="/lottery" element={<LotteryDashboard />} />
           <Route path="/lottery/quiz" element={<LotteryQuizPage />} />
           <Route path="/lottery/3d/quiz" element={<ThreeDQuizPage />} />
