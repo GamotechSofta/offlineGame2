@@ -1,35 +1,51 @@
 import ActivityLog from '../models/activityLog/activityLog.js';
 
-const IPV4_DOTTED = /^\d{1,3}(\.\d{1,3}){3}$/;
+/** Strict dotted IPv4 (octets 0–255). */
+const IPV4_DOTTED =
+    /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 
-/**
- * Normalize client IP for storage: prefer IPv6 textual form.
- * - Strips zone id (e.g. fe80::1%eth0).
- * - Keeps IPv4-mapped IPv6 as ::ffff:x.x.x.x (does not collapse to IPv4).
- * - Plain dotted IPv4 becomes ::ffff:x.x.x.x so DB shows an IPv6-style address.
- */
-export const normalizeClientIp = (ip) => {
-    if (ip == null) return null;
-    let s = String(ip).trim();
-    if (!s) return null;
-    const zi = s.indexOf('%');
-    if (zi !== -1) s = s.slice(0, zi);
-    const lower = s.toLowerCase();
-    if (lower.startsWith('::ffff:')) {
-        const tail = s.slice(7);
-        if (IPV4_DOTTED.test(tail)) return `::ffff:${tail}`;
-        return s;
-    }
-    if (IPV4_DOTTED.test(s)) return `::ffff:${s}`;
-    return s.includes(':') ? lower : s;
+const stripZoneIndex = (s) => {
+    const i = s.indexOf('%');
+    return i === -1 ? s : s.slice(0, i);
 };
 
 /**
- * Extract real client IP; safe behind Render/reverse proxy.
- * Priority: (a) X-Forwarded-For first IP, (b) req.ip, (c) req.socket.remoteAddress.
+ * Map IPv4-mapped IPv6 (::ffff:x.x.x.x), loopback ::1, and zone indexes to dotted IPv4 where possible.
+ * Leaves true IPv6 and plain IPv4 unchanged.
+ */
+export const normalizeClientIp = (ip) => {
+    if (ip == null) return null;
+    let s = stripZoneIndex(String(ip).trim());
+    if (!s) return null;
+    if (s.startsWith('[') && s.includes(']')) {
+        s = stripZoneIndex(s.slice(1, s.indexOf(']')));
+    }
+    const lower = s.toLowerCase();
+    if (lower === '::1') return '127.0.0.1';
+    if (IPV4_DOTTED.test(lower)) return lower;
+    if (lower.startsWith('::ffff:')) {
+        const tail = stripZoneIndex(s.slice(7));
+        if (IPV4_DOTTED.test(tail)) return tail;
+    }
+    return s;
+};
+
+const SINGLE_CLIENT_IP_HEADERS = ['cf-connecting-ip', 'true-client-ip', 'x-real-ip'];
+
+/**
+ * Extract real client IP; safe behind reverse proxy / CDN.
+ * Priority: CF-Connecting-IP, True-Client-IP, X-Real-IP, X-Forwarded-For (first hop), req.ip, socket.
  */
 export const getClientIp = (req) => {
     if (!req) return null;
+    for (const h of SINGLE_CLIENT_IP_HEADERS) {
+        const raw = req.headers?.[h];
+        const v = Array.isArray(raw) ? raw[0] : raw;
+        if (v && String(v).trim()) {
+            const n = normalizeClientIp(String(v).trim());
+            if (n) return n;
+        }
+    }
     const xForwardedFor = req.headers?.['x-forwarded-for'];
     if (xForwardedFor) {
         const first = String(xForwardedFor).split(',')[0]?.trim();

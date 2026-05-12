@@ -1,21 +1,30 @@
-const IPV4_DOTTED = /^\d{1,3}(\.\d{1,3}){3}$/;
+/** Strict dotted IPv4 (octets 0–255). */
+const IPV4_DOTTED =
+    /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+
+const stripZoneIndex = (s) => {
+    const i = s.indexOf('%');
+    return i === -1 ? s : s.slice(0, i);
+};
 
 /**
- * Display IP in IPv6-friendly form (::ffff:x.x.x.x for IPv4 / mapped; lowercase for real IPv6).
+ * Show dotted IPv4 (X.X.X.X): map ::ffff:x.x.x.x, ::1, and strip IPv6 zone index.
  * @param {string|null|undefined} ip
  * @returns {string}
  */
 export function formatPlayerIp(ip) {
     if (ip == null || ip === '') return '—';
-    let s = String(ip).trim();
+    let s = stripZoneIndex(String(ip).trim());
     if (!s) return '—';
-    const zi = s.indexOf('%');
-    if (zi !== -1) s = s.slice(0, zi);
-    if (IPV4_DOTTED.test(s)) return `::ffff:${s}`;
-    const lower = s.toLowerCase();
-    if (lower.startsWith('::ffff:')) {
-        const tail = s.slice(7);
-        if (IPV4_DOTTED.test(tail)) return `::ffff:${tail}`;
+    if (s.startsWith('[') && s.includes(']')) {
+        s = stripZoneIndex(s.slice(1, s.indexOf(']')));
     }
-    return s.includes(':') ? lower : s;
+    const lower = s.toLowerCase();
+    if (lower === '::1') return '127.0.0.1';
+    if (IPV4_DOTTED.test(lower)) return lower;
+    if (lower.startsWith('::ffff:')) {
+        const tail = stripZoneIndex(s.slice(7));
+        if (IPV4_DOTTED.test(tail)) return tail;
+    }
+    return s;
 }
