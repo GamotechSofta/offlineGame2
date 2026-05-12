@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { formatPlayerIp } from '../utils/ipDisplay';
 import { useLanguage } from '../context/LanguageContext';
 import {
     FaArrowLeft,
@@ -1287,7 +1288,14 @@ const PlayerDetail = () => {
                                     <div><p className="text-gray-400 text-xs uppercase">Account</p><p className={player.isActive !== false ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>{player.isActive !== false ? 'Active' : 'Suspended'}</p></div>
                                     <div><p className="text-gray-400 text-xs uppercase">Created</p><p className="text-gray-600 text-xs">{player.createdAt ? new Date(player.createdAt).toLocaleString('en-IN') : '—'}</p></div>
                                     <div><p className="text-gray-400 text-xs uppercase">Player ID</p><p className="text-gray-500 font-mono text-xs truncate" title={player._id}>{player._id}</p></div>
-                                    {player.lastLoginIp && <div><p className="text-gray-400 text-xs uppercase">Last IP</p><p className="text-gray-600 font-mono text-xs">{player.lastLoginIp === '::1' ? 'localhost' : player.lastLoginIp}</p></div>}
+                                    {player.lastLoginIp && (
+                                        <div>
+                                            <p className="text-gray-400 text-xs uppercase">Last IP</p>
+                                            <p className="text-gray-600 font-mono text-xs" title={formatPlayerIp(player.lastLoginIp)}>
+                                                {formatPlayerIp(player.lastLoginIp)}
+                                            </p>
+                                        </div>
+                                    )}
                                     {player.lastLoginDeviceId && <div className="col-span-2"><p className="text-gray-400 text-xs uppercase">Device ID</p><p className="text-gray-600 font-mono text-xs truncate">{player.lastLoginDeviceId}</p></div>}
                                 </div>
                             </div>

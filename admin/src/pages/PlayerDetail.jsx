@@ -8,6 +8,7 @@ import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { formatPlayerIp } from '../utils/ipDisplay';
 
 const TABS = [
     { id: 'wallet', label: 'Wallet Statement' },
@@ -924,13 +925,6 @@ const PlayerDetail = () => {
     const formatCurrency = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
     const formatNumber = (n) => Number(n || 0).toLocaleString('en-IN');
 
-    const formatIpDisplay = (ip) => {
-        if (!ip) return '—';
-        const trimmed = String(ip).trim();
-        if (trimmed === '::1' || trimmed === '127.0.0.1') return 'localhost';
-        return trimmed;
-    };
-
     // Device ID: use lastLoginDeviceId, or latest device from loginDevices when available
     const displayDeviceId = (() => {
         if (player?.lastLoginDeviceId) return player.lastLoginDeviceId;
@@ -1091,7 +1085,9 @@ const PlayerDetail = () => {
                         </div>
                         <div className="min-w-0 col-span-2 sm:col-span-1">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">IP Address</p>
-                            <p className="text-gray-600 font-mono text-xs truncate" title={player.lastLoginIp || ''}>{formatIpDisplay(player.lastLoginIp)}</p>
+                            <p className="text-gray-600 font-mono text-xs truncate" title={formatPlayerIp(player.lastLoginIp)}>
+                                {formatPlayerIp(player.lastLoginIp)}
+                            </p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Status</p>
