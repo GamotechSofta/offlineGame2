@@ -2,9 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
-import { getQuizQuestions, getQuizResult, getQuizSettings, postQuizBet } from '../api/quizApi';
+import { getQuizQuestions, getQuizSettings, postQuizBet } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
-import { verifyFairness } from '../utils/quizFairness';
 import { SLOT_SECONDS, formatISTTimeFromDaySeconds, getVisibleQuestionCountFromSlotStart } from '../utils/quizSlotClock';
 const pad2 = (n) => String(n).padStart(2, '0');
 const pad3 = (n) => String(n).padStart(3, '0');
@@ -119,8 +118,6 @@ const ThreeDQuizPage = () => {
   const [hintData, setHintData] = useState(null);
   const [betLines, setBetLines] = useState([{ number: '', amount: '' }]);
   const [guessFeedback, setGuessFeedback] = useState(null);
-  const [fairnessResult, setFairnessResult] = useState(null);
-  const [fairnessCheck, setFairnessCheck] = useState(null);
   const [timingSettings, setTimingSettings] = useState({
     studyMinutes: DEFAULT_STUDY_MINUTES,
     questionRevealStaggerMs: DEFAULT_REVEAL_STAGGER_MS_3D,
@@ -282,30 +279,6 @@ const ThreeDQuizPage = () => {
         });
       };
 
-    const onQuizResult = async (data) => {
-      if (!data?.slotStartIso || !Array.isArray(data.results)) return;
-      if (String(data?.gameMode || '2d').toLowerCase() !== QUIZ_MODE) return;
-      const targetSlot = lastHintSlotRef.current;
-      if (!targetSlot || data.slotStartIso !== targetSlot) return;
-      const qid = selectedQuizRef.current;
-      const row = data.results.find((r) => r.quizId === qid);
-      if (!row || row.ready !== true) return;
-      try {
-        const j = await getQuizResult(qid, data.slotStartIso, QUIZ_MODE);
-        if (j.success && j.data) {
-          setFairnessResult({
-            quizId: qid,
-            seed: j.data?.seed,
-            seedHash: j.data?.seedHash,
-          });
-          setFairnessCheck(null);
-        }
-      } catch {
-        // fairness payload optional
-      }
-      setGuessFeedback('Result declared for this slot. Winning number is hidden.');
-    };
-
     const onConnectError = (err) => {
       setSlotErr(err?.message || 'Socket connection failed');
     };
@@ -316,14 +289,12 @@ const ThreeDQuizPage = () => {
 
     socket.on('slot:update', onSlotUpdate);
     socket.on('hint:update', onHintUpdate);
-    socket.on('quiz:result', onQuizResult);
     socket.on('connect_error', onConnectError);
     socket.on('disconnect', onDisconnect);
     return () => {
       socketRef.current = null;
       socket.off('slot:update', onSlotUpdate);
       socket.off('hint:update', onHintUpdate);
-      socket.off('quiz:result', onQuizResult);
       socket.off('connect_error', onConnectError);
       socket.off('disconnect', onDisconnect);
       socket.disconnect();
@@ -392,8 +363,6 @@ const ThreeDQuizPage = () => {
     setBetLines([{ number: '', amount: '' }]);
     lastBetNumbersRef.current = [];
     setGuessFeedback(null);
-    setFairnessResult(null);
-    setFairnessCheck(null);
   }, [slotData?.phase, slotData?.slotStartIso, selectedQuiz]);
 
   const hintPhase = slotData?.phase === 'hint';
@@ -483,36 +452,8 @@ const ThreeDQuizPage = () => {
       return;
     }
 
-    try {
-      const j = await getQuizResult(selectedQuiz, slotStartIso, QUIZ_MODE);
-      setFairnessResult({
-        quizId: selectedQuiz,
-        seed: j.data?.seed,
-        seedHash: j.data?.seedHash,
-      });
-      setFairnessCheck(null);
-      setGuessFeedback('Bet submitted. Result declared; winning number is hidden.');
-    } catch (e) {
-      if (e.status === 403 && e.code === 'SLOT_NOT_ENDED') {
-        setGuessFeedback('Bet submitted. Result and fairness (seed) will appear after slot ends.');
-      } else {
-        setGuessFeedback('Bet submitted. Check the result later.');
-      }
-    }
+    setGuessFeedback('Bet submitted.');
   }, [betLines, slotData, selectedQuiz]);
-
-  const runFairnessVerify = useCallback(async () => {
-    if (!fairnessResult?.seed || !fairnessResult?.seedHash) {
-      setFairnessCheck('Seed not available in result payload.');
-      return;
-    }
-    try {
-      const ok = await verifyFairness(fairnessResult.seed, fairnessResult.seedHash);
-      setFairnessCheck(ok ? '✓ hash(seed) matches hint seedHash - provably fair.' : '✗ Mismatch detected - please check.');
-    } catch (err) {
-      setFairnessCheck(err.message || 'Verify failed');
-    }
-  }, [fairnessResult]);
 
   const handleRotateLandscape = useCallback(async () => {
     try {
@@ -647,15 +588,6 @@ const ThreeDQuizPage = () => {
                 {hintPhase && slotOpenForBuy && (!hintData || hintData.quizId !== selectedQuiz) && (
                   <div className="mx-auto py-6 text-center text-sm text-[#5c2222]">
                     Loading hint for QUIZ{pad2(selectedQuiz)}...
-                  </div>
-                )}
-
-                {fairnessResult?.seed && (
-                  <div className="mx-auto mt-3 w-full max-w-[1100px] rounded-sm border border-[#7a9e5c] bg-[#eef8f0] px-3 py-3 text-sm shadow-sm">
-                    <p className="mb-1 font-bold text-[#1a4d2e]">Fairness (after slot closes)</p>
-                    <textarea readOnly className="mb-2 mt-1 w-full resize-none rounded border border-[#7a9e5c] bg-white p-1 font-mono text-[10px] text-black" rows={2} value={fairnessResult.seed} />
-                    <button type="button" onClick={runFairnessVerify} className="rounded border-2 border-[#2d6b3a] bg-[#3d8b4a] px-3 py-1.5 text-xs font-bold text-white">Verify Fairness</button>
-                    {fairnessCheck && <p className="mt-2 text-xs font-semibold text-[#222]">{fairnessCheck}</p>}
                   </div>
                 )}
 
