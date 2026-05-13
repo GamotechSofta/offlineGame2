@@ -48,7 +48,7 @@ async function buildHintSnapshot(quizId, gameMode = '2d') {
   const ctx = getSlotContext(new Date(), gameMode);
   if (ctx.phase !== 'hint') return null;
   const pick = await getOrCreatePick(quizId, ctx.slotStartIso, gameMode);
-  const resolvedQuestionText = await resolveHintQuestionTextByPosition(quizId, pick.hintPosition, gameMode);
+  const resolvedQuestionText = await resolveHintQuestionTextByPosition(quizId, pick.hintPosition, gameMode, ctx.slotStartIso);
   const seedRow = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso: ctx.slotStartIso }).lean();
   return {
     quizId,

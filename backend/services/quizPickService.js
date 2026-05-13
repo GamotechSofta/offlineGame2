@@ -175,13 +175,26 @@ export async function peekPickForSlotResult(quizId, slotStartIso, gameMode = '2d
   return computePickFields(quizId, slotStartIso, seedHex, gameMode);
 }
 
-/** Resolve hint question text by hint position (00-99 / 000-999) from quiz bank. */
-export async function resolveHintQuestionTextByPosition(quizId, hintPosition, gameMode = '2d') {
+/** Resolve hint question text for shuffled slot position (2D: 0–99, 3D: 0–999). */
+export async function resolveHintQuestionTextByPosition(quizId, hintPosition, gameMode = '2d', slotStartIso = null) {
   if (!Number.isInteger(hintPosition) || hintPosition < 0) return null;
   const quiz = gameMode === '3d'
     ? await ensure3DQuizQuestionBank(quizId)
     : await Quiz.findOne({ gameMode, quizId }).lean();
   if (!quiz || !Array.isArray(quiz.questions) || !quiz.questions.length) return null;
+
+  const requiredCount = gameMode === '3d' ? 1000 : 100;
+  if (quiz.questions.length !== requiredCount) return null;
+
+  const slotIso = typeof slotStartIso === 'string' ? slotStartIso.trim() : '';
+  if (slotIso) {
+    const order = await getShuffleOrderIndices(quizId, slotIso, null, gameMode, requiredCount);
+    if (hintPosition >= order.length) return null;
+    const chosenIndex = order[hintPosition];
+    const row = quiz.questions[chosenIndex];
+    if (row?.question) return stripQuestionMetaForHint(row.question);
+    return null;
+  }
 
   const direct = quiz.questions.find((q) => parseQuestionOrderKey(q) === hintPosition);
   if (direct?.question) return stripQuestionMetaForHint(direct.question);

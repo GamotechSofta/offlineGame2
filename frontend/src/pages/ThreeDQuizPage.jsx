@@ -22,21 +22,6 @@ const normalizeTimeLabel = (value) => String(value || '').replace(/\s+/g, ' ').t
 
 const cleanQuestionText = (text) =>
   String(text || '').replace(/^(?:प्रश्न|Question)\s*\(\d{1,2}-\d{2,3}\)\s*:\s*/iu, '');
-const getQuestionOrderKey = (row, index = 0) => {
-  const explicitOrderRaw = row?.order ?? row?.questionNo ?? row?.position ?? row?.seq;
-  const explicitOrder = Number(
-    typeof explicitOrderRaw === 'string' ? explicitOrderRaw.replace(/[^\d.-]/g, '') : explicitOrderRaw,
-  );
-  if (Number.isFinite(explicitOrder)) return explicitOrder;
-  const questionText = String(row?.question || '');
-  const fromLabelMatch = questionText.match(/\(\s*\d{1,2}\s*-\s*(\d{1,3})\s*\)/);
-  if (fromLabelMatch) {
-    const parsed = Number(fromLabelMatch[1]);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  const fallbackId = Number(row?.id);
-  return Number.isFinite(fallbackId) ? fallbackId : index;
-};
 const QUIZ_MODE = '3d';
 const DEFAULT_STUDY_MINUTES = 14.5;
 const DEFAULT_REVEAL_STAGGER_MS_3D = 810;
@@ -63,6 +48,7 @@ const StudyQuestionsTable = React.memo(function StudyQuestionsTable({
   questionsLoading,
   questionsErr,
   questions,
+  questionCount,
   answerRevealed,
   toggleAnswer,
 }) {
@@ -84,7 +70,7 @@ const StudyQuestionsTable = React.memo(function StudyQuestionsTable({
             {questions.map((row, position) => (
               <tr key={row.id}>
                 <td className="align-top border border-[#7a9e5c] px-3 py-5 font-semibold leading-snug" style={{ backgroundColor: '#b8e6a8' }}>
-                  <div className="text-[14px] font-bold sm:text-[16px]">Question No. {pad3(getQuestionOrderKey(row, position))}</div>
+                  <div className="text-[14px] font-bold sm:text-[16px]">No. {pad3(Math.max(0, questionCount - 1 - position))}</div>
                   <div className="mt-1 text-[13px] font-semibold opacity-95 sm:text-[14px]">{slotLabel}</div>
                 </td>
                 <td className="align-top border border-[#e0a0b0] px-3 py-5 leading-snug" style={{ backgroundColor: '#fcd4dc' }}>
@@ -357,12 +343,7 @@ const ThreeDQuizPage = () => {
     getQuizQuestions(selectedQuiz, QUIZ_MODE)
       .then((j) => {
         if (!cancelled && j.success && Array.isArray(j.data?.questions)) {
-          const sortedQuestions = [...j.data.questions].sort((a, b) => {
-            const byOrderDesc = getQuestionOrderKey(b) - getQuestionOrderKey(a);
-            if (byOrderDesc !== 0) return byOrderDesc;
-            return String(b?.id ?? '').localeCompare(String(a?.id ?? ''));
-          });
-          setQuestions(sortedQuestions);
+          setQuestions([...j.data.questions]);
         }
       })
       .catch((e) => {
@@ -435,6 +416,14 @@ const ThreeDQuizPage = () => {
     if (slotData.acceptsBets === false) return false;
     return slotData.phase === 'hint';
   }, [slotData]);
+
+  /** Study table: highest shuffle slot first (999→000); stagger reveals from the top end. */
+  const studyVisibleQuestions = useMemo(() => {
+    const n = questions.length;
+    const k = Math.min(visibleQuestionCount, n);
+    if (k <= 0) return [];
+    return questions.slice(n - k, n).reverse();
+  }, [questions, visibleQuestionCount]);
 
   const toggleAnswer = useCallback((rowId) => {
     setAnswerRevealed((prev) => ({ ...prev, [rowId]: !prev[rowId] }));
@@ -620,7 +609,8 @@ const ThreeDQuizPage = () => {
                     slotLabel={slotData?.drawLabelCurrent ?? ''}
                     questionsLoading={questionsLoading}
                     questionsErr={questionsErr}
-                    questions={questions.slice(0, visibleQuestionCount)}
+                    questions={studyVisibleQuestions}
+                    questionCount={questions.length}
                     answerRevealed={answerRevealed}
                     toggleAnswer={toggleAnswer}
                   />

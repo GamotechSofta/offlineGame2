@@ -196,7 +196,7 @@ export const getHint = async (req, res) => {
     const pick = await getOrCreatePick(quizId, ctx.slotStartIso, gameMode);
     const seedRow = await QuizSlotSeed.findOne({ gameMode, quizId, slotStartIso: ctx.slotStartIso }).lean();
 
-    const resolvedQuestionText = await resolveHintQuestionTextByPosition(quizId, pick.hintPosition, gameMode);
+    const resolvedQuestionText = await resolveHintQuestionTextByPosition(quizId, pick.hintPosition, gameMode, ctx.slotStartIso);
     res.json({
       success: true,
       data: {
