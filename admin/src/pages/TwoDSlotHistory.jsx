@@ -21,15 +21,12 @@ const getProfitRangeColorClass = (profitPercentValue) => {
   if (!Number.isFinite(signedPct)) return 'text-gray-400';
   if (signedPct < 0) return 'text-red-700';
   const pct = Math.abs(signedPct);
-  if (pct <= 10) return 'text-pink-600';
-  if (pct <= 20) return 'text-red-500';
-  if (pct <= 30) return 'text-orange-500';
-  if (pct <= 40) return 'text-amber-500';
-  if (pct <= 50) return 'text-yellow-500';
+  if (pct === 0) return 'text-slate-500';
+  if (pct <= 20) return 'text-amber-700';
+  if (pct <= 40) return 'text-orange-500';
   if (pct <= 60) return 'text-lime-500';
-  if (pct <= 70) return 'text-lime-600';
   if (pct <= 80) return 'text-green-600';
-  if (pct <= 90) return 'text-sky-500';
+  if (pct <= 100) return 'text-sky-500';
   return 'text-blue-600';
 };
 
