@@ -13,6 +13,7 @@ import {
   isAutoDeclareBlocked,
   markSlotDeclared,
 } from './quizDeclarationService.js';
+import { tryApplyPersistedAutoDeclarePreferenceToSlot } from './quizGameAutoDeclarePreferenceService.js';
 import { apply2DTargetProfitHintsToSlot, apply3DTargetProfitHintsToSlot } from './quizTargetProfitService.js';
 import { bustQuizPublicLastSlotResultsCaches } from './cacheInvalidationService.js';
 const TICK_MS = 60_000;
@@ -56,6 +57,7 @@ async function ensureAllPicksForSlot(slotStartIso, gameMode = '2d') {
       totalGenerated: ok,
     }),
   );
+  await tryApplyPersistedAutoDeclarePreferenceToSlot(slotStartIso, gameMode);
 }
 
 /**

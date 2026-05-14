@@ -34,6 +34,11 @@ import { getQuizSocketIo, syncQuizSlotUpdates } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply2DTargetProfitHintsToSlot, build2DTargetProfitHints } from '../services/quizTargetProfitService.js';
+import {
+  ensurePicksThenApplyPersistedPreference,
+  setPersistedAutoDeclarePreference,
+  tryApplyPersistedAutoDeclarePreferenceToSlot,
+} from '../services/quizGameAutoDeclarePreferenceService.js';
 import { bustQuizPublicLastSlotResultsCaches, invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { cacheGet, cacheSet } from '../services/cacheService.js';
 import { getRuntimeMetrics } from '../services/runtimeMonitorService.js';
@@ -136,6 +141,7 @@ function currentSlotCacheKey(req, slotStartIso, lotteryScopeFilter) {
 async function buildLottery2DCurrentSlotPayload(ctx, lotteryScopeFilter) {
   const slotStartIso = ctx.slotStartIso;
   const slotEndMs = ctx.slotEndMs;
+  await ensurePicksThenApplyPersistedPreference(slotStartIso, GAME_MODE);
   const [bets, picks, winMultiplier] = await Promise.all([
     QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter })
       .select('ticketId quizId userId number amount status winPayout')
@@ -205,6 +211,7 @@ async function buildLottery2DCurrentSlotPayload(ctx, lotteryScopeFilter) {
 
 async function buildLottery2DSlotDetailData(slotStartIso, lotteryScopeFilter) {
   const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+  await ensurePicksThenApplyPersistedPreference(slotStartIso, GAME_MODE);
   const [bets, winMultiplier, declaration, picksInitial] = await Promise.all([
     QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter })
       .select('ticketId quizId userId number amount status winPayout')
@@ -1509,6 +1516,7 @@ export const getLottery2DCurrentSlotHints = async (req, res) => {
 
     // Ensure all Q01-Q30 picks exist for the running slot so hints grid is fully populated.
     await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
+    await tryApplyPersistedAutoDeclarePreferenceToSlot(slotStartIso, GAME_MODE);
 
     const [picks] = await Promise.all([
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean(),
@@ -1600,6 +1608,7 @@ export const configureLottery2DCurrentSlotTargetAutoDeclare = async (req, res) =
         });
       }
       await ensureRandomHintsForCurrentSlot(slotStartIso);
+      await setPersistedAutoDeclarePreference(GAME_MODE, 'random', null, req.admin?._id);
     } else {
       // Target mode: clear random influence by overriding slot hints with target-driven picks.
       await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, targetProfitPercent, req.admin?._id);
@@ -1614,6 +1623,7 @@ export const configureLottery2DCurrentSlotTargetAutoDeclare = async (req, res) =
       }
       await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
       await apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
+      await setPersistedAutoDeclarePreference(GAME_MODE, 'target', targetProfitPercent, req.admin?._id);
     }
     await invalidateAdminReadCaches('lottery2d_auto_declare_configured');
     syncQuizSlotUpdates();

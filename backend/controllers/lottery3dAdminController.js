@@ -35,6 +35,11 @@ import { getQuizSocketIo, syncQuizSlotUpdates } from '../socket/socketHub.js';
 import { settleQuizBetsForSlot } from '../services/quizBetSettlement.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply3DTargetProfitHintsToSlot, build3DTargetProfitHints } from '../services/quizTargetProfitService.js';
+import {
+  ensurePicksThenApplyPersistedPreference,
+  setPersistedAutoDeclarePreference,
+  tryApplyPersistedAutoDeclarePreferenceToSlot,
+} from '../services/quizGameAutoDeclarePreferenceService.js';
 import { bustQuizPublicLastSlotResultsCaches, invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { cacheGet, cacheSet } from '../services/cacheService.js';
 
@@ -166,6 +171,7 @@ function toSlotSummary(slotStartIso, slotEndMs, bets, picksByQuiz, ratesMap) {
 async function buildLottery3DCurrentSlotPayload(ctx, lotteryScopeFilter) {
   const slotStartIso = ctx.slotStartIso;
   const slotEndMs = ctx.slotEndMs;
+  await ensurePicksThenApplyPersistedPreference(slotStartIso, GAME_MODE);
   const [bets, picks, ratesMap] = await Promise.all([
     QuizBet.find({ gameMode: GAME_MODE, slotStartIso, ...lotteryScopeFilter })
       .select('ticketId quizId userId number amount status winPayout betMode')
@@ -902,6 +908,9 @@ export const getLottery3DCurrentSlotHints = async (req, res) => {
       picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean();
     }
 
+    await tryApplyPersistedAutoDeclarePreferenceToSlot(slotStartIso, GAME_MODE);
+    picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso }).select('quizId hintPosition').lean();
+
     const perQuiz = baseQuizStatsById();
     for (const p of picks) {
       const row = perQuiz.get(p.quizId);
@@ -986,6 +995,7 @@ export const configureLottery3DCurrentSlotTargetAutoDeclare = async (req, res) =
         });
       }
       await ensureRandomHintsForCurrentSlot(slotStartIso);
+      await setPersistedAutoDeclarePreference(GAME_MODE, 'random', null, req.admin?._id);
     } else {
       // Target mode: clear random influence by overriding slot hints with target-driven picks.
       await setSlotTargetProfitPercent(slotStartIso, GAME_MODE, targetProfitPercent, req.admin?._id);
@@ -1000,6 +1010,7 @@ export const configureLottery3DCurrentSlotTargetAutoDeclare = async (req, res) =
       }
       await Promise.all(QUIZ_IDS.map((quizId) => getOrCreatePick(quizId, slotStartIso, GAME_MODE)));
       await apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent);
+      await setPersistedAutoDeclarePreference(GAME_MODE, 'target', targetProfitPercent, req.admin?._id);
     }
     await invalidateAdminReadCaches('lottery3d_auto_declare_configured');
     syncQuizSlotUpdates();
