@@ -443,7 +443,6 @@ const EasyModeBid = ({
     const applyJodiQuickToCell = (num) => {
         const delta = Number(jodiSpecialQuickSelected);
         if (!jodiSpecialQuickSelected || !Number.isFinite(delta) || delta <= 0) {
-            showWarning('Please select Quick Points first.');
             return;
         }
         setSpecialInputs((prev) => {
@@ -498,7 +497,8 @@ const EasyModeBid = ({
                                 key={pts}
                                 type="button"
                                 onClick={() => {
-                                    setJodiSpecialQuickSelected(String(pts));
+                                    const val = String(pts);
+                                    setJodiSpecialQuickSelected((prev) => (prev === val ? null : val));
                                 }}
                                 className={`py-2 min-h-[36px] rounded-lg border-2 text-xs sm:text-sm font-medium transition-colors active:scale-95 ${
                                     jodiSpecialQuickSelected === String(pts)
