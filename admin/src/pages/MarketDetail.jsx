@@ -2022,13 +2022,30 @@ const MarketDetail = () => {
                                             <span className="font-bold text-orange-500 text-lg">{ank}</span>
                                             <span className="text-xs text-gray-400">₹{formatNum(group.totalAmount)} · {formatNum(group.totalBets)} bets</span>
                                         </div>
-                                        <div className="p-2 grid grid-cols-2 gap-1.5">
+                                        <div className="grid min-w-0 grid-cols-2 gap-1.5 p-2 [&>div]:min-w-0">
                                             {group.pattis.map(({ patti, amount, count }) => (
-                                                <div key={patti} className="flex items-center justify-between rounded bg-gray-50 border border-gray-200 px-2 py-1.5">
-                                                    <span className="font-mono text-orange-500 font-semibold text-sm">{patti}</span>
-                                                    <div className="text-right">
-                                                        <p className="font-mono text-gray-800 text-[10px]">₹{formatNum(amount)}</p>
-                                                        <p className="font-mono text-gray-400 text-[9px]">{formatNum(count)}</p>
+                                                <div
+                                                    key={patti}
+                                                    className="flex min-h-0 min-w-0 max-w-full flex-col gap-1 overflow-hidden rounded border border-gray-200 bg-gray-50 px-2 py-1.5"
+                                                >
+                                                    <div className="flex min-w-0 items-baseline justify-between gap-2">
+                                                        <span className="truncate font-mono text-sm font-semibold text-orange-500">
+                                                            {patti}
+                                                        </span>
+                                                        <span
+                                                            className="shrink-0 font-mono text-[10px] font-semibold tabular-nums text-gray-600"
+                                                            title="No. of bets"
+                                                        >
+                                                            {formatNum(count)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="min-w-0 max-w-full border-t border-gray-200/80 pt-1">
+                                                        <p
+                                                            className="break-words text-center font-mono text-[10px] font-semibold leading-snug text-gray-900 [overflow-wrap:anywhere] sm:text-xs"
+                                                            title={`₹${formatNum(amount)}`}
+                                                        >
+                                                            ₹{formatNum(amount)}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -2102,13 +2119,30 @@ const MarketDetail = () => {
                                             <span className="font-bold text-orange-500 text-lg">{ank}</span>
                                             <span className="text-xs text-gray-400">₹{formatNum(group.totalAmount)} · {formatNum(group.totalBets)} bets</span>
                                         </div>
-                                        <div className="p-2 grid grid-cols-2 gap-1.5 max-h-[280px] overflow-y-auto">
+                                        <div className="grid min-h-0 min-w-0 grid-cols-2 gap-1.5 overflow-y-auto p-2 max-h-[280px] [&>div]:min-w-0">
                                             {group.pattis.map(({ patti, amount, count }) => (
-                                                <div key={patti} className="flex items-center justify-between rounded bg-gray-50 border border-gray-200 px-2 py-1.5">
-                                                    <span className="font-mono text-orange-500 font-semibold text-sm">{patti}</span>
-                                                    <div className="text-right">
-                                                        <p className="font-mono text-gray-800 text-[10px]">₹{formatNum(amount)}</p>
-                                                        <p className="font-mono text-gray-400 text-[9px]">{formatNum(count)}</p>
+                                                <div
+                                                    key={patti}
+                                                    className="flex min-h-0 min-w-0 max-w-full flex-col gap-1 overflow-hidden rounded border border-gray-200 bg-gray-50 px-2 py-1.5"
+                                                >
+                                                    <div className="flex min-w-0 items-baseline justify-between gap-2">
+                                                        <span className="truncate font-mono text-sm font-semibold text-orange-500">
+                                                            {patti}
+                                                        </span>
+                                                        <span
+                                                            className="shrink-0 font-mono text-[10px] font-semibold tabular-nums text-gray-600"
+                                                            title="No. of bets"
+                                                        >
+                                                            {formatNum(count)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="min-w-0 max-w-full border-t border-gray-200/80 pt-1">
+                                                        <p
+                                                            className="break-words text-center font-mono text-[10px] font-semibold leading-snug text-gray-900 [overflow-wrap:anywhere] sm:text-xs"
+                                                            title={`₹${formatNum(amount)}`}
+                                                        >
+                                                            ₹{formatNum(amount)}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             ))}
