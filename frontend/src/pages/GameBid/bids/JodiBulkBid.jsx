@@ -228,10 +228,12 @@ const JodiBulkBid = ({ market, title }) => {
             const next = { ...prev };
             for (const c of DIGITS) {
                 const key = `${r}${c}`;
-                next[key] = String(p);
+                const cur = Number(String(next[key] ?? '').replace(/\D/g, '')) || 0;
+                next[key] = sanitizePoints(String(cur + p));
             }
             return next;
         });
+        setRowBulk((prev) => ({ ...prev, [r]: '' }));
     };
 
     const applyCol = (c, pts) => {
@@ -244,10 +246,12 @@ const JodiBulkBid = ({ market, title }) => {
             const next = { ...prev };
             for (const r of DIGITS) {
                 const key = `${r}${c}`;
-                next[key] = String(p);
+                const cur = Number(String(next[key] ?? '').replace(/\D/g, '')) || 0;
+                next[key] = sanitizePoints(String(cur + p));
             }
             return next;
         });
+        setColBulk((prev) => ({ ...prev, [c]: '' }));
     };
 
     const clearRow = (r) => {
@@ -270,35 +274,43 @@ const JodiBulkBid = ({ market, title }) => {
         });
     };
 
+    /** Single cell: each tap adds Quick Points to that cell only. */
     const applyQuickPointToCell = (key) => {
         const p = Number(selectedQuickPoint);
         if (!p || p <= 0) return;
         setCells((prev) => {
-            const pointStr = String(p);
-            return { ...prev, [key]: pointStr };
+            const cur = Number(String(prev[key] ?? '').replace(/\D/g, '')) || 0;
+            const sum = cur + p;
+            return { ...prev, [key]: sanitizePoints(String(sum)) };
         });
     };
 
+    /** BLOCK row Pts: add Quick Points to every jodi in that row (same rules as single cell). Do not write rowBulk — avoids auto-apply timer double-adding. */
     const applyQuickPointToRow = (r) => {
         const p = Number(selectedQuickPoint);
         if (!p || p <= 0) return;
-        const pointStr = String(p);
-        setRowBulk((prev) => ({ ...prev, [r]: pointStr }));
         setCells((prev) => {
             const next = { ...prev };
-            for (const c of DIGITS) next[`${r}${c}`] = pointStr;
+            for (const c of DIGITS) {
+                const key = `${r}${c}`;
+                const cur = Number(String(next[key] ?? '').replace(/\D/g, '')) || 0;
+                next[key] = sanitizePoints(String(cur + p));
+            }
             return next;
         });
     };
 
+    /** Top BLOCK column Pts: add Quick Points to every jodi in that column. */
     const applyQuickPointToCol = (c) => {
         const p = Number(selectedQuickPoint);
         if (!p || p <= 0) return;
-        const pointStr = String(p);
-        setColBulk((prev) => ({ ...prev, [c]: pointStr }));
         setCells((prev) => {
             const next = { ...prev };
-            for (const r of DIGITS) next[`${r}${c}`] = pointStr;
+            for (const r of DIGITS) {
+                const key = `${r}${c}`;
+                const cur = Number(String(next[key] ?? '').replace(/\D/g, '')) || 0;
+                next[key] = sanitizePoints(String(cur + p));
+            }
             return next;
         });
     };
