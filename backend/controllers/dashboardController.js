@@ -39,25 +39,50 @@ function getDateRange(fromStr, toStr) {
     if (!fromStr || !toStr) {
         return { start: null, end: null };
     }
-    
-    const [y1, m1, d1] = fromStr.split('-').map(Number);
-    const [y2, m2, d2] = toStr.split('-').map(Number);
-    
+
+    const parseDayKey = (value) => {
+        if (typeof value !== 'string') return null;
+        const m = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return null;
+        const y = Number(m[1]);
+        const mo = Number(m[2]);
+        const d = Number(m[3]);
+        if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return null;
+        const utcMs = Date.UTC(y, mo - 1, d);
+        const check = new Date(utcMs);
+        if (
+            check.getUTCFullYear() !== y
+            || (check.getUTCMonth() + 1) !== mo
+            || check.getUTCDate() !== d
+        ) {
+            return null;
+        }
+        return { y, m: mo, d };
+    };
+
+    const from = parseDayKey(fromStr);
+    const to = parseDayKey(toStr);
+
     let start = null;
     let end = null;
-    
-    if (!Number.isNaN(y1) && !Number.isNaN(m1) && !Number.isNaN(d1)) {
-        start = new Date(y1, m1 - 1, d1);
+
+    // Dashboard ranges are business dates in IST (Asia/Kolkata), regardless of server timezone.
+    // Convert IST day bounds to UTC timestamps so local/dev/live return identical results.
+    const IST_OFFSET_MINUTES = 330;
+    if (from) {
+        const startUtcMs = Date.UTC(from.y, from.m - 1, from.d, 0, 0, 0, 0) - (IST_OFFSET_MINUTES * 60 * 1000);
+        start = new Date(startUtcMs);
     }
-    if (!Number.isNaN(y2) && !Number.isNaN(m2) && !Number.isNaN(d2)) {
-        end = new Date(y2, m2 - 1, d2, 23, 59, 59, 999);
+    if (to) {
+        const nextDayUtcMs = Date.UTC(to.y, to.m - 1, to.d + 1, 0, 0, 0, 0) - (IST_OFFSET_MINUTES * 60 * 1000);
+        end = new Date(nextDayUtcMs - 1);
     }
-    
+
     // If dates are invalid, return null for "all time"
     if (!start || !end) {
         return { start: null, end: null };
     }
-    
+
     return { start, end };
 }
 
