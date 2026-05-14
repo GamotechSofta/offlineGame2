@@ -318,7 +318,7 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
                 className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm min-w-[220px]">
+            <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm lg:min-w-[11rem]">
               <span className="text-gray-600 font-medium">Filter</span>
               <select
                 value={filterMode}
@@ -334,7 +334,7 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
                 <option value={ALL_PAST_VALUE}>All past bets</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-sm min-w-[240px] flex-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm lg:min-w-[12rem]">
               <span className="text-gray-600 font-medium">Draw (slot end time)</span>
               <select
                 value={selectedSlotIso}

@@ -20,9 +20,18 @@ import {
     FaImage,
     FaBullhorn,
     FaGamepad,
+    FaChevronLeft,
+    FaChevronRight,
 } from 'react-icons/fa';
 
-const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
+const Sidebar = ({
+    onLogout,
+    isOpen = true,
+    onClose,
+    collapsed = false,
+    onToggleCollapsed,
+    onExpandSidebar,
+}) => {
     const navigate = useNavigate();
     const location = useLocation();
     const navRef = useRef(null);
@@ -129,6 +138,13 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
 
     const handleNav = (path, hasChildren = false) => {
         savedScrollTop.current = navRef.current?.scrollTop ?? 0;
+        if (collapsed && hasChildren) {
+            onExpandSidebar?.();
+            setExpandedMenus((prev) => ({ ...prev, [path]: true }));
+            navigate(path);
+            onClose?.();
+            return;
+        }
         navigate(path);
         if (hasChildren) {
             setExpandedMenus((prev) => ({ ...prev, [path]: !prev[path] }));
@@ -157,48 +173,90 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-screen w-64 sm:w-72 bg-white border-r border-gray-200 flex flex-col z-50 overflow-y-auto shadow-lg
-                transform transition-transform duration-200 ease-in-out
-                lg:translate-x-0
-                ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-            `}
+            className={`fixed left-0 top-0 z-50 flex h-[100dvh] max-h-[100dvh] w-64 min-h-0 flex-col overflow-y-auto overflow-x-hidden border-r border-gray-200 bg-white shadow-lg transition-all duration-200 ease-in-out sm:w-[var(--admin-sidebar-w)] lg:translate-x-0 ${
+                collapsed ? 'lg:w-[var(--admin-sidebar-collapsed-w)]' : 'lg:w-[var(--admin-sidebar-w)]'
+            } ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
-            {/* Logo + Close (mobile) */}
-            <div className="p-4 sm:p-6 border-b border-gray-200 shrink-0 flex items-center justify-between">
-                <h2 className="text-lg sm:text-xl font-bold text-orange-500">Super Admin</h2>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-400"
-                    aria-label="Close menu"
+            {/* Logo + collapse (desktop) + close (mobile) */}
+            <div
+                className={`flex shrink-0 items-center gap-2 border-b border-gray-200 p-4 sm:p-6 ${
+                    collapsed
+                        ? 'justify-between lg:flex-col lg:justify-center lg:gap-3 lg:px-2 lg:py-4'
+                        : 'justify-between'
+                }`}
+            >
+                <h2
+                    className={`min-w-0 flex-1 truncate text-lg font-bold text-orange-500 sm:text-xl ${collapsed ? 'lg:hidden' : ''}`}
                 >
-                    <FaTimes className="w-5 h-5" />
-                </button>
+                    Super Admin
+                </h2>
+                <span
+                    className={`hidden text-center text-[10px] font-bold leading-tight tracking-tight text-orange-500 ${collapsed ? 'lg:block' : ''}`}
+                >
+                    SA
+                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={() => onToggleCollapsed?.()}
+                        className="hidden rounded-lg p-2 text-gray-600 hover:bg-gray-100 lg:inline-flex"
+                        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    >
+                        {collapsed ? (
+                            <FaChevronRight className="h-5 w-5" />
+                        ) : (
+                            <FaChevronLeft className="h-5 w-5" />
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 lg:hidden"
+                        aria-label="Close menu"
+                    >
+                        <FaTimes className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
 
             {/* Menu Items */}
-            <nav ref={navRef} className="flex-1 p-3 sm:p-4 space-y-1 overflow-y-auto">
+            <nav
+                ref={navRef}
+                className={`flex-1 space-y-1 overflow-y-auto p-3 sm:p-4 ${collapsed ? 'lg:px-1.5 lg:py-2' : ''}`}
+            >
                 {menuItems.map((item) => {
                     const hasChildren = Array.isArray(item.children) && item.children.length > 0;
                     const expanded = Boolean(expandedMenus[item.path]);
                     return (
                         <div key={item.path}>
                             <button
+                                type="button"
+                                title={item.label}
                                 onClick={() => handleNav(item.path, hasChildren)}
-                                className={`w-full flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl transition-all duration-200 text-sm sm:text-base ${isActive(item.path)
-                                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold shadow-lg shadow-orange-500/20'
-                                    : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600 hover:-translate-y-0.5'
-                                    }`}
+                                className={`flex w-full items-center rounded-xl px-3 py-2.5 text-sm transition-all duration-200 sm:px-4 sm:py-3 sm:text-base ${
+                                    collapsed ? 'lg:justify-center lg:gap-0 lg:px-2' : 'justify-between gap-3'
+                                } ${
+                                    isActive(item.path)
+                                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 font-semibold text-white shadow-lg shadow-orange-500/20'
+                                        : 'text-gray-600 hover:-translate-y-0.5 hover:bg-orange-50 hover:text-orange-600'
+                                }`}
                             >
-                                <span className="flex items-center gap-3 min-w-0">
-                                    <item.icon className="w-5 h-5 sm:text-xl shrink-0" />
-                                    <span className="truncate">{item.label}</span>
+                                <span
+                                    className={`flex min-w-0 items-center gap-3 ${collapsed ? 'lg:justify-center' : ''}`}
+                                >
+                                    <item.icon className="h-5 w-5 shrink-0 sm:text-xl" />
+                                    <span
+                                        className={`truncate ${collapsed ? 'lg:sr-only' : ''}`}
+                                    >
+                                        {item.label}
+                                    </span>
                                 </span>
                                 {hasChildren ? (
                                     <span
                                         role="button"
                                         tabIndex={0}
-                                        className="text-xs opacity-80 px-1"
+                                        className={`px-1 text-xs opacity-80 ${collapsed ? 'lg:hidden' : ''}`}
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleToggleParent(item.path);
@@ -216,15 +274,18 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
                                 ) : null}
                             </button>
                             {hasChildren && expanded ? (
-                                <div className="mt-1 space-y-1">
+                                <div className={`mt-1 space-y-1 ${collapsed ? 'lg:hidden' : ''}`}>
                                     {item.children.map((child) => (
                                         <button
                                             key={child.path}
+                                            type="button"
+                                            title={child.label}
                                             onClick={() => handleNav(child.path)}
-                                            className={`w-full flex items-center gap-2 text-left pl-12 pr-3 py-2 rounded-lg text-sm transition ${isChildActive(child.path)
-                                                ? 'bg-orange-100 text-orange-700 font-semibold'
-                                                : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600'
-                                                }`}
+                                            className={`flex w-full items-center gap-2 rounded-lg py-2 pr-3 text-left text-sm transition pl-12 ${
+                                                isChildActive(child.path)
+                                                    ? 'bg-orange-100 font-semibold text-orange-700'
+                                                    : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600'
+                                            }`}
                                         >
                                             <span
                                                 className={`inline-block h-1.5 w-1.5 rounded-full ${isChildActive(child.path) ? 'bg-orange-600' : 'bg-gray-400'}`}
@@ -241,13 +302,17 @@ const Sidebar = ({ onLogout, isOpen = true, onClose }) => {
             </nav>
 
             {/* Logout */}
-            <div className="p-3 sm:p-4 border-t border-gray-200 shrink-0">
+            <div className={`shrink-0 border-t border-gray-200 p-3 sm:p-4 ${collapsed ? 'lg:p-2' : ''}`}>
                 <button
+                    type="button"
+                    title="Logout"
                     onClick={onLogout}
-                    className="w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold transition-all duration-200 text-sm sm:text-base glow-red hover:-translate-y-0.5"
+                    className={`flex w-full items-center gap-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-3 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:from-red-600 hover:to-red-700 glow-red hover:-translate-y-0.5 sm:px-4 sm:py-3 sm:text-base ${
+                        collapsed ? 'lg:justify-center lg:px-2' : ''
+                    }`}
                 >
-                    <FaSignOutAlt className="w-5 h-5 sm:text-xl shrink-0" />
-                    <span>Logout</span>
+                    <FaSignOutAlt className="h-5 w-5 shrink-0 sm:text-xl" />
+                    <span className={collapsed ? 'lg:sr-only' : ''}>Logout</span>
                 </button>
             </div>
         </aside>

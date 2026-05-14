@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import AdminTableFrame from '../components/AdminTableFrame';
 import BetHistoryCard from '../components/BetHistoryCard';
 import RouletteBetHistoryCard from '../components/RouletteBetHistoryCard';
 import { useNavigate, useParams, Link } from 'react-router-dom';
@@ -1651,7 +1652,7 @@ const PlayerDetail = () => {
                                             value={lotterySearch}
                                             onChange={(e) => setLotterySearch(e.target.value)}
                                             placeholder="Search ticket / slot / set / mode"
-                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] min-w-[180px]"
+                                            className="min-w-0 flex-1 basis-[10rem] max-w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] lg:min-w-[12rem]"
                                         />
                                         <button
                                             type="button"
@@ -1669,7 +1670,7 @@ const PlayerDetail = () => {
                                     {lotteryFilteredRows.length === 0 ? (
                                         <div className="p-8 text-center text-gray-400">No lottery tickets found.</div>
                                     ) : (
-                                        <div className="overflow-x-auto">
+                                        <AdminTableFrame>
                                             <table className="w-full text-sm min-w-[700px]">
                                                 <thead className="bg-gray-50">
                                                     <tr>
@@ -1731,7 +1732,7 @@ const PlayerDetail = () => {
                                                                 {isExpanded && (
                                                                     <tr className="bg-gray-50/70">
                                                                         <td colSpan={10} className="px-4 py-3">
-                                                                            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                                                                            <AdminTableFrame className="rounded-lg border border-gray-200 bg-white">
                                                                                 <table className="w-full text-xs min-w-[560px]">
                                                                                     <thead className="bg-gray-50">
                                                                                         <tr>
@@ -1765,7 +1766,7 @@ const PlayerDetail = () => {
                                                                                         })}
                                                                                     </tbody>
                                                                                 </table>
-                                                                            </div>
+                                                                            </AdminTableFrame>
                                                                         </td>
                                                                     </tr>
                                                                 )}
@@ -1789,7 +1790,7 @@ const PlayerDetail = () => {
                                                     </button>
                                                 </div>
                                             ) : null}
-                                        </div>
+                                        </AdminTableFrame>
                                     )}
                                 </div>
                             </div>

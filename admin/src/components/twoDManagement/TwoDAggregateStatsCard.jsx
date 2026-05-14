@@ -67,7 +67,7 @@ const TwoDAggregateStatsCard = ({
                     </p>
                 </div>
                 <div className="flex flex-wrap items-end gap-2 w-full sm:w-auto">
-                    <label className="text-xs text-gray-600 flex flex-col gap-1 min-w-[9.5rem]">
+                    <label className="flex min-w-0 flex-1 basis-0 flex-col gap-1 text-xs text-gray-600 lg:min-w-[7.5rem]">
                         <span className="font-medium">From (IST)</span>
                         <input
                             type="date"
@@ -79,7 +79,7 @@ const TwoDAggregateStatsCard = ({
                             className="px-2 py-1.5 rounded-lg border border-gray-300 text-sm"
                         />
                     </label>
-                    <label className="text-xs text-gray-600 flex flex-col gap-1 min-w-[9.5rem]">
+                    <label className="flex min-w-0 flex-1 basis-0 flex-col gap-1 text-xs text-gray-600 lg:min-w-[7.5rem]">
                         <span className="font-medium">To (IST)</span>
                         <input
                             type="date"

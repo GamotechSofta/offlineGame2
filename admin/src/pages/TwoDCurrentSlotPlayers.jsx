@@ -158,7 +158,7 @@ const TwoDCurrentSlotPlayers = () => {
                                 allPresetFrom={maxWindowFrom}
                                 className="w-full"
                             />
-                            <label className="flex flex-col gap-1 text-sm min-w-[220px] flex-1">
+                            <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm lg:min-w-[11rem]">
                                 <span className="text-gray-600 font-medium">Draw (slot end time)</span>
                                 <select
                                     value={selectedHistorySlotIso}

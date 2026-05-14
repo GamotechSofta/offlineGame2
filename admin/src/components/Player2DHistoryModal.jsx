@@ -84,7 +84,7 @@ const Player2DHistoryModal = ({ userId, onClose }) => {
                 onClick={closeModal}
             />
             <div
-                className="relative z-[101] flex max-h-[92vh] w-full max-w-[min(96vw,120rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl"
+                className="relative z-[101] flex max-h-[min(92vh,calc(100dvh-2rem))] w-full max-w-[min(96vw,80rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3">

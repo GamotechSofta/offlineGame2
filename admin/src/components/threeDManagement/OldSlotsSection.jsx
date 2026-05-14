@@ -119,7 +119,7 @@ const OldSlotsSection = ({
 
                     <div className="bg-white border border-gray-200 rounded-xl p-5">
                         <div className="flex flex-wrap items-end gap-4">
-                            <div className="min-w-[180px]">
+                            <div className="min-w-0 shrink-0 lg:min-w-[10rem]">
                                 <label className="mb-1 block text-sm font-medium text-gray-700">History Date</label>
                                 <input
                                     type="date"
@@ -133,7 +133,7 @@ const OldSlotsSection = ({
                                     className="w-full px-3 py-2 rounded-lg border border-gray-300"
                                 />
                             </div>
-                            <div ref={timeDropdownRef} className="min-w-[220px] flex-1 relative">
+                            <div ref={timeDropdownRef} className="relative min-w-0 flex-1 lg:min-w-[12rem]">
                                 <label className="mb-1 block text-sm font-medium text-gray-700">History Time Slot</label>
                                 <button
                                     type="button"

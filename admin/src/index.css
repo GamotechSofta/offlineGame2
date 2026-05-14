@@ -1,6 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+/* —— Admin laptop shell (1024px+, sidebar + content). Keeps ml-* in sync with Sidebar width. —— */
+:root {
+  --admin-sidebar-w: 18rem; /* = Tailwind w-72 / ml-72 */
+  --admin-sidebar-collapsed-w: 4rem; /* icon rail when collapsed (lg+) */
+}
+
+/* Horizontal scroll host for data tables inside the main column */
+.admin-table-frame {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* Modal body cap: stays inside viewport with dynamic toolbars (laptop) */
+.admin-modal-max {
+  max-height: min(92vh, calc(100dvh - 2rem));
+}
+
 /* Base Styles */
 html {
   overflow-x: hidden;

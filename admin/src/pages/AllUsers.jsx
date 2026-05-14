@@ -739,7 +739,7 @@ const AllUsers = () => {
                                 )}
                             </div>
                         )}
-                        <div className="overflow-x-auto">
+                        <div className="admin-table-frame">
                         <table className="w-full text-sm min-w-[800px]">
                             <thead className="bg-gray-100">
                                 <tr>

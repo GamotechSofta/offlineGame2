@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import AdminTableFrame from '../components/AdminTableFrame';
 import { useNavigate } from 'react-router-dom';
 import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 import useAdminLiveInvalidation from '../hooks/useAdminLiveInvalidation';
@@ -136,9 +137,9 @@ const Wallet = () => {
                             <p className="text-gray-400">Loading...</p>
                         </div>
                     ) : activeTab === 'wallets' ? (
-                        <div className="overflow-x-auto -mx-4 sm:mx-0">
-                            <div className="bg-white rounded-lg overflow-hidden min-w-[400px]">
-                                <table className="w-full text-sm sm:text-base">
+                        <div className="-mx-4 sm:mx-0">
+                            <AdminTableFrame className="rounded-lg border border-gray-200 bg-white">
+                                <table className="w-full min-w-[28rem] text-sm sm:text-base">
                                 <thead className="bg-gray-100">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Player</th>
@@ -185,12 +186,12 @@ const Wallet = () => {
                                     )}
                                 </tbody>
                             </table>
-                            </div>
+                            </AdminTableFrame>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto -mx-4 sm:mx-0">
-                            <div className="bg-white rounded-lg overflow-hidden min-w-[400px]">
-                                <table className="w-full text-sm sm:text-base">
+                        <div className="-mx-4 sm:mx-0">
+                            <AdminTableFrame className="rounded-lg border border-gray-200 bg-white">
+                                <table className="w-full min-w-[36rem] text-sm sm:text-base">
                                 <thead className="bg-gray-100">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Player</th>
@@ -226,7 +227,7 @@ const Wallet = () => {
                                     )}
                                 </tbody>
                             </table>
-                            </div>
+                            </AdminTableFrame>
                         </div>
                     )}
         </AdminLayout>

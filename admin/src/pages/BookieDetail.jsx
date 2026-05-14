@@ -191,12 +191,12 @@ const BookieDetail = () => {
                     <div className="flex flex-wrap items-center gap-2">
                         <input type="date" value={dateRange.startDate}
                             onChange={(e) => { setDateRange((r) => ({ ...r, startDate: e.target.value })); setActivePreset(''); }}
-                            className="px-2 sm:px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-xs sm:text-sm w-[130px] sm:w-auto"
+                            className="w-full max-w-[10rem] rounded-lg border border-gray-200 bg-gray-100 px-2 py-1.5 text-xs text-gray-800 focus:border-transparent focus:ring-2 focus:ring-amber-500 sm:max-w-none sm:w-auto lg:min-w-0"
                         />
                         <span className="text-gray-500 text-sm">to</span>
                         <input type="date" value={dateRange.endDate}
                             onChange={(e) => { setDateRange((r) => ({ ...r, endDate: e.target.value })); setActivePreset(''); }}
-                            className="px-2 sm:px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 text-xs sm:text-sm w-[130px] sm:w-auto"
+                            className="w-full max-w-[10rem] rounded-lg border border-gray-200 bg-gray-100 px-2 py-1.5 text-xs text-gray-800 focus:border-transparent focus:ring-2 focus:ring-amber-500 sm:max-w-none sm:w-auto lg:min-w-0"
                         />
                     </div>
                 </div>

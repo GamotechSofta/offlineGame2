@@ -41,6 +41,38 @@ function parseIstPaymentsCreatedAtRange(fromStr, toStr) {
     return { start: new Date(startUtcMs), end: new Date(nextDayUtcMs - 1) };
 }
 
+/**
+ * IST day-range filter for admin payment lists.
+ * - Pending: only `createdAt` in range (new requests in that period).
+ * - Finalized (approved / completed / rejected): `createdAt` OR `processedAt` in range
+ *   so e.g. a deposit approved today still appears for "Today" even if created yesterday.
+ */
+function applyAdminPaymentDateRangeToQuery(query, bounds, status) {
+    const range = { $gte: bounds.start, $lte: bounds.end };
+    const createdInRange = { createdAt: range };
+    const activityOr = [
+        { createdAt: range },
+        { processedAt: range },
+    ];
+    if (status === 'pending') {
+        Object.assign(query, createdInRange);
+        return;
+    }
+    if (status === 'approved' || status === 'completed' || status === 'rejected') {
+        query.$and = [...(query.$and || []), { $or: activityOr }];
+        return;
+    }
+    query.$and = [...(query.$and || []), {
+        $or: [
+            { status: 'pending', createdAt: range },
+            {
+                status: { $in: ['approved', 'completed', 'rejected'] },
+                $or: activityOr,
+            },
+        ],
+    }];
+}
+
 const SCREENSHOT_WEBHOOK_URL =
     process.env.SCREENSHOT_WEBHOOK_URL || 'https://api.thefashionista.in/api/v1/webhook/screenshot-uploaded';
 
@@ -517,15 +549,15 @@ export const getPayments = async (req, res) => {
                 message: 'Both from and to are required for a date range (YYYY-MM-DD, IST).',
             });
         }
+        let dateBounds = null;
         if (fromQ && toQ) {
             if (fromQ > toQ) {
                 return res.status(400).json({ success: false, message: 'from must be on or before to.' });
             }
-            const bounds = parseIstPaymentsCreatedAtRange(fromQ, toQ);
-            if (!bounds) {
+            dateBounds = parseIstPaymentsCreatedAtRange(fromQ, toQ);
+            if (!dateBounds) {
                 return res.status(400).json({ success: false, message: 'Invalid from/to. Use YYYY-MM-DD (IST).' });
             }
-            query.createdAt = { $gte: bounds.start, $lte: bounds.end };
         }
 
         const bookieUserIds = await getBookieUserIds(req.admin);
@@ -623,8 +655,12 @@ export const getPayments = async (req, res) => {
             }
         }
 
-        if (status) query.status = status;
+        const statusFilter = typeof status === 'string' ? status.trim() : '';
+        if (statusFilter) query.status = statusFilter;
         if (type) query.type = type;
+        if (dateBounds) {
+            applyAdminPaymentDateRangeToQuery(query, dateBounds, statusFilter || undefined);
+        }
 
         const [payments, total] = await Promise.all([
             Payment.find(query)
@@ -745,7 +781,6 @@ export const getPaymentDashboardStats = async (req, res) => {
     try {
         const fromQ = typeof req.query.from === 'string' ? req.query.from.trim() : '';
         const toQ = typeof req.query.to === 'string' ? req.query.to.trim() : '';
-        const match = {};
 
         if ((fromQ && !toQ) || (!fromQ && toQ)) {
             return res.status(400).json({
@@ -753,54 +788,147 @@ export const getPaymentDashboardStats = async (req, res) => {
                 message: 'Both from and to are required for a date range (YYYY-MM-DD, IST).',
             });
         }
+
+        let bounds = null;
         if (fromQ && toQ) {
             if (fromQ > toQ) {
                 return res.status(400).json({ success: false, message: 'from must be on or before to.' });
             }
-            const bounds = parseIstPaymentsCreatedAtRange(fromQ, toQ);
+            bounds = parseIstPaymentsCreatedAtRange(fromQ, toQ);
             if (!bounds) {
                 return res.status(400).json({ success: false, message: 'Invalid from/to. Use YYYY-MM-DD (IST).' });
             }
-            match.createdAt = { $gte: bounds.start, $lte: bounds.end };
         }
 
         const bookieUserIds = await getBookieUserIds(req.admin);
+        const baseMatch = {};
         if (bookieUserIds !== null) {
-            match.userId = { $in: bookieUserIds };
+            baseMatch.userId = { $in: bookieUserIds };
         }
 
-        const rows = await Payment.aggregate([
-            { $match: match },
-            {
-                $group: {
-                    _id: { type: '$type', status: '$status' },
-                    count: { $sum: 1 },
-                    totalAmount: { $sum: '$amount' },
-                },
-            },
-        ]);
-
         const empty = () => ({ count: 0, totalAmount: 0 });
-        const cell = (type, status) => {
-            const r = rows.find((x) => x._id?.type === type && x._id?.status === status);
+        const fromAggRow = (rows) => {
+            const r = rows[0];
             if (!r) return empty();
             return { count: r.count, totalAmount: Number(r.totalAmount || 0) };
         };
-        const mergeCells = (type, statuses) => {
-            const list = rows.filter((r) => r._id?.type === type && statuses.includes(r._id?.status));
-            if (!list.length) return empty();
-            return {
-                count: list.reduce((s, r) => s + r.count, 0),
-                totalAmount: list.reduce((s, r) => s + Number(r.totalAmount || 0), 0),
-            };
-        };
 
-        const pendingDeposits = cell('deposit', 'pending');
-        const pendingWithdrawals = cell('withdrawal', 'pending');
-        const approvedDeposits = mergeCells('deposit', ['approved', 'completed']);
-        const approvedWithdrawals = mergeCells('withdrawal', ['approved', 'completed']);
-        const rejectedWithdrawals = cell('withdrawal', 'rejected');
-        const failedDeposits = cell('deposit', 'rejected');
+        let pendingDeposits;
+        let pendingWithdrawals;
+        let approvedDeposits;
+        let approvedWithdrawals;
+        let rejectedWithdrawals;
+        let failedDeposits;
+
+        if (!bounds) {
+            const rows = await Payment.aggregate([
+                { $match: baseMatch },
+                {
+                    $group: {
+                        _id: { type: '$type', status: '$status' },
+                        count: { $sum: 1 },
+                        totalAmount: { $sum: '$amount' },
+                    },
+                },
+            ]);
+            const cell = (type, status) => {
+                const r = rows.find((x) => x._id?.type === type && x._id?.status === status);
+                if (!r) return empty();
+                return { count: r.count, totalAmount: Number(r.totalAmount || 0) };
+            };
+            const mergeCells = (type, statuses) => {
+                const list = rows.filter((r) => r._id?.type === type && statuses.includes(r._id?.status));
+                if (!list.length) return empty();
+                return {
+                    count: list.reduce((s, r) => s + r.count, 0),
+                    totalAmount: list.reduce((s, r) => s + Number(r.totalAmount || 0), 0),
+                };
+            };
+            pendingDeposits = cell('deposit', 'pending');
+            pendingWithdrawals = cell('withdrawal', 'pending');
+            approvedDeposits = mergeCells('deposit', ['approved', 'completed']);
+            approvedWithdrawals = mergeCells('withdrawal', ['approved', 'completed']);
+            rejectedWithdrawals = cell('withdrawal', 'rejected');
+            failedDeposits = cell('deposit', 'rejected');
+        } else {
+            const range = { $gte: bounds.start, $lte: bounds.end };
+            const createdInRange = { createdAt: range };
+            const activityOr = [
+                { createdAt: range },
+                { processedAt: range },
+            ];
+
+            const groupStage = { $group: { _id: null, count: { $sum: 1 }, totalAmount: { $sum: '$amount' } } };
+
+            const [
+                pDep,
+                pWdr,
+                aDep,
+                aWdr,
+                rWdr,
+                fDep,
+            ] = await Promise.all([
+                Payment.aggregate([
+                    { $match: { ...baseMatch, type: 'deposit', status: 'pending', ...createdInRange } },
+                    groupStage,
+                ]),
+                Payment.aggregate([
+                    { $match: { ...baseMatch, type: 'withdrawal', status: 'pending', ...createdInRange } },
+                    groupStage,
+                ]),
+                Payment.aggregate([
+                    {
+                        $match: {
+                            ...baseMatch,
+                            type: 'deposit',
+                            status: { $in: ['approved', 'completed'] },
+                            $or: activityOr,
+                        },
+                    },
+                    groupStage,
+                ]),
+                Payment.aggregate([
+                    {
+                        $match: {
+                            ...baseMatch,
+                            type: 'withdrawal',
+                            status: { $in: ['approved', 'completed'] },
+                            $or: activityOr,
+                        },
+                    },
+                    groupStage,
+                ]),
+                Payment.aggregate([
+                    {
+                        $match: {
+                            ...baseMatch,
+                            type: 'withdrawal',
+                            status: 'rejected',
+                            $or: activityOr,
+                        },
+                    },
+                    groupStage,
+                ]),
+                Payment.aggregate([
+                    {
+                        $match: {
+                            ...baseMatch,
+                            type: 'deposit',
+                            status: 'rejected',
+                            $or: activityOr,
+                        },
+                    },
+                    groupStage,
+                ]),
+            ]);
+
+            pendingDeposits = fromAggRow(pDep);
+            pendingWithdrawals = fromAggRow(pWdr);
+            approvedDeposits = fromAggRow(aDep);
+            approvedWithdrawals = fromAggRow(aWdr);
+            rejectedWithdrawals = fromAggRow(rWdr);
+            failedDeposits = fromAggRow(fDep);
+        }
 
         res.status(200).json({
             success: true,
