@@ -1,5 +1,12 @@
 import React from 'react';
 
+/** Remaining column: positive green, negative red, zero blue. */
+export function remainingAmountClassName(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n === 0) return 'text-blue-600';
+    return n > 0 ? 'text-green-600' : 'text-red-500';
+}
+
 const SlotHistoryTable = ({ slots, selectedSlot, onSelectSlot, loading }) => {
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -49,7 +56,7 @@ const SlotHistoryTable = ({ slots, selectedSlot, onSelectSlot, loading }) => {
                                     <td className="py-2 pr-3 text-right font-mono text-red-500">
                                         ₹{Number(slot.winnerPayout || 0).toLocaleString('en-IN')}
                                     </td>
-                                    <td className="py-2 pr-3 text-right font-mono text-blue-600">
+                                    <td className={`py-2 pr-3 text-right font-mono ${remainingAmountClassName(slot.amountRemaining)}`}>
                                         ₹{Number(slot.amountRemaining || 0).toLocaleString('en-IN')}
                                     </td>
                                 </tr>

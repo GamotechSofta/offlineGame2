@@ -1051,23 +1051,10 @@ export const getLottery3DSlotHistory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Future date is not allowed.' });
     }
 
-    const limit = Math.min(96, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
-    const allDaySlots = listSlotStartIsoForISTDay(date)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    let daySlots = allDaySlots.slice(0, limit);
-    if (date === today) {
-      const runningSlotIso = getSlotContext(new Date(), '3d').slotStartIso;
-      const runningStartMs = new Date(runningSlotIso).getTime();
-      const pastAndRunningSlots = allDaySlots.filter((iso) => new Date(iso).getTime() <= runningStartMs);
-      const futureSlots = allDaySlots.filter((iso) => new Date(iso).getTime() > runningStartMs);
-      daySlots = [...pastAndRunningSlots, ...futureSlots].slice(0, limit);
-    }
-    if (date === today) {
-      const runningSlotIso = getSlotContext(new Date(), '3d').slotStartIso;
-      if (runningSlotIso && !daySlots.includes(runningSlotIso)) {
-        daySlots.push(runningSlotIso);
-      }
-    }
+    /** All 96 IST fifteen-minute slots for the day, chronological — admin time filter lists every draw time. */
+    const daySlots = listSlotStartIsoForISTDay(date).sort(
+      (a, b) => new Date(a).getTime() - new Date(b).getTime(),
+    );
 
     if (!daySlots.length) {
       return res.json({ success: true, data: { date, slots: [] } });

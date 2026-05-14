@@ -1,6 +1,6 @@
 import React from 'react';
 import { FaChevronDown } from 'react-icons/fa';
-import SlotHistoryTable from '../twoDManagement/SlotHistoryTable';
+import SlotHistoryTable, { remainingAmountClassName } from '../twoDManagement/SlotHistoryTable';
 
 const OldSlotsSection = ({
     activeSection,
@@ -108,7 +108,7 @@ const OldSlotsSection = ({
                                                 <td className="py-2 pr-3 text-right font-mono">{slot.winnerTickets}</td>
                                                 <td className="py-2 pr-3 text-right font-mono text-green-600">₹{Number((slot.revenue ?? slot.totalBetAmount) || 0).toLocaleString('en-IN')}</td>
                                                 <td className="py-2 pr-3 text-right font-mono text-red-500">₹{Number(slot.winnerPayout || 0).toLocaleString('en-IN')}</td>
-                                                <td className="py-2 pr-3 text-right font-mono text-blue-600">₹{Number(slot.amountRemaining || 0).toLocaleString('en-IN')}</td>
+                                                <td className={`py-2 pr-3 text-right font-mono ${remainingAmountClassName(slot.amountRemaining)}`}>₹{Number(slot.amountRemaining || 0).toLocaleString('en-IN')}</td>
                                             </tr>
                                         ))}
                                     </tbody>

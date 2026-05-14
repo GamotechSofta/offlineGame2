@@ -1,6 +1,6 @@
 import React from 'react';
 import { FaChevronDown } from 'react-icons/fa';
-import SlotHistoryTable from './SlotHistoryTable';
+import SlotHistoryTable, { remainingAmountClassName } from './SlotHistoryTable';
 import QuizSlotStatsTable from './QuizSlotStatsTable';
 
 const OldSlotsSection = ({
@@ -87,7 +87,7 @@ const OldSlotsSection = ({
                                         <td className="py-2 pr-3 text-right font-mono">{currentSlotData?.summary?.winnerTickets ?? 0}</td>
                                         <td className="py-2 pr-3 text-right font-mono text-green-600">₹{Number((currentSlotData?.summary?.revenue ?? currentSlotData?.summary?.totalBetAmount) || 0).toLocaleString('en-IN')}</td>
                                         <td className="py-2 pr-3 text-right font-mono text-red-500">₹{Number(currentSlotData?.summary?.winnerPayout || 0).toLocaleString('en-IN')}</td>
-                                        <td className="py-2 pr-3 text-right font-mono text-blue-600">₹{Number(currentSlotData?.summary?.amountRemaining || 0).toLocaleString('en-IN')}</td>
+                                        <td className={`py-2 pr-3 text-right font-mono ${remainingAmountClassName(currentSlotData?.summary?.amountRemaining)}`}>₹{Number(currentSlotData?.summary?.amountRemaining || 0).toLocaleString('en-IN')}</td>
                                     </tr>
                                 </tbody>
                             </table>

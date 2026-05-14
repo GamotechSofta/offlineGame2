@@ -55,13 +55,13 @@ const ThreeDOldSlotsStats = () => {
     const fetchHistory = useCallback(async (targetDate) => {
         setLoadingHistory(true);
         try {
-            const params = new URLSearchParams({ date: targetDate, limit: '24' });
+            const params = new URLSearchParams({ date: targetDate });
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/slots?${params.toString()}`);
             if (res.status === 401) return;
             const data = await res.json();
             if (!data?.success) throw new Error(data?.message || 'Failed to load slot history');
             const slots = (Array.isArray(data?.data?.slots) ? data.data.slots : [])
-                .sort((a, b) => new Date(b.slotStartIso).getTime() - new Date(a.slotStartIso).getTime());
+                .sort((a, b) => new Date(a.slotStartIso).getTime() - new Date(b.slotStartIso).getTime());
             setHistorySlots(slots);
             const nowMs = Date.now();
             const visibleSlots = slots.filter((slot) => {

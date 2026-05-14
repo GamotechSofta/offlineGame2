@@ -1664,12 +1664,11 @@ export const getLottery2DSlotHistory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Future date is not allowed.' });
     }
 
-    const limit = Math.min(96, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
     const now = Date.now();
+    /** Every ended slot for this IST day (max 96), earliest→latest — admin time filter must list all draw times. */
     const completedSlots = listSlotStartIsoForISTDay(date)
       .filter((iso) => new Date(iso).getTime() + SLOT_MS <= now)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-      .slice(0, limit);
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
     if (!completedSlots.length) {
       return res.json({ success: true, data: { date, slots: [] } });

@@ -38,7 +38,7 @@ const TwoDOldSlotsStats = () => {
     const fetchHistory = useCallback(async (targetDate) => {
         setLoadingHistory(true);
         try {
-            const params = new URLSearchParams({ date: targetDate, limit: '24' });
+            const params = new URLSearchParams({ date: targetDate });
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/slots?${params.toString()}`);
             if (res.status === 401) return;
             const data = await res.json();
