@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
-import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
+import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import { useTraceRender } from '../lib/runtimeTrace';
 
 const ACTION_LABELS = {
@@ -45,7 +43,6 @@ const TYPE_LABELS = {
 const Logs = () => {
     useTraceRender('Logs');
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -120,19 +117,6 @@ const Logs = () => {
         }
     }, [logsQuery.isLoading, logsQuery.isFetching, logsQuery.error]);
 
-    useSectionAutoRefresh({
-        enabled: bootstrapped,
-        intervalMs: 30000,
-        onRefresh: () => queryClient.invalidateQueries({ queryKey: ['admin-logs'] }),
-        immediate: false,
-    });
-
-    useAdminLiveQueryInvalidation({
-        enabled: bootstrapped,
-        queryKeys: [['admin-logs']],
-        throttleMs: 1200,
-    });
-
     const handleLogout = () => {
         clearAdminSession();
         navigate('/');
@@ -158,7 +142,7 @@ const Logs = () => {
         <AdminLayout onLogout={handleLogout} title="Logs">
             <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Activity Logs</h1>
             <p className="text-gray-400 mb-4 sm:mb-6 text-sm">
-                All activity from admin, bookie and player (frontend) – auto-refreshes every 15 seconds.
+                All activity from admin, bookie and player (frontend). Use filters or change page to load; refresh the browser for the latest entries.
             </p>
 
             {/* Filters */}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
-import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 import { FaExclamationTriangle, FaChartBar } from 'react-icons/fa';
 
@@ -114,11 +113,6 @@ const AddResult = () => {
         if (!preselectedFromNav?._id) return;
         navigate('/add-result', { replace: true, state: {} });
     }, [preselectedFromNav?._id, navigate]);
-
-    useRefreshOnMarketReset(() => {
-        fetchMarkets();
-        fetchMarketsPendingResult();
-    });
 
     const handleLogout = () => {
         clearAdminSession();

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import DateRangePresetFilter from '../components/DateRangePresetFilter';
 import useModalBackHandler from '../hooks/useModalBackHandler';
-import useAdminLiveInvalidation from '../hooks/useAdminLiveInvalidation';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -82,7 +81,6 @@ const ThreeDCurrentSlotPlayers = () => {
     const [playerSearch, setPlayerSearch] = useState('');
 
     const selectedSlotIsoRef = useRef('');
-    const liveRefreshBusyRef = useRef(false);
     useEffect(() => {
         selectedSlotIsoRef.current = selectedHistorySlotIso;
     }, [selectedHistorySlotIso]);
@@ -256,18 +254,6 @@ const ThreeDCurrentSlotPlayers = () => {
         fetchLiveSlotPlayers,
         fetchPlayersForSlotIso,
     ]);
-
-    useAdminLiveInvalidation({
-        enabled: viewMode === 'live',
-        throttleMs: 1200,
-        onInvalidate: () => {
-            if (liveRefreshBusyRef.current || loading || loadingHistorySlots || loadingMorePlayers) return;
-            liveRefreshBusyRef.current = true;
-            Promise.resolve(refresh()).finally(() => {
-                liveRefreshBusyRef.current = false;
-            });
-        },
-    });
 
     useEffect(() => {
         if (viewMode === 'live') {

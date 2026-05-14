@@ -3,7 +3,6 @@ import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEyeSlash, FaCopy, FaPercent, FaSearch, FaWallet, FaUsersCog } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -105,14 +104,6 @@ const BookieManagement = () => {
     useEffect(() => {
         fetchBookies();
     }, []);
-
-    useSectionAutoRefresh({
-        enabled: true,
-        intervalMs: 15000,
-        onRefresh: () => fetchBookies({ silent: true }),
-        immediate: false,
-        refreshOnVisible: true,
-    });
 
     useEffect(() => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)

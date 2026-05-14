@@ -300,6 +300,9 @@ const ThreeDManagement = () => {
             return data.data || null;
         },
         enabled: !!localStorage.getItem('admin'),
+        staleTime: Infinity,
+        refetchOnMount: false,
+        refetchInterval: false,
         onSuccess: (data) => {
             setCurrentSlotData(data);
             setLoadingCurrent(false);

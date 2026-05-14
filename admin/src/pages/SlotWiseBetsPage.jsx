@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const ALL_DAY_VALUE = '__all_day__';
@@ -198,16 +197,6 @@ const SlotWiseBetsPage = ({ mode = '2d' }) => {
     const latestSlots = await fetchDaySlotSchedule(historyDate);
     await fetchBetsForSelection(effectiveSelection, Array.isArray(latestSlots) ? latestSlots : historySlots);
   }, [fetchDaySlotSchedule, historyDate, effectiveSelection, fetchBetsForSelection, historySlots]);
-
-  useSectionAutoRefresh({
-    enabled: true,
-    intervalMs: 3000,
-    immediate: false,
-    onRefresh: () => {
-      if (loadingSlots || loadingBets) return;
-      void refresh();
-    },
-  });
 
   const clearFilters = useCallback(() => {
     setFilterMode(ALL_DAY_VALUE);

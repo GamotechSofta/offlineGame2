@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import MarketList from '../components/MarketList';
 import MarketForm from '../components/MarketForm';
-import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
-import useAdminLiveInvalidation from '../hooks/useAdminLiveInvalidation';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -43,16 +41,6 @@ const Dashboard = () => {
         }
         fetchMarkets();
     }, [navigate]);
-
-    useRefreshOnMarketReset(fetchMarkets);
-
-    useAdminLiveInvalidation({
-        enabled: typeof window !== 'undefined' && !!localStorage.getItem('admin'),
-        throttleMs: 1000,
-        onInvalidate: () => {
-            fetchMarkets();
-        },
-    });
 
     const handleLogout = () => {
         clearAdminSession();

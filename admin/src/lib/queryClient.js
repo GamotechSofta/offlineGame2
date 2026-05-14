@@ -4,11 +4,14 @@ import { isAdminTraceEnabled, traceQueryFetch, traceQueryInvalidation } from './
 export const adminQueryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30000,
+      /** No automatic polling / background refetch — load on mount & explicit invalidate only. */
+      staleTime: Infinity,
       gcTime: 5 * 60 * 1000,
       retry: 2,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
+      refetchInterval: false,
       refetchIntervalInBackground: false,
     },
   },

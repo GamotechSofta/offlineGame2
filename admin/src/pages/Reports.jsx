@@ -15,7 +15,6 @@ import {
     FaWallet,
     FaPrint,
 } from 'react-icons/fa';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession } from '../lib/auth';
@@ -143,14 +142,6 @@ const Reports = () => {
             if (!isSilent) setLoading(false);
         }
     };
-
-    useSectionAutoRefresh({
-        enabled: true,
-        intervalMs: 20000,
-        onRefresh: () => fetchReport({ silent: true }),
-        immediate: false,
-        refreshOnVisible: true,
-    });
 
     const applyPreset = (presetId) => {
         const preset = PRESETS.find((p) => p.id === presetId);

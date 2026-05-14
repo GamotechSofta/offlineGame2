@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import useModalBackHandler from '../hooks/useModalBackHandler';
@@ -7,8 +7,6 @@ import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 import CurrentSlotOverview from '../components/twoDManagement/CurrentSlotOverview';
 import TwoDAggregateStatsCard from '../components/twoDManagement/TwoDAggregateStatsCard';
 import OldSlotsSection from '../components/twoDManagement/OldSlotsSection';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
-import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
 import { dedupeRequest } from '../lib/requestDedupe';
 import { getTodayIST } from '../utils/istDate';
 
@@ -27,7 +25,6 @@ const todayDate = () => {
 
 const TwoDManagement = () => {
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
     const location = useLocation();
     const isOldSlotsPage = location.pathname === '/2d-management/old-slots';
     const [date, setDate] = useState(todayDate());
@@ -47,10 +44,10 @@ const TwoDManagement = () => {
     const [hintError, setHintError] = useState('');
     const [loadingHints, setLoadingHints] = useState(false);
     const [hintUnlocked, setHintUnlocked] = useState(false);
-    const [unlockedHintPassword, setUnlockedHintPassword] = useState('');
+    const [, setUnlockedHintPassword] = useState('');
     const [adminRole, setAdminRole] = useState('');
-    const [currentPlayers, setCurrentPlayers] = useState([]);
-    const [loadingCurrentPlayers, setLoadingCurrentPlayers] = useState(false);
+    const [, setCurrentPlayers] = useState([]);
+    const [, setLoadingCurrentPlayers] = useState(false);
     const [showPlayerHistoryModal, setShowPlayerHistoryModal] = useState(false);
     const [selectedPlayer, setSelectedPlayer] = useState(null);
     const [playerHistoryData, setPlayerHistoryData] = useState(null);
@@ -139,7 +136,6 @@ const TwoDManagement = () => {
         queryKey: ['2d-player-history', selectedPlayer?.userId || ''],
         queryFn: fetchPlayerHistoryQuery,
         enabled: showPlayerHistoryModal && Boolean(selectedPlayer?.userId),
-        staleTime: 15000,
     });
 
     const fetchCurrent = useCallback(async () => {
@@ -336,7 +332,6 @@ const TwoDManagement = () => {
             const CONCURRENCY = 2;
             for (let i = 0; i < capped.length; i += CONCURRENCY) {
                 const chunk = capped.slice(i, i + CONCURRENCY);
-                // eslint-disable-next-line no-await-in-loop
                 const settled = await Promise.allSettled(
                     chunk.map(async (slot) => {
                         const slotStartIso = slot?.slotStartIso;
@@ -642,31 +637,6 @@ const TwoDManagement = () => {
         await fetchPlayerHistory(player.userId);
     };
 
-    useSectionAutoRefresh({
-        enabled: true,
-        intervalMs: 30000,
-        onRefresh: () => {
-            queryClient.invalidateQueries({ queryKey: ['2d-management-current'] });
-            queryClient.invalidateQueries({ queryKey: ['2d-management-aggregate', appliedStatsDateFrom, appliedStatsDateTo] });
-            queryClient.invalidateQueries({ queryKey: ['2d-management-history', date] });
-            if (showPlayerHistoryModal && selectedPlayer?.userId) {
-                queryClient.invalidateQueries({ queryKey: ['2d-player-history', selectedPlayer.userId] });
-            }
-        },
-        immediate: false,
-    });
-
-    useAdminLiveQueryInvalidation({
-        enabled: true,
-        queryKeys: [
-            ['2d-management-current'],
-            ['2d-management-aggregate', appliedStatsDateFrom, appliedStatsDateTo],
-            ['2d-management-history', date],
-            ['2d-player-history', selectedPlayer?.userId || ''],
-        ],
-        throttleMs: 900,
-    });
-
     const currentQuery = useQuery({
         queryKey: ['2d-management-current'],
         queryFn: async () => {
@@ -677,6 +647,9 @@ const TwoDManagement = () => {
             return data.data || null;
         },
         enabled: !!localStorage.getItem('admin'),
+        staleTime: Infinity,
+        refetchOnMount: false,
+        refetchInterval: false,
     });
 
     const aggregateQuery = useQuery({
@@ -695,6 +668,9 @@ const TwoDManagement = () => {
             return data.data || null;
         },
         enabled: !!localStorage.getItem('admin'),
+        staleTime: Infinity,
+        refetchOnMount: false,
+        refetchInterval: false,
     });
 
     const historyQuery = useQuery({
@@ -708,6 +684,9 @@ const TwoDManagement = () => {
             return data?.data?.slots || [];
         },
         enabled: !!localStorage.getItem('admin'),
+        staleTime: Infinity,
+        refetchOnMount: false,
+        refetchInterval: false,
     });
 
     useEffect(() => {

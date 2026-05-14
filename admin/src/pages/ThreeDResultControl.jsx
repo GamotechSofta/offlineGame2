@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import AdminLayout from '../components/AdminLayout';
-import { clearAdminSession, fetchWithAuth, getAdminSocketUrl } from '../lib/auth';
+import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 const RESULT_CONTROL_UNLOCK_SESSION_KEY = 'offlinebookie:admin:3d-result-control-unlock';
@@ -87,10 +86,6 @@ const ThreeDResultControl = () => {
     const targetProfitPercentRef = useRef('0');
     const hintPreviewModeRef = useRef('default');
     const hasValidTargetProfitRef = useRef(false);
-    const liveRefreshBusyRef = useRef(false);
-    const liveRefreshQueuedRef = useRef(false);
-    const liveRefreshTimerRef = useRef(null);
-    const liveRefreshOverrideRef = useRef(null);
 
     const handleLogout = useCallback(() => {
         clearAdminSession();
@@ -227,108 +222,6 @@ const ThreeDResultControl = () => {
             setHintsLoading(false);
         }
     }, [secretCheckComplete, hasSecretDeclarePassword, pageUnlocked]);
-
-    useEffect(() => {
-        if (hasSecretDeclarePassword && !pageUnlocked) return undefined;
-        const socketUrl = getAdminSocketUrl();
-        if (!socketUrl) return undefined;
-
-        const socket = io(socketUrl, {
-            path: '/socket.io',
-            withCredentials: true,
-            transports: ['websocket'],
-            reconnection: true,
-            reconnectionDelay: 2000,
-        });
-
-        const scheduleLiveRefresh = (override = null) => {
-            if (override && typeof override === 'object') {
-                liveRefreshOverrideRef.current = override;
-            }
-            if (liveRefreshTimerRef.current) return;
-            liveRefreshTimerRef.current = window.setTimeout(() => {
-                liveRefreshTimerRef.current = null;
-                if (liveRefreshBusyRef.current) {
-                    liveRefreshQueuedRef.current = true;
-                    return;
-                }
-                liveRefreshBusyRef.current = true;
-                const nextOverride = liveRefreshOverrideRef.current;
-                liveRefreshOverrideRef.current = null;
-                const shouldUseTarget =
-                    nextOverride?.mode === 'target'
-                    || (
-                        !nextOverride?.mode
-                        && hintPreviewModeRef.current === 'target'
-                        && hasValidTargetProfitRef.current
-                    );
-                const nextOptions = shouldUseTarget
-                    ? {
-                        silent: true,
-                        mode: 'target',
-                        targetProfitPercent: nextOverride?.targetProfitPercent ?? targetProfitPercentRef.current,
-                    }
-                    : { silent: true, mode: 'default' };
-                Promise.resolve(fetchCurrentSlotForHints(nextOptions)).finally(() => {
-                    liveRefreshBusyRef.current = false;
-                    if (liveRefreshQueuedRef.current) {
-                        liveRefreshQueuedRef.current = false;
-                        scheduleLiveRefresh();
-                    }
-                });
-            }, 700);
-        };
-
-        const onQuizResult = (data) => {
-            if (String(data?.gameMode || '').toLowerCase() !== '3d') return;
-            scheduleLiveRefresh();
-        };
-        const onAutoDeclareMode = (data) => {
-            if (String(data?.gameMode || '').toLowerCase() !== '3d') return;
-            const mode = String(data?.mode || '').toLowerCase() === 'target' ? 'target' : 'random';
-            const nextTarget = Number(data?.targetProfitPercent);
-            if (mode === 'target' && Number.isFinite(nextTarget)) {
-                setAutoDeclareMode('target');
-                setActiveTargetPercent(nextTarget);
-                scheduleLiveRefresh({
-                    mode: 'target',
-                    targetProfitPercent: nextTarget,
-                });
-                return;
-            }
-            setAutoDeclareMode('random');
-            setActiveTargetPercent(null);
-            scheduleLiveRefresh({ mode: 'default' });
-        };
-        const onSlotUpdate = (data) => {
-            if (String(data?.gameMode || '').toLowerCase() !== '3d') return;
-            scheduleLiveRefresh();
-        };
-
-        socket.on('quiz:result', onQuizResult);
-        socket.on('quiz:auto-declare-mode', onAutoDeclareMode);
-        socket.on('slot:update', onSlotUpdate);
-        socket.on('connect', scheduleLiveRefresh);
-
-        return () => {
-            socket.off('quiz:result', onQuizResult);
-            socket.off('quiz:auto-declare-mode', onAutoDeclareMode);
-            socket.off('slot:update', onSlotUpdate);
-            socket.off('connect', scheduleLiveRefresh);
-            if (liveRefreshTimerRef.current) {
-                window.clearTimeout(liveRefreshTimerRef.current);
-                liveRefreshTimerRef.current = null;
-            }
-            liveRefreshBusyRef.current = false;
-            liveRefreshQueuedRef.current = false;
-            liveRefreshOverrideRef.current = null;
-            socket.disconnect();
-        };
-    }, [
-        fetchCurrentSlotForHints,
-        hasSecretDeclarePassword,
-        pageUnlocked,
-    ]);
 
     const unlockPage = useCallback(async () => {
         const secret = pagePassword.trim();

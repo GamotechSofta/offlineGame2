@@ -15,7 +15,6 @@ import {
     FaPercent,
 } from 'react-icons/fa';
 import { getAuthHeaders, clearAdminSession } from '../lib/auth';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -107,14 +106,6 @@ const Revenue = () => {
             if (!isSilent) setLoading(false);
         }
     };
-
-    useSectionAutoRefresh({
-        enabled: true,
-        intervalMs: 20000,
-        onRefresh: () => fetchRevenue({ silent: true }),
-        immediate: false,
-        refreshOnVisible: true,
-    });
 
     const applyPreset = (presetId) => {
         const preset = PRESETS.find((p) => p.id === presetId);

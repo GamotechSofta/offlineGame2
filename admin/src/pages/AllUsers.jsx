@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 import { dedupeRequest } from '../lib/requestDedupe';
 import { useTraceRender } from '../lib/runtimeTrace';
-import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -64,11 +63,6 @@ const toggleBookieInCache = (previous, bookieId) => {
 
 const AllUsers = () => {
     useTraceRender('AllUsers');
-    useAdminLiveQueryInvalidation({
-        enabled: typeof window !== 'undefined' && !!localStorage.getItem('admin'),
-        queryKeys: [['all-users-data']],
-        throttleMs: 800,
-    });
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('all');
     /** Server pagination for GET /users (100 per page, separate page per tab). */

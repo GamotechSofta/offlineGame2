@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import MarketForm from '../components/MarketForm';
-import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -173,8 +172,6 @@ const StarlineManagement = ({ embedded = false }) => {
         const t = setInterval(() => setTick(Date.now()), 60000);
         return () => clearInterval(t);
     }, []);
-
-    useRefreshOnMarketReset(fetchMarkets);
 
     const activeGroup = useMemo(() => starlineGroups.find((g) => g.key === activeTab) || starlineGroups[0] || null, [starlineGroups, activeTab]);
 

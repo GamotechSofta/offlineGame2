@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
-import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -57,14 +56,6 @@ const HelpDesk = () => {
             if (!isSilent) setLoading(false);
         }
     };
-
-    useSectionAutoRefresh({
-        enabled: true,
-        intervalMs: 12000,
-        onRefresh: () => fetchTickets({ silent: true }),
-        immediate: false,
-        refreshOnVisible: true,
-    });
 
     const handleStatusUpdate = async (ticketId, newStatus) => {
         try {

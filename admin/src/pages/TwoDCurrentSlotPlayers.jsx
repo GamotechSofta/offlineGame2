@@ -1,8 +1,7 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import DateRangePresetFilter from '../components/DateRangePresetFilter';
-import useAdminLiveInvalidation from '../hooks/useAdminLiveInvalidation';
 
 const slotScheduleLabel = (s) => {
     const tag = s.status === 'live' ? 'Live' : s.status === 'past' ? 'Past' : 'Advance';
@@ -64,7 +63,6 @@ const TwoDCurrentSlotPlayers = () => {
     } = useOutletContext();
 
     const [playerSearch, setPlayerSearch] = useState('');
-    const liveRefreshBusyRef = useRef(false);
     const todayKey = useMemo(
         () => (typeof todayDate === 'function' ? todayDate() : todayDate),
         [todayDate],
@@ -87,18 +85,6 @@ const TwoDCurrentSlotPlayers = () => {
         if (!playerSearch.trim()) return players;
         return players.filter((p) => rowMatchesSlotPlayerSearch(p, playerSearch));
     }, [players, playerSearch]);
-
-    useAdminLiveInvalidation({
-        enabled: viewMode === 'live',
-        throttleMs: 1200,
-        onInvalidate: () => {
-            if (liveRefreshBusyRef.current || loading || loadingHistorySlots || loadingMorePlayers) return;
-            liveRefreshBusyRef.current = true;
-            Promise.resolve(refresh()).finally(() => {
-                liveRefreshBusyRef.current = false;
-            });
-        },
-    });
 
     return (
         <AdminLayout onLogout={navigateLogout} title="2D players">

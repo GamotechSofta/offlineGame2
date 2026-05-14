@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { FaArrowLeft, FaClock, FaHashtag, FaChartBar, FaEdit } from 'react-icons/fa';
-import { useRefreshOnMarketReset } from '../hooks/useRefreshOnMarketReset';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -1444,8 +1443,6 @@ const MarketDetail = () => {
         }
         fetchStats();
     }, [marketId, navigate]);
-
-    useRefreshOnMarketReset(fetchStats);
 
     const handleLogout = () => {
         clearAdminSession();
