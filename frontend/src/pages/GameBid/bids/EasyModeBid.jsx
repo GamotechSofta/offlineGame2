@@ -690,14 +690,27 @@ const EasyModeBid = ({
                             <>
                                 {showModeTabs && desktopSplit && <div className="mb-4">{modeHeader}</div>}
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 xl:grid-rows-10 xl:grid-flow-col xl:gap-2">
-                                    {jodiNumbers.map((num) => (
+                                    {jodiNumbers.map((num) => {
+                                        const ptsVal = Number(specialInputs[num]) || 0;
+                                        const hasBet = ptsVal > 0;
+                                        return (
                                         <div
                                             key={num}
                                             role="presentation"
-                                            className={`flex items-center gap-1.5 ${jodiSpecialQuickSelected ? 'cursor-pointer' : ''}`}
+                                            className={`flex items-center gap-1.5 rounded-lg p-0.5 transition-all duration-200 ${
+                                                jodiSpecialQuickSelected ? 'cursor-pointer' : ''
+                                            } ${
+                                                hasBet
+                                                    ? 'shadow-md bg-sky-50/80'
+                                                    : 'focus-within:bg-sky-50/40'
+                                            }`}
                                             onClick={() => applyJodiQuickToCell(num)}
                                         >
-                                            <div className="w-10 h-9 bg-[#1B3150] border-2 border-gray-300 text-white flex items-center justify-center rounded-l-md font-bold text-xs shrink-0 select-none active:opacity-90">
+                                            <div
+                                                className={`w-10 h-9 border-0 text-white flex items-center justify-center rounded-l-md font-bold text-xs shrink-0 select-none active:opacity-90 transition-colors ${
+                                                    hasBet ? 'bg-[#0f4d8a] shadow-inner' : 'bg-[#1B3150]'
+                                                }`}
+                                            >
                                                 <span className="inline-flex items-center gap-1">
                                                     <span>{num[0]}</span>
                                                     <span>{num[1]}</span>
@@ -716,10 +729,13 @@ const EasyModeBid = ({
                                                     const nextVal = e.target.value.replace(/\D/g, '').slice(0, 6);
                                                     setSpecialInputs((p) => ({ ...p, [num]: nextVal }));
                                                 }}
-                                                className="w-full h-9 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-[#1B3150] px-2 text-xs font-semibold"
+                                                className={`w-full h-9 border-0 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:ring-0 px-2 text-xs font-semibold transition-colors ${
+                                                    hasBet ? 'bg-white shadow-inner' : 'bg-white'
+                                                }`}
                                             />
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                                 {/* Mobile: sticky Submit button for special mode */}
                                 {showInlineSubmit && (
