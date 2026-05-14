@@ -753,10 +753,10 @@ const FullSangamSection = ({ items = {}, totalAmount = 0, totalBets = 0 }) => {
 
 /** Shared chip style for “Patti (actual profit %)” in Find pannas + bucket chart */
 const PROFIT_PATTI_CHIP_CLASS =
-    'inline-flex items-center gap-1 rounded-md bg-orange-50 border border-orange-100 px-2 py-0.5 font-mono text-xs text-gray-800';
+    'flex w-full min-w-0 flex-wrap items-center justify-center gap-0.5 text-center rounded-md bg-orange-50 border border-orange-100 px-1.5 py-1 font-mono text-[10px] leading-tight text-gray-800 break-words sm:inline-flex sm:w-auto sm:justify-start sm:gap-1 sm:px-2 sm:py-0.5 sm:text-xs sm:text-left';
 
 const PROFIT_LOSS_CHIP_CLASS =
-    'inline-flex items-center gap-1 rounded-md bg-red-50 border border-red-100 px-2 py-0.5 font-mono text-xs text-gray-900';
+    'flex w-full min-w-0 flex-wrap items-center justify-center gap-0.5 text-center rounded-md bg-red-50 border border-red-100 px-1.5 py-1 font-mono text-[10px] leading-tight text-gray-900 break-words sm:inline-flex sm:w-auto sm:justify-start sm:gap-1 sm:px-2 sm:py-0.5 sm:text-xs sm:text-left';
 
 /** Admin bucket row label: 0–10%, 11–20%, … 91–100% */
 function profitBandLabel(targetPct) {
@@ -811,7 +811,7 @@ function renderPattiChips(matches, mode, keyPrefix, options = {}) {
         { kind: 'triple', label: 'Triple patti' },
     ];
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 min-w-0">
             {sections.map(({ kind, label }) => {
                 const rows = grouped[kind];
                 if (!rows.length) return null;
@@ -824,16 +824,23 @@ function renderPattiChips(matches, mode, keyPrefix, options = {}) {
                         >
                             {label}
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="grid grid-cols-2 gap-x-1 gap-y-1.5 min-w-0 sm:flex sm:flex-wrap sm:gap-1.5">
                             {rows.map((row, i) => {
                                 const baseChip = isLoss
                                     ? PROFIT_LOSS_CHIP_CLASS
                                     : row.nearestBandFill
                                       ? `${PROFIT_PATTI_CHIP_CLASS} bg-gray-50 border-gray-200`
                                       : PROFIT_PATTI_CHIP_CLASS;
-                                const pctClass = isLoss ? 'text-red-700 font-semibold' : '';
-                                const pannaClass = isLoss ? 'text-red-800 font-semibold' : 'text-orange-600 font-semibold';
-                                const moneyClass = isLoss ? 'text-red-700 font-semibold' : 'text-orange-600 font-semibold';
+                                const sepClass = isLoss ? 'text-slate-400' : 'text-gray-500';
+                                const pctClass = isLoss
+                                    ? 'font-bold tabular-nums text-rose-600'
+                                    : '';
+                                const pannaClass = isLoss
+                                    ? 'font-bold tabular-nums text-slate-900'
+                                    : 'text-orange-600 font-semibold';
+                                const moneyClass = isLoss
+                                    ? 'font-bold tabular-nums text-red-900'
+                                    : 'text-orange-600 font-semibold';
                                 return (
                                     <span
                                         key={`${keyPrefix}-${kind}-${i}`}
@@ -845,17 +852,17 @@ function renderPattiChips(matches, mode, keyPrefix, options = {}) {
                                         {mode === 'open' ? (
                                             <>
                                                 <span className={pannaClass}>{row.openingPanna}</span>
-                                                <span className="text-gray-500">·</span>
+                                                <span className={sepClass}>·</span>
                                                 <span className={pctClass}>{row.profitPercent}%</span>
-                                                <span className="text-gray-500">·</span>
+                                                <span className={sepClass}>·</span>
                                                 <span className={moneyClass}>₹{formatNum(row.profit)}</span>
                                             </>
                                         ) : (
                                             <>
                                                 <span className={pannaClass}>{row.closingPanna}</span>
-                                                <span className="text-gray-500">·</span>
+                                                <span className={sepClass}>·</span>
                                                 <span className={pctClass}>{row.profitPercent}%</span>
-                                                <span className="text-gray-500">·</span>
+                                                <span className={sepClass}>·</span>
                                                 <span className={moneyClass}>₹{formatNum(row.profit)}</span>
                                             </>
                                         )}
@@ -873,59 +880,77 @@ function renderPattiChips(matches, mode, keyPrefix, options = {}) {
 function renderProfitBucketsTable(bucketsData, tableKey) {
     if (!bucketsData) return null;
     return (
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="w-full text-sm">
+        <div className="max-w-full overflow-x-auto rounded-lg border border-gray-200 [-webkit-overflow-scrolling:touch]">
+            <table className="w-full min-w-0 text-sm max-sm:table-fixed">
                 <thead className="bg-gray-50">
                     <tr>
-                        <th className="px-3 py-2 text-left font-semibold text-gray-700 w-24 whitespace-nowrap">
+                        <th className="px-2 py-2 sm:px-3 text-left font-semibold text-gray-700 w-24 max-sm:w-[34%] max-sm:min-w-[6.5rem] max-sm:align-top sm:whitespace-nowrap">
                             Target band
                         </th>
-                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
+                        <th className="px-2 py-2 sm:px-3 text-left font-semibold text-gray-700 min-w-0 max-sm:w-[66%] max-sm:align-top">
+                            Patti (actual profit %)
+                        </th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                     {(bucketsData.lossBucket?.count ?? 0) > 0 && (
-                        <tr className="align-top bg-red-50/80 hover:bg-red-50/90">
-                            <td className="px-3 py-2 font-semibold text-red-800 whitespace-nowrap">
-                                Loss (house profit below 0%)
-                                <span className="block text-[11px] font-normal text-red-700 normal-case mt-0.5">
-                                    {bucketsData.lossBucket.count} panna outcome
-                                    {bucketsData.lossBucket.count === 1 ? '' : 's'}
-                                    {bucketsData.lossBucket.minHouseProfitPct != null &&
-                                        bucketsData.lossBucket.maxHouseProfitPct != null && (
-                                            <>
-                                                {' '}
-                                                · house profit % from {bucketsData.lossBucket.minHouseProfitPct}% to{' '}
-                                                {bucketsData.lossBucket.maxHouseProfitPct}%
-                                            </>
-                                        )}
-                                </span>
-                            </td>
-                            <td className="px-3 py-2 text-gray-900">
-                                {renderPattiChips(
-                                    bucketsData.lossBucket.matches,
-                                    bucketsData.mode,
-                                    `bucket-loss-${tableKey}`,
-                                    { variant: 'loss' }
-                                )}
+                        <tr className="align-top bg-red-50/90 hover:bg-red-100/95">
+                            <td colSpan={2} className="px-2 py-2 sm:px-3 min-w-0">
+                                <div className="rounded-lg border border-red-400/80 bg-gradient-to-br from-red-50 to-rose-100/80 p-3 shadow-sm ring-1 ring-red-200/60 sm:p-3.5">
+                                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                        <span
+                                            className="inline-flex shrink-0 items-center rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-widest text-white shadow-md ring-2 ring-red-800/25"
+                                            title="House loses on these outcomes"
+                                        >
+                                            Loss
+                                        </span>
+                                        <span className="text-sm font-bold leading-snug text-red-950 sm:text-base">
+                                            House profit below 0%
+                                        </span>
+                                    </div>
+                                    <div className="mt-2 text-xs font-semibold leading-snug text-red-900 sm:text-[13px]">
+                                        {bucketsData.lossBucket.count} panna outcome
+                                        {bucketsData.lossBucket.count === 1 ? '' : 's'}
+                                        {bucketsData.lossBucket.minHouseProfitPct != null &&
+                                            bucketsData.lossBucket.maxHouseProfitPct != null && (
+                                                <>
+                                                    {' '}
+                                                    <span className="font-medium text-red-800/95">·</span>
+                                                    {' '}
+                                                    <span className="font-medium text-red-950">
+                                                        house profit % from {bucketsData.lossBucket.minHouseProfitPct}% to{' '}
+                                                        {bucketsData.lossBucket.maxHouseProfitPct}%
+                                                    </span>
+                                                </>
+                                            )}
+                                    </div>
+                                </div>
+                                <div className="mt-3 pt-3 border-t border-red-300/80 min-w-0">
+                                    {renderPattiChips(
+                                        bucketsData.lossBucket.matches,
+                                        bucketsData.mode,
+                                        `bucket-loss-${tableKey}`,
+                                        { variant: 'loss' }
+                                    )}
+                                </div>
                             </td>
                         </tr>
                     )}
                     {bucketsData.buckets.map((bucket) => (
                         <tr key={`${tableKey}-${bucket.targetPct}`} className="align-top hover:bg-gray-50/80">
-                            <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
-                                {profitBandLabel(bucket.targetPct)}
-                            </td>
-                            <td className="px-3 py-2 text-gray-800">
-                                {bucket.matches.length === 0 ? (
-                                    <span className="text-gray-400">—</span>
-                                ) : (
-                                    renderPattiChips(
-                                        bucket.matches,
-                                        bucketsData.mode,
-                                        `bucket-${tableKey}-${bucket.targetPct}`
-                                    )
-                                )}
+                            <td colSpan={2} className="px-2 py-2 sm:px-3 min-w-0">
+                                <div className="font-semibold text-orange-600">{profitBandLabel(bucket.targetPct)}</div>
+                                <div className="mt-3 pt-3 border-t border-gray-200/80 min-w-0">
+                                    {bucket.matches.length === 0 ? (
+                                        <span className="text-gray-400">—</span>
+                                    ) : (
+                                        renderPattiChips(
+                                            bucket.matches,
+                                            bucketsData.mode,
+                                            `bucket-${tableKey}-${bucket.targetPct}`
+                                        )
+                                    )}
+                                </div>
                             </td>
                         </tr>
                     ))}
@@ -1087,15 +1112,18 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
     };
 
     return (
-        <SectionCard title="Target house profit %" className="mt-8">
-            <p className="text-sm text-gray-600 mb-4">
+        <SectionCard
+            title="Target house profit %"
+            className="mt-8 min-w-0 [&>div:last-child]:max-sm:px-2.5 [&_h2]:max-sm:px-3 [&_h2]:max-sm:py-2.5 [&_h2]:max-sm:text-[0.95rem] [&_h2]:leading-snug"
+        >
+            <p className="text-sm text-gray-600 mb-4 max-sm:text-xs max-sm:leading-relaxed break-words">
                 Enter target house profit % (e.g. 60). We only check 3-digit pannas that players actually played (panna / patti
                 tickets). Result numbers are only those played numbers whose declare preview hits your
                 target. Tolerance 0 means exact match on the same two-decimal % as the table below (e.g. 9.58). Which session is
                 scanned matches the page <span className="font-semibold">View</span> (open / closed / all).
             </p>
-            <div className="flex flex-wrap items-end gap-3 mb-4">
-                <label className="flex flex-col gap-1 text-xs text-gray-600">
+            <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:flex-wrap sm:items-end">
+                <label className="flex flex-col gap-1 text-xs text-gray-600 max-sm:w-full">
                     Target profit %
                     <input
                         type="number"
@@ -1104,10 +1132,10 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
                         step={0.1}
                         value={targetPct}
                         onChange={(e) => setTargetPct(e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 w-28 text-gray-900"
+                        className="border border-gray-300 rounded-lg px-3 py-2 w-full sm:w-28 text-gray-900 max-sm:min-h-[44px] max-sm:text-base"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-gray-600">
+                <label className="flex flex-col gap-1 text-xs text-gray-600 max-sm:w-full">
                     Tolerance ±% (0 = exact)
                     <input
                         type="number"
@@ -1116,19 +1144,19 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
                         step={0.1}
                         value={tolerance}
                         onChange={(e) => setTolerance(e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 w-28 text-gray-900"
+                        className="border border-gray-300 rounded-lg px-3 py-2 w-full sm:w-28 text-gray-900 max-sm:min-h-[44px] max-sm:text-base"
                     />
                 </label>
                 <button
                     type="button"
                     onClick={runScan}
                     disabled={loading}
-                    className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-gray-900 font-semibold text-sm"
+                    className="px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-gray-900 font-semibold text-sm w-full sm:w-auto max-sm:min-h-[44px] shrink-0"
                 >
                     {loading ? 'Scanning…' : 'Find pannas'}
                 </button>
             </div>
-            <p className="text-gray-500 text-xs mb-3">
+            <p className="text-gray-500 text-xs mb-3 break-words leading-snug">
                 View:{' '}
                 <span className="font-semibold text-gray-700">
                     {statusView === 'open' ? 'Open bets only' : statusView === 'closed' ? 'Closed bets only' : 'All bets (open + close)'}
@@ -1141,8 +1169,8 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
             </p>
             {scanErr && <p className="text-red-600 text-sm mb-3">{scanErr}</p>}
             {scanData?.variant === 'single' && (
-                <div className="mt-2">
-                    <p className="text-sm text-gray-700 mb-2">
+                <div className="mt-2 min-w-0">
+                    <p className="text-sm text-gray-700 mb-2 break-words leading-snug max-sm:text-xs">
                         {scanData.mode === 'open' ? 'Opening' : 'Closing'} · target {scanData.targetPct}%
                         {Number(scanData.tolerance) === 0 ? ' (exact)' : ` ± ${scanData.tolerance}%`} · played pannas checked:{' '}
                         <span className="font-semibold">{scanData.betPannaCount ?? '—'}</span> ·{' '}
@@ -1156,26 +1184,28 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
                                 : 'None of those played pannas hit this profit % at current rates; try a small tolerance or a different target.'}
                         </p>
                     ) : (
-                        <div className="overflow-x-auto rounded-lg border border-gray-200 max-h-[420px] overflow-y-auto">
-                            <table className="w-full text-sm">
+                        <div className="max-w-full overflow-x-auto rounded-lg border border-gray-200 max-h-[420px] overflow-y-auto [-webkit-overflow-scrolling:touch]">
+                            <table className="w-full min-w-0 text-sm max-sm:table-fixed">
                                 <thead className="bg-gray-50 sticky top-0">
                                     <tr>
-                                        <th className="px-3 py-2 text-left font-semibold text-gray-700 w-28 whitespace-nowrap">
+                                        <th className="px-2 py-2 sm:px-3 text-left font-semibold text-gray-700 w-28 max-sm:w-[34%] max-sm:min-w-[6.5rem] max-sm:align-top sm:whitespace-nowrap">
                                             Target band
                                         </th>
-                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
+                                        <th className="px-2 py-2 sm:px-3 text-left font-semibold text-gray-700 min-w-0 max-sm:w-[66%] max-sm:align-top">
+                                            Patti (actual profit %)
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
                                     <tr className="align-top hover:bg-gray-50/80">
-                                        <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
+                                        <td className="px-2 py-2 sm:px-3 font-semibold text-orange-600 max-sm:align-top sm:whitespace-nowrap">
                                             ~{nearestTenPercentBand(scanData.targetPct)}%
-                                            <span className="block text-[10px] font-normal text-gray-500 normal-case">
+                                            <span className="block text-[10px] font-normal text-gray-500 normal-case break-words">
                                                 Search: {scanData.targetPct}%
                                                 {Number(scanData.tolerance) === 0 ? ' exact' : ` ±${scanData.tolerance}%`}
                                             </span>
                                         </td>
-                                        <td className="px-3 py-2 text-gray-800">
+                                        <td className="px-2 py-2 sm:px-3 text-gray-800 min-w-0 max-sm:align-top">
                                             {renderPattiChips(scanData.matches, scanData.mode, 'scan')}
                                         </td>
                                     </tr>
@@ -1186,8 +1216,8 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
                 </div>
             )}
             {scanData?.variant === 'dual' && (
-                <div className="mt-2 space-y-6">
-                    <p className="text-sm text-gray-700 mb-2">
+                <div className="mt-2 space-y-6 min-w-0">
+                    <p className="text-sm text-gray-700 mb-2 break-words leading-snug max-sm:text-xs">
                         Target {scanData.targetPct}%
                         {Number(scanData.tolerance) === 0 ? ' (exact)' : ` ± ${scanData.tolerance}%`} · dual scan (open + close
                         sessions).
@@ -1203,22 +1233,24 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
                                     : 'No open-session pannas in this target band.'}
                             </p>
                         ) : (
-                            <div className="overflow-x-auto rounded-lg border border-gray-200 max-h-[360px] overflow-y-auto">
-                                <table className="w-full text-sm">
+                            <div className="max-w-full overflow-x-auto rounded-lg border border-gray-200 max-h-[360px] overflow-y-auto [-webkit-overflow-scrolling:touch]">
+                                <table className="w-full min-w-0 text-sm max-sm:table-fixed">
                                     <thead className="bg-gray-50 sticky top-0">
                                         <tr>
-                                            <th className="px-3 py-2 text-left font-semibold text-gray-700 w-28 whitespace-nowrap">
+                                            <th className="px-2 py-2 sm:px-3 text-left font-semibold text-gray-700 w-28 max-sm:w-[34%] max-sm:min-w-[6.5rem] max-sm:align-top sm:whitespace-nowrap">
                                                 Target band
                                             </th>
-                                            <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
+                                            <th className="px-2 py-2 sm:px-3 text-left font-semibold text-gray-700 min-w-0 max-sm:w-[66%] max-sm:align-top">
+                                                Patti (actual profit %)
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
                                         <tr className="align-top hover:bg-gray-50/80">
-                                            <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
+                                            <td className="px-2 py-2 sm:px-3 font-semibold text-orange-600 max-sm:align-top sm:whitespace-nowrap">
                                                 ~{nearestTenPercentBand(scanData.targetPct)}%
                                             </td>
-                                            <td className="px-3 py-2 text-gray-800">
+                                            <td className="px-2 py-2 sm:px-3 text-gray-800 min-w-0 max-sm:align-top">
                                                 {renderPattiChips(scanData.open.matches, scanData.open.mode, 'scan-open')}
                                             </td>
                                         </tr>
@@ -1238,27 +1270,29 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
                                     : 'No close-session pannas in this target band.'}
                             </p>
                         ) : (
-                            <div className="overflow-x-auto rounded-lg border border-gray-200 max-h-[360px] overflow-y-auto">
-                                <table className="w-full text-sm">
+                            <div className="max-w-full overflow-x-auto rounded-lg border border-gray-200 max-h-[360px] overflow-y-auto [-webkit-overflow-scrolling:touch]">
+                                <table className="w-full min-w-0 text-sm max-sm:table-fixed">
                                     <thead className="bg-gray-50 sticky top-0">
                                         <tr>
-                                            <th className="px-3 py-2 text-left font-semibold text-gray-700 w-28 whitespace-nowrap">
+                                            <th className="px-2 py-2 sm:px-3 text-left font-semibold text-gray-700 w-28 max-sm:w-[34%] max-sm:min-w-[6.5rem] max-sm:align-top sm:whitespace-nowrap">
                                                 Target band
                                             </th>
-                                            <th className="px-3 py-2 text-left font-semibold text-gray-700">Patti (actual profit %)</th>
+                                            <th className="px-2 py-2 sm:px-3 text-left font-semibold text-gray-700 min-w-0 max-sm:w-[66%] max-sm:align-top">
+                                                Patti (actual profit %)
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
                                         <tr className="align-top hover:bg-gray-50/80">
-                                            <td className="px-3 py-2 font-semibold text-orange-600 whitespace-nowrap">
+                                            <td className="px-2 py-2 sm:px-3 font-semibold text-orange-600 max-sm:align-top sm:whitespace-nowrap">
                                                 ~{nearestTenPercentBand(scanData.targetPct)}%
                                                 {scanData.close?.openPanna ? (
-                                                    <span className="block text-[10px] font-normal text-gray-500 normal-case">
+                                                    <span className="block text-[10px] font-normal text-gray-500 normal-case break-words">
                                                         Open {scanData.close.openPanna}
                                                     </span>
                                                 ) : null}
                                             </td>
-                                            <td className="px-3 py-2 text-gray-800">
+                                            <td className="px-2 py-2 sm:px-3 text-gray-800 min-w-0 max-sm:align-top">
                                                 {renderPattiChips(scanData.close.matches, scanData.close.mode, 'scan-close')}
                                             </td>
                                         </tr>
@@ -1270,9 +1304,9 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
                 </div>
             )}
 
-            <div className="mt-8 pt-6 border-t border-gray-200">
-                <h3 className="text-sm font-bold text-gray-800 mb-1">Played patti by house profit %</h3>
-                <p className="text-xs text-gray-500 mb-2">
+            <div className="mt-8 pt-6 border-t border-gray-200 min-w-0">
+                <h3 className="text-sm font-bold text-gray-800 mb-1 max-sm:text-[13px]">Played patti by house profit %</h3>
+                <p className="text-xs text-gray-500 mb-2 break-words leading-snug">
                     Same as <span className="font-semibold">View</span> above:{' '}
                     {statusView === 'open'
                         ? 'open-session bets only (opening declare preview).'
@@ -1282,7 +1316,7 @@ const ProfitTargetFinder = ({ marketId, hasOpenDeclared, statusView }) => {
                             ? 'open-session table and close-session table below.'
                             : 'open-session table only until opening panna is declared.'}
                 </p>
-                <p className="text-xs text-gray-500 mb-3">
+                <p className="text-xs text-gray-500 mb-3 break-words leading-snug">
                     Rows are fixed house-profit % bands: 0–10, 11–20, … 91–100. Within each band, pattis are sorted by actual
                     profit % (highest first). If the house would lose on some chart outcomes, they appear in the red Loss section
                     above 0–10%, with count and % range. Only chart pannas are included (SP single list, valid double, triple).
