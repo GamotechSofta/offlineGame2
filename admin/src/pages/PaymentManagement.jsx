@@ -1,7 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
-import { FaArrowDown, FaArrowUp, FaClock, FaFilter, FaEye, FaCheck, FaTimes, FaImage, FaWallet } from 'react-icons/fa';
+import {
+    FaArrowDown,
+    FaArrowUp,
+    FaClock,
+    FaFilter,
+    FaEye,
+    FaCheck,
+    FaTimes,
+    FaImage,
+    FaWallet,
+    FaSearch,
+    FaExclamationTriangle,
+} from 'react-icons/fa';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTraceRender } from '../lib/runtimeTrace';
 import useAdminPaymentsQueryInvalidation from '../hooks/useAdminPaymentsQueryInvalidation';
@@ -39,6 +51,12 @@ function istWeekdaySun0(ymd) {
     return map[short] ?? 0;
 }
 
+/** Monday = 0 … Sunday = 6 (IST calendar day). */
+function istWeekdayMon0(ymd) {
+    const sun0 = istWeekdaySun0(ymd);
+    return sun0 === 0 ? 6 : sun0 - 1;
+}
+
 const DATE_PRESETS = [
     { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
     {
@@ -63,7 +81,7 @@ const DATE_PRESETS = [
         label: 'This Week',
         getRange: () => {
             const today = getTodayIST();
-            const idx = istWeekdaySun0(today);
+            const idx = istWeekdayMon0(today);
             const from = addDaysIst(today, -idx);
             return { from, to: today };
         },
@@ -73,10 +91,10 @@ const DATE_PRESETS = [
         label: 'Last Week',
         getRange: () => {
             const today = getTodayIST();
-            const idx = istWeekdaySun0(today);
-            const thisSun = addDaysIst(today, -idx);
-            const from = addDaysIst(thisSun, -7);
-            const to = addDaysIst(thisSun, -1);
+            const idx = istWeekdayMon0(today);
+            const thisMon = addDaysIst(today, -idx);
+            const from = addDaysIst(thisMon, -7);
+            const to = addDaysIst(thisMon, -1);
             return { from, to };
         },
     },
@@ -105,37 +123,52 @@ const DATE_PRESETS = [
     },
 ];
 
+/** One IST calendar YYYY-MM-DD as a readable label (India has no DST). */
+function formatIstYmdLabel(ymd) {
+    if (typeof ymd !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(ymd.trim())) return String(ymd || '');
+    const [y, m, d] = ymd.trim().split('-').map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return ymd;
+    const utcMs = Date.UTC(y, m - 1, d, 6, 30, 0, 0);
+    return new Date(utcMs).toLocaleDateString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    });
+}
+
 const formatRangeLabel = (from, to) => {
     if (!from || !to) return 'All time';
-    if (from === to) {
-        const d = new Date(`${from}T12:00:00`);
-        return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    }
-    const a = new Date(`${from}T12:00:00`);
-    const b = new Date(`${to}T12:00:00`);
-    return `${a.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${b.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    if (from === to) return formatIstYmdLabel(from);
+    return `${formatIstYmdLabel(from)} – ${formatIstYmdLabel(to)}`;
 };
+
+const EMPTY_DASHBOARD_STATS = {
+    pendingDeposits: { count: 0, totalAmount: 0 },
+    pendingWithdrawals: { count: 0, totalAmount: 0 },
+    totalPending: { count: 0, totalAmount: 0 },
+    approvedDeposits: { count: 0, totalAmount: 0 },
+    approvedWithdrawals: { count: 0, totalAmount: 0 },
+    rejectedWithdrawals: { count: 0, totalAmount: 0 },
+    failedDeposits: { count: 0, totalAmount: 0 },
+};
+
+const fmtInr = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
 const PaymentManagement = () => {
     useTraceRender('PaymentManagement');
     useAdminPaymentsQueryInvalidation({
         enabled: typeof window !== 'undefined' && !!localStorage.getItem('admin'),
-        queryKeys: [['payments-list'], ['payments-pending-count']],
+        queryKeys: [['payments-list'], ['payments-dashboard-stats']],
         throttleMs: 600,
     });
     const navigate = useNavigate();
     const PAGE_SIZE = 50;
-    const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [pendingCounts, setPendingCounts] = useState({ deposits: 0, withdrawals: 0, total: 0 });
-    const [pagination, setPagination] = useState({
-        page: 1,
-        limit: PAGE_SIZE,
-        total: 0,
-        totalPages: 1,
-        hasNextPage: false,
-        hasPrevPage: false,
-    });
+    const [playerSearch, setPlayerSearch] = useState('');
+    const [amountSearch, setAmountSearch] = useState('');
+    const [debouncedPlayerSearch, setDebouncedPlayerSearch] = useState('');
+    const [debouncedAmountSearch, setDebouncedAmountSearch] = useState('');
     const [filters, setFilters] = useState({
         status: '',
         type: '',
@@ -168,6 +201,20 @@ const PaymentManagement = () => {
     const actionModalHistoryPushedRef = useRef(false);
     const detailModalHistoryPushedRef = useRef(false);
     const queryClient = useQueryClient();
+
+    useEffect(() => {
+        const t = window.setTimeout(() => {
+            setDebouncedPlayerSearch(playerSearch.trim());
+        }, 400);
+        return () => window.clearTimeout(t);
+    }, [playerSearch]);
+
+    useEffect(() => {
+        const t = window.setTimeout(() => {
+            setDebouncedAmountSearch(amountSearch.trim());
+        }, 400);
+        return () => window.clearTimeout(t);
+    }, [amountSearch]);
 
     useEffect(() => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
@@ -215,6 +262,11 @@ const PaymentManagement = () => {
             }
             queryParams.append('page', String(currentPage));
             queryParams.append('limit', String(PAGE_SIZE));
+            if (debouncedPlayerSearch) queryParams.append('playerSearch', debouncedPlayerSearch);
+            if (debouncedAmountSearch !== '') {
+                const n = Number(debouncedAmountSearch);
+                if (Number.isFinite(n) && n >= 0) queryParams.append('amountEquals', String(n));
+            }
 
             const response = await fetchWithAuth(`${API_BASE_URL}/payments?${queryParams}`);
             if (response.status === 401) {
@@ -243,18 +295,24 @@ const PaymentManagement = () => {
         }
     };
 
-    const fetchPendingCounts = async () => {
+    const fetchDashboardStats = async () => {
         try {
-            const response = await fetchWithAuth(`${API_BASE_URL}/payments/pending-count`);
-            if (response.status === 401) return { deposits: 0, withdrawals: 0, total: 0 };
-            const data = await response.json();
-            if (data.success) {
-                return data.data || { deposits: 0, withdrawals: 0, total: 0 };
+            const queryParams = new URLSearchParams();
+            if (effectiveDateRange?.from && effectiveDateRange?.to) {
+                queryParams.append('from', effectiveDateRange.from);
+                queryParams.append('to', effectiveDateRange.to);
             }
-            return { deposits: 0, withdrawals: 0, total: 0 };
+            const qs = queryParams.toString();
+            const response = await fetchWithAuth(
+                `${API_BASE_URL}/payments/dashboard-stats${qs ? `?${qs}` : ''}`,
+            );
+            if (response.status === 401) return EMPTY_DASHBOARD_STATS;
+            const data = await response.json();
+            if (data.success && data.data) return data.data;
+            return EMPTY_DASHBOARD_STATS;
         } catch (err) {
-            console.error('Error fetching pending counts:', err);
-            return { deposits: 0, withdrawals: 0, total: 0 };
+            console.error('Error fetching payment dashboard stats:', err);
+            return EMPTY_DASHBOARD_STATS;
         }
     };
 
@@ -267,6 +325,8 @@ const PaymentManagement = () => {
             effectiveDateRange?.from || '',
             effectiveDateRange?.to || '',
             currentPage,
+            debouncedPlayerSearch,
+            debouncedAmountSearch,
         ],
         queryFn: () => fetchPayments(),
         enabled: !!localStorage.getItem('admin'),
@@ -275,44 +335,44 @@ const PaymentManagement = () => {
         refetchOnReconnect: false,
     });
 
-    const pendingCountsQuery = useQuery({
-        queryKey: ['payments-pending-count'],
-        queryFn: fetchPendingCounts,
+    const dashboardStatsQuery = useQuery({
+        queryKey: ['payments-dashboard-stats', effectiveDateRange?.from || '', effectiveDateRange?.to || ''],
+        queryFn: fetchDashboardStats,
         enabled: !!localStorage.getItem('admin'),
         staleTime: Infinity,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
 
-    useEffect(() => {
-        if (!paymentsQuery.data) return;
-        setPayments(paymentsQuery.data.data || []);
-        setPagination(paymentsQuery.data.pagination || {
-            page: currentPage,
-            limit: PAGE_SIZE,
-            total: 0,
-            totalPages: 1,
-            hasNextPage: false,
-            hasPrevPage: currentPage > 1,
-        });
-    }, [paymentsQuery.data]);
+    const payments = paymentsQuery.data?.data ?? [];
+    const pagination = paymentsQuery.data?.pagination ?? {
+        page: currentPage,
+        limit: PAGE_SIZE,
+        total: 0,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: currentPage > 1,
+    };
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [filters.status, filters.type, playerFilter?.userId, datePreset, customMode, customFrom, customTo]);
+    }, [filters.status, filters.type, playerFilter?.userId, datePreset, customMode, customFrom, customTo, debouncedPlayerSearch, debouncedAmountSearch]);
 
     useEffect(() => {
-        if (pendingCountsQuery.data) setPendingCounts(pendingCountsQuery.data);
-    }, [pendingCountsQuery.data]);
-
-    useEffect(() => {
-        setLoading(paymentsQuery.isLoading || paymentsQuery.isFetching || pendingCountsQuery.isLoading || pendingCountsQuery.isFetching);
+        setLoading(
+            paymentsQuery.isLoading
+            || paymentsQuery.isFetching
+            || dashboardStatsQuery.isLoading
+            || dashboardStatsQuery.isFetching,
+        );
     }, [
         paymentsQuery.isLoading,
         paymentsQuery.isFetching,
-        pendingCountsQuery.isLoading,
-        pendingCountsQuery.isFetching,
+        dashboardStatsQuery.isLoading,
+        dashboardStatsQuery.isFetching,
     ]);
+
+    const dash = dashboardStatsQuery.data ?? EMPTY_DASHBOARD_STATS;
 
     const openActionModal = (payment, action) => {
         setActionModal({ show: true, payment, action });
@@ -362,25 +422,23 @@ const PaymentManagement = () => {
             setProcessing(true);
             setActionPasswordError('');
             const nextStatus = action === 'approve' ? 'approved' : 'rejected';
-            setPayments((prev) => prev.map((item) => (
-                item._id === payment._id
-                    ? { ...item, status: nextStatus, adminRemarks: remarks || item.adminRemarks }
-                    : item
-            )));
-            setPendingCounts((prev) => {
-                if (payment.status !== 'pending') return prev;
-                const next = { ...prev };
-                if (payment.type === 'deposit') next.deposits = Math.max(0, (next.deposits || 0) - 1);
-                if (payment.type === 'withdrawal') next.withdrawals = Math.max(0, (next.withdrawals || 0) - 1);
-                next.total = Math.max(0, (next.total || 0) - 1);
-                return next;
+            queryClient.setQueriesData({ queryKey: ['payments-list'] }, (old) => {
+                if (!old || !Array.isArray(old.data)) return old;
+                return {
+                    ...old,
+                    data: old.data.map((item) => (
+                        item._id === payment._id
+                            ? { ...item, status: nextStatus, adminRemarks: remarks || item.adminRemarks }
+                            : item
+                    )),
+                };
             });
         },
         onSuccess: async (data) => {
             if (data?.success) {
                 await Promise.all([
                     queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
-                    queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] }),
+                    queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] }),
                 ]);
                 closeActionModal();
                 return;
@@ -389,7 +447,7 @@ const PaymentManagement = () => {
                 setActionPasswordError(data.message || 'Invalid secret password');
                 await Promise.all([
                     queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
-                    queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] }),
+                    queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] }),
                 ]);
                 return;
             }
@@ -398,14 +456,14 @@ const PaymentManagement = () => {
             }
             await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
-                queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] }),
+                queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] }),
             ]);
         },
         onError: async () => {
             alert('Error processing action');
             await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
-                queryClient.invalidateQueries({ queryKey: ['payments-pending-count'] }),
+                queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] }),
             ]);
         },
         onSettled: () => {
@@ -435,6 +493,7 @@ const PaymentManagement = () => {
     const handleDatePresetSelect = (presetId) => {
         if (!customMode && datePreset === presetId) {
             queryClient.invalidateQueries({ queryKey: ['payments-list'] });
+            queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] });
             return;
         }
         setDatePreset(presetId);
@@ -455,11 +514,11 @@ const PaymentManagement = () => {
     };
 
     const displayDateRangeLabel = useMemo(() => {
-        if (customMode && customFrom && customTo) return formatRangeLabel(customFrom, customTo);
-        if (datePreset === 'all') return 'All time';
-        const p = DATE_PRESETS.find((x) => x.id === datePreset);
-        return p?.label || 'All time';
-    }, [customMode, customFrom, customTo, datePreset]);
+        const from = typeof effectiveDateRange?.from === 'string' ? effectiveDateRange.from.trim() : '';
+        const to = typeof effectiveDateRange?.to === 'string' ? effectiveDateRange.to.trim() : '';
+        if (from && to) return formatRangeLabel(from, to);
+        return 'All time';
+    }, [effectiveDateRange?.from, effectiveDateRange?.to]);
 
     const closeImageModal = () => {
         if (imageModal.show && imageModalHistoryPushedRef.current) {
@@ -556,9 +615,17 @@ const PaymentManagement = () => {
     };
 
     const hasDateRange = Boolean(effectiveDateRange?.from && effectiveDateRange?.to);
-    const isAllPaymentsView = !playerFilter?.userId && !filters.status && !filters.type && !hasDateRange;
-    const hasActiveFilters = Boolean(filters.status || filters.type || playerFilter?.userId || hasDateRange);
-    const pendingRequireAction = pendingCounts.total > 0;
+    const isAllPaymentsView = !playerFilter?.userId && !filters.status && !filters.type && !hasDateRange
+        && !debouncedPlayerSearch && !debouncedAmountSearch;
+    const hasActiveFilters = Boolean(
+        filters.status
+        || filters.type
+        || playerFilter?.userId
+        || hasDateRange
+        || debouncedPlayerSearch
+        || debouncedAmountSearch,
+    );
+    const pendingRequireAction = dash.totalPending.count > 0;
 
     return (
         <AdminLayout onLogout={handleLogout} title="Payments">
@@ -568,70 +635,6 @@ const PaymentManagement = () => {
                     <FaWallet className="text-orange-500" />
                     Payment Management
                 </h1>
-            </div>
-
-            {/* Quick Stats – clickable for quick filter */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 mb-6">
-                <div
-                    className={`order-2 sm:order-1 rounded-xl p-2.5 sm:p-5 border-2 transition-all cursor-pointer ${
-                        filters.status === 'pending' && filters.type === 'deposit'
-                            ? 'border-amber-500 bg-orange-500/10'
-                            : 'border-gray-200 bg-white hover:border-gray-200'
-                    }`}
-                    onClick={() => setFilters({ status: 'pending', type: 'deposit' })}
-                    title="Click to view pending deposits"
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide sm:tracking-wider leading-tight">Pending Deposits</p>
-                            <p className="text-lg sm:text-3xl font-bold text-orange-500 mt-0">{pendingCounts.deposits}</p>
-                            <p className="text-[10px] sm:text-xs text-gray-500 mt-0 leading-tight">Click to filter</p>
-                        </div>
-                        <FaArrowDown className="w-6 h-6 sm:w-10 sm:h-10 text-orange-500/50 shrink-0" />
-                    </div>
-                </div>
-                <div
-                    className={`order-3 sm:order-2 rounded-xl p-2.5 sm:p-5 border-2 transition-all cursor-pointer ${
-                        filters.status === 'pending' && filters.type === 'withdrawal'
-                            ? 'border-amber-500 bg-orange-500/10'
-                            : 'border-gray-200 bg-white hover:border-gray-200'
-                    }`}
-                    onClick={() => setFilters({ status: 'pending', type: 'withdrawal' })}
-                    title="Click to view pending withdrawals"
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide sm:tracking-wider leading-tight">Pending Withdrawals</p>
-                            <p className="text-lg sm:text-3xl font-bold text-orange-500 mt-0">{pendingCounts.withdrawals}</p>
-                            <p className="text-[10px] sm:text-xs text-gray-500 mt-0 leading-tight">Click to filter</p>
-                        </div>
-                        <FaArrowUp className="w-6 h-6 sm:w-10 sm:h-10 text-purple-500/50 shrink-0" />
-                    </div>
-                </div>
-                <div
-                    className={`order-1 sm:order-3 rounded-xl p-2.5 sm:p-5 border-2 transition-all cursor-pointer ${
-                        isAllPaymentsView
-                            ? 'border-blue-500 bg-blue-500/10'
-                            : 'border-gray-200 bg-white hover:border-gray-200'
-                    } col-span-2 sm:col-span-1`}
-                    onClick={() => {
-                        setFilters({ status: '', type: '' });
-                        setPlayerFilter(null);
-                        setDatePreset('all');
-                        setCustomMode(false);
-                        setCustomOpen(false);
-                    }}
-                    title="Click to view all payments"
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide sm:tracking-wider leading-tight">Total Pending</p>
-                            <p className="text-lg sm:text-3xl font-bold text-blue-600 mt-0">{pendingCounts.total}</p>
-                            <p className="text-[10px] sm:text-xs text-gray-500 mt-0 leading-tight">{pendingRequireAction ? 'Requires action' : 'All clear'}</p>
-                        </div>
-                        <FaClock className="w-6 h-6 sm:w-10 sm:h-10 text-blue-500/50 shrink-0" />
-                    </div>
-                </div>
             </div>
 
             {/* Date range (IST calendar days — matches dashboard) */}
@@ -700,6 +703,154 @@ const PaymentManagement = () => {
                         <span className="text-gray-400"> (IST)</span>
                     )}
                 </p>
+                <p className="text-[11px] text-gray-400 mt-1 leading-snug">
+                    Summary cards and the payment list both use this range (IST midnight–midnight for each day).
+                </p>
+            </div>
+
+            {/* Dashboard stats (counts + amounts for selected date range) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 mb-6">
+                <div
+                    className={`rounded-xl p-2.5 sm:p-4 border-2 transition-all cursor-pointer ${
+                        filters.status === 'approved' && filters.type === 'deposit'
+                            ? 'border-green-500 bg-green-500/10'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
+                    }`}
+                    onClick={() => setFilters({ status: 'approved', type: 'deposit' })}
+                    title="Filter: approved deposits (stats include completed)"
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide leading-tight">Approved Deposits</p>
+                            <p className="text-lg sm:text-2xl font-bold text-green-600 mt-0.5">{dash.approvedDeposits.count}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-600 mt-0 font-medium">{fmtInr(dash.approvedDeposits.totalAmount)}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 leading-tight">Click to filter</p>
+                        </div>
+                        <FaCheck className="w-6 h-6 sm:w-9 sm:h-9 text-green-500/45 shrink-0 mt-0.5" />
+                    </div>
+                </div>
+                <div
+                    className={`rounded-xl p-2.5 sm:p-4 border-2 transition-all cursor-pointer ${
+                        filters.status === 'pending' && filters.type === 'deposit'
+                            ? 'border-amber-500 bg-orange-500/10'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
+                    }`}
+                    onClick={() => setFilters({ status: 'pending', type: 'deposit' })}
+                    title="Click to view pending deposits"
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide leading-tight">Pending Deposits</p>
+                            <p className="text-lg sm:text-2xl font-bold text-orange-500 mt-0.5">{dash.pendingDeposits.count}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-600 mt-0 font-medium">{fmtInr(dash.pendingDeposits.totalAmount)}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 leading-tight">Click to filter</p>
+                        </div>
+                        <FaArrowDown className="w-6 h-6 sm:w-9 sm:h-9 text-orange-500/50 shrink-0 mt-0.5" />
+                    </div>
+                </div>
+                <div
+                    className={`rounded-xl p-2.5 sm:p-4 border-2 transition-all cursor-pointer ${
+                        filters.status === 'approved' && filters.type === 'withdrawal'
+                            ? 'border-purple-500 bg-purple-500/10'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
+                    }`}
+                    onClick={() => setFilters({ status: 'approved', type: 'withdrawal' })}
+                    title="Filter: approved withdrawals (stats include completed)"
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide leading-tight">Approved Withdrawals</p>
+                            <p className="text-lg sm:text-2xl font-bold text-purple-600 mt-0.5">{dash.approvedWithdrawals.count}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-600 mt-0 font-medium">{fmtInr(dash.approvedWithdrawals.totalAmount)}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 leading-tight">Click to filter</p>
+                        </div>
+                        <FaCheck className="w-6 h-6 sm:w-9 sm:h-9 text-purple-500/45 shrink-0 mt-0.5" />
+                    </div>
+                </div>
+                <div
+                    className={`rounded-xl p-2.5 sm:p-4 border-2 transition-all cursor-pointer ${
+                        filters.status === 'pending' && filters.type === 'withdrawal'
+                            ? 'border-amber-500 bg-orange-500/10'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
+                    }`}
+                    onClick={() => setFilters({ status: 'pending', type: 'withdrawal' })}
+                    title="Click to view pending withdrawals"
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide leading-tight">Pending Withdrawals</p>
+                            <p className="text-lg sm:text-2xl font-bold text-orange-500 mt-0.5">{dash.pendingWithdrawals.count}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-600 mt-0 font-medium">{fmtInr(dash.pendingWithdrawals.totalAmount)}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 leading-tight">Click to filter</p>
+                        </div>
+                        <FaArrowUp className="w-6 h-6 sm:w-9 sm:h-9 text-purple-500/50 shrink-0 mt-0.5" />
+                    </div>
+                </div>
+                <div
+                    className={`rounded-xl p-2.5 sm:p-4 border-2 transition-all cursor-pointer ${
+                        filters.status === 'rejected' && filters.type === 'withdrawal'
+                            ? 'border-red-400 bg-red-500/10'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
+                    }`}
+                    onClick={() => setFilters({ status: 'rejected', type: 'withdrawal' })}
+                    title="Rejected withdrawals"
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide leading-tight">Rejected Withdrawals</p>
+                            <p className="text-lg sm:text-2xl font-bold text-red-500 mt-0.5">{dash.rejectedWithdrawals.count}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-600 mt-0 font-medium">{fmtInr(dash.rejectedWithdrawals.totalAmount)}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 leading-tight">Click to filter</p>
+                        </div>
+                        <FaTimes className="w-6 h-6 sm:w-9 sm:h-9 text-red-400/50 shrink-0 mt-0.5" />
+                    </div>
+                </div>
+                <div
+                    className={`rounded-xl p-2.5 sm:p-4 border-2 transition-all cursor-pointer ${
+                        filters.status === 'rejected' && filters.type === 'deposit'
+                            ? 'border-amber-600 bg-amber-500/10'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
+                    }`}
+                    onClick={() => setFilters({ status: 'rejected', type: 'deposit' })}
+                    title="Rejected / failed deposits"
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide leading-tight">Failed Deposits</p>
+                            <p className="text-lg sm:text-2xl font-bold text-amber-700 mt-0.5">{dash.failedDeposits.count}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-600 mt-0 font-medium">{fmtInr(dash.failedDeposits.totalAmount)}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 leading-tight">Rejected deposits</p>
+                        </div>
+                        <FaExclamationTriangle className="w-6 h-6 sm:w-9 sm:h-9 text-amber-600/50 shrink-0 mt-0.5" />
+                    </div>
+                </div>
+                <div
+                    className={`rounded-xl p-2.5 sm:p-4 border-2 transition-all cursor-pointer ${
+                        isAllPaymentsView
+                            ? 'border-blue-500 bg-blue-500/10'
+                            : 'border-gray-200 bg-white hover:border-gray-200'
+                    } col-span-2 sm:col-span-1 xl:col-span-1`}
+                    onClick={() => {
+                        setFilters({ status: '', type: '' });
+                        setPlayerFilter(null);
+                        setPlayerSearch('');
+                        setAmountSearch('');
+                        setDatePreset('all');
+                        setCustomMode(false);
+                        setCustomOpen(false);
+                    }}
+                    title="Click to view all payments"
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide leading-tight">Total Pending</p>
+                            <p className="text-lg sm:text-2xl font-bold text-blue-600 mt-0.5">{dash.totalPending.count}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-600 mt-0 font-medium">{fmtInr(dash.totalPending.totalAmount)}</p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 leading-tight">{pendingRequireAction ? 'Requires action' : 'All clear'}</p>
+                        </div>
+                        <FaClock className="w-6 h-6 sm:w-9 sm:h-9 text-blue-500/50 shrink-0 mt-0.5" />
+                    </div>
+                </div>
             </div>
 
             {/* Filters */}
@@ -713,7 +864,7 @@ const PaymentManagement = () => {
                         </span>
                     )}
                 </div>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3 items-end">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 items-end">
                     <div>
                         <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Status</label>
                         <select
@@ -740,12 +891,40 @@ const PaymentManagement = () => {
                             <option value="withdrawal">Withdrawal</option>
                         </select>
                     </div>
-                    <div className="flex items-end">
+                    <div className="sm:col-span-2 lg:col-span-1">
+                        <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Search by player</label>
+                        <div className="relative">
+                            <FaSearch className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="search"
+                                value={playerSearch}
+                                onChange={(e) => setPlayerSearch(e.target.value)}
+                                placeholder="Username or phone"
+                                autoComplete="off"
+                                className="w-full rounded-lg border border-gray-200 bg-gray-100 py-2 pl-9 pr-3 text-xs text-gray-800 focus:ring-2 focus:ring-amber-500/50 sm:text-sm"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Search by amount</label>
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            value={amountSearch}
+                            onChange={(e) => setAmountSearch(e.target.value.replace(/[^\d.]/g, ''))}
+                            placeholder="Exact match (₹)"
+                            autoComplete="off"
+                            className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs text-gray-800 focus:ring-2 focus:ring-amber-500/50 sm:text-sm"
+                        />
+                    </div>
+                    <div className="flex items-end sm:col-span-2 lg:col-span-1">
                         <button
                             type="button"
                             onClick={() => {
                                 setFilters({ status: '', type: '' });
                                 setPlayerFilter(null);
+                                setPlayerSearch('');
+                                setAmountSearch('');
                                 setDatePreset('all');
                                 setCustomMode(false);
                                 setCustomOpen(false);

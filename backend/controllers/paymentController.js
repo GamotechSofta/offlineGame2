@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Payment from '../models/payment/payment.js';
+import User from '../models/user/user.js';
 import BankDetail from '../models/bankDetail/bankDetail.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import Admin from '../models/admin/admin.js';
@@ -542,6 +543,86 @@ export const getPayments = async (req, res) => {
         } else if (bookieUserIds !== null) {
             query.userId = { $in: bookieUserIds };
         }
+
+        const playerSearchRaw = typeof req.query.playerSearch === 'string' ? req.query.playerSearch.trim() : '';
+        if (playerSearchRaw) {
+            const esc = playerSearchRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const rx = new RegExp(esc, 'i');
+            const or = [
+                { username: rx },
+                { phone: rx },
+            ];
+            if (mongoose.Types.ObjectId.isValid(playerSearchRaw)) {
+                or.push({ _id: new mongoose.Types.ObjectId(playerSearchRaw) });
+            }
+            let matchedUsers = await User.find({ $or: or }).select('_id').lean();
+            let matchedIds = matchedUsers.map((u) => u._id);
+            if (bookieUserIds !== null) {
+                const allowedSet = new Set(bookieUserIds.map((id) => String(id)));
+                matchedIds = matchedIds.filter((id) => allowedSet.has(String(id)));
+            }
+            if (matchedIds.length === 0) {
+                return res.status(200).json({
+                    success: true,
+                    data: [],
+                    pagination: {
+                        page,
+                        limit,
+                        total: 0,
+                        totalPages: 1,
+                        hasNextPage: false,
+                        hasPrevPage: false,
+                    },
+                });
+            }
+            const existingUserFilter = query.userId;
+            if (existingUserFilter && typeof existingUserFilter === 'object' && Array.isArray(existingUserFilter.$in)) {
+                const searchSet = new Set(matchedIds.map(String));
+                const intersection = existingUserFilter.$in.filter((id) => searchSet.has(String(id)));
+                if (intersection.length === 0) {
+                    return res.status(200).json({
+                        success: true,
+                        data: [],
+                        pagination: {
+                            page,
+                            limit,
+                            total: 0,
+                            totalPages: 1,
+                            hasNextPage: false,
+                            hasPrevPage: false,
+                        },
+                    });
+                }
+                query.userId = { $in: intersection };
+            } else if (existingUserFilter) {
+                const single = String(existingUserFilter);
+                if (!matchedIds.some((id) => String(id) === single)) {
+                    return res.status(200).json({
+                        success: true,
+                        data: [],
+                        pagination: {
+                            page,
+                            limit,
+                            total: 0,
+                            totalPages: 1,
+                            hasNextPage: false,
+                            hasPrevPage: false,
+                        },
+                    });
+                }
+            } else {
+                query.userId = { $in: matchedIds };
+            }
+        }
+
+        const amountEqRaw = typeof req.query.amountEquals === 'string' ? req.query.amountEquals.trim() : '';
+        if (amountEqRaw !== '') {
+            const n = Number(amountEqRaw);
+            if (Number.isFinite(n) && n >= 0) {
+                query.amount = n;
+            }
+        }
+
         if (status) query.status = status;
         if (type) query.type = type;
 
@@ -649,6 +730,91 @@ export const getPendingCount = async (req, res) => {
                 deposits: depositCount,
                 withdrawals: withdrawalCount,
                 total: depositCount + withdrawalCount,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Admin: payment dashboard aggregates (counts + amounts) for top cards.
+ * Optional IST date range: both `from` and `to` (YYYY-MM-DD) or neither for all-time.
+ */
+export const getPaymentDashboardStats = async (req, res) => {
+    try {
+        const fromQ = typeof req.query.from === 'string' ? req.query.from.trim() : '';
+        const toQ = typeof req.query.to === 'string' ? req.query.to.trim() : '';
+        const match = {};
+
+        if ((fromQ && !toQ) || (!fromQ && toQ)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Both from and to are required for a date range (YYYY-MM-DD, IST).',
+            });
+        }
+        if (fromQ && toQ) {
+            if (fromQ > toQ) {
+                return res.status(400).json({ success: false, message: 'from must be on or before to.' });
+            }
+            const bounds = parseIstPaymentsCreatedAtRange(fromQ, toQ);
+            if (!bounds) {
+                return res.status(400).json({ success: false, message: 'Invalid from/to. Use YYYY-MM-DD (IST).' });
+            }
+            match.createdAt = { $gte: bounds.start, $lte: bounds.end };
+        }
+
+        const bookieUserIds = await getBookieUserIds(req.admin);
+        if (bookieUserIds !== null) {
+            match.userId = { $in: bookieUserIds };
+        }
+
+        const rows = await Payment.aggregate([
+            { $match: match },
+            {
+                $group: {
+                    _id: { type: '$type', status: '$status' },
+                    count: { $sum: 1 },
+                    totalAmount: { $sum: '$amount' },
+                },
+            },
+        ]);
+
+        const empty = () => ({ count: 0, totalAmount: 0 });
+        const cell = (type, status) => {
+            const r = rows.find((x) => x._id?.type === type && x._id?.status === status);
+            if (!r) return empty();
+            return { count: r.count, totalAmount: Number(r.totalAmount || 0) };
+        };
+        const mergeCells = (type, statuses) => {
+            const list = rows.filter((r) => r._id?.type === type && statuses.includes(r._id?.status));
+            if (!list.length) return empty();
+            return {
+                count: list.reduce((s, r) => s + r.count, 0),
+                totalAmount: list.reduce((s, r) => s + Number(r.totalAmount || 0), 0),
+            };
+        };
+
+        const pendingDeposits = cell('deposit', 'pending');
+        const pendingWithdrawals = cell('withdrawal', 'pending');
+        const approvedDeposits = mergeCells('deposit', ['approved', 'completed']);
+        const approvedWithdrawals = mergeCells('withdrawal', ['approved', 'completed']);
+        const rejectedWithdrawals = cell('withdrawal', 'rejected');
+        const failedDeposits = cell('deposit', 'rejected');
+
+        res.status(200).json({
+            success: true,
+            data: {
+                pendingDeposits,
+                pendingWithdrawals,
+                totalPending: {
+                    count: pendingDeposits.count + pendingWithdrawals.count,
+                    totalAmount: pendingDeposits.totalAmount + pendingWithdrawals.totalAmount,
+                },
+                approvedDeposits,
+                approvedWithdrawals,
+                rejectedWithdrawals,
+                failedDeposits,
             },
         });
     } catch (error) {

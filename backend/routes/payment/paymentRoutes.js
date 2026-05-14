@@ -7,6 +7,7 @@ import {
     getMyDeposits,
     getMyWithdrawals,
     getPayments,
+    getPaymentDashboardStats,
     getPendingCount,
     approvePayment,
     rejectPayment,
@@ -60,6 +61,7 @@ router.get('/generic', getPayments);
 
 
 router.get('/pending-count', verifyAdmin, getPendingCount);
+router.get('/dashboard-stats', verifyAdmin, getPaymentDashboardStats);
 router.get('/:id/screenshot', verifyAdmin, getPaymentScreenshot);
 router.post('/:id/approve', verifyAdmin, approvePayment);
 router.post('/:id/reject', verifyAdmin, rejectPayment);
