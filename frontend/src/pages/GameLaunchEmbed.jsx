@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 
 /**
@@ -21,8 +21,6 @@ const GameLaunchEmbed = () => {
 
   const [launchUrl, setLaunchUrl] = useState('');
   const [gameName, setGameName] = useState('Game');
-  const [showFallback, setShowFallback] = useState(false);
-  const fallbackTimerRef = useRef(null);
 
   // Resolve launch URL once, from router state (preferred) or sessionStorage (refresh-safe).
   useEffect(() => {
@@ -59,22 +57,12 @@ const GameLaunchEmbed = () => {
       if (resolvedName) sessionStorage.setItem(nameKeyForCode(gameCode), resolvedName);
     } catch (_) {}
 
-    // If the iframe is still empty after ~12s, surface a "Open in full window" fallback.
-    fallbackTimerRef.current = window.setTimeout(() => setShowFallback(true), 12000);
-
     // Make sure router state never leaks into a shareable URL (replace history entry with a clean one).
     if (location.state) {
       try {
         window.history.replaceState({}, '', `/games/play/${encodeURIComponent(gameCode)}`);
       } catch (_) {}
     }
-
-    return () => {
-      if (fallbackTimerRef.current) {
-        window.clearTimeout(fallbackTimerRef.current);
-        fallbackTimerRef.current = null;
-      }
-    };
   }, [gameCode, location.state, navigate]);
 
   const clearStoredLaunch = () => {
@@ -87,13 +75,6 @@ const GameLaunchEmbed = () => {
   const handleBack = () => {
     clearStoredLaunch();
     navigate('/games', { replace: true });
-  };
-
-  /** Partner may block framing entirely (X-Frame-Options / CSP). Only then offer top-level nav. */
-  const handleOpenFullWindow = () => {
-    if (!launchUrl) return;
-    clearStoredLaunch();
-    window.location.assign(launchUrl);
   };
 
   const iframeProps = useMemo(
@@ -128,15 +109,6 @@ const GameLaunchEmbed = () => {
           ← Back
         </button>
         <div className="ml-2 truncate text-sm font-semibold text-white">{gameName}</div>
-        {showFallback ? (
-          <button
-            type="button"
-            onClick={handleOpenFullWindow}
-            className="ml-auto rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-100 hover:bg-amber-500/25"
-          >
-            Open in full window
-          </button>
-        ) : null}
       </div>
       <iframe {...iframeProps} />
     </div>

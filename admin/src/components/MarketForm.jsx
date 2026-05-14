@@ -185,8 +185,8 @@ const MarketForm = ({ market, defaultMarketType = 'main', onClose, onSuccess, ap
 
     return (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-3 sm:p-4 md:p-6 z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-200">
-                <div className="p-3.5 sm:p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-hidden">
+                <div className="p-3.5 sm:p-4 overflow-y-auto flex-1">
                     <div className="flex justify-between items-center mb-3.5 sm:mb-4">
                         <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
                             {market ? 'Edit Market' : 'Create New Market'}
