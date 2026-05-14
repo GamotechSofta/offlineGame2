@@ -21,6 +21,74 @@ const formatTime = (timeStr) => {
 
 const formatNum = (n) => (n != null && Number.isFinite(n) ? Number(n).toLocaleString('en-IN') : '0');
 
+/** Rows per page for Detailed Bet Analysis (must match server default/max). */
+const DETAILED_BETS_PAGE_SIZE = 25;
+
+function buildServerBetBarMeta(rows, pagination, totalCount) {
+    if (!pagination) {
+        return { page: 1, totalPages: 1, total: 0, hasPrev: false, hasNext: false, startIdx: 0, endIdx: 0 };
+    }
+    const p = pagination;
+    const total = totalCount ?? 0;
+    const limit = p.limit ?? DETAILED_BETS_PAGE_SIZE;
+    const page = p.page ?? 1;
+    const rowsLen = (rows || []).length;
+    return {
+        page,
+        totalPages: p.totalPages ?? 1,
+        total,
+        hasPrev: Boolean(p.hasPrev),
+        hasNext: Boolean(p.hasNext),
+        startIdx: total === 0 ? 0 : (page - 1) * limit + 1,
+        endIdx: total === 0 ? 0 : (page - 1) * limit + rowsLen,
+    };
+}
+
+/** Paginated bet rows are not fed into SP/DP chart merge (only one page would mislead). */
+const NO_SESSION_BETS_FOR_CHART = [];
+
+function DetailedBetsPaginationBar({ meta, onPrev, onNext }) {
+    const { page, totalPages, total, hasPrev, hasNext, startIdx, endIdx } = meta;
+    return (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2.5 border-t border-gray-200 bg-gray-50 text-sm">
+            <p className="text-xs text-gray-600">
+                {total === 0 ? (
+                    <>No bets</>
+                ) : (
+                    <>
+                        Showing <span className="font-semibold text-gray-800">{startIdx}</span>–
+                        <span className="font-semibold text-gray-800">{endIdx}</span> of{' '}
+                        <span className="font-semibold text-gray-800">{total.toLocaleString('en-IN')}</span>
+                    </>
+                )}
+            </p>
+            {totalPages > 1 && (
+                <div className="flex items-center justify-end gap-2 shrink-0">
+                    <button
+                        type="button"
+                        disabled={!hasPrev}
+                        onClick={onPrev}
+                        className="px-3 py-1.5 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Prev
+                    </button>
+                    <span className="text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                        Page {page} / {totalPages}
+                    </span>
+                    <button
+                        type="button"
+                        disabled={!hasNext}
+                        onClick={onNext}
+                        className="px-3 py-1.5 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
 /** Merge two single-digit stat blocks (open + close sessions). */
 const mergeSingleDigitBlocks = (a = {}, b = {}) => {
     const digits = {};
@@ -1308,11 +1376,16 @@ const MarketDetail = () => {
         }
     };
 
-    const fetchAllBets = async () => {
+    const fetchDetailedBets = async (openPage, closePage) => {
         if (!marketId) return;
         setLoadingBets(true);
         try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/markets/get-market-bets/${marketId}`);
+            const params = new URLSearchParams({
+                openPage: String(openPage),
+                closePage: String(closePage),
+                limit: String(DETAILED_BETS_PAGE_SIZE),
+            });
+            const res = await fetchWithAuth(`${API_BASE_URL}/markets/get-market-bets/${marketId}?${params.toString()}`);
             if (res.status === 401) return;
             const json = await res.json();
             if (json.success) {
@@ -1326,11 +1399,8 @@ const MarketDetail = () => {
     };
 
     useEffect(() => {
-        if (data?.market) {
-            fetchAllBets();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [marketId, data]);
+        setAllBets(null);
+    }, [marketId]);
 
     useEffect(() => {
         const admin = localStorage.getItem('admin');
@@ -1385,12 +1455,7 @@ const MarketDetail = () => {
     const viewSinglePattiItems = viewStats?.singlePatti?.items || {};
     const viewDoublePattiItems = viewStats?.doublePatti?.items || {};
 
-    const sessionBetsForView =
-        statusView === 'open'
-            ? allBets?.open || []
-            : statusView === 'closed'
-              ? allBets?.close || []
-              : [...(allBets?.open || []), ...(allBets?.close || [])];
+    const sessionBetsForView = NO_SESSION_BETS_FOR_CHART;
 
     // View-dependent: SP/DP Common merged into the same per-patti rows as the user chart (3-digit on that patti; legacy 1-digit spread).
     const singlePattiByAnkForView = useMemo(
@@ -1403,6 +1468,15 @@ const MarketDetail = () => {
         [viewDoublePattiItems, sessionBetsForView]
     );
     const doublePattiTotalsForView = useMemo(() => getDoublePattiTotalsFromByAnk(doublePattiByAnkForView), [doublePattiByAnkForView]);
+
+    const detailedOpenBarMeta = useMemo(
+        () => buildServerBetBarMeta(allBets?.open, allBets?.openPagination, allBets?.totalOpen),
+        [allBets]
+    );
+    const detailedCloseBarMeta = useMemo(
+        () => buildServerBetBarMeta(allBets?.close, allBets?.closePagination, allBets?.totalClose),
+        [allBets]
+    );
 
     // Sanity check: Ank grouping matches user side
     useEffect(() => {
@@ -2058,14 +2132,31 @@ const MarketDetail = () => {
                     </Link>
                 </div>
 
-                {/* Detailed Bet Analysis Section */}
+                {/* Detailed Bet Analysis: loaded on demand (not with market stats) to avoid heavy get-market-bets on every open */}
                 <SectionCard title="Detailed Bet Analysis" className="mt-8">
                     {loadingBets ? (
                         <div className="text-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-orange-500 mx-auto" />
                             <p className="text-gray-500 mt-2">Loading bets...</p>
                         </div>
-                    ) : allBets ? (
+                    ) : allBets == null ? (
+                        <div className="text-center py-8 px-4">
+                            <p className="text-gray-600 text-sm mb-1 max-w-md mx-auto">
+                                Opening and closing bet rows are not loaded with the rest of this page.
+                            </p>
+                            <p className="text-gray-500 text-xs mb-4 max-w-md mx-auto">
+                                Load when you need the full list (today&apos;s bets for this market).
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => fetchDetailedBets(1, 1)}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-gray-900 font-semibold text-sm border border-amber-400 transition-colors"
+                            >
+                                <FaChartBar className="w-4 h-4" />
+                                Load bet analysis
+                            </button>
+                        </div>
+                    ) : (
                         <div className="space-y-6">
                             {/* Opening Bets Section */}
                             <div>
@@ -2075,10 +2166,15 @@ const MarketDetail = () => {
                                         Opening Bets ({allBets.totalOpen})
                                     </h3>
                                     <span className="text-sm text-gray-600">
-                                        Total: ₹{formatNum(allBets.open.reduce((sum, b) => sum + (b.amount || 0), 0))}
+                                        Total: ₹
+                                        {formatNum(
+                                            Number.isFinite(Number(allBets.totalOpenAmount))
+                                                ? Number(allBets.totalOpenAmount)
+                                                : (allBets.open || []).reduce((sum, b) => sum + (b.amount || 0), 0)
+                                        )}
                                     </span>
                                 </div>
-                                {allBets.open.length === 0 ? (
+                                {(allBets.totalOpen ?? 0) === 0 ? (
                                     <p className="text-gray-500 text-center py-4">No opening bets found</p>
                                 ) : (
                                     <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -2126,6 +2222,19 @@ const MarketDetail = () => {
                                                 ))}
                                             </tbody>
                                         </table>
+                                        <DetailedBetsPaginationBar
+                                            meta={detailedOpenBarMeta}
+                                            onPrev={() => {
+                                                const op = allBets?.openPagination;
+                                                const cp = allBets?.closePagination?.page ?? 1;
+                                                if (op?.hasPrev) fetchDetailedBets(op.page - 1, cp);
+                                            }}
+                                            onNext={() => {
+                                                const op = allBets?.openPagination;
+                                                const cp = allBets?.closePagination?.page ?? 1;
+                                                if (op?.hasNext) fetchDetailedBets(op.page + 1, cp);
+                                            }}
+                                        />
                                     </div>
                                 )}
                             </div>
@@ -2138,10 +2247,15 @@ const MarketDetail = () => {
                                         Closing Bets ({allBets.totalClose})
                                     </h3>
                                     <span className="text-sm text-gray-600">
-                                        Total: ₹{formatNum(allBets.close.reduce((sum, b) => sum + (b.amount || 0), 0))}
+                                        Total: ₹
+                                        {formatNum(
+                                            Number.isFinite(Number(allBets.totalCloseAmount))
+                                                ? Number(allBets.totalCloseAmount)
+                                                : (allBets.close || []).reduce((sum, b) => sum + (b.amount || 0), 0)
+                                        )}
                                     </span>
                                 </div>
-                                {allBets.close.length === 0 ? (
+                                {(allBets.totalClose ?? 0) === 0 ? (
                                     <p className="text-gray-500 text-center py-4">No closing bets found</p>
                                 ) : (
                                     <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -2189,12 +2303,23 @@ const MarketDetail = () => {
                                                 ))}
                                             </tbody>
                                         </table>
+                                        <DetailedBetsPaginationBar
+                                            meta={detailedCloseBarMeta}
+                                            onPrev={() => {
+                                                const cp = allBets?.closePagination;
+                                                const op = allBets?.openPagination?.page ?? 1;
+                                                if (cp?.hasPrev) fetchDetailedBets(op, cp.page - 1);
+                                            }}
+                                            onNext={() => {
+                                                const cp = allBets?.closePagination;
+                                                const op = allBets?.openPagination?.page ?? 1;
+                                                if (cp?.hasNext) fetchDetailedBets(op, cp.page + 1);
+                                            }}
+                                        />
                                     </div>
                                 )}
                             </div>
                         </div>
-                    ) : (
-                        <p className="text-gray-500 text-center py-4">No bet data available</p>
                     )}
                 </SectionCard>
 

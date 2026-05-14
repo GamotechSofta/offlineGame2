@@ -1318,9 +1318,10 @@ export const deleteMarket = async (req, res) => {
 };
 
 /**
- * Get all bets for a market with user details - separated by opening/closing
- * GET /api/v1/markets/get-market-bets/:id
- * Returns all bets with user information, separated by betOn (open/close)
+ * Get bets for a market (admin) — paginated per session.
+ * GET /api/v1/markets/get-market-bets/:id?openPage=1&closePage=1&limit=25
+ * Query: openPage, closePage (1-based), limit (default 25, max 100).
+ * Open session = not strictly `betOn: 'close'` (matches legacy / default open).
  */
 export const getMarketBets = async (req, res) => {
     try {
@@ -1342,24 +1343,81 @@ export const getMarketBets = async (req, res) => {
         const endOfTodayIST = new Date(`${todayKey}T23:59:59.999+05:30`);
         matchFilter.createdAt = { $gte: startOfTodayIST, $lte: endOfTodayIST };
 
-        const bets = await Bet.find(matchFilter)
-            .populate('userId', 'username phone email')
-            .populate('placedByBookieId', 'username')
-            .sort({ createdAt: -1 })
-            .lean();
+        let limit = parseInt(String(req.query.limit || '25'), 10);
+        if (!Number.isFinite(limit) || limit < 1) limit = 25;
+        limit = Math.min(limit, 100);
 
-        // Separate bets by betOn (open/close)
-        const openBets = bets.filter(b => b.betOn === 'open' || !b.betOn);
-        const closeBets = bets.filter(b => b.betOn === 'close');
+        let openPage = parseInt(String(req.query.openPage || '1'), 10);
+        let closePage = parseInt(String(req.query.closePage || '1'), 10);
+        if (!Number.isFinite(openPage) || openPage < 1) openPage = 1;
+        if (!Number.isFinite(closePage) || closePage < 1) closePage = 1;
+
+        const openMatch = { ...matchFilter, betOn: { $ne: 'close' } };
+        const closeMatch = { ...matchFilter, betOn: 'close' };
+
+        const sumGroup = [
+            { $group: { _id: null, total: { $sum: { $toDouble: { $ifNull: ['$amount', 0] } } } } },
+        ];
+
+        const [totalOpen, totalClose, openSumAgg, closeSumAgg] = await Promise.all([
+            Bet.countDocuments(openMatch),
+            Bet.countDocuments(closeMatch),
+            Bet.aggregate([{ $match: openMatch }, ...sumGroup]),
+            Bet.aggregate([{ $match: closeMatch }, ...sumGroup]),
+        ]);
+
+        const totalOpenAmount = Number(openSumAgg[0]?.total) || 0;
+        const totalCloseAmount = Number(closeSumAgg[0]?.total) || 0;
+
+        const openTotalPages = Math.max(1, Math.ceil(totalOpen / limit));
+        const closeTotalPages = Math.max(1, Math.ceil(totalClose / limit));
+        const clampedOpenPage = Math.min(Math.max(1, openPage), openTotalPages);
+        const clampedClosePage = Math.min(Math.max(1, closePage), closeTotalPages);
+
+        const populateBets = (query) =>
+            query
+                .populate('userId', 'username phone email')
+                .populate('placedByBookieId', 'username')
+                .sort({ createdAt: -1 })
+                .lean();
+
+        const [openBets, closeBets] = await Promise.all([
+            populateBets(
+                Bet.find(openMatch)
+                    .skip((clampedOpenPage - 1) * limit)
+                    .limit(limit)
+            ),
+            populateBets(
+                Bet.find(closeMatch)
+                    .skip((clampedClosePage - 1) * limit)
+                    .limit(limit)
+            ),
+        ]);
 
         res.status(200).json({
             success: true,
             data: {
                 open: openBets,
                 close: closeBets,
-                total: bets.length,
-                totalOpen: openBets.length,
-                totalClose: closeBets.length,
+                total: totalOpen + totalClose,
+                totalOpen,
+                totalClose,
+                totalOpenAmount,
+                totalCloseAmount,
+                openPagination: {
+                    page: clampedOpenPage,
+                    limit,
+                    totalPages: openTotalPages,
+                    hasPrev: clampedOpenPage > 1,
+                    hasNext: clampedOpenPage < openTotalPages,
+                },
+                closePagination: {
+                    page: clampedClosePage,
+                    limit,
+                    totalPages: closeTotalPages,
+                    hasPrev: clampedClosePage > 1,
+                    hasNext: clampedClosePage < closeTotalPages,
+                },
             },
         });
     } catch (error) {
