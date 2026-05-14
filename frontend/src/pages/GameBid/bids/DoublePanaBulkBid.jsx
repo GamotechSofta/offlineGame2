@@ -124,6 +124,10 @@ const DoublePanaBulkBid = ({ market, title }) => {
     const [groupBulk, setGroupBulk] = useState(() =>
         Object.fromEntries(Array.from({ length: 10 }, (_, d) => [String(d), '']))
     );
+    /** Per sum-digit column: Quick Points brush (tap a pana to add; does not fill whole column). */
+    const [groupQuickSelected, setGroupQuickSelected] = useState(() =>
+        Object.fromEntries(Array.from({ length: 10 }, (_, d) => [String(d), null]))
+    );
 
     const panasBySumDigit = useMemo(() => {
         const groups = Object.fromEntries(Array.from({ length: 10 }, (_, d) => [String(d), []]));
@@ -153,6 +157,7 @@ const DoublePanaBulkBid = ({ market, title }) => {
         setReviewRows([]);
         setSpecialInputs(Object.fromEntries(doublePanas.map((n) => [n, ''])));
         setGroupBulk(Object.fromEntries(Array.from({ length: 10 }, (_, d) => [String(d), ''])));
+        setGroupQuickSelected(Object.fromEntries(Array.from({ length: 10 }, (_, d) => [String(d), null])));
         // Reset scheduled date to today after bet is placed
         const today = new Date().toISOString().split('T')[0];
         setSelectedDate(today);
@@ -216,6 +221,19 @@ const DoublePanaBulkBid = ({ market, title }) => {
         enabled
             ? 'w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[52px] rounded-lg shadow-lg transition-all active:scale-[0.98]'
             : 'w-full bg-gray-400 text-white font-bold py-3.5 min-h-[52px] rounded-lg shadow-lg opacity-50 cursor-not-allowed';
+
+    const applyQuickToPanaCell = (groupKey, num) => {
+        const sel = groupQuickSelected[groupKey];
+        const delta = Number(sel);
+        if (!sel || !Number.isFinite(delta) || delta <= 0) {
+            return;
+        }
+        setSpecialInputs((prev) => {
+            const cur = Number(prev[num] || 0) || 0;
+            const next = Math.min(cur + delta, 999999);
+            return { ...prev, [num]: String(next) };
+        });
+    };
 
     return (
         <BidLayout
@@ -292,6 +310,7 @@ const DoublePanaBulkBid = ({ market, title }) => {
                                 return next;
                             });
                             setGroupBulk((prev) => ({ ...prev, [groupKey]: '' }));
+                            setGroupQuickSelected((prev) => ({ ...prev, [groupKey]: null }));
                         };
 
                         return (
@@ -308,13 +327,22 @@ const DoublePanaBulkBid = ({ market, title }) => {
                                         onChange={(e) =>
                                             setGroupBulk((p) => ({ ...p, [groupKey]: sanitizePoints(e.target.value) }))
                                         }
-                                        onBlur={() => {
-                                            if (groupBulk[groupKey]) applyGroup(groupBulk[groupKey]);
+                                        onBlur={(e) => {
+                                            const v = sanitizePoints(e.currentTarget.value);
+                                            if (v && Number(v) > 0) applyGroup(v);
                                         }}
                                         onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && groupBulk[groupKey]) applyGroup(groupBulk[groupKey]);
+                                            if (e.key === 'Enter') {
+                                                const v = sanitizePoints(e.currentTarget.value);
+                                                if (v && Number(v) > 0) applyGroup(v);
+                                            }
+                                        }}
+                                        onClick={(e) => {
+                                            const v = sanitizePoints(e.currentTarget.value);
+                                            if (v && Number(v) > 0) applyGroup(v);
                                         }}
                                         placeholder="All pts"
+                                        title="Type points, then tap here, Apply, or Enter to fill this whole column; you can still edit each Pts box."
                                         className="no-spinner w-[86px] sm:w-[96px] md:w-[72px] lg:w-[80px] h-9 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded focus:outline-none focus:border-[#1B3150] px-2 text-xs md:text-[11px] font-semibold text-center"
                                     />
                                     <button
@@ -349,8 +377,18 @@ const DoublePanaBulkBid = ({ market, title }) => {
                                         <button
                                             key={`${groupKey}-${pts}`}
                                             type="button"
-                                            onClick={() => applyGroup(String(pts))}
-                                            className="h-7 rounded-md font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
+                                            onClick={() =>
+                                                setGroupQuickSelected((p) => ({
+                                                    ...p,
+                                                    [groupKey]:
+                                                        p[groupKey] === String(pts) ? null : String(pts),
+                                                }))
+                                            }
+                                            className={`h-7 rounded-md font-semibold text-[11px] border border-gray-300 transition-colors active:scale-95 ${
+                                                groupQuickSelected[groupKey] === String(pts)
+                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
+                                                    : 'text-[#1B3150] bg-white hover:bg-gray-100'
+                                            }`}
                                         >
                                             {pts}
                                         </button>
@@ -360,43 +398,48 @@ const DoublePanaBulkBid = ({ market, title }) => {
 
                                 {/* Two-column layout: tighten + left align only on desktop */}
                                 <div className="grid grid-cols-2 gap-3 md:grid-cols-[max-content_max-content] md:justify-start md:gap-x-4 md:gap-y-2">
-                                    {list.map((num) => (
-                                        <div key={num} className="flex items-center gap-1.5">
-                                            {(() => {
-                                                const hasBet = Number(specialInputs[num] || 0) > 0;
-                                                return (
-                                                    <>
-                                                        <div
-                                                            className={`w-10 h-9 border-2 text-white flex items-center justify-center rounded-l-md font-bold text-xs shrink-0 ${
-                                                                hasBet
-                                                                    ? 'bg-[#0f4d8a] border-[#2a9cd9]'
-                                                                    : 'bg-[#1B3150] border-gray-300'
-                                                            }`}
-                                                        >
-                                                            {num}
-                                                        </div>
-                                                        <input
-                                                            type="text"
-                                                            inputMode="numeric"
-                                                            placeholder="Pts"
-                                                            value={specialInputs[num]}
-                                                            onChange={(e) =>
-                                                                setSpecialInputs((p) => ({
-                                                                    ...p,
-                                                                    [num]: sanitizePoints(e.target.value),
-                                                                }))
-                                                            }
-                                                            className={`no-spinner w-full md:w-[64px] lg:w-[72px] h-9 bg-white border-2 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none px-2 text-xs md:text-[11px] font-semibold text-center ${
-                                                                hasBet
-                                                                    ? 'border-[#2a9cd9] bg-[#eaf6ff] focus:border-[#2a9cd9]'
-                                                                    : 'border-gray-300 focus:border-[#1B3150]'
-                                                            }`}
-                                                        />
-                                                    </>
-                                                );
-                                            })()}
-                                        </div>
-                                    ))}
+                                    {list.map((num) => {
+                                        const hasBet = Number(specialInputs[num] || 0) > 0;
+                                        return (
+                                            <div
+                                                key={num}
+                                                role="presentation"
+                                                className={`flex items-center gap-1.5 rounded-lg p-0.5 transition-all duration-200 ${
+                                                    groupQuickSelected[groupKey] ? 'cursor-pointer' : ''
+                                                } ${
+                                                    hasBet ? 'shadow-md bg-sky-50/80' : 'focus-within:bg-sky-50/40'
+                                                }`}
+                                                onClick={() => applyQuickToPanaCell(groupKey, num)}
+                                            >
+                                                <div
+                                                    className={`w-10 h-9 border-0 text-white flex items-center justify-center rounded-l-md font-bold text-xs shrink-0 select-none active:opacity-90 transition-colors ${
+                                                        hasBet ? 'bg-[#0f4d8a] shadow-inner' : 'bg-[#1B3150]'
+                                                    }`}
+                                                >
+                                                    {num}
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    placeholder="Pts"
+                                                    value={specialInputs[num]}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        applyQuickToPanaCell(groupKey, num);
+                                                    }}
+                                                    onChange={(e) =>
+                                                        setSpecialInputs((p) => ({
+                                                            ...p,
+                                                            [num]: sanitizePoints(e.target.value),
+                                                        }))
+                                                    }
+                                                    className={`no-spinner w-full md:w-[64px] lg:w-[72px] h-9 border-0 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:ring-0 px-2 text-xs md:text-[11px] font-semibold text-center transition-colors ${
+                                                        hasBet ? 'bg-white shadow-inner' : 'bg-white'
+                                                    }`}
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         );
