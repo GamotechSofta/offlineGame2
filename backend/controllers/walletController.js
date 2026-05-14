@@ -4,7 +4,8 @@ import Bet from '../models/bet/bet.js';
 import Admin from '../models/admin/admin.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
-import { emitUserWalletUpdate } from '../socket/socketHub.js';
+import { emitUserWalletUpdate } from '../socket/walletSocketBridge.js';
+import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 
 const getActorLabel = (admin) => (admin?.role === 'bookie' ? 'Bookie' : 'Admin');
 
@@ -236,6 +237,7 @@ export const adjustBalance = async (req, res) => {
             balance: Number(wallet.balance || 0),
             reason: `admin_adjust_${type}`,
         });
+        await invalidateAdminReadCaches('wallet_adjust');
 
         const player = await User.findById(userId).select('username').lean();
         if (req.admin) {
@@ -312,6 +314,7 @@ export const setBalance = async (req, res) => {
             balance: Number(wallet.balance || 0),
             reason: 'admin_set_balance',
         });
+        await invalidateAdminReadCaches('wallet_set_balance');
 
         const player = await User.findById(userId).select('username').lean();
         if (req.admin) {

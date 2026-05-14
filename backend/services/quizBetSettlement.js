@@ -6,6 +6,7 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { resolveWinningShuffledPosition } from './quizPickPositionService.js';
 import { isSlotDeclared } from './quizDeclarationService.js';
 import { evaluate3DBetAgainstResult, resolve3DPayoutMultiplier } from './quiz3dPayoutHelpers.js';
+import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 
 async function quiz2dWinMultiplier() {
   try {
@@ -91,6 +92,7 @@ export async function settleQuizBetsForSlot(slotStartIso, gameMode = '2d', optio
           description: `Quiz ${String(gameMode).toUpperCase()} win payout`,
           referenceId: String(bet._id),
         });
+        notifyPlayerWalletBalance(uid, 'quiz_win').catch(() => {});
       }
     }
   }

@@ -1,12 +1,44 @@
+import mongoose from 'mongoose';
 import Payment from '../models/payment/payment.js';
 import BankDetail from '../models/bankDetail/bankDetail.js';
-import { Wallet } from '../models/wallet/wallet.js';
+import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import Admin from '../models/admin/admin.js';
 import bcrypt from 'bcryptjs';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
-import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
+import { invalidateAdminPaymentRelatedCaches } from '../services/cacheInvalidationService.js';
+import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
+
+/** IST calendar day bounds → UTC Date (same semantics as dashboard stats `from`/`to`). */
+function parseIstPaymentsCreatedAtRange(fromStr, toStr) {
+    const parseDayKey = (value) => {
+        if (typeof value !== 'string') return null;
+        const m = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return null;
+        const y = Number(m[1]);
+        const mo = Number(m[2]);
+        const d = Number(m[3]);
+        if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return null;
+        const utcMs = Date.UTC(y, mo - 1, d);
+        const check = new Date(utcMs);
+        if (
+            check.getUTCFullYear() !== y
+            || (check.getUTCMonth() + 1) !== mo
+            || check.getUTCDate() !== d
+        ) {
+            return null;
+        }
+        return { y, m: mo, d };
+    };
+    const from = parseDayKey(fromStr);
+    const to = parseDayKey(toStr);
+    if (!from || !to) return null;
+    const IST_OFFSET_MINUTES = 330;
+    const startUtcMs = Date.UTC(from.y, from.m - 1, from.d, 0, 0, 0, 0) - (IST_OFFSET_MINUTES * 60 * 1000);
+    const nextDayUtcMs = Date.UTC(to.y, to.m - 1, to.d + 1, 0, 0, 0, 0) - (IST_OFFSET_MINUTES * 60 * 1000);
+    return { start: new Date(startUtcMs), end: new Date(nextDayUtcMs - 1) };
+}
 
 const SCREENSHOT_WEBHOOK_URL =
     process.env.SCREENSHOT_WEBHOOK_URL || 'https://api.thefashionista.in/api/v1/webhook/screenshot-uploaded';
@@ -224,7 +256,7 @@ export const createDepositRequest = async (req, res) => {
         });
         payment.webhookRefId = `upload_${payment._id}`;
         await payment.save();
-        await invalidateAdminReadCaches('deposit_request_created');
+        await invalidateAdminPaymentRelatedCaches('deposit_request_created');
         console.log('✅ Payment created:', payment._id);
         console.log('---------------- DEPOSIT LOG START ----------------');
         console.log('Saved deposit data:', JSON.stringify({
@@ -331,16 +363,55 @@ export const createWithdrawalRequest = async (req, res) => {
             });
         }
 
-        const payment = await Payment.create({
-            userId,
-            type: 'withdrawal',
-            amount,
-            method: 'bank_transfer',
-            status: 'pending',
-            bankDetailId: bankDetailId || null,
-            userNote: userNote || '',
-        });
-        await invalidateAdminReadCaches('withdrawal_request_created');
+        const uid = new mongoose.Types.ObjectId(userId);
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        let payment;
+        let newBalance;
+        try {
+            const walletUpdate = await Wallet.findOneAndUpdate(
+                { userId: uid, balance: { $gte: amount } },
+                { $inc: { balance: -amount } },
+                { new: true, session },
+            ).lean();
+            if (!walletUpdate) {
+                await session.abortTransaction();
+                session.endSession();
+                return res.status(400).json({
+                    success: false,
+                    message: 'Insufficient wallet balance',
+                });
+            }
+            const [created] = await Payment.create([{
+                userId: uid,
+                type: 'withdrawal',
+                amount,
+                method: 'bank_transfer',
+                status: 'pending',
+                bankDetailId: bankDetailId ? new mongoose.Types.ObjectId(bankDetailId) : null,
+                userNote: userNote || '',
+                withdrawalWalletHeld: true,
+            }], { session });
+            payment = created;
+            newBalance = Number(walletUpdate.balance || 0);
+            await WalletTransaction.create([{
+                userId: uid,
+                type: 'debit',
+                amount,
+                description: 'Withdrawal request — funds held until admin approves or rejects',
+                referenceId: String(created._id),
+            }], { session });
+            await session.commitTransaction();
+        } catch (txnErr) {
+            await session.abortTransaction();
+            throw txnErr;
+        } finally {
+            session.endSession();
+        }
+
+        await invalidateAdminPaymentRelatedCaches('withdrawal_request_created');
+
+        await notifyPlayerWalletBalance(userId, 'withdrawal_requested');
 
         await logActivity({
             action: 'withdrawal_request_created',
@@ -348,14 +419,17 @@ export const createWithdrawalRequest = async (req, res) => {
             performedByType: 'user',
             targetType: 'payment',
             targetId: payment._id.toString(),
-            details: `Withdrawal request ₹${amount} created`,
+            details: `Withdrawal request ₹${amount} created (wallet held)`,
             ip: getClientIp(req),
         });
 
         res.status(201).json({
             success: true,
-            message: 'Withdrawal request submitted successfully. Please wait for admin approval.',
-            data: payment,
+            message: 'Withdrawal request submitted. Amount has been deducted from your wallet; it will be processed after admin approval.',
+            data: {
+                ...(typeof payment.toObject === 'function' ? payment.toObject() : payment),
+                walletBalance: newBalance,
+            },
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -428,13 +502,44 @@ export const getMyWithdrawals = async (req, res) => {
 export const getPayments = async (req, res) => {
     try {
         const { status, type } = req.query;
+        const fromQ = typeof req.query.from === 'string' ? req.query.from.trim() : '';
+        const toQ = typeof req.query.to === 'string' ? req.query.to.trim() : '';
+        const userIdRaw = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
         const page = Math.max(1, parseInt(req.query.page, 10) || 1);
         const limit = Math.min(100, Math.max(10, parseInt(req.query.limit, 10) || 50));
         const skip = (page - 1) * limit;
         const query = {};
 
+        if ((fromQ && !toQ) || (!fromQ && toQ)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Both from and to are required for a date range (YYYY-MM-DD, IST).',
+            });
+        }
+        if (fromQ && toQ) {
+            if (fromQ > toQ) {
+                return res.status(400).json({ success: false, message: 'from must be on or before to.' });
+            }
+            const bounds = parseIstPaymentsCreatedAtRange(fromQ, toQ);
+            if (!bounds) {
+                return res.status(400).json({ success: false, message: 'Invalid from/to. Use YYYY-MM-DD (IST).' });
+            }
+            query.createdAt = { $gte: bounds.start, $lte: bounds.end };
+        }
+
         const bookieUserIds = await getBookieUserIds(req.admin);
-        if (bookieUserIds !== null) {
+        if (userIdRaw) {
+            if (!mongoose.Types.ObjectId.isValid(userIdRaw)) {
+                return res.status(400).json({ success: false, message: 'Invalid userId' });
+            }
+            if (bookieUserIds !== null) {
+                const allowed = bookieUserIds.some((id) => String(id) === userIdRaw);
+                if (!allowed) {
+                    return res.status(403).json({ success: false, message: 'You can only view payments for your players' });
+                }
+            }
+            query.userId = new mongoose.Types.ObjectId(userIdRaw);
+        } else if (bookieUserIds !== null) {
             query.userId = { $in: bookieUserIds };
         }
         if (status) query.status = status;
@@ -636,8 +741,8 @@ export const approvePayment = async (req, res) => {
             }
         }
 
-        // For withdrawals, check balance again
-        if (payment.type === 'withdrawal') {
+        // For withdrawals without prior wallet hold (legacy pending), ensure balance still covers the payout.
+        if (payment.type === 'withdrawal' && !payment.withdrawalWalletHeld) {
             const wallet = await Wallet.findOne({ userId: payment.userId._id });
             if (!wallet || wallet.balance < payment.amount) {
                 return res.status(400).json({
@@ -653,9 +758,9 @@ export const approvePayment = async (req, res) => {
         payment.processedBy = req.admin._id;
         payment.processedAt = new Date();
         await payment.save();
-        await invalidateAdminReadCaches('payment_approved');
+        await invalidateAdminPaymentRelatedCaches('payment_approved');
 
-        // Update wallet
+        // Update wallet (deposits credit; legacy withdrawals debit — new withdrawals already debited on request)
         let wallet = await Wallet.findOne({ userId: payment.userId._id });
         if (!wallet) {
             wallet = new Wallet({ userId: payment.userId._id, balance: 0 });
@@ -663,10 +768,22 @@ export const approvePayment = async (req, res) => {
 
         if (payment.type === 'deposit') {
             wallet.balance += payment.amount;
-        } else if (payment.type === 'withdrawal') {
+            await wallet.save();
+        } else if (payment.type === 'withdrawal' && !payment.withdrawalWalletHeld) {
             wallet.balance -= payment.amount;
+            await wallet.save();
         }
-        await wallet.save();
+
+        const walletNotifyUid = payment.userId?._id || payment.userId;
+        if (
+            walletNotifyUid
+            && (payment.type === 'deposit' || (payment.type === 'withdrawal' && !payment.withdrawalWalletHeld))
+        ) {
+            await notifyPlayerWalletBalance(
+                walletNotifyUid,
+                payment.type === 'deposit' ? 'deposit_approved' : 'withdrawal_approved',
+            );
+        }
 
         await logActivity({
             action: `payment_${payment.type}_approved`,
@@ -733,7 +850,24 @@ export const rejectPayment = async (req, res) => {
         payment.processedBy = req.admin._id;
         payment.processedAt = new Date();
         await payment.save();
-        await invalidateAdminReadCaches('payment_rejected');
+        await invalidateAdminPaymentRelatedCaches('payment_rejected');
+
+        if (payment.type === 'withdrawal' && payment.withdrawalWalletHeld) {
+            const uid = payment.userId._id || payment.userId;
+            await Wallet.findOneAndUpdate(
+                { userId: uid },
+                { $inc: { balance: payment.amount } },
+                { upsert: true, new: true },
+            );
+            await WalletTransaction.create({
+                userId: uid,
+                type: 'credit',
+                amount: payment.amount,
+                description: 'Withdrawal rejected — refund of held amount',
+                referenceId: String(payment._id),
+            });
+            await notifyPlayerWalletBalance(uid, 'withdrawal_rejected_refund');
+        }
 
         await logActivity({
             action: `payment_${payment.type}_rejected`,
@@ -782,7 +916,7 @@ export const updatePaymentStatus = async (req, res) => {
         payment.processedBy = req.admin._id;
         payment.processedAt = new Date();
         await payment.save();
-        await invalidateAdminReadCaches('payment_status_updated');
+        await invalidateAdminPaymentRelatedCaches('payment_status_updated');
 
         res.status(200).json({ success: true, data: payment });
     } catch (error) {

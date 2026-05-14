@@ -26,6 +26,7 @@ import { ensure3DQuizQuestionBank } from '../services/quizQuestionBankService.js
 import { getQuizTimingSettingsSnapshot } from '../services/quizTimingSettingsService.js';
 import { ensureDeclaredResultsSnapshots, isSlotDeclared } from '../services/quizDeclarationService.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
+import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 
 const QUIZ_BET_MIN_STAKE = 1;
 const QUIZ_BET_MAX_STAKE = 1_000_000;
@@ -95,6 +96,7 @@ async function applyInsertsOrRefund(userId, totalStake, insertDocs) {
       }
     }
     await Wallet.findOneAndUpdate({ userId }, { $inc: { balance: totalStake } });
+    notifyPlayerWalletBalance(userId, 'quiz_bet_insert_rollback').catch(() => {});
     throw e;
   }
 }
@@ -419,6 +421,8 @@ export const postQuizBet = async (req, res) => {
     await applyInsertsOrRefund(userId, totalStake, insertDocs);
     await invalidateAdminReadCaches('quiz_bet_placed');
 
+    notifyPlayerWalletBalance(userId, 'quiz_bet_placed').catch(() => {});
+
     res.status(201).json({
       success: true,
       data: {
@@ -582,6 +586,8 @@ export const postQuizBetsBatch = async (req, res) => {
     await applyInsertsOrRefund(userId, totalStake, flatInserts);
     await invalidateAdminReadCaches('quiz_batch_bet_placed');
 
+    notifyPlayerWalletBalance(userId, 'quiz_bet_batch_placed').catch(() => {});
+
     res.status(201).json({
       success: true,
       data: {
@@ -727,6 +733,7 @@ export const getMyQuizBets = async (req, res) => {
                   { $inc: { balance: totalExtraCredit } },
                   { upsert: true },
                 );
+                notifyPlayerWalletBalance(userId, 'quiz_3d_reconcile_credit').catch(() => {});
               }
             }
           }
@@ -1222,6 +1229,8 @@ export const cancelMyQuizBet = async (req, res) => {
 
     const walletUpdate = await Wallet.findOneAndUpdate({ userId: uid }, { $inc: { balance: refund } }, { new: true }).lean();
 
+    notifyPlayerWalletBalance(userId, 'quiz_bet_cancelled').catch(() => {});
+
     res.json({
       success: true,
       data: {
@@ -1303,6 +1312,8 @@ export const cancelMyQuizTicket = async (req, res) => {
     }
 
     const walletUpdate = await Wallet.findOneAndUpdate({ userId: uid }, { $inc: { balance: refund } }, { new: true }).lean();
+
+    notifyPlayerWalletBalance(userId, 'quiz_ticket_cancelled').catch(() => {});
 
     return res.json({
       success: true,

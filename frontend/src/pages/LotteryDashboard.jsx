@@ -15,6 +15,7 @@ import { getBalance, updateUserBalance } from '../api/bets';
 import { getQuizSlot, getQuizSlotResults, postQuizBetsBatch } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { DEFAULT_TIMER_SECONDS, FILTER_TYPES } from '../types';
+import { attachPlayerWalletSocket } from '../lib/playerWalletSocket';
 import { formatTimer, getCellKey, getFamilyNumbers, getLotterySetTotals, getTotals } from '../utils/boardHelpers';
 import { getCurrentUser, isUserLoggedIn, subscribeUserSession } from '../session/userSession';
 
@@ -427,6 +428,7 @@ const LotteryDashboard = () => {
       reconnectionDelay: 2000,
     });
 
+    const detachWallet = attachPlayerWalletSocket(socket);
     const onSlotUpdate = (data) => {
       if (String(data?.gameMode || '').toLowerCase() !== '2d') return;
       if (!data?.slotStartIso) return;
@@ -469,6 +471,7 @@ const LotteryDashboard = () => {
     socket.on('quiz:result', onQuizResult);
     socket.on('wallet:update', onWalletUpdate);
     return () => {
+      detachWallet();
       socket.off('slot:update', onSlotUpdate);
       socket.off('quiz:result', onQuizResult);
       socket.off('wallet:update', onWalletUpdate);

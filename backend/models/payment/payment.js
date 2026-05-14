@@ -81,6 +81,11 @@ const paymentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'BankDetail',
     },
+    /** True when wallet was debited on request; approve skips debit, reject refunds. Legacy pending rows omit/false. */
+    withdrawalWalletHeld: {
+        type: Boolean,
+        default: false,
+    },
     // Legacy notes field
     notes: {
         type: String,

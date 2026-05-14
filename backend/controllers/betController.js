@@ -12,6 +12,7 @@ import { parseChartBet } from '../utils/chartBet.js';
 import { isSpCommon } from '../config/spCommonList.js';
 import { isValidDoublePana } from '../utils/doublePanaValidate.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
+import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 const THREE_DIGITS = /^\d{3}$/;
 /** CP (Common Pana): 3-digit chart single, chart double, or triple (matches frontend generateCPCommon). */
 const isValidCpCommonThreeDigit = (sn) =>
@@ -336,6 +337,7 @@ export const placeBet = async (req, res) => {
         }
 
         await invalidateAdminReadCaches('market_bet_placed');
+        notifyPlayerWalletBalance(userId, 'bet_placed').catch(() => {});
         res.status(201).json({
             success: true,
             message: 'Bet placed successfully',

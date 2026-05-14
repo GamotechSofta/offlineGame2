@@ -3,6 +3,9 @@ import { formatDrawLabel, getSlotContext, getStudySecondsForMode } from '../serv
 import QuizSlotSeed from '../models/quiz/QuizSlotSeed.js';
 import { getOrCreatePick, resolveHintQuestionTextByPosition } from '../services/quizPickService.js';
 import { noteSocketEmit, noteSocketListener } from '../services/traceMetricsService.js';
+import { setWalletSocketIo, playerWalletRoom } from './walletSocketBridge.js';
+import { extractUserTokenFromSocketHandshake, resolveActivePlayerUserIdFromToken } from '../utils/playerSocketAuth.js';
+import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 
 /** @type {Server | null} */
 let io = null;
@@ -162,6 +165,7 @@ export function initQuizSocket(httpServer, opts) {
     },
     transports: ['websocket'],
   });
+  setWalletSocketIo(io);
 
   io.on('connection', (socket) => {
     socket.data.hintQuizId = null;
@@ -188,6 +192,25 @@ export function initQuizSocket(httpServer, opts) {
       socket.join(ADMIN_ROOM);
       noteSocketEmit('admin:subscribed');
       socket.emit('admin:subscribed', { ok: true, ts: Date.now() });
+    });
+
+    socket.on('wallet:subscribe', async (payload = {}) => {
+      noteSocketListener('wallet:subscribe', socket.listeners('wallet:subscribe').length);
+      const token = String(payload?.token || '').trim() || extractUserTokenFromSocketHandshake(socket);
+      const resolved = await resolveActivePlayerUserIdFromToken(token);
+      if (!resolved?.userId) {
+        socket.emit('wallet:subscribed', { ok: false, code: resolved?.code || 'AUTH_REQUIRED' });
+        return;
+      }
+      const { userId } = resolved;
+      const prev = socket.data.playerWalletUserId;
+      if (prev && String(prev) !== String(userId)) {
+        socket.leave(playerWalletRoom(prev));
+      }
+      socket.join(playerWalletRoom(userId));
+      socket.data.playerWalletUserId = userId;
+      socket.emit('wallet:subscribed', { ok: true, userId });
+      notifyPlayerWalletBalance(userId, 'wallet_subscribe').catch(() => {});
     });
   });
 
@@ -228,17 +251,14 @@ export function emitAdminMarketUpdate(payload = {}) {
   });
 }
 
-export function emitUserWalletUpdate(payload = {}) {
+/** Payment Management & pending counts — emit only when deposits/withdrawals change (not every market/quiz tick). */
+export function emitAdminPaymentsUpdate(payload = {}) {
   if (!io) return;
-  const userId = String(payload?.userId || '').trim();
-  if (!userId) return;
-  const balanceNum = Number(payload?.balance);
-  if (!Number.isFinite(balanceNum)) return;
-  noteSocketEmit('wallet:update');
-  io.emit('wallet:update', {
+  noteSocketEmit('admin:payments:update');
+  io.to(ADMIN_ROOM).emit('admin:payments:update', {
     ts: Date.now(),
-    userId,
-    balance: balanceNum,
-    reason: payload?.reason || 'wallet_updated',
+    ...payload,
   });
 }
+
+export { emitUserWalletUpdate } from './walletSocketBridge.js';

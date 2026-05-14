@@ -24,6 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { dedupeRequest } from '../lib/requestDedupe';
 import { useTraceRender } from '../lib/runtimeTrace';
+import useAdminLiveQueryInvalidation from '../hooks/useAdminLiveQueryInvalidation';
 
 const PRESETS = [
     { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
@@ -126,6 +127,11 @@ const StatRow = ({ label, value, subValue, colorClass = 'text-gray-800' }) => (
 
 const AdminDashboard = () => {
     useTraceRender('AdminDashboard');
+    useAdminLiveQueryInvalidation({
+        enabled: typeof window !== 'undefined' && !!localStorage.getItem('admin'),
+        queryKeys: [['dashboard-stats'], ['dashboard-lottery']],
+        throttleMs: 800,
+    });
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [stats, setStats] = useState(null);

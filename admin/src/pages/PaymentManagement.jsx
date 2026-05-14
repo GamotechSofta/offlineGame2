@@ -1,15 +1,128 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowDown, FaArrowUp, FaClock, FaFilter, FaEye, FaCheck, FaTimes, FaImage, FaWallet } from 'react-icons/fa';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTraceRender } from '../lib/runtimeTrace';
+import useAdminPaymentsQueryInvalidation from '../hooks/useAdminPaymentsQueryInvalidation';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { getTodayIST } from '../utils/istDate.js';
+
+const IST_MS = 330 * 60 * 1000;
+
+function istYmdStartUtc(y, m, d) {
+    return Date.UTC(y, m - 1, d, 0, 0, 0, 0) - IST_MS;
+}
+
+function fmtIstDayFromMs(ms) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date(ms));
+}
+
+function addDaysIst(ymd, delta) {
+    const [y, m, d] = ymd.split('-').map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return ymd;
+    return fmtIstDayFromMs(istYmdStartUtc(y, m, d) + delta * 86400000);
+}
+
+function istWeekdaySun0(ymd) {
+    const [y, m, d] = ymd.split('-').map(Number);
+    const ms = istYmdStartUtc(y, m, d) + 12 * 60 * 60 * 1000;
+    const short = new Date(ms).toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' });
+    const map = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    return map[short] ?? 0;
+}
+
+const DATE_PRESETS = [
+    { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
+    {
+        id: 'today',
+        label: 'Today',
+        getRange: () => {
+            const t = getTodayIST();
+            return { from: t, to: t };
+        },
+    },
+    {
+        id: 'yesterday',
+        label: 'Yesterday',
+        getRange: () => {
+            const t = getTodayIST();
+            const y = addDaysIst(t, -1);
+            return { from: y, to: y };
+        },
+    },
+    {
+        id: 'this_week',
+        label: 'This Week',
+        getRange: () => {
+            const today = getTodayIST();
+            const idx = istWeekdaySun0(today);
+            const from = addDaysIst(today, -idx);
+            return { from, to: today };
+        },
+    },
+    {
+        id: 'last_week',
+        label: 'Last Week',
+        getRange: () => {
+            const today = getTodayIST();
+            const idx = istWeekdaySun0(today);
+            const thisSun = addDaysIst(today, -idx);
+            const from = addDaysIst(thisSun, -7);
+            const to = addDaysIst(thisSun, -1);
+            return { from, to };
+        },
+    },
+    {
+        id: 'this_month',
+        label: 'This Month',
+        getRange: () => {
+            const today = getTodayIST();
+            const [y, m] = today.split('-').map(Number);
+            const from = `${y}-${String(m).padStart(2, '0')}-01`;
+            return { from, to: today };
+        },
+    },
+    {
+        id: 'last_month',
+        label: 'Last Month',
+        getRange: () => {
+            const today = getTodayIST();
+            const [ty, tm] = today.split('-').map(Number);
+            const firstThis = `${ty}-${String(tm).padStart(2, '0')}-01`;
+            const lastPrev = addDaysIst(firstThis, -1);
+            const [ly, lm] = lastPrev.split('-').map(Number);
+            const from = `${ly}-${String(lm).padStart(2, '0')}-01`;
+            return { from, to: lastPrev };
+        },
+    },
+];
+
+const formatRangeLabel = (from, to) => {
+    if (!from || !to) return 'All time';
+    if (from === to) {
+        const d = new Date(`${from}T12:00:00`);
+        return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    const a = new Date(`${from}T12:00:00`);
+    const b = new Date(`${to}T12:00:00`);
+    return `${a.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${b.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+};
 
 const PaymentManagement = () => {
     useTraceRender('PaymentManagement');
+    useAdminPaymentsQueryInvalidation({
+        enabled: typeof window !== 'undefined' && !!localStorage.getItem('admin'),
+        queryKeys: [['payments-list'], ['payments-pending-count']],
+        throttleMs: 600,
+    });
     const navigate = useNavigate();
     const PAGE_SIZE = 50;
     const [payments, setPayments] = useState([]);
@@ -27,7 +140,15 @@ const PaymentManagement = () => {
         status: '',
         type: '',
     });
+    /** When set, list is scoped to this player's full payment history (all statuses/types unless filters apply). */
+    const [playerFilter, setPlayerFilter] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
+
+    const [datePreset, setDatePreset] = useState('today');
+    const [customFrom, setCustomFrom] = useState('');
+    const [customTo, setCustomTo] = useState('');
+    const [customMode, setCustomMode] = useState(false);
+    const [customOpen, setCustomOpen] = useState(false);
 
     // Modal state
     const [actionModal, setActionModal] = useState({ show: false, payment: null, action: '' });
@@ -57,11 +178,41 @@ const PaymentManagement = () => {
             .catch(() => setHasSecretDeclarePassword(false));
     }, []);
 
+    const getPaymentUserId = (payment) => {
+        const u = payment?.userId;
+        if (!u) return '';
+        if (typeof u === 'string') return u;
+        if (u._id) return String(u._id);
+        return '';
+    };
+
+    const effectiveDateRange = useMemo(() => {
+        if (customMode && customFrom && customTo) return { from: customFrom, to: customTo };
+        const preset = DATE_PRESETS.find((p) => p.id === datePreset);
+        return preset ? preset.getRange() : DATE_PRESETS[0].getRange();
+    }, [customMode, customFrom, customTo, datePreset]);
+
+    const selectPlayerFromPayment = (payment) => {
+        const userId = getPaymentUserId(payment);
+        if (!userId) return;
+        const u = payment.userId;
+        setPlayerFilter({
+            userId,
+            username: typeof u === 'object' && u?.username ? u.username : '',
+            phone: typeof u === 'object' && u?.phone ? u.phone : '',
+        });
+    };
+
     const fetchPayments = async () => {
         try {
             const queryParams = new URLSearchParams();
             if (filters.status) queryParams.append('status', filters.status);
             if (filters.type) queryParams.append('type', filters.type);
+            if (playerFilter?.userId) queryParams.append('userId', playerFilter.userId);
+            if (effectiveDateRange?.from && effectiveDateRange?.to) {
+                queryParams.append('from', effectiveDateRange.from);
+                queryParams.append('to', effectiveDateRange.to);
+            }
             queryParams.append('page', String(currentPage));
             queryParams.append('limit', String(PAGE_SIZE));
 
@@ -108,7 +259,15 @@ const PaymentManagement = () => {
     };
 
     const paymentsQuery = useQuery({
-        queryKey: ['payments-list', filters.status || '', filters.type || '', currentPage],
+        queryKey: [
+            'payments-list',
+            filters.status || '',
+            filters.type || '',
+            playerFilter?.userId || '',
+            effectiveDateRange?.from || '',
+            effectiveDateRange?.to || '',
+            currentPage,
+        ],
         queryFn: () => fetchPayments(),
         enabled: !!localStorage.getItem('admin'),
         staleTime: Infinity,
@@ -140,7 +299,7 @@ const PaymentManagement = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [filters.status, filters.type]);
+    }, [filters.status, filters.type, playerFilter?.userId, datePreset, customMode, customFrom, customTo]);
 
     useEffect(() => {
         if (pendingCountsQuery.data) setPendingCounts(pendingCountsQuery.data);
@@ -273,6 +432,35 @@ const PaymentManagement = () => {
         navigate('/');
     };
 
+    const handleDatePresetSelect = (presetId) => {
+        if (!customMode && datePreset === presetId) {
+            queryClient.invalidateQueries({ queryKey: ['payments-list'] });
+            return;
+        }
+        setDatePreset(presetId);
+        setCustomMode(false);
+        setCustomOpen(false);
+    };
+
+    const handleCustomDateToggle = () => {
+        setCustomMode(true);
+        setCustomOpen((o) => !o);
+    };
+
+    const handleCustomDateApply = () => {
+        if (!customFrom || !customTo) return;
+        if (new Date(customFrom) > new Date(customTo)) return;
+        setCustomMode(true);
+        setCustomOpen(false);
+    };
+
+    const displayDateRangeLabel = useMemo(() => {
+        if (customMode && customFrom && customTo) return formatRangeLabel(customFrom, customTo);
+        if (datePreset === 'all') return 'All time';
+        const p = DATE_PRESETS.find((x) => x.id === datePreset);
+        return p?.label || 'All time';
+    }, [customMode, customFrom, customTo, datePreset]);
+
     const closeImageModal = () => {
         if (imageModal.show && imageModalHistoryPushedRef.current) {
             imageModalHistoryPushedRef.current = false;
@@ -367,7 +555,9 @@ const PaymentManagement = () => {
             : 'bg-purple-600/20 text-purple-600 border-purple-600/40';
     };
 
-    const hasActiveFilters = filters.status || filters.type;
+    const hasDateRange = Boolean(effectiveDateRange?.from && effectiveDateRange?.to);
+    const isAllPaymentsView = !playerFilter?.userId && !filters.status && !filters.type && !hasDateRange;
+    const hasActiveFilters = Boolean(filters.status || filters.type || playerFilter?.userId || hasDateRange);
     const pendingRequireAction = pendingCounts.total > 0;
 
     return (
@@ -420,11 +610,17 @@ const PaymentManagement = () => {
                 </div>
                 <div
                     className={`order-1 sm:order-3 rounded-xl p-2.5 sm:p-5 border-2 transition-all cursor-pointer ${
-                        !hasActiveFilters || (filters.status === '' && filters.type === '')
+                        isAllPaymentsView
                             ? 'border-blue-500 bg-blue-500/10'
                             : 'border-gray-200 bg-white hover:border-gray-200'
                     } col-span-2 sm:col-span-1`}
-                    onClick={() => setFilters({ status: '', type: '' })}
+                    onClick={() => {
+                        setFilters({ status: '', type: '' });
+                        setPlayerFilter(null);
+                        setDatePreset('all');
+                        setCustomMode(false);
+                        setCustomOpen(false);
+                    }}
                     title="Click to view all payments"
                 >
                     <div className="flex items-center justify-between">
@@ -436,6 +632,74 @@ const PaymentManagement = () => {
                         <FaClock className="w-6 h-6 sm:w-10 sm:h-10 text-blue-500/50 shrink-0" />
                     </div>
                 </div>
+            </div>
+
+            {/* Date range (IST calendar days — matches dashboard) */}
+            <div className="bg-white rounded-xl p-4 border border-gray-200 mb-6">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider">Date range</p>
+                </div>
+                <div className="grid grid-cols-4 gap-x-1.5 gap-y-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+                    {DATE_PRESETS.map((p) => {
+                        const isActive = !customMode && datePreset === p.id;
+                        return (
+                            <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => handleDatePresetSelect(p.id)}
+                                className={`min-w-0 px-1 py-1.5 text-[10px] sm:px-4 sm:py-2 sm:text-sm font-semibold leading-snug text-center rounded-md transition-all sm:rounded-lg ${
+                                    isActive ? 'bg-orange-500 text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                {p.label}
+                            </button>
+                        );
+                    })}
+                    <button
+                        type="button"
+                        onClick={handleCustomDateToggle}
+                        className={`min-w-0 px-1 py-1.5 text-[10px] sm:px-4 sm:py-2 sm:text-sm font-semibold leading-snug text-center rounded-md transition-all sm:rounded-lg ${
+                            customMode && ((customFrom && customTo) || customOpen) ? 'bg-orange-500 text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        Custom
+                    </button>
+                    {customOpen && (
+                        <div className="col-span-4 w-full flex flex-wrap items-end gap-2 sm:gap-3 mt-1 p-2 sm:mt-3 sm:p-3 rounded-lg bg-gray-50 border border-gray-200 sm:basis-full">
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">From</label>
+                                <input
+                                    type="date"
+                                    value={customFrom}
+                                    onChange={(e) => setCustomFrom(e.target.value)}
+                                    className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-800"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">To</label>
+                                <input
+                                    type="date"
+                                    value={customTo}
+                                    onChange={(e) => setCustomTo(e.target.value)}
+                                    className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-800"
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleCustomDateApply}
+                                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold text-sm"
+                            >
+                                Apply
+                            </button>
+                        </div>
+                    )}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                    Showing payments for: <span className="text-orange-500 font-medium">{displayDateRangeLabel}</span>
+                    {hasDateRange && (
+                        <span className="text-gray-400"> (IST)</span>
+                    )}
+                </p>
             </div>
 
             {/* Filters */}
@@ -478,7 +742,14 @@ const PaymentManagement = () => {
                     </div>
                     <div className="flex items-end">
                         <button
-                            onClick={() => setFilters({ status: '', type: '' })}
+                            type="button"
+                            onClick={() => {
+                                setFilters({ status: '', type: '' });
+                                setPlayerFilter(null);
+                                setDatePreset('all');
+                                setCustomMode(false);
+                                setCustomOpen(false);
+                            }}
                             className="w-full px-2.5 sm:px-3 py-2 bg-gray-200 hover:bg-gray-500 rounded-lg text-gray-800 text-[11px] sm:text-sm font-medium transition-colors"
                         >
                             Clear Filters
@@ -486,6 +757,26 @@ const PaymentManagement = () => {
                     </div>
                 </div>
             </div>
+
+            {playerFilter?.userId && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50/80 px-3 py-2.5 sm:px-4">
+                    <p className="text-xs sm:text-sm text-gray-700">
+                        <span className="font-semibold text-gray-900">Player:</span>{' '}
+                        {playerFilter.username || 'Unknown'}
+                        {playerFilter.phone ? (
+                            <span className="text-gray-500"> · {playerFilter.phone}</span>
+                        ) : null}
+                        <span className="text-gray-500"> — full payment history</span>
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => setPlayerFilter(null)}
+                        className="shrink-0 rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-50"
+                    >
+                        Show all players
+                    </button>
+                </div>
+            )}
 
             {/* Summary bar */}
             {!loading && (
@@ -563,7 +854,14 @@ const PaymentManagement = () => {
                                     >
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">
-                                                <p className="font-semibold text-gray-800 truncate">{payment.userId?.username || 'Unknown'}</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => selectPlayerFromPayment(payment)}
+                                                    className="block w-full text-left font-semibold text-gray-800 truncate hover:text-orange-600 hover:underline decoration-orange-500/60 underline-offset-2"
+                                                    title="Show all payments for this player"
+                                                >
+                                                    {payment.userId?.username || 'Unknown'}
+                                                </button>
                                                 <p className="text-xs text-gray-500 truncate">{formatDate(payment.createdAt)}</p>
                                                 <div className="mt-1 flex items-center gap-2">
                                                     <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium border ${getTypeBadge(payment.type)}`}>
@@ -652,7 +950,10 @@ const PaymentManagement = () => {
                             <thead className="bg-gray-50/80">
                                 <tr>
                                     <th className="w-[78px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Ref ID</th>
-                                    <th className="w-[150px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Player</th>
+                                    <th className="w-[150px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                                        <span className="block">Player</span>
+                                        <span className="mt-0.5 block font-normal normal-case text-gray-500">Click for history</span>
+                                    </th>
                                     <th className="w-[86px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Type</th>
                                     <th className="w-[96px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Amount</th>
                                     <th className="w-[170px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
@@ -680,7 +981,14 @@ const PaymentManagement = () => {
                                                 </p>
                                                 {hasActiveFilters && (
                                                     <button
-                                                        onClick={() => setFilters({ status: '', type: '' })}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFilters({ status: '', type: '' });
+                                                            setPlayerFilter(null);
+                                                            setDatePreset('all');
+                                                            setCustomMode(false);
+                                                            setCustomOpen(false);
+                                                        }}
                                                         className="mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-gray-800 text-sm font-medium"
                                                     >
                                                         Clear Filters
@@ -696,14 +1004,21 @@ const PaymentManagement = () => {
                                                 #{payment._id.slice(-6).toUpperCase()}
                                             </td>
                                             <td className="px-2.5 py-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => selectPlayerFromPayment(payment)}
+                                                    className="w-full text-left rounded-md px-0 py-0.5 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60"
+                                                    title="Show all payments for this player"
+                                                >
                                                 <div className="truncate">
-                                                    <p className="font-medium text-gray-800 truncate">
+                                                    <p className="font-medium text-gray-800 truncate hover:text-orange-600">
                                                         {payment.userId?.username || 'Unknown'}
                                                     </p>
                                                     <p className="text-xs text-gray-500 truncate">
                                                         {payment.userId?.phone || '—'}
                                                     </p>
                                                 </div>
+                                                </button>
                                             </td>
                                             <td className="px-2.5 py-3 whitespace-nowrap">
                                                 <span className={`inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium border ${getTypeBadge(payment.type)}`}>
@@ -1212,8 +1527,9 @@ const PaymentManagement = () => {
                                 <>
                                     <button
                                         onClick={() => {
+                                            const p = detailModal.payment;
                                             setDetailModal({ show: false, payment: null });
-                                            openActionModal(detailModal.payment, 'approve');
+                                            openActionModal(p, 'approve');
                                         }}
                                         className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-gray-800 font-medium transition-colors"
                                     >
@@ -1221,8 +1537,9 @@ const PaymentManagement = () => {
                                     </button>
                                     <button
                                         onClick={() => {
+                                            const p = detailModal.payment;
                                             setDetailModal({ show: false, payment: null });
-                                            openActionModal(detailModal.payment, 'reject');
+                                            openActionModal(p, 'reject');
                                         }}
                                         className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-gray-800 font-medium transition-colors"
                                     >

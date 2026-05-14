@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useHeartbeat } from '../hooks/useHeartbeat';
+import { usePlayerWalletSocketSync } from '../hooks/usePlayerWalletSocketSync';
 import AppHeader from '../components/AppHeader';
 import BottomNavbar from '../components/BottomNavbar';
 import Home from '../pages/Home';
@@ -90,6 +91,10 @@ const Layout = ({ children }) => {
   const isLoginPage = location.pathname === '/login' || location.pathname === '/signup';
   const isHomePage = location.pathname === '/';
   const [showPortraitPrompt, setShowPortraitPrompt] = useState(false);
+
+  usePlayerWalletSocketSync(
+    Boolean(hasUser && !isLotteryFullScreenPage && !isLoginPage && !isZoomTestPage),
+  );
 
   useEffect(() => {
     const viewportMeta = document.querySelector('meta[name="viewport"]');

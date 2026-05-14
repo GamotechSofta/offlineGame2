@@ -4,6 +4,7 @@ import Market from '../models/market/market.js';
 import User from '../models/user/user.js';
 import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
+import { notifyPlayerWalletBalance } from './playerWalletNotify.js';
 import { getRatesMap, DEFAULT_RATES } from '../models/rate/rate.js';
 import { isSpCommon, SP_COMMON_LIST } from '../config/spCommonList.js';
 import { isValidDoublePana } from './doublePanaValidate.js';
@@ -197,6 +198,8 @@ async function payWinnings(userId, payout, description, referenceId, betInfo = {
         description: description,
         referenceId: referenceId?.toString(),
     });
+
+    notifyPlayerWalletBalance(userId, 'market_win').catch(() => {});
 
     console.log(`[payWinnings] Credited ₹${payout} to PLAYER ${userId} wallet`);
     return payout;

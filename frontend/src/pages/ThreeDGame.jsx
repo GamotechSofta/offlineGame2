@@ -36,6 +36,7 @@ import { getBalance, getRatesCurrent, updateUserBalance } from '../api/bets';
 import { cancelMyQuizBet, cancelMyQuizTicket, getMyQuizBets, getMyQuizTicketLines, getMyQuizTicketSummary, getQuizSlotResultsForDate, postQuizBetsBatch } from '../api/quizApi';
 import { getQuizSocketUrl } from '../config/api';
 import { getCurrentUser, subscribeUserSession } from '../session/userSession';
+import { attachPlayerWalletSocket } from '../lib/playerWalletSocket';
 
 const MODE_OPTIONS = ['all', 'box', 'str', 'sp', 'fp', 'bp', 'ap', 'single', 'duplicates', 'triples'];
 const MODE_GROUP_COMBO = MODE_OPTIONS.slice(0, 7);
@@ -644,6 +645,8 @@ const ThreeDGame = () => {
       reconnectionDelay: 2000,
     });
 
+    const detachWallet = attachPlayerWalletSocket(socket);
+
     const onWalletUpdate = (payload) => {
       const current = getCurrentUser() || {};
       const currentUserId = String(current?.id || current?._id || '').trim();
@@ -657,6 +660,7 @@ const ThreeDGame = () => {
 
     socket.on('wallet:update', onWalletUpdate);
     return () => {
+      detachWallet();
       socket.off('wallet:update', onWalletUpdate);
       socket.disconnect();
     };

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
 import useSectionAutoRefresh from '../hooks/useSectionAutoRefresh';
+import useAdminLiveInvalidation from '../hooks/useAdminLiveInvalidation';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
@@ -12,6 +13,22 @@ const Wallet = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('wallets');
+    const activeTabRef = useRef(activeTab);
+    useEffect(() => {
+        activeTabRef.current = activeTab;
+    }, [activeTab]);
+
+    useAdminLiveInvalidation({
+        enabled: typeof window !== 'undefined' && !!localStorage.getItem('admin'),
+        throttleMs: 900,
+        onInvalidate: () => {
+            if (activeTabRef.current === 'wallets') {
+                fetchWallets({ silent: true });
+            } else {
+                fetchTransactions({ silent: true });
+            }
+        },
+    });
 
     useEffect(() => {
         if (activeTab === 'wallets') {
@@ -57,7 +74,7 @@ const Wallet = () => {
 
     useSectionAutoRefresh({
         enabled: true,
-        intervalMs: 15000,
+        intervalMs: 60000,
         onRefresh: () => {
             if (activeTab === 'wallets') {
                 fetchWallets({ silent: true });
