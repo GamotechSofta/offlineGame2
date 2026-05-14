@@ -993,6 +993,19 @@ export const getMarketStats = async (req, res) => {
                 return;
             }
 
+            // CP (SPDPT): only triple panna (000–999 all same) rolls into Triple Patti stats; other CP panas stay out of patti buckets here.
+            if (type === 'cp-common' && /^[0-9]{3}$/.test(num)) {
+                const a = num[0], b_ = num[1], c = num[2];
+                if (a === b_ && b_ === c) {
+                    if (!stats.triplePatti.items[num]) stats.triplePatti.items[num] = { amount: 0, count: 0 };
+                    stats.triplePatti.items[num].amount += amount;
+                    stats.triplePatti.items[num].count += 1;
+                    stats.triplePatti.totalAmount += amount;
+                    stats.triplePatti.totalBets += 1;
+                }
+                return;
+            }
+
             if (type === 'half-sangam') {
                 const parts = num.split('-').map((p) => (p || '').trim()).filter(Boolean);
                 const a = parts[0] || '';
