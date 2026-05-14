@@ -439,6 +439,20 @@ const EasyModeBid = ({
         setInputPoints(String(pts));
     };
 
+    /** Jodi special mode: add selected Quick Points to one cell (repeat clicks stack). */
+    const applyJodiQuickToCell = (num) => {
+        const delta = Number(jodiSpecialQuickSelected);
+        if (!jodiSpecialQuickSelected || !Number.isFinite(delta) || delta <= 0) {
+            showWarning('Please select Quick Points first.');
+            return;
+        }
+        setSpecialInputs((prev) => {
+            const cur = Number(prev[num] || 0) || 0;
+            const next = Math.min(cur + delta, 999999);
+            return { ...prev, [num]: String(next) };
+        });
+    };
+
     const modeHeader = showModeTabs ? (
         <div className="space-y-2 md:space-y-3">
             <div className="grid grid-cols-2 gap-2 md:gap-3">
@@ -484,9 +498,7 @@ const EasyModeBid = ({
                                 key={pts}
                                 type="button"
                                 onClick={() => {
-                                    const val = String(pts);
-                                    setJodiSpecialQuickSelected(val);
-                                    setSpecialInputs(Object.fromEntries(jodiNumbers.map((n) => [n, val])));
+                                    setJodiSpecialQuickSelected(String(pts));
                                 }}
                                 className={`py-2 min-h-[36px] rounded-lg border-2 text-xs sm:text-sm font-medium transition-colors active:scale-95 ${
                                     jodiSpecialQuickSelected === String(pts)
@@ -679,8 +691,13 @@ const EasyModeBid = ({
                                 {showModeTabs && desktopSplit && <div className="mb-4">{modeHeader}</div>}
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 xl:grid-rows-10 xl:grid-flow-col xl:gap-2">
                                     {jodiNumbers.map((num) => (
-                                        <div key={num} className="flex items-center gap-1.5">
-                                            <div className="w-10 h-9 bg-[#1B3150] border-2 border-gray-300 text-white flex items-center justify-center rounded-l-md font-bold text-xs shrink-0">
+                                        <div
+                                            key={num}
+                                            role="presentation"
+                                            className={`flex items-center gap-1.5 ${jodiSpecialQuickSelected ? 'cursor-pointer' : ''}`}
+                                            onClick={() => applyJodiQuickToCell(num)}
+                                        >
+                                            <div className="w-10 h-9 bg-[#1B3150] border-2 border-gray-300 text-white flex items-center justify-center rounded-l-md font-bold text-xs shrink-0 select-none active:opacity-90">
                                                 <span className="inline-flex items-center gap-1">
                                                     <span>{num[0]}</span>
                                                     <span>{num[1]}</span>
@@ -691,15 +708,14 @@ const EasyModeBid = ({
                                                 min="0"
                                                 placeholder="Pts"
                                                 value={specialInputs[num] || ''}
-                                                onChange={(e) =>
-                                                    {
-                                                        const nextVal = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                                        setSpecialInputs((p) => ({ ...p, [num]: nextVal }));
-                                                        if (jodiSpecialQuickSelected != null && nextVal !== String(jodiSpecialQuickSelected)) {
-                                                            setJodiSpecialQuickSelected(null);
-                                                        }
-                                                    }
-                                                }
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    applyJodiQuickToCell(num);
+                                                }}
+                                                onChange={(e) => {
+                                                    const nextVal = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                                    setSpecialInputs((p) => ({ ...p, [num]: nextVal }));
+                                                }}
                                                 className="w-full h-9 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-[#1B3150] px-2 text-xs font-semibold"
                                             />
                                         </div>
