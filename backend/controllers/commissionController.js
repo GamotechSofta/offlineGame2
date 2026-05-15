@@ -1,6 +1,7 @@
 import CommissionRequest from '../models/commission/commission.js';
 import Admin from '../models/admin/admin.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
+import { ADMIN_TAB, denyUnlessTabAccess, denyUnlessSuperAdmin } from '../utils/adminTabAccess.js';
 
 /**
  * Bookie: Create a new commission request
@@ -223,11 +224,8 @@ export const rejectCounterOffer = async (req, res) => {
  */
 export const getAllCommissionRequests = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Super Admin access required',
-            });
+        if (denyUnlessTabAccess(res, req.admin, ADMIN_TAB.BOOKIE_COMMISSIONS, 'You do not have access to bookie commissions')) {
+            return;
         }
 
         const { status } = req.query;
@@ -256,11 +254,8 @@ export const getAllCommissionRequests = async (req, res) => {
  */
 export const approveCommissionRequest = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Super Admin access required',
-            });
+        if (denyUnlessSuperAdmin(res, req.admin)) {
+            return;
         }
 
         const { requestId } = req.params;
@@ -319,11 +314,8 @@ export const approveCommissionRequest = async (req, res) => {
  */
 export const rejectCommissionRequest = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Super Admin access required',
-            });
+        if (denyUnlessSuperAdmin(res, req.admin)) {
+            return;
         }
 
         const { requestId } = req.params;
@@ -375,11 +367,8 @@ export const rejectCommissionRequest = async (req, res) => {
  */
 export const negotiateCommissionRequest = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Super Admin access required',
-            });
+        if (denyUnlessSuperAdmin(res, req.admin)) {
+            return;
         }
 
         const { requestId } = req.params;

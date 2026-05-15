@@ -59,6 +59,12 @@ import {
   updateAdminQuizTimingSettings,
 } from '../../controllers/quizTimingAdminController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
+import {
+    listSpecificAdmins,
+    createSpecificAdmin,
+    updateSpecificAdmin,
+    deleteSpecificAdmin,
+} from '../../controllers/specificAdminController.js';
 
 const router = express.Router();
 
@@ -66,7 +72,7 @@ router.post('/login', adminLogin);
 router.post('/create', createAdmin); // For initial admin setup
 
 // Secret declare password (Super Admin only)
-router.get('/me/secret-declare-password-status', verifySuperAdmin, getSecretDeclarePasswordStatus);
+router.get('/me/secret-declare-password-status', verifyAdmin, getSecretDeclarePasswordStatus);
 router.patch('/me/secret-declare-password', verifySuperAdmin, setSecretDeclarePassword);
 
 // SP Common list (SP Common game chart / reference)
@@ -116,6 +122,12 @@ router.patch('/lottery3d/slots/declaration', verifyAdmin, updateLottery3DSlotDec
 // Quiz timing settings (study/hint split + reveal stagger)
 router.get('/quiz-settings/:mode', verifyAdmin, getAdminQuizTimingSettings);
 router.patch('/quiz-settings/:mode', verifyAdmin, updateAdminQuizTimingSettings);
+
+// Specific Admin management (Super Admin only)
+router.get('/specific-admins', verifySuperAdmin, listSpecificAdmins);
+router.post('/specific-admins', verifySuperAdmin, createSpecificAdmin);
+router.put('/specific-admins/:id', verifySuperAdmin, updateSpecificAdmin);
+router.delete('/specific-admins/:id', verifySuperAdmin, deleteSpecificAdmin);
 
 // Super Admin management routes (Super Admin only)
 router.get('/super-admins', verifyAdmin, getAllSuperAdmins); // Get all super admins

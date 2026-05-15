@@ -9,7 +9,7 @@ import {
     rejectCommissionRequest,
     negotiateCommissionRequest,
 } from '../../controllers/commissionController.js';
-import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
+import { verifyAdmin, verifySuperAdmin, requireAdminTab } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ router.post('/accept-counter/:requestId', verifyAdmin, acceptCounterOffer);
 router.post('/reject-counter/:requestId', verifyAdmin, rejectCounterOffer);
 
 // Super Admin routes
-router.get('/all', verifySuperAdmin, getAllCommissionRequests);
+router.get('/all', verifyAdmin, requireAdminTab('/bookie-commissions'), getAllCommissionRequests);
 router.post('/approve/:requestId', verifySuperAdmin, approveCommissionRequest);
 router.post('/reject/:requestId', verifySuperAdmin, rejectCommissionRequest);
 router.post('/negotiate/:requestId', verifySuperAdmin, negotiateCommissionRequest);

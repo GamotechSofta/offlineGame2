@@ -1,5 +1,6 @@
 import Admin from '../models/admin/admin.js';
 import { verifyAdminToken } from '../utils/adminJwt.js';
+import { hasAdminTabAccess } from '../utils/adminTabAccess.js';
 
 /**
  * Middleware to verify admin authentication.
@@ -95,6 +96,17 @@ export const verifySuperAdmin = (req, res, next) => {
         next();
     };
     verifyAdmin(req, res, checkRoleAndContinue);
+};
+
+/**
+ * After verifyAdmin: super_admin or Super Bookie with tab in allowedTabs.
+ */
+export const requireAdminTab = (tabPath) => (req, res, next) => {
+    if (hasAdminTabAccess(req.admin, tabPath)) return next();
+    return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this resource',
+    });
 };
 
 /** Only bookie can access - use after verifyAdmin */

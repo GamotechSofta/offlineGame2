@@ -4,6 +4,7 @@ import Admin from '../models/admin/admin.js';
 import User from '../models/user/user.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
 import QuizBet from '../models/quiz/QuizBet.js';
+import { ADMIN_TAB, denyUnlessTabAccess, denyUnlessSuperAdmin } from '../utils/adminTabAccess.js';
 
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -306,11 +307,8 @@ export const getDailyCommissions = async (req, res) => {
  */
 export const getAllDailyCommissions = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Only super admin can view all daily commissions',
-            });
+        if (denyUnlessTabAccess(res, req.admin, ADMIN_TAB.BOOKIE_COMMISSIONS, 'You do not have access to bookie commissions')) {
+            return;
         }
         
         const { startDate, endDate, bookieId, paymentStatus } = req.query;
@@ -395,11 +393,8 @@ export const getAllDailyCommissions = async (req, res) => {
  */
 export const getAllCommissionSummary = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Only super admin can view all commissions',
-            });
+        if (denyUnlessTabAccess(res, req.admin, ADMIN_TAB.BOOKIE_COMMISSIONS, 'You do not have access to bookie commissions')) {
+            return;
         }
 
         const { paymentStatus } = req.query;
@@ -510,11 +505,8 @@ export const getAllCommissionSummary = async (req, res) => {
  */
 export const recordCommissionPayment = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Only super admin can mark commission payments',
-            });
+        if (denyUnlessSuperAdmin(res, req.admin, 'Only Super Admin can mark commission payments')) {
+            return;
         }
 
         const { commissionId } = req.params;
@@ -586,11 +578,8 @@ export const recordCommissionPayment = async (req, res) => {
  */
 export const recordBookieCommissionPayment = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Only super admin can mark commission payments',
-            });
+        if (denyUnlessSuperAdmin(res, req.admin, 'Only Super Admin can mark commission payments')) {
+            return;
         }
 
         const { bookieId } = req.params;
@@ -686,11 +675,8 @@ export const recordBookieCommissionPayment = async (req, res) => {
  */
 export const getBookieCommissionPaymentHistory = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Only super admin can view payment history',
-            });
+        if (denyUnlessTabAccess(res, req.admin, ADMIN_TAB.BOOKIE_COMMISSIONS, 'You do not have access to bookie commissions')) {
+            return;
         }
 
         const { bookieId } = req.params;

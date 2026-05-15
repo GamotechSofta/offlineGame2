@@ -5,10 +5,11 @@ import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEye
 import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth, getStoredAdmin } from '../lib/auth';
 
 const BookieManagement = () => {
     const navigate = useNavigate();
+    const canManageBookies = getStoredAdmin()?.role === 'super_admin';
     const [bookies, setBookies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -443,15 +444,17 @@ const BookieManagement = () => {
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
                         <h1 className="text-2xl sm:text-3xl font-bold">Bookie Accounts Management</h1>
-                        <button
-                            onClick={() => {
-                                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false, balance: '' });
-                                setShowCreateModal(true);
-                            }}
-                            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-gray-800 font-bold py-2.5 px-4 rounded-lg transition-colors text-sm sm:text-base"
-                        >
-                            <FaPlus /> Add New Bookie
-                        </button>
+                        {canManageBookies && (
+                            <button
+                                onClick={() => {
+                                    setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false, balance: '' });
+                                    setShowCreateModal(true);
+                                }}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-gray-800 font-bold py-2.5 px-4 rounded-lg transition-colors text-sm sm:text-base"
+                            >
+                                <FaPlus /> Add New Bookie
+                            </button>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
@@ -525,7 +528,11 @@ const BookieManagement = () => {
                         ) : filteredBookies.length === 0 ? (
                             <div className="p-8 text-center text-gray-400">
                                 <p>No matching bookie accounts found.</p>
-                                <p className="mt-2">Try changing search/filter or add a new bookie.</p>
+                                <p className="mt-2">
+                                    {canManageBookies
+                                        ? 'Try changing search/filter or add a new bookie.'
+                                        : 'Try changing search or filter.'}
+                                </p>
                             </div>
                         ) : (
                             <div className="p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -577,6 +584,7 @@ const BookieManagement = () => {
                                             </div>
                                         </div>
 
+                                        {canManageBookies && (
                                         <div className="flex flex-wrap gap-2 mt-3">
                                             <button
                                                 onClick={() => openManageModal(bookie)}
@@ -609,6 +617,7 @@ const BookieManagement = () => {
                                                 Delete
                                             </button>
                                         </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

@@ -16,7 +16,12 @@ const adminSchema = new mongoose.Schema({
     role: {
         type: String,
         default: 'super_admin',
-        enum: ['super_admin', 'bookie'],
+        enum: ['super_admin', 'specific_admin', 'bookie'],
+    },
+    /** specific_admin only: sidebar paths this admin may access */
+    allowedTabs: {
+        type: [String],
+        default: [],
     },
     status: {
         type: String,
@@ -45,7 +50,7 @@ const adminSchema = new mongoose.Schema({
         min: 0,
         max: 100,
     },
-    /** Super admin only: Secret password required when declaring result (Confirm & Declare). Optional – if not set, no extra check. */
+    /** super_admin / specific_admin: Secret password for sensitive actions (declare, delete market, etc.). Optional – if not set, no extra check. */
     secretDeclarePassword: {
         type: String,
         default: null,
@@ -80,9 +85,14 @@ adminSchema.pre('save', async function () {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
     }
-    if (this.isModified('secretDeclarePassword') && this.secretDeclarePassword) {
-        const salt = await bcrypt.genSalt(10);
-        this.secretDeclarePassword = await bcrypt.hash(this.secretDeclarePassword, salt);
+    if (this.isModified('secretDeclarePassword')) {
+        const secret = this.secretDeclarePassword;
+        if (secret === null || secret === undefined || String(secret).trim() === '') {
+            this.secretDeclarePassword = null;
+        } else if (!String(secret).startsWith('$2')) {
+            const salt = await bcrypt.genSalt(10);
+            this.secretDeclarePassword = await bcrypt.hash(String(secret), salt);
+        }
     }
 });
 
@@ -91,7 +101,7 @@ adminSchema.methods.comparePassword = async function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Method to compare secret declare password (super_admin only)
+// Method to compare secret declare password (super_admin / specific_admin)
 adminSchema.methods.compareSecretDeclarePassword = async function (candidatePassword) {
     if (!this.secretDeclarePassword) return false;
     return bcrypt.compare(candidatePassword, this.secretDeclarePassword);

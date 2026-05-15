@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { getStoredAdmin } from '../lib/auth';
+import { getDefaultRouteForAdmin } from '../config/adminMenu';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -15,7 +17,7 @@ const Login = () => {
     // If already logged in (token or admin), go to dashboard immediately
     React.useEffect(() => {
         if (localStorage.getItem('adminToken') || localStorage.getItem('admin')) {
-            navigate('/dashboard', { replace: true });
+            navigate(getDefaultRouteForAdmin(getStoredAdmin()), { replace: true });
         }
     }, [navigate]);
 
@@ -51,7 +53,7 @@ const Login = () => {
                 const { token, ...adminData } = data.data;
                 localStorage.setItem('admin', JSON.stringify(adminData));
                 if (token) localStorage.setItem('adminToken', token);
-                navigate('/dashboard', { replace: true });
+                navigate(getDefaultRouteForAdmin(adminData), { replace: true });
             } else {
                 setError(data.message || 'Login failed');
             }

@@ -1,6 +1,10 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
+import SpecificAdminRouteGuard from './components/SpecificAdminRouteGuard';
+import SpecificAdminManagement from './pages/SpecificAdminManagement';
+import { getStoredAdmin } from './lib/auth';
+import { getDefaultRouteForAdmin } from './config/adminMenu';
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Markets = lazy(() => import('./pages/Markets'));
 import AddUser from './pages/AddUser';
@@ -63,7 +67,8 @@ const ScrollToTop = () => {
 
 const PrivateRoute = ({ children }) => {
     const admin = localStorage.getItem('admin');
-    return admin ? children : <Navigate to="/" />;
+    if (!admin) return <Navigate to="/" />;
+    return <SpecificAdminRouteGuard>{children}</SpecificAdminRouteGuard>;
 };
 
 const App = () => {
@@ -414,10 +419,25 @@ const App = () => {
                         </PrivateRoute>
                     }
                 />
+                <Route
+                    path="/specific-admin"
+                    element={
+                        <PrivateRoute>
+                            <SpecificAdminManagement />
+                        </PrivateRoute>
+                    }
+                />
                 {/* If a frontend lottery URL is opened in admin app, redirect to admin 3D screen. */}
                 <Route path="/lottery/*" element={<Navigate to="/3d-management" replace />} />
                 {/* Catch-all fallback to avoid "No routes matched" warnings in admin app. */}
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route
+                    path="*"
+                    element={
+                        <PrivateRoute>
+                            <Navigate to={getDefaultRouteForAdmin(getStoredAdmin())} replace />
+                        </PrivateRoute>
+                    }
+                />
             </Routes>
             </Suspense>
         </Router>

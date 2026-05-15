@@ -9,6 +9,7 @@ import { DP_COMMON_LIST } from '../config/dpCommonList.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signAdminToken } from '../utils/adminJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
+import { canAccessBookieManagement, isSuperAdmin } from '../utils/adminTabAccess.js';
 
 /**
  * Admin login
@@ -25,7 +26,7 @@ export const adminLogin = async (req, res) => {
             });
         }
 
-        const admin = await Admin.findOne({ username }).select('password status role username _id');
+        const admin = await Admin.findOne({ username }).select('password status role username _id allowedTabs');
         if (!admin) {
             return res.status(401).json({
                 success: false,
@@ -58,27 +59,39 @@ export const adminLogin = async (req, res) => {
             });
         }
 
+        const roleLabel =
+            admin.role === 'super_admin'
+                ? 'Super Admin Panel'
+                : admin.role === 'specific_admin'
+                  ? 'Super Bookie Panel'
+                  : 'Admin Panel';
+
         // Log in background so login response returns immediately (no await)
         logActivity({
             action: 'admin_login',
             performedBy: admin.username,
-            performedByType: admin.role === 'super_admin' ? 'super_admin' : 'bookie',
+            performedByType: admin.role === 'super_admin' ? 'super_admin' : 'admin',
             targetType: 'admin',
             targetId: admin._id.toString(),
-            details: `${admin.username} logged in (${admin.role === 'super_admin' ? 'Admin Panel' : 'Bookie Panel'})`,
+            details: `${admin.username} logged in (${roleLabel})`,
             ip: getClientIp(req),
         }).catch(() => {});
 
         const token = signAdminToken(admin);
+        const data = {
+            id: admin._id,
+            username: admin.username,
+            role: admin.role,
+            token,
+        };
+        if (admin.role === 'specific_admin') {
+            data.allowedTabs = Array.isArray(admin.allowedTabs) ? admin.allowedTabs : [];
+        }
+
         res.status(200).json({
             success: true,
             message: 'Login successful',
-            data: {
-                id: admin._id,
-                username: admin.username,
-                role: admin.role,
-                token,
-            },
+            data,
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -149,7 +162,7 @@ const PHONE_REGEX = /^[6-9]\d{9}$/;
  */
 export const createBookie = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
+        if (!isSuperAdmin(req.admin)) {
             return res.status(403).json({
                 success: false,
                 message: 'Only Super Admin can create bookies',
@@ -299,14 +312,14 @@ export const getAllSuperAdmins = async (req, res) => {
 
 /**
  * Get all bookies
- * Only super_admin can access
+ * super_admin or Super Bookie with /bookie-management tab
  */
 export const getAllBookies = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
+        if (!canAccessBookieManagement(req.admin)) {
             return res.status(403).json({
                 success: false,
-                message: 'Only Super Admin can view bookies',
+                message: 'You do not have access to bookie accounts',
             });
         }
 
@@ -397,14 +410,14 @@ export const getAllBookies = async (req, res) => {
 
 /**
  * Get single bookie by ID
- * Only super_admin can access
+ * super_admin or Super Bookie with /bookie-management tab
  */
 export const getBookieById = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
+        if (!canAccessBookieManagement(req.admin)) {
             return res.status(403).json({
                 success: false,
-                message: 'Only Super Admin can view bookie details',
+                message: 'You do not have access to bookie accounts',
             });
         }
 
@@ -698,6 +711,10 @@ export const toggleBookieStatus = async (req, res) => {
  */
 export const getSecretDeclarePasswordStatus = async (req, res) => {
     try {
+        const role = req.admin?.role;
+        if (role !== 'super_admin' && role !== 'specific_admin') {
+            return res.status(403).json({ success: false, message: 'Not allowed' });
+        }
         const admin = await Admin.findById(req.admin._id).select('secretDeclarePassword').lean();
         if (!admin) {
             return res.status(404).json({ success: false, message: 'Admin not found' });

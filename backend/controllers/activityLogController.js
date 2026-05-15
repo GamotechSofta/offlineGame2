@@ -1,15 +1,13 @@
 import ActivityLog from '../models/activityLog/activityLog.js';
+import { ADMIN_TAB, denyUnlessTabAccess } from '../utils/adminTabAccess.js';
 
 /**
- * Get activity logs - super_admin only
+ * Get activity logs - super_admin or Super Bookie with /logs tab
  */
 export const getLogs = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Only Super Admin can view logs',
-            });
+        if (denyUnlessTabAccess(res, req.admin, ADMIN_TAB.LOGS, 'You do not have access to logs')) {
+            return;
         }
 
         const { page = 1, limit = 100, action, performedBy, performedByType, sort = 'desc' } = req.query;

@@ -8,7 +8,31 @@ import { dedupeRequest } from '../lib/requestDedupe';
 import { useTraceRender } from '../lib/runtimeTrace';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { getAuthHeaders, clearAdminSession, fetchWithAuth, getStoredAdmin } from '../lib/auth';
+
+const ALL_PLAYER_TABS = [
+    { id: 'all', label: 'All Players', value: 'all' },
+    { id: 'super_admins', label: 'All Super Admins', value: 'super_admins' },
+    { id: 'all_bookies', label: 'All Bookies', value: 'all_bookies' },
+    { id: 'bookie_users', label: 'All Bookies Players', value: 'bookie_users' },
+    { id: 'super_admin_users', label: 'Super Admin Players', value: 'super_admin_users' },
+];
+
+function getVisibleTabsForAdmin(admin) {
+    if (!admin || admin.role === 'super_admin') return ALL_PLAYER_TABS;
+    if (admin.role === 'specific_admin') {
+        const allowed = admin.allowedTabs || [];
+        return ALL_PLAYER_TABS.filter((tab) => {
+            if (tab.id === 'super_admins') return false;
+            if (tab.id === 'all_bookies') return allowed.includes('/bookie-management');
+            if (['all', 'super_admin_users', 'bookie_users'].includes(tab.id)) {
+                return allowed.includes('/all-users');
+            }
+            return false;
+        });
+    }
+    return ALL_PLAYER_TABS;
+}
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
 
 const computeIsOnline = (item, nowMs) => {
@@ -16,13 +40,6 @@ const computeIsOnline = (item, nowMs) => {
     return lastActive > 0 && nowMs - lastActive < ONLINE_THRESHOLD_MS;
 };
 
-const TABS = [
-    { id: 'all', label: 'All Players', value: 'all' },
-    { id: 'super_admins', label: 'All Super Admins', value: 'super_admins' },
-    { id: 'all_bookies', label: 'All Bookies', value: 'all_bookies' },
-    { id: 'bookie_users', label: 'All Bookies Players', value: 'bookie_users' },
-    { id: 'super_admin_users', label: 'Super Admin Players', value: 'super_admin_users' },
-];
 const USERS_PAGE_LIMIT = 100;
 
 const toggleUserInCache = (previous, userId) => {
@@ -64,7 +81,10 @@ const toggleBookieInCache = (previous, bookieId) => {
 const AllUsers = () => {
     useTraceRender('AllUsers');
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('all');
+    const storedAdmin = getStoredAdmin();
+    const canManagePlayers = storedAdmin?.role === 'super_admin';
+    const visibleTabs = getVisibleTabsForAdmin(storedAdmin);
+    const [activeTab, setActiveTab] = useState(() => visibleTabs[0]?.id || 'all');
     /** Server pagination for GET /users (100 per page, separate page per tab). */
     const [playerListPages, setPlayerListPages] = useState({
         all: 1,
@@ -105,36 +125,67 @@ const AllUsers = () => {
 
     const fetchData = async ({ queryKey }) => {
         const [, pAll, pSuper, pBookie, searchStr] = queryKey;
+        const admin = getStoredAdmin();
+        const isSuperAdmin = admin?.role === 'super_admin';
+        const allowed = admin?.allowedTabs || [];
+        const hasAllUsers = isSuperAdmin || allowed.includes('/all-users');
+        const hasBookieMgmt = isSuperAdmin || allowed.includes('/bookie-management');
+
         const searchParam =
             searchStr && String(searchStr).trim()
                 ? `&search=${encodeURIComponent(String(searchStr).trim())}`
                 : '';
-        const dedupeKey = `all-users:data:${pAll}:${pSuper}:${pBookie}:${searchStr || ''}`;
+        const dedupeKey = `all-users:data:${pAll}:${pSuper}:${pBookie}:${searchStr || ''}:${isSuperAdmin}`;
         return dedupeRequest(dedupeKey, async () => {
-            const [allRes, superAdminRes, bookieRes, bookiesRes, adminsRes] = await Promise.all([
-                fetchWithAuth(`${API_BASE_URL}/users?page=${pAll}&limit=${USERS_PAGE_LIMIT}${searchParam}`),
-                fetchWithAuth(`${API_BASE_URL}/users?filter=super_admin&page=${pSuper}&limit=${USERS_PAGE_LIMIT}${searchParam}`),
-                fetchWithAuth(`${API_BASE_URL}/users?filter=bookie&page=${pBookie}&limit=${USERS_PAGE_LIMIT}${searchParam}`),
-                fetchWithAuth(`${API_BASE_URL}/admin/bookies`),
-                fetchWithAuth(`${API_BASE_URL}/admin/super-admins`),
-            ]);
-            if (allRes.status === 401 || superAdminRes.status === 401 || bookieRes.status === 401 || bookiesRes.status === 401 || adminsRes.status === 401) {
-                return {
-                    allUsers: [],
-                    superAdminUsersList: [],
-                    bookieUsersList: [],
-                    allBookies: [],
-                    superAdminsList: [],
-                    paginationAll: null,
-                    paginationSuperAdmin: null,
-                    paginationBookie: null,
-                };
+            const empty = {
+                allUsers: [],
+                superAdminUsersList: [],
+                bookieUsersList: [],
+                allBookies: [],
+                superAdminsList: [],
+                paginationAll: null,
+                paginationSuperAdmin: null,
+                paginationBookie: null,
+            };
+
+            const tasks = [];
+            if (hasAllUsers) {
+                tasks.push(
+                    fetchWithAuth(`${API_BASE_URL}/users?page=${pAll}&limit=${USERS_PAGE_LIMIT}${searchParam}`),
+                    fetchWithAuth(`${API_BASE_URL}/users?filter=super_admin&page=${pSuper}&limit=${USERS_PAGE_LIMIT}${searchParam}`),
+                    fetchWithAuth(`${API_BASE_URL}/users?filter=bookie&page=${pBookie}&limit=${USERS_PAGE_LIMIT}${searchParam}`),
+                );
             }
-            const allData = await allRes.json();
-            const superAdminData = await superAdminRes.json();
-            const bookieData = await bookieRes.json();
-            const bookiesData = await bookiesRes.json();
-            const adminsData = await adminsRes.json();
+            if (hasBookieMgmt) {
+                tasks.push(fetchWithAuth(`${API_BASE_URL}/admin/bookies`));
+            }
+            if (isSuperAdmin) {
+                tasks.push(fetchWithAuth(`${API_BASE_URL}/admin/super-admins`));
+            }
+
+            if (tasks.length === 0) return empty;
+
+            const results = await Promise.all(tasks);
+            if (results.some((r) => r.status === 401)) return empty;
+
+            let idx = 0;
+            let allData = { success: false };
+            let superAdminData = { success: false };
+            let bookieData = { success: false };
+            if (hasAllUsers) {
+                allData = await results[idx++].json();
+                superAdminData = await results[idx++].json();
+                bookieData = await results[idx++].json();
+            }
+            let bookiesData = { success: false };
+            if (hasBookieMgmt) {
+                bookiesData = await results[idx++].json();
+            }
+            let adminsData = { success: false };
+            if (isSuperAdmin) {
+                adminsData = await results[idx++].json();
+            }
+
             return {
                 allUsers: allData.success ? (allData.data || []) : [],
                 superAdminUsersList: superAdminData.success ? (superAdminData.data || []) : [],
@@ -147,6 +198,12 @@ const AllUsers = () => {
             };
         });
     };
+
+    useEffect(() => {
+        if (!visibleTabs.some((t) => t.id === activeTab)) {
+            setActiveTab(visibleTabs[0]?.id || 'all');
+        }
+    }, [activeTab, visibleTabs]);
 
     useEffect(() => {
         const admin = localStorage.getItem('admin');
@@ -400,14 +457,16 @@ const AllUsers = () => {
         <AdminLayout onLogout={handleLogout} title="All Players">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
                 <h1 className="text-2xl sm:text-3xl font-bold">All Players</h1>
-                <button
-                    type="button"
-                    onClick={() => navigate('/add-user')}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-500/90 text-gray-800 font-semibold transition-colors text-sm sm:text-base shrink-0"
-                >
-                    <FaUserPlus className="w-5 h-5" />
-                    Add Player
-                </button>
+                {canManagePlayers && (
+                    <button
+                        type="button"
+                        onClick={() => navigate('/add-user')}
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-500/90 text-gray-800 font-semibold transition-colors text-sm sm:text-base shrink-0"
+                    >
+                        <FaUserPlus className="w-5 h-5" />
+                        Add Player
+                    </button>
+                )}
             </div>
 
             {/* Fixed top notification - no layout shift */}
@@ -430,7 +489,7 @@ const AllUsers = () => {
 
             {/* Tabs */}
             <div className="flex flex-wrap gap-2 mb-4">
-                {TABS.map((tab) => (
+                {visibleTabs.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
@@ -477,7 +536,7 @@ const AllUsers = () => {
                     </div>
                 ) : list.length === 0 ? (
                     <div className="p-8 text-center text-gray-400">
-                        No {TABS.find(t => t.id === activeTab)?.label?.toLowerCase()} found.
+                        No {visibleTabs.find(t => t.id === activeTab)?.label?.toLowerCase()} found.
                     </div>
                 ) : filteredList.length === 0 ? (
                     <div className="p-8 text-center text-gray-400">
@@ -531,6 +590,7 @@ const AllUsers = () => {
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex flex-wrap items-center gap-2">
+                                                            {canManagePlayers && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleToggleBookieStatus(bookie._id)}
@@ -543,6 +603,7 @@ const AllUsers = () => {
                                                             >
                                                                 {togglingId === bookie._id ? '⏳' : bookie.status === 'active' ? <><FaUserSlash className="w-3.5 h-3.5" /> Suspend</> : <><FaUserCheck className="w-3.5 h-3.5" /> Unsuspend</>}
                                                             </button>
+                                                            )}
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setExpandedBookieId(isExpanded ? null : bookie._id)}
@@ -816,7 +877,7 @@ const AllUsers = () => {
                                             }) : '—'}
                                         </td>
                                         <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
-                                            {(activeTab === 'super_admins') ? (
+                                            {(activeTab === 'super_admins') || !canManagePlayers ? (
                                                 <span className="text-gray-400">—</span>
                                             ) : (
                                                 <button
@@ -902,11 +963,11 @@ const AllUsers = () => {
                             Showing{' '}
                             {filteredList.length > 0 ? `${(rowOffset + 1).toLocaleString('en-IN')}–${(rowOffset + filteredList.length).toLocaleString('en-IN')}` : '0'}
                             {' '}of {paginationForActiveUserTab.total.toLocaleString('en-IN')}{' '}
-                            {TABS.find((t) => t.id === activeTab)?.label?.toLowerCase()}
+                            {visibleTabs.find((t) => t.id === activeTab)?.label?.toLowerCase()}
                         </>
                     ) : (
                         <>
-                            Showing {filteredList.length} {TABS.find((t) => t.id === activeTab)?.label?.toLowerCase()}
+                            Showing {filteredList.length} {visibleTabs.find((t) => t.id === activeTab)?.label?.toLowerCase()}
                             {!isUserList && searchQuery && filteredList.length !== list.length && (
                                 <span> (filtered from {list.length})</span>
                             )}

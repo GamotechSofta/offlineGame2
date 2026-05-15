@@ -4,6 +4,7 @@ import User from '../models/user/user.js';
 import Admin from '../models/admin/admin.js';
 import { Wallet } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { ADMIN_TAB, denyUnlessTabAccess } from '../utils/adminTabAccess.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
 import QuizBet from '../models/quiz/QuizBet.js';
 
@@ -344,8 +345,8 @@ export const getRevenueReport = async (req, res) => {
  */
 export const getBookieRevenueDetail = async (req, res) => {
     try {
-        if (req.admin?.role !== 'super_admin') {
-            return res.status(403).json({ success: false, message: 'Only Super Admin can view bookie details' });
+        if (denyUnlessTabAccess(res, req.admin, ADMIN_TAB.REVENUE, 'You do not have access to revenue details')) {
+            return;
         }
 
         const { bookieId } = req.params;

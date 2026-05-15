@@ -48,6 +48,15 @@ export async function fetchWithAuth(url, options = {}) {
     return res;
 }
 
+export function getStoredAdmin() {
+    try {
+        const raw = localStorage.getItem('admin');
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
 export function clearAdminSession() {
     localStorage.removeItem('admin');
     localStorage.removeItem('adminToken');
