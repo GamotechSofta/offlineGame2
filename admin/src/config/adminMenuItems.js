@@ -69,7 +69,7 @@ export const SUPER_ADMIN_ONLY_ITEMS = [
 
 export const SPECIFIC_ADMIN_MANAGEMENT_ITEM = {
     path: '/specific-admin',
-    label: 'Super Bookie',
+    label: 'Specific Admin',
     icon: FaUserShield,
 };
 
@@ -107,13 +107,13 @@ export function buildMenuForAdmin(admin) {
 }
 
 export function getSidebarTitle(role) {
-    if (role === 'specific_admin') return 'Super Bookie';
+    if (role === 'specific_admin') return 'Specific Admin';
     if (role === 'super_admin') return 'Super Admin';
     return 'Admin';
 }
 
 export function getSidebarAbbrev(role) {
-    if (role === 'specific_admin') return 'SB';
+    if (role === 'specific_admin') return 'Sp';
     if (role === 'super_admin') return 'SA';
     return 'AD';
 }

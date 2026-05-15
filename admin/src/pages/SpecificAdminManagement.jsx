@@ -72,7 +72,7 @@ const SpecificAdminManagementPage = () => {
             if (json.success) {
                 setAdmins(json.data || []);
             } else {
-                setError(json.message || 'Failed to load Super Bookie accounts');
+                setError(json.message || 'Failed to load Specific Admin accounts');
             }
         } catch {
             setError('Network error');
@@ -132,7 +132,7 @@ const SpecificAdminManagementPage = () => {
             });
             const json = await res.json();
             if (json.success) {
-                setSuccess('Super Bookie created');
+                setSuccess('Specific Admin created');
                 setShowCreateModal(false);
                 setFormData({ username: '', password: '', secretDeclarePassword: '', allowedTabs: [] });
                 if (json.data?.id && json.data?.secretDeclarePasswordPlain) {
@@ -183,7 +183,7 @@ const SpecificAdminManagementPage = () => {
             });
             const json = await res.json();
             if (json.success) {
-                setSuccess('Super Bookie updated');
+                setSuccess('Specific Admin updated');
                 setShowEditModal(false);
                 setSelected(null);
                 await fetchAdmins();
@@ -205,7 +205,7 @@ const SpecificAdminManagementPage = () => {
             });
             const json = await res.json();
             if (json.success) {
-                setSuccess('Super Bookie deleted');
+                setSuccess('Specific Admin deleted');
                 setShowDeleteModal(false);
                 setSelected(null);
                 await fetchAdmins();
@@ -220,16 +220,16 @@ const SpecificAdminManagementPage = () => {
     };
 
     return (
-        <AdminLayout onLogout={handleLogout} title="Super Bookie">
+        <AdminLayout onLogout={handleLogout} title="Specific Admin">
             <div className="max-w-6xl mx-auto">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                             <FaUserShield className="text-orange-500" />
-                            Super Bookie
+                            Specific Admin
                         </h1>
                         <p className="text-sm text-gray-500 mt-1">
-                            Super Bookie accounts with selected tabs and a declare secret.
+                            Specific Admin accounts with selected tabs and a declare secret.
                         </p>
                     </div>
                     <button
@@ -242,7 +242,7 @@ const SpecificAdminManagementPage = () => {
                         }}
                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600"
                     >
-                        <FaPlus /> Add Super Bookie
+                        <FaPlus /> Add Specific Admin
                     </button>
                 </div>
 
@@ -259,7 +259,7 @@ const SpecificAdminManagementPage = () => {
                     {loading ? (
                         <p className="p-8 text-center text-gray-500">Loading...</p>
                     ) : admins.length === 0 ? (
-                        <p className="p-8 text-center text-gray-500">No Super Bookie accounts yet.</p>
+                        <p className="p-8 text-center text-gray-500">No Specific Admin accounts yet.</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
@@ -343,7 +343,7 @@ const SpecificAdminManagementPage = () => {
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between p-4 border-b">
-                            <h2 className="text-lg font-bold">Create Super Bookie</h2>
+                            <h2 className="text-lg font-bold">Create Specific Admin</h2>
                             <button type="button" onClick={closeCreateModal} className="p-2 text-gray-400 hover:text-gray-600">
                                 <FaTimes />
                             </button>
@@ -522,7 +522,7 @@ const SpecificAdminManagementPage = () => {
             {showDeleteModal && selected && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-                        <h2 className="text-lg font-bold text-gray-800 mb-2">Delete Super Bookie?</h2>
+                        <h2 className="text-lg font-bold text-gray-800 mb-2">Delete Specific Admin?</h2>
                         <p className="text-sm text-gray-600 mb-6">
                             Remove <strong>{selected.username}</strong>? This cannot be undone.
                         </p>

@@ -80,13 +80,13 @@ export const createSpecificAdmin = async (req, res) => {
             performedByType: 'super_admin',
             targetType: 'admin',
             targetId: admin._id.toString(),
-            details: `Super Bookie "${username}" created with ${allowedTabs.length} tab(s)`,
+            details: `Specific Admin "${username}" created with ${allowedTabs.length} tab(s)`,
             ip: getClientIp(req),
         });
 
         res.status(201).json({
             success: true,
-            message: 'Super Bookie created successfully',
+            message: 'Specific Admin created successfully',
             data: {
                 ...mapSpecificAdminRow(await Admin.findById(admin._id).select('+secretDeclarePassword').lean()),
                 secretDeclarePasswordPlain: secretDeclarePassword,
@@ -108,7 +108,7 @@ export const updateSpecificAdmin = async (req, res) => {
         const { id } = req.params;
         const admin = await Admin.findOne({ _id: id, role: 'specific_admin' }).select('+secretDeclarePassword');
         if (!admin) {
-            return res.status(404).json({ success: false, message: 'Super Bookie not found' });
+            return res.status(404).json({ success: false, message: 'Specific Admin not found' });
         }
 
         if (req.body.allowedTabs !== undefined) {
@@ -154,13 +154,13 @@ export const updateSpecificAdmin = async (req, res) => {
             performedByType: 'super_admin',
             targetType: 'admin',
             targetId: admin._id.toString(),
-            details: `Super Bookie "${admin.username}" updated`,
+            details: `Specific Admin "${admin.username}" updated`,
             ip: getClientIp(req),
         });
 
         res.status(200).json({
             success: true,
-            message: 'Super Bookie updated successfully',
+            message: 'Specific Admin updated successfully',
             data: mapSpecificAdminRow(await Admin.findById(admin._id).select('+secretDeclarePassword').lean()),
         });
     } catch (error) {
@@ -176,7 +176,7 @@ export const deleteSpecificAdmin = async (req, res) => {
         const { id } = req.params;
         const admin = await Admin.findOne({ _id: id, role: 'specific_admin' });
         if (!admin) {
-            return res.status(404).json({ success: false, message: 'Super Bookie not found' });
+            return res.status(404).json({ success: false, message: 'Specific Admin not found' });
         }
 
         const username = admin.username;
@@ -188,13 +188,13 @@ export const deleteSpecificAdmin = async (req, res) => {
             performedByType: 'super_admin',
             targetType: 'admin',
             targetId: id,
-            details: `Super Bookie "${username}" deleted`,
+            details: `Specific Admin "${username}" deleted`,
             ip: getClientIp(req),
         });
 
         res.status(200).json({
             success: true,
-            message: 'Super Bookie deleted successfully',
+            message: 'Specific Admin deleted successfully',
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });

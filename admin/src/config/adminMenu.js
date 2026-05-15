@@ -33,7 +33,7 @@ export const SPECIFIC_ADMIN_TABS = [
     '/settings',
 ];
 
-/** Checkbox options for Super Bookie management (path + label). */
+/** Checkbox options for Specific Admin management (path + label). */
 export const TAB_OPTIONS = [
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/all-users', label: 'All Players' },

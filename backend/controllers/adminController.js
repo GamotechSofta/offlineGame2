@@ -63,7 +63,7 @@ export const adminLogin = async (req, res) => {
             admin.role === 'super_admin'
                 ? 'Super Admin Panel'
                 : admin.role === 'specific_admin'
-                  ? 'Super Bookie Panel'
+                  ? 'Specific Admin Panel'
                   : 'Admin Panel';
 
         // Log in background so login response returns immediately (no await)
