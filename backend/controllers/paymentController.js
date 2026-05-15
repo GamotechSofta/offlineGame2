@@ -662,16 +662,76 @@ export const getPayments = async (req, res) => {
             applyAdminPaymentDateRangeToQuery(query, dateBounds, statusFilter || undefined);
         }
 
+        const paymentListProject = {
+            userId: 1,
+            type: 1,
+            amount: 1,
+            method: 1,
+            status: 1,
+            screenshot: 1,
+            screenshotUrl: 1,
+            upiTransactionId: 1,
+            webhookRefId: 1,
+            userNote: 1,
+            adminRemarks: 1,
+            processedBy: 1,
+            processedAt: 1,
+            bankDetailId: 1,
+            createdAt: 1,
+            updatedAt: 1,
+        };
+
         const [payments, total] = await Promise.all([
-            Payment.find(query)
-                .select('userId type amount method status screenshot screenshotUrl upiTransactionId webhookRefId userNote adminRemarks processedBy processedAt bankDetailId createdAt updatedAt')
-                .populate('userId', 'username email phone')
-                .populate('bankDetailId', 'accountHolderName bankName accountNumber upiId ifscCode')
-                .populate('processedBy', 'username')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .lean(),
+            Payment.aggregate([
+                { $match: query },
+                {
+                    $addFields: {
+                        needsAction: { $cond: [{ $eq: ['$status', 'pending'] }, 0, 1] },
+                    },
+                },
+                { $sort: { needsAction: 1, createdAt: -1 } },
+                { $skip: skip },
+                { $limit: limit },
+                { $project: paymentListProject },
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'userId',
+                        foreignField: '_id',
+                        as: 'userId',
+                        pipeline: [{ $project: { username: 1, email: 1, phone: 1 } }],
+                    },
+                },
+                { $unwind: { path: '$userId', preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: 'bankdetails',
+                        localField: 'bankDetailId',
+                        foreignField: '_id',
+                        as: 'bankDetailId',
+                        pipeline: [{
+                            $project: {
+                                accountHolderName: 1,
+                                bankName: 1,
+                                accountNumber: 1,
+                                upiId: 1,
+                                ifscCode: 1,
+                            },
+                        }],
+                    },
+                },
+                { $unwind: { path: '$bankDetailId', preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: 'admins',
+                        localField: 'processedBy',
+                        foreignField: '_id',
+                        as: 'processedBy',
+                        pipeline: [{ $project: { username: 1 } }],
+                    },
+                },
+                { $unwind: { path: '$processedBy', preserveNullAndEmptyArrays: true } },
+            ]),
             Payment.countDocuments(query),
         ]);
 

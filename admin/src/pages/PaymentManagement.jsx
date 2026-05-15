@@ -177,7 +177,7 @@ const PaymentManagement = () => {
     const [playerFilter, setPlayerFilter] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
 
-    const [datePreset, setDatePreset] = useState('today');
+    const [datePreset, setDatePreset] = useState('all');
     const [customFrom, setCustomFrom] = useState('');
     const [customTo, setCustomTo] = useState('');
     const [customMode, setCustomMode] = useState(false);
@@ -345,6 +345,17 @@ const PaymentManagement = () => {
     });
 
     const payments = paymentsQuery.data?.data ?? [];
+    /** Pending (approve/reject) first, then newest within each group. */
+    const sortedPayments = useMemo(() => {
+        const list = [...payments];
+        list.sort((a, b) => {
+            const aPending = a.status === 'pending' ? 0 : 1;
+            const bPending = b.status === 'pending' ? 0 : 1;
+            if (aPending !== bPending) return aPending - bPending;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        return list;
+    }, [payments]);
     const pagination = paymentsQuery.data?.pagination ?? {
         page: currentPage,
         limit: PAGE_SIZE,
@@ -973,7 +984,7 @@ const PaymentManagement = () => {
                                 <span className="ml-2 text-orange-500">(filtered)</span>
                             )}
                         </p>
-                        {pendingRequireAction && payments.some((p) => p.status === 'pending') && (
+                        {pendingRequireAction && sortedPayments.some((p) => p.status === 'pending') && (
                             <p className="text-xs text-orange-500 flex items-start gap-2">
                                 <FaClock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                                 <span>Some payments need your approval</span>
@@ -1077,10 +1088,16 @@ const PaymentManagement = () => {
                             </p>
                         </div>
                     ) : (
-                        payments.map((payment) => {
+                        sortedPayments.map((payment) => {
                             const isExpanded = expandedPaymentId === payment._id;
+                            const needsAction = payment.status === 'pending';
                             return (
-                                <div key={payment._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                <div
+                                    key={payment._id}
+                                    className={`bg-white rounded-xl border overflow-hidden shadow-sm ${
+                                        needsAction ? 'border-orange-300 ring-1 ring-orange-200/80' : 'border-gray-200'
+                                    }`}
+                                >
                                     <button
                                         type="button"
                                         onClick={() => setExpandedPaymentId(isExpanded ? null : payment._id)}
@@ -1234,8 +1251,15 @@ const PaymentManagement = () => {
                                         </td>
                                     </tr>
                                 ) : (
-                                    payments.map((payment) => (
-                                        <tr key={payment._id} className="hover:bg-gray-50">
+                                    sortedPayments.map((payment) => (
+                                        <tr
+                                            key={payment._id}
+                                            className={
+                                                payment.status === 'pending'
+                                                    ? 'bg-orange-50/60 hover:bg-orange-50'
+                                                    : 'hover:bg-gray-50'
+                                            }
+                                        >
                                             <td className="px-2.5 py-3 text-xs text-gray-400 whitespace-nowrap">
                                                 #{payment._id.slice(-6).toUpperCase()}
                                             </td>

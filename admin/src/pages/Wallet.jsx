@@ -126,7 +126,7 @@ const Wallet = () => {
                                         wallets.map((wallet) => (
                                             <tr key={wallet._id} className="hover:bg-gray-100">
                                                 <td className="px-6 py-4 text-sm">{wallet.userId?.username || wallet.userId}</td>
-                                                <td className="px-6 py-4 text-sm font-semibold text-orange-500">₹{wallet.balance}</td>
+                                                <td className="px-6 py-4 text-sm font-semibold text-orange-500">₹{Math.floor(Number(wallet.balance || 0)).toLocaleString('en-IN')}</td>
                                                 <td className="px-6 py-4 text-sm">
                                                     <div className="flex gap-2">
                                                         <button

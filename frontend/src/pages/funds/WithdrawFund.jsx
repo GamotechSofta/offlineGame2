@@ -163,7 +163,7 @@ const WithdrawFund = () => {
                         <div className="min-w-0">
                             <div className="text-[11px] font-semibold text-white/90 leading-none">Available Balance</div>
                             <div className="text-white font-extrabold text-lg sm:text-xl leading-tight truncate">
-                                ₹ {Number(walletBalance || 0).toLocaleString('en-IN')}
+                                ₹ {Math.floor(Number(walletBalance || 0)).toLocaleString('en-IN')}
                             </div>
                         </div>
                     </div>

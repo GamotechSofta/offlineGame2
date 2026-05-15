@@ -469,7 +469,7 @@ const BookieManagement = () => {
                         </div>
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
                             <p className="text-xs text-gray-500">Total Bookie Balance</p>
-                            <p className="text-xl font-bold text-[#1B3150]">₹{stats.totalBalance.toLocaleString('en-IN')}</p>
+                            <p className="text-xl font-bold text-[#1B3150]">₹{Math.floor(stats.totalBalance).toLocaleString('en-IN')}</p>
                         </div>
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
                             <p className="text-xs text-gray-500">Total Commission (All Bookies)</p>
@@ -563,7 +563,7 @@ const BookieManagement = () => {
                                             </div>
                                             <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
                                                 <p className="text-[11px] text-gray-500">Balance</p>
-                                                <p className="font-semibold text-green-600 mt-0.5">₹{(bookie.balance ?? 0).toLocaleString('en-IN')}</p>
+                                                <p className="font-semibold text-green-600 mt-0.5">₹{Math.floor(Number(bookie.balance ?? 0)).toLocaleString('en-IN')}</p>
                                             </div>
                                             <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
                                                 <p className="text-[11px] text-gray-500">Total Commission Amount</p>

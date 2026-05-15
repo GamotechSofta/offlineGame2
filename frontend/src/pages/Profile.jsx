@@ -296,7 +296,7 @@ const Profile = () => {
             <div>
               <p className="text-gray-600 text-xs font-medium uppercase tracking-wider mb-1">Wallet Balance</p>
               <p className="text-[#1B3150] text-2xl md:text-3xl font-extrabold tracking-tight">
-                ₹{walletValue !== null ? walletValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                ₹{walletValue !== null ? walletValue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'}
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-gray-50 border-2 border-gray-300 flex items-center justify-center text-[#1B3150]">
@@ -500,7 +500,7 @@ const Profile = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-gray-600 text-[10px] font-medium uppercase tracking-wider">Account Balance</p>
                     <p className="text-[#1B3150] text-base font-bold mt-0.5">
-                      ₹{walletValue !== null ? walletValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                      ₹{walletValue !== null ? walletValue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'}
                     </p>
                   </div>
                 </div>

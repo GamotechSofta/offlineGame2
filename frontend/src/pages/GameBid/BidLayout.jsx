@@ -205,7 +205,7 @@ const BidLayout = ({
                         alt="Wallet"
                         className="w-5 h-5 sm:w-5 sm:h-5 object-contain"
                     />
-                    ₹{wallet.toFixed(1)}
+                    ₹{Math.floor(wallet).toLocaleString('en-IN')}
                 </div>
             </div>
 

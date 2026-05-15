@@ -46,8 +46,8 @@ const formatTime = (dateStr) => {
 
 const formatAmount = (amount) => {
   const n = Number(amount);
-  if (!Number.isFinite(n)) return '0.00';
-  return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (!Number.isFinite(n)) return '0';
+  return Math.floor(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 };
 
 const formatPassbookDescription = (raw, type) => {

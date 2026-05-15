@@ -181,7 +181,7 @@ const AddFund = () => {
                                         try {
                                             const u = JSON.parse(localStorage.getItem('user') || 'null');
                                             const b = Number(u?.balance ?? u?.walletBalance ?? u?.wallet ?? 0) || 0;
-                                            return b.toLocaleString('en-IN');
+                                            return Math.floor(b).toLocaleString('en-IN');
                                         } catch {
                                             return '0';
                                         }

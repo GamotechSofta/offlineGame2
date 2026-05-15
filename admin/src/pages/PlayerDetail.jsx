@@ -1098,7 +1098,7 @@ const PlayerDetail = () => {
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Balance</p>
-                            <p className="text-green-600 font-mono font-semibold">{player.walletBalance ?? 0}</p>
+                            <p className="text-green-600 font-mono font-semibold">₹{Math.floor(Number(player.walletBalance ?? 0)).toLocaleString('en-IN')}</p>
                         </div>
                         <div className="min-w-0">
                             <p className="text-gray-500 uppercase tracking-wider text-xs">Exchange Balance</p>

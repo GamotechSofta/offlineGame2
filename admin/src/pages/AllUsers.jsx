@@ -596,7 +596,7 @@ const AllUsers = () => {
                                                                                                 );
                                                                                             })()}
                                                                                         </td>
-                                                                                        <td className="px-4 py-2.5 text-green-600 font-mono text-xs">₹{Number(u.walletBalance ?? 0).toLocaleString('en-IN')}</td>
+                                                                                        <td className="px-4 py-2.5 text-green-600 font-mono text-xs">₹{Math.floor(Number(u.walletBalance ?? 0)).toLocaleString('en-IN')}</td>
                                                                                         <td className="px-4 py-2.5 hidden sm:table-cell">
                                                                                             <span className={`px-2 py-0.5 rounded text-xs font-medium border ${u.isActive !== false ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-rose-100 text-rose-700 border-rose-300'}`}>
                                                                                                 {u.isActive !== false ? 'Active' : 'Suspended'}
@@ -700,7 +700,7 @@ const AllUsers = () => {
                                                                 </div>
                                                             </div>
                                                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
-                                                                <span className="text-green-600 font-mono">₹{Number(u.walletBalance ?? 0).toLocaleString('en-IN')}</span>
+                                                                <span className="text-green-600 font-mono">₹{Math.floor(Number(u.walletBalance ?? 0)).toLocaleString('en-IN')}</span>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleTogglePlayerStatus(u._id)}
@@ -766,7 +766,7 @@ const AllUsers = () => {
                                                 <span className="text-gray-400">—</span>
                                             ) : (
                                                 <span className="font-mono font-medium text-green-600 text-xs sm:text-sm">
-                                                    ₹{Number(item.walletBalance ?? 0).toLocaleString('en-IN')}
+                                                    ₹{Math.floor(Number(item.walletBalance ?? 0)).toLocaleString('en-IN')}
                                                 </span>
                                             )}
                                         </td>
