@@ -237,3 +237,82 @@ export const launchGame = async (req, res) => {
     }
 };
 
+/** Partner hosts allowed to be proxied for iframe embed (Roulette sends X-Frame-Options: DENY). */
+const EMBED_PROXY_HOSTS = new Set([
+    'roulettegame.craftdigital.in',
+    'aviatorgame.craftdigital.in',
+    'funtimergame.craftdigital.in',
+]);
+
+const buildFrameAncestorsCsp = () => {
+    const origins = new Set(["'self'"]);
+    const fromEnv = (process.env.ALLOWED_ORIGINS || '')
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean);
+    for (const o of fromEnv) origins.add(o);
+    if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'production') {
+        origins.add('http://localhost:5173');
+        origins.add('http://127.0.0.1:5173');
+        origins.add('http://localhost:3010');
+    }
+    return `frame-ancestors ${[...origins].join(' ')}`;
+};
+
+/**
+ * Proxy partner HTML so it can load inside our iframe.
+ * Roulette blocks direct iframe embed via X-Frame-Options: DENY; Aviator does not.
+ */
+export const serveEmbedFrame = async (req, res) => {
+    try {
+        const rawUrl = req.query.url;
+        if (!rawUrl || typeof rawUrl !== 'string') {
+            return res.status(400).send('url query parameter is required');
+        }
+
+        let parsed;
+        try {
+            parsed = new URL(rawUrl.trim());
+        } catch {
+            return res.status(400).send('invalid url');
+        }
+
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            return res.status(400).send('invalid protocol');
+        }
+
+        if (!EMBED_PROXY_HOSTS.has(parsed.hostname)) {
+            return res.status(403).send('host not allowed for embed proxy');
+        }
+
+        if (!parsed.searchParams.get('sessionToken')) {
+            return res.status(400).send('launch url must include sessionToken');
+        }
+
+        const upstream = await axios.get(parsed.toString(), {
+            timeout: 20000,
+            maxRedirects: 5,
+            responseType: 'text',
+            headers: {
+                Accept: 'text/html,application/xhtml+xml,*/*',
+                'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0',
+            },
+            validateStatus: (status) => status < 500,
+        });
+
+        if (upstream.status >= 400) {
+            return res.status(upstream.status).type('text/plain').send(
+                typeof upstream.data === 'string' ? upstream.data : 'upstream error',
+            );
+        }
+
+        const contentType = upstream.headers['content-type'] || 'text/html; charset=utf-8';
+        res.removeHeader('X-Frame-Options');
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Security-Policy', buildFrameAncestorsCsp());
+        return res.status(200).send(upstream.data);
+    } catch (error) {
+        return res.status(502).type('text/plain').send(error.message || 'embed proxy failed');
+    }
+};
+

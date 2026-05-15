@@ -84,6 +84,7 @@ const Layout = ({ children }) => {
   const isThreeDGamePage = location.pathname === '/lottery/3d';
   const isLotteryQuizPage = location.pathname === '/lottery/quiz';
   const isThreeDQuizPage = location.pathname === '/lottery/3d/quiz';
+  const isGamePlayPage = location.pathname.startsWith('/games/play/');
   const isLotteryFullScreenPage = isTwoDGamePage || isThreeDGamePage || isLotteryQuizPage || isThreeDQuizPage;
   const isZoomTestPage = location.pathname === '/zoom-test';
   const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
@@ -197,6 +198,15 @@ const Layout = ({ children }) => {
         setHasUser(!!(user && (user.id || user._id)));
         return;
       }
+
+      // Partner embedded games should still be playable even if /users/me is temporarily unreachable.
+      // We already authenticated the launch request earlier (via /games/launch/:gameCode).
+      if (isGamePlayPage) {
+        const user = getCurrentUser();
+        setHasUser(!!(user && (user.id || user._id)));
+        return;
+      }
+
       const user = getCurrentUser();
       if (user && (user.id || user._id)) {
         setHasUser(true);

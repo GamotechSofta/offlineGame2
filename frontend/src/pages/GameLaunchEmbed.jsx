@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../config/api';
 
 /**
  * Per-game session backup so refresh of /games/play/:gameCode can recover the partner URL
@@ -12,6 +13,19 @@ const NAME_STORAGE_PREFIX = 'og2GameEmbedName::';
 const nameKeyForCode = (code) => `${NAME_STORAGE_PREFIX}${String(code || '').trim().toUpperCase()}`;
 
 const isHttpUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+
+/** Partner sites that send X-Frame-Options: DENY — load via backend proxy instead. */
+const EMBED_PROXY_HOSTS = new Set(['roulettegame.craftdigital.in']);
+
+const resolveIframeSrc = (launchUrl) => {
+  try {
+    const host = new URL(launchUrl).hostname;
+    if (EMBED_PROXY_HOSTS.has(host)) {
+      return `${API_BASE_URL}/games/embed/frame?url=${encodeURIComponent(launchUrl)}`;
+    }
+  } catch (_) {}
+  return launchUrl;
+};
 
 const GameLaunchEmbed = () => {
   const navigate = useNavigate();
@@ -77,20 +91,22 @@ const GameLaunchEmbed = () => {
     navigate('/games', { replace: true });
   };
 
+  const iframeSrc = useMemo(() => (launchUrl ? resolveIframeSrc(launchUrl) : ''), [launchUrl]);
+
   const iframeProps = useMemo(
     () => ({
       title: gameName || 'Game',
-      src: launchUrl,
+      src: iframeSrc,
       className: 'min-h-0 w-full flex-1 border-0 bg-black',
       // Keep this minimal so partner login + payment flows still work.
       allow: 'fullscreen; autoplay; camera; microphone; payment; clipboard-write',
       // Avoid leaking the in-app route to the partner via Referer.
       referrerPolicy: 'no-referrer',
     }),
-    [launchUrl, gameName],
+    [iframeSrc, gameName],
   );
 
-  if (!launchUrl) {
+  if (!launchUrl || !iframeSrc) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center bg-slate-950 text-sm text-white/80">
         Loading…
