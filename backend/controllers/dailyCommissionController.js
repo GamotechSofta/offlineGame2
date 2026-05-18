@@ -1,12 +1,14 @@
 import DailyCommission from '../models/dailyCommission/dailyCommission.js';
-import Bet from '../models/bet/bet.js';
 import Admin from '../models/admin/admin.js';
-import User from '../models/user/user.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
-import QuizBet from '../models/quiz/QuizBet.js';
 import { ADMIN_TAB, denyUnlessTabAccess, denyUnlessSuperAdmin } from '../utils/adminTabAccess.js';
-
-const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+import { isBookiePanelRole } from '../utils/adminRoles.js';
+import {
+    aggregatePlayerBetMetrics,
+    getCommissionDashboardForAccount,
+    getCommissionSummaryForAccount,
+    round2,
+} from '../utils/commissionMetrics.js';
 
 const getPaymentStatusFromAmounts = (commissionAmount, paidAmount) => {
     const total = round2(commissionAmount);
@@ -45,122 +47,18 @@ export const calculateDailyCommission = async (req, res) => {
         
         // Get all bookies
         const bookies = await Admin.find({ role: 'bookie' })
-            .select('_id username commissionPercentage')
+            .select('_id username commissionPercentage role')
             .lean();
         
         const results = [];
         
         for (const bookie of bookies) {
             try {
-                // Get all users referred by this bookie
-                const users = await User.find({ referredBy: bookie._id })
-                    .select('_id')
-                    .lean();
-                
-                const userIds = users.map(u => u._id);
-                
-                if (userIds.length === 0) {
-                    // No users, create record with zero values
-                    const existing = await DailyCommission.findOne({
-                        bookieId: bookie._id,
-                        date: startOfDay,
-                    });
-                    
-                    if (!existing) {
-                        await DailyCommission.create({
-                            bookieId: bookie._id,
-                            date: startOfDay,
-                            totalRevenue: 0,
-                            commissionPercentage: bookie.commissionPercentage || 0,
-                            commissionAmount: 0,
-                            paidAmount: 0,
-                            pendingAmount: 0,
-                            paymentStatus: 'paid',
-                            totalBets: 0,
-                            totalPayouts: 0,
-                            status: 'processed',
-                            processedAt: new Date(),
-                        });
-                    }
-                    continue;
-                }
-                
-                const [matkaRevenueAgg, matkaPayoutAgg, lotteryRevenueAgg, lotteryPayoutAgg] = await Promise.all([
-                    Bet.aggregate([
-                        {
-                            $match: {
-                                userId: { $in: userIds },
-                                createdAt: { $gte: startOfDay, $lte: endOfDay },
-                                status: { $ne: 'cancelled' },
-                                $or: [
-                                    { placedByBookie: false },
-                                    { placedByBookie: { $exists: false } },
-                                ],
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: null,
-                                totalRevenue: { $sum: '$amount' },
-                                totalBets: { $sum: 1 },
-                            },
-                        },
-                    ]),
-                    Bet.aggregate([
-                        {
-                            $match: {
-                                userId: { $in: userIds },
-                                createdAt: { $gte: startOfDay, $lte: endOfDay },
-                                status: 'won',
-                                $or: [
-                                    { placedByBookie: false },
-                                    { placedByBookie: { $exists: false } },
-                                ],
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: null,
-                                totalPayouts: { $sum: '$payout' },
-                            },
-                        },
-                    ]),
-                    QuizBet.aggregate([
-                        {
-                            $match: {
-                                userId: { $in: userIds },
-                                createdAt: { $gte: startOfDay, $lte: endOfDay },
-                                status: { $ne: 'cancelled' },
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: null,
-                                totalRevenue: { $sum: '$amount' },
-                                totalBets: { $sum: 1 },
-                            },
-                        },
-                    ]),
-                    QuizBet.aggregate([
-                        {
-                            $match: {
-                                userId: { $in: userIds },
-                                createdAt: { $gte: startOfDay, $lte: endOfDay },
-                                status: 'win',
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: null,
-                                totalPayouts: { $sum: '$winPayout' },
-                            },
-                        },
-                    ]),
-                ]);
-
-                const totalRevenue = (matkaRevenueAgg?.[0]?.totalRevenue || 0) + (lotteryRevenueAgg?.[0]?.totalRevenue || 0);
-                const totalBets = (matkaRevenueAgg?.[0]?.totalBets || 0) + (lotteryRevenueAgg?.[0]?.totalBets || 0);
-                const totalPayouts = (matkaPayoutAgg?.[0]?.totalPayouts || 0) + (lotteryPayoutAgg?.[0]?.totalPayouts || 0);
+                const dateFilter = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
+                const metrics = await aggregatePlayerBetMetrics({ admin: bookie, dateFilter });
+                const totalRevenue = metrics.totalBetAmount;
+                const totalBets = metrics.totalBets;
+                const totalPayouts = metrics.totalPayouts;
                 const commissionPercentage = bookie.commissionPercentage || 0;
                 
                 // Calculate commission on total daily revenue
@@ -254,6 +152,34 @@ export const calculateDailyCommission = async (req, res) => {
 };
 
 /**
+ * Bookie / super bookie commission dashboard (all-time settlement + optional period).
+ * GET /api/v1/daily-commission/my-summary?startDate=&endDate=
+ */
+export const getMyCommissionSummary = async (req, res) => {
+    try {
+        if (!isBookiePanelRole(req.admin)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Bookie or super bookie access required',
+            });
+        }
+
+        const { startDate, endDate } = req.query;
+        const data = await getCommissionDashboardForAccount(req.admin, { startDate, endDate });
+
+        return res.status(200).json({
+            success: true,
+            data,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch commission summary',
+        });
+    }
+};
+
+/**
  * Get daily commission records for a bookie
  * GET /api/v1/daily-commission?startDate=&endDate=
  */
@@ -262,10 +188,10 @@ export const getDailyCommissions = async (req, res) => {
         const { startDate, endDate } = req.query;
         const bookie = req.admin;
         
-        if (!bookie || bookie.role !== 'bookie') {
+        if (!isBookiePanelRole(bookie)) {
             return res.status(403).json({
                 success: false,
-                message: 'Only bookies can view their daily commissions',
+                message: 'Only bookies or super bookies can view their daily commissions',
             });
         }
         
@@ -400,7 +326,7 @@ export const getAllCommissionSummary = async (req, res) => {
         const { paymentStatus } = req.query;
 
         const bookies = await Admin.find({ role: 'bookie' })
-            .select('_id username phone commissionPercentage')
+            .select('_id username phone commissionPercentage role')
             .lean();
 
         const paymentAgg = await CommissionPayment.aggregate([
@@ -416,46 +342,19 @@ export const getAllCommissionSummary = async (req, res) => {
 
         const normalized = [];
         for (const bookie of bookies) {
-            const users = await User.find({ referredBy: bookie._id }).select('_id').lean();
-            const userIds = users.map((u) => u._id);
-            let totalBetAmount = 0;
-
-            if (userIds.length > 0) {
-                const [matkaAgg, lotteryAgg] = await Promise.all([
-                    Bet.aggregate([
-                        {
-                            $match: {
-                                userId: { $in: userIds },
-                                $or: [
-                                    { placedByBookie: false },
-                                    { placedByBookie: { $exists: false } },
-                                ],
-                            },
-                        },
-                        { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
-                    ]),
-                    QuizBet.aggregate([
-                        { $match: { userId: { $in: userIds } } },
-                        { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
-                    ]),
-                ]);
-                totalBetAmount = round2((matkaAgg?.[0]?.totalAmount || 0) + (lotteryAgg?.[0]?.totalAmount || 0));
-            }
-
-            const commissionPct = Number(bookie.commissionPercentage || 0);
-            const totalCommission = round2((totalBetAmount * commissionPct) / 100);
-            const totalPaidRaw = paidMap[String(bookie._id)]?.totalPaid || 0;
-            const totalPaid = round2(Math.min(totalPaidRaw, totalCommission));
-            const totalPending = round2(Math.max(0, totalCommission - totalPaid));
-
+            const summary = await getCommissionSummaryForAccount(bookie);
             normalized.push({
                 bookieId: bookie._id,
                 username: bookie.username || 'Unknown',
                 phone: bookie.phone || '',
-                totalCommission,
-                totalPaid,
-                totalPending,
-                paymentStatus: getPaymentStatusFromAmounts(totalCommission, totalPaid),
+                commissionPercentage: summary.commissionPercentage,
+                playerCount: summary.playerCount,
+                betCount: summary.betCount,
+                totalBetAmount: summary.totalBetAmount,
+                totalCommission: summary.totalCommission,
+                totalPaid: summary.totalPaid,
+                totalPending: summary.totalPending,
+                paymentStatus: summary.paymentStatus,
                 lastPaidAt: paidMap[String(bookie._id)]?.lastPaidAt || null,
             });
         }
@@ -554,6 +453,13 @@ export const recordCommissionPayment = async (req, res) => {
 
         await commission.save();
 
+        await CommissionPayment.create({
+            bookieId: commission.bookieId,
+            amount: appliedPayment,
+            notes: typeof notes === 'string' ? notes.trim() : '',
+            createdBy: req.admin._id,
+        });
+
         return res.status(200).json({
             success: true,
             message: 'Commission payment recorded',
@@ -593,7 +499,7 @@ export const recordBookieCommissionPayment = async (req, res) => {
         }
 
         const bookie = await Admin.findOne({ _id: bookieId, role: 'bookie' })
-            .select('_id commissionPercentage')
+            .select('_id commissionPercentage role')
             .lean();
         if (!bookie) {
             return res.status(404).json({
@@ -602,38 +508,8 @@ export const recordBookieCommissionPayment = async (req, res) => {
             });
         }
 
-        const users = await User.find({ referredBy: bookie._id }).select('_id').lean();
-        const userIds = users.map((u) => u._id);
-        let totalBetAmount = 0;
-        if (userIds.length > 0) {
-            const [matkaAgg, lotteryAgg] = await Promise.all([
-                Bet.aggregate([
-                    {
-                        $match: {
-                            userId: { $in: userIds },
-                            $or: [
-                                { placedByBookie: false },
-                                { placedByBookie: { $exists: false } },
-                            ],
-                        },
-                    },
-                    { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
-                ]),
-                QuizBet.aggregate([
-                    { $match: { userId: { $in: userIds } } },
-                    { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
-                ]),
-            ]);
-            totalBetAmount = round2((matkaAgg?.[0]?.totalAmount || 0) + (lotteryAgg?.[0]?.totalAmount || 0));
-        }
-
-        const totalCommission = round2((totalBetAmount * Number(bookie.commissionPercentage || 0)) / 100);
-        const [paidAgg] = await CommissionPayment.aggregate([
-            { $match: { bookieId: bookie._id } },
-            { $group: { _id: null, totalPaid: { $sum: '$amount' } } },
-        ]);
-        const totalPaid = round2(paidAgg?.totalPaid || 0);
-        const totalPending = round2(Math.max(0, totalCommission - totalPaid));
+        const summary = await getCommissionSummaryForAccount(bookie);
+        const totalPending = summary.totalPending;
 
         if (totalPending <= 0) {
             return res.status(400).json({
@@ -694,6 +570,231 @@ export const getBookieCommissionPaymentHistory = async (req, res) => {
                 notes: payment.notes || '',
                 createdAt: payment.createdAt,
                 createdBy: payment.createdBy?.username || 'Admin',
+            })),
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch payment history',
+        });
+    }
+};
+
+/**
+ * Bookie / Super Bookie: own commission payment history
+ * GET /api/v1/daily-commission/my-payments
+ */
+export const getMyCommissionPayments = async (req, res) => {
+    try {
+        if (!isBookiePanelRole(req.admin)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Bookie or super bookie access required',
+            });
+        }
+
+        const payments = await CommissionPayment.find({ bookieId: req.admin._id })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .populate('createdBy', 'username role')
+            .lean();
+
+        return res.status(200).json({
+            success: true,
+            data: payments.map((payment) => ({
+                _id: payment._id,
+                amount: round2(payment.amount || 0),
+                notes: payment.notes || '',
+                createdAt: payment.createdAt,
+                createdBy:
+                    payment.createdBy?.role === 'bookie'
+                        ? payment.createdBy?.username || 'Bookie'
+                        : payment.createdBy?.username || 'Admin',
+            })),
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch payment history',
+        });
+    }
+};
+
+/**
+ * Parent bookie: commission summary for all super bookies
+ * GET /api/v1/daily-commission/super-bookie-summary
+ */
+export const getSuperBookieCommissionSummary = async (req, res) => {
+    try {
+        if (req.admin?.role !== 'bookie') {
+            return res.status(403).json({ success: false, message: 'Bookie access required' });
+        }
+
+        const superBookies = await Admin.find({
+            role: 'super_bookie',
+            parentBookieId: req.admin._id,
+        })
+            .select('_id username phone commissionPercentage role parentBookieId')
+            .lean();
+
+        const paymentAgg = await CommissionPayment.aggregate([
+            { $match: { bookieId: { $in: superBookies.map((sb) => sb._id) } } },
+            { $group: { _id: '$bookieId', totalPaid: { $sum: '$amount' }, lastPaidAt: { $max: '$createdAt' } } },
+        ]);
+        const paidMap = Object.fromEntries(
+            paymentAgg.map((row) => [
+                String(row._id),
+                { totalPaid: round2(row.totalPaid || 0), lastPaidAt: row.lastPaidAt || null },
+            ])
+        );
+
+        const commissions = [];
+        for (const sb of superBookies) {
+            const summary = await getCommissionSummaryForAccount(sb);
+            commissions.push({
+                superBookieId: sb._id,
+                username: sb.username || 'Unknown',
+                phone: sb.phone || '',
+                commissionPercentage: summary.commissionPercentage,
+                playerCount: summary.playerCount,
+                betCount: summary.betCount,
+                totalBetAmount: summary.totalBetAmount,
+                totalCommission: summary.totalCommission,
+                totalPaid: summary.totalPaid,
+                totalPending: summary.totalPending,
+                paymentStatus: summary.paymentStatus,
+                lastPaidAt: paidMap[String(sb._id)]?.lastPaidAt || null,
+            });
+        }
+
+        commissions.sort((a, b) => b.totalPending - a.totalPending);
+
+        const totals = commissions.reduce(
+            (acc, row) => {
+                acc.totalCommission += row.totalCommission;
+                acc.totalPaid += row.totalPaid;
+                acc.totalPending += row.totalPending;
+                return acc;
+            },
+            { totalCommission: 0, totalPaid: 0, totalPending: 0 }
+        );
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                commissions,
+                summary: {
+                    totalCommission: round2(totals.totalCommission),
+                    totalPaid: round2(totals.totalPaid),
+                    totalPending: round2(totals.totalPending),
+                },
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch super bookie commissions',
+        });
+    }
+};
+
+/**
+ * Parent bookie: pay super bookie commission
+ * POST /api/v1/daily-commission/super-bookie/:superBookieId/pay
+ */
+export const recordSuperBookieCommissionPayment = async (req, res) => {
+    try {
+        if (req.admin?.role !== 'bookie') {
+            return res.status(403).json({ success: false, message: 'Bookie access required' });
+        }
+
+        const { superBookieId } = req.params;
+        const { paidAmount, notes } = req.body;
+        const paymentToApply = Number(paidAmount);
+        if (!Number.isFinite(paymentToApply) || paymentToApply <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'paidAmount must be a valid number greater than 0',
+            });
+        }
+
+        const superBookie = await Admin.findOne({
+            _id: superBookieId,
+            role: 'super_bookie',
+            parentBookieId: req.admin._id,
+        }).select('_id commissionPercentage role parentBookieId');
+        if (!superBookie) {
+            return res.status(404).json({ success: false, message: 'Super bookie not found' });
+        }
+
+        const summary = await getCommissionSummaryForAccount(superBookie);
+        if (summary.totalPending <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No pending commission for this super bookie',
+            });
+        }
+
+        const appliedPayment = round2(Math.min(paymentToApply, summary.totalPending));
+
+        await CommissionPayment.create({
+            bookieId: superBookie._id,
+            amount: appliedPayment,
+            notes: typeof notes === 'string' ? notes.trim() : '',
+            createdBy: req.admin._id,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Commission payment recorded',
+            data: {
+                superBookieId,
+                appliedPayment,
+                leftoverAmount: round2(Math.max(0, summary.totalPending - appliedPayment)),
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to record payment',
+        });
+    }
+};
+
+/**
+ * Parent bookie: payment history for one super bookie
+ * GET /api/v1/daily-commission/super-bookie/:superBookieId/payments
+ */
+export const getSuperBookieCommissionPaymentHistory = async (req, res) => {
+    try {
+        if (req.admin?.role !== 'bookie') {
+            return res.status(403).json({ success: false, message: 'Bookie access required' });
+        }
+
+        const { superBookieId } = req.params;
+        const superBookie = await Admin.findOne({
+            _id: superBookieId,
+            role: 'super_bookie',
+            parentBookieId: req.admin._id,
+        });
+        if (!superBookie) {
+            return res.status(404).json({ success: false, message: 'Super bookie not found' });
+        }
+
+        const payments = await CommissionPayment.find({ bookieId: superBookieId })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .populate('createdBy', 'username')
+            .lean();
+
+        return res.status(200).json({
+            success: true,
+            data: payments.map((payment) => ({
+                _id: payment._id,
+                amount: round2(payment.amount || 0),
+                notes: payment.notes || '',
+                createdAt: payment.createdAt,
+                createdBy: payment.createdBy?.username || 'Bookie',
             })),
         });
     } catch (error) {

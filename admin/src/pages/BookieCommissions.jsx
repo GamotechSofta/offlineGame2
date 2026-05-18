@@ -221,12 +221,14 @@ const BookieCommissions = () => {
     const getBadge = (status) => {
         if (status === 'paid') return 'bg-green-100 text-green-700';
         if (status === 'partial') return 'bg-yellow-100 text-yellow-700';
+        if (status === 'none') return 'bg-slate-100 text-slate-600';
         return 'bg-orange-100 text-orange-700';
     };
 
     const getStatusLabel = (status) => {
         if (status === 'paid') return 'Paid';
         if (status === 'partial') return 'Partial';
+        if (status === 'none') return 'No earnings';
         return 'Pending';
     };
 
@@ -240,7 +242,7 @@ const BookieCommissions = () => {
                             Bookie Commissions
                         </h1>
                         <p className="text-sm text-slate-500 mt-1">
-                            Professional settlement dashboard with search, sorting and payment history.
+                            All-time commission from player bets (including super bookie players). Settle pending via payments below.
                         </p>
                     </div>
                     <button
@@ -331,13 +333,15 @@ const BookieCommissions = () => {
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200">
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={2}>Bookie Info</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={3}>Financials</th>
+                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={5}>Financials (all-time)</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={2}>Actions</th>
                                 </tr>
                                 <tr className="bg-slate-50 border-b border-slate-200">
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Bookie</th>
+                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Rate</th>
+                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Total Sales</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Last Payment</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Total</th>
+                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Commission</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Paid</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Pending</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Status</th>
@@ -347,11 +351,11 @@ const BookieCommissions = () => {
                             <tbody className="divide-y divide-slate-200">
                                 {loading ? (
                                     <tr>
-                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={7}>Loading commissions...</td>
+                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={9}>Loading commissions...</td>
                                     </tr>
                                 ) : filteredRows.length === 0 ? (
                                     <tr>
-                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={7}>No commission records found.</td>
+                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={9}>No commission records found.</td>
                                     </tr>
                                 ) : (
                                     filteredRows.map((row) => {
@@ -367,7 +371,17 @@ const BookieCommissions = () => {
                                                     <td className="px-4 py-3.5 align-top">
                                                         <p className="font-semibold text-slate-800 text-sm">{row.username || 'Unknown'}</p>
                                                         <p className="text-xs text-slate-500 mt-1">{row.phone || '-'}</p>
+                                                        <p className="text-xs text-slate-400 mt-0.5">
+                                                            {Number(row.playerCount || 0)} players · {Number(row.betCount || 0)} bets
+                                                        </p>
                                                     </td>
+                                                    <td className="px-4 py-3.5 text-right text-slate-700">
+                                                        {Number(row.commissionPercentage || 0)}%
+                                                        {Number(row.commissionPercentage || 0) <= 0 && (
+                                                            <p className="text-[10px] text-amber-600 font-normal">Set % in Bookie Accounts</p>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-right text-slate-700">{formatCurrency(row.totalBetAmount)}</td>
                                                     <td className="px-4 py-3.5 text-slate-700">{formatDate(row.lastPaidAt)}</td>
                                                     <td className="px-4 py-3.5 text-right font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</td>
                                                     <td className="px-4 py-3.5 text-right font-semibold text-green-700">{formatCurrency(row.totalPaid)}</td>
@@ -435,7 +449,7 @@ const BookieCommissions = () => {
                                                 </tr>
                                                 {isExpanded && (
                                                     <tr>
-                                                        <td colSpan={7} className="px-5 py-4 bg-slate-50">
+                                                        <td colSpan={9} className="px-5 py-4 bg-slate-50">
                                                             <p className="text-sm font-semibold text-slate-700 mb-2">Payment History</p>
                                                             {historyLoadingByBookie[bookieId] ? (
                                                                 <p className="text-xs text-slate-500">Loading payment history...</p>

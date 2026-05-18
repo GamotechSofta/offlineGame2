@@ -44,6 +44,66 @@ const getActiveDevices = (userDoc) => {
     }];
 };
 
+/** Attach bookie + super bookie chain for admin player lists */
+const enrichUsersWithReferrerChain = async (users) => {
+    if (!users?.length) return users;
+
+    const parentBookieIds = new Set();
+    for (const u of users) {
+        const ref = u.referredBy;
+        if (ref && ref.role === 'super_bookie' && ref.parentBookieId) {
+            parentBookieIds.add(String(ref.parentBookieId));
+        }
+    }
+
+    let parentMap = {};
+    if (parentBookieIds.size > 0) {
+        const parents = await Admin.find({ _id: { $in: [...parentBookieIds] } })
+            .select('username phone status')
+            .lean();
+        parentMap = Object.fromEntries(parents.map((p) => [String(p._id), p]));
+    }
+
+    return users.map((u) => {
+        const ref = u.referredBy;
+        if (!ref || !ref._id) {
+            return { ...u, referrerChain: null };
+        }
+        if (ref.role === 'super_bookie') {
+            const parentId = ref.parentBookieId ? String(ref.parentBookieId) : null;
+            const parent = parentId ? parentMap[parentId] : null;
+            return {
+                ...u,
+                referrerChain: {
+                    bookie: parent
+                        ? { _id: parentId, username: parent.username, phone: parent.phone, status: parent.status }
+                        : parentId
+                          ? { _id: parentId, username: '—' }
+                          : null,
+                    superBookie: {
+                        _id: ref._id,
+                        username: ref.username,
+                        phone: ref.phone,
+                        status: ref.status,
+                    },
+                },
+            };
+        }
+        return {
+            ...u,
+            referrerChain: {
+                bookie: {
+                    _id: ref._id,
+                    username: ref.username,
+                    phone: ref.phone,
+                    status: ref.status,
+                },
+                superBookie: null,
+            },
+        };
+    });
+};
+
 const addWalletBalanceToUsers = async (users) => {
     if (!users || users.length === 0) return users;
     const userIds = users.map((u) => u._id);
@@ -600,26 +660,30 @@ export const userSignup = async (req, res) => {
         const isPlaceholderEmail = resolvedEmail.endsWith(PLACEHOLDER_DOMAIN);
 
         let referredBy = null;
+        let referralRole = null;
         if (referredByRaw) {
             if (!mongoose.Types.ObjectId.isValid(referredByRaw)) {
                 return res.status(400).json({ success: false, message: 'Invalid referral link' });
             }
-            const bookieOk = await Admin.findOne({
+            const referrer = await Admin.findOne({
                 _id: referredByRaw,
-                role: 'bookie',
+                role: { $in: ['bookie', 'super_bookie'] },
                 status: 'active',
-            }).select('_id').lean();
-            if (!bookieOk) {
+            }).select('_id role').lean();
+            if (!referrer) {
                 return res.status(400).json({
                     success: false,
                     message: 'This referral link is not valid or the bookie is inactive',
                 });
             }
             referredBy = new mongoose.Types.ObjectId(referredByRaw);
+            referralRole = referrer.role;
         }
 
         // Direct signup without referral → super_admin pool (visible under Super Admin Players in admin).
-        const source = referredBy ? 'bookie' : 'super_admin';
+        const source = referredBy
+            ? (referralRole === 'super_bookie' ? 'super_bookie' : 'bookie')
+            : 'super_admin';
 
         const existingUser = await User.findOne({
             $or: [
@@ -829,6 +893,9 @@ export const createUser = async (req, res) => {
         if (req.admin && req.admin.role === 'bookie') {
             finalReferredBy = req.admin._id;
             source = 'bookie';
+        } else if (req.admin?.role === 'super_bookie') {
+            finalReferredBy = req.admin._id;
+            source = 'super_bookie';
         } else if (req.admin?.role === 'super_admin' && finalReferredBy) {
             if (!mongoose.Types.ObjectId.isValid(finalReferredBy)) {
                 return res.status(400).json({
@@ -844,7 +911,12 @@ export const createUser = async (req, res) => {
                 });
             }
             // Assigned under a bookie should behave like bookie player for filters/reporting.
-            source = assignee.role === 'bookie' ? 'bookie' : 'super_admin';
+            source =
+                assignee.role === 'bookie'
+                    ? 'bookie'
+                    : assignee.role === 'super_bookie'
+                      ? 'super_bookie'
+                      : 'super_admin';
             finalReferredBy = assignee._id;
         } else if (req.admin?.role !== 'super_admin') {
             // Non-super-admin (and non-bookie) should not assign arbitrary admins.
@@ -888,16 +960,16 @@ export const createUser = async (req, res) => {
             updatedAt: new Date(),
         };
 
-        if (req.admin?.role === 'bookie' && initialBalance > 0) {
-            const updatedBookie = await Admin.findOneAndUpdate(
+        if ((req.admin?.role === 'bookie' || req.admin?.role === 'super_bookie') && initialBalance > 0) {
+            const updatedOperator = await Admin.findOneAndUpdate(
                 { _id: req.admin._id, balance: { $gte: initialBalance } },
                 { $inc: { balance: -initialBalance } },
                 { new: true }
             ).select('balance');
-            if (!updatedBookie) {
+            if (!updatedOperator) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Insufficient bookie balance to set initial player balance',
+                    message: 'Insufficient balance to set initial player balance',
                 });
             }
         }
@@ -919,7 +991,7 @@ export const createUser = async (req, res) => {
                 userId,
                 type: 'credit',
                 amount: initialBalance,
-                description: `${req.admin?.role === 'bookie' ? 'Bookie' : 'Admin'} credit: ₹${initialBalance} (initial balance on player creation)`,
+                description: `${req.admin?.role === 'bookie' ? 'Bookie' : req.admin?.role === 'super_bookie' ? 'Super Bookie' : 'Admin'} credit: ₹${initialBalance} (initial balance on player creation)`,
             });
         }
 
@@ -1012,7 +1084,7 @@ export const getUsers = async (req, res) => {
         const [usersRaw, total] = await Promise.all([
             User.find(query)
                 .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt toGive toTake')
-                .populate('referredBy', 'username')
+                .populate('referredBy', 'username role parentBookieId phone status')
                 .sort(filter === 'bookie' ? { referredBy: 1, createdAt: -1 } : { createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
@@ -1031,6 +1103,7 @@ export const getUsers = async (req, res) => {
             });
         }
 
+        users = await enrichUsersWithReferrerChain(users);
         users = await addWalletBalanceToUsers(users);
         users = addOnlineStatus(users);
 
@@ -1060,14 +1133,16 @@ export const getSingleUser = async (req, res) => {
         const { id } = req.params;
         const bookieUserIds = await getBookieUserIds(req.admin);
 
-        const user = await User.findById(id)
+        let user = await User.findById(id)
             .select('username email phone role isActive source referredBy lastActiveAt lastLoginIp lastLoginDeviceId loginDevices createdAt toGive toTake')
-            .populate('referredBy', 'username')
+            .populate('referredBy', 'username role parentBookieId phone status')
             .lean();
 
         if (!user) {
             return res.status(404).json({ success: false, message: 'Player not found' });
         }
+
+        [user] = await enrichUsersWithReferrerChain([user]);
 
         if (bookieUserIds !== null) {
             const allowed = bookieUserIds.some((uid) => uid.toString() === id);

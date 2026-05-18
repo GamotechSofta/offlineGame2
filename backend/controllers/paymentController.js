@@ -10,6 +10,7 @@ import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
 import { invalidateAdminPaymentRelatedCaches } from '../services/cacheInvalidationService.js';
 import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
+import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 
 /** IST calendar day bounds → UTC Date (same semantics as dashboard stats `from`/`to`). */
 function parseIstPaymentsCreatedAtRange(fromStr, toStr) {
@@ -1155,6 +1156,10 @@ export const approvePayment = async (req, res) => {
             },
             ip: getClientIp(req),
         });
+
+        if (deductedBookieId && updatedBookieBalance !== null) {
+            await notifyBookiePanelBalance(deductedBookieId, 'payment_deposit_approved', updatedBookieBalance);
+        }
 
         res.status(200).json({
             success: true,

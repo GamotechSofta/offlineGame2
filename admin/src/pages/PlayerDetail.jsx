@@ -935,15 +935,16 @@ const PlayerDetail = () => {
         return sorted[0]?.deviceId || null;
     })();
 
-    const bonusBalanceOwner = player?.source === 'bookie'
-        ? {
-            type: 'bookie',
-            name: player?.referredBy?.username || 'Unknown',
-        }
-        : {
-            type: 'admin',
-            name: 'Admin',
-        };
+    const bonusBalanceOwner =
+        player?.source === 'bookie' || player?.source === 'super_bookie'
+            ? {
+                type: player.source === 'super_bookie' ? 'super_bookie' : 'bookie',
+                name: player?.referrerChain?.superBookie?.username || player?.referrerChain?.bookie?.username || player?.referredBy?.username || 'Unknown',
+            }
+            : {
+                type: 'admin',
+                name: 'Admin',
+            };
 
     if (loading) {
         return (
@@ -1569,7 +1570,13 @@ const PlayerDetail = () => {
                             <div><p className="text-gray-500 text-sm">Email</p><p className="text-gray-800">{player.email}</p></div>
                             <div><p className="text-gray-500 text-sm">Phone</p><p className="text-gray-800">{player.phone || '—'}</p></div>
                             <div><p className="text-gray-500 text-sm">Role</p><p className="text-gray-800 capitalize">{player.role || 'Player'}</p></div>
-                            <div><p className="text-gray-500 text-sm">Source</p><p className="text-gray-800">{player.source === 'bookie' ? 'Bookie' : 'Super Admin'}</p></div>
+                            <div><p className="text-gray-500 text-sm">Source</p><p className="text-gray-800">{player.source === 'super_bookie' ? 'Super Bookie' : player.source === 'bookie' ? 'Bookie' : 'Super Admin'}</p></div>
+                            {player.referrerChain?.bookie && (
+                                <div><p className="text-gray-500 text-sm">Bookie</p><p className="text-gray-800">{player.referrerChain.bookie.username}</p></div>
+                            )}
+                            {player.referrerChain?.superBookie && (
+                                <div><p className="text-gray-500 text-sm">Super Bookie</p><p className="text-indigo-700">{player.referrerChain.superBookie.username}</p></div>
+                            )}
                             <div><p className="text-gray-500 text-sm">Created</p><p className="text-gray-800">{player.createdAt ? new Date(player.createdAt).toLocaleString('en-IN') : '—'}</p></div>
                         </div>
                     </div>

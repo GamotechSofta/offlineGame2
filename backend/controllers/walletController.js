@@ -3,11 +3,17 @@ import User from '../models/user/user.js';
 import Bet from '../models/bet/bet.js';
 import Admin from '../models/admin/admin.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { isBookiePanelRole } from '../utils/adminRoles.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { emitUserWalletUpdate } from '../socket/walletSocketBridge.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
+import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 
-const getActorLabel = (admin) => (admin?.role === 'bookie' ? 'Bookie' : 'Admin');
+const getActorLabel = (admin) => {
+    if (admin?.role === 'bookie') return 'Bookie';
+    if (admin?.role === 'super_bookie') return 'Super Bookie';
+    return 'Admin';
+};
 
 export const getAllWallets = async (req, res) => {
     try {
@@ -178,7 +184,7 @@ export const adjustBalance = async (req, res) => {
         }
 
         // When a bookie adds funds to a player, deduct the same amount from the bookie's balance.
-        if (type === 'credit' && req.admin?.role === 'bookie') {
+        if (type === 'credit' && isBookiePanelRole(req.admin)) {
             const updatedBookie = await Admin.findOneAndUpdate(
                 { _id: req.admin._id, balance: { $gte: numAmount } },
                 { $inc: { balance: -numAmount } },
@@ -191,6 +197,7 @@ export const adjustBalance = async (req, res) => {
                     message: 'Insufficient bookie balance',
                 });
             }
+            await notifyBookiePanelBalance(req.admin._id, 'wallet_credit', updatedBookie.balance);
         }
 
         let wallet = await Wallet.findOne({ userId });
@@ -218,11 +225,15 @@ export const adjustBalance = async (req, res) => {
         await wallet.save();
 
         // When a bookie withdraws funds from a player, add that amount to the bookie's balance.
-        if (type === 'debit' && req.admin?.role === 'bookie') {
-            await Admin.updateOne(
+        if (type === 'debit' && isBookiePanelRole(req.admin)) {
+            const updatedBookie = await Admin.findOneAndUpdate(
                 { _id: req.admin._id },
-                { $inc: { balance: numAmount } }
-            );
+                { $inc: { balance: numAmount } },
+                { new: true }
+            ).select('balance');
+            if (updatedBookie) {
+                await notifyBookiePanelBalance(req.admin._id, 'wallet_debit', updatedBookie.balance);
+            }
         }
 
         await WalletTransaction.create({

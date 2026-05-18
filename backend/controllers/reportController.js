@@ -4,75 +4,14 @@ import User from '../models/user/user.js';
 import Admin from '../models/admin/admin.js';
 import { Wallet } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { isBookiePanelRole } from '../utils/adminRoles.js';
 import { ADMIN_TAB, denyUnlessTabAccess } from '../utils/adminTabAccess.js';
-import CommissionPayment from '../models/commission/commissionPayment.js';
-import QuizBet from '../models/quiz/QuizBet.js';
-
-const aggregatePlayerBetMetrics = async ({ userIds, dateFilter = {} }) => {
-    if (!Array.isArray(userIds) || userIds.length === 0) {
-        return {
-            totalBetAmount: 0,
-            matkaBetAmount: 0,
-            lotteryBetAmount: 0,
-            totalPayouts: 0,
-            totalBets: 0,
-            winningBets: 0,
-            losingBets: 0,
-        };
-    }
-
-    const matkaMatch = {
-        ...dateFilter,
-        userId: { $in: userIds },
-        $or: [
-            { placedByBookie: false },
-            { placedByBookie: { $exists: false } },
-        ],
-    };
-    const quizMatch = { ...dateFilter, userId: { $in: userIds } };
-
-    const [
-        matkaAgg,
-        matkaPayoutAgg,
-        quizAgg,
-        quizPayoutAgg,
-        matkaWins,
-        matkaLosses,
-        quizWins,
-        quizLosses,
-    ] = await Promise.all([
-        Bet.aggregate([
-            { $match: matkaMatch },
-            { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
-        ]),
-        Bet.aggregate([
-            { $match: { ...matkaMatch, status: 'won' } },
-            { $group: { _id: null, totalPayout: { $sum: '$payout' } } },
-        ]),
-        QuizBet.aggregate([
-            { $match: quizMatch },
-            { $group: { _id: null, totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
-        ]),
-        QuizBet.aggregate([
-            { $match: { ...quizMatch, status: 'win' } },
-            { $group: { _id: null, totalPayout: { $sum: '$winPayout' } } },
-        ]),
-        Bet.countDocuments({ ...matkaMatch, status: 'won' }),
-        Bet.countDocuments({ ...matkaMatch, status: 'lost' }),
-        QuizBet.countDocuments({ ...quizMatch, status: 'win' }),
-        QuizBet.countDocuments({ ...quizMatch, status: 'lose' }),
-    ]);
-
-    return {
-        totalBetAmount: Number(matkaAgg?.[0]?.totalAmount || 0) + Number(quizAgg?.[0]?.totalAmount || 0),
-        matkaBetAmount: Number(matkaAgg?.[0]?.totalAmount || 0),
-        lotteryBetAmount: Number(quizAgg?.[0]?.totalAmount || 0),
-        totalPayouts: Number(matkaPayoutAgg?.[0]?.totalPayout || 0) + Number(quizPayoutAgg?.[0]?.totalPayout || 0),
-        totalBets: Number(matkaAgg?.[0]?.count || 0) + Number(quizAgg?.[0]?.count || 0),
-        winningBets: Number(matkaWins || 0) + Number(quizWins || 0),
-        losingBets: Number(matkaLosses || 0) + Number(quizLosses || 0),
-    };
-};
+import {
+    aggregatePlayerBetMetrics,
+    buildCommissionDateFilter,
+    getCommissionDashboardForAccount,
+    round2,
+} from '../utils/commissionMetrics.js';
 
 export const getReport = async (req, res) => {
     try {
@@ -147,95 +86,93 @@ export const getReport = async (req, res) => {
 export const getRevenueReport = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        const dateFilter = {};
-
-        if (startDate || endDate) {
-            dateFilter.createdAt = {};
-            if (startDate) dateFilter.createdAt.$gte = new Date(startDate + 'T00:00:00.000Z');
-            if (endDate) dateFilter.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
-        }
+        const dateFilter = buildCommissionDateFilter(startDate, endDate);
 
         const admin = req.admin;
 
-        // ---- BOOKIE VIEW ----
-        if (admin.role === 'bookie') {
-            const users = await User.find({ referredBy: admin._id }).select('_id').lean();
-            const userIds = users.map((u) => u._id);
+        // ---- BOOKIE / SUPER BOOKIE VIEW ----
+        if (isBookiePanelRole(admin)) {
+            const userIds = (await getBookieUserIds(admin)) || [];
+            const dashboard = await getCommissionDashboardForAccount(admin, { startDate, endDate });
 
             if (userIds.length === 0) {
-                // Bookie has no users yet
                 return res.status(200).json({
                     success: true,
                     data: {
                         totalBetAmount: 0,
+                        matkaBetAmount: 0,
+                        lotteryBetAmount: 0,
                         totalPayouts: 0,
-                        commissionPercentage: admin.commissionPercentage || 0,
+                        commissionPercentage: dashboard.commissionPercentage,
                         bookieRevenue: 0,
+                        periodCommission: 0,
+                        allTimeCommission: dashboard.allTimeCommission,
+                        allTimeBetAmount: dashboard.allTimeBetAmount,
                         totalUsers: 0,
                         totalBets: 0,
                         winningBets: 0,
                         losingBets: 0,
+                        paidAmount: dashboard.allTimePaid,
+                        pendingAmount: dashboard.allTimePending,
                     },
                 });
             }
 
-            const metrics = await aggregatePlayerBetMetrics({ userIds, dateFilter });
-            const totalBetAmount = metrics.totalBetAmount;
-            const totalPayouts = metrics.totalPayouts;
-            const totalBets = metrics.totalBets;
-            const commissionPct = admin.commissionPercentage || 0;
-            const bookieRevenue = Math.round((totalBetAmount * commissionPct / 100) * 100) / 100;
-            const winningBets = metrics.winningBets;
-            const losingBets = metrics.losingBets;
-
-            // Payment tracking is calculated against all-time commission.
-            const allTimeMetrics = await aggregatePlayerBetMetrics({ userIds });
-            const allTimeBetAmount = allTimeMetrics.totalBetAmount;
-            const allTimeCommission = Math.round((allTimeBetAmount * commissionPct / 100) * 100) / 100;
-            const [paidAgg] = await CommissionPayment.aggregate([
-                { $match: { bookieId: admin._id } },
-                { $group: { _id: null, totalPaid: { $sum: '$amount' } } },
-            ]);
-            const paidAmount = Math.round((paidAgg?.totalPaid || 0) * 100) / 100;
-            const pendingAmount = Math.round(Math.max(0, allTimeCommission - paidAmount) * 100) / 100;
+            const metrics = await aggregatePlayerBetMetrics({ admin, dateFilter });
+            const commissionPct = dashboard.commissionPercentage;
 
             return res.status(200).json({
                 success: true,
                 data: {
-                    totalBetAmount,
+                    totalBetAmount: metrics.totalBetAmount,
                     matkaBetAmount: metrics.matkaBetAmount,
                     lotteryBetAmount: metrics.lotteryBetAmount,
-                    totalPayouts,
+                    totalPayouts: metrics.totalPayouts,
                     commissionPercentage: commissionPct,
-                    bookieRevenue,
+                    bookieRevenue: round2((metrics.totalBetAmount * commissionPct) / 100),
+                    periodCommission: dashboard.periodCommission,
+                    allTimeCommission: dashboard.allTimeCommission,
+                    allTimeBetAmount: dashboard.allTimeBetAmount,
                     totalUsers: userIds.length,
-                    totalBets,
-                    winningBets,
-                    losingBets,
-                    paidAmount,
-                    pendingAmount,
+                    totalBets: metrics.totalBets,
+                    winningBets: metrics.winningBets,
+                    losingBets: metrics.losingBets,
+                    paidAmount: dashboard.allTimePaid,
+                    pendingAmount: dashboard.allTimePending,
                 },
             });
         }
 
         // ---- ADMIN VIEW ----
-        // Get all bookies
         const bookies = await Admin.find({ role: 'bookie' }).select('_id username phone commissionPercentage status').lean();
+        const superBookies = await Admin.find({ role: 'super_bookie' })
+            .select('_id parentBookieId')
+            .lean();
+        const superBookieToParent = Object.fromEntries(
+            superBookies.map((sb) => [String(sb._id), String(sb.parentBookieId)])
+        );
 
-        // Get all users with their referredBy
         const allUsers = await User.find().select('_id referredBy source').lean();
 
-        // Map: bookieId -> [userIds]
         const bookieUserMap = {};
-        const directUserIds = []; // Users not referred by any bookie (admin's own)
+        for (const bookie of bookies) {
+            bookieUserMap[String(bookie._id)] = [];
+        }
+        const directUserIds = [];
 
         for (const user of allUsers) {
-            if (user.referredBy) {
-                const bId = user.referredBy.toString();
-                if (!bookieUserMap[bId]) bookieUserMap[bId] = [];
-                bookieUserMap[bId].push(user._id);
-            } else {
+            if (!user.referredBy) {
                 directUserIds.push(user._id);
+                continue;
+            }
+            const refId = String(user.referredBy);
+            if (bookieUserMap[refId]) {
+                bookieUserMap[refId].push(user._id);
+                continue;
+            }
+            const parentBookieId = superBookieToParent[refId];
+            if (parentBookieId && bookieUserMap[parentBookieId]) {
+                bookieUserMap[parentBookieId].push(user._id);
             }
         }
 
@@ -268,13 +205,16 @@ export const getRevenueReport = async (req, res) => {
                 continue;
             }
 
-            const metrics = await aggregatePlayerBetMetrics({ userIds, dateFilter });
+            const metrics = await aggregatePlayerBetMetrics({
+                admin: { _id: bookie._id, role: 'bookie', commissionPercentage: bookie.commissionPercentage },
+                dateFilter,
+            });
             const totalBetAmount = metrics.totalBetAmount;
             const totalPayouts = metrics.totalPayouts;
             const totalBets = metrics.totalBets;
             const commPct = bookie.commissionPercentage || 0;
 
-            const bookieShare = Math.round((totalBetAmount * commPct / 100) * 100) / 100;
+            const bookieShare = round2((totalBetAmount * commPct) / 100);
             const adminPool = Math.round((totalBetAmount * (100 - commPct) / 100) * 100) / 100;
             const adminProfit = Math.round((adminPool - totalPayouts) * 100) / 100;
 

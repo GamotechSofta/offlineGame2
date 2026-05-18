@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useParams, useSearchParams } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders, fetchWithAuth } from '../../utils/api';
 import { placeBetForPlayer } from './bookieApi';
+import { useAuth } from '../../context/AuthContext';
 
 const PlayerBetContext = createContext({});
 
@@ -15,24 +16,8 @@ export const PlayerBetProvider = ({ children }) => {
     const [loadingMarket, setLoadingMarket] = useState(true);
     const [loadingPlayers, setLoadingPlayers] = useState(true);
     const [selectedPlayerId, setSelectedPlayerId] = useState(preSelectedPlayerId);
-    const [bookieBalance, setBookieBalance] = useState(0);
-
-    // Get bookie balance from localStorage
-    useEffect(() => {
-        const updateBookieBalance = () => {
-            try {
-                const stored = localStorage.getItem('bookie');
-                if (stored) {
-                    const bookie = JSON.parse(stored);
-                    setBookieBalance(Number(bookie.balance) || 0);
-                }
-            } catch (e) { /* ignore */ }
-        };
-        updateBookieBalance();
-        // Listen for storage changes (when balance updates after bet)
-        window.addEventListener('storage', updateBookieBalance);
-        return () => window.removeEventListener('storage', updateBookieBalance);
-    }, []);
+    const { bookie, updateBookie } = useAuth();
+    const bookieBalance = Number(bookie?.balance) || 0;
 
     // Fetch market data
     useEffect(() => {
@@ -107,22 +92,12 @@ export const PlayerBetProvider = ({ children }) => {
         }
         const result = await placeBetForPlayer(selectedPlayerId, mktId, bets, scheduledDate);
         if (result.success) {
-            // Update bookie's balance in localStorage (amount was deducted from bookie)
             if (result.data?.newBookieBalance != null) {
-                try {
-                    const stored = localStorage.getItem('bookie');
-                    if (stored) {
-                        const bookie = JSON.parse(stored);
-                        bookie.balance = result.data.newBookieBalance;
-                        localStorage.setItem('bookie', JSON.stringify(bookie));
-                        // Trigger storage event for other components
-                        window.dispatchEvent(new Event('storage'));
-                    }
-                } catch (e) { /* ignore */ }
+                updateBookie({ balance: Number(result.data.newBookieBalance) });
             }
         }
         return result;
-    }, [selectedPlayerId]);
+    }, [selectedPlayerId, updateBookie]);
 
     // Update balance locally after successful bet (like frontend's updateUserBalance)
     const updatePlayerBalance = useCallback((newBalance) => {

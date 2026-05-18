@@ -4,7 +4,9 @@ import QuizSlotSeed from '../models/quiz/QuizSlotSeed.js';
 import { getOrCreatePick, resolveHintQuestionTextByPosition } from '../services/quizPickService.js';
 import { noteSocketEmit, noteSocketListener } from '../services/traceMetricsService.js';
 import { setWalletSocketIo, playerWalletRoom } from './walletSocketBridge.js';
+import { setBookiePanelSocketIo, bookiePanelRoom, emitBookiePanelBalanceUpdate } from './bookiePanelSocketBridge.js';
 import { extractUserTokenFromSocketHandshake, resolveActivePlayerUserIdFromToken } from '../utils/playerSocketAuth.js';
+import { extractBookiePanelTokenFromSocket, resolveBookiePanelAdminFromToken } from '../utils/bookiePanelSocketAuth.js';
 import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 
 /** @type {Server | null} */
@@ -166,6 +168,7 @@ export function initQuizSocket(httpServer, opts) {
     transports: ['websocket'],
   });
   setWalletSocketIo(io);
+  setBookiePanelSocketIo(io);
 
   io.on('connection', (socket) => {
     socket.data.hintQuizId = null;
@@ -192,6 +195,36 @@ export function initQuizSocket(httpServer, opts) {
       socket.join(ADMIN_ROOM);
       noteSocketEmit('admin:subscribed');
       socket.emit('admin:subscribed', { ok: true, ts: Date.now() });
+    });
+
+    socket.on('bookie:subscribe', async (payload = {}) => {
+      noteSocketListener('bookie:subscribe', socket.listeners('bookie:subscribe').length);
+      const token =
+        String(payload?.token || '').trim() || extractBookiePanelTokenFromSocket(socket);
+      const resolved = await resolveBookiePanelAdminFromToken(token);
+      if (!resolved?.adminId) {
+        socket.emit('bookie:subscribed', { ok: false, code: resolved?.code || 'AUTH_REQUIRED' });
+        return;
+      }
+      const prev = socket.data.bookiePanelAdminId;
+      if (prev && String(prev) !== resolved.adminId) {
+        socket.leave(bookiePanelRoom(prev));
+      }
+      socket.join(bookiePanelRoom(resolved.adminId));
+      socket.data.bookiePanelAdminId = resolved.adminId;
+      noteSocketEmit('bookie:subscribed');
+      socket.emit('bookie:subscribed', {
+        ok: true,
+        adminId: resolved.adminId,
+        balance: resolved.balance,
+        ts: Date.now(),
+      });
+      emitBookiePanelBalanceUpdate({
+        adminId: resolved.adminId,
+        balance: resolved.balance,
+        role: resolved.role,
+        reason: 'subscribe',
+      });
     });
 
     socket.on('wallet:subscribe', async (payload = {}) => {
@@ -262,3 +295,4 @@ export function emitAdminPaymentsUpdate(payload = {}) {
 }
 
 export { emitUserWalletUpdate } from './walletSocketBridge.js';
+export { emitBookiePanelBalanceUpdate } from './bookiePanelSocketBridge.js';

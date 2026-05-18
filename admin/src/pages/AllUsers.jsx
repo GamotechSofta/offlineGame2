@@ -42,6 +42,121 @@ const computeIsOnline = (item, nowMs) => {
 
 const USERS_PAGE_LIMIT = 100;
 
+const refId = (v) => (v?._id != null ? String(v._id) : v != null ? String(v) : '');
+
+const getPlayerOwnership = (u) => {
+    if (!u) return { pool: 'super_admin', bookie: null, superBookie: null };
+    if (u.referrerChain?.superBookie) {
+        return {
+            pool: 'super_bookie',
+            bookie: u.referrerChain.bookie?.username || null,
+            superBookie: u.referrerChain.superBookie?.username || null,
+        };
+    }
+    if (u.referrerChain?.bookie || (u.referredBy && u.referredBy.role !== 'super_bookie')) {
+        return {
+            pool: 'bookie',
+            bookie: u.referrerChain?.bookie?.username || u.referredBy?.username || null,
+            superBookie: null,
+        };
+    }
+    if (u.referredBy?.role === 'super_bookie') {
+        return { pool: 'super_bookie', bookie: null, superBookie: u.referredBy?.username || null };
+    }
+    if (u.referredBy) {
+        return { pool: 'bookie', bookie: u.referredBy?.username || null, superBookie: null };
+    }
+    if (u.source === 'super_bookie') {
+        return { pool: 'super_bookie', bookie: null, superBookie: null };
+    }
+    if (u.source === 'bookie') {
+        return { pool: 'bookie', bookie: null, superBookie: null };
+    }
+    return { pool: 'super_admin', bookie: null, superBookie: null };
+};
+
+/** Single-line: who owns this player (bookie › super bookie, or Super Admin). */
+const getBelongsToLabel = (u) => {
+    const o = getPlayerOwnership(u);
+    if (o.pool === 'super_admin') return 'Super Admin';
+    if (o.superBookie) {
+        const bk = o.bookie || 'Bookie';
+        return `${bk} › ${o.superBookie}`;
+    }
+    return o.bookie || '—';
+};
+
+const PlayersMiniTable = ({ players, now, canManagePlayers, togglingId, onToggle, startIndex = 0, extraCol }) => {
+    if (!players?.length) {
+        return <p className="text-gray-500 text-sm py-2">No players yet.</p>;
+    }
+    return (
+        <div className="rounded-lg border border-gray-200/80 overflow-hidden bg-white">
+            <table className="w-full text-sm">
+                <thead className="bg-gray-100/80">
+                    <tr>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase w-10">#</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Name</th>
+                        {extraCol}
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase hidden lg:table-cell">Phone</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Wallet</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase hidden sm:table-cell">Account</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase hidden lg:table-cell">Created</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Action</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700/60">
+                    {players.map((u, i) => {
+                        const isOnline = computeIsOnline(u, now);
+                        return (
+                            <tr key={u._id} className="hover:bg-gray-100/20 transition-colors">
+                                <td className="px-4 py-2.5 text-gray-400">{startIndex + i + 1}</td>
+                                <td className="px-4 py-2.5 font-medium">
+                                    <Link to={`/all-users/${u._id}`} className="text-orange-500 hover:text-orange-600 hover:underline">{u.username}</Link>
+                                </td>
+                                {extraCol ? extraCol(u) : null}
+                                <td className="px-4 py-2.5 text-gray-600 hidden lg:table-cell">{u.phone || '—'}</td>
+                                <td className="px-4 py-2.5">
+                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs border ${isOnline ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+                                        {isOnline ? 'Online' : 'Offline'}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-2.5 text-green-600 font-mono text-xs">₹{Math.floor(Number(u.walletBalance ?? 0)).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-2.5 hidden sm:table-cell">
+                                    <span className={`px-2 py-0.5 rounded text-xs font-medium border ${u.isActive !== false ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-rose-100 text-rose-700 border-rose-300'}`}>
+                                        {u.isActive !== false ? 'Active' : 'Suspended'}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-2.5 text-gray-400 text-xs hidden lg:table-cell">
+                                    {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                                </td>
+                                <td className="px-4 py-2.5">
+                                    {canManagePlayers ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onToggle(u._id)}
+                                            disabled={togglingId === u._id}
+                                            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
+                                                u.isActive !== false ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                                            }`}
+                                        >
+                                            {togglingId === u._id ? '⏳' : u.isActive !== false ? <><FaUserSlash className="w-3 h-3" /> Suspend</> : <><FaUserCheck className="w-3 h-3" /> Unsuspend</>}
+                                        </button>
+                                    ) : (
+                                        <span className="text-gray-400">—</span>
+                                    )}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
 const toggleUserInCache = (previous, userId) => {
     if (!previous) return previous;
     const flipUser = (user) => {
@@ -97,6 +212,8 @@ const AllUsers = () => {
         bookie_users: null,
     });
     const [expandedBookieId, setExpandedBookieId] = useState(null);
+    const [expandedSuperBookieId, setExpandedSuperBookieId] = useState(null);
+    const [allSuperBookies, setAllSuperBookies] = useState([]);
     const [allUsers, setAllUsers] = useState([]);
     const [superAdminUsersList, setSuperAdminUsersList] = useState([]);
     const [bookieUsersList, setBookieUsersList] = useState([]);
@@ -142,6 +259,7 @@ const AllUsers = () => {
                 superAdminUsersList: [],
                 bookieUsersList: [],
                 allBookies: [],
+                allSuperBookies: [],
                 superAdminsList: [],
                 paginationAll: null,
                 paginationSuperAdmin: null,
@@ -157,7 +275,10 @@ const AllUsers = () => {
                 );
             }
             if (hasBookieMgmt) {
-                tasks.push(fetchWithAuth(`${API_BASE_URL}/admin/bookies`));
+                tasks.push(
+                    fetchWithAuth(`${API_BASE_URL}/admin/bookies`),
+                    fetchWithAuth(`${API_BASE_URL}/admin/super-bookies`),
+                );
             }
             if (isSuperAdmin) {
                 tasks.push(fetchWithAuth(`${API_BASE_URL}/admin/super-admins`));
@@ -178,8 +299,10 @@ const AllUsers = () => {
                 bookieData = await results[idx++].json();
             }
             let bookiesData = { success: false };
+            let superBookiesData = { success: false };
             if (hasBookieMgmt) {
                 bookiesData = await results[idx++].json();
+                superBookiesData = await results[idx++].json();
             }
             let adminsData = { success: false };
             if (isSuperAdmin) {
@@ -191,6 +314,7 @@ const AllUsers = () => {
                 superAdminUsersList: superAdminData.success ? (superAdminData.data || []) : [],
                 bookieUsersList: bookieData.success ? (bookieData.data || []) : [],
                 allBookies: bookiesData.success ? (bookiesData.data || []) : [],
+                allSuperBookies: superBookiesData.success ? (superBookiesData.data || []) : [],
                 superAdminsList: adminsData.success ? (adminsData.data || []) : [],
                 paginationAll: allData.success ? allData.pagination : null,
                 paginationSuperAdmin: superAdminData.success ? superAdminData.pagination : null,
@@ -249,6 +373,7 @@ const AllUsers = () => {
         setSuperAdminUsersList(usersQuery.data.superAdminUsersList || []);
         setBookieUsersList(usersQuery.data.bookieUsersList || []);
         setAllBookies(usersQuery.data.allBookies || []);
+        setAllSuperBookies(usersQuery.data.allSuperBookies || []);
         setSuperAdminsList(usersQuery.data.superAdminsList || []);
         setPaginationByTab({
             all: usersQuery.data.paginationAll ?? null,
@@ -429,9 +554,94 @@ const AllUsers = () => {
             })
           : list;
 
-    const getUsersForBookie = (bookieId) => {
-        return bookieUsersList.filter(
-            (u) => u.referredBy && (u.referredBy._id === bookieId || u.referredBy === bookieId)
+    const getSuperBookiesForBookie = (bookieId) =>
+        allSuperBookies.filter((sb) => refId(sb.parentBookieId) === refId(bookieId));
+
+    const getUsersForSuperBookie = (superBookieId) =>
+        bookieUsersList.filter((u) => refId(u.referredBy) === refId(superBookieId) || refId(u.referrerChain?.superBookie) === refId(superBookieId));
+
+    const getDirectPlayersForBookie = (bookieId) =>
+        bookieUsersList.filter((u) => {
+            if (u.referrerChain?.superBookie) return false;
+            return refId(u.referrerChain?.bookie) === refId(bookieId) || refId(u.referredBy) === refId(bookieId);
+        });
+
+    const showReferrerColumns = activeTab === 'all' || activeTab === 'bookie_users';
+
+    const renderBookieHierarchyPanel = (bookie) => {
+        const superBookies = getSuperBookiesForBookie(bookie._id);
+        const directPlayers = getDirectPlayersForBookie(bookie._id);
+        const totalPlayers =
+            directPlayers.length +
+            superBookies.reduce((sum, sb) => sum + (sb.playerCount ?? getUsersForSuperBookie(sb._id).length), 0);
+
+        if (superBookies.length === 0 && directPlayers.length === 0) {
+            return <p className="text-gray-500 text-sm py-2">No super bookies or players yet.</p>;
+        }
+
+        return (
+            <div className="space-y-5">
+                {superBookies.length > 0 && (
+                    <div>
+                        <p className="text-sm font-semibold text-indigo-600 mb-2">
+                            Super bookies under {bookie.username}
+                        </p>
+                        <div className="space-y-3">
+                            {superBookies.map((sb) => {
+                                const sbPlayers = getUsersForSuperBookie(sb._id);
+                                const sbExpanded = expandedSuperBookieId === sb._id;
+                                return (
+                                    <div key={sb._id} className="rounded-lg border border-indigo-200/80 bg-indigo-50/30 overflow-hidden">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                                            <div>
+                                                <p className="font-medium text-gray-800">{sb.username}</p>
+                                                <p className="text-xs text-gray-500">
+                                                    {sb.phone || '—'} · {sbPlayers.length} player{sbPlayers.length !== 1 ? 's' : ''}
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setExpandedSuperBookieId(sbExpanded ? null : sb._id)}
+                                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white"
+                                            >
+                                                {sbExpanded ? 'Hide players' : 'View players'}
+                                            </button>
+                                        </div>
+                                        {sbExpanded && (
+                                            <div className="px-4 pb-4 border-t border-indigo-100">
+                                                <PlayersMiniTable
+                                                    players={sbPlayers}
+                                                    now={now}
+                                                    canManagePlayers={canManagePlayers}
+                                                    togglingId={togglingId}
+                                                    onToggle={handleTogglePlayerStatus}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+                {directPlayers.length > 0 && (
+                    <div>
+                        <p className="text-sm font-semibold text-orange-500 mb-2">
+                            Direct players under {bookie.username}
+                        </p>
+                        <PlayersMiniTable
+                            players={directPlayers}
+                            now={now}
+                            canManagePlayers={canManagePlayers}
+                            togglingId={togglingId}
+                            onToggle={handleTogglePlayerStatus}
+                        />
+                    </div>
+                )}
+                <p className="text-xs text-gray-500">
+                    Total: {superBookies.length} super bookie{superBookies.length !== 1 ? 's' : ''}, {totalPlayers} player{totalPlayers !== 1 ? 's' : ''}
+                </p>
+            </div>
         );
     };
 
@@ -549,7 +759,7 @@ const AllUsers = () => {
                             <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
                                 <span className="font-semibold text-orange-500">All Bookies</span>
                                 <span className="hidden sm:inline"> — Bookie accounts who can add players via their link.</span>
-                                <span className="block sm:inline mt-1 sm:mt-0 sm:ml-1">Click <span className="font-medium text-gray-800">View Players</span> to see players under each bookie.</span>
+                                <span className="block sm:inline mt-1 sm:mt-0 sm:ml-1">Click <span className="font-medium text-gray-800">View tree</span> to see super bookies and players under each bookie.</span>
                             </p>
                         </div>
 
@@ -568,13 +778,22 @@ const AllUsers = () => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-700/60">
                                     {filteredList.map((bookie, index) => {
-                                        const bookieUsers = getUsersForBookie(bookie._id);
+                                        const superBookies = getSuperBookiesForBookie(bookie._id);
+                                        const directPlayers = getDirectPlayersForBookie(bookie._id);
+                                        const totalPlayers =
+                                            directPlayers.length +
+                                            superBookies.reduce((s, sb) => s + (sb.playerCount ?? getUsersForSuperBookie(sb._id).length), 0);
                                         const isExpanded = expandedBookieId === bookie._id;
                                         return (
                                             <React.Fragment key={bookie._id}>
                                                 <tr className="hover:bg-gray-100/30 transition-colors">
                                                     <td className="px-4 py-3 text-gray-400">{index + 1}</td>
-                                                    <td className="px-4 py-3 font-medium text-gray-800">{bookie.username}</td>
+                                                    <td className="px-4 py-3 font-medium text-gray-800">
+                                                        <div>{bookie.username}</div>
+                                                        <p className="text-xs font-normal text-gray-500 mt-0.5">
+                                                            {superBookies.length} super bookie{superBookies.length !== 1 ? 's' : ''} · {totalPlayers} player{totalPlayers !== 1 ? 's' : ''}
+                                                        </p>
+                                                    </td>
                                                     <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">{bookie.phone || '—'}</td>
                                                     <td className="px-4 py-3">
                                                         <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${
@@ -606,10 +825,13 @@ const AllUsers = () => {
                                                             )}
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setExpandedBookieId(isExpanded ? null : bookie._id)}
+                                                                onClick={() => {
+                                                                    setExpandedBookieId(isExpanded ? null : bookie._id);
+                                                                    setExpandedSuperBookieId(null);
+                                                                }}
                                                                 className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500/90 hover:bg-orange-500 text-gray-800 transition-colors"
                                                             >
-                                                                {isExpanded ? 'Hide Players' : 'View Players'}
+                                                                {isExpanded ? 'Hide tree' : 'View tree'}
                                                             </button>
                                                         </div>
                                                     </td>
@@ -619,71 +841,9 @@ const AllUsers = () => {
                                                         <td colSpan="6" className="px-0 py-0 bg-gray-50/30">
                                                             <div className="px-6 py-4 sm:py-5 border-l-4 border-orange-500 ml-4 sm:ml-6">
                                                                 <p className="text-orange-500 font-semibold mb-3 text-sm">
-                                                                    Players under <span className="text-gray-800">{bookie.username}</span>
+                                                                    Hierarchy: <span className="text-gray-800">{bookie.username}</span>
                                                                 </p>
-                                                                {bookieUsers.length === 0 ? (
-                                                                    <p className="text-gray-500 text-sm py-2">No players yet.</p>
-                                                                ) : (
-                                                                    <div className="rounded-lg border border-gray-200/80 overflow-hidden bg-white">
-                                                                        <table className="w-full text-sm">
-                                                                            <thead className="bg-gray-100/80">
-                                                                                <tr>
-                                                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase w-10">#</th>
-                                                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Name</th>
-                                                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase hidden lg:table-cell">Phone</th>
-                                                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
-                                                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Wallet</th>
-                                                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase hidden sm:table-cell">Account</th>
-                                                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase hidden lg:table-cell">Created</th>
-                                                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase">Action</th>
-                                                                                </tr>
-                                                                            </thead>
-                                                                            <tbody className="divide-y divide-gray-700/60">
-                                                                                {bookieUsers.map((u, i) => (
-                                                                                    <tr key={u._id} className="hover:bg-gray-100/20 transition-colors">
-                                                                                        <td className="px-4 py-2.5 text-gray-400">{i + 1}</td>
-                                                                                        <td className="px-4 py-2.5 font-medium">
-                                                                                            <Link to={`/all-users/${u._id}`} className="text-orange-500 hover:text-orange-600 hover:underline">{u.username}</Link>
-                                                                                        </td>
-                                                                                        <td className="px-4 py-2.5 text-gray-600 hidden lg:table-cell">{u.phone || '—'}</td>
-                                                                                        <td className="px-4 py-2.5">
-                                                                                            {(() => {
-                                                                                                const isOnline = computeIsOnline(u, now);
-                                                                                                return (
-                                                                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs border ${isOnline ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
-                                                                                                        <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
-                                                                                                        {isOnline ? 'Online' : 'Offline'}
-                                                                                                    </span>
-                                                                                                );
-                                                                                            })()}
-                                                                                        </td>
-                                                                                        <td className="px-4 py-2.5 text-green-600 font-mono text-xs">₹{Math.floor(Number(u.walletBalance ?? 0)).toLocaleString('en-IN')}</td>
-                                                                                        <td className="px-4 py-2.5 hidden sm:table-cell">
-                                                                                            <span className={`px-2 py-0.5 rounded text-xs font-medium border ${u.isActive !== false ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-rose-100 text-rose-700 border-rose-300'}`}>
-                                                                                                {u.isActive !== false ? 'Active' : 'Suspended'}
-                                                                                            </span>
-                                                                                        </td>
-                                                                                        <td className="px-4 py-2.5 text-gray-400 text-xs hidden lg:table-cell">
-                                                                                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                                                                                        </td>
-                                                                                        <td className="px-4 py-2.5">
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                onClick={() => handleTogglePlayerStatus(u._id)}
-                                                                                                disabled={togglingId === u._id}
-                                                                                                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
-                                                                                                    u.isActive !== false ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                                                                                                }`}
-                                                                                            >
-                                                                                                {togglingId === u._id ? '⏳' : u.isActive !== false ? <><FaUserSlash className="w-3 h-3" /> Suspend</> : <><FaUserCheck className="w-3 h-3" /> Unsuspend</>}
-                                                                                            </button>
-                                                                                        </td>
-                                                                                    </tr>
-                                                                                ))}
-                                                                            </tbody>
-                                                                        </table>
-                                                                    </div>
-                                                                )}
+                                                                {renderBookieHierarchyPanel(bookie)}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -698,7 +858,11 @@ const AllUsers = () => {
                         {/* Mobile cards */}
                         <div className="md:hidden divide-y divide-gray-700/60">
                             {filteredList.map((bookie, index) => {
-                                const bookieUsers = getUsersForBookie(bookie._id);
+                                const superBookies = getSuperBookiesForBookie(bookie._id);
+                                const directPlayers = getDirectPlayersForBookie(bookie._id);
+                                const totalPlayers =
+                                    directPlayers.length +
+                                    superBookies.reduce((s, sb) => s + (sb.playerCount ?? getUsersForSuperBookie(sb._id).length), 0);
                                 const isExpanded = expandedBookieId === bookie._id;
                                 return (
                                     <div key={bookie._id} className="p-3 sm:p-4 hover:bg-gray-100/20 transition-colors">
@@ -729,10 +893,13 @@ const AllUsers = () => {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setExpandedBookieId(isExpanded ? null : bookie._id)}
+                                                    onClick={() => {
+                                                        setExpandedBookieId(isExpanded ? null : bookie._id);
+                                                        setExpandedSuperBookieId(null);
+                                                    }}
                                                     className="px-3 py-2 rounded-lg text-xs font-semibold bg-orange-500/90 hover:bg-orange-500 text-gray-800"
                                                 >
-                                                    {isExpanded ? 'Hide' : 'View'} Players
+                                                    {isExpanded ? 'Hide' : 'View'} tree
                                                 </button>
                                             </div>
                                         </div>
@@ -742,40 +909,10 @@ const AllUsers = () => {
                                         </div>
                                         {isExpanded && (
                                             <div className="mt-4 pl-3 border-l-2 border-orange-500/70 space-y-3">
-                                                <p className="text-orange-500/90 font-medium text-sm">Players ({bookieUsers.length})</p>
-                                                {bookieUsers.length === 0 ? (
-                                                    <p className="text-gray-500 text-xs">No players yet.</p>
-                                                ) : (
-                                                    bookieUsers.map((u, i) => (
-                                                        <div key={u._id} className="p-3 rounded-lg bg-white border border-gray-200">
-                                                            <div className="flex flex-col gap-2 mb-1.5">
-                                                                <Link to={`/all-users/${u._id}`} className="font-medium text-orange-500 hover:text-orange-600 hover:underline text-sm truncate">{u.username}</Link>
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border ${computeIsOnline(u, now) ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${computeIsOnline(u, now) ? 'bg-emerald-500' : 'bg-slate-500'}`} />
-                                                                        {computeIsOnline(u, now) ? 'Online' : 'Offline'}
-                                                                    </span>
-                                                                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium border ${u.isActive !== false ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-rose-100 text-rose-700 border-rose-300'}`}>
-                                                                        {u.isActive !== false ? 'Active' : 'Suspended'}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
-                                                                <span className="text-green-600 font-mono">₹{Math.floor(Number(u.walletBalance ?? 0)).toLocaleString('en-IN')}</span>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleTogglePlayerStatus(u._id)}
-                                                                    disabled={togglingId === u._id}
-                                                                    className={`inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-semibold disabled:opacity-50 ${
-                                                                        u.isActive !== false ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
-                                                                    }`}
-                                                                >
-                                                                    {togglingId === u._id ? '⏳' : u.isActive !== false ? <><FaUserSlash className="w-3 h-3" /> Suspend</> : <><FaUserCheck className="w-3 h-3" /> Unsuspend</>}
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                )}
+                                                <p className="text-orange-500/90 font-medium text-sm">
+                                                    {superBookies.length} super bookie{superBookies.length !== 1 ? 's' : ''} · {totalPlayers} player{totalPlayers !== 1 ? 's' : ''}
+                                                </p>
+                                                {renderBookieHierarchyPanel(bookie)}
                                             </div>
                                         )}
                                     </div>
@@ -785,21 +922,31 @@ const AllUsers = () => {
                     </div>
                 ) : (
                     <div>
-                        {(activeTab === 'bookie_users' || activeTab === 'super_admin_users') && (
+                        {(activeTab === 'all' || activeTab === 'bookie_users' || activeTab === 'super_admin_users') && (
                             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 text-sm text-gray-600">
-                                {activeTab === 'bookie_users' ? (
-                                    <><strong className="text-orange-500">All Bookies Players</strong> – Players who signed up via a bookie&apos;s link.</>
-                                ) : (
+                                {activeTab === 'all' && (
+                                    <>
+                                        <strong className="text-orange-500">All Players</strong>
+                                        {' '}– <strong>Belongs to</strong> shows who owns each player (Super Admin, Bookie, or Bookie › Super Bookie).
+                                    </>
+                                )}
+                                {activeTab === 'bookie_users' && (
+                                    <><strong className="text-orange-500">All Bookies Players</strong> – Players under a bookie or super bookie.</>
+                                )}
+                                {activeTab === 'super_admin_users' && (
                                     <><strong className="text-orange-500">Super Admin Players</strong> – Players who signed up directly or were created by super admin.</>
                                 )}
                             </div>
                         )}
                         <div className="admin-table-frame">
-                        <table className="w-full text-sm min-w-[800px]">
+                        <table className={`w-full text-sm ${showReferrerColumns ? 'min-w-[920px]' : 'min-w-[800px]'}`}>
                             <thead className="bg-gray-100">
                                 <tr>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase w-8">#</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Name</th>
+                                    {showReferrerColumns && (
+                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase min-w-[160px]">Belongs to</th>
+                                    )}
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Phone</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Wallet</th>
                                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
@@ -821,6 +968,27 @@ const AllUsers = () => {
                                                 <span className="text-gray-800 truncate block max-w-[120px]">{item.username}</span>
                                             )}
                                         </td>
+                                        {showReferrerColumns && (
+                                            <td className="px-2 sm:px-3 py-2 sm:py-3 text-xs font-medium">
+                                                {(() => {
+                                                    const label = getBelongsToLabel(item);
+                                                    const o = getPlayerOwnership(item);
+                                                    if (o.pool === 'super_admin') {
+                                                        return <span className="text-gray-600">{label}</span>;
+                                                    }
+                                                    if (o.superBookie) {
+                                                        return (
+                                                            <span className="text-gray-800">
+                                                                {o.bookie || 'Bookie'}
+                                                                <span className="text-gray-400 mx-1">›</span>
+                                                                <span className="text-indigo-700">{o.superBookie}</span>
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return <span className="text-gray-800">{label}</span>;
+                                                })()}
+                                            </td>
+                                        )}
                                         <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{item.phone || '—'}</td>
                                         <td className="px-2 sm:px-3 py-2 sm:py-3">
                                             {(activeTab === 'super_admins') ? (

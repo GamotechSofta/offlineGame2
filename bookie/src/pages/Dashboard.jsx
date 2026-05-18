@@ -17,6 +17,7 @@ import {
     FaArrowRight,
     FaExclamationTriangle,
     FaDice,
+    FaUsersCog,
 } from 'react-icons/fa';
 
 const LOTTERY_LIVE_REFRESH_MS = 10000;
@@ -429,6 +430,7 @@ const Dashboard = () => {
         return `${start} - ${end}`;
     };
 
+    const hierarchy = stats?.hierarchy || null;
     const pendingPayments = stats?.payments?.pending || 0;
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
     const pendingWithdrawals = stats?.payments?.pendingWithdrawals ?? 0;
@@ -443,6 +445,13 @@ const Dashboard = () => {
     const twoDAllSlotsNet = Number(lotteryStats?.twoD?.allSlots?.net || 0);
     const threeDAllSlotsNet = Number(lotteryStats?.threeD?.allSlots?.net || 0);
     const lotteryAllSlotsNet = twoDAllSlotsNet + threeDAllSlotsNet;
+    const dashboardMatkaRevenue = Number(stats?.revenue?.total || 0);
+    const displayTotalBetAmount =
+        commissionBaseTotal > 0
+            ? commissionBaseTotal
+            : dashboardMatkaRevenue + (commissionLotteryTotal || lotteryAllSlotsRevenue);
+    const displayMatkaBet =
+        commissionMatkaTotal > 0 ? commissionMatkaTotal : dashboardMatkaRevenue;
     const marketPendingAmount = Number(marketReport.pendingAmount || 0);
     const computedTotalProfit = (Number(marketReport.netProfit) || 0) + lotteryAllSlotsNet + (toReceived - toGive);
 
@@ -600,10 +609,10 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetAmount')}</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(commissionBaseTotal)}</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(displayTotalBetAmount)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('totalBetAmountDescription')}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                        Matka: <span className="font-medium">{formatCurrency(commissionMatkaTotal)}</span>
+                        Matka: <span className="font-medium">{formatCurrency(displayMatkaBet)}</span>
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                         2D & 3D: <span className="font-medium">{formatCurrency(commissionLotteryTotal)}</span>
@@ -646,12 +655,62 @@ const Dashboard = () => {
                     <StatRow label={t('netProfit')} value={formatCurrency(stats?.revenue?.netProfit)} colorClass="text-blue-600" />
                 </SectionCard>
 
-                {/* Players */}
-                <SectionCard title={t('players')} description={t('allTimeCounts')} icon={FaUserFriends} linkTo="/my-users" linkLabel={t('allPlayers')} t={t}>
+                {/* Players (direct + super bookie network) */}
+                <SectionCard
+                    title={t('players')}
+                    description={hierarchy ? 'All players under you (direct + super bookies)' : t('allTimeCounts')}
+                    icon={FaUserFriends}
+                    linkTo="/my-users"
+                    linkLabel={t('allPlayers')}
+                    t={t}
+                >
                     <StatRow label={t('totalPlayers')} value={stats?.users?.total ?? 0} />
                     <StatRow label={t('activePlayers')} value={stats?.users?.active ?? 0} colorClass="text-green-600" />
                     <StatRow label={t('newInPeriod')} value={stats?.users?.newToday ?? 0} colorClass="text-[#1B3150]" />
+                    {hierarchy && (
+                        <>
+                            <div className="border-t border-gray-200 my-2" />
+                            <StatRow label="Direct (your players)" value={hierarchy.directPlayers ?? 0} />
+                            <StatRow label="Via super bookies" value={hierarchy.superBookiePlayers ?? 0} colorClass="text-indigo-600" />
+                        </>
+                    )}
                 </SectionCard>
+
+                {/* Super Bookies */}
+                {hierarchy && (
+                    <SectionCard
+                        title="Super Bookies"
+                        description={`${hierarchy.superBookiesCount ?? 0} account(s) · ${hierarchy.superBookiePlayers ?? 0} players via super bookies`}
+                        icon={FaUsersCog}
+                        linkTo="/super-bookies"
+                        linkLabel="Manage"
+                        t={t}
+                    >
+                        <StatRow label="Total super bookies" value={hierarchy.superBookiesCount ?? 0} />
+                        <StatRow label="Active super bookies" value={hierarchy.superBookiesActive ?? 0} colorClass="text-green-600" />
+                        <StatRow label="Their players (active)" value={hierarchy.superBookiePlayersActive ?? 0} colorClass="text-indigo-600" />
+                        {Array.isArray(hierarchy.superBookies) && hierarchy.superBookies.length > 0 ? (
+                            <>
+                                <div className="border-t border-gray-200 my-2" />
+                                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Per super bookie</p>
+                                {hierarchy.superBookies.slice(0, 5).map((sb) => (
+                                    <StatRow
+                                        key={sb.id}
+                                        label={sb.username}
+                                        value={`${sb.playerCount ?? 0} players`}
+                                        subValue={sb.status === 'active' ? 'Active' : 'Suspended'}
+                                        colorClass={sb.status === 'active' ? 'text-gray-800' : 'text-red-500'}
+                                    />
+                                ))}
+                                {hierarchy.superBookies.length > 5 && (
+                                    <p className="text-xs text-gray-400 pt-1">+{hierarchy.superBookies.length - 5} more — see Manage</p>
+                                )}
+                            </>
+                        ) : (
+                            <p className="text-sm text-gray-500 py-2">No super bookies yet. Create from Super Bookies menu.</p>
+                        )}
+                    </SectionCard>
+                )}
 
                 {/* Bets */}
                 <SectionCard title={t('bets')} description={t('selectedPeriod')} icon={FaChartBar} linkTo="/bet-history" linkLabel={t('betHistory')} t={t}>
@@ -834,6 +893,9 @@ const Dashboard = () => {
                     </Link>
                     <Link to="/reports" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-[#1B3150]/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-[#1B3150] text-sm font-medium transition-all text-center">
                         {t('report')}
+                    </Link>
+                    <Link to="/super-bookies" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-indigo-500/10 border border-gray-200 hover:border-indigo-300 text-gray-600 hover:text-indigo-700 text-sm font-medium transition-all text-center">
+                        Super Bookies
                     </Link>
                 </div>
             </div>

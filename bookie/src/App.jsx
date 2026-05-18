@@ -12,6 +12,8 @@ import BetHistory from './pages/BetHistory';
 import TopWinners from './pages/TopWinners';
 import Reports from './pages/Reports';
 import Revenue from './pages/Revenue';
+import Commission from './pages/Commission';
+import SuperBookieCommissions from './pages/SuperBookieCommissions';
 import Payments from './pages/Payments';
 import Wallet from './pages/Wallet';
 import Records from './pages/Records';
@@ -23,6 +25,7 @@ import BookieGameBid from './pages/GameBid/index';
 import Shortcuts from './pages/Shortcuts';
 import Receipt from './pages/Receipt';
 import Settings from './pages/Settings';
+import SuperBookieManagement from './pages/SuperBookieManagement';
 import { BetLayoutProvider } from './context/BetLayoutContext';
 
 // Scroll to top on route change
@@ -77,10 +80,13 @@ const AppRoutes = () => (
         <Route path="/games/:marketId/:gameType" element={<PrivateRoute><BookieGameBid /></PrivateRoute>} />
         <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
+        <Route path="/super-bookies" element={<PrivateRoute><SuperBookieManagement /></PrivateRoute>} />
         <Route path="/bet-history" element={<PrivateRoute><BetHistory /></PrivateRoute>} />
         <Route path="/top-winners" element={<PrivateRoute><TopWinners /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
-        <Route path="/revenue" element={<PrivateRoute><Revenue /></PrivateRoute>} />
+        <Route path="/revenue" element={<PrivateRoute><Commission /></PrivateRoute>} />
+        <Route path="/commission" element={<PrivateRoute><Commission /></PrivateRoute>} />
+        <Route path="/super-bookie-commissions" element={<PrivateRoute><SuperBookieCommissions /></PrivateRoute>} />
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
         <Route path="/records" element={<PrivateRoute><Records /></PrivateRoute>} />
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />

@@ -5,7 +5,9 @@ import connectDB from './config/db_Connection.js';
 import adminRoutes from './routes/admin/adminRoutes.js';
 import betRoutes from './routes/bet/betRoutes.js';
 import bookieRoutes from './routes/bookie/bookieRoutes.js';
+import superBookieRoutes from './routes/superBookie/superBookieRoutes.js';
 import dailyCommissionRoutes from './routes/dailyCommission/dailyCommissionRoutes.js';
+import commissionRoutes from './routes/commission/commissionRoutes.js';
 import dashboardRoutes from './routes/dashboard/dashboardRoutes.js';
 import genericRouter from './routes/generics/genericRouter.js';
 import helpDeskRoutes from './routes/helpDesk/helpDeskRoutes.js';
@@ -118,6 +120,7 @@ app.get('/test-ip', (req, res) => {
 app.use('/api/v1/markets', marketRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/bookie', bookieRoutes);
+app.use('/api/v1/super-bookie', superBookieRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/bets', betRoutes);
 app.use('/api/v1/payments', paymentRoutes);
@@ -127,6 +130,7 @@ app.use('/api/v1/help-desk', helpDeskRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/rates', rateRoutes);
 app.use('/api/v1/daily-commission', dailyCommissionRoutes);
+app.use('/api/v1/commission', commissionRoutes);
 app.use('/api/v1/games', gamesRouter);
 
 app.use('/api/v1/bank-details', bankDetailRoutes);

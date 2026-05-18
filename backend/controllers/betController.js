@@ -5,7 +5,8 @@ import User from '../models/user/user.js';
 import Market from '../models/market/market.js';
 import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
-import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { getBookieUserIds, isPlayerUnderOperator } from '../utils/bookieFilter.js';
+import { isBookiePanelRole } from '../utils/adminRoles.js';
 import { isBettingAllowed, isBettingAllowedForSession, isMarketOpenOnISTDay } from '../utils/marketTiming.js';
 import { BET_TYPES as VALID_BET_TYPES } from '../models/bet/betTypeConstants.js';
 import { parseChartBet } from '../utils/chartBet.js';
@@ -13,6 +14,7 @@ import { isSpCommon } from '../config/spCommonList.js';
 import { isValidDoublePana } from '../utils/doublePanaValidate.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
+import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 const THREE_DIGITS = /^\d{3}$/;
 /** CP (Common Pana): 3-digit chart single, chart double, or triple (matches frontend generateCPCommon). */
 const isValidCpCommonThreeDigit = (sn) =>
@@ -376,8 +378,8 @@ export const placeBet = async (req, res) => {
 export const placeBetForPlayer = async (req, res) => {
     try {
         const bookie = req.admin;
-        if (!bookie || bookie.role !== 'bookie') {
-            return res.status(403).json({ success: false, message: 'Bookie access required' });
+        if (!isBookiePanelRole(bookie)) {
+            return res.status(403).json({ success: false, message: 'Bookie or super bookie access required' });
         }
 
         const { userId, marketId, bets } = req.body;
@@ -401,7 +403,8 @@ export const placeBetForPlayer = async (req, res) => {
         if (!user) {
             return res.status(404).json({ success: false, message: 'Player not found' });
         }
-        if (String(user.referredBy) !== String(bookie._id)) {
+        const allowed = await isPlayerUnderOperator(bookie, userId);
+        if (!allowed) {
             return res.status(403).json({ success: false, message: 'You can only place bets for your own players' });
         }
         if (!user.isActive) {
@@ -580,6 +583,7 @@ export const placeBetForPlayer = async (req, res) => {
         // Bookie's balance is already deducted above
 
         await invalidateAdminReadCaches('bookie_market_bet_placed');
+        await notifyBookiePanelBalance(bookie._id, 'bet_placed', newBookieBalance);
         res.status(201).json({
             success: true,
             message: `Bet placed successfully for ${user.username}`,

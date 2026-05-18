@@ -45,4 +45,22 @@ export const getMarketDisplayName = (market, language) => {
     return en || hi;
 };
 
+/** Socket.IO server origin (no /api path). */
+export function getPanelSocketUrl() {
+    const raw = import.meta.env.VITE_SOCKET_URL;
+    if (raw && String(raw).trim()) {
+        return String(raw).replace(/\/$/, '');
+    }
+    const apiBase = String(API_BASE_URL || 'http://localhost:3010/api/v1');
+    if (apiBase.startsWith('/')) {
+        const proxyTarget = import.meta.env.VITE_DEV_PROXY_TARGET;
+        if (proxyTarget && String(proxyTarget).trim()) {
+            return String(proxyTarget).replace(/\/$/, '');
+        }
+        if (typeof window !== 'undefined') return window.location.origin;
+        return '';
+    }
+    return apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
+}
+
 export { API_BASE_URL, FRONTEND_URL };

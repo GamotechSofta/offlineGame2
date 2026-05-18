@@ -7,7 +7,7 @@ import Admin from '../models/admin/admin.js';
 
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import HelpDesk from '../models/helpDesk/helpDesk.js';
-import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { getBookieUserIds, getBookieHierarchySummary } from '../utils/bookieFilter.js';
 import { isBettingClosed, isMarketOpenOnISTDay } from '../utils/marketTiming.js';
 import { cacheGet, cacheSet, getCacheMetrics } from '../services/cacheService.js';
 import { getRuntimeMetrics } from '../services/runtimeMonitorService.js';
@@ -402,6 +402,11 @@ export const getDashboardStats = async (req, res) => {
         const totalProfit = netProfit + (toTake - toGive);
         const winRate = totalBets > 0 ? ((winningBets / totalBets) * 100).toFixed(2) : 0;
 
+        let hierarchy = null;
+        if (req.admin?.role === 'bookie') {
+            hierarchy = await getBookieHierarchySummary(req.admin._id, dateMatch);
+        }
+
         const responseData = {
                 selectedMarketId,
                 dateRange: { 
@@ -470,6 +475,7 @@ export const getDashboardStats = async (req, res) => {
                 marketsPendingResultList,
                 marketWise,
                 gameWiseRevenue,
+                hierarchy,
             };
         await cacheSet(cacheKey, responseData, DASHBOARD_CACHE_TTL_SECONDS);
         return responseData;

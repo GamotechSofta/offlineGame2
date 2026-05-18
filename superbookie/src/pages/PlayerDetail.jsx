@@ -1,0 +1,2353 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import Layout from '../components/Layout';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { formatPlayerIp } from '../utils/ipDisplay';
+import { useLanguage } from '../context/LanguageContext';
+import {
+    FaArrowLeft,
+    FaCalendarAlt,
+    FaWallet,
+    FaGamepad,
+    FaPlusCircle,
+    FaMinusCircle,
+    FaHistory,
+    FaUser,
+    FaFileInvoiceDollar,
+    FaExchangeAlt,
+    FaSyncAlt,
+    FaPrint,
+    FaFilter,
+    FaChevronRight,
+    FaChevronDown,
+} from 'react-icons/fa';
+
+const getTabs = (t) => [
+    { id: 'overview', label: t('overview'), icon: FaUser },
+    { id: 'bets_by_user', label: 'Bets by Player', icon: FaHistory },
+    { id: 'bets_by_bookie', label: 'Bets by Bookie', icon: FaHistory },
+    { id: 'game-history', label: 'Game History', icon: FaGamepad },
+    { id: 'wallet', label: t('fundHistory'), icon: FaExchangeAlt },
+    { id: 'statement', label: t('statement'), icon: FaFileInvoiceDollar },
+];
+
+const BET_SOURCE_OPTIONS_BY_USER = [
+    { id: 'matka', label: 'Matka' },
+    { id: 'all_lottery', label: 'All Lottery' },
+    { id: 'lottery_2d', label: '2D Lottery' },
+    { id: 'lottery_3d', label: '3D Lottery' },
+];
+
+const BET_SOURCE_OPTIONS_BY_BOOKIE = [{ id: 'matka', label: 'Matka' }];
+
+const formatDateRange = (from, to) => {
+    if (!from || !to) return '';
+    const a = new Date(from);
+    const b = new Date(to);
+    return `${a.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })} ~ ${b.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })}`;
+};
+
+const getDatePresets = (t) => [
+    { id: 'today', label: t('today'), getRange: () => { const d = new Date(); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
+    { id: 'yesterday', label: t('yesterday'), getRange: () => { const d = new Date(); d.setDate(d.getDate() - 1); const f = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; return { from: f, to: f }; } },
+    { id: 'this_week', label: t('thisWeek'), getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
+    { id: 'last_week', label: t('lastWeek'), getRange: () => { const d = new Date(); const day = d.getDay(); const sun = new Date(d); sun.setDate(d.getDate() - day - 7); const sat = new Date(sun); sat.setDate(sun.getDate() + 6); const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; return { from: fmt(sun), to: fmt(sat) }; } },
+    { id: 'this_month', label: t('thisMonth'), getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth(); const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
+    { id: 'last_month', label: t('lastMonth'), getRange: () => { const d = new Date(); const y = d.getFullYear(), m = d.getMonth() - 1; const last = new Date(y, m + 1, 0); return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` }; } },
+];
+
+const formatCurrency = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+const formatTicketTail = (ticketId) => {
+    const raw = String(ticketId || '').trim();
+    if (!raw) return '—';
+    return raw.slice(-8).toUpperCase();
+};
+const LOTTERY_PAGE_SIZE = 25;
+
+const formatTxnTime = (iso) => {
+    try {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '-';
+        const date = d.toLocaleDateString('en-GB').replace(/\//g, '-');
+        const time = d
+            .toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+            .replace(/\s/g, ' ')
+            .toLowerCase();
+        return `${date} ${time}`;
+    } catch {
+        return '-';
+    }
+};
+
+const normalizeMarketName = (s) => (s || '').toString().trim().toLowerCase();
+const detectGameName = (text) => {
+    const s = normalizeMarketName(text);
+    if (s.includes('aviator')) return 'Aviator';
+    if (s.includes('funtimer') || s.includes('fun timer')) return 'FunTimer';
+    if (s.includes('roulette')) return 'Roulette';
+    return '';
+};
+const detectTransactionGameName = (txn) =>
+    detectGameName(txn?.description || '') ||
+    detectGameName(txn?.bet?.marketName || '') ||
+    detectGameName(txn?.marketName || '') ||
+    detectGameName(txn?.gameName || '');
+
+const parseRoundId = (text) => {
+    const s = String(text || '');
+    const m = s.match(/roundId=([^|]+)/i);
+    return m && m[1] ? String(m[1]).trim() : '';
+};
+
+const buildGameRoundRows = (transactions, gameName) => {
+    const debitRows = [];
+    const knownRoundIds = new Set();
+    const byRef = new Map();
+    const byRound = new Map();
+
+    for (const t of transactions || []) {
+        const desc = String(t?.description || '');
+        const g = detectGameName(desc) || detectGameName(t?.bet?.marketName || '');
+        const type = String(t?.type || '').toLowerCase();
+        if (type !== 'debit' || g !== gameName) continue;
+
+        const roundId = parseRoundId(desc);
+        const refId = String(t?.referenceId || '').trim();
+        const key = refId || String(t?._id || '').trim();
+        if (!key) continue;
+        if (roundId) knownRoundIds.add(roundId);
+
+        const row = {
+            key,
+            betId: key,
+            betAmount: Number(t?.amount || 0) || 0,
+            cashOutAmount: null,
+            createdAt: t?.createdAt || null,
+            gameName,
+        };
+        const idx = debitRows.push(row) - 1;
+        if (refId) byRef.set(refId, idx);
+        if (roundId) {
+            const arr = byRound.get(roundId) || [];
+            arr.push(idx);
+            byRound.set(roundId, arr);
+        }
+    }
+
+    for (const t of transactions || []) {
+        const type = String(t?.type || '').toLowerCase();
+        if (type !== 'credit') continue;
+        const desc = String(t?.description || '');
+        const creditRoundId = parseRoundId(desc);
+        const creditRef = String(t?.referenceId || '').trim();
+        const directGame = detectTransactionGameName(t);
+        if (directGame && directGame !== gameName) continue;
+        if (!directGame && !creditRef && !(creditRoundId && knownRoundIds.has(creditRoundId))) continue;
+
+        let matchIndex = -1;
+        if (creditRef && byRef.has(creditRef)) {
+            matchIndex = byRef.get(creditRef);
+        } else if (creditRoundId && knownRoundIds.has(creditRoundId) && byRound.has(creditRoundId)) {
+            const candidates = byRound.get(creditRoundId) || [];
+            matchIndex = candidates.find((i) => debitRows[i] && debitRows[i].cashOutAmount == null) ?? candidates[0] ?? -1;
+        }
+        if (matchIndex < 0 || !debitRows[matchIndex]) continue;
+
+        const amount = Number(t?.amount || 0) || 0;
+        if (amount > 0) debitRows[matchIndex].cashOutAmount = amount;
+        if (!debitRows[matchIndex].createdAt || new Date(t?.createdAt || 0).getTime() > new Date(debitRows[matchIndex].createdAt || 0).getTime()) {
+            debitRows[matchIndex].createdAt = t?.createdAt || debitRows[matchIndex].createdAt;
+        }
+    }
+
+    return debitRows
+        .filter((x) => Number.isFinite(Number(x.betAmount)))
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .map((x, i) => ({
+            ...x,
+            index: i + 1,
+            timeFormatted: formatTxnTime(x.createdAt),
+        }));
+};
+
+const buildAggregatedGameRoundRows = (transactions, gameName) => {
+    const grouped = new Map();
+    const knownRoundIds = new Set();
+    const allTransactions = Array.isArray(transactions) ? transactions : [];
+
+    const ensureRow = (groupKey, txn) => {
+        if (!grouped.has(groupKey)) {
+            grouped.set(groupKey, {
+                key: groupKey,
+                betId: groupKey,
+                betAmount: 0,
+                cashOutAmount: 0,
+                createdAt: txn?.createdAt || null,
+                gameName,
+            });
+        }
+        return grouped.get(groupKey);
+    };
+
+    for (const txn of allTransactions) {
+        const type = String(txn?.type || '').toLowerCase();
+        if (type !== 'debit') continue;
+        const desc = String(txn?.description || '');
+        if (detectTransactionGameName(txn) !== gameName) continue;
+        const groupKey = String(parseRoundId(desc) || txn?.referenceId || txn?._id || '').trim();
+        if (!groupKey) continue;
+
+        knownRoundIds.add(groupKey);
+        const row = ensureRow(groupKey, txn);
+        row.betAmount += Number(txn?.amount || 0) || 0;
+        if (!row.createdAt || new Date(txn?.createdAt || 0).getTime() > new Date(row.createdAt || 0).getTime()) {
+            row.createdAt = txn?.createdAt || row.createdAt;
+        }
+    }
+
+    for (const txn of allTransactions) {
+        const type = String(txn?.type || '').toLowerCase();
+        if (type !== 'credit') continue;
+        const desc = String(txn?.description || '');
+        const groupKey = String(parseRoundId(desc) || txn?.referenceId || txn?._id || '').trim();
+        if (!groupKey) continue;
+        const detectedGame = detectTransactionGameName(txn);
+        const belongsToGame = detectedGame === gameName || (!detectedGame && knownRoundIds.has(groupKey));
+        if (!belongsToGame || !knownRoundIds.has(groupKey)) continue;
+
+        const row = ensureRow(groupKey, txn);
+        row.cashOutAmount += Number(txn?.amount || 0) || 0;
+        if (!row.createdAt || new Date(txn?.createdAt || 0).getTime() > new Date(row.createdAt || 0).getTime()) {
+            row.createdAt = txn?.createdAt || row.createdAt;
+        }
+    }
+
+    return Array.from(grouped.values())
+        .filter((row) => Number(row.betAmount || 0) > 0)
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .map((row, index) => ({
+            ...row,
+            index: index + 1,
+            timeFormatted: formatTxnTime(row.createdAt),
+        }));
+};
+
+const getPannaSubLabel = (betNumber, t) => {
+    const s = String(betNumber || '').trim();
+    if (s.length !== 3 || !/^\d{3}$/.test(s)) return t('pana');
+    const a = s[0], b = s[1], c = s[2];
+    if (a === b && b === c) return t('triplePana');
+    if (a === b || b === c || a === c) return t('doublePanaBulk');
+    return t('singlePanaBulk');
+};
+const getBetTypeLabel = (betType, t, betNumber) => {
+    if (!betType) return '—';
+    const key = String(betType).trim().toLowerCase();
+    if (key === 'panna') return getPannaSubLabel(betNumber, t);
+    if (key === 'sp-motor') return 'SP Motor';
+    if (key === 'dp-motor') return 'DP Motor';
+    if (key === 't-motor') return 'T Motor';
+    const labels = {
+        'single': t('singleDigit'),
+        'jodi': t('jodiBulk'),
+        'full-sangam': t('fullSangam'),
+        'half-sangam': t('halfSangamO'),
+        'odd-even': 'Odd Even',
+        'sp-common': 'SP Common',
+        'cp-common': 'CP (Common Pana)',
+        chart: 'Chart Game',
+    };
+    return labels[key] || betType;
+};
+
+const PlayerDetail = () => {
+    const { t } = useLanguage();
+    const { userId } = useParams();
+    const navigate = useNavigate();
+    const [player, setPlayer] = useState(null);
+    const [activeTab, setActiveTab] = useState('overview');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    // Tabs and date presets
+    const TABS = getTabs(t);
+    const DATE_PRESETS = getDatePresets(t);
+
+    // Date range (shared across tabs)
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [datePreset, setDatePreset] = useState('today');
+    const [calendarOpen, setCalendarOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    // Tab data
+    const [bets, setBets] = useState([]);
+    const [walletTx, setWalletTx] = useState([]);
+    const [statementData, setStatementData] = useState([]);
+    const [loadingTab, setLoadingTab] = useState(false);
+    const [gameTransactions, setGameTransactions] = useState([]);
+    const [gameHistoryFilter, setGameHistoryFilter] = useState('all');
+    const [gameHistorySearch, setGameHistorySearch] = useState('');
+
+    // Bet filter
+    const [betFilter, setBetFilter] = useState('all'); // all, pending, won, lost
+    const [betSessionFilter, setBetSessionFilter] = useState('all'); // all, open, close
+    const [betTypeFilter, setBetTypeFilter] = useState('all'); // all or betType key
+    const [betSearch, setBetSearch] = useState(''); // number/type/market search
+    const [betMarketFilter, setBetMarketFilter] = useState('all'); // all or marketId
+    const [betSourceFilter, setBetSourceFilter] = useState('matka'); // matka, all_lottery, lottery_2d, lottery_3d
+    const [lotteryHistory, setLotteryHistory] = useState({ twoD: [], threeD: [] });
+    const [visibleRows, setVisibleRows] = useState(120);
+    const [expandedLotteryTickets, setExpandedLotteryTickets] = useState({});
+    const [lotteryPage, setLotteryPage] = useState(1);
+    const [lotteryHasMore, setLotteryHasMore] = useState({ twoD: false, threeD: false });
+    const [loadingLotteryPage, setLoadingLotteryPage] = useState(false);
+
+    // Market filter for fund history
+    const [marketFilter, setMarketFilter] = useState('all'); // all or marketId
+    const [walletTypeFilter, setWalletTypeFilter] = useState('all'); // all, credit, debit
+    const [walletSearch, setWalletSearch] = useState('');
+    const [markets, setMarkets] = useState([]);
+
+    // Fund modal
+    const [fundModalOpen, setFundModalOpen] = useState(false);
+    const [fundModalType, setFundModalType] = useState('add'); // add, withdraw, set
+    const [fundAmount, setFundAmount] = useState('');
+    const [fundLoading, setFundLoading] = useState(false);
+    const [fundError, setFundError] = useState('');
+    const [fundSuccess, setFundSuccess] = useState('');
+
+    // To Give / To Take modal
+    const [toGiveTakeModalOpen, setToGiveTakeModalOpen] = useState(false);
+    const [toGiveValue, setToGiveValue] = useState('');
+    const [toTakeValue, setToTakeValue] = useState('');
+    const [toGiveTakeLoading, setToGiveTakeLoading] = useState(false);
+    const [toGiveTakeError, setToGiveTakeError] = useState('');
+    const [toGiveTakeSuccess, setToGiveTakeSuccess] = useState('');
+
+    // Password modal
+    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordLoading, setPasswordLoading] = useState(false);
+    const [passwordError, setPasswordError] = useState('');
+    const [passwordSuccess, setPasswordSuccess] = useState('');
+
+
+    // Init date to today
+    useEffect(() => {
+        const preset = DATE_PRESETS.find((p) => p.id === 'today');
+        if (preset) {
+            const { from, to } = preset.getRange();
+            setDateFrom(from);
+            setDateTo(to);
+        }
+    }, [DATE_PRESETS]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setCalendarOpen(false);
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
+
+    // Fetch player
+    useEffect(() => { fetchPlayer(); }, [userId]);
+
+    // Backward-compatible tab migration:
+    // If UI state still has legacy "bets" (e.g. after hot reload), move to new tab.
+    useEffect(() => {
+        const validTabIds = new Set(TABS.map((tab) => tab.id));
+        if (activeTab === 'bets') {
+            setActiveTab('bets_by_user');
+            return;
+        }
+        if (!validTabIds.has(activeTab)) {
+            setActiveTab('overview');
+        }
+    }, [activeTab, TABS]);
+
+    // Initialize toGive and toTake when player loads
+    useEffect(() => {
+        if (player) {
+            setToGiveValue((player.toGive ?? 0).toString());
+            setToTakeValue((player.toTake ?? 0).toString());
+        }
+    }, [player]);
+
+    // Fetch markets when component mounts
+    useEffect(() => {
+        fetchMarkets();
+    }, []);
+
+    // Fetch tab data when tab/date changes
+    useEffect(() => {
+        if (!userId || !player) return;
+        if (activeTab === 'bets_by_user' || activeTab === 'bets_by_bookie') fetchBets();
+        if (activeTab === 'game-history') fetchGameHistory();
+        if (activeTab === 'wallet') fetchWalletTx();
+        if (activeTab === 'statement' && dateFrom && dateTo) fetchStatement();
+    }, [activeTab, userId, player, dateFrom, dateTo]);
+
+    const fetchPlayer = async () => {
+        try {
+            setLoading(true);
+            setError('');
+            const res = await fetch(`${API_BASE_URL}/users/${userId}`, { headers: getBookieAuthHeaders() });
+            const data = await res.json();
+            if (data.success) setPlayer(data.data);
+            else setError(data.message || 'Player not found');
+        } catch (err) {
+            setError('Failed to load player');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchBets = async ({ lotteryPageToFetch = 1, appendLottery = false, lotteryOnly = false } = {}) => {
+        if (lotteryOnly) setLoadingLotteryPage(true);
+        else setLoadingTab(true);
+        try {
+            const params = new URLSearchParams({ userId });
+            if (dateFrom) params.append('startDate', dateFrom);
+            if (dateFrom && dateTo) params.append('endDate', dateTo);
+            if (activeTab === 'bets_by_bookie') params.append('placedBy', 'bookie');
+            if (activeTab === 'bets_by_user') params.append('placedBy', 'user');
+            const headers = getBookieAuthHeaders();
+            const lotteryParams = `limit=${LOTTERY_PAGE_SIZE}&page=${lotteryPageToFetch}`;
+            const [res, lottery2DRes, lottery3DRes] = await Promise.all([
+                lotteryOnly ? Promise.resolve(null) : fetch(`${API_BASE_URL}/bets/history?${params}`, { headers }),
+                activeTab === 'bets_by_user'
+                    ? fetch(`${API_BASE_URL}/admin/lottery2d/players/${userId}/history?${lotteryParams}`, { headers })
+                    : Promise.resolve(null),
+                activeTab === 'bets_by_user'
+                    ? fetch(`${API_BASE_URL}/admin/lottery3d/players/${userId}/history?${lotteryParams}`, { headers })
+                    : Promise.resolve(null),
+            ]);
+            if (!lotteryOnly) {
+                const data = await res.json();
+                setBets(data.success ? data.data || [] : []);
+            }
+
+            if (activeTab !== 'bets_by_user') {
+                setLotteryHistory({ twoD: [], threeD: [] });
+                setLotteryHasMore({ twoD: false, threeD: false });
+                return;
+            }
+
+            const [lottery2DData, lottery3DData] = await Promise.all([
+                lottery2DRes ? lottery2DRes.json() : Promise.resolve({ success: false }),
+                lottery3DRes ? lottery3DRes.json() : Promise.resolve({ success: false }),
+            ]);
+
+            const toTicketStatus = (bets = []) => {
+                const outcomes = bets.map((bet) => String(bet?.outcome || 'pending').toLowerCase());
+                if (outcomes.some((outcome) => outcome === 'win')) return 'win';
+                if (outcomes.some((outcome) => outcome === 'pending')) return 'pending';
+                return outcomes.length ? 'lose' : 'pending';
+            };
+
+            const flattenLotteryRows = (slots, mode) => {
+                if (!Array.isArray(slots)) return [];
+                return slots.map((slot, index) => {
+                    const bets = Array.isArray(slot?.bets) ? slot.bets : [];
+                    const amount = bets.reduce((sum, bet) => sum + Number(bet?.amount || 0), 0);
+                    const payout = bets.reduce((sum, bet) => sum + Number(bet?.payout || 0), 0);
+                    const createdAt = slot?.slotStartIso || bets[0]?.createdAt || null;
+                    const setSummary = Array.from(new Set(
+                        bets.map((bet) => String(bet?.setLabel || '').trim()).filter(Boolean),
+                    )).join(', ');
+                    const ticketIdRaw =
+                        slot?.ticketId ||
+                        slot?.ticketNo ||
+                        slot?.ticketNumber ||
+                        bets.find((bet) => bet?.ticketId)?.ticketId ||
+                        bets.find((bet) => bet?.ticketNo)?.ticketNo ||
+                        bets.find((bet) => bet?.ticketNumber)?.ticketNumber ||
+                        '';
+                    const ticketId = String(ticketIdRaw || '').trim();
+                    const safeTicketId = ticketId || `TICKET-${mode}-${index + 1}`;
+
+                    return {
+                        id: `${mode}-${safeTicketId}-${slot?.slotStartIso || index}`,
+                        ticketId: safeTicketId,
+                        mode,
+                        slotLabel: slot?.drawLabelEnd || '—',
+                        slotStartIso: slot?.slotStartIso || '',
+                        setLabel: setSummary || '—',
+                        betCount: bets.length,
+                        bets: bets.map((bet, betIndex) => ({
+                            id: bet?.betId || bet?._id || `${slot?.slotStartIso || 'slot'}-${betIndex}`,
+                            setLabel: bet?.setLabel || '—',
+                            number: bet?.number || '—',
+                            amount: Number(bet?.amount || 0),
+                            payout: Number(bet?.payout || 0),
+                            outcome: String(bet?.outcome || 'pending').toLowerCase(),
+                            createdAt: bet?.createdAt || slot?.slotStartIso || null,
+                        })),
+                        amount,
+                        payout,
+                        outcome: toTicketStatus(bets),
+                        createdAt,
+                    };
+                });
+            };
+
+            const nextTwoD = flattenLotteryRows(lottery2DData?.success ? lottery2DData?.data?.slots : [], '2D');
+            const nextThreeD = flattenLotteryRows(lottery3DData?.success ? lottery3DData?.data?.slots : [], '3D');
+            setLotteryHasMore({
+                twoD: Boolean(lottery2DData?.data?.pagination?.hasMore),
+                threeD: Boolean(lottery3DData?.data?.pagination?.hasMore),
+            });
+            setLotteryPage(lotteryPageToFetch);
+            setLotteryHistory((prev) => {
+                if (!appendLottery) {
+                    return { twoD: nextTwoD, threeD: nextThreeD };
+                }
+                const mergeUnique = (existingRows, newRows) => {
+                    const map = new Map();
+                    [...existingRows, ...newRows].forEach((row) => {
+                        map.set(row.id, row);
+                    });
+                    return Array.from(map.values()).sort(
+                        (a, b) => new Date(b.slotStartIso || b.createdAt || 0).getTime() - new Date(a.slotStartIso || a.createdAt || 0).getTime(),
+                    );
+                };
+                return {
+                    twoD: mergeUnique(prev.twoD || [], nextTwoD),
+                    threeD: mergeUnique(prev.threeD || [], nextThreeD),
+                };
+            });
+        } catch (err) {
+            if (!lotteryOnly) {
+                setBets([]);
+            }
+            setLotteryHistory({ twoD: [], threeD: [] });
+            setLotteryHasMore({ twoD: false, threeD: false });
+        } finally {
+            if (lotteryOnly) setLoadingLotteryPage(false);
+            else setLoadingTab(false);
+        }
+    };
+
+    const handleLoadMoreLottery = () => {
+        fetchBets({ lotteryPageToFetch: lotteryPage + 1, appendLottery: true, lotteryOnly: true });
+    };
+
+    const toggleLotteryTicket = (ticketId) => {
+        if (!ticketId) return;
+        setExpandedLotteryTickets((prev) => ({
+            ...prev,
+            [ticketId]: !prev[ticketId],
+        }));
+    };
+
+    const fetchMarkets = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/markets/get-markets?marketType=main`, { headers: getBookieAuthHeaders() });
+            const data = await res.json();
+            if (data.success) {
+                setMarkets(data.data || []);
+            }
+        } catch (err) {
+            setMarkets([]);
+        }
+    };
+
+    const fetchWalletTx = async () => {
+        setLoadingTab(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}&includeBet=1`, { headers: getBookieAuthHeaders() });
+            const data = await res.json();
+            setWalletTx(data.success ? (data.data || []) : []);
+        } catch (err) {
+            setWalletTx([]);
+        } finally {
+            setLoadingTab(false);
+        }
+    };
+
+    const fetchGameHistory = async () => {
+        setLoadingTab(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}&includeBet=1`, { headers: getBookieAuthHeaders() });
+            const data = await res.json();
+            setGameTransactions(data.success ? data.data || [] : []);
+        } catch (err) {
+            setGameTransactions([]);
+        } finally {
+            setLoadingTab(false);
+        }
+    };
+
+    const fetchStatement = async () => {
+        setLoadingTab(true);
+        try {
+            const [betsRes, txRes, lottery2DRes, lottery3DRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/bets/history?userId=${userId}&startDate=${dateFrom}&endDate=${dateTo}`, { headers: getBookieAuthHeaders() }),
+                fetch(`${API_BASE_URL}/wallet/transactions?userId=${userId}&includeBet=1`, { headers: getBookieAuthHeaders() }),
+                fetch(`${API_BASE_URL}/admin/lottery2d/players/${userId}/history?limit=100`, { headers: getBookieAuthHeaders() }),
+                fetch(`${API_BASE_URL}/admin/lottery3d/players/${userId}/history?limit=100`, { headers: getBookieAuthHeaders() }),
+            ]);
+            const betsData = await betsRes.json();
+            const txData = await txRes.json();
+            const lottery2DData = await lottery2DRes.json();
+            const lottery3DData = await lottery3DRes.json();
+            const betList = betsData.success ? betsData.data || [] : [];
+            const txList = txData.success ? txData.data || [] : [];
+            const lotterySlots2D = lottery2DData?.success ? lottery2DData?.data?.slots || [] : [];
+            const lotterySlots3D = lottery3DData?.success ? lottery3DData?.data?.slots || [] : [];
+            
+            const start = new Date(dateFrom); start.setHours(0, 0, 0, 0);
+            const end = new Date(dateTo); end.setHours(23, 59, 59, 999);
+
+            // Aggregate bet amounts (don't show individual bets)
+            const filteredBets = betList.filter((b) => {
+                const d = new Date(b.createdAt);
+                return d >= start && d <= end;
+            });
+
+            const lotteryRowsInRange = [...lotterySlots2D, ...lotterySlots3D].flatMap((slot) => (
+                Array.isArray(slot?.bets) ? slot.bets.map((bet) => ({
+                    amount: Number(bet?.amount || 0),
+                    createdAt: bet?.createdAt || slot?.slotStartIso || null,
+                })) : []
+            )).filter((row) => {
+                const d = new Date(row.createdAt);
+                return d >= start && d <= end;
+            });
+            
+            const totalLotteryBetAmount = lotteryRowsInRange.reduce((sum, row) => sum + row.amount, 0);
+            const totalBetAmount = filteredBets.reduce((sum, b) => sum + (b.amount || 0), 0) + totalLotteryBetAmount;
+            const totalWinAmount = filteredBets.filter(b => b.status === 'won').reduce((sum, b) => sum + (b.payout || 0), 0);
+            const totalLossAmount = filteredBets.filter(b => b.status === 'lost').reduce((sum, b) => sum + (b.amount || 0), 0);
+            const totalPendingBets = filteredBets.filter(b => b.status === 'pending').reduce((sum, b) => sum + (b.amount || 0), 0);
+
+            // Aggregate wallet transactions
+            const filteredTx = txList.filter((t) => {
+                const d = new Date(t.createdAt);
+                return d >= start && d <= end;
+            });
+
+            const getDesc = (t) => String(t?.description || '').toLowerCase();
+            const isDeposit = (t) => {
+                const d = getDesc(t);
+                return d.includes('deposit') || d.includes('add fund');
+            };
+            const isWithdrawal = (t) => {
+                const d = getDesc(t);
+                return d.includes('withdraw');
+            };
+            const isBetCredit = (t) => {
+                const d = getDesc(t);
+                return d.includes('win') || d.includes('bet win');
+            };
+            const isBetDebit = (t) => {
+                const d = getDesc(t);
+                return d.includes('bet') || d.includes('stake');
+            };
+
+            const totalDeposits = filteredTx
+                .filter((t) => t.type === 'credit' && isDeposit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalWithdrawals = filteredTx
+                .filter((t) => t.type === 'debit' && isWithdrawal(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalBetCredits = filteredTx
+                .filter((t) => t.type === 'credit' && !isDeposit(t) && isBetCredit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalBetDebits = filteredTx
+                .filter((t) => t.type === 'debit' && !isWithdrawal(t) && isBetDebit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalOtherCredits = filteredTx
+                .filter((t) => t.type === 'credit' && !isDeposit(t) && !isBetCredit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+            const totalOtherDebits = filteredTx
+                .filter((t) => t.type === 'debit' && !isWithdrawal(t) && !isBetDebit(t))
+                .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+            // Calculate net amounts
+            const totalCredits = filteredTx
+                .filter((t) => t.type === 'credit')
+                .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+            const totalDebits = filteredTx
+                .filter((t) => t.type === 'debit')
+                .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+            const netAmount = totalCredits - totalDebits;
+
+            // Create summary statement
+            const summary = {
+                period: { from: dateFrom, to: dateTo },
+                player: player ? { name: player.username, phone: player.phone, id: player._id } : null,
+                bets: {
+                    totalAmount: totalBetAmount,
+                    totalWin: totalWinAmount,
+                    totalLoss: totalLossAmount,
+                    totalPending: totalPendingBets,
+                    count: filteredBets.length,
+                },
+                wallet: {
+                    deposits: totalDeposits,
+                    withdrawals: totalWithdrawals,
+                    betCredits: totalBetCredits,
+                    betDebits: totalBetDebits,
+                    otherCredits: totalOtherCredits,
+                    otherDebits: totalOtherDebits,
+                    count: filteredTx.length,
+                },
+                totals: {
+                    totalCredits,
+                    totalDebits,
+                    netAmount,
+                },
+                currentBalance: player?.walletBalance || 0,
+            };
+
+            setStatementData([summary]);
+        } catch (err) {
+            setStatementData([]);
+        } finally {
+            setLoadingTab(false);
+        }
+    };
+
+    const handlePresetSelect = (presetId) => {
+        const preset = DATE_PRESETS.find((p) => p.id === presetId);
+        if (preset) {
+            const { from, to } = preset.getRange();
+            setDateFrom(from);
+            setDateTo(to);
+            setDatePreset(presetId);
+            setCalendarOpen(false);
+        }
+    };
+
+    const handleDateApply = () => {
+        setDatePreset('custom');
+        setCalendarOpen(false);
+    };
+
+    // Fund operations
+    const openFundModal = (type) => {
+        setFundModalType(type);
+        setFundAmount('');
+        setFundError('');
+        setFundSuccess('');
+        setFundModalOpen(true);
+    };
+
+    const handleFundSubmit = async () => {
+        const num = Number(fundAmount);
+        if (!Number.isFinite(num) || num <= 0) {
+            setFundError('Enter a valid positive amount');
+            return;
+        }
+
+        setFundError('');
+        setFundSuccess('');
+        setFundLoading(true);
+
+        try {
+            if (fundModalType === 'set') {
+                const res = await fetch(`${API_BASE_URL}/wallet/set-balance`, {
+                    method: 'PUT',
+                    headers: getBookieAuthHeaders(),
+                    body: JSON.stringify({ userId, balance: num }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setFundSuccess(`Balance set to ${formatCurrency(num)}`);
+                    fetchPlayer();
+                    if (activeTab === 'wallet') fetchWalletTx();
+                } else {
+                    setFundError(data.message || 'Failed');
+                }
+            } else {
+                const type = fundModalType === 'add' ? 'credit' : 'debit';
+                if (type === 'debit' && (player?.walletBalance ?? 0) < num) {
+                    setFundError('Insufficient balance to withdraw');
+                    setFundLoading(false);
+                    return;
+                }
+                const res = await fetch(`${API_BASE_URL}/wallet/adjust`, {
+                    method: 'POST',
+                    headers: getBookieAuthHeaders(),
+                    body: JSON.stringify({ userId, amount: num, type }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setFundSuccess(`${type === 'credit' ? 'Added' : 'Withdrawn'} ${formatCurrency(num)} successfully`);
+                    fetchPlayer();
+                    if (activeTab === 'wallet') fetchWalletTx();
+                } else {
+                    setFundError(data.message || 'Failed');
+                }
+            }
+        } catch (err) {
+            setFundError('Network error. Please try again.');
+        } finally {
+            setFundLoading(false);
+        }
+    };
+
+    const openToGiveTakeModal = () => {
+        setToGiveValue((player?.toGive ?? 0).toString());
+        setToTakeValue((player?.toTake ?? 0).toString());
+        setToGiveTakeError('');
+        setToGiveTakeSuccess('');
+        setToGiveTakeModalOpen(true);
+    };
+
+    const handleToGiveTakeSubmit = async () => {
+        const numToGive = Number(toGiveValue);
+        const numToTake = Number(toTakeValue);
+        
+        if (!Number.isFinite(numToGive) || numToGive < 0) {
+            setToGiveTakeError('To Give must be a non-negative number');
+            return;
+        }
+        if (!Number.isFinite(numToTake) || numToTake < 0) {
+            setToGiveTakeError('To Take must be a non-negative number');
+            return;
+        }
+
+        setToGiveTakeError('');
+        setToGiveTakeSuccess('');
+        setToGiveTakeLoading(true);
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/${userId}/to-give-take`, {
+                method: 'PATCH',
+                headers: getBookieAuthHeaders(),
+                body: JSON.stringify({ toGive: numToGive, toTake: numToTake }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToGiveTakeSuccess('Updated successfully');
+                fetchPlayer();
+            } else {
+                setToGiveTakeError(data.message || 'Failed to update');
+            }
+        } catch (err) {
+            setToGiveTakeError('Network error. Please try again.');
+        } finally {
+            setToGiveTakeLoading(false);
+        }
+    };
+
+    const openPasswordModal = () => {
+        setNewPassword('');
+        setConfirmPassword('');
+        setPasswordError('');
+        setPasswordSuccess('');
+        setPasswordModalOpen(true);
+    };
+
+    const handlePasswordSubmit = async () => {
+        if (!newPassword || newPassword.length < 6) {
+            setPasswordError('Password must be at least 6 characters');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setPasswordError('Passwords do not match');
+            return;
+        }
+        setPasswordError('');
+        setPasswordSuccess('');
+        setPasswordLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/${userId}/password`, {
+                method: 'PATCH',
+                headers: getBookieAuthHeaders(),
+                body: JSON.stringify({ password: newPassword }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setPasswordSuccess('Password updated successfully');
+                setNewPassword('');
+            } else {
+                setPasswordError(data.message || 'Failed to update password');
+            }
+        } catch (err) {
+            setPasswordError('Network error. Please try again.');
+        } finally {
+            setPasswordLoading(false);
+        }
+    };
+
+
+    // Bet stats
+    const betStats = {
+        total: bets.length,
+        won: bets.filter((b) => b.status === 'won').length,
+        lost: bets.filter((b) => b.status === 'lost').length,
+        pending: bets.filter((b) => b.status === 'pending').length,
+        totalAmount: bets.reduce((s, b) => s + (b.amount || 0), 0) + [...(lotteryHistory.twoD || []), ...(lotteryHistory.threeD || [])].reduce((s, row) => s + Number(row.amount || 0), 0),
+        totalPayout: bets.filter((b) => b.status === 'won').reduce((s, b) => s + (b.payout || 0), 0),
+    };
+
+    useEffect(() => {
+        setVisibleRows(120);
+    }, [betSourceFilter, betFilter, betMarketFilter, betSessionFilter, betTypeFilter, betSearch, activeTab]);
+
+    useEffect(() => {
+        if (activeTab !== 'bets_by_user' && betSourceFilter !== 'matka') {
+            setBetSourceFilter('matka');
+        }
+    }, [activeTab, betSourceFilter]);
+
+    const sourceFilteredBets = useMemo(() => (
+        [...(bets || [])].sort((a, b) => {
+            const ta = new Date(a?.createdAt || 0).getTime();
+            const tb = new Date(b?.createdAt || 0).getTime();
+            return tb - ta;
+        })
+    ), [bets]);
+
+    const marketFilteredBets = useMemo(() => (
+        betMarketFilter === 'all'
+            ? sourceFilteredBets
+            : sourceFilteredBets.filter((b) => {
+                const mid = b?.marketId?._id || b?.marketId?.id || b?.marketId;
+                return String(mid || '') === String(betMarketFilter);
+            })
+    ), [sourceFilteredBets, betMarketFilter]);
+
+    const advancedFilteredBets = useMemo(() => marketFilteredBets.filter((b) => {
+        if (betSessionFilter !== 'all') {
+            const sess = String(b?.betOn || '').trim().toLowerCase();
+            if (sess !== betSessionFilter) return false;
+        }
+        if (betTypeFilter !== 'all') {
+            const typeKey = String(b?.betType || '').trim().toLowerCase();
+            if (typeKey !== betTypeFilter) return false;
+        }
+        const q = betSearch.trim().toLowerCase();
+        if (q) {
+            const num = String(b?.betNumber || '').toLowerCase();
+            const typeLabel = String(getBetTypeLabel(b?.betType, t, b?.betNumber) || '').toLowerCase();
+            const marketName = String(b?.marketId?.marketName || '').toLowerCase();
+            if (!num.includes(q) && !typeLabel.includes(q) && !marketName.includes(q)) return false;
+        }
+        return true;
+    }), [marketFilteredBets, betSessionFilter, betTypeFilter, betSearch, t]);
+
+    const displayedBetStats = useMemo(() => ({
+        total: advancedFilteredBets.length,
+        won: advancedFilteredBets.filter((b) => b.status === 'won').length,
+        lost: advancedFilteredBets.filter((b) => b.status === 'lost').length,
+        pending: advancedFilteredBets.filter((b) => b.status === 'pending').length,
+        totalAmount: advancedFilteredBets.reduce((s, b) => s + (b.amount || 0), 0),
+        totalPayout: advancedFilteredBets.filter((b) => b.status === 'won').reduce((s, b) => s + (b.payout || 0), 0),
+    }), [advancedFilteredBets]);
+
+    const filteredBets = useMemo(() => (
+        betFilter === 'all' ? advancedFilteredBets : advancedFilteredBets.filter((b) => b.status === betFilter)
+    ), [betFilter, advancedFilteredBets]);
+
+    const lotteryRowsByMode = useMemo(() => ({
+        twoD: lotteryHistory.twoD || [],
+        threeD: lotteryHistory.threeD || [],
+    }), [lotteryHistory]);
+    const selectedLotteryRows = useMemo(() => {
+        if (betSourceFilter === 'lottery_2d') return lotteryRowsByMode.twoD;
+        if (betSourceFilter === 'lottery_3d') return lotteryRowsByMode.threeD;
+        return [...lotteryRowsByMode.twoD, ...lotteryRowsByMode.threeD];
+    }, [betSourceFilter, lotteryRowsByMode]);
+    const currentBetSourceOptions = activeTab === 'bets_by_user'
+        ? BET_SOURCE_OPTIONS_BY_USER
+        : BET_SOURCE_OPTIONS_BY_BOOKIE;
+
+    const lotterySearchFilteredRows = useMemo(() => selectedLotteryRows.filter((row) => {
+        const q = betSearch.trim().toLowerCase();
+        if (!q) return true;
+        const hay = `${row.ticketId} ${row.betCount} ${row.setLabel} ${row.slotLabel} ${row.mode}`.toLowerCase();
+        return hay.includes(q);
+    }), [selectedLotteryRows, betSearch]);
+    const toBetStatus = (outcome) => {
+        if (outcome === 'win') return 'won';
+        if (outcome === 'lose') return 'lost';
+        return 'pending';
+    };
+    const lotteryFilteredRows = betFilter === 'all'
+        ? lotterySearchFilteredRows
+        : lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === betFilter);
+    const displayedLotteryStats = useMemo(() => ({
+        total: lotterySearchFilteredRows.length,
+        won: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').length,
+        lost: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'lost').length,
+        pending: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'pending').length,
+        totalAmount: lotterySearchFilteredRows.reduce((sum, row) => sum + Number(row.amount || 0), 0),
+        totalPayout: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').reduce((sum, row) => sum + Number(row.payout || 0), 0),
+    }), [lotterySearchFilteredRows]);
+    const currentBetFilterCounts = useMemo(() => {
+        if (betSourceFilter === 'matka') {
+            return {
+                all: advancedFilteredBets.length,
+                pending: advancedFilteredBets.filter((b) => b.status === 'pending').length,
+                won: advancedFilteredBets.filter((b) => b.status === 'won').length,
+                lost: advancedFilteredBets.filter((b) => b.status === 'lost').length,
+            };
+        }
+        return {
+            all: lotterySearchFilteredRows.length,
+            pending: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'pending').length,
+            won: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'won').length,
+            lost: lotterySearchFilteredRows.filter((row) => toBetStatus(row.outcome) === 'lost').length,
+        };
+    }, [advancedFilteredBets, betSourceFilter, lotterySearchFilteredRows]);
+    const visibleMatkaRows = useMemo(() => filteredBets.slice(0, visibleRows), [filteredBets, visibleRows]);
+    const visibleLotteryRows = useMemo(() => lotteryFilteredRows, [lotteryFilteredRows]);
+    const canLoadMoreLottery = useMemo(() => {
+        if (betSourceFilter === 'lottery_2d') return lotteryHasMore.twoD;
+        if (betSourceFilter === 'lottery_3d') return lotteryHasMore.threeD;
+        return lotteryHasMore.twoD || lotteryHasMore.threeD;
+    }, [betSourceFilter, lotteryHasMore]);
+
+    const aviatorGameRows = buildGameRoundRows(gameTransactions, 'Aviator');
+    const funTimerGameRows = buildAggregatedGameRoundRows(gameTransactions, 'FunTimer');
+    const rouletteGameRows = buildGameRoundRows(gameTransactions, 'Roulette');
+    const gameHistorySections = [
+        { key: 'aviator', title: 'Aviator Game History', rows: aviatorGameRows, game: 'Aviator' },
+        { key: 'funtimer', title: 'FunTimer Game History', rows: funTimerGameRows, game: 'FunTimer' },
+        { key: 'roulette', title: 'Roulette Game History', rows: rouletteGameRows, game: 'Roulette' },
+    ];
+    const filteredGameHistorySections = (gameHistoryFilter === 'all'
+        ? gameHistorySections
+        : gameHistorySections.filter((section) => section.key === gameHistoryFilter)
+    ).map((section) => ({
+        ...section,
+        rows: (section.rows || []).filter((row) => {
+            const query = gameHistorySearch.trim().toLowerCase();
+            if (!query) return true;
+            const betId = String(row?.betId || '').toLowerCase();
+            return betId.includes(query);
+        }),
+    }));
+
+    // Print bet history
+    const handlePrintBets = () => {
+        const printWindow = window.open('', '_blank', 'width=600,height=800');
+        if (!printWindow) return;
+
+        const betRows = filteredBets.map((b) => `
+            <tr>
+                <td>${b.betNumber || '—'}</td>
+                <td>${getBetTypeLabel(b.betType, t, b.betNumber)}</td>
+                <td>${b.marketId?.marketName || '—'}</td>
+                <td style="text-align:right">${formatCurrency(b.amount)}</td>
+                <td style="text-align:right; color:${b.status === 'won' ? '#16a34a' : '#666'}">${formatCurrency(b.payout || 0)}</td>
+                <td>${b.placedByBookie ? 'Bookie' : 'User'}</td>
+                <td><span class="status-${b.status}">${b.status}</span></td>
+                <td>${new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.write(`<!DOCTYPE html><html><head><title>Bet History - ${player?.username || ''}</title>
+        <style>
+            * { margin:0; padding:0; box-sizing:border-box; }
+            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; font-size: 11px; color: #333; }
+            h1 { font-size: 16px; color: #ea580c; margin-bottom: 4px; }
+            .meta { color: #666; font-size: 10px; margin-bottom: 12px; }
+            .stats { display: flex; gap: 16px; margin-bottom: 12px; padding: 8px; background: #f5f5f5; border-radius: 6px; }
+            .stat { text-align: center; }
+            .stat .label { font-size: 9px; color: #888; text-transform: uppercase; }
+            .stat .value { font-size: 14px; font-weight: 700; }
+            table { width: 100%; border-collapse: collapse; }
+            th { background: #f5f5f5; text-align: left; padding: 6px 8px; font-size: 10px; text-transform: uppercase; color: #666; border-bottom: 2px solid #ddd; }
+            td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+            .status-won { color: #16a34a; font-weight: 600; text-transform: uppercase; }
+            .status-lost { color: #dc2626; font-weight: 600; text-transform: uppercase; }
+            .status-pending { color: #ea580c; font-weight: 600; text-transform: uppercase; }
+            @media print { body { padding: 8px; } }
+        </style></head><body>
+            <h1>Bet History - ${player?.username || ''}</h1>
+            <div class="meta">Phone: ${player?.phone || '—'} &nbsp;|&nbsp; Balance: ${formatCurrency(player?.walletBalance)} &nbsp;|&nbsp; Printed: ${new Date().toLocaleString('en-IN')}</div>
+            <div class="stats">
+                <div class="stat"><div class="label">Total</div><div class="value">${displayedBetStats.total}</div></div>
+                <div class="stat"><div class="label">Won</div><div class="value" style="color:#16a34a">${displayedBetStats.won}</div></div>
+                <div class="stat"><div class="label">Lost</div><div class="value" style="color:#dc2626">${displayedBetStats.lost}</div></div>
+                <div class="stat"><div class="label">Pending</div><div class="value" style="color:#ea580c">${displayedBetStats.pending}</div></div>
+                <div class="stat"><div class="label">Bet Amount</div><div class="value">${formatCurrency(displayedBetStats.totalAmount)}</div></div>
+                <div class="stat"><div class="label">Winnings</div><div class="value" style="color:#16a34a">${formatCurrency(displayedBetStats.totalPayout)}</div></div>
+            </div>
+            <table>
+                <thead><tr><th>Number</th><th>Type</th><th>Market</th><th style="text-align:right">Amount</th><th style="text-align:right">Payout</th><th>Placed By</th><th>Status</th><th>Date</th></tr></thead>
+                <tbody>${betRows}</tbody>
+            </table>
+            <script>window.onload = function() { window.print(); window.close(); }<\/script>
+        </body></html>`);
+        printWindow.document.close();
+    };
+
+    if (loading) {
+        return (
+            <Layout title={t('playerDetail')}>
+                <div className="animate-pulse space-y-4">
+                    <div className="h-8 w-48 bg-gray-200 rounded" />
+                    <div className="h-24 bg-gray-200 rounded-xl" />
+                    <div className="h-10 w-full bg-gray-200 rounded" />
+                </div>
+            </Layout>
+        );
+    }
+
+    if (error || !player) {
+        return (
+            <Layout title={t('playerDetail')}>
+                <div className="flex flex-col items-center justify-center min-h-[40vh]">
+                    <p className="text-red-500 mb-4">{error || 'Player not found'}</p>
+                    <Link to="/my-users" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sb-primary text-white font-semibold hover:bg-sb-primary-dark">
+                        <FaArrowLeft /> Back to My Players
+                    </Link>
+                </div>
+            </Layout>
+        );
+    }
+
+    return (
+        <Layout title="Player">
+            <div className="min-w-0 max-w-full space-y-4 sm:space-y-5">
+                {/* Breadcrumb */}
+                <div>
+                    <Link to="/my-users" className="text-gray-400 hover:text-sb-primary text-sm inline-flex items-center gap-1 mb-1">
+                        <FaArrowLeft className="w-3 h-3" /> My Players
+                    </Link>
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800 break-words">
+                        {player.username} <span className="text-gray-400 font-normal text-sm sm:text-base break-all">({player.phone || player.email || '—'})</span>
+                    </h1>
+                </div>
+
+                {/* ========== PLAYER INFO CARD + QUICK ACTIONS ========== */}
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="p-4 sm:p-5">
+                        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-start gap-4 sm:gap-5">
+                            {/* Player details */}
+                            <div className="min-w-0">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 sm:gap-x-6 gap-y-3 text-sm">
+                                    <div>
+                                        <p className="text-gray-400 text-xs uppercase tracking-wider">Name</p>
+                                        <p className="text-gray-800 font-medium">{player.username}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-xs uppercase tracking-wider">Phone</p>
+                                        <p className="text-gray-800">{player.phone || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-xs uppercase tracking-wider">Email</p>
+                                        <p className="text-gray-800 break-all">{player.email || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-xs uppercase tracking-wider">Status</p>
+                                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${player.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                                            {player.isActive !== false ? 'Active' : 'Suspended'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-xs uppercase tracking-wider">Source</p>
+                                        <p className="text-gray-800 capitalize">{player.source === 'bookie' ? 'Bookie' : 'Super Admin'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-xs uppercase tracking-wider">Joined</p>
+                                        <p className="text-gray-600 text-xs">{player.createdAt ? new Date(player.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Wallet balance and To Give/Take cards */}
+                            <div className="flex flex-col gap-3 w-full lg:w-[260px]">
+                                <div className="bg-gradient-to-br from-sb-primary to-sb-primary-darker text-white rounded-xl p-4 text-center shadow-lg">
+                                    <p className="text-white/80 text-xs uppercase tracking-wider mb-1">Wallet Balance</p>
+                                    <p className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(player.walletBalance ?? 0)}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg p-3 text-center">
+                                        <p className="text-white/80 text-[10px] uppercase tracking-wider mb-0.5">To Give</p>
+                                        <p className="text-lg font-bold font-mono">{formatCurrency(player.toGive ?? 0)}</p>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg p-3 text-center">
+                                        <p className="text-white/80 text-[10px] uppercase tracking-wider mb-0.5">To Take</p>
+                                        <p className="text-lg font-bold font-mono">{formatCurrency(player.toTake ?? 0)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Quick action buttons */}
+                    <div className="border-t border-gray-100 px-4 sm:px-5 py-3">
+                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
+                        <button onClick={() => openFundModal('add')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-semibold transition-colors">
+                            <FaPlusCircle className="w-3.5 h-3.5" /> Add Funds
+                        </button>
+                        <button onClick={() => openFundModal('withdraw')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm font-semibold transition-colors">
+                            <FaMinusCircle className="w-3.5 h-3.5" /> Withdraw
+                        </button>
+                        <button onClick={openToGiveTakeModal} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs sm:text-sm font-semibold transition-colors">
+                            <FaExchangeAlt className="w-3.5 h-3.5" /> To Give/Take
+                        </button>
+                        <button onClick={openPasswordModal} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500 hover:bg-purple-600 text-white text-xs sm:text-sm font-semibold transition-colors">
+                            Set Password
+                        </button>
+                        <button onClick={() => navigate(`/games?playerId=${userId}`)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white text-xs sm:text-sm font-semibold transition-colors">
+                            <FaGamepad className="w-3.5 h-3.5" /> Place Bet
+                        </button>
+                        <button onClick={() => { fetchPlayer(); if (activeTab === 'bets_by_user' || activeTab === 'bets_by_bookie') fetchBets(); if (activeTab === 'game-history') fetchGameHistory(); if (activeTab === 'wallet') fetchWalletTx(); }} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs sm:text-sm font-semibold transition-colors">
+                            <FaSyncAlt className="w-3 h-3" /> Refresh
+                        </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ========== DATE RANGE SELECTOR ========== */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-gray-500 text-sm">Date:</span>
+                    <div className="relative" ref={dropdownRef}>
+                        <button
+                            type="button"
+                            onClick={() => setCalendarOpen((o) => !o)}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-700 hover:border-sb-primary/30 transition-colors"
+                        >
+                            <FaCalendarAlt className="w-3.5 h-3.5 text-sb-primary" />
+                            {dateFrom && dateTo ? formatDateRange(dateFrom, dateTo) : 'Select Date'}
+                        </button>
+                        {calendarOpen && (
+                            <div className="absolute left-0 right-0 sm:right-auto top-full mt-2 py-3 rounded-xl bg-white border border-gray-200 shadow-xl z-50 flex flex-col sm:flex-row gap-4 w-[min(96vw,640px)] sm:w-auto max-w-[100vw]">
+                                <div className="min-w-0 sm:min-w-[200px] py-1">
+                                    {DATE_PRESETS.map((p) => (
+                                        <button key={p.id} type="button" onClick={() => handlePresetSelect(p.id)}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-sb-primary-dark/5 flex items-center gap-2"
+                                        >
+                                            {datePreset === p.id ? <span className="text-sb-primary">●</span> : <span className="w-2" />}
+                                            {p.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="border-t sm:border-t-0 sm:border-l border-gray-200 pt-3 sm:pt-0 sm:pl-4 pr-4 min-w-0 sm:min-w-[200px]">
+                                    <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Custom Range</div>
+                                    <div className="space-y-2">
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">From</label>
+                                            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-800" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">To</label>
+                                            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-800" />
+                                        </div>
+                                        <button type="button" onClick={handleDateApply} className="w-full py-2 rounded-lg bg-sb-primary text-white font-semibold text-sm hover:bg-sb-primary-dark">
+                                            Apply
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ========== TABS ========== */}
+                <div className="flex gap-1 border-b border-gray-200 overflow-x-auto scrollbar-thin">
+                    {TABS.map((tab) => {
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-1.5 px-4 py-2.5 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+                                    activeTab === tab.id
+                                        ? 'border-sb-primary text-sb-primary'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                <Icon className="w-3.5 h-3.5" />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* ========== TAB CONTENT ========== */}
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-h-[200px]">
+
+                    {/* ---- OVERVIEW ---- */}
+                    {activeTab === 'overview' && (
+                        <div className="p-4 sm:p-6 space-y-6">
+                            {/* Profile Info */}
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <FaUser className="w-3.5 h-3.5 text-sb-primary" /> Profile Details
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-sm">
+                                    <div><p className="text-gray-400 text-xs uppercase">Username</p><p className="text-gray-800 font-mono">{player.username}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">Email</p><p className="text-gray-800 truncate">{player.email || '—'}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">Phone</p><p className="text-gray-800">{player.phone || '—'}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">Role</p><p className="text-gray-800 capitalize">{player.role || 'Player'}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">Balance</p><p className="text-green-600 font-mono font-bold">{formatCurrency(player.walletBalance ?? 0)}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">To Give</p><p className="text-blue-600 font-mono font-bold">{formatCurrency(player.toGive ?? 0)}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">To Take</p><p className="text-red-600 font-mono font-bold">{formatCurrency(player.toTake ?? 0)}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">Account</p><p className={player.isActive !== false ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>{player.isActive !== false ? 'Active' : 'Suspended'}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">Created</p><p className="text-gray-600 text-xs">{player.createdAt ? new Date(player.createdAt).toLocaleString('en-IN') : '—'}</p></div>
+                                    <div><p className="text-gray-400 text-xs uppercase">Player ID</p><p className="text-gray-500 font-mono text-xs truncate" title={player._id}>{player._id}</p></div>
+                                    {player.lastLoginIp && (
+                                        <div>
+                                            <p className="text-gray-400 text-xs uppercase">Last IP</p>
+                                            <p className="text-gray-600 font-mono text-xs" title={formatPlayerIp(player.lastLoginIp)}>
+                                                {formatPlayerIp(player.lastLoginIp)}
+                                            </p>
+                                        </div>
+                                    )}
+                                    {player.lastLoginDeviceId && <div className="col-span-2"><p className="text-gray-400 text-xs uppercase">Device ID</p><p className="text-gray-600 font-mono text-xs truncate">{player.lastLoginDeviceId}</p></div>}
+                                </div>
+                            </div>
+
+                            {/* Quick bet stats overview */}
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <FaHistory className="w-3.5 h-3.5 text-sb-primary" /> Quick Stats
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                                    <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                                        <p className="text-gray-400 text-[10px] uppercase">Total Bets</p>
+                                        <p className="text-gray-800 font-bold text-lg">{betStats.total}</p>
+                                    </div>
+                                    <div className="bg-green-50 rounded-lg p-3 text-center border border-green-100">
+                                        <p className="text-green-600 text-[10px] uppercase">Won</p>
+                                        <p className="text-green-700 font-bold text-lg">{betStats.won}</p>
+                                    </div>
+                                    <div className="bg-red-50 rounded-lg p-3 text-center border border-red-100">
+                                        <p className="text-red-500 text-[10px] uppercase">Lost</p>
+                                        <p className="text-red-600 font-bold text-lg">{betStats.lost}</p>
+                                    </div>
+                                    <div className="bg-sb-primary/5 rounded-lg p-3 text-center border border-sb-primary/10">
+                                        <p className="text-sb-primary text-[10px] uppercase">Pending</p>
+                                        <p className="text-sb-primary font-bold text-lg">{betStats.pending}</p>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                                        <p className="text-gray-400 text-[10px] uppercase">Bet Amount</p>
+                                        <p className="text-gray-800 font-bold text-sm">{formatCurrency(betStats.totalAmount)}</p>
+                                    </div>
+                                    <div className="bg-green-50 rounded-lg p-3 text-center border border-green-100">
+                                        <p className="text-green-600 text-[10px] uppercase">Winnings</p>
+                                        <p className="text-green-700 font-bold text-sm">{formatCurrency(betStats.totalPayout)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ---- BET HISTORY ---- */}
+                    {(activeTab === 'bets_by_user' || activeTab === 'bets_by_bookie') && (
+                        <>
+                            {/* Bet filter & actions bar */}
+                            <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
+                                <FaFilter className="w-3 h-3 text-gray-400" />
+                                {currentBetSourceOptions.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setBetSourceFilter(item.id)}
+                                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                            betSourceFilter === item.id
+                                                ? 'bg-orange-500 text-white'
+                                                : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+                                        }`}
+                                    >
+                                        {item.label}
+                                    </button>
+                                ))}
+                                {['all', 'pending', 'won', 'lost'].map((f) => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setBetFilter(f)}
+                                        className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-colors ${
+                                            betFilter === f
+                                                ? 'bg-sb-primary text-white'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        {f} ({currentBetFilterCounts[f] || 0})
+                                    </button>
+                                ))}
+                                {betSourceFilter === 'matka' && (
+                                    <>
+                                        <select
+                                            value={betMarketFilter}
+                                            onChange={(e) => setBetMarketFilter(e.target.value)}
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                        >
+                                            <option value="all">All Markets</option>
+                                            {markets.map((m) => (
+                                                <option key={m._id || m.id} value={m._id || m.id}>
+                                                    {m.marketName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            value={betSessionFilter}
+                                            onChange={(e) => setBetSessionFilter(e.target.value)}
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                        >
+                                            <option value="all">All Sessions</option>
+                                            <option value="open">OPEN</option>
+                                            <option value="close">CLOSE</option>
+                                        </select>
+                                        <select
+                                            value={betTypeFilter}
+                                            onChange={(e) => setBetTypeFilter(e.target.value)}
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="single">Single Digit</option>
+                                            <option value="jodi">Jodi</option>
+                                            <option value="panna">Panna</option>
+                                            <option value="odd-even">Odd Even</option>
+                                            <option value="half-sangam">Half Sangam</option>
+                                            <option value="full-sangam">Full Sangam</option>
+                                            <option value="sp-common">SP Common</option>
+                                            <option value="cp-common">CP (Common Pana)</option>
+                                            <option value="chart">Chart Game</option>
+                                            <option value="dp-common">DP Common</option>
+                                            <option value="sp-motor">SP Motor</option>
+                                            <option value="dp-motor">DP Motor</option>
+                                            <option value="t-motor">T Motor</option>
+                                        </select>
+                                    </>
+                                )}
+                                <input
+                                    type="text"
+                                    value={betSearch}
+                                    onChange={(e) => setBetSearch(e.target.value)}
+                                    placeholder="Search number / market / type"
+                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary min-w-[180px]"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setBetFilter('all');
+                                        setBetSourceFilter('matka');
+                                        setBetMarketFilter('all');
+                                        setBetSessionFilter('all');
+                                        setBetTypeFilter('all');
+                                        setBetSearch('');
+                                    }}
+                                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors"
+                                >
+                                    Clear
+                                </button>
+                                <button
+                                    onClick={handlePrintBets}
+                                    disabled={betSourceFilter !== 'matka'}
+                                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <FaPrint className="w-3 h-3" /> Print
+                                </button>
+                            </div>
+
+                            {/* Bet stats bar */}
+                            <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 text-xs">
+                                <span className="text-gray-500">Total: <span className="text-gray-800 font-bold">{betSourceFilter === 'matka' ? displayedBetStats.total : displayedLotteryStats.total}</span></span>
+                                <span className="text-gray-500">Amount: <span className="text-gray-800 font-bold">{formatCurrency(betSourceFilter === 'matka' ? displayedBetStats.totalAmount : displayedLotteryStats.totalAmount)}</span></span>
+                                <span className="text-gray-500">Winnings: <span className="text-green-600 font-bold">{formatCurrency(betSourceFilter === 'matka' ? displayedBetStats.totalPayout : displayedLotteryStats.totalPayout)}</span></span>
+                                <span className="text-gray-500">P/L: <span className={`font-bold ${(betSourceFilter === 'matka' ? displayedBetStats.totalPayout - displayedBetStats.totalAmount : displayedLotteryStats.totalPayout - displayedLotteryStats.totalAmount) >= 0 ? 'text-green-600' : 'text-red-500'}`}>{formatCurrency(betSourceFilter === 'matka' ? displayedBetStats.totalPayout - displayedBetStats.totalAmount : displayedLotteryStats.totalPayout - displayedLotteryStats.totalAmount)}</span></span>
+                            </div>
+
+                            {loadingTab ? (
+                                <div className="p-8 text-center text-gray-400">Loading...</div>
+                            ) : (betSourceFilter === 'matka' ? filteredBets.length : lotteryFilteredRows.length) === 0 ? (
+                                <div className="p-8 text-center text-gray-400">No bets found.</div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm min-w-[700px]">
+                                        <thead className="bg-gray-50">
+                                            {betSourceFilter === 'matka' ? (
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Market</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Session</th>
+                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Payout</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Placed By</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                </tr>
+                                            ) : (
+                                                <tr>
+                                                    <th className="w-10 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase" />
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ticket</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Slot</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bets</th>
+                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Win (Rs)</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Loss (Rs)</th>
+                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                </tr>
+                                            )}
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {betSourceFilter === 'matka' ? visibleMatkaRows.map((b, index) => (
+                                                <tr key={b._id} className="hover:bg-gray-50">
+                                                    <td className="px-3 py-2 text-gray-500 text-xs font-semibold">{index + 1}</td>
+                                                    <td className="px-3 py-2 font-mono font-bold text-sb-primary">{b.betNumber || '—'}</td>
+                                                    <td className="px-3 py-2 text-gray-600 text-xs">{getBetTypeLabel(b.betType, t, b.betNumber)}</td>
+                                                    <td className="px-3 py-2 text-gray-600 text-xs truncate max-w-[120px]">{b.marketId?.marketName || '—'}</td>
+                                                    <td className="px-3 py-2 text-gray-500 uppercase text-xs">{b.betOn || '—'}</td>
+                                                    <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(b.amount)}</td>
+                                                    <td className="px-3 py-2 text-right font-mono text-green-600">{b.status === 'won' ? formatCurrency(b.payout) : '—'}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600">{b.placedByBookie ? 'Bookie' : 'User'}</td>
+                                                    <td className="px-3 py-2">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                            b.status === 'won' ? 'bg-green-100 text-green-700'
+                                                            : b.status === 'lost' ? 'bg-red-100 text-red-600'
+                                                            : 'bg-sb-primary/10 text-sb-primary'
+                                                        }`}>{b.status}</span>
+                                                    </td>
+                                                    <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                                </tr>
+                                            )) : visibleLotteryRows.map((row, index) => {
+                                                const rowStatus = toBetStatus(row.outcome);
+                                                const isExpanded = Boolean(expandedLotteryTickets[row.id]);
+                                                const winDisplay = rowStatus === 'won'
+                                                    ? formatCurrency(row.payout)
+                                                    : rowStatus === 'pending'
+                                                        ? `Open (${row.betCount || 0})`
+                                                        : formatCurrency(0);
+                                                const lossDisplay = rowStatus === 'lost'
+                                                    ? formatCurrency(row.amount)
+                                                    : rowStatus === 'pending'
+                                                        ? '—'
+                                                        : formatCurrency(0);
+                                                return (
+                                                    <React.Fragment key={row.id}>
+                                                        <tr className="hover:bg-gray-50">
+                                                            <td className="px-3 py-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleLotteryTicket(row.id)}
+                                                                    className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                                                                    aria-label={isExpanded ? 'Collapse ticket bets' : 'Expand ticket bets'}
+                                                                >
+                                                                    {isExpanded ? <FaChevronDown className="w-3 h-3" /> : <FaChevronRight className="w-3 h-3" />}
+                                                                </button>
+                                                            </td>
+                                                            <td className="px-3 py-2 text-gray-500 text-xs font-semibold">{index + 1}</td>
+                                                            <td className="px-3 py-2 font-mono text-xs text-gray-500">{formatTicketTail(row.ticketId)}</td>
+                                                            <td className="px-3 py-2 font-semibold text-orange-600">{row.mode}</td>
+                                                            <td className="px-3 py-2 text-gray-600 text-xs">{row.slotLabel || '—'}</td>
+                                                            <td className="px-3 py-2 font-semibold text-sb-primary">{row.betCount || 0}</td>
+                                                            <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(row.amount)}</td>
+                                                            <td className={`px-3 py-2 text-xs font-semibold ${
+                                                                rowStatus === 'won'
+                                                                    ? 'text-green-700'
+                                                                    : rowStatus === 'pending'
+                                                                        ? 'text-amber-600'
+                                                                        : 'text-gray-500'
+                                                            }`}>{winDisplay}</td>
+                                                            <td className={`px-3 py-2 text-xs font-semibold ${
+                                                                rowStatus === 'lost' ? 'text-red-600' : 'text-gray-500'
+                                                            }`}>{lossDisplay}</td>
+                                                            <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{row.createdAt ? new Date(row.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+                                                        </tr>
+                                                        {isExpanded && (
+                                                            <tr className="bg-gray-50/70">
+                                                                <td colSpan={10} className="px-4 py-3">
+                                                                    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                                                                        <table className="w-full text-xs min-w-[560px]">
+                                                                            <thead className="bg-gray-50">
+                                                                                <tr>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">#</th>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Set</th>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Number</th>
+                                                                                    <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Amount</th>
+                                                                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Status</th>
+                                                                                    <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Payout</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="divide-y divide-gray-100">
+                                                                                {(row.bets || []).map((bet, betIndex) => {
+                                                                                    const betStatus = toBetStatus(bet.outcome);
+                                                                                    return (
+                                                                                        <tr key={bet.id}>
+                                                                                            <td className="px-3 py-2 text-gray-500 font-semibold">{betIndex + 1}</td>
+                                                                                            <td className="px-3 py-2 text-gray-700">{bet.setLabel || '—'}</td>
+                                                                                            <td className="px-3 py-2 font-mono text-sb-primary">{bet.number || '—'}</td>
+                                                                                            <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(bet.amount)}</td>
+                                                                                            <td className="px-3 py-2">
+                                                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                                                                    betStatus === 'won' ? 'bg-green-100 text-green-700'
+                                                                                                        : betStatus === 'lost' ? 'bg-red-100 text-red-600'
+                                                                                                            : 'bg-sb-primary/10 text-sb-primary'
+                                                                                                }`}>{betStatus}</span>
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 text-right font-mono text-gray-800">{betStatus === 'won' ? formatCurrency(bet.payout) : formatCurrency(0)}</td>
+                                                                                        </tr>
+                                                                                    );
+                                                                                })}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </React.Fragment>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                    {(betSourceFilter === 'matka'
+                                        ? filteredBets.length > visibleRows
+                                        : canLoadMoreLottery) && (
+                                        <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                                            <p className="text-xs text-gray-500">
+                                                {betSourceFilter === 'matka'
+                                                    ? `Showing ${Math.min(visibleRows, filteredBets.length)} of ${filteredBets.length}`
+                                                    : `Loaded ${lotteryFilteredRows.length} ticket${lotteryFilteredRows.length === 1 ? '' : 's'} (Page ${lotteryPage})`}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (betSourceFilter === 'matka') {
+                                                        setVisibleRows((v) => v + 120);
+                                                        return;
+                                                    }
+                                                    if (loadingLotteryPage) return;
+                                                    handleLoadMoreLottery();
+                                                }}
+                                                disabled={betSourceFilter !== 'matka' && loadingLotteryPage}
+                                                className="px-3 py-1.5 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                                            >
+                                                {betSourceFilter === 'matka' ? 'Load More' : (loadingLotteryPage ? 'Loading...' : 'Next Page')}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {activeTab === 'game-history' && (
+                        <>
+                            {loadingTab ? (
+                                <div className="p-8 text-center text-gray-400">Loading...</div>
+                            ) : (
+                                <div className="p-4 sm:p-6 space-y-6">
+                                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { key: 'all', label: 'All' },
+                                                { key: 'aviator', label: 'Aviator' },
+                                                { key: 'funtimer', label: 'FunTimer' },
+                                                { key: 'roulette', label: 'Roulette' },
+                                            ].map((option) => (
+                                                <button
+                                                    key={option.key}
+                                                    type="button"
+                                                    onClick={() => setGameHistoryFilter(option.key)}
+                                                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                                                        gameHistoryFilter === option.key
+                                                            ? 'bg-sb-primary border-sb-primary text-white'
+                                                            : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'
+                                                    }`}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <div className="w-full lg:w-[320px]">
+                                            <input
+                                                type="text"
+                                                value={gameHistorySearch}
+                                                onChange={(e) => setGameHistorySearch(e.target.value)}
+                                                placeholder="Search by Bet ID"
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-sb-primary focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {filteredGameHistorySections.map((section) => (
+                                        <section key={section.game} className="space-y-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <h3 className="text-base sm:text-lg font-bold text-sb-primary">{section.title}</h3>
+                                                <span className="text-xs sm:text-sm text-gray-500">
+                                                    {section.rows.length} record{section.rows.length === 1 ? '' : 's'}
+                                                </span>
+                                            </div>
+
+                                            {section.rows.length === 0 ? (
+                                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                                                    No {section.game} game history found.
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+                                                    {section.rows.map((row) => {
+                                                        const betAmount = Number(row.betAmount || 0) || 0;
+                                                        const payout = Number(row.cashOutAmount || 0) || 0;
+                                                        const isWon = payout > betAmount;
+                                                        const statusLabel = isWon ? 'Won' : 'Lost';
+                                                        const statusClass = isWon
+                                                            ? 'bg-green-50 text-green-700 border-green-300'
+                                                            : 'bg-red-50 text-red-700 border-red-300';
+
+                                                        return (
+                                                            <div
+                                                                key={`${section.game}-${row.key}`}
+                                                                className={`rounded-xl border-2 p-2.5 ${
+                                                                    isWon ? 'border-green-200 bg-green-50/60' : 'border-red-200 bg-red-50/60'
+                                                                }`}
+                                                            >
+                                                                <div className="mb-1.5 flex items-center justify-between gap-1.5">
+                                                                    <span className="text-[10px] font-medium text-gray-500">#{row.index}</span>
+                                                                    <span className="rounded-md border border-sb-primary/30 bg-sb-primary/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sb-primary">
+                                                                        Game
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="mb-2 flex items-center justify-between gap-2 text-[11px]">
+                                                                    <span className="text-gray-500">User</span>
+                                                                    <span className="font-semibold text-gray-800 uppercase truncate max-w-[120px]" title={player?.username || '-'}>
+                                                                        {player?.username || '-'}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="mb-2 flex items-center justify-between gap-2 text-[11px]">
+                                                                    <span className="text-gray-500">Bet ID</span>
+                                                                    <span className="font-mono text-[10px] text-gray-800">{String(row.betId || '').slice(-8) || '—'}</span>
+                                                                </div>
+
+                                                                <div className="mb-2 text-sm font-extrabold uppercase tracking-wide text-sb-primary">
+                                                                    {section.game}
+                                                                </div>
+
+                                                                <div className="space-y-1.5 text-xs">
+                                                                    <div className="flex justify-between gap-3">
+                                                                        <span className="text-gray-500">Total Play</span>
+                                                                        <span className="font-semibold tabular-nums text-gray-900">{formatCurrency(betAmount)}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between gap-3">
+                                                                        <span className="text-gray-500">Payout</span>
+                                                                        <span className={`font-semibold tabular-nums ${isWon ? 'text-green-600' : 'text-gray-600'}`}>
+                                                                            {formatCurrency(payout)}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex justify-between gap-3">
+                                                                        <span className="text-gray-500">Status</span>
+                                                                        <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${statusClass}`}>
+                                                                            {statusLabel}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex justify-between gap-3">
+                                                                        <span className="text-gray-500">Time</span>
+                                                                        <span className="text-right text-gray-600">{row.timeFormatted || '-'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </section>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* ---- FUND HISTORY ---- */}
+                    {activeTab === 'wallet' && (
+                        <>
+                            {/* Fund filters */}
+                            <div className="mb-4 bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                                <div className="mb-2 text-sm font-medium text-gray-700 flex items-center gap-2">
+                                    <FaFilter className="w-4 h-4" />
+                                    Fund History Filters
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">Market</label>
+                                        <select
+                                            value={marketFilter}
+                                            onChange={(e) => setMarketFilter(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                        >
+                                            <option value="all">All Markets</option>
+                                            {markets.map((m) => (
+                                                <option key={m._id || m.id} value={m._id || m.id}>
+                                                    {m.marketName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                                        <select
+                                            value={walletTypeFilter}
+                                            onChange={(e) => setWalletTypeFilter(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="credit">Credit</option>
+                                            <option value="debit">Debit</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">From Date</label>
+                                        <input
+                                            type="date"
+                                            value={dateFrom}
+                                            onChange={(e) => setDateFrom(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">To Date</label>
+                                        <input
+                                            type="date"
+                                            value={dateTo}
+                                            onChange={(e) => setDateTo(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+                                    <input
+                                        type="text"
+                                        value={walletSearch}
+                                        onChange={(e) => setWalletSearch(e.target.value)}
+                                        placeholder="Search by description..."
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setMarketFilter('all');
+                                            setWalletTypeFilter('all');
+                                            setWalletSearch('');
+                                        }}
+                                        className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium"
+                                    >
+                                        Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+
+                            {loadingTab ? (
+                                <div className="p-8 text-center text-gray-400">Loading...</div>
+                            ) : (() => {
+                                // Filter transactions by date, market, type and search
+                                const filteredTx = (walletTx || []).filter((t) => {
+                                    const txDate = t?.createdAt ? new Date(t.createdAt) : null;
+                                    if (!txDate || Number.isNaN(txDate.getTime())) return false;
+
+                                    if (dateFrom) {
+                                        const from = new Date(dateFrom);
+                                        from.setHours(0, 0, 0, 0);
+                                        if (txDate < from) return false;
+                                    }
+                                    if (dateTo) {
+                                        const to = new Date(dateTo);
+                                        to.setHours(23, 59, 59, 999);
+                                        if (txDate > to) return false;
+                                    }
+
+                                    if (marketFilter !== 'all') {
+                                        const txMarketId = t?.bet?.marketId ? String(t.bet.marketId) : '';
+                                        if (!txMarketId || txMarketId !== String(marketFilter)) return false;
+                                    }
+
+                                    if (walletTypeFilter !== 'all' && String(t?.type || '') !== walletTypeFilter) {
+                                        return false;
+                                    }
+
+                                    const q = walletSearch.trim().toLowerCase();
+                                    if (q) {
+                                        const desc = String(t?.description || '').toLowerCase();
+                                        const marketName = String(t?.bet?.marketName || '').toLowerCase();
+                                        if (!desc.includes(q) && !marketName.includes(q)) return false;
+                                    }
+
+                                    return true;
+                                }).sort((a, b) => {
+                                    const ta = new Date(a?.createdAt || 0).getTime();
+                                    const tb = new Date(b?.createdAt || 0).getTime();
+                                    return tb - ta;
+                                });
+
+                                const totalCredited = filteredTx
+                                    .filter((t) => t.type === 'credit')
+                                    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+                                const totalDebited = filteredTx
+                                    .filter((t) => t.type === 'debit')
+                                    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+                                return filteredTx.length === 0 ? (
+                                    <div className="p-8 text-center text-gray-400">No fund transactions{marketFilter !== 'all' ? ' for selected market' : ''}.</div>
+                                ) : (
+                                    <div>
+                                        <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 text-xs">
+                                            <span className="text-gray-500">Total Credited: <span className="text-green-600 font-bold">{formatCurrency(totalCredited)}</span></span>
+                                            <span className="text-gray-500">Total Debited: <span className="text-red-500 font-bold">{formatCurrency(totalDebited)}</span></span>
+                                        </div>
+                                        <div className="divide-y divide-gray-100">
+                                            {filteredTx.map((t) => (
+                                                <div key={t._id} className="px-4 py-3 hover:bg-gray-50 flex flex-wrap items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${t.type === 'credit' ? 'bg-green-100' : 'bg-red-100'}`}>
+                                                            {t.type === 'credit'
+                                                                ? <FaPlusCircle className="w-4 h-4 text-green-600" />
+                                                                : <FaMinusCircle className="w-4 h-4 text-red-500" />
+                                                            }
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-gray-800 text-sm font-medium truncate">{t.description || '—'}</p>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <p className="text-gray-400 text-xs">{new Date(t.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                                                                {t.bet && t.bet.marketName && (
+                                                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-sb-primary/10 text-sb-primary">
+                                                                        {t.bet.marketName}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <p className="font-mono text-xs text-green-600">Credited: {t.type === 'credit' ? formatCurrency(t.amount) : formatCurrency(0)}</p>
+                                                        <p className="font-mono text-xs text-red-500">Debited: {t.type === 'debit' ? formatCurrency(t.amount) : formatCurrency(0)}</p>
+                                                        <span className={`mt-1 inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${t.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+                                                            {t.type}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </>
+                    )}
+
+                    {/* ---- STATEMENT ---- */}
+                    {activeTab === 'statement' && (
+                        <>
+                            <style>{`
+                                @media print {
+                                    body * {
+                                        visibility: hidden !important;
+                                    }
+                                    #statement-slip, #statement-slip * {
+                                        visibility: visible !important;
+                                    }
+                                    #statement-slip {
+                                        position: absolute !important;
+                                        left: 0 !important;
+                                        top: 0 !important;
+                                        width: 100% !important;
+                                        max-width: 100% !important;
+                                        padding: 12px !important;
+                                        background: #fff !important;
+                                    }
+                                    .print\\:hidden {
+                                        display: none !important;
+                                    }
+                                }
+                            `}</style>
+                            {loadingTab ? (
+                                <div className="p-8 text-center text-gray-400">Loading...</div>
+                            ) : statementData.length === 0 ? (
+                                <div className="p-8 text-center text-gray-400">No transactions in this period.</div>
+                            ) : (
+                                <div id="statement-slip" className="bg-white p-6 max-w-2xl mx-auto print:p-8 print:max-w-none">
+                                    {/* Print button */}
+                                    <div className="mb-4 print:hidden flex justify-end">
+                                        <button
+                                            onClick={() => window.print()}
+                                            className="flex items-center gap-2 px-4 py-2 bg-sb-primary hover:bg-sb-primary-dark text-white rounded-lg font-medium transition-colors"
+                                        >
+                                            <FaPrint className="w-4 h-4" />
+                                            {t('printStatement')}
+                                        </button>
+                                    </div>
+
+                                    {/* Statement Slip */}
+                                    {statementData.map((summary, i) => (
+                                        <div key={i} className="border-2 border-gray-300 rounded-lg p-6 print:border-gray-800 print:rounded-none">
+                                            {/* Header */}
+                                            <div className="text-center mb-6 pb-4 border-b-2 border-gray-300 print:border-gray-800">
+                                                <h2 className="text-2xl font-bold text-gray-800 mb-2">ACCOUNT STATEMENT</h2>
+                                                <p className="text-sm text-gray-600">
+                                                    {summary.period.from && summary.period.to && formatDateRange(summary.period.from, summary.period.to)}
+                                                </p>
+                                            </div>
+
+                                            {/* Player Info */}
+                                            {summary.player && (
+                                                <div className="mb-6 pb-4 border-b border-gray-200">
+                                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                                        <div>
+                                                            <p className="text-gray-500 mb-1">Player Name</p>
+                                                            <p className="font-semibold text-gray-800">{summary.player.name}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-gray-500 mb-1">Phone</p>
+                                                            <p className="font-semibold text-gray-800">{summary.player.phone || '—'}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Bet Summary */}
+                                            <div className="mb-6 pb-4 border-b border-gray-200">
+                                                <h3 className="text-lg font-bold text-gray-800 mb-3">BET SUMMARY</h3>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Bets Placed</span>
+                                                        <span className="font-mono font-semibold text-gray-800">{summary.bets.count} bets</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Bet Amount</span>
+                                                        <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.bets.totalAmount)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Win Amount</span>
+                                                        <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.bets.totalWin)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Loss Amount</span>
+                                                        <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.bets.totalLoss)}</span>
+                                                    </div>
+                                                    {summary.bets.totalPending > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Pending Bets</span>
+                                                            <span className="font-mono font-semibold text-sb-primary">{formatCurrency(summary.bets.totalPending)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Wallet Summary */}
+                                            <div className="mb-6 pb-4 border-b border-gray-200">
+                                                <h3 className="text-lg font-bold text-gray-800 mb-3">WALLET TRANSACTIONS</h3>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Transaction Count</span>
+                                                        <span className="font-mono font-semibold text-gray-800">{summary.wallet.count}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Deposits</span>
+                                                        <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.wallet.deposits)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Withdrawals</span>
+                                                        <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.wallet.withdrawals)}</span>
+                                                    </div>
+                                                    {summary.wallet.betCredits > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Bet Credits (Wins)</span>
+                                                            <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.wallet.betCredits)}</span>
+                                                        </div>
+                                                    )}
+                                                    {summary.wallet.betDebits > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Bet Debits (Stakes)</span>
+                                                            <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.wallet.betDebits)}</span>
+                                                        </div>
+                                                    )}
+                                                    {summary.wallet.otherCredits > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Other Credits</span>
+                                                            <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.wallet.otherCredits)}</span>
+                                                        </div>
+                                                    )}
+                                                    {summary.wallet.otherDebits > 0 && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-gray-600">Other Debits</span>
+                                                            <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.wallet.otherDebits)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Totals */}
+                                            <div className="mb-6 pb-4 border-b-2 border-gray-300 print:border-gray-800">
+                                                <h3 className="text-lg font-bold text-gray-800 mb-3">TOTALS</h3>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Credits</span>
+                                                        <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.totals.totalCredits)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-600">Total Debits</span>
+                                                        <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.totals.totalDebits)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between pt-2 border-t border-gray-200">
+                                                        <span className="text-gray-800 font-bold">Net Amount</span>
+                                                        <span className={`font-mono font-bold text-lg ${summary.totals.netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {formatCurrency(summary.totals.netAmount)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Current Status */}
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                                    <span className="text-gray-700 font-semibold">Current Wallet Balance</span>
+                                                    <span className="font-mono font-bold text-xl text-gray-800">{formatCurrency(summary.currentBalance)}</span>
+                                                </div>
+                                                
+                                                {/* To Give & To Take Section - Editable */}
+                                                <div className="border-t-2 border-gray-300 pt-4 mt-4 print:border-gray-800">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <h3 className="text-lg font-bold text-gray-800 print:text-base">TO GIVE / TO TAKE</h3>
+                                                        <button
+                                                            onClick={() => {
+                                                                setToGiveValue((player?.toGive ?? 0).toString());
+                                                                setToTakeValue((player?.toTake ?? 0).toString());
+                                                                setToGiveTakeModalOpen(true);
+                                                            }}
+                                                            className="print:hidden text-sb-primary hover:text-sb-primary-dark text-sm font-medium underline flex items-center gap-1"
+                                                        >
+                                                            <FaExchangeAlt className="w-3 h-3" /> Edit
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 print:bg-transparent print:border print:border-blue-300">
+                                                            <p className="text-gray-600 text-sm mb-1">To Give</p>
+                                                            <p className="font-mono font-bold text-2xl text-blue-600 print:text-lg">{formatCurrency(player?.toGive ?? 0)}</p>
+                                                            <p className="text-xs text-gray-500 mt-1 print:hidden">Money to give to player</p>
+                                                        </div>
+                                                        <div className="bg-red-50 rounded-lg p-4 border border-red-200 print:bg-transparent print:border print:border-red-300">
+                                                            <p className="text-gray-600 text-sm mb-1">To Take</p>
+                                                            <p className="font-mono font-bold text-2xl text-red-600 print:text-lg">{formatCurrency(player?.toTake ?? 0)}</p>
+                                                            <p className="text-xs text-gray-500 mt-1 print:hidden">Money to take from player</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Footer */}
+                                            <div className="mt-6 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
+                                                <p>Generated on {new Date().toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' })}</p>
+                                                <p className="mt-1">This is a computer-generated statement</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+
+                {/* ========== FUND MODAL ========== */}
+                {fundModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm">
+                            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                                <h3 className="text-base font-bold text-gray-800 capitalize">
+                                    {fundModalType === 'add' && '💰 Add Funds'}
+                                    {fundModalType === 'withdraw' && '💸 Withdraw Funds'}
+                                    {fundModalType === 'set' && '⚙️ Set Balance'}
+                                </h3>
+                                <button type="button" onClick={() => setFundModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
+                            </div>
+                            <div className="p-4 space-y-4">
+                                {/* Current balance */}
+                                <div className="bg-gray-50 rounded-lg px-3 py-2 text-center">
+                                    <p className="text-gray-400 text-xs uppercase">Current Balance</p>
+                                    <p className="text-green-600 font-mono font-bold text-xl">{formatCurrency(player.walletBalance ?? 0)}</p>
+                                </div>
+
+                                {fundError && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">{fundError}</div>}
+                                {fundSuccess && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">{fundSuccess}</div>}
+
+                                {!fundSuccess && (
+                                    <>
+                                        <div>
+                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">
+                                                {fundModalType === 'set' ? 'New Balance Amount' : 'Amount'}
+                                            </label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    value={fundAmount}
+                                                    onChange={(e) => setFundAmount(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
+                                                    className="w-full pl-8 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 font-mono text-lg text-center focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            {fundModalType === 'withdraw' && (
+                                                <p className="text-xs text-gray-400 mt-1">Max: {formatCurrency(player.walletBalance ?? 0)}</p>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleFundSubmit}
+                                            disabled={fundLoading || !fundAmount}
+                                            className={`w-full font-bold py-3 rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                                                fundModalType === 'add' ? 'bg-green-600 hover:bg-green-700'
+                                                : fundModalType === 'withdraw' ? 'bg-red-500 hover:bg-red-600'
+                                                : 'bg-sb-primary hover:bg-sb-primary-dark'
+                                            }`}
+                                        >
+                                            {fundLoading ? (
+                                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <>
+                                                    {fundModalType === 'add' && <><FaPlusCircle className="w-4 h-4" /> Add Funds</>}
+                                                    {fundModalType === 'withdraw' && <><FaMinusCircle className="w-4 h-4" /> Withdraw</>}
+                                                    {fundModalType === 'set' && <><FaWallet className="w-4 h-4" /> Set Balance</>}
+                                                </>
+                                            )}
+                                        </button>
+                                    </>
+                                )}
+
+                                {fundSuccess && (
+                                    <button type="button" onClick={() => setFundModalOpen(false)} className="w-full py-3 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white font-bold transition-colors">
+                                        Done
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ========== PASSWORD MODAL ========== */}
+                {passwordModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm">
+                            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                                <h3 className="text-base font-bold text-gray-800">Set Player Password</h3>
+                                <button type="button" onClick={() => setPasswordModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
+                            </div>
+                            <div className="p-4 space-y-4">
+                                {passwordError && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">{passwordError}</div>}
+                                {passwordSuccess && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">{passwordSuccess}</div>}
+
+                                {!passwordSuccess && (
+                                    <>
+                                        <div>
+                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">New Password</label>
+                                            <input
+                                                type="password"
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                placeholder="Minimum 6 characters"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">Confirm Password</label>
+                                            <input
+                                                type="password"
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                placeholder="Re-enter password"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handlePasswordSubmit}
+                                            disabled={passwordLoading || !newPassword || !confirmPassword}
+                                            className="w-full font-bold py-3 rounded-lg bg-purple-500 hover:bg-purple-600 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {passwordLoading ? (
+                                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <>Update Password</>
+                                            )}
+                                        </button>
+                                    </>
+                                )}
+
+                                {passwordSuccess && (
+                                    <button type="button" onClick={() => setPasswordModalOpen(false)} className="w-full py-3 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white font-bold transition-colors">
+                                        Done
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ========== TO GIVE / TO TAKE MODAL ========== */}
+                {toGiveTakeModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-sm">
+                            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                                <h3 className="text-base font-bold text-gray-800">💰 To Give / To Take</h3>
+                                <button type="button" onClick={() => setToGiveTakeModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
+                            </div>
+                            <div className="p-4 space-y-4">
+                                {toGiveTakeError && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">{toGiveTakeError}</div>}
+                                {toGiveTakeSuccess && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">{toGiveTakeSuccess}</div>}
+
+                                {!toGiveTakeSuccess && (
+                                    <>
+                                        <div>
+                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">To Give (Money to give to player)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    value={toGiveValue}
+                                                    onChange={(e) => setToGiveValue(e.target.value.replace(/[^0-9.]/g, '').slice(0, 12))}
+                                                    className="w-full pl-8 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 font-mono text-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-gray-600 text-sm font-medium mb-1.5">To Take (Money to take from player)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    value={toTakeValue}
+                                                    onChange={(e) => setToTakeValue(e.target.value.replace(/[^0-9.]/g, '').slice(0, 12))}
+                                                    className="w-full pl-8 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 font-mono text-lg text-center focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                                />
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleToGiveTakeSubmit}
+                                            disabled={toGiveTakeLoading}
+                                            className="w-full font-bold py-3 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {toGiveTakeLoading ? (
+                                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <>💾 Update</>
+                                            )}
+                                        </button>
+                                    </>
+                                )}
+
+                                {toGiveTakeSuccess && (
+                                    <button type="button" onClick={() => setToGiveTakeModalOpen(false)} className="w-full py-3 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white font-bold transition-colors">
+                                        Done
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+            </div>
+        </Layout>
+    );
+};
+
+export default PlayerDetail;

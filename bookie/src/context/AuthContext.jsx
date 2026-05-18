@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { subscribeBookiePanelBalance, disconnectPanelSocket } from '../lib/panelSocket';
 
 const AuthContext = createContext(null);
 
@@ -42,15 +43,27 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
+        disconnectPanelSocket();
         localStorage.removeItem(AUTH_KEY);
         setBookie(null);
     };
 
-    const updateBookie = (newData) => {
-        const updated = { ...bookie, ...newData };
-        localStorage.setItem(AUTH_KEY, JSON.stringify(updated));
-        setBookie(updated);
-    };
+    const updateBookie = useCallback((newData) => {
+        setBookie((prev) => {
+            if (!prev) return prev;
+            const updated = { ...prev, ...newData };
+            localStorage.setItem(AUTH_KEY, JSON.stringify(updated));
+            return updated;
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!bookie?.token) return undefined;
+        const unsub = subscribeBookiePanelBalance((payload) => {
+            updateBookie({ balance: Number(payload.balance) });
+        });
+        return unsub;
+    }, [bookie?.token, updateBookie]);
 
     return (
         <AuthContext.Provider value={{ bookie, loading, login, logout, updateBookie }}>

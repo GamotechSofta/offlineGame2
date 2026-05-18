@@ -15,6 +15,7 @@ import {
     getDpCommonList,
 } from '../../controllers/adminController.js';
 import { getLogs } from '../../controllers/activityLogController.js';
+import { getAllSuperBookiesAdmin } from '../../controllers/bookieSuperBookieController.js';
 import {
     getLottery2DCurrentSlot,
     getLottery2DAggregateStats,
@@ -140,6 +141,7 @@ router.get('/bookies/:id', verifyAdmin, getBookieById); // Get single bookie
 router.put('/bookies/:id', verifyAdmin, updateBookie); // Update bookie
 router.delete('/bookies/:id', verifyAdmin, deleteBookie); // Delete bookie
 router.patch('/bookies/:id/toggle-status', verifyAdmin, toggleBookieStatus); // Toggle status
+router.get('/super-bookies', verifyAdmin, getAllSuperBookiesAdmin);
 
 // Keep old route for backward compatibility
 router.post('/create-bookie', verifyAdmin, createBookie);

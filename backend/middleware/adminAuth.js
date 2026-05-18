@@ -119,3 +119,14 @@ export const requireBookie = (req, res, next) => {
     }
     next();
 };
+
+/** Only super_bookie can access - use after verifyAdmin */
+export const requireSuperBookie = (req, res, next) => {
+    if (req.admin?.role !== 'super_bookie') {
+        return res.status(403).json({
+            success: false,
+            message: 'Super bookie access required',
+        });
+    }
+    next();
+};

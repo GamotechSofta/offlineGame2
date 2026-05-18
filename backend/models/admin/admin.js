@@ -16,7 +16,13 @@ const adminSchema = new mongoose.Schema({
     role: {
         type: String,
         default: 'super_admin',
-        enum: ['super_admin', 'specific_admin', 'bookie'],
+        enum: ['super_admin', 'specific_admin', 'bookie', 'super_bookie'],
+    },
+    /** super_bookie only: parent bookie who created this account */
+    parentBookieId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Admin',
+        default: null,
     },
     /** specific_admin only: sidebar paths this admin may access */
     allowedTabs: {
@@ -78,6 +84,9 @@ const adminSchema = new mongoose.Schema({
 }, {
     timestamps: true,
 });
+
+adminSchema.index({ parentBookieId: 1, role: 1 });
+adminSchema.index({ role: 1, phone: 1 });
 
 // Hash password before saving
 adminSchema.pre('save', async function () {

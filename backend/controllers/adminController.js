@@ -1,15 +1,14 @@
 import Admin from '../models/admin/admin.js';
 import bcrypt from 'bcryptjs';
-import DailyCommission from '../models/dailyCommission/dailyCommission.js';
 import User from '../models/user/user.js';
-import Bet from '../models/bet/bet.js';
-import QuizBet from '../models/quiz/QuizBet.js';
+import { getCommissionSummaryForAccount } from '../utils/commissionMetrics.js';
 import { SP_COMMON_LIST } from '../config/spCommonList.js';
 import { DP_COMMON_LIST } from '../config/dpCommonList.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signAdminToken } from '../utils/adminJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { canAccessBookieManagement, isSuperAdmin } from '../utils/adminTabAccess.js';
+import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 
 /**
  * Admin login
@@ -56,6 +55,14 @@ export const adminLogin = async (req, res) => {
                 success: false,
                 message: 'Use the Bookie Panel to login with this account.',
                 code: 'USE_BOOKIE_PANEL',
+            });
+        }
+
+        if (admin.role === 'super_bookie') {
+            return res.status(403).json({
+                success: false,
+                message: 'Use the Super Bookie Panel to login with this account.',
+                code: 'USE_SUPER_BOOKIE_PANEL',
             });
         }
 
@@ -327,71 +334,18 @@ export const getAllBookies = async (req, res) => {
             .select('-password')
             .sort({ createdAt: -1 });
 
-        const bookieIds = bookies.map((b) => b._id);
-        const commissionAgg = bookieIds.length > 0
-            ? await DailyCommission.aggregate([
-                { $match: { bookieId: { $in: bookieIds } } },
-                { $group: { _id: '$bookieId', totalCommissionAmount: { $sum: '$commissionAmount' } } },
-            ])
-            : [];
-        const commissionMap = Object.fromEntries(
-            commissionAgg.map((row) => [String(row._id), Number(row.totalCommissionAmount || 0)])
+        const enrichedBookies = await Promise.all(
+            bookies.map(async (b) => {
+                const summary = await getCommissionSummaryForAccount(b);
+                return {
+                    ...b.toObject(),
+                    totalCommissionAmount: summary.totalCommission,
+                    totalCommissionPaid: summary.totalPaid,
+                    totalCommissionPending: summary.totalPending,
+                    totalBetAmountForCommission: summary.totalBetAmount,
+                };
+            })
         );
-        const hasAnyCommissionRecord = commissionAgg.length > 0;
-
-        // Fallback: if DailyCommission records are missing, estimate from total bet amount
-        // of each bookie's users using current commission percentage.
-        let fallbackCommissionMap = {};
-        if (!hasAnyCommissionRecord && bookieIds.length > 0) {
-            const users = await User.find({ referredBy: { $in: bookieIds } })
-                .select('_id referredBy')
-                .lean();
-            const userIds = users.map((u) => u._id);
-            if (userIds.length > 0) {
-                const [matkaAgg, lotteryAgg] = await Promise.all([
-                    Bet.aggregate([
-                        {
-                            $match: {
-                                userId: { $in: userIds },
-                                status: { $ne: 'cancelled' },
-                                $or: [
-                                    { placedByBookie: false },
-                                    { placedByBookie: { $exists: false } },
-                                ],
-                            },
-                        },
-                        { $group: { _id: '$userId', totalBetAmount: { $sum: '$amount' } } },
-                    ]),
-                    QuizBet.aggregate([
-                        { $match: { userId: { $in: userIds }, status: { $ne: 'cancelled' } } },
-                        { $group: { _id: '$userId', totalBetAmount: { $sum: '$amount' } } },
-                    ]),
-                ]);
-                const userToBookie = Object.fromEntries(users.map((u) => [String(u._id), String(u.referredBy)]));
-                const totalBetByBookie = {};
-                for (const row of [...matkaAgg, ...lotteryAgg]) {
-                    const uid = String(row._id);
-                    const bid = userToBookie[uid];
-                    if (!bid) continue;
-                    totalBetByBookie[bid] = (totalBetByBookie[bid] || 0) + Number(row.totalBetAmount || 0);
-                }
-                fallbackCommissionMap = Object.fromEntries(
-                    bookies.map((b) => {
-                        const bid = String(b._id);
-                        const totalBetAmount = Number(totalBetByBookie[bid] || 0);
-                        const pct = Number(b.commissionPercentage || 0);
-                        const commission = Math.round((totalBetAmount * pct / 100) * 100) / 100;
-                        return [bid, commission];
-                    })
-                );
-            }
-        }
-        const enrichedBookies = bookies.map((b) => ({
-            ...b.toObject(),
-            totalCommissionAmount: hasAnyCommissionRecord
-                ? (commissionMap[String(b._id)] || 0)
-                : (fallbackCommissionMap[String(b._id)] || 0),
-        }));
 
         // Debug: log first bookie's balance
         if (bookies.length > 0) {
@@ -545,6 +499,9 @@ export const updateBookie = async (req, res) => {
 
         await bookie.save();
         await invalidateAdminReadCaches('bookie_updated');
+        if (balance !== undefined && balance !== null && balance !== '') {
+            await notifyBookiePanelBalance(bookie._id, 'admin_update', bookie.balance);
+        }
 
         await logActivity({
             action: 'update_bookie',
