@@ -144,7 +144,8 @@ const TwoDResultControl = () => {
                     return;
                 }
                 if (mode === 'target') {
-                    const targetParams = new URLSearchParams({ targetProfitPercent: String(targetToUse) });
+                    const hintTargetPercent = Number.isFinite(persistedTarget) ? persistedTarget : targetToUse;
+                    const targetParams = new URLSearchParams({ targetProfitPercent: String(hintTargetPercent) });
                     const targetMetaRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery2d/current-slot/target-hints?${targetParams.toString()}`);
                     if (targetMetaRes.status === 401) return;
                     const targetMetaJson = await targetMetaRes.json().catch(() => ({}));
@@ -155,9 +156,9 @@ const TwoDResultControl = () => {
                     const rows = Array.isArray(targetMetaJson?.data?.perQuiz)
                         ? targetMetaJson.data.perQuiz.map((row) => ({
                             quizId: row.quizId,
-                            hint: row.totalStake > 0
-                                ? (row.suggestedResultLabel == null ? '--' : String(row.suggestedResultLabel).padStart(2, '0'))
-                                : '--',
+                            hint: row.suggestedResultLabel == null
+                                ? '--'
+                                : String(row.suggestedResultLabel).padStart(2, '0'),
                             houseNetIfHintWins: row.houseNetIfSuggestedWins,
                             totalStake: row.totalStake,
                             meetsOrExceedsTarget: Boolean(row.meetsOrExceedsTarget),

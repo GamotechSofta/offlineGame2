@@ -175,6 +175,21 @@ export async function peekPickForSlotResult(quizId, slotStartIso, gameMode = '2d
   return computePickFields(quizId, slotStartIso, seedHex, gameMode);
 }
 
+/** Random-mode winning position from seed + chosenIndex (ignores target-overridden hintPosition). */
+export async function getRandomModeHintPosition(quizId, slotStartIso, gameMode = '2d') {
+  const gm = String(gameMode || '2d').toLowerCase() === '3d' ? '3d' : '2d';
+  const maxPos = gm === '3d' ? 999 : 99;
+  const pick = await getOrCreatePick(quizId, slotStartIso, gm);
+  if (pick?.seedHex && Number.isInteger(pick?.chosenIndex)) {
+    const len = gm === '3d' ? 1000 : 100;
+    const order = await getShuffleOrderIndices(quizId, slotStartIso, pick.seedHex, gm, len);
+    const pos = order.indexOf(pick.chosenIndex);
+    if (Number.isInteger(pos) && pos >= 0 && pos <= maxPos) return pos;
+  }
+  const hp = pick?.hintPosition;
+  return Number.isInteger(hp) && hp >= 0 && hp <= maxPos ? hp : null;
+}
+
 /** Resolve hint question text for shuffled slot position (2D: 0–99, 3D: 0–999). */
 export async function resolveHintQuestionTextByPosition(quizId, hintPosition, gameMode = '2d', slotStartIso = null) {
   if (!Number.isInteger(hintPosition) || hintPosition < 0) return null;

@@ -55,6 +55,23 @@ export async function setPersistedAutoDeclarePreference(gameMode, declareMode, t
 
 const quizCountForMode = (gameMode) => (normalizeGameMode(gameMode) === '3d' ? 3 : 30);
 
+/** Recompute and persist target hints for an undeclared slot that has target % armed. */
+export async function refreshTargetHintsForSlotIfActive(slotStartIso, gameMode = '2d') {
+  const gm = normalizeGameMode(gameMode);
+  const declarationRow = await getSlotDeclarationRow(slotStartIso, gm);
+  if (declarationRow?.declaredAt) return false;
+  const target = getDeclaredTargetPercentForHintApply(declarationRow);
+  if (target == null) return false;
+  const n = quizCountForMode(gm);
+  await Promise.all(Array.from({ length: n }, (_, i) => getOrCreatePick(i + 1, slotStartIso, gm)));
+  if (gm === '3d') {
+    await apply3DTargetProfitHintsToSlot(slotStartIso, target);
+  } else {
+    await apply2DTargetProfitHintsToSlot(slotStartIso, target);
+  }
+  return true;
+}
+
 export async function ensurePicksThenApplyPersistedPreference(slotStartIso, gameMode = '2d') {
   const gm = normalizeGameMode(gameMode);
   const n = quizCountForMode(gm);
@@ -68,13 +85,19 @@ export async function ensurePicksThenApplyPersistedPreference(slotStartIso, game
  */
 export async function tryApplyPersistedAutoDeclarePreferenceToSlot(slotStartIso, gameMode = '2d') {
   const gm = normalizeGameMode(gameMode);
-  const pref = await getPersistedAutoDeclarePreference(gm);
-  if (pref.mode !== 'target' || pref.targetProfitPercent == null) return;
-
   const declarationRow = await getSlotDeclarationRow(slotStartIso, gm);
   if (declarationRow?.declaredAt) return;
+
+  const activeTarget = getDeclaredTargetPercentForHintApply(declarationRow);
+  if (activeTarget != null) {
+    await refreshTargetHintsForSlotIfActive(slotStartIso, gm);
+    return;
+  }
+
   if (declarationRow?.autoDeclareMode === 'random') return;
-  if (getDeclaredTargetPercentForHintApply(declarationRow) != null) return;
+
+  const pref = await getPersistedAutoDeclarePreference(gm);
+  if (pref.mode !== 'target' || pref.targetProfitPercent == null) return;
 
   /** Callers must have created picks for this slot (e.g. `ensurePicksThenApplyPersistedPreference`). */
   await setSlotTargetProfitPercent(slotStartIso, gm, pref.targetProfitPercent, null);

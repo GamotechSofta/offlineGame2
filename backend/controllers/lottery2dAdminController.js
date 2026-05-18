@@ -36,11 +36,12 @@ import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply2DTargetProfitHintsToSlot, build2DTargetProfitHints } from '../services/quizTargetProfitService.js';
 import {
   ensurePicksThenApplyPersistedPreference,
+  refreshTargetHintsForSlotIfActive,
   setPersistedAutoDeclarePreference,
   tryApplyPersistedAutoDeclarePreferenceToSlot,
 } from '../services/quizGameAutoDeclarePreferenceService.js';
 import { bustQuizPublicLastSlotResultsCaches, invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
-import { cacheGet, cacheSet } from '../services/cacheService.js';
+import { cacheDelByPrefix, cacheGet, cacheSet } from '../services/cacheService.js';
 import { getRuntimeMetrics } from '../services/runtimeMonitorService.js';
 
 const QUIZ_IDS = Array.from({ length: 30 }, (_, i) => i + 1);
@@ -1550,9 +1551,15 @@ export const getLottery2DCurrentSlotTargetHints = async (req, res) => {
   try {
     const ctx = getSlotContext(new Date(), '2d');
     const slotStartIso = ctx.slotStartIso;
-    const targetProfitPercent = Number(req.query?.targetProfitPercent);
-    const targetPayload = await build2DTargetProfitHints(slotStartIso, targetProfitPercent);
     const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, ctx.slotEndMs);
+    const fromQuery = Number(req.query?.targetProfitPercent);
+    const effectiveTarget = declaration?.targetProfitPercent != null
+      ? declaration.targetProfitPercent
+      : (Number.isFinite(fromQuery) ? Math.min(1000, Math.max(-100, fromQuery)) : 20);
+    if (declaration?.targetProfitPercent != null && !declaration?.declared) {
+      await refreshTargetHintsForSlotIfActive(slotStartIso, GAME_MODE);
+    }
+    const targetPayload = await build2DTargetProfitHints(slotStartIso, effectiveTarget);
 
     return res.json({
       success: true,
@@ -1626,6 +1633,7 @@ export const configureLottery2DCurrentSlotTargetAutoDeclare = async (req, res) =
       await setPersistedAutoDeclarePreference(GAME_MODE, 'target', targetProfitPercent, req.admin?._id);
     }
     await invalidateAdminReadCaches('lottery2d_auto_declare_configured');
+    await cacheDelByPrefix('lottery2d:decl-matrix:');
     syncQuizSlotUpdates();
     const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, slotEndMs);
     const effectiveTarget = mode === 'random' ? null : targetProfitPercent;
@@ -1791,10 +1799,14 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
     }
 
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
+    const runningSlotIso = date === today ? getSlotContext(new Date(), '2d').slotStartIso : null;
+    const includesRunningSlot = Boolean(runningSlotIso && slotStartIsos.includes(runningSlotIso));
     const cacheKey = declarationMatrixCacheKey(req, date, limit, lotteryScopeFilter);
-    const cached = await cacheGet(cacheKey);
-    if (cached) {
-      return res.json({ success: true, data: cached, cached: true });
+    if (!includesRunningSlot) {
+      const cached = await cacheGet(cacheKey);
+      if (cached) {
+        return res.json({ success: true, data: cached, cached: true });
+      }
     }
 
     const inFlight = DECLARATION_MATRIX_INFLIGHT.get(cacheKey);
@@ -1805,21 +1817,30 @@ export const getLottery2DDeclarationMatrix = async (req, res) => {
 
     const computePromise = (async () => {
       const nowMs = Date.now();
-      const [picks, declarations] = await Promise.all([
-        QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
-          .select('slotStartIso quizId hintPosition')
-          .lean(),
-        QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
-          .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent autoDeclareMode declaredAutoDeclareMode declaredTargetProfitPercent')
-          .lean(),
-      ]);
+      const declarations = await QuizSlotDeclaration.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
+        .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent autoDeclareMode declaredAutoDeclareMode declaredTargetProfitPercent')
+        .lean();
+
+      const declarationBySlotPre = new Map(declarations.map((d) => [d.slotStartIso, d]));
+      await Promise.all(slotStartIsos.map(async (slotStartIso) => {
+        const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+        if (nowMs >= slotEndMs) return;
+        const row = declarationBySlotPre.get(slotStartIso);
+        if (row?.declaredAt) return;
+        if (getDeclaredTargetPercentForHintApply(row) == null) return;
+        await refreshTargetHintsForSlotIfActive(slotStartIso, GAME_MODE);
+      }));
+
+      const picks = await QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: slotStartIsos } })
+        .select('slotStartIso quizId hintPosition')
+        .lean();
 
     const picksBySlot = new Map();
     for (const p of picks) {
       if (!picksBySlot.has(p.slotStartIso)) picksBySlot.set(p.slotStartIso, new Map());
       picksBySlot.get(p.slotStartIso).set(p.quizId, p.hintPosition);
     }
-    const declarationBySlot = new Map(declarations.map((d) => [d.slotStartIso, d]));
+    const declarationBySlot = declarationBySlotPre;
     const completedSlotStartIsos = slotStartIsos.filter((slotStartIso) => {
       const slotStartMs = new Date(slotStartIso).getTime();
       return Number.isFinite(slotStartMs) && (slotStartMs + SLOT_MS) <= nowMs;

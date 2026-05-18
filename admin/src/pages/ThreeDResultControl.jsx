@@ -161,7 +161,8 @@ const ThreeDResultControl = () => {
                 return;
             }
             if (mode === 'target') {
-                const targetParams = new URLSearchParams({ targetProfitPercent: String(targetToUse) });
+                const hintTargetPercent = Number.isFinite(persistedTarget) ? persistedTarget : targetToUse;
+                const targetParams = new URLSearchParams({ targetProfitPercent: String(hintTargetPercent) });
                 const targetMetaRes = await fetchWithAuth(`${API_BASE_URL}/admin/lottery3d/current-slot/target-hints?${targetParams.toString()}`);
                 if (targetMetaRes.status === 401) return;
                 const targetMetaJson = await targetMetaRes.json().catch(() => ({}));
@@ -172,9 +173,9 @@ const ThreeDResultControl = () => {
                 const rows = Array.isArray(targetMetaJson?.data?.perQuiz)
                     ? targetMetaJson.data.perQuiz.map((row) => ({
                         quizId: row.quizId,
-                        hint: row.totalStake > 0
-                            ? (row.suggestedResultLabel == null ? '--' : String(row.suggestedResultLabel).padStart(3, '0'))
-                            : '--',
+                        hint: row.suggestedResultLabel == null
+                            ? '--'
+                            : String(row.suggestedResultLabel).padStart(3, '0'),
                         houseNetIfHintWins: row.houseNetIfSuggestedWins,
                         totalStake: row.totalStake,
                         meetsOrExceedsTarget: Boolean(row.meetsOrExceedsTarget),

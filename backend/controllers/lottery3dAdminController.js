@@ -37,6 +37,7 @@ import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { apply3DTargetProfitHintsToSlot, build3DTargetProfitHints } from '../services/quizTargetProfitService.js';
 import {
   ensurePicksThenApplyPersistedPreference,
+  refreshTargetHintsForSlotIfActive,
   setPersistedAutoDeclarePreference,
   tryApplyPersistedAutoDeclarePreferenceToSlot,
 } from '../services/quizGameAutoDeclarePreferenceService.js';
@@ -939,9 +940,15 @@ export const getLottery3DCurrentSlotTargetHints = async (req, res) => {
   try {
     const ctx = getSlotContext(new Date(), '3d');
     const slotStartIso = ctx.slotStartIso;
-    const targetProfitPercent = Number(req.query?.targetProfitPercent);
-    const targetPayload = await build3DTargetProfitHints(slotStartIso, targetProfitPercent);
     const declaration = await getSlotDeclarationState(slotStartIso, GAME_MODE, ctx.slotEndMs);
+    const fromQuery = Number(req.query?.targetProfitPercent);
+    const effectiveTarget = declaration?.targetProfitPercent != null
+      ? declaration.targetProfitPercent
+      : (Number.isFinite(fromQuery) ? Math.min(1000, Math.max(-100, fromQuery)) : 20);
+    if (declaration?.targetProfitPercent != null && !declaration?.declared) {
+      await refreshTargetHintsForSlotIfActive(slotStartIso, GAME_MODE);
+    }
+    const targetPayload = await build3DTargetProfitHints(slotStartIso, effectiveTarget);
     return res.json({
       success: true,
       data: {
@@ -1060,6 +1067,23 @@ export const getLottery3DSlotHistory = async (req, res) => {
       return res.json({ success: true, data: { date, slots: [] } });
     }
     const lotteryScopeFilter = await getLotteryScopeFilter(req);
+    const nowMs = Date.now();
+
+    const declarationRowsPre = await QuizSlotDeclaration.find({
+      gameMode: GAME_MODE,
+      slotStartIso: { $in: daySlots },
+    })
+      .select('slotStartIso declaredAt targetProfitPercent autoDeclareMode')
+      .lean();
+    const declarationBySlotPre = new Map(declarationRowsPre.map((row) => [row.slotStartIso, row]));
+    await Promise.all(daySlots.map(async (slotStartIso) => {
+      const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;
+      if (nowMs >= slotEndMs) return;
+      const row = declarationBySlotPre.get(slotStartIso);
+      if (row?.declaredAt) return;
+      if (getDeclaredTargetPercentForHintApply(row) == null) return;
+      await refreshTargetHintsForSlotIfActive(slotStartIso, GAME_MODE);
+    }));
 
     const [picks, slotSummaryAgg, quizSummaryAgg] = await Promise.all([
       QuizSlotPick.find({ gameMode: GAME_MODE, slotStartIso: { $in: daySlots } }).select('slotStartIso quizId hintPosition').lean(),
@@ -1158,6 +1182,7 @@ export const getLottery3DSlotHistory = async (req, res) => {
       .select('slotStartIso autoDeclareBlocked declaredAt declaredResults targetProfitPercent autoDeclareMode declaredAutoDeclareMode declaredTargetProfitPercent')
       .lean();
     const declarationBySlot = new Map(declarationRows.map((row) => [row.slotStartIso, row]));
+    // declaredResults snapshot wins for completed slots — saved result never replaced by live picks.
 
     const slotsBase = daySlots.map((slotStartIso) => {
       const slotEndMs = new Date(slotStartIso).getTime() + SLOT_MS;

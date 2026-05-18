@@ -2,10 +2,18 @@ import QuizBet from '../models/quiz/QuizBet.js';
 import QuizSlotPick from '../models/quiz/QuizSlotPick.js';
 import { getRatesMap } from '../models/rate/rate.js';
 import { evaluate3DBetAgainstResult, resolve3DPayoutMultiplier } from './quiz3dPayoutHelpers.js';
+import { getRandomModeHintPosition } from './quizPickService.js';
 
 const QUIZ_IDS_2D = Array.from({ length: 30 }, (_, i) => i + 1);
 const QUIZ_IDS_3D = [1, 2, 3];
 const EPSILON = 1e-9;
+const isValid2DResult = (n) => Number.isInteger(n) && n >= 0 && n <= 99;
+const isValid3DResult = (n) => Number.isInteger(n) && n >= 0 && n <= 999;
+
+async function resolveRandomModeResult(quizId, slotStartIso, gameMode, isValid) {
+  const hp = await getRandomModeHintPosition(quizId, slotStartIso, gameMode);
+  return isValid(hp) ? hp : null;
+}
 const pickLowestNumberFrom = (arr) => {
   if (!Array.isArray(arr) || arr.length === 0) return null;
   let best = null;
@@ -25,6 +33,29 @@ const hashStringToPositiveInt = (input) => {
   }
   return Math.abs(hash);
 };
+const findCandidateInPool = (pool, number) => {
+  if (!Array.isArray(pool) || pool.length === 0) return null;
+  const n = Number(number);
+  if (!Number.isFinite(n)) return null;
+  return pool.find((item) => Number(item?.number) === n) || null;
+};
+const pickSeededRandomFrom = (arr, seed) => {
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  const valid = arr.filter((item) => Number.isFinite(Number(item?.number)));
+  if (valid.length === 0) return null;
+  const idx = hashStringToPositiveInt(seed) % valid.length;
+  return valid[idx];
+};
+/** Reuse persisted pick when still in tie pool; else stable pseudo-random (not Math.random). */
+const pickFromTiePool = (pool, { stableTieBreak, seed, existingNumber, respectStickyPick = true }) => {
+  if (!Array.isArray(pool) || pool.length === 0) return null;
+  if (respectStickyPick) {
+    const sticky = findCandidateInPool(pool, existingNumber);
+    if (sticky) return sticky;
+  }
+  if (stableTieBreak) return pickLowestNumberFrom(pool);
+  return pickSeededRandomFrom(pool, seed);
+};
 async function getQuiz2DMultiplier() {
   try {
     const rates = await getRatesMap();
@@ -38,12 +69,12 @@ async function getQuiz2DMultiplier() {
 }
 
 export async function build2DTargetProfitHints(slotStartIso, targetProfitPercent) {
-  const stableTieBreak = true;
-  return build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak });
+  return build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, {});
 }
 
 export async function build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, options = {}) {
-  const stableTieBreak = options?.stableTieBreak !== false;
+  const stableTieBreak = options?.stableTieBreak === true;
+  const respectStickyPick = options?.respectStickyPick !== false;
   const target = Number.isFinite(Number(targetProfitPercent))
     ? Math.min(1000, Math.max(-100, Number(targetProfitPercent)))
     : 20;
@@ -80,21 +111,31 @@ export async function build2DTargetProfitHintsWithOptions(slotStartIso, targetPr
     row.stakeByNumber.set(number, (row.stakeByNumber.get(number) || 0) + amount);
   }
 
+  const noBetQuizIds2d = QUIZ_IDS_2D.filter((quizId) => (quizTotals.get(quizId)?.totalStake || 0) <= 0);
+  const randomResultByQuiz2d = new Map();
+  await Promise.all(noBetQuizIds2d.map(async (quizId) => {
+    const randomResult = await resolveRandomModeResult(quizId, slotStartIso, '2d', isValid2DResult);
+    if (randomResult != null) randomResultByQuiz2d.set(quizId, randomResult);
+  }));
+
   const perQuiz = QUIZ_IDS_2D.map((quizId) => {
     const row = quizTotals.get(quizId) || { totalStake: 0, stakeByNumber: new Map() };
     const totalStake = Number(row.totalStake || 0);
     if (totalStake <= 0) {
+      const randomResult = randomResultByQuiz2d.get(quizId) ?? null;
+      const suggestedResult = isValid2DResult(randomResult) ? randomResult : 0;
       return {
         quizId,
         currentResult: Number.isInteger(pickByQuiz.get(quizId)) ? pickByQuiz.get(quizId) : null,
-        suggestedResult: 0,
-        suggestedResultLabel: '00',
+        suggestedResult,
+        suggestedResultLabel: String(suggestedResult).padStart(2, '0'),
         totalStake: 0,
         targetProfitPercent: target,
         targetHouseNet: 0,
         houseNetIfSuggestedWins: 0,
         deltaFromTarget: 0,
         meetsOrExceedsTarget: true,
+        usesRandomResult: true,
         topCandidates: [],
       };
     }
@@ -136,8 +177,11 @@ export async function build2DTargetProfitHintsWithOptions(slotStartIso, targetPr
       if (stake > 0) candidates.push(candidate);
     }
 
-    const selectedFromAbove = pickLowestNumberFrom(bestAtOrAbovePool);
-    const selectedFromNearest = pickLowestNumberFrom(bestNearestPool);
+    const existingNumber = pickByQuiz.get(quizId);
+    const tieSeed = `${slotStartIso}|2d|${quizId}|${target}`;
+    const tiePickOpts = { stableTieBreak, existingNumber, respectStickyPick };
+    const selectedFromAbove = pickFromTiePool(bestAtOrAbovePool, { ...tiePickOpts, seed: tieSeed });
+    const selectedFromNearest = pickFromTiePool(bestNearestPool, { ...tiePickOpts, seed: `${tieSeed}|nearest` });
     const selected = selectedFromAbove
       || selectedFromNearest
       || bestAtOrAboveTarget
@@ -174,7 +218,9 @@ export async function build2DTargetProfitHintsWithOptions(slotStartIso, targetPr
 }
 
 export async function apply2DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent) {
-  const payload = await build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak: true });
+  const payload = await build2DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, {
+    respectStickyPick: false,
+  });
   const updates = payload.perQuiz.map((row) => (
     QuizSlotPick.updateOne(
       { gameMode: '2d', slotStartIso, quizId: row.quizId },
@@ -194,12 +240,12 @@ function payoutUnsettledWin3d(bet, hintPosition, ratesMap) {
 }
 
 export async function build3DTargetProfitHints(slotStartIso, targetProfitPercent) {
-  const stableTieBreak = true;
-  return build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak });
+  return build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, {});
 }
 
 export async function build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, options = {}) {
-  const stableTieBreak = options?.stableTieBreak !== false;
+  const stableTieBreak = options?.stableTieBreak === true;
+  const respectStickyPick = options?.respectStickyPick !== false;
   const target = Number.isFinite(Number(targetProfitPercent))
     ? Math.min(1000, Math.max(-100, Number(targetProfitPercent)))
     : 20;
@@ -231,21 +277,33 @@ export async function build3DTargetProfitHintsWithOptions(slotStartIso, targetPr
     quizRows.get(quizId).push(bet);
   }
 
+  const noBetQuizIds3d = QUIZ_IDS_3D.filter(
+    (quizId) => (quizRows.get(quizId) || []).reduce((sum, b) => sum + Number(b.amount || 0), 0) <= 0,
+  );
+  const randomResultByQuiz3d = new Map();
+  await Promise.all(noBetQuizIds3d.map(async (quizId) => {
+    const randomResult = await resolveRandomModeResult(quizId, slotStartIso, '3d', isValid3DResult);
+    if (randomResult != null) randomResultByQuiz3d.set(quizId, randomResult);
+  }));
+
   const perQuiz = QUIZ_IDS_3D.map((quizId) => {
     const setBets = quizRows.get(quizId) || [];
     const totalStake = setBets.reduce((sum, b) => sum + Number(b.amount || 0), 0);
     if (totalStake <= 0) {
+      const randomResult = randomResultByQuiz3d.get(quizId) ?? null;
+      const suggestedResult = isValid3DResult(randomResult) ? randomResult : 0;
       return {
         quizId,
         currentResult: Number.isInteger(pickByQuiz.get(quizId)) ? pickByQuiz.get(quizId) : null,
-        suggestedResult: 0,
-        suggestedResultLabel: '000',
+        suggestedResult,
+        suggestedResultLabel: String(suggestedResult).padStart(3, '0'),
         totalStake: 0,
         targetProfitPercent: target,
         targetHouseNet: 0,
         houseNetIfSuggestedWins: 0,
         deltaFromTarget: 0,
         meetsOrExceedsTarget: true,
+        usesRandomResult: true,
       };
     }
     const targetHouseNet = (totalStake * target) / 100;
@@ -281,8 +339,11 @@ export async function build3DTargetProfitHintsWithOptions(slotStartIso, targetPr
       }
     }
 
-    const selectedFromAbove = pickLowestNumberFrom(bestAtOrAbovePool);
-    const selectedFromNearest = pickLowestNumberFrom(bestNearestPool);
+    const existingNumber = pickByQuiz.get(quizId);
+    const tieSeed = `${slotStartIso}|3d|${quizId}|${target}`;
+    const tiePickOpts = { stableTieBreak, existingNumber, respectStickyPick };
+    const selectedFromAbove = pickFromTiePool(bestAtOrAbovePool, { ...tiePickOpts, seed: tieSeed });
+    const selectedFromNearest = pickFromTiePool(bestNearestPool, { ...tiePickOpts, seed: `${tieSeed}|nearest` });
     const selected = selectedFromAbove
       || selectedFromNearest
       || bestAtOrAboveTarget
@@ -306,7 +367,9 @@ export async function build3DTargetProfitHintsWithOptions(slotStartIso, targetPr
 }
 
 export async function apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitPercent) {
-  const payload = await build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, { stableTieBreak: true });
+  const payload = await build3DTargetProfitHintsWithOptions(slotStartIso, targetProfitPercent, {
+    respectStickyPick: false,
+  });
   const updates = payload.perQuiz.map((row) => (
     QuizSlotPick.updateOne(
       { gameMode: '3d', slotStartIso, quizId: row.quizId },
@@ -317,3 +380,56 @@ export async function apply3DTargetProfitHintsToSlot(slotStartIso, targetProfitP
   await Promise.all(updates);
   return payload;
 }
+
+/** @internal Automated checks for tie-break and no-bet random behaviour. */
+export const verifyTargetProfitSelectionLogic = () => {
+  const pool = [
+    { number: 7 },
+    { number: 23 },
+    { number: 45 },
+  ];
+  const seed = 'slot|2d|5|20';
+  const lowest = pickLowestNumberFrom(pool);
+  const seededA = pickSeededRandomFrom(pool, seed);
+  const seededB = pickSeededRandomFrom(pool, seed);
+  const stickyOldLowest = pickFromTiePool(pool, {
+    stableTieBreak: false,
+    seed,
+    existingNumber: 7,
+    respectStickyPick: true,
+  });
+  const freshSeeded = pickFromTiePool(pool, {
+    stableTieBreak: false,
+    seed,
+    existingNumber: 7,
+    respectStickyPick: false,
+  });
+
+  const checks = [
+    {
+      name: 'seeded-random-is-deterministic',
+      ok: seededA?.number === seededB?.number,
+      detail: `got ${seededA?.number} vs ${seededB?.number}`,
+    },
+    {
+      name: 'seeded-random-not-always-lowest',
+      ok: lowest?.number === 7 && (seededA?.number !== 7 || pool.length === 1),
+      detail: `lowest=${lowest?.number}, seeded=${seededA?.number}`,
+    },
+    {
+      name: 'preview-sticky-keeps-saved-result',
+      ok: stickyOldLowest?.number === 7,
+      detail: `sticky=${stickyOldLowest?.number}`,
+    },
+    {
+      name: 'apply-uses-seeded-not-sticky-lowest',
+      ok: freshSeeded?.number === seededA?.number,
+      detail: `fresh=${freshSeeded?.number}, seeded=${seededA?.number}`,
+    },
+  ];
+
+  return {
+    ok: checks.every((c) => c.ok),
+    checks,
+  };
+};
