@@ -155,7 +155,7 @@ const HalfSangamBBid = ({ title, gameType, betType }) => {
                                     value={openAnk}
                                     onChange={(e) => setOpenAnk(sanitizeDigits(e.target.value, 1))}
                                     placeholder="Ank"
-                                    className="flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
+                                    className="flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-sb-primary focus:border-sb-primary focus:outline-none"
                                 />
                             </div>
 
@@ -182,7 +182,7 @@ const HalfSangamBBid = ({ title, gameType, betType }) => {
                                     }}
                                     placeholder="Pana"
                                     className={`flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:outline-none ${
-                                        closePanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-[#1B3150] focus:border-[#1B3150]'
+                                        closePanaInvalid ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'focus:ring-sb-primary focus:border-sb-primary'
                                     }`}
                                 />
                             </div>
@@ -196,7 +196,7 @@ const HalfSangamBBid = ({ title, gameType, betType }) => {
                                     value={points}
                                     onChange={(e) => setPoints(sanitizePoints(e.target.value))}
                                     placeholder="Point"
-                                    className="no-spinner flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] focus:outline-none"
+                                    className="no-spinner flex-1 min-w-0 bg-white border-2 border-gray-300 text-gray-800 placeholder-gray-400 rounded-full py-2.5 min-h-[40px] px-4 text-center text-sm focus:ring-2 focus:ring-sb-primary focus:border-sb-primary focus:outline-none"
                                 />
                             </div>
                         </div>
@@ -208,7 +208,7 @@ const HalfSangamBBid = ({ title, gameType, betType }) => {
                                 disabled={!bids.length}
                                 className={`w-full font-bold py-3.5 min-h-[48px] rounded-lg shadow-md transition-all active:scale-[0.98] ${
                                     bids.length
-                                        ? 'bg-[#1B3150] text-white hover:bg-[#152842]'
+                                        ? 'bg-sb-primary text-white hover:bg-sb-primary-dark'
                                         : 'bg-gray-400 text-white opacity-50 cursor-not-allowed'
                                 }`}
                             >
@@ -219,12 +219,12 @@ const HalfSangamBBid = ({ title, gameType, betType }) => {
 
                     {/* Right: list */}
                     <div className="mt-10 md:mt-0">
-                        <div className="grid grid-cols-[1.4fr_0.7fr_0.6fr] gap-2 sm:gap-3 text-center text-[#1B3150] font-bold text-xs sm:text-sm mb-2 px-2">
+                        <div className="grid grid-cols-[1.4fr_0.7fr_0.6fr] gap-2 sm:gap-3 text-center text-sb-primary font-bold text-xs sm:text-sm mb-2 px-2">
                             <div className="truncate">Sangam</div>
                             <div className="truncate">Amount</div>
                             <div className="truncate">Delete</div>
                         </div>
-                        <div className="h-px bg-[#1B3150] w-full mb-2" />
+                        <div className="h-px bg-sb-primary w-full mb-2" />
 
                         {bids.length === 0 ? null : (
                             <div className="space-y-2">
@@ -234,7 +234,7 @@ const HalfSangamBBid = ({ title, gameType, betType }) => {
                                         className="grid grid-cols-[1.4fr_0.7fr_0.6fr] gap-2 sm:gap-3 text-center items-center py-2.5 px-3 bg-gray-50 rounded-lg border-2 border-gray-300 text-sm"
                                     >
                                         <div className="font-bold text-gray-800 truncate">{b.number}</div>
-                                        <div className="font-bold text-[#1B3150] truncate">{b.points}</div>
+                                        <div className="font-bold text-sb-primary truncate">{b.points}</div>
                                         <div className="flex justify-center">
                                             <button
                                                 type="button"

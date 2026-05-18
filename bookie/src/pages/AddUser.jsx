@@ -92,7 +92,7 @@ const AddUser = () => {
                                 name="username"
                                 value={formData.username}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150]"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-sb-primary"
                                 required
                             />
                         </div>
@@ -109,7 +109,7 @@ const AddUser = () => {
                                     const value = e.target.value.replace(/\D/g, '').slice(0, 10);
                                     setFormData({ ...formData, phone: value });
                                 }}
-                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150]"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-sb-primary"
                                 placeholder="10-digit phone number"
                                 required
                                 maxLength="10"
@@ -127,7 +127,7 @@ const AddUser = () => {
                                     name="password"
                                     value={formData.password}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2 pr-10 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150]"
+                                    className="w-full px-4 py-2 pr-10 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-sb-primary"
                                     placeholder={t('enterPassword')}
                                     required
                                     minLength="6"
@@ -155,7 +155,7 @@ const AddUser = () => {
                                 onChange={handleChange}
                                 min="0"
                                 step="1"
-                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150]"
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-sb-primary"
                                 placeholder="Enter initial balance"
                             />
                         </div>
@@ -163,7 +163,7 @@ const AddUser = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-[#1B3150] hover:bg-[#152842] text-white font-semibold py-3 px-4 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-[#1B3150]/20"
+                            className="w-full bg-sb-primary hover:bg-sb-primary-dark text-white font-semibold py-3 px-4 rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-sb-primary/20"
                         >
                             {loading ? t('loading') : t('createPlayer')}
                         </button>

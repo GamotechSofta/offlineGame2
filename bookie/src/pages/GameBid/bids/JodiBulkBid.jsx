@@ -199,7 +199,7 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
                 {(() => {
                     const compact = embedInSingleScroll || fitSingleScreen;
                     const rowH = compact ? 'h-[28px] min-h-[28px]' : 'h-10 min-h-10';
-                    const cellBase = 'no-spinner w-full min-w-0 bg-white text-gray-800 text-center font-bold placeholder:font-normal placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/30 focus:ring-offset-0 rounded-lg shadow-sm';
+                    const cellBase = 'no-spinner w-full min-w-0 bg-white text-gray-800 text-center font-bold placeholder:font-normal placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-sb-primary/30 focus:ring-offset-0 rounded-lg shadow-sm';
                     const cellCl = compact
                         ? `${cellBase} h-[28px] min-h-[28px] text-[10px] py-1.5 px-0.5`
                         : `${cellBase} h-10 min-h-10 text-sm py-2 px-1.5`;
@@ -213,7 +213,7 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
                                         key={`jodi-quick-${pts}`}
                                         type="button"
                                         onClick={() => applyAllQuickPoints(pts)}
-                                        className="h-7 px-2.5 rounded font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
+                                        className="h-7 px-2.5 rounded font-semibold text-[11px] border border-gray-300 text-sb-primary bg-white hover:bg-gray-100 transition-colors"
                                     >
                                         Rs.{pts}
                                     </button>
@@ -313,7 +313,7 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
                     <button
                         type="button"
                         onClick={clearLocal}
-                        className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
+                        className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-sb-primary/30 text-sb-primary bg-white hover:bg-sb-primary-dark/5 active:scale-[0.98] transition-all shrink-0"
                     >
                         Clear
                     </button>
@@ -323,7 +323,7 @@ const JodiBulkBid = ({ title, gameType, betType, embedInSingleScroll = false, fi
                         disabled={!canSubmit}
                         className={`flex-1 min-w-[140px] font-bold rounded-xl transition-all ${(embedInSingleScroll || fitSingleScreen) ? 'text-sm py-2.5 min-h-[44px]' : 'text-base py-4 min-h-[56px]'} shadow-md ${
                             canSubmit
-                                ? 'bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98] shadow-[#1B3150]/25'
+                                ? 'bg-sb-primary text-white hover:bg-sb-primary-dark active:scale-[0.98] shadow-sb-primary/25'
                                 : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none'
                         }`}
                     >

@@ -43,7 +43,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/super-bookie/login`, {
+            const response = await fetch(`${API_BASE_URL}/bookie/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ const Login = () => {
                 if (response.status === 401) {
                     setError('Invalid credentials. Please check your phone number and password.');
                 } else if (response.status === 403) {
-                    setError('Your account has been suspended. Please contact your bookie.');
+                    setError('Your account has been suspended. Please contact admin.');
                 } else {
                     setError(`Server error (${response.status}). Please try again.`);
                 }
@@ -82,16 +82,16 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-sb-primary/5 via-white to-sb-primary/5 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md border border-violet-100 shadow-violet-900/10">
+        <div className="min-h-screen bg-gradient-to-br from-[#1B3150]/5 via-white to-[#1B3150]/5 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md border border-gray-200">
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto mb-6 bg-sb-primary rounded-2xl flex items-center justify-center shadow-lg shadow-sb-primary/20">
+                    <div className="w-16 h-16 mx-auto mb-6 bg-[#1B3150] rounded-2xl flex items-center justify-center shadow-lg shadow-[#1B3150]/20">
                         <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                         </svg>
                     </div>
                     <h1 className="text-3xl font-bold text-gray-800 mb-2">Super Bookie Panel</h1>
-                    <p className="text-gray-500">Login to manage your players & stats</p>
+                    <p className="text-gray-500">Login to manage your operations</p>
                 </div>
 
                 {error && (
@@ -110,7 +110,7 @@ const Login = () => {
                             value={phone}
                             onChange={handlePhoneChange}
                             maxLength={10}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-transparent"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-transparent"
                             placeholder="10-digit phone number"
                             required
                         />
@@ -125,7 +125,7 @@ const Login = () => {
                                 type={showPassword ? 'text' : 'password'}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-transparent"
+                                className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-transparent"
                                 placeholder="Enter password"
                                 required
                             />
@@ -147,7 +147,7 @@ const Login = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-sb-primary hover:bg-sb-primary-dark text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg shadow-sb-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-[#1B3150] hover:bg-[#152842] text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg shadow-[#1B3150]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? 'Logging in...' : 'Login'}
                     </button>

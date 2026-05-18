@@ -25,7 +25,7 @@ const Layout = ({ children, title }) => {
             if (now - lastProfileFetch.current < 120000) return;
             lastProfileFetch.current = now;
             try {
-                const response = await fetch(`${API_BASE_URL}/super-bookie/profile`, { headers: getBookieAuthHeaders() });
+                const response = await fetch(`${API_BASE_URL}/bookie/profile`, { headers: getBookieAuthHeaders() });
                 const data = await response.json();
                 if (data.success && data.data) {
                     updateBookie(data.data);
@@ -102,18 +102,18 @@ const Layout = ({ children, title }) => {
     }, [navigate, sidebarOpen]);
 
     return (
-        <div className="min-h-screen bg-[#f5f3ff] text-gray-800">
+        <div className="min-h-screen bg-gray-50 text-gray-800">
             {/* Mobile header */}
-            <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white/95 backdrop-blur-sm border-b border-violet-100 flex items-center justify-between px-4 z-40 shadow-sm">
+            <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white/95 backdrop-blur-sm border-b border-gray-200 flex items-center justify-between px-4 z-40 shadow-sm">
                 <button
                     type="button"
                     onClick={() => setSidebarOpen(true)}
                     className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                     aria-label="Open menu"
                 >
-                    <FaBars className="w-6 h-6 text-sb-primary" />
+                    <FaBars className="w-6 h-6 text-[#1B3150]" />
                 </button>
-                <h1 className="text-lg font-bold text-sb-primary truncate mx-2">
+                <h1 className="text-lg font-bold text-[#1B3150] truncate mx-2">
                     {title || 'Super Bookie Panel'}
                 </h1>
                 <div className="w-10" />

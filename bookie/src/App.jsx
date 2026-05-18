@@ -2,45 +2,26 @@ import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { BetLayoutProvider } from './context/BetLayoutContext';
 import { useHeartbeat } from './hooks/useHeartbeat';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Markets from './pages/Markets';
 import AddUser from './pages/AddUser';
 import MyUsers from './pages/MyUsers';
-import BetHistory from './pages/BetHistory';
-import TopWinners from './pages/TopWinners';
-import Reports from './pages/Reports';
-import Revenue from './pages/Revenue';
-import Commission from './pages/Commission';
-import SuperBookieCommissions from './pages/SuperBookieCommissions';
-import Payments from './pages/Payments';
-import Wallet from './pages/Wallet';
-import Records from './pages/Records';
-import HelpDesk from './pages/HelpDesk';
 import PlayerDetail from './pages/PlayerDetail';
+import Settings from './pages/Settings';
+import Commission from './pages/Commission';
 import GamesMarkets from './pages/GamesMarkets';
 import GameTypes from './pages/GameTypes';
 import BookieGameBid from './pages/GameBid/index';
-import Shortcuts from './pages/Shortcuts';
-import Receipt from './pages/Receipt';
-import Settings from './pages/Settings';
-import SuperBookieManagement from './pages/SuperBookieManagement';
-import { BetLayoutProvider } from './context/BetLayoutContext';
+import Markets from './pages/Markets';
 
-// Scroll to top on route change
 const ScrollToTop = () => {
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: 'instant'
-    });
-  }, [pathname]);
-
-  return null;
+    const { pathname } = useLocation();
+    useEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }, [pathname]);
+    return null;
 };
 
 const BookieHeartbeat = () => {
@@ -80,39 +61,23 @@ const AppRoutes = () => (
         <Route path="/games/:marketId/:gameType" element={<PrivateRoute><BookieGameBid /></PrivateRoute>} />
         <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
-        <Route path="/super-bookies" element={<PrivateRoute><SuperBookieManagement /></PrivateRoute>} />
-        <Route path="/bet-history" element={<PrivateRoute><BetHistory /></PrivateRoute>} />
-        <Route path="/top-winners" element={<PrivateRoute><TopWinners /></PrivateRoute>} />
-        <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
-        <Route path="/revenue" element={<PrivateRoute><Commission /></PrivateRoute>} />
         <Route path="/commission" element={<PrivateRoute><Commission /></PrivateRoute>} />
-        <Route path="/super-bookie-commissions" element={<PrivateRoute><SuperBookieCommissions /></PrivateRoute>} />
-        <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
-        <Route path="/records" element={<PrivateRoute><Records /></PrivateRoute>} />
-        <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
-        <Route path="/receipt" element={<PrivateRoute><Receipt /></PrivateRoute>} />
-        <Route path="/receipt/:sessionId" element={<PrivateRoute><Receipt /></PrivateRoute>} />
-
-        <Route path="/help-desk" element={<PrivateRoute><HelpDesk /></PrivateRoute>} />
-        <Route path="/shortcuts" element={<PrivateRoute><Shortcuts /></PrivateRoute>} />
         <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
 );
 
-const App = () => {
-    return (
-        <Router>
-            <ScrollToTop />
-            <LanguageProvider>
-                <AuthProvider>
-                    <BetLayoutProvider>
-                        <AppRoutes />
-                    </BetLayoutProvider>
-                </AuthProvider>
-            </LanguageProvider>
-        </Router>
-    );
-};
+const App = () => (
+    <Router>
+        <ScrollToTop />
+        <LanguageProvider>
+            <AuthProvider>
+                <BetLayoutProvider>
+                    <AppRoutes />
+                </BetLayoutProvider>
+            </AuthProvider>
+        </LanguageProvider>
+    </Router>
+);
 
 export default App;

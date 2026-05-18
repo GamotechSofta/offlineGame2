@@ -140,7 +140,7 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                             <div key={groupKey} className={`p-3 overflow-hidden ${embedInSingleScroll ? '' : 'bg-gray-50 rounded-xl border border-gray-200'}`}>
                                 {/* Group header with bulk apply */}
                                 <div className="flex items-center gap-2 mb-3 flex-wrap">
-                                    <div className="w-9 h-9 bg-sb-primary text-white flex items-center justify-center rounded-lg font-bold text-sm shrink-0 shadow-sm">
+                                    <div className="w-9 h-9 bg-[#1B3150] text-white flex items-center justify-center rounded-lg font-bold text-sm shrink-0 shadow-sm">
                                         {groupKey}
                                     </div>
                                     <span className="text-gray-400 text-xs font-medium shrink-0">Sum {groupKey}</span>
@@ -153,7 +153,7 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                             onBlur={() => { if (groupBulk[groupKey]) applyGroup(groupBulk[groupKey]); }}
                                             onKeyDown={(e) => { if (e.key === 'Enter' && groupBulk[groupKey]) applyGroup(groupBulk[groupKey]); }}
                                             placeholder="Pts"
-                                            className="no-spinner w-16 h-8 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded focus:outline-none focus:border-sb-primary px-2 text-xs font-semibold text-center"
+                                            className="no-spinner w-16 h-8 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded focus:outline-none focus:border-[#1B3150] px-2 text-xs font-semibold text-center"
                                         />
                                         <button
                                             type="button"
@@ -161,7 +161,7 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                             disabled={!groupBulk[groupKey]}
                                             className={`h-8 px-2.5 rounded font-bold text-[10px] border transition-colors shrink-0 ${
                                                 groupBulk[groupKey]
-                                                    ? 'bg-sb-primary/20 border-sb-primary/40 text-sb-primary hover:border-sb-primary'
+                                                    ? 'bg-[#1B3150]/20 border-[#1B3150]/40 text-[#1B3150] hover:border-[#1B3150]'
                                                     : 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed'
                                             }`}
                                         >
@@ -182,7 +182,7 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                             key={`${groupKey}-${pts}`}
                                             type="button"
                                             onClick={() => applyGroup(String(pts))}
-                                            className="h-7 px-2.5 rounded font-semibold text-[11px] border border-gray-300 text-sb-primary bg-white hover:bg-gray-100 transition-colors"
+                                            className="h-7 px-2.5 rounded font-semibold text-[11px] border border-gray-300 text-[#1B3150] bg-white hover:bg-gray-100 transition-colors"
                                         >
                                             Rs.{pts}
                                         </button>
@@ -193,7 +193,7 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
                                     {list.map((num) => (
                                         <div key={num} className="flex items-center min-w-0">
-                                            <div className="w-10 h-8 bg-gray-100 border border-gray-200 text-sb-primary flex items-center justify-center rounded-l font-bold text-[11px] shrink-0">
+                                            <div className="w-10 h-8 bg-gray-100 border border-gray-200 text-[#1B3150] flex items-center justify-center rounded-l font-bold text-[11px] shrink-0">
                                                 {num}
                                             </div>
                                             <input
@@ -221,7 +221,7 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                                                     autoAddRows([{ number: num, points: String(pts), type: session }]);
                                                     setSpecialInputs((prev) => ({ ...prev, [num]: '' }));
                                                 }}
-                                                className="no-spinner flex-1 min-w-0 h-8 bg-gray-100 border border-l-0 border-gray-200 text-gray-800 placeholder-gray-400 rounded-r focus:outline-none focus:border-sb-primary px-2 text-[11px] font-semibold text-center"
+                                                className="no-spinner flex-1 min-w-0 h-8 bg-gray-100 border border-l-0 border-gray-200 text-gray-800 placeholder-gray-400 rounded-r focus:outline-none focus:border-[#1B3150] px-2 text-[11px] font-semibold text-center"
                                             />
                                         </div>
                                     ))}
@@ -235,7 +235,7 @@ const SinglePanaBulkBid = ({ title, gameType, betType, embedInSingleScroll = fal
                     <button
                         type="button"
                         onClick={clearLocal}
-                        className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-sb-primary/30 text-sb-primary bg-white hover:bg-sb-primary-dark/5 active:scale-[0.98] transition-all"
+                        className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all"
                     >
                         Clear
                     </button>

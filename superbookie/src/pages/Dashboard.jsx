@@ -17,6 +17,7 @@ import {
     FaArrowRight,
     FaExclamationTriangle,
     FaDice,
+    FaUsersCog,
 } from 'react-icons/fa';
 
 const LOTTERY_LIVE_REFRESH_MS = 10000;
@@ -93,13 +94,13 @@ const SectionCard = ({ title, description, icon: Icon, children, linkTo, linkLab
         <div className="flex items-start justify-between mb-4">
             <div>
                 <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    {Icon && <Icon className="w-5 h-5 text-sb-primary" />}
+                    {Icon && <Icon className="w-5 h-5 text-[#1B3150]" />}
                     {title}
                 </h3>
                 {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
             </div>
             {linkTo && (
-                <Link to={linkTo} className="text-xs font-medium text-sb-primary hover:text-sb-primary-dark flex items-center gap-1">
+                <Link to={linkTo} className="text-xs font-medium text-[#1B3150] hover:text-[#152842] flex items-center gap-1">
                     {linkLabel || t('view')} <FaArrowRight className="w-3 h-3" />
                 </Link>
             )}
@@ -171,7 +172,7 @@ const Dashboard = () => {
 
     const refreshBookieProfile = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/super-bookie/profile`, { headers: getBookieAuthHeaders() });
+            const response = await fetch(`${API_BASE_URL}/bookie/profile`, { headers: getBookieAuthHeaders() });
             const data = await response.json();
             if (data.success && data.data) {
                 updateBookie(data.data);
@@ -429,6 +430,7 @@ const Dashboard = () => {
         return `${start} - ${end}`;
     };
 
+    const hierarchy = stats?.hierarchy || null;
     const pendingPayments = stats?.payments?.pending || 0;
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
     const pendingWithdrawals = stats?.payments?.pendingWithdrawals ?? 0;
@@ -443,6 +445,13 @@ const Dashboard = () => {
     const twoDAllSlotsNet = Number(lotteryStats?.twoD?.allSlots?.net || 0);
     const threeDAllSlotsNet = Number(lotteryStats?.threeD?.allSlots?.net || 0);
     const lotteryAllSlotsNet = twoDAllSlotsNet + threeDAllSlotsNet;
+    const dashboardMatkaRevenue = Number(stats?.revenue?.total || 0);
+    const displayTotalBetAmount =
+        commissionBaseTotal > 0
+            ? commissionBaseTotal
+            : dashboardMatkaRevenue + (commissionLotteryTotal || lotteryAllSlotsRevenue);
+    const displayMatkaBet =
+        commissionMatkaTotal > 0 ? commissionMatkaTotal : dashboardMatkaRevenue;
     const marketPendingAmount = Number(marketReport.pendingAmount || 0);
     const computedTotalProfit = (Number(marketReport.netProfit) || 0) + lotteryAllSlotsNet + (toReceived - toGive);
 
@@ -471,7 +480,7 @@ const Dashboard = () => {
                         <FaExclamationTriangle className="w-8 h-8 text-red-500" />
                     </div>
                     <p className="text-red-500 text-lg font-medium mb-2">{error}</p>
-                    <button onClick={() => fetchDashboardStats()} className="mt-4 px-6 py-2 bg-sb-primary hover:bg-sb-primary-dark text-white font-semibold rounded-xl">
+                    <button onClick={() => fetchDashboardStats()} className="mt-4 px-6 py-2 bg-[#1B3150] hover:bg-[#152842] text-white font-semibold rounded-xl">
                         {t('retry')}
                     </button>
                 </div>
@@ -490,8 +499,8 @@ const Dashboard = () => {
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-3">
-                            <span className="w-10 h-10 rounded-xl bg-sb-primary/20 flex items-center justify-center">
-                                <FaChartLine className="w-5 h-5 text-sb-primary" />
+                            <span className="w-10 h-10 rounded-xl bg-[#1B3150]/20 flex items-center justify-center">
+                                <FaChartLine className="w-5 h-5 text-[#1B3150]" />
                             </span>
                             {t('dashboardOverview')}
                         </h1>
@@ -501,7 +510,7 @@ const Dashboard = () => {
                         type="button"
                         onClick={handleRefresh}
                         disabled={refreshing}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-sb-primary-dark/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-sb-primary transition-all disabled:opacity-60 text-sm font-medium"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-[#1B3150]/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-[#1B3150] transition-all disabled:opacity-60 text-sm font-medium"
                     >
                         <FaSyncAlt className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                         {t('refresh')}
@@ -519,17 +528,17 @@ const Dashboard = () => {
                                     key={p.id}
                                     type="button"
                                     onClick={() => handlePresetSelect(p.id)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-sb-primary text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-[#1B3150] text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     {p.label}
                                 </button>
                             );
                         })}
-                        <span className="text-xs text-gray-400 px-2">{t('showingDataFor')} <span className="text-sb-primary font-medium">{displayLabel}</span></span>
+                        <span className="text-xs text-gray-400 px-2">{t('showingDataFor')} <span className="text-[#1B3150] font-medium">{displayLabel}</span></span>
                         <button
                             type="button"
                             onClick={handleCustomToggle}
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${customMode ? 'bg-sb-primary text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${customMode ? 'bg-[#1B3150] text-white' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}
                         >
                             {t('custom')}
                         </button>
@@ -543,7 +552,7 @@ const Dashboard = () => {
                                     <label className="block text-xs text-gray-400 mb-1">{t('to')}</label>
                                     <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-sm text-gray-800" />
                                 </div>
-                                <button type="button" onClick={handleCustomApply} className="px-4 py-2 rounded-lg bg-sb-primary text-white font-semibold text-sm">
+                                <button type="button" onClick={handleCustomApply} className="px-4 py-2 rounded-lg bg-[#1B3150] text-white font-semibold text-sm">
                                     {t('apply')}
                                 </button>
                             </div>
@@ -554,14 +563,14 @@ const Dashboard = () => {
 
             {/* Action Required */}
             {hasActionRequired && (
-                <div className="mb-6 p-4 rounded-xl bg-sb-primary/10 border border-sb-primary/20">
-                    <h3 className="text-sm font-semibold text-sb-primary flex items-center gap-2 mb-3">
+                <div className="mb-6 p-4 rounded-xl bg-[#1B3150]/10 border border-[#1B3150]/20">
+                    <h3 className="text-sm font-semibold text-[#1B3150] flex items-center gap-2 mb-3">
                         <FaExclamationTriangle className="w-4 h-4" />
                         {t('actionRequired')}
                     </h3>
                     <div className="flex flex-wrap gap-3">
                         {pendingPayments > 0 && (
-                            <Link to="/payments" className="px-4 py-2 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white font-medium text-sm">
+                            <Link to="/payments" className="px-4 py-2 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white font-medium text-sm">
                                 {pendingPayments} {pendingPayments !== 1 ? t('pendingPayments') : t('pendingPayment')} →
                             </Link>
                         )}
@@ -584,7 +593,7 @@ const Dashboard = () => {
                             setSelectedMarketId(mid);
                             fetchMarketReport(undefined, mid);
                         }}
-                        className="px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-sb-primary/30"
+                        className="px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/30"
                     >
                         <option value="all">All Markets</option>
                         {markets.map((m) => (
@@ -600,10 +609,10 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetAmount')}</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(commissionBaseTotal)}</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(displayTotalBetAmount)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('totalBetAmountDescription')}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                        Matka: <span className="font-medium">{formatCurrency(commissionMatkaTotal)}</span>
+                        Matka: <span className="font-medium">{formatCurrency(displayMatkaBet)}</span>
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                         2D & 3D: <span className="font-medium">{formatCurrency(commissionLotteryTotal)}</span>
@@ -619,12 +628,12 @@ const Dashboard = () => {
                     <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(toGive)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('moneyToGiveToPlayers')}</p>
                 </div>
-                <div className="bg-gradient-to-br from-sb-primary/5 to-transparent rounded-xl p-5 border border-sb-primary/20">
+                <div className="bg-gradient-to-br from-[#1B3150]/5 to-transparent rounded-xl p-5 border border-[#1B3150]/20">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('pending')}</p>
-                    <p className="text-2xl font-bold text-sb-primary font-mono">{formatCurrency(marketPendingAmount + lotteryAllSlotsNet)}</p>
+                    <p className="text-2xl font-bold text-[#1B3150] font-mono">{formatCurrency(marketPendingAmount + lotteryAllSlotsNet)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('pendingBetsAmount')}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                        2D net: <span className="font-medium">{formatCurrency(twoDAllSlotsNet)}</span> · 3D net: <span className="font-medium">{formatCurrency(threeDAllSlotsNet)}</span> · Total net: <span className="font-medium text-sb-primary">{formatCurrency(lotteryAllSlotsNet)}</span>
+                        2D net: <span className="font-medium">{formatCurrency(twoDAllSlotsNet)}</span> · 3D net: <span className="font-medium">{formatCurrency(threeDAllSlotsNet)}</span> · Total net: <span className="font-medium text-[#1B3150]">{formatCurrency(lotteryAllSlotsNet)}</span>
                     </p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
@@ -646,19 +655,69 @@ const Dashboard = () => {
                     <StatRow label={t('netProfit')} value={formatCurrency(stats?.revenue?.netProfit)} colorClass="text-blue-600" />
                 </SectionCard>
 
-                {/* Players */}
-                <SectionCard title={t('players')} description={t('allTimeCounts')} icon={FaUserFriends} linkTo="/my-users" linkLabel={t('allPlayers')} t={t}>
+                {/* Players (direct + super bookie network) */}
+                <SectionCard
+                    title={t('players')}
+                    description={hierarchy ? 'All players under you (direct + super bookies)' : t('allTimeCounts')}
+                    icon={FaUserFriends}
+                    linkTo="/my-users"
+                    linkLabel={t('allPlayers')}
+                    t={t}
+                >
                     <StatRow label={t('totalPlayers')} value={stats?.users?.total ?? 0} />
                     <StatRow label={t('activePlayers')} value={stats?.users?.active ?? 0} colorClass="text-green-600" />
-                    <StatRow label={t('newInPeriod')} value={stats?.users?.newToday ?? 0} colorClass="text-sb-primary" />
+                    <StatRow label={t('newInPeriod')} value={stats?.users?.newToday ?? 0} colorClass="text-[#1B3150]" />
+                    {hierarchy && (
+                        <>
+                            <div className="border-t border-gray-200 my-2" />
+                            <StatRow label="Direct (your players)" value={hierarchy.directPlayers ?? 0} />
+                            <StatRow label="Via super bookies" value={hierarchy.superBookiePlayers ?? 0} colorClass="text-indigo-600" />
+                        </>
+                    )}
                 </SectionCard>
+
+                {/* Super Bookies */}
+                {hierarchy && (
+                    <SectionCard
+                        title="Super Bookies"
+                        description={`${hierarchy.superBookiesCount ?? 0} account(s) · ${hierarchy.superBookiePlayers ?? 0} players via super bookies`}
+                        icon={FaUsersCog}
+                        linkTo="/super-bookies"
+                        linkLabel="Manage"
+                        t={t}
+                    >
+                        <StatRow label="Total super bookies" value={hierarchy.superBookiesCount ?? 0} />
+                        <StatRow label="Active super bookies" value={hierarchy.superBookiesActive ?? 0} colorClass="text-green-600" />
+                        <StatRow label="Their players (active)" value={hierarchy.superBookiePlayersActive ?? 0} colorClass="text-indigo-600" />
+                        {Array.isArray(hierarchy.superBookies) && hierarchy.superBookies.length > 0 ? (
+                            <>
+                                <div className="border-t border-gray-200 my-2" />
+                                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Per super bookie</p>
+                                {hierarchy.superBookies.slice(0, 5).map((sb) => (
+                                    <StatRow
+                                        key={sb.id}
+                                        label={sb.username}
+                                        value={`${sb.playerCount ?? 0} players`}
+                                        subValue={sb.status === 'active' ? 'Active' : 'Suspended'}
+                                        colorClass={sb.status === 'active' ? 'text-gray-800' : 'text-red-500'}
+                                    />
+                                ))}
+                                {hierarchy.superBookies.length > 5 && (
+                                    <p className="text-xs text-gray-400 pt-1">+{hierarchy.superBookies.length - 5} more — see Manage</p>
+                                )}
+                            </>
+                        ) : (
+                            <p className="text-sm text-gray-500 py-2">No super bookies yet. Create from Super Bookies menu.</p>
+                        )}
+                    </SectionCard>
+                )}
 
                 {/* Bets */}
                 <SectionCard title={t('bets')} description={t('selectedPeriod')} icon={FaChartBar} linkTo="/bet-history" linkLabel={t('betHistory')} t={t}>
                     <StatRow label={t('totalBets')} value={stats?.bets?.total ?? 0} />
                     <StatRow label={t('winningBets')} value={stats?.bets?.winning ?? 0} colorClass="text-green-600" />
                     <StatRow label={t('losingBets')} value={stats?.bets?.losing ?? 0} colorClass="text-red-500" />
-                    <StatRow label={t('pendingBets')} value={stats?.bets?.pending ?? 0} colorClass="text-sb-primary" />
+                    <StatRow label={t('pendingBets')} value={stats?.bets?.pending ?? 0} colorClass="text-[#1B3150]" />
                     <StatRow label={t('winRate')} value={`${stats?.bets?.winRate ?? 0}%`} />
                 </SectionCard>
 
@@ -666,9 +725,9 @@ const Dashboard = () => {
                 <SectionCard title={t('payments')} description={t('depositsAndWithdrawals')} icon={FaCreditCard} linkTo="/payments" linkLabel={t('managePayments')} t={t}>
                     <StatRow label={t('depositsPeriod')} value={formatCurrency(stats?.payments?.totalDeposits)} colorClass="text-green-600" />
                     <StatRow label={t('withdrawalsPeriod')} value={formatCurrency(stats?.payments?.totalWithdrawals)} colorClass="text-red-500" />
-                    <StatRow label={t('pendingDeposits')} value={pendingDeposits} colorClass="text-sb-primary" />
-                    <StatRow label={t('pendingWithdrawals')} value={pendingWithdrawals} colorClass="text-sb-primary" />
-                    <StatRow label={t('totalPending')} value={pendingPayments} colorClass="text-sb-primary" />
+                    <StatRow label={t('pendingDeposits')} value={pendingDeposits} colorClass="text-[#1B3150]" />
+                    <StatRow label={t('pendingWithdrawals')} value={pendingWithdrawals} colorClass="text-[#1B3150]" />
+                    <StatRow label={t('totalPending')} value={pendingPayments} colorClass="text-[#1B3150]" />
                 </SectionCard>
 
                 {/* Wallet */}
@@ -693,7 +752,7 @@ const Dashboard = () => {
             {/* Revenue Summary */}
             <div className="bg-white rounded-xl p-5 border border-gray-200 mb-6">
                 <h3 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <FaMoneyBillWave className="w-4 h-4 text-sb-primary" />
+                    <FaMoneyBillWave className="w-4 h-4 text-[#1B3150]" />
                     {t('revenueSummary')}
                 </h3>
                 <p className="text-xs text-gray-500 mb-4">{t('totalRevenueInRange')}</p>
@@ -818,22 +877,25 @@ const Dashboard = () => {
             {/* Quick Links */}
             <div className="bg-white rounded-xl p-5 border border-gray-200">
                 <h3 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <FaClipboardList className="w-4 h-4 text-sb-primary" />
+                    <FaClipboardList className="w-4 h-4 text-[#1B3150]" />
                     {t('quickLinks')}
                 </h3>
                 <p className="text-xs text-gray-500 mb-4">{t('navigateToSections')}</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    <Link to="/my-users" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-sb-primary-dark/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-sb-primary text-sm font-medium transition-all text-center">
+                    <Link to="/my-users" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-[#1B3150]/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-[#1B3150] text-sm font-medium transition-all text-center">
                         {t('myPlayers')}
                     </Link>
-                    <Link to="/add-user" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-sb-primary-dark/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-sb-primary text-sm font-medium transition-all text-center">
+                    <Link to="/add-user" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-[#1B3150]/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-[#1B3150] text-sm font-medium transition-all text-center">
                         {t('addPlayer')}
                     </Link>
-                    <Link to="/bet-history" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-sb-primary-dark/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-sb-primary text-sm font-medium transition-all text-center">
+                    <Link to="/bet-history" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-[#1B3150]/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-[#1B3150] text-sm font-medium transition-all text-center">
                         {t('betHistory')}
                     </Link>
-                    <Link to="/reports" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-sb-primary-dark/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-sb-primary text-sm font-medium transition-all text-center">
+                    <Link to="/reports" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-[#1B3150]/20 border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-[#1B3150] text-sm font-medium transition-all text-center">
                         {t('report')}
+                    </Link>
+                    <Link to="/super-bookies" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-indigo-500/10 border border-gray-200 hover:border-indigo-300 text-gray-600 hover:text-indigo-700 text-sm font-medium transition-all text-center">
+                        Super Bookies
                     </Link>
                 </div>
             </div>

@@ -1,24 +1,8 @@
 @import "tailwindcss";
 
-/* Super Bookie panel — violet theme (distinct from bookie navy #1B3150) */
-@theme {
-  --color-sb-primary: #6d28d9;
-  --color-sb-primary-dark: #5b21b6;
-  --color-sb-primary-darker: #4c1d95;
-  --color-sb-accent: #a78bfa;
-  --color-sb-surface: #faf5ff;
-}
-
-:root {
-  --sb-primary: #6d28d9;
-  --sb-primary-dark: #5b21b6;
-  --sb-primary-darker: #4c1d95;
-  --sb-primary-rgb: 109, 40, 217;
-}
-
 /* Base */
 body {
-  background: #f5f3ff;
+  background: #f8f9fb;
 }
 
 /* Hide number input spinners globally across all browsers */
@@ -33,13 +17,13 @@ input[type="number"] {
   appearance: textfield;
 }
 
-/* Primary button glow */
+/* Match theme - button glow */
 .glow-primary {
-  box-shadow: 0 10px 15px -3px rgba(var(--sb-primary-rgb), 0.2);
+  box-shadow: 0 10px 15px -3px rgba(27, 49, 80, 0.15);
 }
 
 .glow-primary:hover {
-  box-shadow: 0 20px 25px -5px rgba(var(--sb-primary-rgb), 0.3);
+  box-shadow: 0 20px 25px -5px rgba(27, 49, 80, 0.25);
 }
 
 .glow-red {
@@ -58,17 +42,19 @@ input[type="number"] {
   background: transparent;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(var(--sb-primary-rgb), 0.2);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 9999px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--sb-primary-rgb), 0.35);
+  background: rgba(0, 0, 0, 0.25);
 }
+/* Firefox */
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgba(var(--sb-primary-rgb), 0.2) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 
+/* Completely hidden scrollbar (still scrollable) */
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }
@@ -77,6 +63,7 @@ input[type="number"] {
   scrollbar-width: none;
 }
 
+/* Global scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -85,13 +72,14 @@ input[type="number"] {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(var(--sb-primary-rgb), 0.18);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--sb-primary-rgb), 0.3);
+  background: rgba(0, 0, 0, 0.22);
 }
 
+/* Print styles for statement */
 @media print {
   @page {
     margin: 0.5cm;
@@ -184,6 +172,7 @@ input[type="number"] {
     border-radius: 0 !important;
   }
   
+  /* Prevent page breaks inside table */
   .receipt-table thead,
   .receipt-table tbody,
   .receipt-table tfoot {

@@ -74,14 +74,14 @@ const OddEvenBid = ({ title, gameType, betType, embedInSingleScroll = false }) =
                         <button
                             type="button"
                             onClick={() => setChoice('odd')}
-                            className={`min-h-[44px] py-3 rounded-lg font-bold text-sm border-2 transition-colors ${choice === 'odd' ? 'bg-sb-primary text-white border-sb-primary' : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-400'}`}
+                            className={`min-h-[44px] py-3 rounded-lg font-bold text-sm border-2 transition-colors ${choice === 'odd' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-400'}`}
                         >
                             Odd
                         </button>
                         <button
                             type="button"
                             onClick={() => setChoice('even')}
-                            className={`min-h-[44px] py-3 rounded-lg font-bold text-sm border-2 transition-colors ${choice === 'even' ? 'bg-sb-primary text-white border-sb-primary' : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-400'}`}
+                            className={`min-h-[44px] py-3 rounded-lg font-bold text-sm border-2 transition-colors ${choice === 'even' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-400'}`}
                         >
                             Even
                         </button>
@@ -89,19 +89,19 @@ const OddEvenBid = ({ title, gameType, betType, embedInSingleScroll = false }) =
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
                         {digits.map((num) => (
                             <div key={num} className="flex items-center gap-2">
-                                <div className="w-10 h-10 bg-sb-primary border border-gray-200 text-white flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">{num}</div>
+                                <div className="w-10 h-10 bg-[#1B3150] border border-gray-200 text-white flex items-center justify-center rounded-l-md font-bold text-sm shrink-0">{num}</div>
                                 <input
                                     type="text"
                                     inputMode="numeric"
                                     placeholder="Pts"
                                     value={digitInputs[num]}
                                     onChange={(e) => setDigitInputs((p) => ({ ...p, [num]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
-                                    className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-sb-primary px-3 text-sm font-semibold"
+                                    className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-[#1B3150] px-3 text-sm font-semibold"
                                 />
                             </div>
                         ))}
                     </div>
-                    <button onClick={handleAddToCart} className="w-full bg-sb-primary text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-sb-primary-dark transition-all active:scale-[0.98]">
+                    <button onClick={handleAddToCart} className="w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98]">
                         Add to Cart
                     </button>
                 </div>

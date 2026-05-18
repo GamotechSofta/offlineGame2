@@ -167,14 +167,14 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                 >
                     {/* Visual indicator line */}
                     <div className={`w-[3px] h-12 rounded-full transition-colors ${
-                        isDragging ? 'bg-[#1B3150]' : 'bg-gray-200 group-hover:bg-[#1B3150]/60'
+                        isDragging ? 'bg-sb-primary' : 'bg-gray-200 group-hover:bg-sb-primary-dark/60'
                     }`} />
                 </div>
 
                 {/* Cart Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b-2 border-gray-200 shrink-0 bg-white">
                     <div className="flex items-center gap-2">
-                        <FaShoppingCart className="w-4 h-4 text-[#1B3150]" />
+                        <FaShoppingCart className="w-4 h-4 text-sb-primary" />
                         <h3 className="text-gray-800 font-bold text-sm">
                             Bet Cart ({cartCount})
                         </h3>
@@ -209,7 +209,7 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                                 Total Bets: <span className="text-gray-800 font-bold">{cartCount}</span>
                             </div>
                             <div className="text-xs text-gray-500">
-                                Total: <span className="text-[#1B3150] font-bold">₹{cartTotal.toLocaleString('en-IN')}</span>
+                                Total: <span className="text-sb-primary font-bold">₹{cartTotal.toLocaleString('en-IN')}</span>
                             </div>
                         </div>
                     </div>
@@ -228,14 +228,14 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                             <div key={label} className="bg-gray-50 rounded-xl border-2 border-gray-200 overflow-hidden">
                                 <div className="px-3 py-2 bg-white border-b border-gray-200 flex items-center justify-between">
                                     <div>
-                                        <span className="text-[#1B3150] font-semibold text-[10px] uppercase tracking-wide">
+                                        <span className="text-sb-primary font-semibold text-[10px] uppercase tracking-wide">
                                             {label}
                                         </span>
                                         <span className="text-gray-500 text-[10px] ml-1.5">
                                             ({items.length})
                                         </span>
                                     </div>
-                                    <span className="text-[#1B3150] text-[10px] font-bold">
+                                    <span className="text-sb-primary text-[10px] font-bold">
                                         ₹{items.reduce((s, i) => s + i.points, 0).toLocaleString('en-IN')}
                                     </span>
                                 </div>
@@ -243,7 +243,7 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                                     {items.map((item) => (
                                         <div key={item.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
                                             <span className="text-gray-800 font-bold min-w-[40px]">{item.number}</span>
-                                            <span className="text-[#1B3150] font-bold">₹{item.points}</span>
+                                            <span className="text-sb-primary font-bold">₹{item.points}</span>
                                             <span className="text-gray-500 uppercase text-[10px]">{item.session}</span>
                                             <button
                                                 type="button"
@@ -277,14 +277,14 @@ const CartPanel = ({ isOpen, onClose, width, onWidthChange }) => {
                             disabled={!selectedPlayer}
                             className={`w-full font-bold py-3 rounded-xl shadow-lg transition-all text-sm ${
                                 selectedPlayer
-                                    ? 'bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98]'
-                                    : 'bg-[#1B3150] text-white opacity-50 cursor-not-allowed'
+                                    ? 'bg-sb-primary text-white hover:bg-sb-primary-dark active:scale-[0.98]'
+                                    : 'bg-sb-primary text-white opacity-50 cursor-not-allowed'
                             }`}
                         >
                             Place All Bets
                         </button>
                         {!selectedPlayer && (
-                            <p className="text-[10px] text-[#1B3150] text-center">Select a player first</p>
+                            <p className="text-[10px] text-sb-primary text-center">Select a player first</p>
                         )}
                     </div>
                 )}
@@ -326,7 +326,7 @@ export const CartToggleButton = ({ onClick, cartCount = 0 }) => (
     <button
         type="button"
         onClick={onClick}
-        className="xl:hidden fixed bottom-6 right-4 z-30 w-14 h-14 bg-[#1B3150] hover:bg-[#152842] text-white rounded-full shadow-lg shadow-[#1B3150]/30 flex items-center justify-center transition-all active:scale-95"
+        className="xl:hidden fixed bottom-6 right-4 z-30 w-14 h-14 bg-sb-primary hover:bg-sb-primary-dark text-white rounded-full shadow-lg shadow-sb-primary/30 flex items-center justify-center transition-all active:scale-95"
         aria-label="Open cart"
     >
         <FaShoppingCart className="w-5 h-5" />

@@ -47,7 +47,7 @@ const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }
         setSpecialInputs(Object.fromEntries(tripleNumbers.map((n) => [n, ''])));
     };
 
-    const addToCartBtnClass = 'w-full bg-sb-primary text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-lg hover:bg-sb-primary-dark transition-all active:scale-[0.98]';
+    const addToCartBtnClass = 'w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98]';
 
     return (
         <BookieBidLayout title={title} bidsCount={0} totalPoints={0} showDateSession={!embedInSingleScroll}
@@ -75,7 +75,7 @@ const TriplePanaBid = ({ title, gameType, betType, embedInSingleScroll = false }
                                                 if (e.key === 'ArrowRight' && idx < tripleNumbers.length - 1) { e.preventDefault(); specialInputRefs.current[idx + 1]?.focus?.(); }
                                                 else if (e.key === 'ArrowLeft' && idx > 0) { e.preventDefault(); specialInputRefs.current[idx - 1]?.focus?.(); }
                                             }}
-                                            className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-sb-primary px-3 text-sm font-semibold"
+                                            className="w-full h-10 bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-r-md focus:outline-none focus:border-[#1B3150] px-3 text-sm font-semibold"
                                         />
                                     </div>
                                 ))}

@@ -152,7 +152,7 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
                                     <button
                                         type="button"
                                         onClick={handleClearPoints}
-                                        className="px-3 min-h-[36px] rounded-full border-2 border-gray-300 bg-white text-[#1B3150] text-xs font-medium hover:border-[#1B3150] active:scale-95"
+                                        className="px-3 min-h-[36px] rounded-full border-2 border-gray-300 bg-white text-sb-primary text-xs font-medium hover:border-sb-primary active:scale-95"
                                     >
                                         Clear
                                     </button>
@@ -167,7 +167,7 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
                                             key={pts}
                                             type="button"
                                             onClick={() => handleQuickPointClick(pts)}
-                                            className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-xs font-bold text-[#1B3150] hover:border-[#1B3150] active:scale-[0.98]"
+                                            className="py-2 min-h-[36px] rounded-lg border-2 border-gray-300 bg-white text-xs font-bold text-sb-primary hover:border-sb-primary active:scale-[0.98]"
                                         >
                                             {pts}
                                         </button>
@@ -183,7 +183,7 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
                                     type="button"
                                     disabled={!hasInputPoints}
                                     onClick={() => hasInputPoints && handleDigitClick(num)}
-                                    className={`relative aspect-square min-h-[40px] bg-[#1B3150] border border-white/10 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-90 shadow-md select-none ${
+                                    className={`relative aspect-square min-h-[40px] bg-sb-primary border border-white/10 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-90 shadow-md select-none ${
                                         hasInputPoints ? 'hover:border-[#d4af37]/50 cursor-pointer' : 'opacity-50 cursor-not-allowed'
                                     }`}
                                 >
@@ -200,18 +200,18 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
                         <div className="mt-3 grid grid-cols-2 gap-2 w-full max-w-[320px]">
                             <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center">
                                 <div className="text-[11px] text-gray-600 font-medium">Count</div>
-                                <div className="text-base font-bold text-[#1B3150] leading-tight">{bidsCount}</div>
+                                <div className="text-base font-bold text-sb-primary leading-tight">{bidsCount}</div>
                             </div>
                             <div className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-center">
                                 <div className="text-[11px] text-gray-600 font-medium">Bet Amount</div>
-                                <div className="text-base font-bold text-[#1B3150] leading-tight">{totalPoints}</div>
+                                <div className="text-base font-bold text-sb-primary leading-tight">{totalPoints}</div>
                             </div>
                         </div>
                     </div>
 
                     <div className="w-full min-w-0">
                         <div className="rounded-xl border border-gray-300 bg-white overflow-hidden w-full">
-                            <div className="grid grid-cols-4 bg-gray-100 text-[11px] font-semibold text-[#1B3150]">
+                            <div className="grid grid-cols-4 bg-gray-100 text-[11px] font-semibold text-sb-primary">
                                 <div className="px-2 py-1.5">Pana</div>
                                 <div className="px-2 py-1.5 text-center">Point</div>
                                 <div className="px-2 py-1.5 text-center">Type</div>
@@ -226,7 +226,7 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
                                             inputMode="numeric"
                                             value={row.points}
                                             onChange={(e) => updateRowPoints(row.id, e.target.value)}
-                                            className="w-full h-7 rounded border border-gray-300 text-center font-semibold text-gray-800 focus:outline-none focus:border-[#1B3150]"
+                                            className="w-full h-7 rounded border border-gray-300 text-center font-semibold text-gray-800 focus:outline-none focus:border-sb-primary"
                                         />
                                     </div>
                                     <div className="px-2 py-1.5 text-center text-gray-700">{row.type}</div>
@@ -248,7 +248,7 @@ const SingleDigitBid = ({ title, gameType, betType, embedInSingleScroll = false 
                         type="button"
                         onClick={handleAddToCart}
                         disabled={!bidsCount}
-                        className={`w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-[#152842] transition-all active:scale-[0.98] ${
+                        className={`w-full bg-sb-primary text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-md hover:bg-sb-primary-dark transition-all active:scale-[0.98] ${
                             !bidsCount ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
                     >

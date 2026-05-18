@@ -92,7 +92,6 @@ export const PlayerBetProvider = ({ children }) => {
         }
         const result = await placeBetForPlayer(selectedPlayerId, mktId, bets, scheduledDate);
         if (result.success) {
-            // Update bookie's balance in localStorage (amount was deducted from bookie)
             if (result.data?.newBookieBalance != null) {
                 updateBookie({ balance: Number(result.data.newBookieBalance) });
             }

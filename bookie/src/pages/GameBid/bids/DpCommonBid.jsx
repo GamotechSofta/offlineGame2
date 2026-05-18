@@ -180,8 +180,8 @@ const DpCommonBid = ({ title, gameType, betType }) => {
                                             aria-pressed={selected}
                                             className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base transition-all active:scale-[0.98] border ${
                                                 selected
-                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                                    ? 'bg-sb-primary text-white border-sb-primary'
+                                                    : 'bg-white text-sb-primary border-gray-300 hover:bg-sb-primary-dark/5'
                                             }`}
                                         >
                                             {d}
@@ -213,7 +213,7 @@ const DpCommonBid = ({ title, gameType, betType }) => {
                             <button
                                 type="button"
                                 onClick={clearLocal}
-                                className="min-h-[40px] h-10 px-4 rounded-md text-xs sm:text-sm font-bold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
+                                className="min-h-[40px] h-10 px-4 rounded-md text-xs sm:text-sm font-bold border-2 border-sb-primary/30 text-sb-primary bg-white hover:bg-sb-primary-dark/5 active:scale-[0.98] transition-all shrink-0"
                             >
                                 Clear
                             </button>
@@ -230,8 +230,8 @@ const DpCommonBid = ({ title, gameType, betType }) => {
                                             onClick={() => setPointsInput(String(pts))}
                                             className={`min-h-[34px] h-9 rounded-md text-xs sm:text-sm font-semibold border transition-all active:scale-[0.98] ${
                                                 selected
-                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                                    ? 'bg-sb-primary text-white border-sb-primary'
+                                                    : 'bg-white text-sb-primary border-gray-300 hover:bg-sb-primary-dark/5'
                                             }`}
                                         >
                                             {pts}
@@ -245,7 +245,7 @@ const DpCommonBid = ({ title, gameType, betType }) => {
                                 type="button"
                                 onClick={handleAddToCart}
                                 disabled={!bidsCount}
-                                className={`flex-1 bg-[#1B3150] text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${
+                                className={`flex-1 bg-sb-primary text-white font-bold py-3.5 min-h-[48px] rounded-lg shadow-lg hover:bg-sb-primary-dark transition-all active:scale-[0.98] ${
                                     !bidsCount ? 'opacity-50 cursor-not-allowed' : ''
                                 }`}
                             >
@@ -255,13 +255,13 @@ const DpCommonBid = ({ title, gameType, betType }) => {
                     </div>
 
                     <div className="w-full md:w-1/2 flex-1 min-w-0">
-                        <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-[#1B3150] font-bold text-xs sm:text-sm mb-2 px-1">
+                        <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center text-sb-primary font-bold text-xs sm:text-sm mb-2 px-1">
                             <div>Pana</div>
                             <div>Point</div>
                             <div>Type</div>
                             <div>Delete</div>
                         </div>
-                        <div className="h-px bg-[#1B3150] w-full mb-2" />
+                        <div className="h-px bg-sb-primary w-full mb-2" />
                         <div className="max-h-[520px] sm:max-h-[560px] overflow-y-auto space-y-2 pr-0.5">
                             {generatedRows.length === 0 ? (
                                 <div className="py-6 text-center text-gray-400 text-sm">
@@ -277,10 +277,10 @@ const DpCommonBid = ({ title, gameType, betType }) => {
                                                 inputMode="numeric"
                                                 value={row.points}
                                                 onChange={(e) => updatePoint(row.id, e.target.value)}
-                                                className="w-full h-8 rounded-lg border border-gray-300 text-center font-bold text-[#1B3150] text-sm focus:outline-none focus:border-[#1B3150]"
+                                                className="w-full h-8 rounded-lg border border-gray-300 text-center font-bold text-sb-primary text-sm focus:outline-none focus:border-sb-primary"
                                             />
                                         </div>
-                                        <div className="text-sm font-semibold text-[#1B3150]">{session}</div>
+                                        <div className="text-sm font-semibold text-sb-primary">{session}</div>
                                         <div className="flex justify-center">
                                             <button
                                                 type="button"

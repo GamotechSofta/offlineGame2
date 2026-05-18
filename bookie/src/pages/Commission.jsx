@@ -190,7 +190,7 @@ const Commission = () => {
                         Commission
                     </h1>
                     <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                        Your commission from player bets. Admin settles pending amounts.
+                        Your commission from player bets. Your parent bookie settles pending amounts.
                     </p>
                 </div>
 
@@ -201,7 +201,7 @@ const Commission = () => {
                             type="button"
                             onClick={() => setTab(item.id)}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                                tab === item.id ? 'bg-[#1B3150] text-white' : 'bg-gray-100 text-gray-600'
+                                tab === item.id ? 'bg-sb-primary text-white' : 'bg-gray-100 text-gray-600'
                             }`}
                         >
                             {item.label}
@@ -219,7 +219,7 @@ const Commission = () => {
                                         type="button"
                                         onClick={() => applyPreset(p.id)}
                                         className={`px-2.5 py-1 rounded-lg text-xs sm:text-sm ${
-                                            activePreset === p.id ? 'bg-[#1B3150] text-white' : 'bg-gray-100'
+                                            activePreset === p.id ? 'bg-sb-primary text-white' : 'bg-gray-100'
                                         }`}
                                     >
                                         {p.label}
@@ -251,7 +251,7 @@ const Commission = () => {
                                     type="button"
                                     onClick={fetchRevenue}
                                     disabled={loading}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#1B3150] text-white rounded-lg text-sm"
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-sb-primary text-white rounded-lg text-sm"
                                 >
                                     <FaSyncAlt className={loading ? 'animate-spin' : ''} />
                                     Refresh
@@ -276,7 +276,7 @@ const Commission = () => {
                                     <p className="text-xs uppercase text-gray-500 font-semibold">All-time sales</p>
                                     <p className="text-xl font-bold mt-1">{formatCurrency(data.allTimeBetAmount)}</p>
                                 </div>
-                                <div className="bg-[#1B3150] rounded-xl p-4 text-white">
+                                <div className="bg-sb-primary rounded-xl p-4 text-white">
                                     <p className="text-xs uppercase text-blue-100">Period commission ({data.commissionPercentage}%)</p>
                                     <p className="text-2xl font-bold mt-1">{formatCurrency(data.periodCommission)}</p>
                                     <p className="text-xs text-blue-100 mt-1">Selected period only</p>
@@ -309,7 +309,7 @@ const Commission = () => {
                             <h2 className="font-semibold text-gray-700 flex items-center gap-2">
                                 <FaHistory /> Payments received
                             </h2>
-                            <button type="button" onClick={fetchPayments} className="text-sm text-blue-600">
+                            <button type="button" onClick={fetchPayments} className="text-sm text-sb-primary">
                                 Refresh
                             </button>
                         </div>
@@ -338,7 +338,7 @@ const Commission = () => {
                         <div className="bg-white rounded-xl border p-4">
                             <p className="text-sm text-gray-600">
                                 Current commission rate:{' '}
-                                <span className="font-bold text-[#1B3150]">{requests.currentCommission ?? data?.commissionPercentage ?? 0}%</span>
+                                <span className="font-bold text-sb-primary">{requests.currentCommission ?? data?.commissionPercentage ?? 0}%</span>
                             </p>
                         </div>
 
@@ -364,7 +364,7 @@ const Commission = () => {
                                 type="button"
                                 disabled={submitting}
                                 onClick={submitRequest}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#1B3150] text-white rounded-lg text-sm disabled:opacity-50"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-sb-primary text-white rounded-lg text-sm disabled:opacity-50"
                             >
                                 <FaPaperPlane />
                                 {submitting ? 'Submitting...' : 'Submit request'}

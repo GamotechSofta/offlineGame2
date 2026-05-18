@@ -12,17 +12,6 @@ const computeIsOnline = (item) => {
     return lastActive > 0 && Date.now() - lastActive < ONLINE_THRESHOLD_MS;
 };
 
-/** Who this player belongs under (direct bookie vs super bookie). */
-const getBelongsToLabel = (item, directLabel = 'Direct') => {
-    const superName =
-        item.referrerChain?.superBookie?.username
-        || (item.referredBy?.role === 'super_bookie' ? item.referredBy?.username : null);
-    if (superName) return superName;
-    return directLabel;
-};
-
-const getBelongsToSortKey = (item, directLabel) => getBelongsToLabel(item, directLabel).toLowerCase();
-
 const MyUsers = () => {
     const { t } = useLanguage();
     const navigate = useNavigate();
@@ -65,16 +54,13 @@ const MyUsers = () => {
         };
     }, []);
 
-    const directLabel = t('belongDirect');
-
     const q = searchQuery.trim().toLowerCase();
     const filteredUsers = q
         ? users.filter((item) => {
             const username = (item.username || '').toLowerCase();
             const email = (item.email || '').toLowerCase();
             const phone = (item.phone || '').toString();
-            const belong = getBelongsToLabel(item, directLabel).toLowerCase();
-            return username.includes(q) || email.includes(q) || phone.includes(q) || belong.includes(q);
+            return username.includes(q) || email.includes(q) || phone.includes(q);
         })
         : users;
 
@@ -90,12 +76,6 @@ const MyUsers = () => {
         }
         if (sortBy === 'created_asc') {
             return new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime();
-        }
-        if (sortBy === 'belong_asc') {
-            return getBelongsToSortKey(a, directLabel).localeCompare(getBelongsToSortKey(b, directLabel));
-        }
-        if (sortBy === 'belong_desc') {
-            return getBelongsToSortKey(b, directLabel).localeCompare(getBelongsToSortKey(a, directLabel));
         }
         // default: newest first
         return new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime();
@@ -129,7 +109,7 @@ const MyUsers = () => {
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-gray-200">
                     <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Total Balance</p>
-                    <p className="text-2xl font-bold text-[#1B3150] font-mono">₹{totalPlayersBalance.toLocaleString('en-IN')}</p>
+                    <p className="text-2xl font-bold text-sb-primary font-mono">₹{totalPlayersBalance.toLocaleString('en-IN')}</p>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-gray-200">
                     <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{t('activeLabel')}</p>
@@ -177,8 +157,6 @@ const MyUsers = () => {
                         <option value="name_asc">Sort: Name (A-Z)</option>
                         <option value="balance_desc">Sort: Balance (High-Low)</option>
                         <option value="balance_asc">Sort: Balance (Low-High)</option>
-                        <option value="belong_asc">Sort: Belongs to (A-Z)</option>
-                        <option value="belong_desc">Sort: Belongs to (Z-A)</option>
                     </select>
                 </div>
             </div>
@@ -226,12 +204,11 @@ const MyUsers = () => {
                     <div>
                         {/* Desktop Table */}
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm min-w-[1020px]">
+                            <table className="w-full text-sm min-w-[900px]">
                                 <thead className="bg-gray-100">
                                     <tr>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase w-8">#</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('username')}</th>
-                                        <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase min-w-[120px]">{t('belongTo')}</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('phone')}</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('balance')}</th>
                                         <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('status')}</th>
@@ -243,25 +220,11 @@ const MyUsers = () => {
                                 <tbody className="divide-y divide-gray-100">
                                     {sortedUsers.map((item, index) => {
                                         const isOnline = computeIsOnline(item);
-                                        const belongLabel = getBelongsToLabel(item, directLabel);
-                                        const isDirect = belongLabel === directLabel;
                                         return (
                                             <tr key={item._id} className="hover:bg-gray-50">
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{index + 1}</td>
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 font-medium">
                                                     <Link to={`/my-users/${item._id}`} className="text-orange-500 hover:text-orange-600 hover:underline truncate block max-w-[140px]">{item.username}</Link>
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-2 sm:py-3">
-                                                    <span
-                                                        className={`inline-flex max-w-[140px] truncate px-2 py-0.5 rounded text-xs font-medium ${
-                                                            isDirect
-                                                                ? 'bg-blue-50 text-blue-800 border border-blue-100'
-                                                                : 'bg-violet-50 text-violet-800 border border-violet-100'
-                                                        }`}
-                                                        title={belongLabel}
-                                                    >
-                                                        {belongLabel}
-                                                    </span>
                                                 </td>
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 text-gray-600">{item.phone || '—'}</td>
                                                 <td className="px-2 sm:px-3 py-2 sm:py-3">
@@ -311,7 +274,8 @@ const MyUsers = () => {
                                                             className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors"
                                                             title="Place bet for this player"
                                                         >
-                                                            Bet
+                                                            <FaGamepad className="w-3 h-3 shrink-0" />
+                                                            Place Bet
                                                         </button>
                                                     </div>
                                                 </td>

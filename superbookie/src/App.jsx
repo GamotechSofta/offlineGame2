@@ -5,28 +5,51 @@ import { LanguageProvider } from './context/LanguageContext';
 import { useHeartbeat } from './hooks/useHeartbeat';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Markets from './pages/Markets';
 import AddUser from './pages/AddUser';
 import MyUsers from './pages/MyUsers';
-import PlayerDetail from './pages/PlayerDetail';
-import Settings from './pages/Settings';
+import BetHistory from './pages/BetHistory';
+import TopWinners from './pages/TopWinners';
+import Reports from './pages/Reports';
+import Revenue from './pages/Revenue';
 import Commission from './pages/Commission';
+import SuperBookieCommissions from './pages/SuperBookieCommissions';
+import Payments from './pages/Payments';
+import Wallet from './pages/Wallet';
+import Records from './pages/Records';
+import HelpDesk from './pages/HelpDesk';
+import PlayerDetail from './pages/PlayerDetail';
+import GamesMarkets from './pages/GamesMarkets';
+import GameTypes from './pages/GameTypes';
+import BookieGameBid from './pages/GameBid/index';
+import Shortcuts from './pages/Shortcuts';
+import Receipt from './pages/Receipt';
+import Settings from './pages/Settings';
+import SuperBookieManagement from './pages/SuperBookieManagement';
+import { BetLayoutProvider } from './context/BetLayoutContext';
 
+// Scroll to top on route change
 const ScrollToTop = () => {
-    const { pathname } = useLocation();
-    useEffect(() => {
-        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    }, [pathname]);
-    return null;
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant'
+    });
+  }, [pathname]);
+
+  return null;
 };
 
-const SuperBookieHeartbeat = () => {
+const BookieHeartbeat = () => {
     useHeartbeat();
     return null;
 };
 
 const PrivateRoute = ({ children }) => {
-    const { superBookie, bookie, loading } = useAuth();
-    const session = superBookie || bookie;
+    const { bookie, loading } = useAuth();
 
     if (loading) {
         return (
@@ -36,9 +59,9 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-    return session?.token ? (
+    return bookie?.token ? (
         <>
-            <SuperBookieHeartbeat />
+            <BookieHeartbeat />
             {children}
         </>
     ) : (
@@ -52,22 +75,44 @@ const AppRoutes = () => (
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/my-users" element={<PrivateRoute><MyUsers /></PrivateRoute>} />
         <Route path="/my-users/:userId" element={<PrivateRoute><PlayerDetail /></PrivateRoute>} />
+        <Route path="/games" element={<PrivateRoute><GamesMarkets /></PrivateRoute>} />
+        <Route path="/games/:marketId" element={<PrivateRoute><GameTypes /></PrivateRoute>} />
+        <Route path="/games/:marketId/:gameType" element={<PrivateRoute><BookieGameBid /></PrivateRoute>} />
+        <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
+        <Route path="/super-bookies" element={<PrivateRoute><SuperBookieManagement /></PrivateRoute>} />
+        <Route path="/bet-history" element={<PrivateRoute><BetHistory /></PrivateRoute>} />
+        <Route path="/top-winners" element={<PrivateRoute><TopWinners /></PrivateRoute>} />
+        <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
+        <Route path="/revenue" element={<PrivateRoute><Commission /></PrivateRoute>} />
         <Route path="/commission" element={<PrivateRoute><Commission /></PrivateRoute>} />
+        <Route path="/super-bookie-commissions" element={<PrivateRoute><SuperBookieCommissions /></PrivateRoute>} />
+        <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
+        <Route path="/records" element={<PrivateRoute><Records /></PrivateRoute>} />
+        <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
+        <Route path="/receipt" element={<PrivateRoute><Receipt /></PrivateRoute>} />
+        <Route path="/receipt/:sessionId" element={<PrivateRoute><Receipt /></PrivateRoute>} />
+
+        <Route path="/help-desk" element={<PrivateRoute><HelpDesk /></PrivateRoute>} />
+        <Route path="/shortcuts" element={<PrivateRoute><Shortcuts /></PrivateRoute>} />
         <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
 );
 
-const App = () => (
-    <Router>
-        <ScrollToTop />
-        <LanguageProvider>
-            <AuthProvider>
-                <AppRoutes />
-            </AuthProvider>
-        </LanguageProvider>
-    </Router>
-);
+const App = () => {
+    return (
+        <Router>
+            <ScrollToTop />
+            <LanguageProvider>
+                <AuthProvider>
+                    <BetLayoutProvider>
+                        <AppRoutes />
+                    </BetLayoutProvider>
+                </AuthProvider>
+            </LanguageProvider>
+        </Router>
+    );
+};
 
 export default App;

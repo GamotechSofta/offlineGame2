@@ -200,7 +200,7 @@ const BookieGameBid = () => {
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
-                        className="text-sb-primary hover:underline text-sm"
+                        className="text-[#1B3150] hover:underline text-sm"
                     >
                         Go Back
                     </button>

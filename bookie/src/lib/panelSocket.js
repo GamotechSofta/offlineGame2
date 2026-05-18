@@ -1,7 +1,5 @@
 import { io } from 'socket.io-client';
-import { getPanelSocketUrl } from '../utils/api';
-
-const AUTH_KEY = 'bookie';
+import { AUTH_KEY, getPanelSocketUrl } from '../utils/api';
 
 function getStoredToken() {
     try {
@@ -29,10 +27,6 @@ export function getPanelSocket() {
     return socketInstance;
 }
 
-/**
- * Live bookie / super bookie panel balance (sidebar, game bid context).
- * @param {(payload: { balance: number, reason?: string }) => void} onBalanceUpdate
- */
 export function subscribeBookiePanelBalance(onBalanceUpdate) {
     const socket = getPanelSocket();
 

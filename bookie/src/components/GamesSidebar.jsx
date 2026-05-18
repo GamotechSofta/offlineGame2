@@ -24,17 +24,17 @@ const GAME_TYPES_LIST = [
     { id: 'jodi-bulk', title: 'Jodi Bulk', icon: '12+', color: 'bg-purple-600' },
     { id: 'single-pana', title: 'Single Pana', icon: '123', color: 'bg-emerald-500' },
     { id: 'single-pana-bulk', title: 'Single Pana Bulk', icon: '123+', color: 'bg-emerald-600' },
-    { id: 'double-pana', title: 'Double Pana', icon: '112', color: 'bg-[#1B3150]' },
-    { id: 'double-pana-bulk', title: 'Double Pana Bulk', icon: '112+', color: 'bg-[#1B3150]' },
+    { id: 'double-pana', title: 'Double Pana', icon: '112', color: 'bg-sb-primary' },
+    { id: 'double-pana-bulk', title: 'Double Pana Bulk', icon: '112+', color: 'bg-sb-primary' },
     { id: 'triple-pana', title: 'Triple Pana', icon: '111', color: 'bg-pink-500' },
     { id: 'half-sangam', title: 'Half Sangam', icon: 'H/S', color: 'bg-cyan-500' },
     { id: 'half-sangam-b', title: 'Half Sangam B', icon: 'H/S B', color: 'bg-cyan-600' },
     { id: 'full-sangam', title: 'Full Sangam', icon: 'F/S', color: 'bg-amber-600' },
     { id: 'sp-common', title: 'SP Common', icon: 'SP', color: 'bg-emerald-500' },
-    { id: 'dp-common', title: 'DP Common', icon: 'DP', color: 'bg-[#152842]' },
+    { id: 'dp-common', title: 'DP Common', icon: 'DP', color: 'bg-sb-primary-dark' },
     { id: 'cp-common', title: 'CP', icon: 'CP', color: 'bg-teal-500' },
     { id: 'sp-motor', title: 'SP Motor', icon: 'SP', color: 'bg-emerald-700' },
-    { id: 'dp-motor', title: 'DP Motor', icon: 'DP', color: 'bg-[#152842]' },
+    { id: 'dp-motor', title: 'DP Motor', icon: 'DP', color: 'bg-sb-primary-dark' },
     { id: 'sp-dp-motor', title: 'SP DP Motor', icon: 'SP/DP', color: 'bg-teal-600' },
     { id: 'sp-dp-t-motor', title: 'SP DP T Motor', icon: 'SP/DP/T', color: 'bg-teal-700' },
     { id: 'odd-even', title: 'Odd Even', icon: 'O/E', color: 'bg-indigo-500' },
@@ -155,7 +155,7 @@ const GamesSidebar = ({
                     `}
                 >
                     <div className={`w-[3px] h-12 rounded-full transition-colors ${
-                        isDragging ? 'bg-[#1B3150]' : 'bg-gray-200 group-hover:bg-[#1B3150]/60'
+                        isDragging ? 'bg-sb-primary' : 'bg-gray-200 group-hover:bg-sb-primary-dark/60'
                     }`} />
                 </div>
 
@@ -165,7 +165,7 @@ const GamesSidebar = ({
                         <button
                             type="button"
                             onClick={handleBackToMarkets}
-                            className="flex items-center gap-1.5 text-gray-500 hover:text-[#1B3150] text-xs transition-colors"
+                            className="flex items-center gap-1.5 text-gray-500 hover:text-sb-primary text-xs transition-colors"
                         >
                             <FaArrowLeft className="w-3 h-3" />
                             <span>Markets</span>
@@ -196,7 +196,7 @@ const GamesSidebar = ({
                             onClick={() => handleGameClick(game.id)}
                             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all border ${
                                 activeGameType === game.id
-                                    ? 'bg-[#1B3150] text-white font-semibold border-[#1B3150] border-r-4 border-r-[#152842] shadow-sm'
+                                    ? 'bg-sb-primary text-white font-semibold border-sb-primary border-r-4 border-r-sb-primary-dark shadow-sm'
                                     : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-800 border-gray-200'
                             }`}
                         >
@@ -233,7 +233,7 @@ export const GamesSidebarToggle = ({ onClick }) => (
     <button
         type="button"
         onClick={onClick}
-        className="lg:hidden fixed bottom-6 left-3 z-30 w-11 h-11 bg-[#1B3150] hover:bg-[#152842] text-white rounded-full shadow-lg shadow-[#1B3150]/30 flex items-center justify-center transition-all active:scale-95"
+        className="lg:hidden fixed bottom-6 left-3 z-30 w-11 h-11 bg-sb-primary hover:bg-sb-primary-dark text-white rounded-full shadow-lg shadow-sb-primary/30 flex items-center justify-center transition-all active:scale-95"
         aria-label="Open game types"
     >
         <FaListUl className="w-4 h-4" />

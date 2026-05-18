@@ -1,57 +1,56 @@
 import { useEffect, useRef } from 'react';
-import { API_BASE_URL, getBookieAuthHeaders, clearBookieSession } from '../utils/api';
+import { API_BASE_URL, getBookieAuthHeaders, clearBookieSession, AUTH_KEY } from '../utils/api';
 
-const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute – also detects suspended accounts
+const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
-const logoutSuspendedBookie = () => {
-  localStorage.removeItem('bookie');
-  window.location.href = '/';
+const logoutSuspended = () => {
+    localStorage.removeItem(AUTH_KEY);
+    window.location.href = '/';
 };
 
 export const useHeartbeat = () => {
-  const intervalRef = useRef(null);
+    const intervalRef = useRef(null);
 
-  useEffect(() => {
-    const sendHeartbeat = async () => {
-      try {
-        const bookie = JSON.parse(localStorage.getItem('bookie') || 'null');
-        if (!bookie) return;
+    useEffect(() => {
+        const sendHeartbeat = async () => {
+            try {
+                const session = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
+                if (!session?.token) return;
 
-        const res = await fetch(`${API_BASE_URL}/bookie/heartbeat`, {
-          method: 'POST',
-          headers: getBookieAuthHeaders(),
-          body: JSON.stringify({}),
-        });
-        const data = await res.json();
+                const res = await fetch(`${API_BASE_URL}/bookie/heartbeat`, {
+                    method: 'POST',
+                    headers: getBookieAuthHeaders(),
+                    body: JSON.stringify({}),
+                });
+                const data = await res.json();
 
-        if (res.status === 401) {
-          clearBookieSession();
-          return;
-        }
-        if (!data.success && data.code === 'ACCOUNT_SUSPENDED') {
-          logoutSuspendedBookie();
-        } else if (!res.ok && res.status === 403) {
-          logoutSuspendedBookie();
-        }
-      } catch {
-        // Silently ignore network errors
-      }
-    };
+                if (res.status === 401) {
+                    clearBookieSession();
+                    return;
+                }
+                if (!data.success && data.code === 'ACCOUNT_SUSPENDED') {
+                    logoutSuspended();
+                } else if (!res.ok && res.status === 403) {
+                    logoutSuspended();
+                }
+            } catch {
+                // ignore network errors
+            }
+        };
 
-    const bookie = localStorage.getItem('bookie');
-    if (!bookie) return;
+        if (!localStorage.getItem(AUTH_KEY)) return;
 
-    sendHeartbeat();
-    intervalRef.current = setInterval(() => sendHeartbeat(), HEARTBEAT_INTERVAL_MS);
+        sendHeartbeat();
+        intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') sendHeartbeat();
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') sendHeartbeat();
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
 };

@@ -83,7 +83,7 @@ const HelpDesk = () => {
                                     <p className="text-xs text-gray-500 mt-2">
                                         {ticket.userId?.username || 'Unknown'}
                                         {ticket.userId?.source === 'bookie'
-                                            ? ` — bookie user${ticket.userId?.referredBy?.username ? ` (${ticket.userId.referredBy.username})` : ''}`
+                                            ? ` — super bookie user${ticket.userId?.referredBy?.username ? ` (${ticket.userId.referredBy.username})` : ''}`
                                             : ' — admin user'}
                                         {' • '}{new Date(ticket.createdAt).toLocaleDateString()}
                                     </p>
@@ -99,7 +99,7 @@ const HelpDesk = () => {
                                 <h2 className="text-2xl font-bold">{selectedTicket.subject}</h2>
                                 <span className={`px-3 py-1 rounded text-sm ${selectedTicket.status === 'resolved' ? 'bg-green-600' : selectedTicket.status === 'in-progress' ? 'bg-orange-600' : selectedTicket.status === 'closed' ? 'bg-gray-200' : 'bg-blue-600'}`}>{selectedTicket.status}</span>
                             </div>
-                            <div className="mb-4"><p className="text-gray-400 text-sm mb-1">Player</p><p className="font-semibold">{selectedTicket.userId?.username || selectedTicket.userId}{selectedTicket.userId?.source === 'bookie' ? ` — bookie user${selectedTicket.userId?.referredBy?.username ? ` (${selectedTicket.userId.referredBy.username})` : ''}` : ' — admin user'}</p></div>
+                            <div className="mb-4"><p className="text-gray-400 text-sm mb-1">Player</p><p className="font-semibold">{selectedTicket.userId?.username || selectedTicket.userId}{selectedTicket.userId?.source === 'bookie' ? ` — super bookie user${selectedTicket.userId?.referredBy?.username ? ` (${selectedTicket.userId.referredBy.username})` : ''}` : ' — admin user'}</p></div>
                             <div className="mb-4"><p className="text-gray-400 text-sm mb-1">Description</p><p className="whitespace-pre-wrap">{selectedTicket.description}</p></div>
                             {selectedTicket.screenshots?.length > 0 && (
                                 <div className="mb-4">
@@ -110,7 +110,7 @@ const HelpDesk = () => {
                                                 key={i}
                                                 type="button"
                                                 onClick={() => setFullScreenImage(s.startsWith('http') ? s : `${BASE_URL}${s}`)}
-                                                className="w-full h-32 rounded border border-gray-200 overflow-hidden focus:ring-2 focus:ring-sb-primary focus:outline-none"
+                                                className="w-full h-32 rounded border border-gray-200 overflow-hidden focus:ring-2 focus:ring-[#1B3150] focus:outline-none"
                                             >
                                                 <img src={s.startsWith('http') ? s : `${BASE_URL}${s}`} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover cursor-pointer" />
                                             </button>
@@ -122,7 +122,7 @@ const HelpDesk = () => {
                             <div className="flex gap-2 mt-6">
                                 {selectedTicket.status === 'open' && (
                                     <>
-                                        <button onClick={() => handleStatusUpdate(selectedTicket._id, 'in-progress')} className="px-4 py-2 bg-sb-primary hover:bg-sb-primary-dark rounded">Mark In Progress</button>
+                                        <button onClick={() => handleStatusUpdate(selectedTicket._id, 'in-progress')} className="px-4 py-2 bg-[#1B3150] hover:bg-[#152842] rounded">Mark In Progress</button>
                                         <button onClick={() => handleStatusUpdate(selectedTicket._id, 'resolved')} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded">Mark Resolved</button>
                                     </>
                                 )}

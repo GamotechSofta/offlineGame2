@@ -163,8 +163,8 @@ const ChartBid = ({ title, gameType, betType, embedInSingleScroll = false }) => 
                                             aria-pressed={selected}
                                             className={`min-h-[40px] h-10 rounded-md font-bold text-xs sm:text-sm transition-all active:scale-[0.98] border ${
                                                 selected
-                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                                    ? 'bg-sb-primary text-white border-sb-primary'
+                                                    : 'bg-white text-sb-primary border-gray-300 hover:bg-sb-primary-dark/5'
                                             }`}
                                         >
                                             {ch}
@@ -187,8 +187,8 @@ const ChartBid = ({ title, gameType, betType, embedInSingleScroll = false }) => 
                                             aria-pressed={selected}
                                             className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base transition-all active:scale-[0.98] border ${
                                                 selected
-                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                                    ? 'bg-sb-primary text-white border-sb-primary'
+                                                    : 'bg-white text-sb-primary border-gray-300 hover:bg-sb-primary-dark/5'
                                             }`}
                                         >
                                             {d}
@@ -210,7 +210,7 @@ const ChartBid = ({ title, gameType, betType, embedInSingleScroll = false }) => 
                             <button
                                 type="button"
                                 onClick={clearPointsOnly}
-                                className="min-h-[44px] h-11 px-4 rounded-lg text-xs sm:text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
+                                className="min-h-[44px] h-11 px-4 rounded-lg text-xs sm:text-sm font-semibold border-2 border-sb-primary/30 text-sb-primary bg-white hover:bg-sb-primary-dark/5 active:scale-[0.98] transition-all shrink-0"
                             >
                                 Clear
                             </button>
@@ -227,8 +227,8 @@ const ChartBid = ({ title, gameType, betType, embedInSingleScroll = false }) => 
                                             onClick={() => setPointsInput(String(pts))}
                                             className={`min-h-[36px] h-9 rounded-md text-xs sm:text-sm font-semibold border transition-all active:scale-[0.98] ${
                                                 selected
-                                                    ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                                                    : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                                                    ? 'bg-sb-primary text-white border-sb-primary'
+                                                    : 'bg-white text-sb-primary border-gray-300 hover:bg-sb-primary-dark/5'
                                             }`}
                                         >
                                             {pts}
@@ -240,14 +240,14 @@ const ChartBid = ({ title, gameType, betType, embedInSingleScroll = false }) => 
                         <button
                             type="button"
                             onClick={handleAddRow}
-                            className="w-full min-h-[48px] py-3.5 rounded-lg bg-[#1B3150] text-white font-bold text-base"
+                            className="w-full min-h-[48px] py-3.5 rounded-lg bg-sb-primary text-white font-bold text-base"
                         >
                             Add to list
                         </button>
                     </div>
 
                     <div className="w-full md:w-1/2 flex-1 min-w-0 rounded-lg border border-gray-200 overflow-hidden flex flex-col min-h-[200px] sm:min-h-[260px] bg-white">
-                        <div className="grid grid-cols-[1fr_64px_52px_44px] gap-1 sm:gap-2 bg-[#1B3150] text-white font-bold text-[10px] sm:text-xs py-2.5 px-1 sm:px-2">
+                        <div className="grid grid-cols-[1fr_64px_52px_44px] gap-1 sm:gap-2 bg-sb-primary text-white font-bold text-[10px] sm:text-xs py-2.5 px-1 sm:px-2">
                             <div className="text-center">Selection</div>
                             <div className="text-center">Pt</div>
                             <div className="text-center">Type</div>
@@ -269,7 +269,7 @@ const ChartBid = ({ title, gameType, betType, embedInSingleScroll = false }) => 
                                                 className="w-full min-h-[36px] h-8 sm:h-9 border border-gray-300 rounded-md px-1 text-center text-xs sm:text-sm font-semibold text-gray-800"
                                             />
                                         </div>
-                                        <div className="text-center text-[10px] sm:text-xs font-bold text-[#1B3150]">Single</div>
+                                        <div className="text-center text-[10px] sm:text-xs font-bold text-sb-primary">Single</div>
                                         <button
                                             type="button"
                                             onClick={() => removeRow(row.id)}
@@ -286,7 +286,7 @@ const ChartBid = ({ title, gameType, betType, embedInSingleScroll = false }) => 
                         </div>
                     </div>
                 </div>
-                <div className="mt-3 mb-1 flex items-center gap-6 text-[#1B3150]">
+                <div className="mt-3 mb-1 flex items-center gap-6 text-sb-primary">
                     <div className="text-center">
                         <div className="text-[11px] text-gray-500">Count</div>
                         <div className="text-2xl leading-none font-bold">{bidsCount}</div>
@@ -297,10 +297,10 @@ const ChartBid = ({ title, gameType, betType, embedInSingleScroll = false }) => 
                     </div>
                 </div>
                 <div className={`flex flex-col gap-2 ${embedInSingleScroll ? 'mt-2' : 'mt-4'}`}>
-                    <button type="button" onClick={clearLocal} className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all">
+                    <button type="button" onClick={clearLocal} className="px-4 py-2.5 rounded-xl text-sm font-semibold border-2 border-sb-primary/30 text-sb-primary bg-white hover:bg-sb-primary-dark/5 active:scale-[0.98] transition-all">
                         Clear all
                     </button>
-                    <button type="button" onClick={handleAddToCart} disabled={!bidsCount} className={`w-full bg-[#1B3150] text-white font-bold py-3.5 min-h-[52px] rounded-lg shadow-lg hover:bg-[#152842] transition-all active:scale-[0.98] ${!bidsCount ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <button type="button" onClick={handleAddToCart} disabled={!bidsCount} className={`w-full bg-sb-primary text-white font-bold py-3.5 min-h-[52px] rounded-lg shadow-lg hover:bg-sb-primary-dark transition-all active:scale-[0.98] ${!bidsCount ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         Add to Cart {bidsCount > 0 && `(${bidsCount})`}
                     </button>
                 </div>

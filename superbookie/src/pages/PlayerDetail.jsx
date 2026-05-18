@@ -25,7 +25,7 @@ import {
 const getTabs = (t) => [
     { id: 'overview', label: t('overview'), icon: FaUser },
     { id: 'bets_by_user', label: 'Bets by Player', icon: FaHistory },
-    { id: 'bets_by_bookie', label: 'Bets by Bookie', icon: FaHistory },
+    { id: 'bets_by_bookie', label: 'Bets by Super Bookie', icon: FaHistory },
     { id: 'game-history', label: 'Game History', icon: FaGamepad },
     { id: 'wallet', label: t('fundHistory'), icon: FaExchangeAlt },
     { id: 'statement', label: t('statement'), icon: FaFileInvoiceDollar },
@@ -1038,7 +1038,7 @@ const PlayerDetail = () => {
                 <td>${b.marketId?.marketName || '—'}</td>
                 <td style="text-align:right">${formatCurrency(b.amount)}</td>
                 <td style="text-align:right; color:${b.status === 'won' ? '#16a34a' : '#666'}">${formatCurrency(b.payout || 0)}</td>
-                <td>${b.placedByBookie ? 'Bookie' : 'User'}</td>
+                <td>${b.placedByBookie ? 'Super Bookie' : 'User'}</td>
                 <td><span class="status-${b.status}">${b.status}</span></td>
                 <td>${new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</td>
             </tr>
@@ -1098,7 +1098,7 @@ const PlayerDetail = () => {
             <Layout title={t('playerDetail')}>
                 <div className="flex flex-col items-center justify-center min-h-[40vh]">
                     <p className="text-red-500 mb-4">{error || 'Player not found'}</p>
-                    <Link to="/my-users" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sb-primary text-white font-semibold hover:bg-sb-primary-dark">
+                    <Link to="/my-users" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1B3150] text-white font-semibold hover:bg-[#152842]">
                         <FaArrowLeft /> Back to My Players
                     </Link>
                 </div>
@@ -1111,7 +1111,7 @@ const PlayerDetail = () => {
             <div className="min-w-0 max-w-full space-y-4 sm:space-y-5">
                 {/* Breadcrumb */}
                 <div>
-                    <Link to="/my-users" className="text-gray-400 hover:text-sb-primary text-sm inline-flex items-center gap-1 mb-1">
+                    <Link to="/my-users" className="text-gray-400 hover:text-[#1B3150] text-sm inline-flex items-center gap-1 mb-1">
                         <FaArrowLeft className="w-3 h-3" /> My Players
                     </Link>
                     <h1 className="text-xl sm:text-2xl font-bold text-gray-800 break-words">
@@ -1146,7 +1146,7 @@ const PlayerDetail = () => {
                                     </div>
                                     <div>
                                         <p className="text-gray-400 text-xs uppercase tracking-wider">Source</p>
-                                        <p className="text-gray-800 capitalize">{player.source === 'bookie' ? 'Bookie' : 'Super Admin'}</p>
+                                        <p className="text-gray-800 capitalize">{player.source === 'bookie' ? 'Super Bookie' : 'Super Admin'}</p>
                                     </div>
                                     <div>
                                         <p className="text-gray-400 text-xs uppercase tracking-wider">Joined</p>
@@ -1157,7 +1157,7 @@ const PlayerDetail = () => {
 
                             {/* Wallet balance and To Give/Take cards */}
                             <div className="flex flex-col gap-3 w-full lg:w-[260px]">
-                                <div className="bg-gradient-to-br from-sb-primary to-sb-primary-darker text-white rounded-xl p-4 text-center shadow-lg">
+                                <div className="bg-gradient-to-br from-[#1B3150] to-[#152842] text-white rounded-xl p-4 text-center shadow-lg">
                                     <p className="text-white/80 text-xs uppercase tracking-wider mb-1">Wallet Balance</p>
                                     <p className="text-2xl sm:text-3xl font-bold font-mono">{formatCurrency(player.walletBalance ?? 0)}</p>
                                 </div>
@@ -1190,7 +1190,7 @@ const PlayerDetail = () => {
                         <button onClick={openPasswordModal} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500 hover:bg-purple-600 text-white text-xs sm:text-sm font-semibold transition-colors">
                             Set Password
                         </button>
-                        <button onClick={() => navigate(`/games?playerId=${userId}`)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white text-xs sm:text-sm font-semibold transition-colors">
+                        <button onClick={() => navigate(`/games?playerId=${userId}`)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white text-xs sm:text-sm font-semibold transition-colors">
                             <FaGamepad className="w-3.5 h-3.5" /> Place Bet
                         </button>
                         <button onClick={() => { fetchPlayer(); if (activeTab === 'bets_by_user' || activeTab === 'bets_by_bookie') fetchBets(); if (activeTab === 'game-history') fetchGameHistory(); if (activeTab === 'wallet') fetchWalletTx(); }} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs sm:text-sm font-semibold transition-colors">
@@ -1207,9 +1207,9 @@ const PlayerDetail = () => {
                         <button
                             type="button"
                             onClick={() => setCalendarOpen((o) => !o)}
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-700 hover:border-sb-primary/30 transition-colors"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm text-gray-700 hover:border-[#1B3150]/30 transition-colors"
                         >
-                            <FaCalendarAlt className="w-3.5 h-3.5 text-sb-primary" />
+                            <FaCalendarAlt className="w-3.5 h-3.5 text-[#1B3150]" />
                             {dateFrom && dateTo ? formatDateRange(dateFrom, dateTo) : 'Select Date'}
                         </button>
                         {calendarOpen && (
@@ -1217,9 +1217,9 @@ const PlayerDetail = () => {
                                 <div className="min-w-0 sm:min-w-[200px] py-1">
                                     {DATE_PRESETS.map((p) => (
                                         <button key={p.id} type="button" onClick={() => handlePresetSelect(p.id)}
-                                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-sb-primary-dark/5 flex items-center gap-2"
+                                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[#1B3150]/5 flex items-center gap-2"
                                         >
-                                            {datePreset === p.id ? <span className="text-sb-primary">●</span> : <span className="w-2" />}
+                                            {datePreset === p.id ? <span className="text-[#1B3150]">●</span> : <span className="w-2" />}
                                             {p.label}
                                         </button>
                                     ))}
@@ -1235,7 +1235,7 @@ const PlayerDetail = () => {
                                             <label className="block text-xs text-gray-500 mb-1">To</label>
                                             <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-800" />
                                         </div>
-                                        <button type="button" onClick={handleDateApply} className="w-full py-2 rounded-lg bg-sb-primary text-white font-semibold text-sm hover:bg-sb-primary-dark">
+                                        <button type="button" onClick={handleDateApply} className="w-full py-2 rounded-lg bg-[#1B3150] text-white font-semibold text-sm hover:bg-[#152842]">
                                             Apply
                                         </button>
                                     </div>
@@ -1255,7 +1255,7 @@ const PlayerDetail = () => {
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`flex items-center gap-1.5 px-4 py-2.5 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
                                     activeTab === tab.id
-                                        ? 'border-sb-primary text-sb-primary'
+                                        ? 'border-[#1B3150] text-[#1B3150]'
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                 }`}
                             >
@@ -1275,7 +1275,7 @@ const PlayerDetail = () => {
                             {/* Profile Info */}
                             <div>
                                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                    <FaUser className="w-3.5 h-3.5 text-sb-primary" /> Profile Details
+                                    <FaUser className="w-3.5 h-3.5 text-[#1B3150]" /> Profile Details
                                 </h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-sm">
                                     <div><p className="text-gray-400 text-xs uppercase">Username</p><p className="text-gray-800 font-mono">{player.username}</p></div>
@@ -1303,7 +1303,7 @@ const PlayerDetail = () => {
                             {/* Quick bet stats overview */}
                             <div>
                                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                    <FaHistory className="w-3.5 h-3.5 text-sb-primary" /> Quick Stats
+                                    <FaHistory className="w-3.5 h-3.5 text-[#1B3150]" /> Quick Stats
                                 </h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                                     <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
@@ -1318,9 +1318,9 @@ const PlayerDetail = () => {
                                         <p className="text-red-500 text-[10px] uppercase">Lost</p>
                                         <p className="text-red-600 font-bold text-lg">{betStats.lost}</p>
                                     </div>
-                                    <div className="bg-sb-primary/5 rounded-lg p-3 text-center border border-sb-primary/10">
-                                        <p className="text-sb-primary text-[10px] uppercase">Pending</p>
-                                        <p className="text-sb-primary font-bold text-lg">{betStats.pending}</p>
+                                    <div className="bg-[#1B3150]/5 rounded-lg p-3 text-center border border-[#1B3150]/10">
+                                        <p className="text-[#1B3150] text-[10px] uppercase">Pending</p>
+                                        <p className="text-[#1B3150] font-bold text-lg">{betStats.pending}</p>
                                     </div>
                                     <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
                                         <p className="text-gray-400 text-[10px] uppercase">Bet Amount</p>
@@ -1360,7 +1360,7 @@ const PlayerDetail = () => {
                                         onClick={() => setBetFilter(f)}
                                         className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-colors ${
                                             betFilter === f
-                                                ? 'bg-sb-primary text-white'
+                                                ? 'bg-[#1B3150] text-white'
                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                         }`}
                                     >
@@ -1372,7 +1372,7 @@ const PlayerDetail = () => {
                                         <select
                                             value={betMarketFilter}
                                             onChange={(e) => setBetMarketFilter(e.target.value)}
-                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                         >
                                             <option value="all">All Markets</option>
                                             {markets.map((m) => (
@@ -1384,7 +1384,7 @@ const PlayerDetail = () => {
                                         <select
                                             value={betSessionFilter}
                                             onChange={(e) => setBetSessionFilter(e.target.value)}
-                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                         >
                                             <option value="all">All Sessions</option>
                                             <option value="open">OPEN</option>
@@ -1393,7 +1393,7 @@ const PlayerDetail = () => {
                                         <select
                                             value={betTypeFilter}
                                             onChange={(e) => setBetTypeFilter(e.target.value)}
-                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                         >
                                             <option value="all">All Types</option>
                                             <option value="single">Single Digit</option>
@@ -1417,7 +1417,7 @@ const PlayerDetail = () => {
                                     value={betSearch}
                                     onChange={(e) => setBetSearch(e.target.value)}
                                     placeholder="Search number / market / type"
-                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary min-w-[180px]"
+                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] min-w-[180px]"
                                 />
                                 <button
                                     type="button"
@@ -1490,18 +1490,18 @@ const PlayerDetail = () => {
                                             {betSourceFilter === 'matka' ? visibleMatkaRows.map((b, index) => (
                                                 <tr key={b._id} className="hover:bg-gray-50">
                                                     <td className="px-3 py-2 text-gray-500 text-xs font-semibold">{index + 1}</td>
-                                                    <td className="px-3 py-2 font-mono font-bold text-sb-primary">{b.betNumber || '—'}</td>
+                                                    <td className="px-3 py-2 font-mono font-bold text-[#1B3150]">{b.betNumber || '—'}</td>
                                                     <td className="px-3 py-2 text-gray-600 text-xs">{getBetTypeLabel(b.betType, t, b.betNumber)}</td>
                                                     <td className="px-3 py-2 text-gray-600 text-xs truncate max-w-[120px]">{b.marketId?.marketName || '—'}</td>
                                                     <td className="px-3 py-2 text-gray-500 uppercase text-xs">{b.betOn || '—'}</td>
                                                     <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(b.amount)}</td>
                                                     <td className="px-3 py-2 text-right font-mono text-green-600">{b.status === 'won' ? formatCurrency(b.payout) : '—'}</td>
-                                                    <td className="px-3 py-2 text-xs text-gray-600">{b.placedByBookie ? 'Bookie' : 'User'}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600">{b.placedByBookie ? 'Super Bookie' : 'User'}</td>
                                                     <td className="px-3 py-2">
                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                                             b.status === 'won' ? 'bg-green-100 text-green-700'
                                                             : b.status === 'lost' ? 'bg-red-100 text-red-600'
-                                                            : 'bg-sb-primary/10 text-sb-primary'
+                                                            : 'bg-[#1B3150]/10 text-[#1B3150]'
                                                         }`}>{b.status}</span>
                                                     </td>
                                                     <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</td>
@@ -1536,7 +1536,7 @@ const PlayerDetail = () => {
                                                             <td className="px-3 py-2 font-mono text-xs text-gray-500">{formatTicketTail(row.ticketId)}</td>
                                                             <td className="px-3 py-2 font-semibold text-orange-600">{row.mode}</td>
                                                             <td className="px-3 py-2 text-gray-600 text-xs">{row.slotLabel || '—'}</td>
-                                                            <td className="px-3 py-2 font-semibold text-sb-primary">{row.betCount || 0}</td>
+                                                            <td className="px-3 py-2 font-semibold text-[#1B3150]">{row.betCount || 0}</td>
                                                             <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(row.amount)}</td>
                                                             <td className={`px-3 py-2 text-xs font-semibold ${
                                                                 rowStatus === 'won'
@@ -1572,13 +1572,13 @@ const PlayerDetail = () => {
                                                                                         <tr key={bet.id}>
                                                                                             <td className="px-3 py-2 text-gray-500 font-semibold">{betIndex + 1}</td>
                                                                                             <td className="px-3 py-2 text-gray-700">{bet.setLabel || '—'}</td>
-                                                                                            <td className="px-3 py-2 font-mono text-sb-primary">{bet.number || '—'}</td>
+                                                                                            <td className="px-3 py-2 font-mono text-[#1B3150]">{bet.number || '—'}</td>
                                                                                             <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(bet.amount)}</td>
                                                                                             <td className="px-3 py-2">
                                                                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                                                                                     betStatus === 'won' ? 'bg-green-100 text-green-700'
                                                                                                         : betStatus === 'lost' ? 'bg-red-100 text-red-600'
-                                                                                                            : 'bg-sb-primary/10 text-sb-primary'
+                                                                                                            : 'bg-[#1B3150]/10 text-[#1B3150]'
                                                                                                 }`}>{betStatus}</span>
                                                                                             </td>
                                                                                             <td className="px-3 py-2 text-right font-mono text-gray-800">{betStatus === 'won' ? formatCurrency(bet.payout) : formatCurrency(0)}</td>
@@ -1616,7 +1616,7 @@ const PlayerDetail = () => {
                                                     handleLoadMoreLottery();
                                                 }}
                                                 disabled={betSourceFilter !== 'matka' && loadingLotteryPage}
-                                                className="px-3 py-1.5 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                                                className="px-3 py-1.5 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                                             >
                                                 {betSourceFilter === 'matka' ? 'Load More' : (loadingLotteryPage ? 'Loading...' : 'Next Page')}
                                             </button>
@@ -1647,7 +1647,7 @@ const PlayerDetail = () => {
                                                     onClick={() => setGameHistoryFilter(option.key)}
                                                     className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                                                         gameHistoryFilter === option.key
-                                                            ? 'bg-sb-primary border-sb-primary text-white'
+                                                            ? 'bg-[#1B3150] border-[#1B3150] text-white'
                                                             : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'
                                                     }`}
                                                 >
@@ -1662,7 +1662,7 @@ const PlayerDetail = () => {
                                                 value={gameHistorySearch}
                                                 onChange={(e) => setGameHistorySearch(e.target.value)}
                                                 placeholder="Search by Bet ID"
-                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-sb-primary focus:outline-none"
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-[#1B3150] focus:outline-none"
                                             />
                                         </div>
                                     </div>
@@ -1670,7 +1670,7 @@ const PlayerDetail = () => {
                                     {filteredGameHistorySections.map((section) => (
                                         <section key={section.game} className="space-y-3">
                                             <div className="flex items-center justify-between gap-3">
-                                                <h3 className="text-base sm:text-lg font-bold text-sb-primary">{section.title}</h3>
+                                                <h3 className="text-base sm:text-lg font-bold text-[#1B3150]">{section.title}</h3>
                                                 <span className="text-xs sm:text-sm text-gray-500">
                                                     {section.rows.length} record{section.rows.length === 1 ? '' : 's'}
                                                 </span>
@@ -1700,7 +1700,7 @@ const PlayerDetail = () => {
                                                             >
                                                                 <div className="mb-1.5 flex items-center justify-between gap-1.5">
                                                                     <span className="text-[10px] font-medium text-gray-500">#{row.index}</span>
-                                                                    <span className="rounded-md border border-sb-primary/30 bg-sb-primary/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sb-primary">
+                                                                    <span className="rounded-md border border-[#1B3150]/30 bg-[#1B3150]/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1B3150]">
                                                                         Game
                                                                     </span>
                                                                 </div>
@@ -1717,7 +1717,7 @@ const PlayerDetail = () => {
                                                                     <span className="font-mono text-[10px] text-gray-800">{String(row.betId || '').slice(-8) || '—'}</span>
                                                                 </div>
 
-                                                                <div className="mb-2 text-sm font-extrabold uppercase tracking-wide text-sb-primary">
+                                                                <div className="mb-2 text-sm font-extrabold uppercase tracking-wide text-[#1B3150]">
                                                                     {section.game}
                                                                 </div>
 
@@ -1770,7 +1770,7 @@ const PlayerDetail = () => {
                                         <select
                                             value={marketFilter}
                                             onChange={(e) => setMarketFilter(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                         >
                                             <option value="all">All Markets</option>
                                             {markets.map((m) => (
@@ -1785,7 +1785,7 @@ const PlayerDetail = () => {
                                         <select
                                             value={walletTypeFilter}
                                             onChange={(e) => setWalletTypeFilter(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                         >
                                             <option value="all">All Types</option>
                                             <option value="credit">Credit</option>
@@ -1798,7 +1798,7 @@ const PlayerDetail = () => {
                                             type="date"
                                             value={dateFrom}
                                             onChange={(e) => setDateFrom(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                         />
                                     </div>
                                     <div>
@@ -1807,7 +1807,7 @@ const PlayerDetail = () => {
                                             type="date"
                                             value={dateTo}
                                             onChange={(e) => setDateTo(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                         />
                                     </div>
                                 </div>
@@ -1817,7 +1817,7 @@ const PlayerDetail = () => {
                                         value={walletSearch}
                                         onChange={(e) => setWalletSearch(e.target.value)}
                                         placeholder="Search by description..."
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                     />
                                     <button
                                         type="button"
@@ -1905,7 +1905,7 @@ const PlayerDetail = () => {
                                                             <div className="flex items-center gap-2 mt-0.5">
                                                                 <p className="text-gray-400 text-xs">{new Date(t.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
                                                                 {t.bet && t.bet.marketName && (
-                                                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-sb-primary/10 text-sb-primary">
+                                                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#1B3150]/10 text-[#1B3150]">
                                                                         {t.bet.marketName}
                                                                     </span>
                                                                 )}
@@ -1963,7 +1963,7 @@ const PlayerDetail = () => {
                                     <div className="mb-4 print:hidden flex justify-end">
                                         <button
                                             onClick={() => window.print()}
-                                            className="flex items-center gap-2 px-4 py-2 bg-sb-primary hover:bg-sb-primary-dark text-white rounded-lg font-medium transition-colors"
+                                            className="flex items-center gap-2 px-4 py-2 bg-[#1B3150] hover:bg-[#152842] text-white rounded-lg font-medium transition-colors"
                                         >
                                             <FaPrint className="w-4 h-4" />
                                             {t('printStatement')}
@@ -2020,7 +2020,7 @@ const PlayerDetail = () => {
                                                     {summary.bets.totalPending > 0 && (
                                                         <div className="flex justify-between">
                                                             <span className="text-gray-600">Pending Bets</span>
-                                                            <span className="font-mono font-semibold text-sb-primary">{formatCurrency(summary.bets.totalPending)}</span>
+                                                            <span className="font-mono font-semibold text-[#1B3150]">{formatCurrency(summary.bets.totalPending)}</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -2107,7 +2107,7 @@ const PlayerDetail = () => {
                                                                 setToTakeValue((player?.toTake ?? 0).toString());
                                                                 setToGiveTakeModalOpen(true);
                                                             }}
-                                                            className="print:hidden text-sb-primary hover:text-sb-primary-dark text-sm font-medium underline flex items-center gap-1"
+                                                            className="print:hidden text-[#1B3150] hover:text-[#152842] text-sm font-medium underline flex items-center gap-1"
                                                         >
                                                             <FaExchangeAlt className="w-3 h-3" /> Edit
                                                         </button>
@@ -2176,7 +2176,7 @@ const PlayerDetail = () => {
                                                     placeholder="0"
                                                     value={fundAmount}
                                                     onChange={(e) => setFundAmount(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
-                                                    className="w-full pl-8 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 font-mono text-lg text-center focus:outline-none focus:ring-2 focus:ring-sb-primary focus:border-sb-primary"
+                                                    className="w-full pl-8 pr-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 font-mono text-lg text-center focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                                     autoFocus
                                                 />
                                             </div>
@@ -2191,7 +2191,7 @@ const PlayerDetail = () => {
                                             className={`w-full font-bold py-3 rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
                                                 fundModalType === 'add' ? 'bg-green-600 hover:bg-green-700'
                                                 : fundModalType === 'withdraw' ? 'bg-red-500 hover:bg-red-600'
-                                                : 'bg-sb-primary hover:bg-sb-primary-dark'
+                                                : 'bg-[#1B3150] hover:bg-[#152842]'
                                             }`}
                                         >
                                             {fundLoading ? (
@@ -2208,7 +2208,7 @@ const PlayerDetail = () => {
                                 )}
 
                                 {fundSuccess && (
-                                    <button type="button" onClick={() => setFundModalOpen(false)} className="w-full py-3 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white font-bold transition-colors">
+                                    <button type="button" onClick={() => setFundModalOpen(false)} className="w-full py-3 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white font-bold transition-colors">
                                         Done
                                     </button>
                                 )}
@@ -2268,7 +2268,7 @@ const PlayerDetail = () => {
                                 )}
 
                                 {passwordSuccess && (
-                                    <button type="button" onClick={() => setPasswordModalOpen(false)} className="w-full py-3 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white font-bold transition-colors">
+                                    <button type="button" onClick={() => setPasswordModalOpen(false)} className="w-full py-3 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white font-bold transition-colors">
                                         Done
                                     </button>
                                 )}
@@ -2336,7 +2336,7 @@ const PlayerDetail = () => {
                                 )}
 
                                 {toGiveTakeSuccess && (
-                                    <button type="button" onClick={() => setToGiveTakeModalOpen(false)} className="w-full py-3 rounded-lg bg-sb-primary hover:bg-sb-primary-dark text-white font-bold transition-colors">
+                                    <button type="button" onClick={() => setToGiveTakeModalOpen(false)} className="w-full py-3 rounded-lg bg-[#1B3150] hover:bg-[#152842] text-white font-bold transition-colors">
                                         Done
                                     </button>
                                 )}

@@ -1,35 +1,26 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { AUTH_KEY } from '../utils/api';
 import { subscribeBookiePanelBalance, disconnectPanelSocket } from '../lib/panelSocket';
 
 const AuthContext = createContext(null);
-
-const AUTH_KEY = 'bookie';
 
 export const AuthProvider = ({ children }) => {
     const [bookie, setBookie] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check auth on mount and when storage changes (e.g. another tab)
         const checkAuth = () => {
             try {
                 const stored = localStorage.getItem(AUTH_KEY);
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    setBookie(parsed);
-                } else {
-                    setBookie(null);
-                }
+                if (stored) setBookie(JSON.parse(stored));
+                else setBookie(null);
             } catch {
                 setBookie(null);
             } finally {
                 setLoading(false);
             }
         };
-
         checkAuth();
-
-        // Handle storage events (e.g. logout from another tab)
         const handleStorage = (e) => {
             if (e.key === AUTH_KEY) checkAuth();
         };

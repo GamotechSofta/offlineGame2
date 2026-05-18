@@ -228,8 +228,8 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
                       aria-pressed={selected}
                       className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base transition-all active:scale-[0.98] border ${
                         selected
-                          ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                          : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                          ? 'bg-sb-primary text-white border-sb-primary'
+                          : 'bg-white text-sb-primary border-gray-300 hover:bg-sb-primary-dark/5'
                       }`}
                     >
                       {d}
@@ -261,7 +261,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
                 <button
                   type="button"
                   onClick={clearLocal}
-                  className="min-h-[44px] h-11 px-4 rounded-lg text-xs sm:text-sm font-semibold border-2 border-[#1B3150]/30 text-[#1B3150] bg-white hover:bg-[#1B3150]/5 active:scale-[0.98] transition-all shrink-0"
+                  className="min-h-[44px] h-11 px-4 rounded-lg text-xs sm:text-sm font-semibold border-2 border-sb-primary/30 text-sb-primary bg-white hover:bg-sb-primary-dark/5 active:scale-[0.98] transition-all shrink-0"
                 >
                   Clear
                 </button>
@@ -279,8 +279,8 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
                       onClick={() => setPointsInput(String(pts))}
                       className={`min-h-[40px] h-10 rounded-md font-bold text-sm sm:text-base border transition-all active:scale-[0.98] ${
                         selected
-                          ? 'bg-[#1B3150] text-white border-[#1B3150]'
-                          : 'bg-white text-[#1B3150] border-gray-300 hover:bg-[#1B3150]/5'
+                          ? 'bg-sb-primary text-white border-sb-primary'
+                          : 'bg-white text-sb-primary border-gray-300 hover:bg-sb-primary-dark/5'
                       }`}
                     >
                       {pts}
@@ -293,11 +293,11 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
               <div className="flex gap-6">
                 <div className="flex flex-col items-center">
                   <span className="text-xs text-gray-500">Bets</span>
-                  <span className="text-base sm:text-lg font-bold text-[#1B3150]">{bidsCount}</span>
+                  <span className="text-base sm:text-lg font-bold text-sb-primary">{bidsCount}</span>
                 </div>
                 <div className="flex flex-col items-center">
                   <span className="text-xs text-gray-500">Points</span>
-                  <span className="text-base sm:text-lg font-bold text-[#1B3150]">{totalPoints}</span>
+                  <span className="text-base sm:text-lg font-bold text-sb-primary">{totalPoints}</span>
                 </div>
               </div>
               <button
@@ -305,7 +305,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
                 onClick={handleAddToCart}
                 disabled={!bidsCount}
                 className={`w-full min-h-[48px] py-3 rounded-xl font-bold text-white text-sm ${
-                  bidsCount ? 'bg-[#1B3150] hover:bg-[#152842]' : 'bg-gray-400 cursor-not-allowed'
+                  bidsCount ? 'bg-sb-primary hover:bg-sb-primary-dark' : 'bg-gray-400 cursor-not-allowed'
                 }`}
               >
                 Add to Cart
@@ -314,7 +314,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
           </div>
 
           <div className="w-full md:w-1/2 flex-1 min-w-0 rounded-lg border border-gray-200 overflow-hidden flex flex-col min-h-[200px] sm:min-h-[260px]">
-            <div className="flex items-stretch justify-between gap-2 bg-[#1B3150] text-white min-w-0 px-2 sm:px-3 py-2">
+            <div className="flex items-stretch justify-between gap-2 bg-sb-primary text-white min-w-0 px-2 sm:px-3 py-2">
               <div className="grid grid-cols-[72px_56px_1fr_48px] gap-2 flex-1 text-xs sm:text-sm font-bold">
                 <div className="text-center">Pana</div>
                 <div className="text-center">Type</div>
@@ -326,7 +326,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
                   type="button"
                   onClick={() => setSortMode('sp-first')}
                   className={`px-2 py-1 rounded text-[10px] sm:text-xs font-semibold border border-white/40 ${
-                    sortMode === 'sp-first' ? 'bg-white text-[#1B3150]' : 'bg-transparent'
+                    sortMode === 'sp-first' ? 'bg-white text-sb-primary' : 'bg-transparent'
                   }`}
                 >
                   SP First
@@ -335,7 +335,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
                   type="button"
                   onClick={() => setSortMode('dp-first')}
                   className={`px-2 py-1 rounded text-[10px] sm:text-xs font-semibold border border-white/40 ${
-                    sortMode === 'dp-first' ? 'bg-white text-[#1B3150]' : 'bg-transparent'
+                    sortMode === 'dp-first' ? 'bg-white text-sb-primary' : 'bg-transparent'
                   }`}
                 >
                   DP First
@@ -383,11 +383,11 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-center leading-tight">
               <span className="text-[10px] text-gray-500">Bets</span>
-              <span className="text-sm font-bold text-[#1B3150]">{bidsCount}</span>
+              <span className="text-sm font-bold text-sb-primary">{bidsCount}</span>
             </div>
             <div className="flex flex-col items-center leading-tight">
               <span className="text-[10px] text-gray-500">Points</span>
-              <span className="text-sm font-bold text-[#1B3150]">{totalPoints}</span>
+              <span className="text-sm font-bold text-sb-primary">{totalPoints}</span>
             </div>
           </div>
           <button
@@ -395,7 +395,7 @@ const SpDpMotorBid = ({ title, gameType, betType, embedInSingleScroll = false })
             onClick={handleAddToCart}
             disabled={!bidsCount}
             className={`shrink-0 min-h-[36px] px-4 py-1.5 rounded-lg font-bold text-white text-xs ${
-              bidsCount ? 'bg-[#1B3150]' : 'bg-gray-400 cursor-not-allowed'
+              bidsCount ? 'bg-sb-primary' : 'bg-gray-400 cursor-not-allowed'
             }`}
           >
             Add to Cart

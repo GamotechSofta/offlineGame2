@@ -1,26 +1,35 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AUTH_KEY } from '../utils/api';
 import { subscribeBookiePanelBalance, disconnectPanelSocket } from '../lib/panelSocket';
 
 const AuthContext = createContext(null);
 
+const AUTH_KEY = 'bookie';
+
 export const AuthProvider = ({ children }) => {
-    const [superBookie, setSuperBookie] = useState(null);
+    const [bookie, setBookie] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Check auth on mount and when storage changes (e.g. another tab)
         const checkAuth = () => {
             try {
                 const stored = localStorage.getItem(AUTH_KEY);
-                if (stored) setSuperBookie(JSON.parse(stored));
-                else setSuperBookie(null);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    setBookie(parsed);
+                } else {
+                    setBookie(null);
+                }
             } catch {
-                setSuperBookie(null);
+                setBookie(null);
             } finally {
                 setLoading(false);
             }
         };
+
         checkAuth();
+
+        // Handle storage events (e.g. logout from another tab)
         const handleStorage = (e) => {
             if (e.key === AUTH_KEY) checkAuth();
         };
@@ -30,17 +39,17 @@ export const AuthProvider = ({ children }) => {
 
     const login = (data) => {
         localStorage.setItem(AUTH_KEY, JSON.stringify(data));
-        setSuperBookie(data);
+        setBookie(data);
     };
 
     const logout = () => {
         disconnectPanelSocket();
         localStorage.removeItem(AUTH_KEY);
-        setSuperBookie(null);
+        setBookie(null);
     };
 
-    const updateSuperBookie = useCallback((newData) => {
-        setSuperBookie((prev) => {
+    const updateBookie = useCallback((newData) => {
+        setBookie((prev) => {
             if (!prev) return prev;
             const updated = { ...prev, ...newData };
             localStorage.setItem(AUTH_KEY, JSON.stringify(updated));
@@ -49,15 +58,15 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     useEffect(() => {
-        if (!superBookie?.token) return undefined;
+        if (!bookie?.token) return undefined;
         const unsub = subscribeBookiePanelBalance((payload) => {
-            updateSuperBookie({ balance: Number(payload.balance) });
+            updateBookie({ balance: Number(payload.balance) });
         });
         return unsub;
-    }, [superBookie?.token, updateSuperBookie]);
+    }, [bookie?.token, updateBookie]);
 
     return (
-        <AuthContext.Provider value={{ superBookie, bookie: superBookie, loading, login, logout, updateBookie: updateSuperBookie, updateSuperBookie }}>
+        <AuthContext.Provider value={{ bookie, loading, login, logout, updateBookie }}>
             {children}
         </AuthContext.Provider>
     );

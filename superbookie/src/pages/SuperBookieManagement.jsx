@@ -385,7 +385,7 @@ const SuperBookieManagement = () => {
                 <p className="text-xs text-gray-500">
                     {isEdit
                         ? 'Super bookie earns this % on their players’ bets.'
-                        : 'Set commission % now — same as when you create a bookie in admin.'}
+                        : 'Set commission % now — same as when you create a super bookie in admin.'}
                 </p>
                 <div>
                     <label htmlFor={isEdit ? 'sb-commission-edit' : 'sb-commission-create'} className="block text-sm font-medium text-gray-600 mb-1">

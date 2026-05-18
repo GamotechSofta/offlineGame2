@@ -195,14 +195,14 @@ const SingleDigitBulkBid = ({ market, title }) => {
                                         type="button"
                                         onClick={() => !isRunning && setSession('OPEN')}
                                         disabled={isRunning}
-                                        className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${session === 'OPEN' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-white text-gray-700 border-gray-300'} ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${session === 'OPEN' ? 'bg-sb-primary text-white border-sb-primary' : 'bg-white text-gray-700 border-gray-300'} ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`}
                                     >
                                         OPEN
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setSession('CLOSE')}
-                                        className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${session === 'CLOSE' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-white text-gray-700 border-gray-300'}`}
+                                        className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${session === 'CLOSE' ? 'bg-sb-primary text-white border-sb-primary' : 'bg-white text-gray-700 border-gray-300'}`}
                                     >
                                         CLOSE
                                     </button>
@@ -230,7 +230,7 @@ const SingleDigitBulkBid = ({ market, title }) => {
                                         key={num}
                                         type="button"
                                         onClick={() => handleDigitClick(num)}
-                                        className="relative aspect-square min-h-[40px] bg-[#1B3150] border border-white/10 hover:border-[#d4af37]/50 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md"
+                                        className="relative aspect-square min-h-[40px] bg-sb-primary border border-white/10 hover:border-[#d4af37]/50 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md"
                                     >
                                         {num}
                                         {pointsByDigit[num] > 0 && <span className="absolute top-0.5 right-1 text-[10px] font-bold text-white">{pointsByDigit[num]}</span>}
@@ -240,7 +240,7 @@ const SingleDigitBulkBid = ({ market, title }) => {
                                     <button
                                         type="button"
                                         onClick={() => handleDigitClick(0)}
-                                        className="relative aspect-square min-w-[40px] min-h-[40px] w-14 bg-[#1B3150] border border-white/10 hover:border-[#d4af37]/50 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md"
+                                        className="relative aspect-square min-w-[40px] min-h-[40px] w-14 bg-sb-primary border border-white/10 hover:border-[#d4af37]/50 text-white rounded-lg font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-md"
                                     >
                                         0
                                         {pointsByDigit[0] > 0 && <span className="absolute top-0.5 right-1 text-[10px] font-bold text-white">{pointsByDigit[0]}</span>}
@@ -250,7 +250,7 @@ const SingleDigitBulkBid = ({ market, title }) => {
 
                             {rows.length > 0 && (
                                 <div className="mt-3 rounded-xl border border-gray-300 bg-white overflow-hidden">
-                                    <div className="grid grid-cols-4 bg-gray-100 text-[11px] font-semibold text-[#1B3150]">
+                                    <div className="grid grid-cols-4 bg-gray-100 text-[11px] font-semibold text-sb-primary">
                                         <div className="px-2 py-1.5">Digit</div>
                                         <div className="px-2 py-1.5 text-center">Points</div>
                                         <div className="px-2 py-1.5 text-center">Type</div>
@@ -265,7 +265,7 @@ const SingleDigitBulkBid = ({ market, title }) => {
                                                     inputMode="numeric"
                                                     value={row.points}
                                                     onChange={(e) => updateRowPoints(row.id, e.target.value)}
-                                                    className="w-full h-7 rounded border border-gray-300 text-center font-semibold text-gray-800 focus:outline-none focus:border-[#1B3150]"
+                                                    className="w-full h-7 rounded border border-gray-300 text-center font-semibold text-gray-800 focus:outline-none focus:border-sb-primary"
                                                 />
                                             </div>
                                             <div className="px-2 py-1.5 text-center text-gray-700">{row.type}</div>
@@ -312,7 +312,7 @@ const SingleDigitBulkBid = ({ market, title }) => {
                         type="button"
                         onClick={() => setIsReviewOpen(true)}
                         disabled={!bids.length}
-                        className="rounded-lg font-bold text-xs py-2.5 transition-colors bg-[#1B3150] text-white hover:bg-[#152842] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="rounded-lg font-bold text-xs py-2.5 transition-colors bg-sb-primary text-white hover:bg-sb-primary-dark active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Submit Bet
                     </button>
