@@ -59,6 +59,10 @@ import {
   getAdminQuizTimingSettings,
   updateAdminQuizTimingSettings,
 } from '../../controllers/quizTimingAdminController.js';
+import {
+    getAdminPaymentUiConfig,
+    patchAdminPaymentUiConfig,
+} from '../../controllers/paymentController.js';
 import { verifyAdmin, verifySuperAdmin } from '../../middleware/adminAuth.js';
 import {
     listSpecificAdmins,
@@ -75,6 +79,10 @@ router.post('/create', createAdmin); // For initial admin setup
 // Secret declare password (Super Admin only)
 router.get('/me/secret-declare-password-status', verifyAdmin, getSecretDeclarePasswordStatus);
 router.patch('/me/secret-declare-password', verifySuperAdmin, setSecretDeclarePassword);
+
+// Payment UPI + limits (player Add Fund / Withdraw — super admin only)
+router.get('/payment-ui-config', verifySuperAdmin, getAdminPaymentUiConfig);
+router.patch('/payment-ui-config', verifySuperAdmin, patchAdminPaymentUiConfig);
 
 // SP Common list (SP Common game chart / reference)
 router.get('/config/sp-common-list', verifyAdmin, getSpCommonList);

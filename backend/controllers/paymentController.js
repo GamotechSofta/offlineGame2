@@ -11,6 +11,52 @@ import { uploadToCloudinary } from '../config/cloudinary.js';
 import { invalidateAdminPaymentRelatedCaches } from '../services/cacheInvalidationService.js';
 import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
+import PaymentUiConfig from '../models/settings/PaymentUiConfig.js';
+
+const DEFAULT_UPI_FALLBACK = 'upi@ybl';
+const DEFAULT_PAYEE_NAME = 'Golden Games';
+
+function mergePaymentUiFromDoc(doc) {
+    const d = doc || {};
+    const pickStr = (dbVal, envKey, fallback) => {
+        const x = (dbVal ?? '').toString().trim();
+        if (x) return x;
+        const e = (process.env[envKey] ?? '').toString().trim();
+        return e || fallback;
+    };
+    const pickNum = (dbVal, envKey, fallback) => {
+        const n = Number(dbVal);
+        if (Number.isFinite(n) && n > 0) return Math.round(n);
+        const e = parseInt(process.env[envKey], 10);
+        if (Number.isFinite(e) && e > 0) return e;
+        return fallback;
+    };
+    let minDeposit = pickNum(d.minDeposit, 'MIN_DEPOSIT', 100);
+    let maxDeposit = pickNum(d.maxDeposit, 'MAX_DEPOSIT', 50000);
+    if (minDeposit >= maxDeposit) {
+        minDeposit = 100;
+        maxDeposit = 50000;
+    }
+    let minWithdrawal = pickNum(d.minWithdrawal, 'MIN_WITHDRAWAL', 500);
+    let maxWithdrawal = pickNum(d.maxWithdrawal, 'MAX_WITHDRAWAL', 25000);
+    if (minWithdrawal >= maxWithdrawal) {
+        minWithdrawal = 500;
+        maxWithdrawal = 25000;
+    }
+    return {
+        upiId: pickStr(d.upiId, 'UPI_ID', DEFAULT_UPI_FALLBACK),
+        upiName: pickStr(d.upiName, 'UPI_NAME', DEFAULT_PAYEE_NAME),
+        minDeposit,
+        maxDeposit,
+        minWithdrawal,
+        maxWithdrawal,
+    };
+}
+
+export async function getMergedPublicPaymentConfig() {
+    const doc = await PaymentUiConfig.findOne().sort({ updatedAt: -1 }).lean();
+    return mergePaymentUiFromDoc(doc);
+}
 
 /** IST calendar day bounds → UTC Date (same semantics as dashboard stats `from`/`to`). */
 function parseIstPaymentsCreatedAtRange(fromStr, toStr) {
@@ -158,21 +204,114 @@ const notifyScreenshotWebhook = async ({ refId, screenshotUrl, amount, utr }) =>
 
 /**
  * Get payment configuration (UPI details, limits)
- * Public API - no auth required
+ * Public API - no auth required — merges MongoDB overrides with env / defaults.
  */
 export const getPaymentConfig = async (req, res) => {
     try {
+        const data = await getMergedPublicPaymentConfig();
+        res.status(200).json({
+            success: true,
+            data,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Super admin: load payment UI overrides + effective values (same as public config).
+ */
+export const getAdminPaymentUiConfig = async (req, res) => {
+    try {
+        const doc = await PaymentUiConfig.findOne().sort({ updatedAt: -1 }).lean();
+        const merged = await getMergedPublicPaymentConfig();
         res.status(200).json({
             success: true,
             data: {
-                upiId: process.env.UPI_ID || 'example@paytm',
-                upiName: process.env.UPI_NAME || 'Golden Games',
-                minDeposit: parseInt(process.env.MIN_DEPOSIT) || 100,
-                maxDeposit: parseInt(process.env.MAX_DEPOSIT) || 50000,
-                minWithdrawal: parseInt(process.env.MIN_WITHDRAWAL) || 500,
-                maxWithdrawal: parseInt(process.env.MAX_WITHDRAWAL) || 25000,
+                form: {
+                    upiId: doc?.upiId != null ? String(doc.upiId) : '',
+                    minDeposit: doc?.minDeposit != null && Number.isFinite(Number(doc.minDeposit)) ? Number(doc.minDeposit) : '',
+                    maxDeposit: doc?.maxDeposit != null && Number.isFinite(Number(doc.maxDeposit)) ? Number(doc.maxDeposit) : '',
+                    minWithdrawal:
+                        doc?.minWithdrawal != null && Number.isFinite(Number(doc.minWithdrawal))
+                            ? Number(doc.minWithdrawal)
+                            : '',
+                    maxWithdrawal:
+                        doc?.maxWithdrawal != null && Number.isFinite(Number(doc.maxWithdrawal))
+                            ? Number(doc.maxWithdrawal)
+                            : '',
+                },
+                effective: merged,
             },
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const parseBodyPositiveInt = (value) => {
+    if (value === '' || value === null || value === undefined) return null;
+    const n = parseInt(String(value), 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/**
+ * Super admin: save UPI + limits (empty UPI in DB → use .env / code defaults). Payee name is not stored from admin.
+ */
+export const patchAdminPaymentUiConfig = async (req, res) => {
+    try {
+        const {
+            upiId,
+            minDeposit,
+            maxDeposit,
+            minWithdrawal,
+            maxWithdrawal,
+        } = req.body || {};
+
+        const rawUpi = upiId;
+        const upiIdStr = rawUpi == null || rawUpi === '' ? '' : String(rawUpi).trim();
+        if (upiIdStr && !/^[\w.\-]+@[\w.\-]+$/.test(upiIdStr)) {
+            return res.status(400).json({ success: false, message: 'Invalid UPI ID format (expected e.g. number@ybl)' });
+        }
+
+        const minD = parseBodyPositiveInt(minDeposit);
+        const maxD = parseBodyPositiveInt(maxDeposit);
+        const minW = parseBodyPositiveInt(minWithdrawal);
+        const maxW = parseBodyPositiveInt(maxWithdrawal);
+
+        if (minD != null && maxD != null && minD >= maxD) {
+            return res.status(400).json({ success: false, message: 'Min deposit must be less than max deposit' });
+        }
+        if (minW != null && maxW != null && minW >= maxW) {
+            return res.status(400).json({ success: false, message: 'Min withdrawal must be less than max withdrawal' });
+        }
+
+        const setDoc = {
+            upiId: upiIdStr,
+            // Payee name is not set from admin; always use UPI_NAME env / code default.
+            upiName: '',
+            minDeposit: minD,
+            maxDeposit: maxD,
+            minWithdrawal: minW,
+            maxWithdrawal: maxW,
+            updatedBy: req.admin?._id || null,
+        };
+
+        await PaymentUiConfig.findOneAndUpdate({}, { $set: setDoc }, { new: true, upsert: true });
+
+        await logActivity({
+            action: 'update_payment_ui_config',
+            performedBy: req.admin?.username || 'admin',
+            performedByType: req.admin?.role || 'super_admin',
+            targetType: 'settings',
+            targetId: 'payment_ui',
+            details: 'Payment UPI / limits updated from admin Settings',
+            ip: getClientIp(req),
+        });
+        await invalidateAdminPaymentRelatedCaches('payment_ui_config_updated');
+
+        const merged = await getMergedPublicPaymentConfig();
+        res.status(200).json({ success: true, message: 'Payment settings saved', data: merged });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -191,8 +330,7 @@ export const createDepositRequest = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
-        const minDeposit = parseInt(process.env.MIN_DEPOSIT) || 100;
-        const maxDeposit = parseInt(process.env.MAX_DEPOSIT) || 50000;
+        const { minDeposit, maxDeposit } = await getMergedPublicPaymentConfig();
 
         // Parse amount as number
         const numAmount = parseFloat(amount);
@@ -353,8 +491,7 @@ export const createWithdrawalRequest = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
-        const minWithdrawal = parseInt(process.env.MIN_WITHDRAWAL) || 500;
-        const maxWithdrawal = parseInt(process.env.MAX_WITHDRAWAL) || 25000;
+        const { minWithdrawal, maxWithdrawal } = await getMergedPublicPaymentConfig();
 
         if (!amount || amount < minWithdrawal || amount > maxWithdrawal) {
             return res.status(400).json({
