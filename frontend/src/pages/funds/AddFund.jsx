@@ -1,6 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, getAuthHeaders, fetchWithAuth } from '../../config/api';
+
+/**
+ * NPCI-style UPI deep link for QR + "Pay with UPI".
+ * URLSearchParams encodes `pa` (e.g. x@ybl) and text safely for all UPI apps.
+ */
+function buildUpiPayDeepLink({ upiId, payeeName, amountRupees, note }) {
+    if (!upiId || typeof upiId !== 'string') return '';
+    const p = new URLSearchParams();
+    p.set('pa', upiId.trim());
+    const pn = String(payeeName || 'Merchant').trim() || 'Merchant';
+    p.set('pn', pn.slice(0, 99));
+    p.set('cu', 'INR');
+    if (amountRupees != null) {
+        const n = Number(amountRupees);
+        if (Number.isFinite(n) && n > 0) {
+            p.set('am', n.toFixed(2));
+        }
+    }
+    if (note) {
+        const tn = String(note).replace(/\s+/g, ' ').trim();
+        if (tn) p.set('tn', tn.slice(0, 99));
+    }
+    return `upi://pay?${p.toString()}`;
+}
 
 const AddFund = () => {
     const navigate = useNavigate();
@@ -122,6 +146,35 @@ const AddFund = () => {
         const n = Number(amount);
         return Number.isFinite(n) && n > 0 ? n : null;
     })();
+
+    const depositNote = useMemo(() => {
+        if (qrAmount == null) return '';
+        return `Wallet add ₹${qrAmount.toLocaleString('en-IN')}`;
+    }, [qrAmount]);
+
+    /** Same link for QR image + Pay With UPI (payee, amount, note). */
+    const upiDeepLink = useMemo(() => {
+        if (!config?.upiId) return '';
+        return buildUpiPayDeepLink({
+            upiId: config.upiId,
+            payeeName: config.upiName || 'ShriBalaji',
+            amountRupees: qrAmount,
+            note: depositNote,
+        });
+    }, [config?.upiId, config?.upiName, qrAmount, depositNote]);
+
+    /** Pay With UPI: require valid selected amount so apps get pre-filled payment. */
+    const payWithUpiHref = useMemo(() => {
+        if (!config?.upiId) return '';
+        const n = Number(amount);
+        if (!Number.isFinite(n) || n < minDeposit || n > maxDeposit) return '';
+        return buildUpiPayDeepLink({
+            upiId: config.upiId,
+            payeeName: config.upiName || 'ShriBalaji',
+            amountRupees: n,
+            note: `Wallet add ₹${n.toLocaleString('en-IN')}`,
+        });
+    }, [config?.upiId, config?.upiName, amount, minDeposit, maxDeposit]);
 
     const validateAmount = () => {
         const numAmount = Number(amount);
@@ -308,7 +361,7 @@ const AddFund = () => {
                                 {config?.upiId ? (
                                     <img
                                         src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                                            `upi://pay?pa=${config.upiId}&pn=${encodeURIComponent(config.upiName || 'ShriBalaji')}${qrAmount != null ? `&am=${qrAmount}` : ''}&cu=INR`
+                                            upiDeepLink || buildUpiPayDeepLink({ upiId: config.upiId, payeeName: config.upiName || 'ShriBalaji' }),
                                         )}`}
                                         alt="UPI QR Code"
                                         className="w-[180px] h-[180px]"
@@ -349,10 +402,27 @@ const AddFund = () => {
                                     Copy
                                 </button>
                             </div>
-                            <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
-                                <p className="text-gray-600 text-sm">Pay to</p>
-                                <p className="text-gray-800 font-semibold">{config?.upiName || 'ShriBalaji'}</p>
-                            </div>
+                            {payWithUpiHref ? (
+                                <a
+                                    href={payWithUpiHref}
+                                    className="w-full py-3.5 rounded-xl bg-gradient-to-r bg-[#1B3150] hover:bg-[#152842] text-white font-extrabold text-sm sm:text-base shadow-md transition-all text-center no-underline inline-flex items-center justify-center"
+                                >
+                                    Pay With UPI
+                                </a>
+                            ) : (
+                                <button
+                                    type="button"
+                                    disabled
+                                    className="w-full py-3.5 rounded-xl bg-gradient-to-r bg-[#1B3150] text-white font-extrabold text-sm sm:text-base shadow-md opacity-50 cursor-not-allowed"
+                                    title={
+                                        !config?.upiId
+                                            ? 'UPI is loading'
+                                            : `Go Back and pick amount ₹${minDeposit.toLocaleString('en-IN')}–₹${maxDeposit.toLocaleString('en-IN')}`
+                                    }
+                                >
+                                    Pay With UPI
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -436,7 +506,7 @@ const AddFund = () => {
                     <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-300">
                         <h4 className="text-[#1B3150] font-semibold mb-2">How to Add Funds:</h4>
                         <ol className="text-gray-700 text-sm space-y-2 list-decimal list-inside">
-                            <li>Scan the QR code above OR copy the UPI ID</li>
+                            <li>Scan the QR code, tap <strong>Pay With UPI</strong>, or copy the UPI ID</li>
                             <li>Open any UPI app (GPay, PhonePe, Paytm, etc.)</li>
                             <li>Send the exact amount you want to add</li>
                             <li>Take a screenshot of the successful payment</li>
