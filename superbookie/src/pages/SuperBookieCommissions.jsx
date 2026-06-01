@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fa';
 import Layout from '../components/Layout';
 import { fetchWithAuth } from '../utils/api';
+import { PANEL_LABEL, PANEL_LABEL_PLURAL } from '../config/panelLabels';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -275,16 +276,16 @@ const SuperBookieCommissions = () => {
     };
 
     return (
-        <Layout title="Super Bookie Commissions">
+        <Layout title={`${PANEL_LABEL} Commissions`}>
             <div className="space-y-4 sm:space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-2">
                             <FaMoneyBillWave className="text-blue-600" />
-                            Super Bookie Commissions
+                            {PANEL_LABEL} Commissions
                         </h1>
                         <p className="text-sm text-slate-500 mt-1">
-                            Commission = % of all player bets (app + bets you place for them). Set % in Super Bookies → Quick Manage; settle pending here.
+                            Commission = % of all player bets (app + bets you place for them). Set % in {PANEL_LABEL_PLURAL} → Quick Manage; settle pending here.
                         </p>
                     </div>
                     <button
@@ -372,7 +373,7 @@ const SuperBookieCommissions = () => {
                             <input
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
-                                placeholder="Search super bookie by name or phone"
+                                placeholder={`Search ${PANEL_LABEL.toLowerCase()} by name or phone`}
                                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                             />
                         </div>
@@ -396,7 +397,7 @@ const SuperBookieCommissions = () => {
                         <table className="w-full text-xs">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200">
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Super Bookie</th>
+                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">{PANEL_LABEL}</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Commission %</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Player sales</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Last Payment</th>
@@ -662,7 +663,7 @@ const SuperBookieCommissions = () => {
                     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                         <div className="px-4 py-3 border-b bg-slate-50">
                             <h2 className="font-semibold text-slate-800">Commission % change requests</h2>
-                            <p className="text-xs text-slate-500 mt-1">Approve, reject, or counter offer — same as admin super bookie flow.</p>
+                            <p className="text-xs text-slate-500 mt-1">Approve, reject, or counter offer — same as admin SuperBookie flow.</p>
                         </div>
                         {requests.length === 0 ? (
                             <p className="p-6 text-sm text-slate-500">No commission requests.</p>

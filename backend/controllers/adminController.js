@@ -9,6 +9,9 @@ import { signAdminToken } from '../utils/adminJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { canAccessBookieManagement, isSuperAdmin } from '../utils/adminTabAccess.js';
 import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
+import { getBookieHierarchySummary, getBookieHierarchyUserIds } from '../utils/bookieFilter.js';
+import { aggregatePlayerBetMetrics } from '../utils/commissionMetrics.js';
+import Bet from '../models/bet/bet.js';
 
 /**
  * Admin login
@@ -388,6 +391,149 @@ export const getBookieById = async (req, res) => {
         res.status(200).json({
             success: true,
             data: bookie,
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Full SuperBookie (bookie role) detail for admin bookie-management screen.
+ * Players, sub-bookies (super_bookie), revenue, commission — no /revenue tab required.
+ */
+export const getBookieManagementDetail = async (req, res) => {
+    try {
+        if (!canAccessBookieManagement(req.admin)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have access to bookie accounts',
+            });
+        }
+
+        const { id } = req.params;
+        const { startDate, endDate } = req.query;
+
+        const bookie = await Admin.findOne({ _id: id, role: 'bookie' }).select('-password').lean();
+        if (!bookie) {
+            return res.status(404).json({ success: false, message: 'Bookie not found' });
+        }
+
+        const commissionSummary = await getCommissionSummaryForAccount(bookie);
+
+        const dateMatch = {};
+        if (startDate || endDate) {
+            dateMatch.createdAt = {};
+            if (startDate) dateMatch.createdAt.$gte = new Date(startDate + 'T00:00:00.000Z');
+            if (endDate) dateMatch.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
+        }
+
+        const hierarchy = await getBookieHierarchySummary(bookie._id, dateMatch);
+
+        const dateFilter = {};
+        if (startDate || endDate) {
+            dateFilter.createdAt = {};
+            if (startDate) dateFilter.createdAt.$gte = new Date(startDate + 'T00:00:00.000Z');
+            if (endDate) dateFilter.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
+        }
+
+        const userIds = await getBookieHierarchyUserIds(bookie._id);
+        let revenue = {
+            totalBetAmount: 0,
+            totalPayouts: 0,
+            totalBetCount: 0,
+            winningBets: 0,
+            losingBets: 0,
+            bookieShare: 0,
+            adminPool: 0,
+            adminProfit: 0,
+            winRate: '0',
+        };
+
+        if (userIds.length > 0) {
+            const metrics = await aggregatePlayerBetMetrics({ userIds, dateFilter });
+            const commPct = bookie.commissionPercentage || 0;
+            const totalBetAmount = metrics.totalBetAmount;
+            const totalPayouts = metrics.totalPayouts;
+            const bookieShare = Math.round((totalBetAmount * commPct / 100) * 100) / 100;
+            const adminPool = Math.round((totalBetAmount * (100 - commPct) / 100) * 100) / 100;
+            const adminProfit = Math.round((adminPool - totalPayouts) * 100) / 100;
+            revenue = {
+                totalBetAmount,
+                totalPayouts,
+                totalBetCount: metrics.totalBets,
+                winningBets: metrics.winningBets,
+                losingBets: metrics.losingBets,
+                bookieShare,
+                adminPool,
+                adminProfit,
+                winRate:
+                    metrics.totalBets > 0
+                        ? ((metrics.winningBets / metrics.totalBets) * 100).toFixed(2)
+                        : '0',
+            };
+        }
+
+        const superBookiesWithCommission = await Promise.all(
+            (hierarchy.superBookies || []).map(async (sb) => {
+                const sbDoc = await Admin.findById(sb.id).select('-password').lean();
+                const sbCommission = sbDoc
+                    ? await getCommissionSummaryForAccount(sbDoc)
+                    : { totalCommission: 0, totalPaid: 0, totalPending: 0 };
+                return {
+                    ...sb,
+                    commissionPercentage: sbDoc?.commissionPercentage ?? 0,
+                    totalCommissionAmount: sbCommission.totalCommission,
+                    totalCommissionPaid: sbCommission.totalPaid,
+                    totalCommissionPending: sbCommission.totalPending,
+                };
+            })
+        );
+
+        const directPlayers = await User.find({ referredBy: bookie._id })
+            .select('username phone email isActive createdAt')
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .lean();
+
+        let recentBets = [];
+        if (userIds.length > 0) {
+            recentBets = await Bet.find({ userId: { $in: userIds }, ...dateFilter })
+                .sort({ createdAt: -1 })
+                .limit(20)
+                .populate('userId', 'username')
+                .populate('marketId', 'marketName')
+                .lean();
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                bookie: {
+                    ...bookie,
+                    totalCommissionAmount: commissionSummary.totalCommission,
+                    totalCommissionPaid: commissionSummary.totalPaid,
+                    totalCommissionPending: commissionSummary.totalPending,
+                    totalBetAmountForCommission: commissionSummary.totalBetAmount,
+                },
+                commission: commissionSummary,
+                hierarchy: {
+                    ...hierarchy,
+                    superBookies: superBookiesWithCommission,
+                },
+                revenue,
+                directPlayers,
+                recentBets: recentBets.map((b) => ({
+                    _id: b._id,
+                    username: b.userId?.username || '—',
+                    marketName: b.marketId?.marketName || '—',
+                    betType: b.betType,
+                    amount: b.amount,
+                    payout: b.payout,
+                    status: b.status,
+                    createdAt: b.createdAt,
+                })),
+                totalNetworkPlayers: hierarchy.totalPlayers,
+            },
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });

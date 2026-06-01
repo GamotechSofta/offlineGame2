@@ -17,8 +17,10 @@ import {
     FaClock,
 } from 'react-icons/fa';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
+import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
 const getBetTypeLabel = (t) => ({ 'sp-motor': 'SP Motor', 'dp-motor': 'DP Motor', 't-motor': 'T Motor', 'single': 'Single', 'jodi': 'Jodi', 'panna': 'Panna', 'half-sangam': 'Half Sangam', 'full-sangam': 'Full Sangam', 'odd-even': 'Odd Even', 'sp-common': 'SP Common', 'cp-common': 'CP (Common Pana)', 'dp-common': 'DP Common', chart: 'Chart Game' }[String(t || '').toLowerCase()] || (t ? String(t) : '—'));
 
@@ -124,7 +126,7 @@ const BookieDetail = () => {
 
     if (loading && !data) {
         return (
-            <AdminLayout onLogout={handleLogout} title="Bookie Detail">
+            <AdminLayout onLogout={handleLogout} title={`${TOP_LEVEL_LABEL} Detail`}>
                 <div className="animate-pulse space-y-4">
                     <div className="h-8 w-48 bg-gray-100 rounded" />
                     <div className="h-24 bg-gray-100 rounded-xl" />
@@ -136,7 +138,7 @@ const BookieDetail = () => {
 
     if (error && !data) {
         return (
-            <AdminLayout onLogout={handleLogout} title="Bookie Detail">
+            <AdminLayout onLogout={handleLogout} title={`${TOP_LEVEL_LABEL} Detail`}>
                 <div className="flex flex-col items-center justify-center min-h-[40vh]">
                     <p className="text-red-500 mb-4">{error}</p>
                     <Link to="/revenue" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-gray-800 font-semibold">
@@ -153,7 +155,7 @@ const BookieDetail = () => {
     const bets = data?.recentBets || [];
 
     return (
-        <AdminLayout onLogout={handleLogout} title="Bookie Detail">
+        <AdminLayout onLogout={handleLogout} title={`${TOP_LEVEL_LABEL} Detail`}>
             <div className="min-w-0 max-w-full space-y-4 sm:space-y-6">
                 {/* Back + Header */}
                 <div>
@@ -161,7 +163,7 @@ const BookieDetail = () => {
                         <FaArrowLeft className="w-3 h-3" /> Revenue
                     </Link>
                     <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{bookie?.username || 'Bookie'}</h1>
+                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{bookie?.username || TOP_LEVEL_LABEL}</h1>
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${bookie?.status === 'active' ? 'bg-orange-500/20 text-emerald-600' : 'bg-red-500/20 text-red-500'}`}>
                             {bookie?.status === 'active' ? 'Active' : 'Inactive'}
                         </span>
@@ -235,7 +237,7 @@ const BookieDetail = () => {
                             </div>
                             <div className="bg-white rounded-xl p-3 sm:p-4 border border-gray-200/60 relative overflow-hidden">
                                 <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
-                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Bookie Share ({bookie?.commissionPercentage}%)</p>
+                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">{TOP_LEVEL_LABEL} Share ({bookie?.commissionPercentage}%)</p>
                                 <p className="text-sm sm:text-lg lg:text-xl font-bold text-orange-400 mt-1 truncate">{formatCurrency(revenue.bookieShare)}</p>
                             </div>
                             <div className={`bg-white rounded-xl p-3 sm:p-4 border relative overflow-hidden ${revenue.adminProfit >= 0 ? 'border-emerald-500/40' : 'border-red-500/40'}`}>
@@ -260,7 +262,7 @@ const BookieDetail = () => {
                                     <span className="text-gray-800 font-medium">{formatNumber(revenue.totalBetCount)} bets <span className="text-gray-500">({formatNumber(revenue.winningBets)} W / {formatNumber(revenue.losingBets)} L)</span></span>
                                 </div>
                                 <div className="flex justify-between py-1.5 border-b border-gray-200/40">
-                                    <span className="text-gray-400">Bookie Commission ({bookie?.commissionPercentage}%)</span>
+                                    <span className="text-gray-400">{TOP_LEVEL_LABEL} Commission ({bookie?.commissionPercentage}%)</span>
                                     <span className="text-orange-400 font-medium">- {formatCurrency(revenue.bookieShare)}</span>
                                 </div>
                                 <div className="flex justify-between py-1.5 border-b border-gray-200/40">
@@ -376,7 +378,7 @@ const BookieDetail = () => {
                         </div>
 
                         {users.length === 0 && (
-                            <div className="p-8 text-center text-gray-500 text-sm">No users found for this bookie</div>
+                            <div className="p-8 text-center text-gray-500 text-sm">No users found for this {TOP_LEVEL_LABEL.toLowerCase()}</div>
                         )}
                     </div>
                 )}
@@ -423,7 +425,7 @@ const BookieDetail = () => {
 
                 {activeTab === 'profile' && bookie && (
                     <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
-                        <h3 className="text-sm sm:text-base font-semibold text-gray-800 mb-4">Bookie Profile</h3>
+                        <h3 className="text-sm sm:text-base font-semibold text-gray-800 mb-4">{TOP_LEVEL_LABEL} Profile</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0">

@@ -2281,7 +2281,7 @@ const MarketDetail = () => {
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2 text-center text-xs text-gray-600">
-                                                            {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Bookie') : 'Player'}
+                                                            {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Panel') : 'Player'}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -2362,7 +2362,7 @@ const MarketDetail = () => {
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-2 text-center text-xs text-gray-600">
-                                                            {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Bookie') : 'Player'}
+                                                            {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Panel') : 'Player'}
                                                         </td>
                                                     </tr>
                                                 ))}

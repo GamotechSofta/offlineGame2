@@ -9,12 +9,19 @@ import { useTraceRender } from '../lib/runtimeTrace';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth, getStoredAdmin } from '../lib/auth';
+import {
+    TOP_LEVEL_LABEL,
+    TOP_LEVEL_LABEL_PLURAL,
+    SUB_LEVEL_LABEL,
+    SUB_LEVEL_LABEL_PLURAL,
+    ownershipChainLabel,
+} from '../config/roleLabels';
 
 const ALL_PLAYER_TABS = [
     { id: 'all', label: 'All Players', value: 'all' },
     { id: 'super_admins', label: 'All Super Admins', value: 'super_admins' },
-    { id: 'all_bookies', label: 'All Bookies', value: 'all_bookies' },
-    { id: 'bookie_users', label: 'All Bookies Players', value: 'bookie_users' },
+    { id: 'all_bookies', label: `All ${TOP_LEVEL_LABEL_PLURAL}`, value: 'all_bookies' },
+    { id: 'bookie_users', label: `All ${TOP_LEVEL_LABEL_PLURAL} Players`, value: 'bookie_users' },
     { id: 'super_admin_users', label: 'Super Admin Players', value: 'super_admin_users' },
 ];
 
@@ -75,13 +82,12 @@ const getPlayerOwnership = (u) => {
     return { pool: 'super_admin', bookie: null, superBookie: null };
 };
 
-/** Single-line: who owns this player (bookie › super bookie, or Super Admin). */
+/** Single-line: who owns this player (SuperBookie › Bookie, or Super Admin). */
 const getBelongsToLabel = (u) => {
     const o = getPlayerOwnership(u);
     if (o.pool === 'super_admin') return 'Super Admin';
     if (o.superBookie) {
-        const bk = o.bookie || 'Bookie';
-        return `${bk} › ${o.superBookie}`;
+        return ownershipChainLabel(o.bookie, o.superBookie);
     }
     return o.bookie || '—';
 };
@@ -468,7 +474,7 @@ const AllUsers = () => {
             setShowPasswordModal(false);
             setPendingAction(null);
             setSecretPassword('');
-            setSuccess(`Bookie ${data.data.status === 'active' ? 'unsuspended' : 'suspended'} successfully`);
+            setSuccess(`${TOP_LEVEL_LABEL} ${data.data.status === 'active' ? 'unsuspended' : 'suspended'} successfully`);
             setTimeout(() => setSuccess(''), 3000);
             await queryClient.invalidateQueries({ queryKey: ['all-users-data'] });
         },
@@ -576,7 +582,7 @@ const AllUsers = () => {
             superBookies.reduce((sum, sb) => sum + (sb.playerCount ?? getUsersForSuperBookie(sb._id).length), 0);
 
         if (superBookies.length === 0 && directPlayers.length === 0) {
-            return <p className="text-gray-500 text-sm py-2">No super bookies or players yet.</p>;
+            return <p className="text-gray-500 text-sm py-2">No {SUB_LEVEL_LABEL_PLURAL.toLowerCase()} or players yet.</p>;
         }
 
         return (
@@ -584,7 +590,7 @@ const AllUsers = () => {
                 {superBookies.length > 0 && (
                     <div>
                         <p className="text-sm font-semibold text-indigo-600 mb-2">
-                            Super bookies under {bookie.username}
+                            {SUB_LEVEL_LABEL_PLURAL} under {bookie.username}
                         </p>
                         <div className="space-y-3">
                             {superBookies.map((sb) => {
@@ -639,7 +645,7 @@ const AllUsers = () => {
                     </div>
                 )}
                 <p className="text-xs text-gray-500">
-                    Total: {superBookies.length} super bookie{superBookies.length !== 1 ? 's' : ''}, {totalPlayers} player{totalPlayers !== 1 ? 's' : ''}
+                    Total: {superBookies.length} {SUB_LEVEL_LABEL.toLowerCase()}{superBookies.length !== 1 ? 's' : ''}, {totalPlayers} player{totalPlayers !== 1 ? 's' : ''}
                 </p>
             </div>
         );
@@ -757,9 +763,9 @@ const AllUsers = () => {
                         {/* Header */}
                         <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-100/40 border-b border-gray-200/80">
                             <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
-                                <span className="font-semibold text-orange-500">All Bookies</span>
-                                <span className="hidden sm:inline"> — Bookie accounts who can add players via their link.</span>
-                                <span className="block sm:inline mt-1 sm:mt-0 sm:ml-1">Click <span className="font-medium text-gray-800">View tree</span> to see super bookies and players under each bookie.</span>
+                                <span className="font-semibold text-orange-500">All {TOP_LEVEL_LABEL_PLURAL}</span>
+                                <span className="hidden sm:inline"> — {TOP_LEVEL_LABEL} accounts who can add players via their link.</span>
+                                <span className="block sm:inline mt-1 sm:mt-0 sm:ml-1">Click <span className="font-medium text-gray-800">View tree</span> to see {SUB_LEVEL_LABEL_PLURAL.toLowerCase()} and players under each {TOP_LEVEL_LABEL.toLowerCase()}.</span>
                             </p>
                         </div>
 
@@ -791,7 +797,7 @@ const AllUsers = () => {
                                                     <td className="px-4 py-3 font-medium text-gray-800">
                                                         <div>{bookie.username}</div>
                                                         <p className="text-xs font-normal text-gray-500 mt-0.5">
-                                                            {superBookies.length} super bookie{superBookies.length !== 1 ? 's' : ''} · {totalPlayers} player{totalPlayers !== 1 ? 's' : ''}
+                                                            {superBookies.length} {SUB_LEVEL_LABEL.toLowerCase()}{superBookies.length !== 1 ? 's' : ''} · {totalPlayers} player{totalPlayers !== 1 ? 's' : ''}
                                                         </p>
                                                     </td>
                                                     <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">{bookie.phone || '—'}</td>
@@ -910,7 +916,7 @@ const AllUsers = () => {
                                         {isExpanded && (
                                             <div className="mt-4 pl-3 border-l-2 border-orange-500/70 space-y-3">
                                                 <p className="text-orange-500/90 font-medium text-sm">
-                                                    {superBookies.length} super bookie{superBookies.length !== 1 ? 's' : ''} · {totalPlayers} player{totalPlayers !== 1 ? 's' : ''}
+                                                    {superBookies.length} {SUB_LEVEL_LABEL.toLowerCase()}{superBookies.length !== 1 ? 's' : ''} · {totalPlayers} player{totalPlayers !== 1 ? 's' : ''}
                                                 </p>
                                                 {renderBookieHierarchyPanel(bookie)}
                                             </div>
@@ -927,11 +933,11 @@ const AllUsers = () => {
                                 {activeTab === 'all' && (
                                     <>
                                         <strong className="text-orange-500">All Players</strong>
-                                        {' '}– <strong>Belongs to</strong> shows who owns each player (Super Admin, Bookie, or Bookie › Super Bookie).
+                                        {' '}– <strong>Belongs to</strong> shows who owns each player (Super Admin, {TOP_LEVEL_LABEL}, or {TOP_LEVEL_LABEL} › {SUB_LEVEL_LABEL}).
                                     </>
                                 )}
                                 {activeTab === 'bookie_users' && (
-                                    <><strong className="text-orange-500">All Bookies Players</strong> – Players under a bookie or super bookie.</>
+                                    <><strong className="text-orange-500">All {TOP_LEVEL_LABEL_PLURAL} Players</strong> – Players under a {TOP_LEVEL_LABEL.toLowerCase()} or {SUB_LEVEL_LABEL.toLowerCase()}.</>
                                 )}
                                 {activeTab === 'super_admin_users' && (
                                     <><strong className="text-orange-500">Super Admin Players</strong> – Players who signed up directly or were created by super admin.</>
@@ -979,7 +985,7 @@ const AllUsers = () => {
                                                     if (o.superBookie) {
                                                         return (
                                                             <span className="text-gray-800">
-                                                                {o.bookie || 'Bookie'}
+                                                                {o.bookie || TOP_LEVEL_LABEL}
                                                                 <span className="text-gray-400 mx-1">›</span>
                                                                 <span className="text-indigo-700">{o.superBookie}</span>
                                                             </span>
@@ -1149,7 +1155,7 @@ const AllUsers = () => {
                     <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
                         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                             <h3 className="text-lg font-semibold text-orange-500">
-                                Confirm {pendingAction.type === 'player' ? 'Suspend/Unsuspend Player' : 'Suspend/Unsuspend Bookie'}
+                                Confirm {pendingAction.type === 'player' ? 'Suspend/Unsuspend Player' : `Suspend/Unsuspend ${TOP_LEVEL_LABEL}`}
                             </h3>
                             <button type="button" onClick={closePasswordModal} className="text-gray-400 hover:text-gray-800 p-1">×</button>
                         </div>

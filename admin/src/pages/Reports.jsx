@@ -18,6 +18,7 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession } from '../lib/auth';
+import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
 
 const PRESETS = [
     { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
@@ -97,7 +98,7 @@ const formatRangeLabel = (from, to) => {
 };
 
 const RELATED_LINKS = [
-    { to: '/revenue', label: 'Revenue', icon: FaMoneyBillWave, description: 'Bookie-wise revenue & commission breakdown' },
+    { to: '/revenue', label: 'Revenue', icon: FaMoneyBillWave, description: `${TOP_LEVEL_LABEL}-wise revenue & commission breakdown` },
     { to: '/bet-history', label: 'Bet History', icon: FaHistory, description: 'View all bets and filter by date' },
     { to: '/payment-management', label: 'Payment Management', icon: FaWallet, description: 'Add funds, withdrawals, transactions' },
     { to: '/top-winners', label: 'Top Winners', icon: FaTrophy, description: 'Leaderboard and winning players' },

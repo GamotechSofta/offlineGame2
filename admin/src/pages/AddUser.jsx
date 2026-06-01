@@ -5,6 +5,7 @@ import { FaArrowLeft, FaUserPlus, FaUser } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { TOP_LEVEL_LABEL } from '../config/roleLabels';
 
 const PHONE_REGEX = /^[6-9]\d{9}$/;
 
@@ -144,7 +145,7 @@ const AddUser = () => {
                 const data = await response.json();
                 if (data.success) {
                     const phoneNumber = formData.phone.replace(/\D/g, '').slice(0, 10);
-                    setSuccess(`Bookie account created successfully! Login with Phone: ${phoneNumber} and the password you set.`);
+                    setSuccess(`${TOP_LEVEL_LABEL} account created successfully! Login with Phone: ${phoneNumber} and the password you set.`);
                     setFormData({
                         firstName: '',
                         lastName: '',
@@ -397,11 +398,11 @@ const AddUser = () => {
                                         required
                                     >
                                         <option value="user">Player</option>
-                                        <option value="bookie">Bookie</option>
+                                        <option value="bookie">{TOP_LEVEL_LABEL}</option>
                                     </select>
                                     {formData.role === 'bookie' && (
                                         <p className="mt-0.5 text-xs text-orange-600 font-medium">
-                                            Bookie Panel: phone + password
+                                            {TOP_LEVEL_LABEL} Panel: phone + password
                                         </p>
                                     )}
                                 </div>
@@ -444,13 +445,13 @@ const AddUser = () => {
                                                 className={`${inputClass} cursor-pointer`}
                                             >
                                                 <option value="">Default (Super Admin)</option>
-                                                <option value="bookie">Bookie</option>
+                                                <option value="bookie">{TOP_LEVEL_LABEL}</option>
                                             </select>
                                         </div>
                                         {formData.assigneeType ? (
                                             <div>
                                                 <label htmlFor="assigneeId" className={labelClass}>
-                                                    {formData.assigneeType === 'bookie' ? 'Select Bookie' : 'Select Super Admin'}
+                                                    {formData.assigneeType === 'bookie' ? `Select ${TOP_LEVEL_LABEL}` : 'Select Super Admin'}
                                                 </label>
                                                 <select
                                                     id="assigneeId"
@@ -512,7 +513,7 @@ const AddUser = () => {
                                 ) : (
                                     <>
                                         <FaUserPlus className="w-4 h-4" />
-                                        {formData.role === 'bookie' ? 'Create Bookie' : 'Create Player'}
+                                        {formData.role === 'bookie' ? `Create ${TOP_LEVEL_LABEL}` : 'Create Player'}
                                     </>
                                 )}
                             </button>

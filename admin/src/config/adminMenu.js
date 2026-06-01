@@ -37,7 +37,7 @@ export const SPECIFIC_ADMIN_TABS = [
 export const TAB_OPTIONS = [
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/all-users', label: 'All Players' },
-    { path: '/bookie-management', label: 'Bookie Accounts' },
+    { path: '/bookie-management', label: 'SuperBookie Accounts' },
     { path: '/markets', label: 'Markets' },
     { path: '/2d-management', label: '2D Management (hub)' },
     { path: '/2d-management/current-slot-players', label: '2D — Players' },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { PANEL_LABEL } from '../config/panelLabels';
 import { useLanguage } from '../context/LanguageContext';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1').replace('/api/v1', '') || 'http://localhost:3010';
@@ -83,7 +84,7 @@ const HelpDesk = () => {
                                     <p className="text-xs text-gray-500 mt-2">
                                         {ticket.userId?.username || 'Unknown'}
                                         {ticket.userId?.source === 'bookie'
-                                            ? ` — super bookie user${ticket.userId?.referredBy?.username ? ` (${ticket.userId.referredBy.username})` : ''}`
+                                            ? ` — ${PANEL_LABEL.toLowerCase()} user${ticket.userId?.referredBy?.username ? ` (${ticket.userId.referredBy.username})` : ''}`
                                             : ' — admin user'}
                                         {' • '}{new Date(ticket.createdAt).toLocaleDateString()}
                                     </p>
@@ -99,7 +100,7 @@ const HelpDesk = () => {
                                 <h2 className="text-2xl font-bold">{selectedTicket.subject}</h2>
                                 <span className={`px-3 py-1 rounded text-sm ${selectedTicket.status === 'resolved' ? 'bg-green-600' : selectedTicket.status === 'in-progress' ? 'bg-orange-600' : selectedTicket.status === 'closed' ? 'bg-gray-200' : 'bg-blue-600'}`}>{selectedTicket.status}</span>
                             </div>
-                            <div className="mb-4"><p className="text-gray-400 text-sm mb-1">Player</p><p className="font-semibold">{selectedTicket.userId?.username || selectedTicket.userId}{selectedTicket.userId?.source === 'bookie' ? ` — super bookie user${selectedTicket.userId?.referredBy?.username ? ` (${selectedTicket.userId.referredBy.username})` : ''}` : ' — admin user'}</p></div>
+                            <div className="mb-4"><p className="text-gray-400 text-sm mb-1">Player</p><p className="font-semibold">{selectedTicket.userId?.username || selectedTicket.userId}{selectedTicket.userId?.source === 'bookie' ? ` — ${PANEL_LABEL.toLowerCase()} user${selectedTicket.userId?.referredBy?.username ? ` (${selectedTicket.userId.referredBy.username})` : ''}` : ' — admin user'}</p></div>
                             <div className="mb-4"><p className="text-gray-400 text-sm mb-1">Description</p><p className="whitespace-pre-wrap">{selectedTicket.description}</p></div>
                             {selectedTicket.screenshots?.length > 0 && (
                                 <div className="mb-4">

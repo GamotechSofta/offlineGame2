@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { PANEL_LABEL, PANEL_LABEL_PLURAL } from '../config/panelLabels';
 import {
     FaChartLine,
     FaMoneyBillWave,
@@ -658,7 +659,7 @@ const Dashboard = () => {
                 {/* Players (direct + super bookie network) */}
                 <SectionCard
                     title={t('players')}
-                    description={hierarchy ? 'All players under you (direct + super bookies)' : t('allTimeCounts')}
+                    description={hierarchy ? `All players under you (direct + ${PANEL_LABEL_PLURAL.toLowerCase()})` : t('allTimeCounts')}
                     icon={FaUserFriends}
                     linkTo="/my-users"
                     linkLabel={t('allPlayers')}
@@ -671,7 +672,7 @@ const Dashboard = () => {
                         <>
                             <div className="border-t border-gray-200 my-2" />
                             <StatRow label="Direct (your players)" value={hierarchy.directPlayers ?? 0} />
-                            <StatRow label="Via super bookies" value={hierarchy.superBookiePlayers ?? 0} colorClass="text-indigo-600" />
+                            <StatRow label={`Via ${PANEL_LABEL_PLURAL.toLowerCase()}`} value={hierarchy.superBookiePlayers ?? 0} colorClass="text-indigo-600" />
                         </>
                     )}
                 </SectionCard>
@@ -679,20 +680,20 @@ const Dashboard = () => {
                 {/* Super Bookies */}
                 {hierarchy && (
                     <SectionCard
-                        title="Super Bookies"
-                        description={`${hierarchy.superBookiesCount ?? 0} account(s) · ${hierarchy.superBookiePlayers ?? 0} players via super bookies`}
+                        title={PANEL_LABEL_PLURAL}
+                        description={`${hierarchy.superBookiesCount ?? 0} account(s) · ${hierarchy.superBookiePlayers ?? 0} players via ${PANEL_LABEL_PLURAL.toLowerCase()}`}
                         icon={FaUsersCog}
                         linkTo="/super-bookies"
                         linkLabel="Manage"
                         t={t}
                     >
-                        <StatRow label="Total super bookies" value={hierarchy.superBookiesCount ?? 0} />
-                        <StatRow label="Active super bookies" value={hierarchy.superBookiesActive ?? 0} colorClass="text-green-600" />
+                        <StatRow label={`Total ${PANEL_LABEL_PLURAL.toLowerCase()}`} value={hierarchy.superBookiesCount ?? 0} />
+                        <StatRow label={`Active ${PANEL_LABEL_PLURAL.toLowerCase()}`} value={hierarchy.superBookiesActive ?? 0} colorClass="text-green-600" />
                         <StatRow label="Their players (active)" value={hierarchy.superBookiePlayersActive ?? 0} colorClass="text-indigo-600" />
                         {Array.isArray(hierarchy.superBookies) && hierarchy.superBookies.length > 0 ? (
                             <>
                                 <div className="border-t border-gray-200 my-2" />
-                                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Per super bookie</p>
+                                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Per {PANEL_LABEL.toLowerCase()}</p>
                                 {hierarchy.superBookies.slice(0, 5).map((sb) => (
                                     <StatRow
                                         key={sb.id}
@@ -707,7 +708,7 @@ const Dashboard = () => {
                                 )}
                             </>
                         ) : (
-                            <p className="text-sm text-gray-500 py-2">No super bookies yet. Create from Super Bookies menu.</p>
+                            <p className="text-sm text-gray-500 py-2">No {PANEL_LABEL_PLURAL.toLowerCase()} yet. Create from {PANEL_LABEL_PLURAL} menu.</p>
                         )}
                     </SectionCard>
                 )}
@@ -895,7 +896,7 @@ const Dashboard = () => {
                         {t('report')}
                     </Link>
                     <Link to="/super-bookies" className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-indigo-500/10 border border-gray-200 hover:border-indigo-300 text-gray-600 hover:text-indigo-700 text-sm font-medium transition-all text-center">
-                        Super Bookies
+                        {PANEL_LABEL_PLURAL}
                     </Link>
                 </div>
             </div>

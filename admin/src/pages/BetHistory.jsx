@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { TOP_LEVEL_LABEL } from '../config/roleLabels';
 
 const formatNum = (num) => {
     if (!num && num !== 0) return '0';
@@ -190,7 +191,7 @@ const BetHistory = () => {
                                         : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
                                 }`}
                             >
-                                Bets By Bookie
+                                Panel Placed Bets
                             </button>
                         </div>
                     </div>
@@ -273,7 +274,7 @@ const BetHistory = () => {
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-3 py-2 text-center text-xs text-gray-600">
-                                                                        {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Bookie') : 'Player'}
+                                                                        {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Panel') : 'Player'}
                                                                     </td>
                                                                 </tr>
                                                             ))}
@@ -336,7 +337,7 @@ const BetHistory = () => {
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-3 py-2 text-center text-xs text-gray-600">
-                                                                        {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Bookie') : 'Player'}
+                                                                        {bet.placedByBookie ? (bet.placedByBookieId?.username || 'Panel') : 'Player'}
                                                                     </td>
                                                                 </tr>
                                                             ))}

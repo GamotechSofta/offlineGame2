@@ -15,6 +15,8 @@ import {
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
+import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL, SUB_LEVEL_LABEL } from '../config/roleLabels';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
 const formatCurrency = (value) => {
@@ -233,16 +235,16 @@ const BookieCommissions = () => {
     };
 
     return (
-        <AdminLayout onLogout={handleLogout} title="Bookie Commissions">
+        <AdminLayout onLogout={handleLogout} title={`${TOP_LEVEL_LABEL} Commissions`}>
             <div className="space-y-4 sm:space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-2">
                             <FaMoneyBillWave className="text-blue-600" />
-                            Bookie Commissions
+                            {TOP_LEVEL_LABEL} Commissions
                         </h1>
                         <p className="text-sm text-slate-500 mt-1">
-                            All-time commission from player bets (including super bookie players). Settle pending via payments below.
+                            All-time commission from player bets (including {SUB_LEVEL_LABEL.toLowerCase()} players). Settle pending via payments below.
                         </p>
                     </div>
                     <button
@@ -308,7 +310,7 @@ const BookieCommissions = () => {
                             <input
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
-                                placeholder="Search bookie by name or phone"
+                                placeholder={`Search ${TOP_LEVEL_LABEL.toLowerCase()} by name or phone`}
                                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                             />
                         </div>
@@ -332,12 +334,12 @@ const BookieCommissions = () => {
                         <table className="w-full text-xs">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200">
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={2}>Bookie Info</th>
+                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={2}>{TOP_LEVEL_LABEL} Info</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={5}>Financials (all-time)</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={2}>Actions</th>
                                 </tr>
                                 <tr className="bg-slate-50 border-b border-slate-200">
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Bookie</th>
+                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">{TOP_LEVEL_LABEL}</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Rate</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Total Sales</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Last Payment</th>
@@ -378,7 +380,7 @@ const BookieCommissions = () => {
                                                     <td className="px-4 py-3.5 text-right text-slate-700">
                                                         {Number(row.commissionPercentage || 0)}%
                                                         {Number(row.commissionPercentage || 0) <= 0 && (
-                                                            <p className="text-[10px] text-amber-600 font-normal">Set % in Bookie Accounts</p>
+                                                            <p className="text-[10px] text-amber-600 font-normal">Set % in {TOP_LEVEL_LABEL} Accounts</p>
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3.5 text-right text-slate-700">{formatCurrency(row.totalBetAmount)}</td>

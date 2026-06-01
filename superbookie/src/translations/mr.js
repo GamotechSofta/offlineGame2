@@ -26,7 +26,7 @@ export default {
     english: 'इंग्रजी',
     hindi: 'हिंदी',
     marathi: 'मराठी',
-    bookiePanel: 'सुपर बुकी पॅनेल',
+    bookiePanel: 'सुपरबुकी पॅनेल',
     refresh: 'रिफ्रेश',
     view: 'पहा',
     apply: 'लागू करा',

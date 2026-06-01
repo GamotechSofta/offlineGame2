@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { TOP_LEVEL_LABEL } from '../config/roleLabels';
 const UPLOAD_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1').replace(/\/api\/v1\/?$/, '') || 'http://localhost:3010';
 
 const HelpDesk = () => {
@@ -104,7 +105,7 @@ const HelpDesk = () => {
                             className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800"
                         >
                             <option value="">All Users</option>
-                            <option value="bookie">Bookie user only</option>
+                            <option value="bookie">{TOP_LEVEL_LABEL} user only</option>
                             <option value="super_admin">Admin user only</option>
                         </select>
                         {bookies.length > 0 && (

@@ -19,7 +19,8 @@ import {
 } from 'react-icons/fa';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
-import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
 import { useQuery } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { dedupeRequest } from '../lib/requestDedupe';
@@ -793,9 +794,9 @@ const AdminDashboard = () => {
 
                 {/* Bookies (Super Admin only) */}
                 {adminRole === 'super_admin' && (
-                    <SectionCard title="Bookie Accounts" description="All-time" icon={FaUsers} linkTo="/bookie-management" linkLabel="Manage Bookies">
-                        <StatRow label="Total Bookies" value={stats?.bookies?.total ?? 0} />
-                        <StatRow label="Active Bookies" value={stats?.bookies?.active ?? 0} colorClass="text-green-600" />
+                    <SectionCard title={`${TOP_LEVEL_LABEL} Accounts`} description="All-time" icon={FaUsers} linkTo="/bookie-management" linkLabel={`Manage ${TOP_LEVEL_LABEL_PLURAL}`}>
+                        <StatRow label={`Total ${TOP_LEVEL_LABEL_PLURAL}`} value={stats?.bookies?.total ?? 0} />
+                        <StatRow label={`Active ${TOP_LEVEL_LABEL_PLURAL}`} value={stats?.bookies?.active ?? 0} colorClass="text-green-600" />
                     </SectionCard>
                 )}
 

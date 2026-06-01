@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { PANEL_LABEL } from '../config/panelLabels';
 import { formatPlayerIp } from '../utils/ipDisplay';
 import { useLanguage } from '../context/LanguageContext';
 import {
@@ -25,7 +26,7 @@ import {
 const getTabs = (t) => [
     { id: 'overview', label: t('overview'), icon: FaUser },
     { id: 'bets_by_user', label: 'Bets by Player', icon: FaHistory },
-    { id: 'bets_by_bookie', label: 'Bets by Super Bookie', icon: FaHistory },
+    { id: 'bets_by_bookie', label: `Bets by ${PANEL_LABEL}`, icon: FaHistory },
     { id: 'game-history', label: 'Game History', icon: FaGamepad },
     { id: 'wallet', label: t('fundHistory'), icon: FaExchangeAlt },
     { id: 'statement', label: t('statement'), icon: FaFileInvoiceDollar },
@@ -1038,7 +1039,7 @@ const PlayerDetail = () => {
                 <td>${b.marketId?.marketName || '—'}</td>
                 <td style="text-align:right">${formatCurrency(b.amount)}</td>
                 <td style="text-align:right; color:${b.status === 'won' ? '#16a34a' : '#666'}">${formatCurrency(b.payout || 0)}</td>
-                <td>${b.placedByBookie ? 'Super Bookie' : 'User'}</td>
+                <td>${b.placedByBookie ? PANEL_LABEL : 'User'}</td>
                 <td><span class="status-${b.status}">${b.status}</span></td>
                 <td>${new Date(b.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</td>
             </tr>
@@ -1146,7 +1147,7 @@ const PlayerDetail = () => {
                                     </div>
                                     <div>
                                         <p className="text-gray-400 text-xs uppercase tracking-wider">Source</p>
-                                        <p className="text-gray-800 capitalize">{player.source === 'bookie' ? 'Super Bookie' : 'Super Admin'}</p>
+                                        <p className="text-gray-800 capitalize">{player.source === 'bookie' ? PANEL_LABEL : 'Super Admin'}</p>
                                     </div>
                                     <div>
                                         <p className="text-gray-400 text-xs uppercase tracking-wider">Joined</p>
@@ -1496,7 +1497,7 @@ const PlayerDetail = () => {
                                                     <td className="px-3 py-2 text-gray-500 uppercase text-xs">{b.betOn || '—'}</td>
                                                     <td className="px-3 py-2 text-right font-mono text-gray-800">{formatCurrency(b.amount)}</td>
                                                     <td className="px-3 py-2 text-right font-mono text-green-600">{b.status === 'won' ? formatCurrency(b.payout) : '—'}</td>
-                                                    <td className="px-3 py-2 text-xs text-gray-600">{b.placedByBookie ? 'Super Bookie' : 'User'}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600">{b.placedByBookie ? PANEL_LABEL : 'User'}</td>
                                                     <td className="px-3 py-2">
                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                                             b.status === 'won' ? 'bg-green-100 text-green-700'

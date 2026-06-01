@@ -6,18 +6,19 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { TOP_LEVEL_LABEL, SUB_LEVEL_LABEL } from '../config/roleLabels';
 import { useTraceRender } from '../lib/runtimeTrace';
 
 const ACTION_LABELS = {
     admin_login: 'Admin Login',
-    bookie_login: 'Bookie Login',
+    bookie_login: `${TOP_LEVEL_LABEL} Login`,
     player_login: 'Player Login',
     player_signup: 'Player Signup',
     create_admin: 'Create Admin',
-    create_bookie: 'Create Bookie',
-    update_bookie: 'Update Bookie',
-    delete_bookie: 'Delete Bookie',
-    toggle_bookie_status: 'Toggle Bookie Status',
+    create_bookie: `Create ${TOP_LEVEL_LABEL}`,
+    update_bookie: `Update ${TOP_LEVEL_LABEL}`,
+    delete_bookie: `Delete ${TOP_LEVEL_LABEL}`,
+    toggle_bookie_status: `Toggle ${TOP_LEVEL_LABEL} Status`,
     create_market: 'Create Market',
     update_market: 'Update Market',
     delete_market: 'Delete Market',
@@ -35,7 +36,8 @@ const ACTION_LABELS = {
 const TYPE_LABELS = {
     super_admin: 'Super Admin',
     admin: 'Admin',
-    bookie: 'Bookie',
+    bookie: TOP_LEVEL_LABEL,
+    super_bookie: SUB_LEVEL_LABEL,
     user: 'Player',
     system: 'System',
 };

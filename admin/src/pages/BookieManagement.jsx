@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate } from 'react-router-dom';
-import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEyeSlash, FaCopy, FaPercent, FaSearch, FaWallet, FaUsersCog } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEyeSlash, FaCopy, FaPercent, FaSearch, FaWallet, FaUsersCog, FaExternalLinkAlt } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth, getStoredAdmin } from '../lib/auth';
+import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
 
 const BookieManagement = () => {
     const navigate = useNavigate();
@@ -62,6 +63,10 @@ const BookieManagement = () => {
     });
 
     const PHONE_REGEX = /^[6-9]\d{9}$/;
+
+    const openBookieDetail = (bookieId) => {
+        navigate(`/bookie-management/${bookieId}`);
+    };
 
     const filteredBookies = bookies.filter((b) => {
         const q = searchTerm.trim().toLowerCase();
@@ -138,7 +143,7 @@ const BookieManagement = () => {
             return;
         }
         if (!formData.phone || !formData.phone.trim()) {
-            setError('Phone number is required (bookies log in with phone + password)');
+            setError(`Phone number is required (${TOP_LEVEL_LABEL_PLURAL.toLowerCase()} log in with phone + password)`);
             return;
         }
         if (!PHONE_REGEX.test(formData.phone.replace(/\D/g, ''))) {
@@ -174,7 +179,7 @@ const BookieManagement = () => {
             const data = await response.json();
             if (data.success) {
                 const phoneNumber = formData.phone.replace(/\D/g, '').slice(0, 10);
-                setSuccess(`Bookie account created successfully! Login with Phone: ${phoneNumber} and the password you set.`);
+                setSuccess(`${TOP_LEVEL_LABEL} account created successfully! Login with Phone: ${phoneNumber} and the password you set.`);
                 setShowCreateModal(false);
                 setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false, balance: '' });
                 fetchBookies();
@@ -227,7 +232,7 @@ const BookieManagement = () => {
             if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
-                setSuccess('Bookie updated successfully!');
+                setSuccess(`${TOP_LEVEL_LABEL} updated successfully!`);
                 setShowEditModal(false);
                 setSelectedBookie(null);
                 setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false, balance: '' });
@@ -262,7 +267,7 @@ const BookieManagement = () => {
             const data = await response.json();
 
             if (data.success) {
-                setSuccess('Bookie deleted successfully!');
+                setSuccess(`${TOP_LEVEL_LABEL} deleted successfully!`);
                 setShowDeleteModal(false);
                 setSelectedBookie(null);
                 setSecretPassword('');
@@ -297,7 +302,7 @@ const BookieManagement = () => {
                 setShowPasswordModal(false);
                 setPendingBookie(null);
                 setSecretPassword('');
-                setSuccess(`Bookie ${data.data.status === 'active' ? 'unsuspended' : 'suspended'} successfully!`);
+                setSuccess(`${TOP_LEVEL_LABEL} ${data.data.status === 'active' ? 'unsuspended' : 'suspended'} successfully!`);
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 3000);
             } else {
@@ -412,7 +417,7 @@ const BookieManagement = () => {
             if (response.status === 401) return;
             const data = await response.json();
             if (data.success) {
-                setSuccess('Bookie account updated successfully');
+                setSuccess(`${TOP_LEVEL_LABEL} account updated successfully`);
                 setShowManageModal(false);
                 setSelectedBookie(null);
                 fetchBookies();
@@ -440,10 +445,10 @@ const BookieManagement = () => {
     };
 
     return (
-        <AdminLayout onLogout={handleLogout} title="Bookie Accounts">
+        <AdminLayout onLogout={handleLogout} title={`${TOP_LEVEL_LABEL} Accounts`}>
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
-                        <h1 className="text-2xl sm:text-3xl font-bold">Bookie Accounts Management</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold">{TOP_LEVEL_LABEL} Accounts Management</h1>
                         {canManageBookies && (
                             <button
                                 onClick={() => {
@@ -452,14 +457,14 @@ const BookieManagement = () => {
                                 }}
                                 className="w-full sm:w-auto flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-gray-800 font-bold py-2.5 px-4 rounded-lg transition-colors text-sm sm:text-base"
                             >
-                                <FaPlus /> Add New Bookie
+                                <FaPlus /> Add New {TOP_LEVEL_LABEL}
                             </button>
                         )}
                     </div>
 
                     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Total Bookies</p>
+                            <p className="text-xs text-gray-500">Total {TOP_LEVEL_LABEL_PLURAL}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.total}</p>
                         </div>
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
@@ -471,11 +476,11 @@ const BookieManagement = () => {
                             <p className="text-xl font-bold text-red-500">{stats.suspended}</p>
                         </div>
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Total Bookie Balance</p>
+                            <p className="text-xs text-gray-500">Total {TOP_LEVEL_LABEL} Balance</p>
                             <p className="text-xl font-bold text-[#1B3150]">₹{Math.floor(stats.totalBalance).toLocaleString('en-IN')}</p>
                         </div>
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Total Commission (All Bookies)</p>
+                            <p className="text-xs text-gray-500">Total Commission (All {TOP_LEVEL_LABEL_PLURAL})</p>
                             <p className="text-xl font-bold text-orange-600">₹{stats.totalCommission.toLocaleString('en-IN')}</p>
                         </div>
                     </div>
@@ -523,27 +528,37 @@ const BookieManagement = () => {
                         {loading ? (
                             <div className="p-8 text-center">
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-                                <p className="mt-4 text-gray-400">Loading bookies...</p>
+                                <p className="mt-4 text-gray-400">Loading {TOP_LEVEL_LABEL_PLURAL.toLowerCase()}...</p>
                             </div>
                         ) : filteredBookies.length === 0 ? (
                             <div className="p-8 text-center text-gray-400">
-                                <p>No matching bookie accounts found.</p>
+                                <p>No matching {TOP_LEVEL_LABEL.toLowerCase()} accounts found.</p>
                                 <p className="mt-2">
                                     {canManageBookies
-                                        ? 'Try changing search/filter or add a new bookie.'
+                                        ? `Try changing search/filter or add a new ${TOP_LEVEL_LABEL.toLowerCase()}.`
                                         : 'Try changing search or filter.'}
                                 </p>
                             </div>
                         ) : (
                             <div className="p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
                                 {filteredBookies.map((bookie, index) => (
-                                    <div key={bookie._id} className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
+                                    <div
+                                        key={bookie._id}
+                                        className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm"
+                                    >
                                         <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-xs text-gray-500">#{index + 1}</span>
-                                                    <h3 className="font-semibold text-gray-800 truncate">{bookie.username}</h3>
                                                     <button
+                                                        type="button"
+                                                        onClick={() => openBookieDetail(bookie._id)}
+                                                        className="font-semibold text-gray-800 truncate text-left hover:text-orange-600"
+                                                    >
+                                                        {bookie.username}
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         onClick={() => copyToClipboard(bookie.username)}
                                                         className="text-gray-400 hover:text-orange-500"
                                                         title="Copy name"
@@ -554,7 +569,7 @@ const BookieManagement = () => {
                                                 <p className="text-sm text-gray-500 mt-0.5 truncate">{bookie.email || 'No email'}</p>
                                                 <p className="text-sm text-gray-600">{bookie.phone || '-'}</p>
                                             </div>
-                                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
                                                 bookie.status === 'active'
                                                     ? 'bg-green-100 text-green-700 border border-green-200'
                                                     : 'bg-red-50 text-red-500 border border-red-200'
@@ -584,9 +599,20 @@ const BookieManagement = () => {
                                             </div>
                                         </div>
 
+                                        <div className="flex flex-wrap gap-2 mt-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => openBookieDetail(bookie._id)}
+                                                className="px-3 py-2 rounded-lg bg-orange-500 text-gray-800 text-xs font-semibold hover:bg-orange-400 inline-flex items-center gap-1.5"
+                                            >
+                                                View details <FaExternalLinkAlt className="w-3 h-3" />
+                                            </button>
+                                        </div>
+
                                         {canManageBookies && (
                                         <div className="flex flex-wrap gap-2 mt-3">
                                             <button
+                                                type="button"
                                                 onClick={() => openManageModal(bookie)}
                                                 className="px-3 py-2 rounded-lg bg-[#1B3150] text-white text-xs font-semibold hover:bg-[#152842]"
                                                 title="Quick Manage Balance & Commission"
@@ -594,6 +620,7 @@ const BookieManagement = () => {
                                                 Quick Manage
                                             </button>
                                             <button
+                                                type="button"
                                                 onClick={() => handleToggleStatus(bookie)}
                                                 disabled={togglingId === bookie._id}
                                                 className={`px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 ${
@@ -605,12 +632,14 @@ const BookieManagement = () => {
                                                 {togglingId === bookie._id ? 'Please wait...' : (bookie.status === 'active' ? 'Suspend' : 'Unsuspend')}
                                             </button>
                                             <button
+                                                type="button"
                                                 onClick={() => openEditModal(bookie)}
                                                 className="px-3 py-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold"
                                             >
                                                 Edit
                                             </button>
                                             <button
+                                                type="button"
                                                 onClick={() => openDeleteModal(bookie)}
                                                 className="px-3 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 text-xs font-semibold"
                                             >
@@ -626,11 +655,11 @@ const BookieManagement = () => {
 
                     {/* Info Card */}
                     <div className="mt-4 sm:mt-6 bg-white rounded-lg p-4 sm:p-6">
-                        <h3 className="text-base sm:text-lg font-semibold text-orange-500 mb-3">Bookie Login Information</h3>
+                        <h3 className="text-base sm:text-lg font-semibold text-orange-500 mb-3">{TOP_LEVEL_LABEL} Login Information</h3>
                         <div className="text-gray-600 space-y-2 text-sm sm:text-base">
-                            <p><strong>Bookie Panel URL:</strong> <code className="bg-gray-100 px-2 py-1 rounded">/bookie</code></p>
-                            <p><strong>Login:</strong> Bookies use their Phone number and the password you set.</p>
-                            <p><strong>Status:</strong> Suspended bookies cannot login to the bookie panel.</p>
+                            <p><strong>{TOP_LEVEL_LABEL} Panel URL:</strong> <code className="bg-gray-100 px-2 py-1 rounded">/bookie</code></p>
+                            <p><strong>Login:</strong> {TOP_LEVEL_LABEL_PLURAL} use their Phone number and the password you set.</p>
+                            <p><strong>Status:</strong> Suspended {TOP_LEVEL_LABEL_PLURAL.toLowerCase()} cannot login to the {TOP_LEVEL_LABEL.toLowerCase()} panel.</p>
                         </div>
                     </div>
 
@@ -639,7 +668,7 @@ const BookieManagement = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
                     <div className="bg-white rounded-lg w-full max-w-md my-auto flex flex-col max-h-[90vh] shadow-xl">
                         <div className="flex justify-between items-center p-4 pb-0 shrink-0">
-                            <h2 className="text-xl font-bold">Create New Bookie</h2>
+                            <h2 className="text-xl font-bold">Create New {TOP_LEVEL_LABEL}</h2>
                             <button onClick={closeCreateModal} className="text-gray-400 hover:text-gray-800">
                                 <FaTimes size={20} />
                             </button>
@@ -695,7 +724,7 @@ const BookieManagement = () => {
                                         placeholder="10-digit (6–9 start)"
                                         required
                                     />
-                                    <p className="mt-0.5 text-xs text-gray-500">Bookies log in with phone + password.</p>
+                                    <p className="mt-0.5 text-xs text-gray-500">{TOP_LEVEL_LABEL_PLURAL} log in with phone + password.</p>
                                 </div>
                                 <div>
                                     <label className="block text-gray-600 text-sm font-medium mb-1">Commission %</label>
@@ -724,7 +753,7 @@ const BookieManagement = () => {
                                         className="w-full px-3 py-1.5 text-sm bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                                         placeholder="0"
                                     />
-                                    <p className="mt-0.5 text-xs text-gray-500">Deducted when bookie gives balance to players.</p>
+                                    <p className="mt-0.5 text-xs text-gray-500">Deducted when {TOP_LEVEL_LABEL.toLowerCase()} gives balance to players.</p>
                                 </div>
                                 <div>
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -787,7 +816,7 @@ const BookieManagement = () => {
                                         disabled={formLoading}
                                         className="flex-1 bg-orange-500 hover:bg-orange-600 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                        {formLoading ? 'Creating...' : 'Create Bookie'}
+                                        {formLoading ? 'Creating...' : `Create ${TOP_LEVEL_LABEL}`}
                                     </button>
                             </div>
                         </form>
@@ -800,7 +829,7 @@ const BookieManagement = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
                     <div className="bg-white rounded-lg w-full max-w-md my-auto flex flex-col max-h-[90vh] shadow-xl">
                         <div className="flex justify-between items-center p-4 pb-0 shrink-0">
-                            <h2 className="text-xl font-bold">Edit Bookie</h2>
+                            <h2 className="text-xl font-bold">Edit {TOP_LEVEL_LABEL}</h2>
                             <button onClick={closeEditModal} className="text-gray-400 hover:text-gray-800">
                                 <FaTimes size={20} />
                             </button>
@@ -881,7 +910,7 @@ const BookieManagement = () => {
                                         className="w-full px-3 py-1.5 text-sm bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                                         placeholder="0"
                                     />
-                                    <p className="mt-0.5 text-xs text-gray-500">Deducted when bookie gives balance to players.</p>
+                                    <p className="mt-0.5 text-xs text-gray-500">Deducted when {TOP_LEVEL_LABEL.toLowerCase()} gives balance to players.</p>
                                 </div>
                                 <div>
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -931,7 +960,7 @@ const BookieManagement = () => {
                                         disabled={formLoading}
                                         className="flex-1 bg-orange-500 hover:bg-orange-600 text-gray-800 font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                        {formLoading ? 'Updating...' : 'Update Bookie'}
+                                        {formLoading ? 'Updating...' : `Update ${TOP_LEVEL_LABEL}`}
                                     </button>
                             </div>
                         </form>
@@ -944,16 +973,16 @@ const BookieManagement = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-red-500">Delete Bookie</h2>
+                            <h2 className="text-xl font-bold text-red-500">Delete {TOP_LEVEL_LABEL}</h2>
                             <button onClick={closeDeleteModal} className="text-gray-400 hover:text-gray-800">
                                 <FaTimes size={20} />
                             </button>
                         </div>
                         <p className="text-gray-600 mb-4">
-                            Are you sure you want to delete the bookie account <strong className="text-gray-800">"{selectedBookie?.username}"</strong>?
+                            Are you sure you want to delete the {TOP_LEVEL_LABEL.toLowerCase()} account <strong className="text-gray-800">"{selectedBookie?.username}"</strong>?
                         </p>
                         <p className="text-red-500 text-sm mb-4">
-                            This action cannot be undone. The bookie will lose access to their account permanently.
+                            This action cannot be undone. The {TOP_LEVEL_LABEL.toLowerCase()} will lose access to their account permanently.
                         </p>
                         {hasSecretDeclarePassword && (
                             <div className="mb-4">
@@ -994,12 +1023,12 @@ const BookieManagement = () => {
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
                     <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
                         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-orange-500">Confirm Suspend/Unsuspend Bookie</h3>
+                            <h3 className="text-lg font-semibold text-orange-500">Confirm Suspend/Unsuspend {TOP_LEVEL_LABEL}</h3>
                             <button type="button" onClick={closePasswordModal} className="text-gray-400 hover:text-gray-800 p-1">×</button>
                         </div>
                         <form onSubmit={handlePasswordSubmit} className="p-4 space-y-4">
                             <p className="text-gray-600 text-sm">
-                                Enter secret declare password to suspend/unsuspend this bookie.
+                                Enter secret declare password to suspend/unsuspend this {TOP_LEVEL_LABEL.toLowerCase()}.
                             </p>
                             <input
                                 type="password"
@@ -1028,12 +1057,12 @@ const BookieManagement = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
                     <div className="bg-white rounded-lg w-full max-w-md my-auto shadow-xl">
                         <div className="flex justify-between items-center p-4 border-b border-gray-200">
-                            <h2 className="text-xl font-bold flex items-center gap-2"><FaUsersCog /> Quick Manage Bookie</h2>
+                            <h2 className="text-xl font-bold flex items-center gap-2"><FaUsersCog /> Quick Manage {TOP_LEVEL_LABEL}</h2>
                             <button onClick={closeManageModal} className="text-gray-400 hover:text-gray-800"><FaTimes size={20} /></button>
                         </div>
                         <form onSubmit={handleManageSave} className="p-4 space-y-3">
                             <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
-                                <p className="text-sm text-gray-500">Bookie</p>
+                                <p className="text-sm text-gray-500">{TOP_LEVEL_LABEL}</p>
                                 <p className="font-semibold text-gray-800">{selectedBookie.username}</p>
                                 <p className="text-sm text-gray-500 mt-1">Current Balance: <span className="font-semibold text-green-600">₹{Number(selectedBookie.balance || 0).toLocaleString('en-IN')}</span></p>
                             </div>

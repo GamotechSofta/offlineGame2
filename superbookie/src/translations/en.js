@@ -26,7 +26,7 @@ export default {
     english: 'English',
     hindi: 'Hindi',
     marathi: 'Marathi',
-    bookiePanel: 'Super Bookie Panel',
+    bookiePanel: 'SuperBookie Panel',
     refresh: 'Refresh',
     view: 'View',
     apply: 'Apply',

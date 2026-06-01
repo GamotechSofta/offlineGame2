@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import { FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes, FaEye, FaEyeSlash, FaUsersCog, FaWallet, FaCog, FaTrash } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL, fetchWithAuth } from '../utils/api';
+import { PANEL_LABEL, PANEL_LABEL_PLURAL } from '../config/panelLabels';
 
 const PHONE_REGEX = /^[6-9]\d{9}$/;
 
@@ -60,7 +61,7 @@ const SuperBookieManagement = () => {
             const res = await fetchWithAuth(`${API_BASE_URL}/bookie/super-bookies`);
             const data = await res.json();
             if (data.success) setList(data.data || []);
-            else setError(data.message || 'Failed to load super bookies');
+            else setError(data.message || `Failed to load ${PANEL_LABEL_PLURAL.toLowerCase()}`);
         } catch {
             setError('Network error');
         } finally {
@@ -145,7 +146,7 @@ const SuperBookieManagement = () => {
             });
             const data = await res.json();
             if (data.success) {
-                setSuccess(data.message || 'Super bookie created');
+                setSuccess(data.message || `${PANEL_LABEL} created`);
                 setShowCreateModal(false);
                 resetForm();
                 fetchList(true);
@@ -283,7 +284,7 @@ const SuperBookieManagement = () => {
                     return;
                 }
             }
-            setSuccess('Super bookie updated');
+            setSuccess(`${PANEL_LABEL} updated`);
             setShowManageModal(false);
             fetchList(true);
         } catch {
@@ -310,7 +311,7 @@ const SuperBookieManagement = () => {
             );
             const data = await res.json();
             if (data.success) {
-                setSuccess(data.message || 'Super bookie deleted');
+                setSuccess(data.message || `${PANEL_LABEL} deleted`);
                 setShowDeleteModal(false);
                 setSelected(null);
                 const returned = Number(data.data?.returnedBalance) || 0;
@@ -384,8 +385,8 @@ const SuperBookieManagement = () => {
                 <p className="text-sm font-semibold text-[#1B3150]">Commission</p>
                 <p className="text-xs text-gray-500">
                     {isEdit
-                        ? 'Super bookie earns this % on their players’ bets.'
-                        : 'Set commission % now — same as when you create a super bookie in admin.'}
+                        ? `${PANEL_LABEL} earns this % on their players’ bets.`
+                        : `Set commission % now — same as when you create a ${PANEL_LABEL.toLowerCase()} in admin.`}
                 </p>
                 <div>
                     <label htmlFor={isEdit ? 'sb-commission-edit' : 'sb-commission-create'} className="block text-sm font-medium text-gray-600 mb-1">
@@ -451,7 +452,7 @@ const SuperBookieManagement = () => {
                 disabled={formLoading}
                 className="w-full py-2.5 rounded-xl bg-[#1B3150] text-white font-semibold disabled:opacity-50"
             >
-                {formLoading ? 'Saving...' : isEdit ? 'Update' : 'Create Super Bookie'}
+                {formLoading ? 'Saving...' : isEdit ? 'Update' : `Create ${PANEL_LABEL}`}
             </button>
         </form>
     );
@@ -462,10 +463,10 @@ const SuperBookieManagement = () => {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-bold text-[#1B3150] flex items-center gap-2">
-                            <FaUsersCog /> Super Bookies
+                            <FaUsersCog /> {PANEL_LABEL_PLURAL}
                         </h1>
                         <p className="text-gray-500 text-sm mt-1">
-                            Create super bookie accounts — they use the Super Bookie Panel for players & stats.
+                            Create {PANEL_LABEL.toLowerCase()} accounts — they use the {PANEL_LABEL} Panel for players & stats.
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -473,7 +474,7 @@ const SuperBookieManagement = () => {
                             to="/super-bookie-commissions"
                             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#1B3150] text-[#1B3150] font-semibold text-sm"
                         >
-                            Super Bookie Commissions
+                            {PANEL_LABEL} Commissions
                         </Link>
                         <button
                             type="button"
@@ -484,7 +485,7 @@ const SuperBookieManagement = () => {
                             }}
                             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1B3150] text-white font-semibold"
                         >
-                            <FaPlus /> Create Super Bookie
+                            <FaPlus /> Create {PANEL_LABEL}
                         </button>
                     </div>
                 </div>
@@ -539,7 +540,7 @@ const SuperBookieManagement = () => {
                                 {filtered.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="p-6 text-center text-gray-400">
-                                            No super bookies yet
+                                            No {PANEL_LABEL_PLURAL.toLowerCase()} yet
                                         </td>
                                     </tr>
                                 ) : (
@@ -607,7 +608,7 @@ const SuperBookieManagement = () => {
                                                         type="button"
                                                         onClick={() => openDelete(sb)}
                                                         className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                                                        title="Delete super bookie"
+                                                        title={`Delete ${PANEL_LABEL.toLowerCase()}`}
                                                     >
                                                         <FaTrash />
                                                     </button>
@@ -622,13 +623,13 @@ const SuperBookieManagement = () => {
                 )}
             </div>
 
-            <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create Super Bookie">
+            <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} title={`Create ${PANEL_LABEL}`}>
                 {formFields(false)}
             </Modal>
-            <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Super Bookie">
+            <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title={`Edit ${PANEL_LABEL}`}>
                 {formFields(true)}
             </Modal>
-            <Modal open={showManageModal} onClose={() => setShowManageModal(false)} title="Quick Manage Super Bookie">
+            <Modal open={showManageModal} onClose={() => setShowManageModal(false)} title={`Quick Manage ${PANEL_LABEL}`}>
                 <form onSubmit={handleManageSave} className="space-y-3">
                     {selected && (
                         <div className="rounded-lg bg-gray-50 border p-3 text-sm">
@@ -718,11 +719,11 @@ const SuperBookieManagement = () => {
                     </button>
                 </form>
             </Modal>
-            <Modal open={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Super Bookie">
+            <Modal open={showDeleteModal} onClose={() => setShowDeleteModal(false)} title={`Delete ${PANEL_LABEL}`}>
                 {selected && (
                     <div className="space-y-4">
                         <p className="text-sm text-gray-700">
-                            Delete super bookie <strong className="text-[#1B3150]">{selected.username}</strong>?
+                            Delete {PANEL_LABEL.toLowerCase()} <strong className="text-[#1B3150]">{selected.username}</strong>?
                         </p>
                         {Number(selected.playerCount || 0) > 0 ? (
                             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
@@ -731,7 +732,7 @@ const SuperBookieManagement = () => {
                             </p>
                         ) : (
                             <ul className="text-sm text-gray-500 list-disc pl-5 space-y-1">
-                                <li>Login for this super bookie will stop working.</li>
+                                <li>Login for this {PANEL_LABEL.toLowerCase()} will stop working.</li>
                                 {Number(selected.balance || 0) > 0 && (
                                     <li>
                                         Remaining balance ₹{Number(selected.balance).toLocaleString('en-IN')} will

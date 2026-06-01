@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { PANEL_LABEL } from '../config/panelLabels';
 
 const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
 const formatBetDetails = (bet) => {
@@ -57,7 +58,7 @@ const Records = () => {
                 flow: 'debit',
                 status: b.status || 'pending',
                 betPlacedBy: b.placedByBookie ? 'bookie' : 'player',
-                source: b.placedByBookie ? (b.placedByBookieId?.username || 'Super Bookie') : 'Player',
+                source: b.placedByBookie ? (b.placedByBookieId?.username || PANEL_LABEL) : 'Player',
             }));
 
             const combined = [...betRecords].sort((a, b) => {
@@ -135,7 +136,7 @@ const Records = () => {
                         betByFilter === 'bookie' ? 'bg-[#1B3150] text-white border-[#1B3150]' : 'bg-gray-100 text-gray-700 border-gray-200'
                     }`}
                 >
-                    Bets by Super Bookie
+                    {`Bets by ${PANEL_LABEL}`}
                 </button>
                 <div className="ml-auto flex items-center gap-2">
                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Rows:</span>

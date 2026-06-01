@@ -23,7 +23,7 @@ import {
 export const ALL_MENU_ITEMS = [
     { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
     { path: '/all-users', label: 'All Players', icon: FaUserFriends },
-    { path: '/bookie-management', label: 'Bookie Accounts', icon: FaUsers },
+    { path: '/bookie-management', label: 'SuperBookie Accounts', icon: FaUsers },
     { path: '/markets', label: 'Markets', icon: FaChartBar },
     {
         path: '/2d-management',
@@ -63,7 +63,7 @@ export const ALL_MENU_ITEMS = [
 ];
 
 export const SUPER_ADMIN_ONLY_ITEMS = [
-    { path: '/bookie-commissions', label: 'Bookie Commissions', icon: FaMoneyBillWave },
+    { path: '/bookie-commissions', label: 'SuperBookie Commissions', icon: FaMoneyBillWave },
     { path: '/help-desk', label: 'Help Desk Issues', icon: FaLifeRing },
 ];
 

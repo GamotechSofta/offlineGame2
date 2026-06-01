@@ -114,7 +114,7 @@ const Layout = ({ children, title }) => {
                     <FaBars className="w-6 h-6 text-[#1B3150]" />
                 </button>
                 <h1 className="text-lg font-bold text-[#1B3150] truncate mx-2">
-                    {title || 'Super Bookie Panel'}
+                    {title || 'SuperBookie Panel'}
                 </h1>
                 <div className="w-10" />
             </header>

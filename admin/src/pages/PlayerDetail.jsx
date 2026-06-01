@@ -9,6 +9,7 @@ import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { TOP_LEVEL_LABEL, SUB_LEVEL_LABEL } from '../config/roleLabels';
 import { formatPlayerIp } from '../utils/ipDisplay';
 
 const TABS = [
@@ -1570,12 +1571,12 @@ const PlayerDetail = () => {
                             <div><p className="text-gray-500 text-sm">Email</p><p className="text-gray-800">{player.email}</p></div>
                             <div><p className="text-gray-500 text-sm">Phone</p><p className="text-gray-800">{player.phone || '—'}</p></div>
                             <div><p className="text-gray-500 text-sm">Role</p><p className="text-gray-800 capitalize">{player.role || 'Player'}</p></div>
-                            <div><p className="text-gray-500 text-sm">Source</p><p className="text-gray-800">{player.source === 'super_bookie' ? 'Super Bookie' : player.source === 'bookie' ? 'Bookie' : 'Super Admin'}</p></div>
+                            <div><p className="text-gray-500 text-sm">Source</p><p className="text-gray-800">{player.source === 'super_bookie' ? SUB_LEVEL_LABEL : player.source === 'bookie' ? TOP_LEVEL_LABEL : 'Super Admin'}</p></div>
                             {player.referrerChain?.bookie && (
-                                <div><p className="text-gray-500 text-sm">Bookie</p><p className="text-gray-800">{player.referrerChain.bookie.username}</p></div>
+                                <div><p className="text-gray-500 text-sm">{TOP_LEVEL_LABEL}</p><p className="text-gray-800">{player.referrerChain.bookie.username}</p></div>
                             )}
                             {player.referrerChain?.superBookie && (
-                                <div><p className="text-gray-500 text-sm">Super Bookie</p><p className="text-indigo-700">{player.referrerChain.superBookie.username}</p></div>
+                                <div><p className="text-gray-500 text-sm">{SUB_LEVEL_LABEL}</p><p className="text-indigo-700">{player.referrerChain.superBookie.username}</p></div>
                             )}
                             <div><p className="text-gray-500 text-sm">Created</p><p className="text-gray-800">{player.createdAt ? new Date(player.createdAt).toLocaleString('en-IN') : '—'}</p></div>
                         </div>
