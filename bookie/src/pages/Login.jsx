@@ -44,7 +44,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/bookie/login`, {
+            const response = await fetch(`${API_BASE_URL}/super-bookie/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -68,6 +68,11 @@ const Login = () => {
             }
 
             if (data.success) {
+                if (data.data?.role !== 'super_bookie') {
+                    setError('Invalid credentials. Please check your phone number and password.');
+                    setLoading(false);
+                    return;
+                }
                 login(data.data);
                 navigate('/dashboard');
             } else {

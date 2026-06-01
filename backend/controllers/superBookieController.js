@@ -38,11 +38,39 @@ export const superBookieLogin = async (req, res) => {
 
         const superBookie = await findSuperBookieByLogin(phone, username);
         if (!superBookie) {
+            const normalizedPhone = phone ? String(phone).replace(/\D/g, '').slice(0, 10) : '';
+            let topBookie = null;
+            if (normalizedPhone.length >= 10) {
+                topBookie = await Admin.findOne({ phone: normalizedPhone, role: 'bookie' });
+                if (!topBookie) {
+                    const all = await Admin.find({ role: 'bookie' }).select('phone username').lean();
+                    const matched = all.find((b) => {
+                        if (!b.phone) return false;
+                        return String(b.phone).replace(/\D/g, '').slice(0, 10) === normalizedPhone;
+                    });
+                    if (matched) {
+                        topBookie = await Admin.findOne({ _id: matched._id, role: 'bookie' });
+                    }
+                }
+            }
+            if (!topBookie && username) {
+                topBookie = await Admin.findOne({
+                    username: String(username).trim(),
+                    role: 'bookie',
+                });
+            }
+            if (topBookie && (await topBookie.comparePassword(password))) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid credentials. Check phone and password.',
+                });
+            }
+
             const count = await Admin.countDocuments({ role: 'super_bookie' });
             return res.status(401).json({
                 success: false,
                 message: count === 0
-                    ? 'No super bookie accounts found. Contact your bookie to create your account.'
+                    ? 'No bookie accounts found. Contact your SuperBookie to create your account.'
                     : 'Invalid credentials. Check phone and password.',
             });
         }

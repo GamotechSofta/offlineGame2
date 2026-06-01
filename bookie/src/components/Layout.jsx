@@ -26,7 +26,7 @@ const Layout = ({ children, title }) => {
             if (now - lastProfileFetch.current < 120000) return;
             lastProfileFetch.current = now;
             try {
-                const response = await fetch(`${API_BASE_URL}/bookie/profile`, { headers: getBookieAuthHeaders() });
+                const response = await fetch(`${API_BASE_URL}/super-bookie/profile`, { headers: getBookieAuthHeaders() });
                 const data = await response.json();
                 if (data.success && data.data) {
                     updateBookie(data.data);

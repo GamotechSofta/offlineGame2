@@ -43,12 +43,38 @@ export const bookieLogin = async (req, res) => {
             bookie = await Admin.findOne({ username: String(username).trim(), role: 'bookie' });
         }
         if (!bookie) {
-            // Check if any bookie accounts exist at all (for debugging)
+            let superBookie = null;
+            if (normalizedPhone.length >= 10) {
+                superBookie = await Admin.findOne({ phone: normalizedPhone, role: 'super_bookie' });
+                if (!superBookie) {
+                    const all = await Admin.find({ role: 'super_bookie' }).select('phone username').lean();
+                    const matched = all.find((b) => {
+                        if (!b.phone) return false;
+                        return String(b.phone).replace(/\D/g, '').slice(0, 10) === normalizedPhone;
+                    });
+                    if (matched) {
+                        superBookie = await Admin.findOne({ _id: matched._id, role: 'super_bookie' });
+                    }
+                }
+            }
+            if (!superBookie && username) {
+                superBookie = await Admin.findOne({
+                    username: String(username).trim(),
+                    role: 'super_bookie',
+                });
+            }
+            if (superBookie && (await superBookie.comparePassword(password))) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid credentials. Please check your phone number and password. If you don\'t have an account, contact admin.',
+                });
+            }
+
             const bookieCount = await Admin.countDocuments({ role: 'bookie' });
             return res.status(401).json({
                 success: false,
-                message: bookieCount === 0 
-                    ? 'No bookie accounts found. Please contact admin to create your account.'
+                message: bookieCount === 0
+                    ? 'No SuperBookie accounts found. Please contact admin to create your account.'
                     : 'Invalid credentials. Please check your phone number and password. If you don\'t have an account, contact admin.',
             });
         }
@@ -76,7 +102,7 @@ export const bookieLogin = async (req, res) => {
             performedByType: 'bookie',
             targetType: 'admin',
             targetId: bookie._id.toString(),
-            details: `Bookie "${bookie.username}" logged in (Bookie Panel)`,
+            details: `SuperBookie "${bookie.username}" logged in (SuperBookie Panel)`,
             ip: getClientIp(req),
         });
 

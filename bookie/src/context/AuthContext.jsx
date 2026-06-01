@@ -12,8 +12,15 @@ export const AuthProvider = ({ children }) => {
         const checkAuth = () => {
             try {
                 const stored = localStorage.getItem(AUTH_KEY);
-                if (stored) setBookie(JSON.parse(stored));
-                else setBookie(null);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed?.role && parsed.role !== 'super_bookie') {
+                        localStorage.removeItem(AUTH_KEY);
+                        setBookie(null);
+                    } else {
+                        setBookie(parsed);
+                    }
+                } else setBookie(null);
             } catch {
                 setBookie(null);
             } finally {

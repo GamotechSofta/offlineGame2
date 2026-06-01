@@ -40,7 +40,8 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-    return bookie?.token ? (
+    const allowed = bookie?.token && bookie?.role === 'super_bookie';
+    return allowed ? (
         <>
             <BookieHeartbeat />
             {children}

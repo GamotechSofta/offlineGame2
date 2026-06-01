@@ -170,7 +170,7 @@ const PlaceBetForPlayer = () => {
                 setBets([{ betNumber: '', amount: '' }]);
                 // Refresh bookie profile to update sidebar balance
                 try {
-                    const profileRes = await fetch(`${API_BASE_URL}/bookie/profile`, { headers: getBookieAuthHeaders() });
+                    const profileRes = await fetch(`${API_BASE_URL}/super-bookie/profile`, { headers: getBookieAuthHeaders() });
                     const profileData = await profileRes.json();
                     if (profileData.success && profileData.data) {
                         // Update AuthContext with new balance

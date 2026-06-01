@@ -663,7 +663,7 @@ const SuperBookieCommissions = () => {
                     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                         <div className="px-4 py-3 border-b bg-slate-50">
                             <h2 className="font-semibold text-slate-800">Commission % change requests</h2>
-                            <p className="text-xs text-slate-500 mt-1">Approve, reject, or counter offer — same as admin SuperBookie flow.</p>
+                            <p className="text-xs text-slate-500 mt-1">Approve, reject, or counter offer — same as admin {PANEL_LABEL.toLowerCase()} flow.</p>
                         </div>
                         {requests.length === 0 ? (
                             <p className="p-6 text-sm text-slate-500">No commission requests.</p>

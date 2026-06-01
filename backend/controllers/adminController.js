@@ -53,19 +53,10 @@ export const adminLogin = async (req, res) => {
             });
         }
 
-        if (admin.role === 'bookie') {
-            return res.status(403).json({
+        if (admin.role === 'bookie' || admin.role === 'super_bookie') {
+            return res.status(401).json({
                 success: false,
-                message: 'Use the Bookie Panel to login with this account.',
-                code: 'USE_BOOKIE_PANEL',
-            });
-        }
-
-        if (admin.role === 'super_bookie') {
-            return res.status(403).json({
-                success: false,
-                message: 'Use the Super Bookie Panel to login with this account.',
-                code: 'USE_SUPER_BOOKIE_PANEL',
+                message: 'Invalid credentials',
             });
         }
 

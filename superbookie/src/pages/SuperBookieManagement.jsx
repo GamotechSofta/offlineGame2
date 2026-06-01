@@ -458,7 +458,7 @@ const SuperBookieManagement = () => {
     );
 
     return (
-        <Layout>
+        <Layout title={PANEL_LABEL_PLURAL}>
             <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>

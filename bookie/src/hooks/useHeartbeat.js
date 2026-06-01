@@ -17,7 +17,7 @@ export const useHeartbeat = () => {
                 const session = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
                 if (!session?.token) return;
 
-                const res = await fetch(`${API_BASE_URL}/bookie/heartbeat`, {
+                const res = await fetch(`${API_BASE_URL}/super-bookie/heartbeat`, {
                     method: 'POST',
                     headers: getBookieAuthHeaders(),
                     body: JSON.stringify({}),

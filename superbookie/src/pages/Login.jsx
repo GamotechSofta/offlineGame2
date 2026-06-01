@@ -67,6 +67,11 @@ const Login = () => {
             }
 
             if (data.success) {
+                if (data.data?.role !== 'bookie') {
+                    setError('Invalid credentials. Please check your phone number and password.');
+                    setLoading(false);
+                    return;
+                }
                 login(data.data);
                 navigate('/dashboard');
             } else {

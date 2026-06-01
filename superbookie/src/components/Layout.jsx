@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
 import { FaBars } from 'react-icons/fa';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { MAIN_PANEL_TITLE } from '../config/panelLabels';
 
 const Layout = ({ children, title }) => {
     const navigate = useNavigate();
@@ -114,7 +115,7 @@ const Layout = ({ children, title }) => {
                     <FaBars className="w-6 h-6 text-[#1B3150]" />
                 </button>
                 <h1 className="text-lg font-bold text-[#1B3150] truncate mx-2">
-                    {title || 'SuperBookie Panel'}
+                    {title || MAIN_PANEL_TITLE}
                 </h1>
                 <div className="w-10" />
             </header>

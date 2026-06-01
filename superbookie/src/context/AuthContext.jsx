@@ -16,7 +16,12 @@ export const AuthProvider = ({ children }) => {
                 const stored = localStorage.getItem(AUTH_KEY);
                 if (stored) {
                     const parsed = JSON.parse(stored);
-                    setBookie(parsed);
+                    if (parsed?.role && parsed.role !== 'bookie') {
+                        localStorage.removeItem(AUTH_KEY);
+                        setBookie(null);
+                    } else {
+                        setBookie(parsed);
+                    }
                 } else {
                     setBookie(null);
                 }

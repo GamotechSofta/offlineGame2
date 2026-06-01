@@ -24,7 +24,7 @@ const Payments = () => {
 
     const fetchProfile = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/bookie/profile`, { headers: getBookieAuthHeaders() });
+            const response = await fetch(`${API_BASE_URL}/super-bookie/profile`, { headers: getBookieAuthHeaders() });
             const data = await response.json();
             if (data.success) {
                 setCanManagePayments(data.data.canManagePayments || false);
