@@ -8,6 +8,7 @@ import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signUserToken, verifyUserToken } from '../utils/userJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
+import { enrichUsersWithReferrerChain } from '../utils/referrerChain.js';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -42,66 +43,6 @@ const getActiveDevices = (userDoc) => {
         deviceName: normalizeDeviceName(found?.deviceName || userDoc?.lastLoginDeviceName) || prettifyDeviceName(activeId),
         lastSeenAt: lastSeen,
     }];
-};
-
-/** Attach bookie + super bookie chain for admin player lists */
-const enrichUsersWithReferrerChain = async (users) => {
-    if (!users?.length) return users;
-
-    const parentBookieIds = new Set();
-    for (const u of users) {
-        const ref = u.referredBy;
-        if (ref && ref.role === 'super_bookie' && ref.parentBookieId) {
-            parentBookieIds.add(String(ref.parentBookieId));
-        }
-    }
-
-    let parentMap = {};
-    if (parentBookieIds.size > 0) {
-        const parents = await Admin.find({ _id: { $in: [...parentBookieIds] } })
-            .select('username phone status')
-            .lean();
-        parentMap = Object.fromEntries(parents.map((p) => [String(p._id), p]));
-    }
-
-    return users.map((u) => {
-        const ref = u.referredBy;
-        if (!ref || !ref._id) {
-            return { ...u, referrerChain: null };
-        }
-        if (ref.role === 'super_bookie') {
-            const parentId = ref.parentBookieId ? String(ref.parentBookieId) : null;
-            const parent = parentId ? parentMap[parentId] : null;
-            return {
-                ...u,
-                referrerChain: {
-                    bookie: parent
-                        ? { _id: parentId, username: parent.username, phone: parent.phone, status: parent.status }
-                        : parentId
-                          ? { _id: parentId, username: '—' }
-                          : null,
-                    superBookie: {
-                        _id: ref._id,
-                        username: ref.username,
-                        phone: ref.phone,
-                        status: ref.status,
-                    },
-                },
-            };
-        }
-        return {
-            ...u,
-            referrerChain: {
-                bookie: {
-                    _id: ref._id,
-                    username: ref.username,
-                    phone: ref.phone,
-                    status: ref.status,
-                },
-                superBookie: null,
-            },
-        };
-    });
 };
 
 const addWalletBalanceToUsers = async (users) => {

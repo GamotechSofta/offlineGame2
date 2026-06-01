@@ -14,8 +14,8 @@ import {
     TOP_LEVEL_LABEL_PLURAL,
     SUB_LEVEL_LABEL,
     SUB_LEVEL_LABEL_PLURAL,
-    ownershipChainLabel,
 } from '../config/roleLabels';
+import { getBelongsToLabel, getPlayerOwnership, refId } from '../utils/playerOwnership';
 
 const ALL_PLAYER_TABS = [
     { id: 'all', label: 'All Players', value: 'all' },
@@ -48,49 +48,6 @@ const computeIsOnline = (item, nowMs) => {
 };
 
 const USERS_PAGE_LIMIT = 100;
-
-const refId = (v) => (v?._id != null ? String(v._id) : v != null ? String(v) : '');
-
-const getPlayerOwnership = (u) => {
-    if (!u) return { pool: 'super_admin', bookie: null, superBookie: null };
-    if (u.referrerChain?.superBookie) {
-        return {
-            pool: 'super_bookie',
-            bookie: u.referrerChain.bookie?.username || null,
-            superBookie: u.referrerChain.superBookie?.username || null,
-        };
-    }
-    if (u.referrerChain?.bookie || (u.referredBy && u.referredBy.role !== 'super_bookie')) {
-        return {
-            pool: 'bookie',
-            bookie: u.referrerChain?.bookie?.username || u.referredBy?.username || null,
-            superBookie: null,
-        };
-    }
-    if (u.referredBy?.role === 'super_bookie') {
-        return { pool: 'super_bookie', bookie: null, superBookie: u.referredBy?.username || null };
-    }
-    if (u.referredBy) {
-        return { pool: 'bookie', bookie: u.referredBy?.username || null, superBookie: null };
-    }
-    if (u.source === 'super_bookie') {
-        return { pool: 'super_bookie', bookie: null, superBookie: null };
-    }
-    if (u.source === 'bookie') {
-        return { pool: 'bookie', bookie: null, superBookie: null };
-    }
-    return { pool: 'super_admin', bookie: null, superBookie: null };
-};
-
-/** Single-line: who owns this player (SuperBookie › Bookie, or Super Admin). */
-const getBelongsToLabel = (u) => {
-    const o = getPlayerOwnership(u);
-    if (o.pool === 'super_admin') return 'Super Admin';
-    if (o.superBookie) {
-        return ownershipChainLabel(o.bookie, o.superBookie);
-    }
-    return o.bookie || '—';
-};
 
 const PlayersMiniTable = ({ players, now, canManagePlayers, togglingId, onToggle, startIndex = 0, extraCol }) => {
     if (!players?.length) {

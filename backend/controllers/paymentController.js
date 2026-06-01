@@ -12,6 +12,7 @@ import { invalidateAdminPaymentRelatedCaches } from '../services/cacheInvalidati
 import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 import PaymentUiConfig from '../models/settings/PaymentUiConfig.js';
+import { enrichPaymentsWithUserReferrerChain } from '../utils/referrerChain.js';
 
 const DEFAULT_UPI_FALLBACK = 'upi@ybl';
 const DEFAULT_PAYEE_NAME = 'Golden Games';
@@ -801,6 +802,7 @@ export const getPayments = async (req, res) => {
         }
 
         const paymentListProject = {
+            playerId: 1,
             userId: 1,
             type: 1,
             amount: 1,
@@ -830,14 +832,15 @@ export const getPayments = async (req, res) => {
                 { $sort: { needsAction: 1, createdAt: -1 } },
                 { $skip: skip },
                 { $limit: limit },
+                { $addFields: { playerId: '$userId' } },
                 { $project: paymentListProject },
                 {
                     $lookup: {
                         from: 'users',
-                        localField: 'userId',
+                        localField: 'playerId',
                         foreignField: '_id',
                         as: 'userId',
-                        pipeline: [{ $project: { username: 1, email: 1, phone: 1 } }],
+                        pipeline: [{ $project: { _id: 1, username: 1, email: 1, phone: 1, source: 1 } }],
                     },
                 },
                 { $unwind: { path: '$userId', preserveNullAndEmptyArrays: true } },
@@ -888,15 +891,17 @@ export const getPayments = async (req, res) => {
             return paymentObj;
         });
 
+        const paymentsWithOwnership = await enrichPaymentsWithUserReferrerChain(paymentsWithScreenshotUrl);
+
         res.status(200).json({
             success: true,
-            data: paymentsWithScreenshotUrl,
+            data: paymentsWithOwnership,
             pagination: {
                 page,
                 limit,
                 total,
                 totalPages: Math.max(1, Math.ceil(total / limit)),
-                hasNextPage: skip + paymentsWithScreenshotUrl.length < total,
+                hasNextPage: skip + paymentsWithOwnership.length < total,
                 hasPrevPage: page > 1,
             },
         });

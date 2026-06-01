@@ -21,6 +21,7 @@ import useAdminPaymentsQueryInvalidation from '../hooks/useAdminPaymentsQueryInv
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth } from '../lib/auth';
 import { getTodayIST } from '../utils/istDate.js';
+import { getBelongsToLabel } from '../utils/playerOwnership';
 
 const IST_MS = 330 * 60 * 1000;
 
@@ -226,12 +227,15 @@ const PaymentManagement = () => {
     }, []);
 
     const getPaymentUserId = (payment) => {
+        if (payment?.playerId) return String(payment.playerId);
         const u = payment?.userId;
         if (!u) return '';
         if (typeof u === 'string') return u;
         if (u._id) return String(u._id);
         return '';
     };
+
+    const getPaymentBelongsTo = (payment) => getBelongsToLabel(payment?.userId);
 
     const effectiveDateRange = useMemo(() => {
         if (customMode && customFrom && customTo) return { from: customFrom, to: customTo };
@@ -247,6 +251,7 @@ const PaymentManagement = () => {
             userId,
             username: typeof u === 'object' && u?.username ? u.username : '',
             phone: typeof u === 'object' && u?.phone ? u.phone : '',
+            belongsToLabel: getBelongsToLabel(typeof u === 'object' ? u : null),
         });
     };
 
@@ -318,7 +323,7 @@ const PaymentManagement = () => {
 
     const paymentsQuery = useQuery({
         queryKey: [
-            'payments-list',
+            'payments-list-v2',
             filters.status || '',
             filters.type || '',
             playerFilter?.userId || '',
@@ -961,6 +966,9 @@ const PaymentManagement = () => {
                         {playerFilter.phone ? (
                             <span className="text-gray-500"> · {playerFilter.phone}</span>
                         ) : null}
+                        {playerFilter.belongsToLabel ? (
+                            <span className="text-indigo-700"> · Belongs to: {playerFilter.belongsToLabel}</span>
+                        ) : null}
                         <span className="text-gray-500"> — full payment history</span>
                     </p>
                     <button
@@ -1113,6 +1121,9 @@ const PaymentManagement = () => {
                                                 >
                                                     {payment.userId?.username || 'Unknown'}
                                                 </button>
+                                                <p className="text-[11px] text-indigo-700 truncate mt-0.5">
+                                                    Belongs to: {getPaymentBelongsTo(payment)}
+                                                </p>
                                                 <p className="text-xs text-gray-500 truncate">{formatDate(payment.createdAt)}</p>
                                                 <div className="mt-1 flex items-center gap-2">
                                                     <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium border ${getTypeBadge(payment.type)}`}>
@@ -1203,9 +1214,9 @@ const PaymentManagement = () => {
                             <thead className="bg-gray-50/80">
                                 <tr>
                                     <th className="w-[78px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Ref ID</th>
-                                    <th className="w-[150px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                                    <th className="w-[180px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
                                         <span className="block">Player</span>
-                                        <span className="mt-0.5 block font-normal normal-case text-gray-500">Click for history</span>
+                                        <span className="mt-0.5 block font-normal normal-case text-gray-500">Belongs to · click for history</span>
                                     </th>
                                     <th className="w-[86px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Type</th>
                                     <th className="w-[96px] px-2.5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Amount</th>
@@ -1276,6 +1287,9 @@ const PaymentManagement = () => {
                                                     </p>
                                                     <p className="text-xs text-gray-500 truncate">
                                                         {payment.userId?.phone || '—'}
+                                                    </p>
+                                                    <p className="text-[11px] text-indigo-700 truncate mt-0.5">
+                                                        {getPaymentBelongsTo(payment)}
                                                     </p>
                                                 </div>
                                                 </button>
@@ -1437,6 +1451,12 @@ const PaymentManagement = () => {
                                 <span className="text-gray-400">Player</span>
                                 <span className="text-gray-800">
                                     {actionModal.payment?.userId?.username || 'Unknown'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center gap-2 mb-1.5">
+                                <span className="text-gray-400 shrink-0">Belongs to</span>
+                                <span className="text-indigo-700 text-right text-sm">
+                                    {getPaymentBelongsTo(actionModal.payment)}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
@@ -1662,6 +1682,12 @@ const PaymentManagement = () => {
                                         <span className="text-gray-800">{detailModal.payment.userId.phone}</span>
                                     </div>
                                 )}
+                                <div className="flex justify-between gap-2">
+                                    <span className="text-gray-500 shrink-0">Belongs to</span>
+                                    <span className="text-indigo-700 text-right font-medium">
+                                        {getPaymentBelongsTo(detailModal.payment)}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
