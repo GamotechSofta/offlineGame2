@@ -12,6 +12,7 @@ import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 import { getBookieHierarchySummary, getBookieHierarchyUserIds } from '../utils/bookieFilter.js';
 import { aggregatePlayerBetMetrics } from '../utils/commissionMetrics.js';
 import Bet from '../models/bet/bet.js';
+import { Wallet } from '../models/wallet/wallet.js';
 
 /**
  * Admin login
@@ -526,6 +527,54 @@ export const getBookieManagementDetail = async (req, res) => {
                 totalNetworkPlayers: hierarchy.totalPlayers,
             },
         });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/** Players under a sub-bookie (role super_bookie) for SuperBookie detail screen */
+export const getSuperBookiePlayersUnderBookie = async (req, res) => {
+    try {
+        if (!canAccessBookieManagement(req.admin)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have access to bookie accounts',
+            });
+        }
+
+        const { id, superBookieId } = req.params;
+        const bookie = await Admin.findOne({ _id: id, role: 'bookie' }).select('_id').lean();
+        if (!bookie) {
+            return res.status(404).json({ success: false, message: 'Bookie not found' });
+        }
+
+        const superBookie = await Admin.findOne({
+            _id: superBookieId,
+            parentBookieId: id,
+            role: 'super_bookie',
+        }).select('_id username').lean();
+        if (!superBookie) {
+            return res.status(404).json({ success: false, message: 'Sub-account not found' });
+        }
+
+        const players = await User.find({ referredBy: superBookieId })
+            .select('username phone email isActive createdAt lastActiveAt')
+            .sort({ createdAt: -1 })
+            .limit(100)
+            .lean();
+
+        let playersWithWallet = players;
+        if (players.length > 0) {
+            const userIds = players.map((p) => p._id);
+            const wallets = await Wallet.find({ userId: { $in: userIds } }).select('userId balance').lean();
+            const walletMap = Object.fromEntries(wallets.map((w) => [String(w.userId), w.balance ?? 0]));
+            playersWithWallet = players.map((p) => ({
+                ...p,
+                walletBalance: walletMap[String(p._id)] ?? 0,
+            }));
+        }
+
+        return res.status(200).json({ success: true, data: playersWithWallet });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
     }

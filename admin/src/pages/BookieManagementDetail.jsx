@@ -156,6 +156,7 @@ const BookieManagementDetail = () => {
                 <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
                     <BookieManagementDetailPanel
                         fullPage
+                        bookieId={bookieId}
                         detail={detail}
                         loading={loading}
                         error={error}
