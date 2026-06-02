@@ -436,9 +436,13 @@ const AddFund = () => {
                             <input
                                 type="text"
                                 value={upiTransactionId}
-                                onChange={(e) => setUpiTransactionId(e.target.value)}
+                                onChange={(e) => {
+                                    const digitsOnly = String(e.target.value || '').replace(/\D/g, '').slice(0, 12);
+                                    setUpiTransactionId(digitsOnly);
+                                }}
                                 placeholder="Enter 12-digit UTR number"
                                 inputMode="numeric"
+                                maxLength={12}
                                 className="w-full bg-white border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
                                 required
                             />
