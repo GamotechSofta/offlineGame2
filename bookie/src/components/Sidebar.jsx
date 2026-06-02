@@ -11,6 +11,7 @@ import {
     FaCog,
     FaMoneyBillWave,
     FaChartBar,
+    FaCreditCard,
 } from 'react-icons/fa';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -26,6 +27,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/markets', label: t('markets'), icon: FaChartBar },
         { path: '/add-user', label: t('addPlayer'), icon: FaUserPlus },
         { path: '/commission', label: 'Commission', icon: FaMoneyBillWave },
+        { path: '/payments', label: t('payments'), icon: FaCreditCard },
         { path: '/settings', label: t('settings'), icon: FaCog },
     ];
 

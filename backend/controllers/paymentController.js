@@ -1166,8 +1166,8 @@ export const approvePayment = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Admin not found' });
         }
 
-        // Super admin always has permission, bookie needs canManagePayments
-        if (admin.role === 'bookie' && !admin.canManagePayments) {
+        // Super admin always has permission, bookie/super_bookie need canManagePayments.
+        if ((admin.role === 'bookie' || admin.role === 'super_bookie') && !admin.canManagePayments) {
             return res.status(403).json({
                 success: false,
                 message: 'You do not have permission to manage payments. Please contact super admin.',
@@ -1199,9 +1199,9 @@ export const approvePayment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Payment is not pending' });
         }
 
-        // Bookie can only process their own players' payment requests.
+        // Bookie / super_bookie can only process their own players' payment requests.
         if (
-            admin.role === 'bookie' &&
+            (admin.role === 'bookie' || admin.role === 'super_bookie') &&
             String(payment.userId?.referredBy || '') !== String(admin._id)
         ) {
             return res.status(403).json({
@@ -1213,15 +1213,19 @@ export const approvePayment = async (req, res) => {
         let updatedBookieBalance = null;
         let deductedBookieId = null;
 
-        // Deduct from the owner bookie when payment management is enabled for that bookie.
+        // Deduct from the owner operator (bookie/super_bookie) when payment management is enabled.
         // This keeps behavior correct even if approval comes via different admin route.
         if (payment.type === 'deposit') {
-            const ownerBookieId = payment.userId?.referredBy;
-            if (ownerBookieId) {
-                const ownerBookie = await Admin.findById(ownerBookieId).select('role canManagePayments');
-                if (ownerBookie && ownerBookie.role === 'bookie' && ownerBookie.canManagePayments) {
+            const ownerOperatorId = payment.userId?.referredBy;
+            if (ownerOperatorId) {
+                const ownerOperator = await Admin.findById(ownerOperatorId).select('role canManagePayments');
+                if (
+                    ownerOperator
+                    && (ownerOperator.role === 'bookie' || ownerOperator.role === 'super_bookie')
+                    && ownerOperator.canManagePayments
+                ) {
                     const updatedBookie = await Admin.findOneAndUpdate(
-                        { _id: ownerBookie._id, balance: { $gte: payment.amount } },
+                        { _id: ownerOperator._id, balance: { $gte: payment.amount } },
                         { $inc: { balance: -payment.amount } },
                         { new: true }
                     ).select('balance');
@@ -1232,7 +1236,7 @@ export const approvePayment = async (req, res) => {
                             message: 'Insufficient bookie balance to approve this add-fund request',
                         });
                     }
-                    deductedBookieId = String(ownerBookie._id);
+                    deductedBookieId = String(ownerOperator._id);
                     updatedBookieBalance = Number(updatedBookie.balance || 0);
                 }
             }
@@ -1326,8 +1330,8 @@ export const rejectPayment = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Admin not found' });
         }
 
-        // Super admin always has permission, bookie needs canManagePayments
-        if (admin.role === 'bookie' && !admin.canManagePayments) {
+        // Super admin always has permission, bookie/super_bookie need canManagePayments.
+        if ((admin.role === 'bookie' || admin.role === 'super_bookie') && !admin.canManagePayments) {
             return res.status(403).json({
                 success: false,
                 message: 'You do not have permission to manage payments. Please contact super admin.',
@@ -1344,6 +1348,17 @@ export const rejectPayment = async (req, res) => {
 
         if (payment.status !== 'pending') {
             return res.status(400).json({ success: false, message: 'Payment is not pending' });
+        }
+
+        // Bookie / super_bookie can only process their own players' payment requests.
+        if (
+            (admin.role === 'bookie' || admin.role === 'super_bookie')
+            && String(payment.userId?.referredBy || '') !== String(admin._id)
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only process payments for your own players',
+            });
         }
 
         payment.status = 'rejected';

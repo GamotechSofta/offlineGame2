@@ -109,6 +109,7 @@ export const superBookieLogin = async (req, res) => {
                 email: superBookie.email,
                 phone: superBookie.phone,
                 balance: superBookie.balance || 0,
+                canManagePayments: superBookie.canManagePayments || false,
                 parentBookieId: superBookie.parentBookieId,
                 token,
             },
@@ -154,6 +155,7 @@ export const getSuperBookieProfile = async (req, res) => {
                 phone: sb.phone,
                 role: sb.role,
                 balance: sb.balance || 0,
+                canManagePayments: sb.canManagePayments || false,
                 parentBookieId: sb.parentBookieId,
             },
         });

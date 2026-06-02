@@ -51,6 +51,7 @@ const SuperBookieManagement = () => {
         confirmPassword: '',
         balance: '',
         commissionPercentage: '0',
+        canManagePayments: false,
     });
     const [balanceForm, setBalanceForm] = useState({ operation: 'add', amount: '' });
     const [manageData, setManageData] = useState({ commissionPercentage: '0', operation: 'add', amount: '' });
@@ -98,6 +99,7 @@ const SuperBookieManagement = () => {
             confirmPassword: '',
             balance: '',
             commissionPercentage: '0',
+            canManagePayments: false,
         });
     };
 
@@ -142,6 +144,7 @@ const SuperBookieManagement = () => {
                         formData.commissionPercentage !== ''
                             ? Number(formData.commissionPercentage)
                             : 0,
+                    canManagePayments: Boolean(formData.canManagePayments),
                 }),
             });
             const data = await res.json();
@@ -179,6 +182,7 @@ const SuperBookieManagement = () => {
                 }
                 payload.commissionPercentage = commissionPct;
             }
+            payload.canManagePayments = Boolean(formData.canManagePayments);
             const res = await fetchWithAuth(
                 `${API_BASE_URL}/bookie/super-bookies/${selected._id}`,
                 { method: 'PUT', body: JSON.stringify(payload) }
@@ -341,6 +345,7 @@ const SuperBookieManagement = () => {
             confirmPassword: '',
             balance: '',
             commissionPercentage: String(sb.commissionPercentage ?? 0),
+            canManagePayments: Boolean(sb.canManagePayments),
         });
         setShowEditModal(true);
     };
@@ -407,6 +412,22 @@ const SuperBookieManagement = () => {
                     </div>
                     <p className="text-xs text-gray-500 mt-1">0–100%. Default: 0%</p>
                 </div>
+            </div>
+            <div className="rounded-xl border border-green-100 bg-green-50/50 p-3 space-y-2">
+                <p className="text-sm font-semibold text-[#1B3150]">Payment Management</p>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        name="canManagePayments"
+                        checked={Boolean(formData.canManagePayments)}
+                        onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, canManagePayments: e.target.checked }))
+                        }
+                        className="w-4 h-4"
+                    />
+                    Allow Payment Management
+                </label>
+                <p className="text-xs text-gray-500">Can approve/reject player payment requests</p>
             </div>
             {!isEdit && (
                 <input
@@ -531,6 +552,7 @@ const SuperBookieManagement = () => {
                                     <th className="p-3">Phone</th>
                                     <th className="p-3">Balance</th>
                                     <th className="p-3">Commission</th>
+                                    <th className="p-3">Payment Mgmt</th>
                                     <th className="p-3">Players</th>
                                     <th className="p-3">Status</th>
                                     <th className="p-3">Actions</th>
@@ -539,7 +561,7 @@ const SuperBookieManagement = () => {
                             <tbody>
                                 {filtered.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="p-6 text-center text-gray-400">
+                                        <td colSpan={8} className="p-6 text-center text-gray-400">
                                             No {PANEL_LABEL_PLURAL.toLowerCase()} yet
                                         </td>
                                     </tr>
@@ -550,6 +572,15 @@ const SuperBookieManagement = () => {
                                             <td className="p-3">{sb.phone}</td>
                                             <td className="p-3">₹{Number(sb.balance || 0).toLocaleString('en-IN')}</td>
                                             <td className="p-3 text-orange-600 font-medium">{sb.commissionPercentage ?? 0}%</td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                                    sb.canManagePayments
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : 'bg-gray-100 text-gray-600'
+                                                }`}>
+                                                    {sb.canManagePayments ? 'Enabled' : 'Disabled'}
+                                                </span>
+                                            </td>
                                             <td className="p-3">{sb.playerCount ?? 0}</td>
                                             <td className="p-3">
                                                 <span

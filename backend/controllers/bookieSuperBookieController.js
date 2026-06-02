@@ -60,7 +60,7 @@ export const listSuperBookies = async (req, res) => {
             role: 'super_bookie',
             parentBookieId: req.admin._id,
         })
-            .select('username email phone status balance commissionPercentage createdAt role parentBookieId')
+            .select('username email phone status balance commissionPercentage canManagePayments createdAt role parentBookieId')
             .sort({ createdAt: -1 })
             .lean();
 
@@ -88,7 +88,17 @@ export const createSuperBookie = async (req, res) => {
     try {
         if (!assertParentBookie(req, res)) return;
 
-        const { username, firstName, lastName, email, password, phone, balance, commissionPercentage } = req.body;
+        const {
+            username,
+            firstName,
+            lastName,
+            email,
+            password,
+            phone,
+            balance,
+            commissionPercentage,
+            canManagePayments,
+        } = req.body;
         const derivedUsername =
             firstName != null && lastName != null
                 ? `${String(firstName).trim()} ${String(lastName).trim()}`.trim()
@@ -163,6 +173,7 @@ export const createSuperBookie = async (req, res) => {
             status: 'active',
             balance: initialBalance,
             commissionPercentage: commissionPct,
+            canManagePayments: Boolean(canManagePayments),
         });
         await superBookie.save();
         await invalidateAdminReadCaches('super_bookie_created');
@@ -188,6 +199,7 @@ export const createSuperBookie = async (req, res) => {
                 status: superBookie.status,
                 balance: superBookie.balance ?? 0,
                 commissionPercentage: superBookie.commissionPercentage ?? 0,
+                canManagePayments: Boolean(superBookie.canManagePayments),
             },
         });
     } catch (error) {
@@ -211,7 +223,16 @@ export const updateSuperBookie = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Super bookie not found' });
         }
 
-        const { firstName, lastName, username, email, password, phone, commissionPercentage } = req.body;
+        const {
+            firstName,
+            lastName,
+            username,
+            email,
+            password,
+            phone,
+            commissionPercentage,
+            canManagePayments,
+        } = req.body;
         if (firstName != null && lastName != null) {
             const name = `${String(firstName).trim()} ${String(lastName).trim()}`.trim();
             if (name) sb.username = name;
@@ -244,6 +265,9 @@ export const updateSuperBookie = async (req, res) => {
             }
             sb.commissionPercentage = commissionPct;
         }
+        if (canManagePayments !== undefined) {
+            sb.canManagePayments = Boolean(canManagePayments);
+        }
         await sb.save();
 
         res.status(200).json({
@@ -257,6 +281,7 @@ export const updateSuperBookie = async (req, res) => {
                 status: sb.status,
                 balance: sb.balance ?? 0,
                 commissionPercentage: sb.commissionPercentage ?? 0,
+                canManagePayments: Boolean(sb.canManagePayments),
             },
         });
     } catch (error) {
