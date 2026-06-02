@@ -124,6 +124,8 @@ function applyAdminPaymentDateRangeToQuery(query, bounds, status) {
 const SCREENSHOT_WEBHOOK_URL =
     process.env.SCREENSHOT_WEBHOOK_URL || 'https://api.thefashionista.in/api/v1/webhook/screenshot-uploaded';
 
+const isPaymentOperatorRole = (role) => role === 'bookie' || role === 'super_bookie';
+
 const buildScreenshotWebhookHeaders = () => {
     const headers = { 'Content-Type': 'application/json' };
     const secret = process.env.WEBHOOK_SECRET;
@@ -893,15 +895,63 @@ export const getPayments = async (req, res) => {
 
         const paymentsWithOwnership = await enrichPaymentsWithUserReferrerChain(paymentsWithScreenshotUrl);
 
+        // Compute per-row action access so admin UI can stay view-only when owner has locked payment management.
+        const ownerOperatorIds = [
+            ...new Set(
+                paymentsWithOwnership
+                    .map((p) => (
+                        p?.userId?.referrerChain?.superBookie?._id
+                        || p?.userId?.referrerChain?.bookie?._id
+                        || null
+                    ))
+                    .filter(Boolean)
+                    .map((id) => String(id))
+            ),
+        ];
+        let ownerMap = {};
+        if (ownerOperatorIds.length > 0) {
+            const owners = await Admin.find({ _id: { $in: ownerOperatorIds } })
+                .select('_id username role canManagePayments')
+                .lean();
+            ownerMap = Object.fromEntries(owners.map((o) => [String(o._id), o]));
+        }
+
+        const paymentsWithActionAccess = paymentsWithOwnership.map((p) => {
+            const ownerId = String(
+                p?.userId?.referrerChain?.superBookie?._id
+                || p?.userId?.referrerChain?.bookie?._id
+                || ''
+            );
+            const owner = ownerId ? ownerMap[ownerId] : null;
+            const ownerManaged = Boolean(
+                owner && isPaymentOperatorRole(owner.role) && owner.canManagePayments
+            );
+            const canApproveReject = !ownerManaged || String(req.admin?._id) === ownerId;
+            const ownerName = owner?.username || 'Owner';
+
+            return {
+                ...p,
+                actionAccess: {
+                    canApproveReject,
+                    ownerManaged,
+                    ownerOperatorId: ownerId || null,
+                    ownerOperatorName: ownerName,
+                    message: canApproveReject
+                        ? ''
+                        : `Payment management is enabled for ${ownerName}. Admin can only view this request.`,
+                },
+            };
+        });
+
         res.status(200).json({
             success: true,
-            data: paymentsWithOwnership,
+            data: paymentsWithActionAccess,
             pagination: {
                 page,
                 limit,
                 total,
                 totalPages: Math.max(1, Math.ceil(total / limit)),
-                hasNextPage: skip + paymentsWithOwnership.length < total,
+                hasNextPage: skip + paymentsWithActionAccess.length < total,
                 hasPrevPage: page > 1,
             },
         });
@@ -1154,6 +1204,32 @@ export const getPaymentDashboardStats = async (req, res) => {
 };
 
 /**
+ * If player owner has payment management enabled, lock approve/reject to that owner only.
+ * Everyone else (including super admin/specific admin) becomes view-only for that request.
+ */
+const enforceOwnerPaymentManagementLock = async (actingAdmin, payment) => {
+    const ownerOperatorId = payment?.userId?.referredBy;
+    if (!ownerOperatorId) return { allowed: true };
+
+    const ownerOperator = await Admin.findById(ownerOperatorId)
+        .select('role username canManagePayments')
+        .lean();
+
+    if (!ownerOperator || !isPaymentOperatorRole(ownerOperator.role) || !ownerOperator.canManagePayments) {
+        return { allowed: true };
+    }
+
+    const isOwner = String(ownerOperator._id) === String(actingAdmin?._id);
+    if (isOwner) return { allowed: true };
+
+    return {
+        allowed: false,
+        code: 'PAYMENT_MANAGEMENT_LOCKED_TO_OWNER',
+        message: `Payment management is enabled for ${ownerOperator.username || 'this owner'}. Only that account can approve/reject this request.`,
+    };
+};
+
+/**
  * Admin: Approve payment
  * Body: { adminRemarks?: string, secretDeclarePassword?: string } – secret required if admin has it set
  * Access: Super admin always allowed, bookie allowed if canManagePayments is true
@@ -1197,6 +1273,15 @@ export const approvePayment = async (req, res) => {
 
         if (payment.status !== 'pending') {
             return res.status(400).json({ success: false, message: 'Payment is not pending' });
+        }
+
+        const ownershipLock = await enforceOwnerPaymentManagementLock(admin, payment);
+        if (!ownershipLock.allowed) {
+            return res.status(403).json({
+                success: false,
+                message: ownershipLock.message,
+                code: ownershipLock.code,
+            });
         }
 
         // Bookie / super_bookie can only process their own players' payment requests.
@@ -1348,6 +1433,15 @@ export const rejectPayment = async (req, res) => {
 
         if (payment.status !== 'pending') {
             return res.status(400).json({ success: false, message: 'Payment is not pending' });
+        }
+
+        const ownershipLock = await enforceOwnerPaymentManagementLock(admin, payment);
+        if (!ownershipLock.allowed) {
+            return res.status(403).json({
+                success: false,
+                message: ownershipLock.message,
+                code: ownershipLock.code,
+            });
         }
 
         // Bookie / super_bookie can only process their own players' payment requests.

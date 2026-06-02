@@ -390,7 +390,15 @@ const PaymentManagement = () => {
 
     const dash = dashboardStatsQuery.data ?? EMPTY_DASHBOARD_STATS;
 
+    const canApproveRejectPayment = (payment) => (
+        payment?.status === 'pending' && (payment?.actionAccess?.canApproveReject !== false)
+    );
+
     const openActionModal = (payment, action) => {
+        if (!canApproveRejectPayment(payment)) {
+            alert(payment?.actionAccess?.message || 'You can only view this request.');
+            return;
+        }
         setActionModal({ show: true, payment, action });
         setAdminRemarks('');
         setSecretPassword('');
@@ -641,7 +649,7 @@ const PaymentManagement = () => {
         || debouncedPlayerSearch
         || debouncedAmountSearch,
     );
-    const pendingRequireAction = dash.totalPending.count > 0;
+    const pendingRequireAction = sortedPayments.some((p) => canApproveRejectPayment(p));
 
     return (
         <AdminLayout onLogout={handleLogout} title="Payments">
@@ -992,7 +1000,7 @@ const PaymentManagement = () => {
                                 <span className="ml-2 text-orange-500">(filtered)</span>
                             )}
                         </p>
-                        {pendingRequireAction && sortedPayments.some((p) => p.status === 'pending') && (
+                        {pendingRequireAction && (
                             <p className="text-xs text-orange-500 flex items-start gap-2">
                                 <FaClock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                                 <span>Some payments need your approval</span>
@@ -1098,7 +1106,7 @@ const PaymentManagement = () => {
                     ) : (
                         sortedPayments.map((payment) => {
                             const isExpanded = expandedPaymentId === payment._id;
-                            const needsAction = payment.status === 'pending';
+                            const needsAction = canApproveRejectPayment(payment);
                             return (
                                 <div
                                     key={payment._id}
@@ -1178,7 +1186,7 @@ const PaymentManagement = () => {
                                                 >
                                                     <FaEye className="w-3.5 h-3.5 shrink-0" /> View
                                                 </button>
-                                                {payment.status === 'pending' ? (
+                                                {canApproveRejectPayment(payment) ? (
                                                     <>
                                                         <button
                                                             type="button"
@@ -1196,7 +1204,9 @@ const PaymentManagement = () => {
                                                         </button>
                                                     </>
                                                 ) : (
-                                                    <span className="self-center text-xs italic text-gray-500">Processed</span>
+                                                    <span className="self-center text-xs italic text-gray-500">
+                                                        {payment.status === 'pending' ? 'View only' : 'Processed'}
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>
@@ -1384,7 +1394,7 @@ const PaymentManagement = () => {
                                                     >
                                                         <FaEye className="w-3.5 h-3.5 shrink-0" /> View Details
                                                     </button>
-                                                    {payment.status === 'pending' ? (
+                                                    {canApproveRejectPayment(payment) ? (
                                                         <>
                                                             <button
                                                                 onClick={() => openActionModal(payment, 'approve')}
@@ -1402,7 +1412,9 @@ const PaymentManagement = () => {
                                                             </button>
                                                         </>
                                                     ) : (
-                                                        <span className="text-xs text-gray-500 italic">Processed</span>
+                                                        <span className="text-xs text-gray-500 italic">
+                                                            {payment.status === 'pending' ? 'View only' : 'Processed'}
+                                                        </span>
                                                     )}
                                                 </div>
                                             </td>
@@ -1814,7 +1826,12 @@ const PaymentManagement = () => {
                             >
                                 Close
                             </button>
-                            {detailModal.payment.status === 'pending' && (
+                            {detailModal.payment.status === 'pending' && !canApproveRejectPayment(detailModal.payment) && (
+                                <div className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
+                                    {detailModal.payment?.actionAccess?.message || 'View only'}
+                                </div>
+                            )}
+                            {canApproveRejectPayment(detailModal.payment) && (
                                 <>
                                     <button
                                         type="button"
