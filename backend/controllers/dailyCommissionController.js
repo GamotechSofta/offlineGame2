@@ -11,7 +11,6 @@ import {
     round2,
 } from '../utils/commissionMetrics.js';
 import { transferCommissionSettlementToSuperBookie } from '../utils/advanceCommissionTransfer.js';
-import { getCommissionPaymentKind } from '../utils/commissionMetrics.js';
 
 const getPaymentStatusFromAmounts = (commissionAmount, paidAmount) => {
     const total = round2(commissionAmount);
