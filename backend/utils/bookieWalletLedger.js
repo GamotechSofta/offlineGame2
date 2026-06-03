@@ -103,3 +103,47 @@ export function getBookieWalletTxCategory(type) {
     if (FROM_PLAYER_TX_TYPES.includes(type)) return 'from_player';
     return 'other';
 }
+
+/** Change to grand total (bookie + players) for one ledger line. */
+export function getGrandTotalDelta(tx) {
+    const amt = Number(tx?.amount || 0);
+    if (!Number.isFinite(amt) || amt <= 0) return 0;
+    const type = tx.type;
+    const direction = tx.direction;
+    const description = String(tx.description || '');
+
+    if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(type)) {
+        return -amt;
+    }
+    if (type === 'balance_adjustment' && direction === 'debit' && /commission settlement/i.test(description)) {
+        return -amt;
+    }
+    if (FROM_BOOKIE_SUMMARY_TYPES.includes(type) && direction === 'credit') {
+        return amt;
+    }
+    if (FROM_PLAYER_SUMMARY_TYPES.includes(type) && direction === 'credit') {
+        return amt;
+    }
+    if (FROM_PLAYER_WITHDRAWAL_SUMMARY_TYPES.includes(type)) {
+        return direction === 'debit' ? -amt : amt;
+    }
+    if (type === 'wallet_credit_player' && direction === 'debit') {
+        return amt;
+    }
+    if (type === 'wallet_debit_player' && direction === 'credit') {
+        return -amt;
+    }
+    return 0;
+}
+
+/** Running grand total after each tx (ascending by time). */
+export function buildGrandTotalAfterByTxId(transactionsAsc, openingGap = 0) {
+    let running = Math.round((Number(openingGap) || 0) * 100) / 100;
+    const map = new Map();
+    for (const tx of transactionsAsc) {
+        running += getGrandTotalDelta(tx);
+        running = Math.round(running * 100) / 100;
+        map.set(String(tx._id), running);
+    }
+    return map;
+}

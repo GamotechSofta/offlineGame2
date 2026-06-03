@@ -378,7 +378,7 @@ export default {
     walletTxDeducted: 'Deducted (-)',
     walletTxEmpty: 'No wallet transactions yet',
     walletTxType: 'Type',
-    walletTxBalanceAfter: 'Balance after',
+    walletTxBalanceAfter: 'Grand total after',
     walletTxDetails: 'Details',
     walletTxPrev: 'Previous',
     walletTxNext: 'Next',

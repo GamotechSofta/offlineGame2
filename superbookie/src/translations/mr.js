@@ -371,7 +371,7 @@ export default {
     walletTxDeducted: 'वजा (-)',
     walletTxEmpty: 'व्यवहार नाहीत',
     walletTxType: 'प्रकार',
-    walletTxBalanceAfter: 'नंतर शिल्लक',
+    walletTxBalanceAfter: 'नंतर एकूण बेरीज (बुकी + प्लेयर)',
     walletTxDetails: 'तपशील',
     walletTxPrev: 'मागील',
     walletTxNext: 'पुढील',

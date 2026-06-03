@@ -10,6 +10,7 @@ import {
     FROM_PLAYER_SUMMARY_TYPES,
     FROM_PLAYER_WITHDRAWAL_SUMMARY_TYPES,
     FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES,
+    buildGrandTotalAfterByTxId,
 } from '../utils/bookieWalletLedger.js';
 
 /**
@@ -42,7 +43,7 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             filter.type = { $nin: [...FROM_BOOKIE_TX_TYPES, ...FROM_PLAYER_TX_TYPES] };
         }
 
-        const [rows, total, summaryAgg, settlementAgg] = await Promise.all([
+        const [rows, total, summaryAgg, settlementAgg, allLedgerTxs] = await Promise.all([
             BookieWalletTransaction.find(filter)
                 .sort({ createdAt: -1 })
                 .skip(skip)
@@ -84,6 +85,10 @@ export const listMyBookieWalletTransactions = async (req, res) => {
                 },
                 { $group: { _id: null, total: { $sum: '$amount' } } },
             ]),
+            BookieWalletTransaction.find({ adminId: req.admin._id })
+                .select('type direction amount description createdAt')
+                .sort({ createdAt: 1, _id: 1 })
+                .lean(),
         ]);
 
         const commissionSettled = Math.round((settlementAgg?.[0]?.total || 0) * 100) / 100;
@@ -166,8 +171,13 @@ export const listMyBookieWalletTransactions = async (req, res) => {
                 - settledTotal,
         };
 
+        const openingGap = summaries.from_bookie.openingBalance || 0;
+        const grandTotalAfterByTxId = buildGrandTotalAfterByTxId(allLedgerTxs, openingGap);
+        const grandTotalNow = summaries.grandTotal.received;
+
         const data = rows.map((row) => ({
             ...row,
+            balanceAfter: grandTotalAfterByTxId.get(String(row._id)) ?? row.balanceAfter,
             label: getBookieWalletTxLabel(row.type),
             category: getBookieWalletTxCategory(row.type),
         }));
@@ -183,7 +193,8 @@ export const listMyBookieWalletTransactions = async (req, res) => {
                 hasNextPage: skip + rows.length < total,
                 hasPrevPage: page > 1,
             },
-            currentBalance,
+            currentBalance: grandTotalNow,
+            cashBalance: currentBalance,
             summaries,
         });
     } catch (error) {

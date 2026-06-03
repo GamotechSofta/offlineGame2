@@ -377,7 +377,7 @@ export default {
     walletTxDeducted: 'घटाया (-)',
     walletTxEmpty: 'अभी कोई वॉलेट लेनदेन नहीं',
     walletTxType: 'प्रकार',
-    walletTxBalanceAfter: 'बाद में बैलेंस',
+    walletTxBalanceAfter: 'बाद में कुल योग (बुकी + प्लेयर)',
     walletTxDetails: 'विवरण',
     walletTxPrev: 'पिछला',
     walletTxNext: 'अगला',
