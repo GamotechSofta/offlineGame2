@@ -7,8 +7,11 @@ import {
     aggregatePlayerBetMetrics,
     getCommissionDashboardForAccount,
     getCommissionSummaryForAccount,
+    getCommissionPaymentKind,
     round2,
 } from '../utils/commissionMetrics.js';
+import { transferCommissionSettlementToSuperBookie } from '../utils/advanceCommissionTransfer.js';
+import { getCommissionPaymentKind } from '../utils/commissionMetrics.js';
 
 const getPaymentStatusFromAmounts = (commissionAmount, paidAmount) => {
     const total = round2(commissionAmount);
@@ -457,6 +460,7 @@ export const recordCommissionPayment = async (req, res) => {
             bookieId: commission.bookieId,
             amount: appliedPayment,
             notes: typeof notes === 'string' ? notes.trim() : '',
+            paymentType: 'settlement',
             createdBy: req.admin._id,
         });
 
@@ -525,6 +529,7 @@ export const recordBookieCommissionPayment = async (req, res) => {
             bookieId: bookie._id,
             amount: appliedPayment,
             notes: typeof notes === 'string' ? notes.trim() : '',
+            paymentType: 'settlement',
             createdBy: req.admin._id,
         });
 
@@ -599,18 +604,36 @@ export const getMyCommissionPayments = async (req, res) => {
             .populate('createdBy', 'username role')
             .lean();
 
-        return res.status(200).json({
-            success: true,
-            data: payments.map((payment) => ({
+        let totalAdvance = 0;
+        let totalSettled = 0;
+        const rows = payments.map((payment) => {
+            const kind = getCommissionPaymentKind(payment);
+            const amount = round2(payment.amount || 0);
+            if (kind === 'settlement') totalSettled += amount;
+            else totalAdvance += amount;
+            const notes = payment.notes || '';
+            let label = 'Advance from bookie';
+            if (kind === 'settlement') label = 'Commission settled';
+            else if (/initial balance/i.test(notes)) label = 'Initial balance';
+            return {
                 _id: payment._id,
-                amount: round2(payment.amount || 0),
-                notes: payment.notes || '',
+                amount,
+                notes,
+                paymentType: kind,
                 createdAt: payment.createdAt,
+                label,
                 createdBy:
                     payment.createdBy?.role === 'bookie'
                         ? payment.createdBy?.username || 'Bookie'
                         : payment.createdBy?.username || 'Admin',
-            })),
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: rows,
+            totalAdvanceCommission: round2(totalAdvance),
+            totalCommissionSettled: round2(totalSettled),
         });
     } catch (error) {
         return res.status(500).json({
@@ -637,17 +660,6 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
             .select('_id username phone commissionPercentage role parentBookieId')
             .lean();
 
-        const paymentAgg = await CommissionPayment.aggregate([
-            { $match: { bookieId: { $in: superBookies.map((sb) => sb._id) } } },
-            { $group: { _id: '$bookieId', totalPaid: { $sum: '$amount' }, lastPaidAt: { $max: '$createdAt' } } },
-        ]);
-        const paidMap = Object.fromEntries(
-            paymentAgg.map((row) => [
-                String(row._id),
-                { totalPaid: round2(row.totalPaid || 0), lastPaidAt: row.lastPaidAt || null },
-            ])
-        );
-
         const commissions = [];
         for (const sb of superBookies) {
             const summary = await getCommissionSummaryForAccount(sb);
@@ -663,7 +675,11 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
                 totalPaid: summary.totalPaid,
                 totalPending: summary.totalPending,
                 paymentStatus: summary.paymentStatus,
-                lastPaidAt: paidMap[String(sb._id)]?.lastPaidAt || null,
+                lastPaidAt: summary.lastSettledAt || null,
+                advanceCommissionPaid: summary.advanceCommissionPaid ?? 0,
+                advanceOutstanding: summary.advanceOutstanding ?? 0,
+                advanceRecovered: summary.advanceRecovered ?? 0,
+                commissionPayable: summary.commissionPayable ?? 0,
             });
         }
 
@@ -674,9 +690,17 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
                 acc.totalCommission += row.totalCommission;
                 acc.totalPaid += row.totalPaid;
                 acc.totalPending += row.totalPending;
+                acc.advanceCommissionPaid += row.advanceCommissionPaid;
+                acc.advanceOutstanding += row.advanceOutstanding;
                 return acc;
             },
-            { totalCommission: 0, totalPaid: 0, totalPending: 0 }
+            {
+                totalCommission: 0,
+                totalPaid: 0,
+                totalPending: 0,
+                advanceCommissionPaid: 0,
+                advanceOutstanding: 0,
+            }
         );
 
         return res.status(200).json({
@@ -687,6 +711,8 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
                     totalCommission: round2(totals.totalCommission),
                     totalPaid: round2(totals.totalPaid),
                     totalPending: round2(totals.totalPending),
+                    totalAdvanceCommissionPaid: round2(totals.advanceCommissionPaid),
+                    totalAdvanceOutstanding: round2(totals.advanceOutstanding),
                 },
             },
         });
@@ -728,6 +754,12 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
         }
 
         const summary = await getCommissionSummaryForAccount(superBookie);
+        if (Number(summary.advanceOutstanding || 0) > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Commission is not payable yet. Earned commission is recovering advance (₹${summary.advanceOutstanding} remaining).`,
+            });
+        }
         if (summary.totalPending <= 0) {
             return res.status(400).json({
                 success: false,
@@ -737,20 +769,44 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
 
         const appliedPayment = round2(Math.min(paymentToApply, summary.totalPending));
 
-        await CommissionPayment.create({
-            bookieId: superBookie._id,
+        const parent = await Admin.findOneAndUpdate(
+            { _id: req.admin._id, role: 'bookie', balance: { $gte: appliedPayment } },
+            { $inc: { balance: -appliedPayment } },
+            { new: true }
+        ).select('balance username');
+        if (!parent) {
+            return res.status(400).json({
+                success: false,
+                message: 'Insufficient bookie balance to settle commission',
+            });
+        }
+
+        const updatedSuperBookie = await Admin.findOneAndUpdate(
+            { _id: superBookie._id },
+            { $inc: { balance: appliedPayment } },
+            { new: true }
+        ).select('balance username');
+
+        await transferCommissionSettlementToSuperBookie({
+            parentBookieId: req.admin._id,
+            parentUsername: parent.username || req.admin.username,
+            superBookieId: superBookie._id,
+            superBookieUsername: updatedSuperBookie?.username || superBookie.username,
             amount: appliedPayment,
-            notes: typeof notes === 'string' ? notes.trim() : '',
-            createdBy: req.admin._id,
+            notes: typeof notes === 'string' ? notes.trim() : 'Commission settlement',
+            createdById: req.admin._id,
+            parentBalanceAfter: parent.balance ?? 0,
+            superBookieBalanceAfter: updatedSuperBookie?.balance ?? 0,
         });
 
         return res.status(200).json({
             success: true,
-            message: 'Commission payment recorded',
+            message: 'Commission settled and credited to super bookie balance',
             data: {
                 superBookieId,
                 appliedPayment,
                 leftoverAmount: round2(Math.max(0, summary.totalPending - appliedPayment)),
+                newSuperBookieBalance: updatedSuperBookie?.balance ?? 0,
             },
         });
     } catch (error) {
@@ -789,13 +845,23 @@ export const getSuperBookieCommissionPaymentHistory = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            data: payments.map((payment) => ({
-                _id: payment._id,
-                amount: round2(payment.amount || 0),
-                notes: payment.notes || '',
-                createdAt: payment.createdAt,
-                createdBy: payment.createdBy?.username || 'Bookie',
-            })),
+            data: payments.map((payment) => {
+                const notes = payment.notes || '';
+                const kind = getCommissionPaymentKind(payment);
+                const isInitial = /initial balance/i.test(notes);
+                let label = 'Advance commission';
+                if (kind === 'settlement') label = 'Commission settled';
+                else if (isInitial) label = 'Initial balance';
+                return {
+                    _id: payment._id,
+                    amount: round2(payment.amount || 0),
+                    notes,
+                    paymentType: kind,
+                    label,
+                    createdAt: payment.createdAt,
+                    createdBy: payment.createdBy?.username || 'Bookie',
+                };
+            }),
         });
     } catch (error) {
         return res.status(500).json({
@@ -804,3 +870,4 @@ export const getSuperBookieCommissionPaymentHistory = async (req, res) => {
         });
     }
 };
+

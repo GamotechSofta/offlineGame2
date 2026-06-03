@@ -135,7 +135,7 @@ const BookieWalletTransactions = () => {
             setLoading(true);
             setError('');
             const params = new URLSearchParams({ page: String(page), limit: '30', category });
-            const res = await fetchWithAuth(`${API_BASE_URL}/super-bookie/wallet-transactions?${params}`);
+            const res = await fetchWithAuth(`${API_BASE_URL}/bookie/wallet-transactions?${params}`);
             const json = await res.json();
             if (!res.ok || !json.success) {
                 throw new Error(json.message || 'Failed to load transactions');
@@ -194,7 +194,7 @@ const BookieWalletTransactions = () => {
         <Layout title={t('walletTransaction')}>
             <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sb-primary">
+                    <div className="flex items-center gap-2 text-[#1B3150]">
                         <FaWallet className="w-6 h-6" />
                         <p className="text-sm text-gray-600">{t('walletTxSubtitle')}</p>
                     </div>
@@ -202,7 +202,7 @@ const BookieWalletTransactions = () => {
                         type="button"
                         onClick={fetchTransactions}
                         disabled={loading}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-sb-primary text-white text-sm font-semibold disabled:opacity-60"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#1B3150] text-white text-sm font-semibold disabled:opacity-60"
                     >
                         <FaSyncAlt className={loading ? 'animate-spin' : ''} />
                         {t('refresh')}
@@ -238,7 +238,7 @@ const BookieWalletTransactions = () => {
                             icon={FaWallet}
                             title={t('walletTxGrandTotal')}
                             summary={grandSummary}
-                            accent="border-sb-primary/30 bg-sb-primary/10 ring-1 ring-sb-primary/20"
+                            accent="border-[#1B3150]/30 bg-[#1B3150]/10 ring-1 ring-[#1B3150]/20"
                             footerNote={grandSummary?.footerNote}
                             t={t}
                         />
@@ -256,7 +256,7 @@ const BookieWalletTransactions = () => {
                             }}
                             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium ${
                                 category === c.id
-                                    ? 'bg-sb-primary text-white'
+                                    ? 'bg-[#1B3150] text-white'
                                     : 'bg-violet-50 text-gray-700 hover:bg-violet-100'
                             }`}
                         >

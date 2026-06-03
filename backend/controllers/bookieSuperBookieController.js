@@ -7,6 +7,7 @@ import { canAccessBookieManagement } from '../utils/adminTabAccess.js';
 import { getCommissionSummaryForAccount } from '../utils/commissionMetrics.js';
 import { notifyBookiePanelBalance, notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
 import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
+import { transferAdvanceCommissionToSuperBookie } from '../utils/advanceCommissionTransfer.js';
 
 /** Admin: list all super bookies with parent bookie + player counts */
 export const getAllSuperBookiesAdmin = async (req, res) => {
@@ -181,26 +182,17 @@ export const createSuperBookie = async (req, res) => {
         await notifyBookiePanelBalances([req.admin._id, superBookie._id], 'super_bookie_created');
 
         if (initialBalance > 0) {
-            await recordBookieWalletTransaction({
-                adminId: superBookie._id,
-                direction: 'credit',
-                type: 'initial_balance',
+            await transferAdvanceCommissionToSuperBookie({
+                parentBookieId: req.admin._id,
+                parentUsername: req.admin.username,
+                superBookieId: superBookie._id,
+                superBookieUsername: superBookie.username,
                 amount: initialBalance,
-                balanceAfter: superBookie.balance ?? 0,
-                description: `Initial balance from bookie ${req.admin.username}`,
-                referenceId: String(superBookie._id),
+                notes: 'Initial balance (advance commission)',
+                createdById: req.admin._id,
+                parentBalanceAfter: parentAfterDeduct?.balance ?? null,
+                superBookieBalanceAfter: superBookie.balance ?? 0,
             });
-            if (parentAfterDeduct) {
-                await recordBookieWalletTransaction({
-                    adminId: req.admin._id,
-                    direction: 'debit',
-                    type: 'initial_balance_allocated',
-                    amount: initialBalance,
-                    balanceAfter: parentAfterDeduct.balance ?? 0,
-                    description: `Allocated to super bookie ${superBookie.username}`,
-                    referenceId: String(superBookie._id),
-                });
-            }
         }
 
         await logActivity({
@@ -441,26 +433,17 @@ export const adjustSuperBookieBalance = async (req, res) => {
         await notifyBookiePanelBalances([req.admin._id, sb._id], 'super_bookie_balance_adjust');
 
         if (operation === 'add') {
-            await recordBookieWalletTransaction({
-                adminId: sb._id,
-                direction: 'credit',
-                type: 'advance_received',
+            await transferAdvanceCommissionToSuperBookie({
+                parentBookieId: req.admin._id,
+                parentUsername: req.admin.username,
+                superBookieId: sb._id,
+                superBookieUsername: sb.username,
                 amount: delta,
-                balanceAfter: sb.balance ?? 0,
-                description: `Advance from bookie ${req.admin.username}`,
-                referenceId: String(sb._id),
+                notes: 'Advance commission (balance add)',
+                createdById: req.admin._id,
+                parentBalanceAfter: parent?.balance ?? null,
+                superBookieBalanceAfter: sb.balance ?? 0,
             });
-            if (parent) {
-                await recordBookieWalletTransaction({
-                    adminId: req.admin._id,
-                    direction: 'debit',
-                    type: 'balance_adjustment',
-                    amount: delta,
-                    balanceAfter: parent.balance ?? 0,
-                    description: `Advance to super bookie ${sb.username}`,
-                    referenceId: String(sb._id),
-                });
-            }
         } else if (operation === 'deduct') {
             const parentDoc = await Admin.findById(req.admin._id).select('balance').lean();
             await recordBookieWalletTransaction({

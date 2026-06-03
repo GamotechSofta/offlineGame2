@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { LanguageProvider } from './context/LanguageContext';
 import { useHeartbeat } from './hooks/useHeartbeat';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -11,9 +10,7 @@ import MyUsers from './pages/MyUsers';
 import BetHistory from './pages/BetHistory';
 import TopWinners from './pages/TopWinners';
 import Reports from './pages/Reports';
-import Revenue from './pages/Revenue';
 import Commission from './pages/Commission';
-import SuperBookieCommissions from './pages/SuperBookieCommissions';
 import Payments from './pages/Payments';
 import Wallet from './pages/Wallet';
 import Records from './pages/Records';
@@ -26,6 +23,7 @@ import Shortcuts from './pages/Shortcuts';
 import Receipt from './pages/Receipt';
 import Settings from './pages/Settings';
 import SuperBookieManagement from './pages/SuperBookieManagement';
+import BookieWalletTransactions from './pages/BookieWalletTransactions';
 import { BetLayoutProvider } from './context/BetLayoutContext';
 
 // Scroll to top on route change
@@ -85,10 +83,11 @@ const AppRoutes = () => (
         <Route path="/bet-history" element={<PrivateRoute><BetHistory /></PrivateRoute>} />
         <Route path="/top-winners" element={<PrivateRoute><TopWinners /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
-        <Route path="/revenue" element={<PrivateRoute><Commission /></PrivateRoute>} />
+        <Route path="/revenue" element={<Navigate to="/commission" replace />} />
         <Route path="/commission" element={<PrivateRoute><Commission /></PrivateRoute>} />
-        <Route path="/super-bookie-commissions" element={<PrivateRoute><SuperBookieCommissions /></PrivateRoute>} />
+        <Route path="/super-bookie-commissions" element={<Navigate to="/commission" replace />} />
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
+        <Route path="/wallet-transactions" element={<PrivateRoute><BookieWalletTransactions /></PrivateRoute>} />
         <Route path="/records" element={<PrivateRoute><Records /></PrivateRoute>} />
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
         <Route path="/receipt" element={<PrivateRoute><Receipt /></PrivateRoute>} />
@@ -105,13 +104,11 @@ const App = () => {
     return (
         <Router>
             <ScrollToTop />
-            <LanguageProvider>
-                <AuthProvider>
-                    <BetLayoutProvider>
-                        <AppRoutes />
-                    </BetLayoutProvider>
-                </AuthProvider>
-            </LanguageProvider>
+            <AuthProvider>
+                <BetLayoutProvider>
+                    <AppRoutes />
+                </BetLayoutProvider>
+            </AuthProvider>
         </Router>
     );
 };

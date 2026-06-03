@@ -9,6 +9,7 @@ import {
     FROM_PLAYER_TX_TYPES,
     FROM_PLAYER_SUMMARY_TYPES,
     FROM_PLAYER_WITHDRAWAL_SUMMARY_TYPES,
+    FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES,
 } from '../utils/bookieWalletLedger.js';
 
 /**
@@ -41,7 +42,7 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             filter.type = { $nin: [...FROM_BOOKIE_TX_TYPES, ...FROM_PLAYER_TX_TYPES] };
         }
 
-        const [rows, total, summaryAgg] = await Promise.all([
+        const [rows, total, summaryAgg, settlementAgg] = await Promise.all([
             BookieWalletTransaction.find(filter)
                 .sort({ createdAt: -1 })
                 .skip(skip)
@@ -67,10 +68,36 @@ export const listMyBookieWalletTransactions = async (req, res) => {
                     },
                 },
             ]),
+            BookieWalletTransaction.aggregate([
+                {
+                    $match: {
+                        adminId: req.admin._id,
+                        $or: [
+                            { type: { $in: FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES } },
+                            {
+                                type: 'balance_adjustment',
+                                direction: 'debit',
+                                description: { $regex: /commission settlement/i },
+                            },
+                        ],
+                    },
+                },
+                { $group: { _id: null, total: { $sum: '$amount' } } },
+            ]),
         ]);
 
+        const commissionSettled = Math.round((settlementAgg?.[0]?.total || 0) * 100) / 100;
+
         const summaries = {
-            from_bookie: { credit: 0, debit: 0, net: 0, received: 0, openingBalance: 0, count: 0 },
+            from_bookie: {
+                credit: 0,
+                debit: 0,
+                net: 0,
+                received: 0,
+                openingBalance: 0,
+                commissionSettled: 0,
+                count: 0,
+            },
             from_player: {
                 credit: 0,
                 debit: 0,
@@ -96,6 +123,9 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             if (FROM_BOOKIE_SUMMARY_TYPES.includes(row._id)) {
                 summaries.from_bookie.received += row.credit || 0;
             }
+            if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(row._id)) {
+                summaries.from_bookie.commissionSettled += (row.credit || 0) + (row.debit || 0);
+            }
             if (FROM_PLAYER_SUMMARY_TYPES.includes(row._id)) {
                 summaries.from_player.received += row.credit || 0;
                 summaries.from_player.depositCount += row.count || 0;
@@ -120,12 +150,20 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             summaries.from_bookie.received += untrackedGap;
         }
 
+        const settledTotal = Math.round(
+            Math.max(commissionSettled, summaries.from_bookie.commissionSettled || 0) * 100
+        ) / 100;
+        summaries.from_bookie.commissionSettled = settledTotal;
+
         summaries.grandTotal = {
             bookieReceived: summaries.from_bookie.received || 0,
             playerDeposits: summaries.from_player.received || 0,
             playerWithdrawals: summaries.from_player.withdrawn || 0,
+            commissionSettled: settledTotal,
             received:
-                (summaries.from_bookie.received || 0) + (summaries.from_player.netTotal || 0),
+                (summaries.from_bookie.received || 0)
+                + (summaries.from_player.netTotal || 0)
+                - settledTotal,
         };
 
         const data = rows.map((row) => ({

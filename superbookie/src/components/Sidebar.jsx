@@ -19,7 +19,7 @@ import {
     FaCreditCard,
     FaCog,
 } from 'react-icons/fa';
-import { useLanguage } from '../context/LanguageContext';
+import { useLanguage } from '../context/useLanguage';
 
 const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const navigate = useNavigate();
@@ -34,8 +34,8 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/markets', label: t('markets'), icon: FaChartBar, key: 'markets' },
         { path: '/add-user', label: t('addPlayer'), icon: FaUserPlus, key: 'addPlayer' },
         { path: '/reports', label: t('report'), icon: FaChartLine, key: 'report' },
-        { path: '/commission', label: 'Commission', icon: FaMoneyBillWave, key: 'commission' },
-        { path: '/super-bookie-commissions', label: t('bookieCommissions'), icon: FaMoneyBillWave, key: 'sbCommissions' },
+        { path: '/commission', label: t('commission'), icon: FaMoneyBillWave, key: 'commission' },
+        { path: '/wallet-transactions', label: t('walletTransaction'), icon: FaWallet, key: 'walletTransactions' },
         { path: '/payments', label: t('payments'), icon: FaCreditCard, key: 'payments' },
         { path: '/records', label: t('betHistory'), icon: FaFileInvoiceDollar, key: 'records' },
         { path: '/wallet', label: t('wallet'), icon: FaWallet, key: 'wallet' },

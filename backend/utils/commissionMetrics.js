@@ -1,7 +1,9 @@
 import Bet from '../models/bet/bet.js';
 import QuizBet from '../models/quiz/QuizBet.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
+import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
 import { getBookieUserIds, getCommissionOperatorIds } from './bookieFilter.js';
+import { ADVANCE_COMMISSION_WALLET_TYPES } from './advanceCommissionTransfer.js';
 
 export const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -149,21 +151,127 @@ export async function getCommissionBetVolume(admin, dateFilter = {}) {
     };
 }
 
+/** Classify legacy rows without paymentType. */
+export function getCommissionPaymentKind(payment) {
+    if (payment?.paymentType === 'settlement') return 'settlement';
+    if (payment?.paymentType === 'advance') return 'advance';
+    const notes = String(payment?.notes || '');
+    if (/commission settlement/i.test(notes)) return 'settlement';
+    if (/initial balance|advance commission/i.test(notes)) return 'advance';
+    return 'settlement';
+}
+
+export async function getAdvanceCommissionPaidForAccount(adminId) {
+    const id = adminId;
+    const [walletAgg, payments] = await Promise.all([
+        BookieWalletTransaction.aggregate([
+            {
+                $match: {
+                    adminId: id,
+                    direction: 'credit',
+                    type: { $in: ADVANCE_COMMISSION_WALLET_TYPES },
+                },
+            },
+            { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+        CommissionPayment.find({ bookieId: id }).select('amount paymentType notes').lean(),
+    ]);
+    const walletTotal = round2(walletAgg?.[0]?.total || 0);
+    const advanceFromPayments = round2(
+        payments
+            .filter((p) => getCommissionPaymentKind(p) === 'advance')
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+    );
+    return round2(Math.max(walletTotal, advanceFromPayments));
+}
+
 /**
- * Commission earned / paid / pending for a bookie or super bookie account.
+ * Super bookie: earned commission first recovers advance; only then pending/settled apply.
  */
-export async function getCommissionSummaryForAccount(admin) {
+export async function getSuperBookieCommissionDisplaySummary(admin) {
     const userIds = (await getBookieUserIds(admin)) || [];
     const volume = await getCommissionBetVolume(admin);
     const totalBetAmount = volume.totalBetAmount;
     const commissionPercentage = Number(admin.commissionPercentage || 0);
     const totalCommission = round2((totalBetAmount * commissionPercentage) / 100);
 
-    const [paidAgg] = await CommissionPayment.aggregate([
-        { $match: { bookieId: admin._id } },
-        { $group: { _id: null, totalPaid: { $sum: '$amount' } } },
-    ]);
-    const totalPaidRaw = round2(paidAgg?.totalPaid || 0);
+    const advanceCommissionPaid = await getAdvanceCommissionPaidForAccount(admin._id);
+    const advanceRecovered = round2(Math.min(totalCommission, advanceCommissionPaid));
+    const advanceOutstanding = round2(Math.max(0, advanceCommissionPaid - totalCommission));
+    const commissionPayable = round2(Math.max(0, totalCommission - advanceCommissionPaid));
+
+    const payments = await CommissionPayment.find({ bookieId: admin._id })
+        .select('amount paymentType notes createdAt')
+        .lean();
+
+    let commissionSettled = round2(
+        payments
+            .filter((p) => getCommissionPaymentKind(p) === 'settlement')
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+    );
+    commissionSettled = round2(Math.min(commissionSettled, commissionPayable));
+
+    const totalPending = round2(Math.max(0, commissionPayable - commissionSettled));
+    const totalPaid = commissionSettled;
+
+    const settlementDates = payments
+        .filter((p) => getCommissionPaymentKind(p) === 'settlement')
+        .map((p) => p.createdAt)
+        .filter(Boolean);
+    const lastSettledAt =
+        settlementDates.length > 0
+            ? new Date(Math.max(...settlementDates.map((d) => new Date(d).getTime())))
+            : null;
+
+    return {
+        accountId: admin._id,
+        playerCount: userIds.length,
+        betCount: volume.betCount,
+        totalBetAmount,
+        commissionPercentage,
+        totalCommission,
+        advanceCommissionPaid,
+        advanceRecovered,
+        advanceOutstanding,
+        commissionPayable,
+        totalPaid,
+        totalPending,
+        lastSettledAt,
+        paymentStatus:
+            totalCommission <= 0
+                ? 'none'
+                : advanceOutstanding > 0
+                  ? 'advance_recovery'
+                  : totalPending <= 0
+                    ? 'paid'
+                    : totalPaid > 0
+                      ? 'partial'
+                      : 'pending',
+    };
+}
+
+/**
+ * Commission earned / paid / pending for a bookie or super bookie account.
+ */
+export async function getCommissionSummaryForAccount(admin) {
+    if (admin?.role === 'super_bookie') {
+        return getSuperBookieCommissionDisplaySummary(admin);
+    }
+
+    const userIds = (await getBookieUserIds(admin)) || [];
+    const volume = await getCommissionBetVolume(admin);
+    const totalBetAmount = volume.totalBetAmount;
+    const commissionPercentage = Number(admin.commissionPercentage || 0);
+    const totalCommission = round2((totalBetAmount * commissionPercentage) / 100);
+
+    const payments = await CommissionPayment.find({ bookieId: admin._id })
+        .select('amount paymentType notes')
+        .lean();
+    const totalPaidRaw = round2(
+        payments
+            .filter((p) => getCommissionPaymentKind(p) === 'settlement')
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+    );
     const totalPaid = round2(Math.min(totalPaidRaw, totalCommission));
     const totalPending = round2(Math.max(0, totalCommission - totalPaid));
 
@@ -208,6 +316,17 @@ export async function getCommissionDashboardForAccount(admin, { startDate, endDa
         periodCommission = round2((periodBetAmount * summary.commissionPercentage) / 100);
     }
 
+    const advanceFields =
+        admin?.role === 'super_bookie'
+            ? {
+                  advanceCommissionPaid: summary.advanceCommissionPaid ?? 0,
+                  advanceOutstanding: summary.advanceOutstanding ?? 0,
+                  advanceRecovered: summary.advanceRecovered ?? 0,
+                  commissionPayable: summary.commissionPayable ?? summary.totalPending ?? 0,
+                  paymentStatus: summary.paymentStatus,
+              }
+            : {};
+
     return {
         commissionPercentage: summary.commissionPercentage,
         allTimeBetAmount: summary.totalBetAmount,
@@ -215,6 +334,7 @@ export async function getCommissionDashboardForAccount(admin, { startDate, endDa
         allTimePaid: summary.totalPaid,
         allTimePending: summary.totalPending,
         paymentStatus: summary.paymentStatus,
+        ...advanceFields,
         periodBetAmount,
         periodCommission,
         matkaBetAmount,

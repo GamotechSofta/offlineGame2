@@ -492,10 +492,10 @@ const SuperBookieManagement = () => {
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Link
-                            to="/super-bookie-commissions"
+                            to="/commission"
                             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#1B3150] text-[#1B3150] font-semibold text-sm"
                         >
-                            {PANEL_LABEL} Commissions
+                            Commission
                         </Link>
                         <button
                             type="button"

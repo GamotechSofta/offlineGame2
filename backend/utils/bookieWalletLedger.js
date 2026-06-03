@@ -51,6 +51,8 @@ export async function recordBookieWalletTxIfPanel(admin, payload) {
 export const BOOKIE_WALLET_TX_LABELS = {
     initial_balance: 'Initial balance (from bookie)',
     advance_received: 'Advance / balance received',
+    advance_commission: 'Advance commission (from bookie)',
+    commission_settlement: 'Commission settlement (from bookie)',
     balance_adjustment: 'Balance adjustment',
     player_deposit: 'Player add fund (approved — added to balance)',
     player_withdrawal: 'Player withdrawal (approved — deducted from balance)',
@@ -67,10 +69,19 @@ export function getBookieWalletTxLabel(type) {
 }
 
 /** Shown in "from bookie" tab list */
-export const FROM_BOOKIE_TX_TYPES = ['initial_balance', 'advance_received', 'balance_adjustment'];
+export const FROM_BOOKIE_TX_TYPES = [
+    'initial_balance',
+    'advance_received',
+    'advance_commission',
+    'commission_settlement',
+    'balance_adjustment',
+];
 
-/** Counted in "Total from bookie (initial + advance)" summary — credits only */
-export const FROM_BOOKIE_SUMMARY_TYPES = ['initial_balance', 'advance_received'];
+/** Subtracted from grand total (bookie + players) when commission is settled */
+export const FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES = ['commission_settlement'];
+
+/** Counted in advance commission / bookie summary — credits only */
+export const FROM_BOOKIE_SUMMARY_TYPES = ['initial_balance', 'advance_received', 'advance_commission'];
 
 /** Player-related balance changes (add fund, wallet ops, etc.) */
 export const FROM_PLAYER_TX_TYPES = [

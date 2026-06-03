@@ -9,6 +9,7 @@ import {
     deleteSuperBookie,
 } from '../../controllers/bookieSuperBookieController.js';
 import { verifyAdmin, requireBookie } from '../../middleware/adminAuth.js';
+import { listMyBookieWalletTransactions } from '../../controllers/bookieWalletTransactionController.js';
 
 const router = express.Router();
 
@@ -16,6 +17,7 @@ router.post('/login', bookieLogin);
 router.post('/heartbeat', verifyAdmin, requireBookie, bookieHeartbeat);
 router.get('/referral-link', verifyAdmin, requireBookie, getReferralLink);
 router.get('/profile', verifyAdmin, requireBookie, getProfile);
+router.get('/wallet-transactions', verifyAdmin, requireBookie, listMyBookieWalletTransactions);
 router.patch('/theme', verifyAdmin, requireBookie, updateTheme);
 
 router.get('/super-bookies', verifyAdmin, requireBookie, listSuperBookies);

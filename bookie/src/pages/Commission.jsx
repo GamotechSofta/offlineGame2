@@ -62,6 +62,7 @@ const Commission = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [payments, setPayments] = useState([]);
+    const [paymentTotals, setPaymentTotals] = useState({ advance: 0, settled: 0 });
     const [paymentsLoading, setPaymentsLoading] = useState(false);
     const [requests, setRequests] = useState({ currentCommission: 0, requests: [] });
     const [requestsLoading, setRequestsLoading] = useState(false);
@@ -99,9 +100,16 @@ const Commission = () => {
             setPaymentsLoading(true);
             const res = await fetchWithAuth(`${API_BASE_URL}/daily-commission/my-payments`);
             const result = await res.json();
-            if (result.success) setPayments(result.data || []);
+            if (result.success) {
+                setPayments(result.data || []);
+                setPaymentTotals({
+                    advance: Number(result.totalAdvanceCommission ?? 0),
+                    settled: Number(result.totalCommissionSettled ?? 0),
+                });
+            }
         } catch {
             setPayments([]);
+            setPaymentTotals({ advance: 0, settled: 0 });
         } finally {
             setPaymentsLoading(false);
         }
@@ -122,9 +130,11 @@ const Commission = () => {
 
     useEffect(() => { fetchRevenue(); }, [fetchRevenue]);
     useEffect(() => {
-        if (tab === 'payments') fetchPayments();
+        fetchPayments();
+    }, [fetchPayments]);
+    useEffect(() => {
         if (tab === 'request') fetchRequests();
-    }, [tab, fetchPayments, fetchRequests]);
+    }, [tab, fetchRequests]);
 
     const applyPreset = (presetId) => {
         const preset = PRESETS.find((p) => p.id === presetId);
@@ -176,10 +186,20 @@ const Commission = () => {
     };
 
     const tabs = [
-        { id: 'overview', label: 'Overview' },
-        { id: 'payments', label: 'Payment History' },
-        { id: 'request', label: 'Request %' },
+        { id: 'overview', label: t('commissionTabOverview') },
+        { id: 'payments', label: t('commissionTabBookiePayments') },
+        { id: 'request', label: t('commissionTabRequest') },
     ];
+
+    const advanceFromBookie = Number(
+        data?.advanceCommissionPaid ?? paymentTotals.advance ?? 0
+    );
+    const advanceOutstanding = Number(data?.advanceOutstanding ?? 0);
+    const advanceRecovered = Number(data?.advanceRecovered ?? 0);
+    const commissionSettled = Number(data?.allTimePaid ?? paymentTotals.settled ?? 0);
+    const commissionPending = Number(data?.allTimePending ?? 0);
+    const commissionEarned = Number(data?.allTimeCommission ?? 0);
+    const isRecoveringAdvance = advanceOutstanding > 0;
 
     return (
         <Layout title="Commission">
@@ -189,10 +209,43 @@ const Commission = () => {
                         <FaMoneyBillWave className="text-emerald-500" />
                         Commission
                     </h1>
-                    <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                        Your commission from player bets. Your parent bookie settles pending amounts.
-                    </p>
+                    <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('commissionSubtitle')}</p>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                        <p className="text-xs uppercase text-violet-700 font-semibold">{t('commissionAdvanceFromBookie')}</p>
+                        <p className="text-2xl font-bold text-violet-900 mt-1">{formatCurrency(advanceFromBookie)}</p>
+                        {advanceRecovered > 0 && (
+                            <p className="text-xs text-violet-600 mt-1">
+                                {t('commissionRecovered')}: {formatCurrency(advanceRecovered)}
+                            </p>
+                        )}
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                        <p className="text-xs uppercase text-emerald-700 font-semibold">{t('commissionEarned')}</p>
+                        <p className="text-2xl font-bold text-emerald-800 mt-1">{formatCurrency(commissionEarned)}</p>
+                    </div>
+                    <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+                        <p className="text-xs uppercase text-green-700 font-semibold">{t('commissionSettled')}</p>
+                        <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(commissionSettled)}</p>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
+                        <p className="text-xs uppercase text-orange-700 font-semibold">{t('commissionPending')}</p>
+                        <p className="text-2xl font-bold text-orange-700 mt-1">{formatCurrency(commissionPending)}</p>
+                        {isRecoveringAdvance && (
+                            <p className="text-xs text-violet-600 mt-1">
+                                {t('commissionAdvanceDue')}: {formatCurrency(advanceOutstanding)}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {isRecoveringAdvance && (
+                    <p className="text-sm text-violet-800 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
+                        {t('commissionRecoveringAdvance')}
+                    </p>
+                )}
 
                 <div className="flex flex-wrap gap-2">
                     {tabs.map((item) => (
@@ -249,7 +302,10 @@ const Commission = () => {
                                 />
                                 <button
                                     type="button"
-                                    onClick={fetchRevenue}
+                                    onClick={() => {
+                                        fetchRevenue();
+                                        fetchPayments();
+                                    }}
                                     disabled={loading}
                                     className="inline-flex items-center gap-1 px-3 py-1.5 bg-sb-primary text-white rounded-lg text-sm"
                                 >
@@ -282,18 +338,25 @@ const Commission = () => {
                                     <p className="text-xs text-blue-100 mt-1">Selected period only</p>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                                    <p className="text-xs uppercase text-emerald-700 font-semibold">All-time earned</p>
-                                    <p className="text-2xl font-bold text-emerald-800 mt-1">{formatCurrency(data.allTimeCommission)}</p>
-                                </div>
-                                <div className="bg-green-50 border border-green-100 rounded-xl p-4">
-                                    <p className="text-xs uppercase text-green-700 font-semibold">Paid</p>
-                                    <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(data.allTimePaid)}</p>
-                                </div>
-                                <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
-                                    <p className="text-xs uppercase text-orange-700 font-semibold">Pending</p>
-                                    <p className="text-2xl font-bold text-orange-700 mt-1">{formatCurrency(data.allTimePending)}</p>
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                                <p className="text-sm font-semibold text-slate-700 mb-2">{t('commissionBookieSummary')}</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                                    <div>
+                                        <p className="text-xs text-slate-500">{t('commissionAdvanceFromBookie')}</p>
+                                        <p className="font-bold text-violet-700">{formatCurrency(advanceFromBookie)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-500">{t('commissionSettled')}</p>
+                                        <p className="font-bold text-green-700">{formatCurrency(commissionSettled)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-500">{t('commissionPending')}</p>
+                                        <p className="font-bold text-orange-700">{formatCurrency(commissionPending)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-500">{t('commissionRate')}</p>
+                                        <p className="font-bold text-slate-800">{data.commissionPercentage ?? 0}%</p>
+                                    </div>
                                 </div>
                             </div>
                             </div>
@@ -305,11 +368,21 @@ const Commission = () => {
 
                 {tab === 'payments' && (
                     <div className="bg-white rounded-xl border overflow-hidden">
-                        <div className="px-4 py-3 border-b flex justify-between items-center">
+                        <div className="px-4 py-3 border-b flex flex-wrap justify-between items-center gap-2">
                             <h2 className="font-semibold text-gray-700 flex items-center gap-2">
-                                <FaHistory /> Payments received
+                                <FaHistory /> Advance commission history
                             </h2>
-                            <button type="button" onClick={fetchPayments} className="text-sm text-sb-primary">
+                            <p className="text-sm font-bold text-violet-700">
+                                {t('walletTxFromBookieSummary')}: {formatCurrency(fromBookieWallet.received)}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    fetchPayments();
+                                    fetchFromBookieWallet();
+                                }}
+                                className="text-sm text-sb-primary"
+                            >
                                 Refresh
                             </button>
                         </div>
@@ -322,7 +395,22 @@ const Commission = () => {
                                 {payments.map((p) => (
                                     <div key={p._id} className="px-4 py-3 flex justify-between">
                                         <div>
-                                            <p className="font-semibold text-green-700">{formatCurrency(p.amount)}</p>
+                                            <p
+                                                className={`text-xs font-semibold uppercase ${
+                                                    p.paymentType === 'settlement'
+                                                        ? 'text-green-700'
+                                                        : 'text-violet-700'
+                                                }`}
+                                            >
+                                                {p.label || (p.paymentType === 'settlement' ? t('commissionSettled') : t('commissionAdvanceFromBookie'))}
+                                            </p>
+                                            <p
+                                                className={`font-semibold ${
+                                                    p.paymentType === 'settlement' ? 'text-green-700' : 'text-violet-800'
+                                                }`}
+                                            >
+                                                {formatCurrency(p.amount)}
+                                            </p>
                                             <p className="text-xs text-gray-500">{formatDate(p.createdAt)} · {p.createdBy}</p>
                                             {p.notes ? <p className="text-xs text-gray-400">{p.notes}</p> : null}
                                         </div>

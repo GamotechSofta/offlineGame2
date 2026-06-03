@@ -16,6 +16,12 @@ const commissionPaymentSchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
+    /** advance = initial/advance given; settlement = commission paid after advance recovered */
+    paymentType: {
+        type: String,
+        enum: ['advance', 'settlement'],
+        default: 'advance',
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Admin',
