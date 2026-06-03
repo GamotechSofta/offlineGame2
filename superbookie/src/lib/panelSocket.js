@@ -33,6 +33,33 @@ export function getPanelSocket() {
  * Live bookie / super bookie panel balance (sidebar, game bid context).
  * @param {(payload: { balance: number, reason?: string }) => void} onBalanceUpdate
  */
+export function subscribeBookiePanelPayments(onPaymentsUpdate) {
+    const socket = getPanelSocket();
+
+    const handleConnect = () => {
+        const token = getStoredToken();
+        if (!token) return;
+        socket.auth = { token };
+        socket.emit('bookie:subscribe', { token });
+    };
+
+    const handlePayments = (payload) => onPaymentsUpdate?.(payload);
+
+    socket.on('connect', handleConnect);
+    socket.on('bookie:payments:update', handlePayments);
+
+    const token = getStoredToken();
+    if (token) {
+        if (!socket.connected) socket.connect();
+        else handleConnect();
+    }
+
+    return () => {
+        socket.off('connect', handleConnect);
+        socket.off('bookie:payments:update', handlePayments);
+    };
+}
+
 export function subscribeBookiePanelBalance(onBalanceUpdate) {
     const socket = getPanelSocket();
 

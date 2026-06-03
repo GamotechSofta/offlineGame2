@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { subscribeAdminPayments } from '../lib/adminSocket';
+import { patchPaymentsListCache } from '../utils/patchPaymentsListCache';
 
 /**
  * Refetches payment list / pending counts only when the server emits `admin:payments:update`
@@ -21,12 +22,15 @@ const useAdminPaymentsQueryInvalidation = ({
 
   useEffect(() => {
     if (!enabled) return undefined;
-    const invalidate = () => {
+    const invalidate = (payload) => {
+      if (payload?.paymentId && payload?.status) {
+        patchPaymentsListCache(queryClient, payload);
+      }
       if (throttleRef.current) return;
       throttleRef.current = window.setTimeout(() => {
         throttleRef.current = null;
         keysRef.current.forEach((key) => {
-          queryClient.invalidateQueries({ queryKey: key });
+          queryClient.refetchQueries({ queryKey: key, type: 'active' });
         });
       }, throttleMs);
     };

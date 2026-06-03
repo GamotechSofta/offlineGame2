@@ -4,6 +4,22 @@ import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { FaEye, FaTimes, FaCheck, FaTimesCircle } from 'react-icons/fa';
+import { subscribeBookiePanelPayments } from '../lib/panelSocket';
+
+const applyPaymentPatch = (list, patch) => {
+    if (!patch?.paymentId || !patch?.status) return list;
+    const id = String(patch.paymentId);
+    return list.map((row) => (
+        String(row._id) === id
+            ? {
+                ...row,
+                status: patch.status,
+                adminRemarks: patch.adminRemarks ?? row.adminRemarks,
+                processedAt: patch.processedAt ?? row.processedAt,
+            }
+            : row
+    ));
+};
 
 const Payments = () => {
     const { t } = useLanguage();
@@ -20,6 +36,17 @@ const Payments = () => {
     useEffect(() => {
         fetchProfile();
         fetchPayments();
+    }, [filters]);
+
+    useEffect(() => {
+        const unsubscribe = subscribeBookiePanelPayments((payload) => {
+            if (payload?.paymentId && payload?.status) {
+                setPayments((prev) => applyPaymentPatch(prev, payload));
+            } else {
+                fetchPayments();
+            }
+        });
+        return unsubscribe;
     }, [filters]);
 
     const fetchProfile = async () => {
@@ -40,6 +67,7 @@ const Payments = () => {
             const q = new URLSearchParams();
             if (filters.status) q.append('status', filters.status);
             if (filters.type) q.append('type', filters.type);
+            q.append('_ts', String(Date.now()));
             const response = await fetch(`${API_BASE_URL}/payments?${q}`, { headers: getBookieAuthHeaders() });
             const data = await response.json();
             if (data.success) setPayments(data.data);
@@ -49,6 +77,9 @@ const Payments = () => {
             setLoading(false);
         }
     };
+
+    const canActOnPayment = (p) => p.status === 'pending' && Boolean(p.actionAccess?.canApproveReject);
+    const hasAnyPaymentAction = payments.some(canActOnPayment);
 
     const handleApprove = async () => {
         if (!actionModal.payment) return;
@@ -61,6 +92,13 @@ const Payments = () => {
             });
             const data = await response.json();
             if (data.success) {
+                const pid = String(actionModal.payment._id);
+                setPayments((prev) => applyPaymentPatch(prev, {
+                    paymentId: pid,
+                    status: data.data?.status || 'approved',
+                    adminRemarks: data.data?.adminRemarks ?? adminRemarks,
+                    processedAt: data.data?.processedAt,
+                }));
                 if (data.bookieBalance != null) {
                     updateBookie({ balance: Number(data.bookieBalance) });
                 }
@@ -89,6 +127,13 @@ const Payments = () => {
             });
             const data = await response.json();
             if (data.success) {
+                const pid = String(actionModal.payment._id);
+                setPayments((prev) => applyPaymentPatch(prev, {
+                    paymentId: pid,
+                    status: data.data?.status || 'rejected',
+                    adminRemarks: data.data?.adminRemarks ?? adminRemarks,
+                    processedAt: data.data?.processedAt,
+                }));
                 setActionModal({ show: false, payment: null, action: '' });
                 setAdminRemarks('');
                 fetchPayments();
@@ -105,7 +150,7 @@ const Payments = () => {
     return (
         <Layout title={t('payments')}>
             <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">
-                {canManagePayments ? t('payments') : t('paymentsViewOnly')}
+                {hasAnyPaymentAction ? t('payments') : t('paymentsViewOnly')}
             </h1>
             <div className="bg-white rounded-lg p-4 mb-4 sm:mb-6 flex flex-wrap gap-3 items-center border border-gray-200">
                 <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800">
@@ -136,13 +181,13 @@ const Payments = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('method')}</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('status')}</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Screenshot</th>
-                                    {canManagePayments && <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actions</th>}
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actions</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">{t('date')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
                                 {payments.length === 0 ? (
-                                    <tr><td colSpan={canManagePayments ? 9 : 8} className="px-6 py-4 text-center text-gray-400">{t('noPaymentsFound')}</td></tr>
+                                    <tr><td colSpan={9} className="px-6 py-4 text-center text-gray-400">{t('noPaymentsFound')}</td></tr>
                                 ) : (
                                     payments.map((p) => (
                                         <tr key={p._id} className="hover:bg-gray-50">
@@ -170,30 +215,30 @@ const Payments = () => {
                                                     <span className="text-gray-400 text-xs">No screenshot</span>
                                                 )}
                                             </td>
-                                            {canManagePayments && (
-                                                <td className="px-6 py-4 text-sm">
-                                                    {p.status === 'pending' ? (
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => setActionModal({ show: true, payment: p, action: 'approve' })}
-                                                                className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium transition-colors"
-                                                            >
-                                                                <FaCheck className="w-3 h-3" />
-                                                                Approve
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setActionModal({ show: true, payment: p, action: 'reject' })}
-                                                                className="flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium transition-colors"
-                                                            >
-                                                                <FaTimesCircle className="w-3 h-3" />
-                                                                Reject
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-gray-400 text-xs">-</span>
-                                                    )}
-                                                </td>
-                                            )}
+                                            <td className="px-6 py-4 text-sm">
+                                                {canActOnPayment(p) ? (
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => setActionModal({ show: true, payment: p, action: 'approve' })}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium transition-colors"
+                                                        >
+                                                            <FaCheck className="w-3 h-3" />
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setActionModal({ show: true, payment: p, action: 'reject' })}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium transition-colors"
+                                                        >
+                                                            <FaTimesCircle className="w-3 h-3" />
+                                                            Reject
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs">
+                                                        {p.status === 'pending' ? 'View only' : '-'}
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td className="px-6 py-4 text-sm">{new Date(p.createdAt).toLocaleString()}</td>
                                         </tr>
                                     ))

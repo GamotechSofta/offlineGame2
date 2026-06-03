@@ -126,6 +126,86 @@ const SCREENSHOT_WEBHOOK_URL =
 
 const isPaymentOperatorRole = (role) => role === 'bookie' || role === 'super_bookie';
 
+/** Direct owner: super_bookie if referred there, else bookie (not parent bookie for sub-bookie players). */
+const resolvePaymentOwnerId = (payment) => {
+    const chain = payment?.userId?.referrerChain;
+    if (chain?.superBookie?._id) return String(chain.superBookie._id);
+    if (chain?.bookie?._id) return String(chain.bookie._id);
+    const ref = payment?.userId?.referredBy;
+    if (!ref) return '';
+    return String(ref._id || ref);
+};
+
+/**
+ * Who may approve/reject: only the direct referrer (bookie/super_bookie) with canManagePayments.
+ * Parent bookie (role bookie) sees sub-bookie players but cannot act. Admins view-only when owner locked.
+ */
+const computePaymentActionAccess = (actingAdmin, payment, ownerOperator = null) => {
+    const ownerId =
+        resolvePaymentOwnerId(payment) || (ownerOperator?._id ? String(ownerOperator._id) : '');
+    const actorId = String(actingAdmin?._id || '');
+    const actorRole = actingAdmin?.role;
+    const owner = ownerOperator || null;
+    const ownerHasMgmt = Boolean(
+        owner && isPaymentOperatorRole(owner.role) && owner.canManagePayments
+    );
+    const isDirectOwner = Boolean(ownerId && actorId === ownerId);
+
+    if (actorRole === 'bookie' || actorRole === 'super_bookie') {
+        const canApproveReject = isDirectOwner && Boolean(actingAdmin.canManagePayments);
+        let message = '';
+        if (!canApproveReject) {
+            if (!isDirectOwner) {
+                message =
+                    actorRole === 'bookie'
+                        ? 'This player belongs to a sub-bookie. You can only view the request.'
+                        : 'You can only process payments for your own players.';
+            } else {
+                message =
+                    'You do not have permission to manage payments. Please contact super admin.';
+            }
+        }
+        return {
+            canApproveReject,
+            ownerManaged: ownerHasMgmt,
+            ownerOperatorId: ownerId || null,
+            ownerOperatorName: owner?.username || '',
+            message,
+            code: canApproveReject ? '' : 'PAYMENT_ACTION_DENIED',
+        };
+    }
+
+    if (actorRole === 'super_admin' || actorRole === 'specific_admin') {
+        if (ownerHasMgmt && !isDirectOwner) {
+            return {
+                canApproveReject: false,
+                ownerManaged: true,
+                ownerOperatorId: ownerId,
+                ownerOperatorName: owner?.username || 'Owner',
+                message: `Payment management is enabled for ${owner?.username || 'this owner'}. Admin can only view this request.`,
+                code: 'PAYMENT_MANAGEMENT_LOCKED_TO_OWNER',
+            };
+        }
+        return {
+            canApproveReject: true,
+            ownerManaged: ownerHasMgmt,
+            ownerOperatorId: ownerId || null,
+            ownerOperatorName: owner?.username || '',
+            message: '',
+            code: '',
+        };
+    }
+
+    return {
+        canApproveReject: false,
+        ownerManaged: false,
+        ownerOperatorId: ownerId || null,
+        ownerOperatorName: '',
+        message: 'Not allowed',
+        code: 'PAYMENT_ACTION_DENIED',
+    };
+};
+
 const buildScreenshotWebhookHeaders = () => {
     const headers = { 'Content-Type': 'application/json' };
     const secret = process.env.WEBHOOK_SECRET;
@@ -895,18 +975,8 @@ export const getPayments = async (req, res) => {
 
         const paymentsWithOwnership = await enrichPaymentsWithUserReferrerChain(paymentsWithScreenshotUrl);
 
-        // Compute per-row action access so admin UI can stay view-only when owner has locked payment management.
         const ownerOperatorIds = [
-            ...new Set(
-                paymentsWithOwnership
-                    .map((p) => (
-                        p?.userId?.referrerChain?.superBookie?._id
-                        || p?.userId?.referrerChain?.bookie?._id
-                        || null
-                    ))
-                    .filter(Boolean)
-                    .map((id) => String(id))
-            ),
+            ...new Set(paymentsWithOwnership.map(resolvePaymentOwnerId).filter(Boolean)),
         ];
         let ownerMap = {};
         if (ownerOperatorIds.length > 0) {
@@ -917,32 +987,22 @@ export const getPayments = async (req, res) => {
         }
 
         const paymentsWithActionAccess = paymentsWithOwnership.map((p) => {
-            const ownerId = String(
-                p?.userId?.referrerChain?.superBookie?._id
-                || p?.userId?.referrerChain?.bookie?._id
-                || ''
-            );
+            const ownerId = resolvePaymentOwnerId(p);
             const owner = ownerId ? ownerMap[ownerId] : null;
-            const ownerManaged = Boolean(
-                owner && isPaymentOperatorRole(owner.role) && owner.canManagePayments
-            );
-            const canApproveReject = !ownerManaged || String(req.admin?._id) === ownerId;
-            const ownerName = owner?.username || 'Owner';
-
+            const access = computePaymentActionAccess(req.admin, p, owner);
             return {
                 ...p,
                 actionAccess: {
-                    canApproveReject,
-                    ownerManaged,
-                    ownerOperatorId: ownerId || null,
-                    ownerOperatorName: ownerName,
-                    message: canApproveReject
-                        ? ''
-                        : `Payment management is enabled for ${ownerName}. Admin can only view this request.`,
+                    canApproveReject: access.canApproveReject,
+                    ownerManaged: access.ownerManaged,
+                    ownerOperatorId: access.ownerOperatorId,
+                    ownerOperatorName: access.ownerOperatorName,
+                    message: access.message,
                 },
             };
         });
 
+        res.set('Cache-Control', 'no-store');
         res.status(200).json({
             success: true,
             data: paymentsWithActionAccess,
@@ -1203,30 +1263,10 @@ export const getPaymentDashboardStats = async (req, res) => {
     }
 };
 
-/**
- * If player owner has payment management enabled, lock approve/reject to that owner only.
- * Everyone else (including super admin/specific admin) becomes view-only for that request.
- */
-const enforceOwnerPaymentManagementLock = async (actingAdmin, payment) => {
-    const ownerOperatorId = payment?.userId?.referredBy;
-    if (!ownerOperatorId) return { allowed: true };
-
-    const ownerOperator = await Admin.findById(ownerOperatorId)
-        .select('role username canManagePayments')
-        .lean();
-
-    if (!ownerOperator || !isPaymentOperatorRole(ownerOperator.role) || !ownerOperator.canManagePayments) {
-        return { allowed: true };
-    }
-
-    const isOwner = String(ownerOperator._id) === String(actingAdmin?._id);
-    if (isOwner) return { allowed: true };
-
-    return {
-        allowed: false,
-        code: 'PAYMENT_MANAGEMENT_LOCKED_TO_OWNER',
-        message: `Payment management is enabled for ${ownerOperator.username || 'this owner'}. Only that account can approve/reject this request.`,
-    };
+const loadPaymentOwnerOperator = async (payment) => {
+    const ownerId = payment?.userId?.referredBy?._id || payment?.userId?.referredBy;
+    if (!ownerId) return null;
+    return Admin.findById(ownerId).select('role username canManagePayments').lean();
 };
 
 /**
@@ -1240,14 +1280,6 @@ export const approvePayment = async (req, res) => {
         const admin = await Admin.findById(req.admin._id);
         if (!admin) {
             return res.status(403).json({ success: false, message: 'Admin not found' });
-        }
-
-        // Super admin always has permission, bookie/super_bookie need canManagePayments.
-        if ((admin.role === 'bookie' || admin.role === 'super_bookie') && !admin.canManagePayments) {
-            return res.status(403).json({
-                success: false,
-                message: 'You do not have permission to manage payments. Please contact super admin.',
-            });
         }
 
         const adminWithSecret = await Admin.findById(req.admin._id).select('+secretDeclarePassword').lean();
@@ -1266,7 +1298,10 @@ export const approvePayment = async (req, res) => {
         const { id } = req.params;
         const { adminRemarks } = req.body;
 
-        const payment = await Payment.findById(id).populate('userId');
+        const payment = await Payment.findById(id).populate({
+            path: 'userId',
+            populate: { path: 'referredBy', select: 'username role parentBookieId phone status' },
+        });
         if (!payment) {
             return res.status(404).json({ success: false, message: 'Payment not found' });
         }
@@ -1275,23 +1310,16 @@ export const approvePayment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Payment is not pending' });
         }
 
-        const ownershipLock = await enforceOwnerPaymentManagementLock(admin, payment);
-        if (!ownershipLock.allowed) {
+        const ownerOperator = await loadPaymentOwnerOperator(payment);
+        const [paymentWithChain] = await enrichPaymentsWithUserReferrerChain([
+            { ...payment.toObject(), userId: payment.userId },
+        ]);
+        const access = computePaymentActionAccess(admin, paymentWithChain || payment, ownerOperator);
+        if (!access.canApproveReject) {
             return res.status(403).json({
                 success: false,
-                message: ownershipLock.message,
-                code: ownershipLock.code,
-            });
-        }
-
-        // Bookie / super_bookie can only process their own players' payment requests.
-        if (
-            (admin.role === 'bookie' || admin.role === 'super_bookie') &&
-            String(payment.userId?.referredBy || '') !== String(admin._id)
-        ) {
-            return res.status(403).json({
-                success: false,
-                message: 'You can only process payments for your own players',
+                message: access.message,
+                code: access.code || 'PAYMENT_ACTION_DENIED',
             });
         }
 
@@ -1301,14 +1329,11 @@ export const approvePayment = async (req, res) => {
         // Deduct from the owner operator (bookie/super_bookie) when payment management is enabled.
         // This keeps behavior correct even if approval comes via different admin route.
         if (payment.type === 'deposit') {
-            const ownerOperatorId = payment.userId?.referredBy;
-            if (ownerOperatorId) {
-                const ownerOperator = await Admin.findById(ownerOperatorId).select('role canManagePayments');
-                if (
-                    ownerOperator
-                    && (ownerOperator.role === 'bookie' || ownerOperator.role === 'super_bookie')
-                    && ownerOperator.canManagePayments
-                ) {
+            if (
+                ownerOperator
+                && isPaymentOperatorRole(ownerOperator.role)
+                && ownerOperator.canManagePayments
+            ) {
                     const updatedBookie = await Admin.findOneAndUpdate(
                         { _id: ownerOperator._id, balance: { $gte: payment.amount } },
                         { $inc: { balance: -payment.amount } },
@@ -1323,7 +1348,6 @@ export const approvePayment = async (req, res) => {
                     }
                     deductedBookieId = String(ownerOperator._id);
                     updatedBookieBalance = Number(updatedBookie.balance || 0);
-                }
             }
         }
 
@@ -1344,7 +1368,15 @@ export const approvePayment = async (req, res) => {
         payment.processedBy = req.admin._id;
         payment.processedAt = new Date();
         await payment.save();
-        await invalidateAdminPaymentRelatedCaches('payment_approved');
+        const paymentForBroadcast = paymentWithChain?.[0] || {
+            ...payment.toObject(),
+            userId: payment.userId,
+        };
+        await invalidateAdminPaymentRelatedCaches('payment_approved', {
+            payment: { ...paymentForBroadcast, status: payment.status, adminRemarks: payment.adminRemarks, processedAt: payment.processedAt },
+            actorId: req.admin._id,
+            ownerOperator,
+        });
 
         // Update wallet (deposits credit; legacy withdrawals debit — new withdrawals already debited on request)
         let wallet = await Wallet.findOne({ userId: payment.userId._id });
@@ -1409,24 +1441,18 @@ export const approvePayment = async (req, res) => {
  */
 export const rejectPayment = async (req, res) => {
     try {
-        // Check if admin has permission to manage payments
         const admin = await Admin.findById(req.admin._id);
         if (!admin) {
             return res.status(403).json({ success: false, message: 'Admin not found' });
         }
 
-        // Super admin always has permission, bookie/super_bookie need canManagePayments.
-        if ((admin.role === 'bookie' || admin.role === 'super_bookie') && !admin.canManagePayments) {
-            return res.status(403).json({
-                success: false,
-                message: 'You do not have permission to manage payments. Please contact super admin.',
-            });
-        }
-
         const { id } = req.params;
         const { adminRemarks } = req.body;
 
-        const payment = await Payment.findById(id).populate('userId');
+        const payment = await Payment.findById(id).populate({
+            path: 'userId',
+            populate: { path: 'referredBy', select: 'username role parentBookieId phone status' },
+        });
         if (!payment) {
             return res.status(404).json({ success: false, message: 'Payment not found' });
         }
@@ -1435,23 +1461,16 @@ export const rejectPayment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Payment is not pending' });
         }
 
-        const ownershipLock = await enforceOwnerPaymentManagementLock(admin, payment);
-        if (!ownershipLock.allowed) {
+        const ownerOperator = await loadPaymentOwnerOperator(payment);
+        const [paymentWithChain] = await enrichPaymentsWithUserReferrerChain([
+            { ...payment.toObject(), userId: payment.userId },
+        ]);
+        const access = computePaymentActionAccess(admin, paymentWithChain || payment, ownerOperator);
+        if (!access.canApproveReject) {
             return res.status(403).json({
                 success: false,
-                message: ownershipLock.message,
-                code: ownershipLock.code,
-            });
-        }
-
-        // Bookie / super_bookie can only process their own players' payment requests.
-        if (
-            (admin.role === 'bookie' || admin.role === 'super_bookie')
-            && String(payment.userId?.referredBy || '') !== String(admin._id)
-        ) {
-            return res.status(403).json({
-                success: false,
-                message: 'You can only process payments for your own players',
+                message: access.message,
+                code: access.code || 'PAYMENT_ACTION_DENIED',
             });
         }
 
@@ -1460,7 +1479,20 @@ export const rejectPayment = async (req, res) => {
         payment.processedBy = req.admin._id;
         payment.processedAt = new Date();
         await payment.save();
-        await invalidateAdminPaymentRelatedCaches('payment_rejected');
+        const paymentForBroadcastReject = paymentWithChain?.[0] || {
+            ...payment.toObject(),
+            userId: payment.userId,
+        };
+        await invalidateAdminPaymentRelatedCaches('payment_rejected', {
+            payment: {
+                ...paymentForBroadcastReject,
+                status: payment.status,
+                adminRemarks: payment.adminRemarks,
+                processedAt: payment.processedAt,
+            },
+            actorId: req.admin._id,
+            ownerOperator,
+        });
 
         if (payment.type === 'withdrawal' && payment.withdrawalWalletHeld) {
             const uid = payment.userId._id || payment.userId;

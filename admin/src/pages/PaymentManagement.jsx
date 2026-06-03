@@ -160,7 +160,7 @@ const PaymentManagement = () => {
     useTraceRender('PaymentManagement');
     useAdminPaymentsQueryInvalidation({
         enabled: typeof window !== 'undefined' && !!localStorage.getItem('admin'),
-        queryKeys: [['payments-list'], ['payments-dashboard-stats']],
+        queryKeys: [['payments-list-v2'], ['payments-dashboard-stats']],
         throttleMs: 600,
     });
     const navigate = useNavigate();
@@ -273,6 +273,7 @@ const PaymentManagement = () => {
                 if (Number.isFinite(n) && n >= 0) queryParams.append('amountEquals', String(n));
             }
 
+            queryParams.append('_ts', String(Date.now()));
             const response = await fetchWithAuth(`${API_BASE_URL}/payments?${queryParams}`);
             if (response.status === 401) {
                 return {
@@ -335,16 +336,16 @@ const PaymentManagement = () => {
         ],
         queryFn: () => fetchPayments(),
         enabled: !!localStorage.getItem('admin'),
-        staleTime: Infinity,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: false,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
     });
 
     const dashboardStatsQuery = useQuery({
         queryKey: ['payments-dashboard-stats', effectiveDateRange?.from || '', effectiveDateRange?.to || ''],
         queryFn: fetchDashboardStats,
         enabled: !!localStorage.getItem('admin'),
-        staleTime: Infinity,
+        staleTime: 0,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
@@ -446,7 +447,7 @@ const PaymentManagement = () => {
             setProcessing(true);
             setActionPasswordError('');
             const nextStatus = action === 'approve' ? 'approved' : 'rejected';
-            queryClient.setQueriesData({ queryKey: ['payments-list'] }, (old) => {
+            queryClient.setQueriesData({ queryKey: ['payments-list-v2'] }, (old) => {
                 if (!old || !Array.isArray(old.data)) return old;
                 return {
                     ...old,
@@ -458,11 +459,32 @@ const PaymentManagement = () => {
                 };
             });
         },
-        onSuccess: async (data) => {
+        onSuccess: async (data, variables) => {
             if (data?.success) {
+                const updated = data?.data;
+                const nextStatus = variables?.action === 'approve' ? 'approved' : 'rejected';
+                const paymentId = String(variables?.payment?._id || updated?._id || '');
+                if (paymentId) {
+                    queryClient.setQueriesData({ queryKey: ['payments-list-v2'] }, (old) => {
+                        if (!old || !Array.isArray(old.data)) return old;
+                        return {
+                            ...old,
+                            data: old.data.map((item) => (
+                                String(item._id) === paymentId
+                                    ? {
+                                        ...item,
+                                        ...updated,
+                                        status: updated?.status || nextStatus,
+                                        adminRemarks: updated?.adminRemarks ?? variables?.remarks ?? item.adminRemarks,
+                                    }
+                                    : item
+                            )),
+                        };
+                    });
+                }
                 await Promise.all([
-                    queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
-                    queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] }),
+                    queryClient.refetchQueries({ queryKey: ['payments-list-v2'], type: 'active' }),
+                    queryClient.refetchQueries({ queryKey: ['payments-dashboard-stats'], type: 'active' }),
                 ]);
                 closeActionModal();
                 return;
@@ -470,7 +492,7 @@ const PaymentManagement = () => {
             if (data?.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
                 setActionPasswordError(data.message || 'Invalid secret password');
                 await Promise.all([
-                    queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
+                    queryClient.invalidateQueries({ queryKey: ['payments-list-v2'] }),
                     queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] }),
                 ]);
                 return;
@@ -479,14 +501,14 @@ const PaymentManagement = () => {
                 alert(data?.message || 'Action failed');
             }
             await Promise.all([
-                queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
+                queryClient.invalidateQueries({ queryKey: ['payments-list-v2'] }),
                 queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] }),
             ]);
         },
         onError: async () => {
             alert('Error processing action');
             await Promise.all([
-                queryClient.invalidateQueries({ queryKey: ['payments-list'] }),
+                queryClient.invalidateQueries({ queryKey: ['payments-list-v2'] }),
                 queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] }),
             ]);
         },
@@ -516,7 +538,7 @@ const PaymentManagement = () => {
 
     const handleDatePresetSelect = (presetId) => {
         if (!customMode && datePreset === presetId) {
-            queryClient.invalidateQueries({ queryKey: ['payments-list'] });
+            queryClient.invalidateQueries({ queryKey: ['payments-list-v2'] });
             queryClient.invalidateQueries({ queryKey: ['payments-dashboard-stats'] });
             return;
         }
