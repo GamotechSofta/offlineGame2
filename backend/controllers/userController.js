@@ -9,6 +9,8 @@ import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signUserToken, verifyUserToken } from '../utils/userJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { enrichUsersWithReferrerChain } from '../utils/referrerChain.js';
+import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
+import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -913,6 +915,16 @@ export const createUser = async (req, res) => {
                     message: 'Insufficient balance to set initial player balance',
                 });
             }
+            await recordBookieWalletTransaction({
+                adminId: req.admin._id,
+                direction: 'debit',
+                type: 'player_initial_balance',
+                amount: initialBalance,
+                balanceAfter: updatedOperator.balance ?? 0,
+                description: `Initial balance for new player`,
+                referenceId: '',
+            });
+            await notifyBookiePanelBalance(req.admin._id, 'player_initial_balance', updatedOperator.balance);
         }
 
         const user = await User.collection.insertOne(userDoc);

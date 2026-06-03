@@ -6,6 +6,7 @@ import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { notifyPlayerWalletBalance } from './playerWalletNotify.js';
 import { notifyBookiePanelBalance } from './notifyBookiePanelBalance.js';
+import { recordBookieWalletTransaction } from './bookieWalletLedger.js';
 import { getRatesMap, DEFAULT_RATES } from '../models/rate/rate.js';
 import { isSpCommon, SP_COMMON_LIST } from '../config/spCommonList.js';
 import { isValidDoublePana } from './doublePanaValidate.js';
@@ -183,6 +184,15 @@ async function payWinnings(userId, payout, description, referenceId, betInfo = {
         ).select('balance role');
         if (updated) {
             await notifyBookiePanelBalance(placedByBookieId, 'bet_win', updated.balance);
+            await recordBookieWalletTransaction({
+                adminId: placedByBookieId,
+                direction: 'credit',
+                type: 'bet_win',
+                amount: payout,
+                balanceAfter: updated.balance ?? 0,
+                description: description || 'Bet winnings',
+                referenceId: referenceId ? String(referenceId) : '',
+            });
         }
         console.log(`[payWinnings] Credited ₹${payout} to BOOKIE ${placedByBookieId} (bet placed by bookie)`);
         return payout;

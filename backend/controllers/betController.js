@@ -15,6 +15,7 @@ import { isValidDoublePana } from '../utils/doublePanaValidate.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
+import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
 const THREE_DIGITS = /^\d{3}$/;
 /** CP (Common Pana): 3-digit chart single, chart double, or triple (matches frontend generateCPCommon). */
 const isValidCpCommonThreeDigit = (sn) =>
@@ -584,6 +585,16 @@ export const placeBetForPlayer = async (req, res) => {
 
         await invalidateAdminReadCaches('bookie_market_bet_placed');
         await notifyBookiePanelBalance(bookie._id, 'bet_placed', newBookieBalance);
+        await recordBookieWalletTransaction({
+            adminId: bookie._id,
+            direction: 'debit',
+            type: 'bet_placed',
+            amount: totalAmount,
+            balanceAfter: newBookieBalance,
+            description: `Bet placed for ${user.username}`,
+            referenceId: betIds.length ? String(betIds[0]) : '',
+            meta: { userId: String(userId), marketId: String(marketId), betCount: betIds.length },
+        });
         res.status(201).json({
             success: true,
             message: `Bet placed successfully for ${user.username}`,

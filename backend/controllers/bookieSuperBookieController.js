@@ -6,6 +6,7 @@ import { PHONE_REGEX } from './superBookieController.js';
 import { canAccessBookieManagement } from '../utils/adminTabAccess.js';
 import { getCommissionSummaryForAccount } from '../utils/commissionMetrics.js';
 import { notifyBookiePanelBalance, notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
+import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
 
 /** Admin: list all super bookies with parent bookie + player counts */
 export const getAllSuperBookiesAdmin = async (req, res) => {
@@ -178,6 +179,29 @@ export const createSuperBookie = async (req, res) => {
         await superBookie.save();
         await invalidateAdminReadCaches('super_bookie_created');
         await notifyBookiePanelBalances([req.admin._id, superBookie._id], 'super_bookie_created');
+
+        if (initialBalance > 0) {
+            await recordBookieWalletTransaction({
+                adminId: superBookie._id,
+                direction: 'credit',
+                type: 'initial_balance',
+                amount: initialBalance,
+                balanceAfter: superBookie.balance ?? 0,
+                description: `Initial balance from bookie ${req.admin.username}`,
+                referenceId: String(superBookie._id),
+            });
+            if (parentAfterDeduct) {
+                await recordBookieWalletTransaction({
+                    adminId: req.admin._id,
+                    direction: 'debit',
+                    type: 'initial_balance_allocated',
+                    amount: initialBalance,
+                    balanceAfter: parentAfterDeduct.balance ?? 0,
+                    description: `Allocated to super bookie ${superBookie.username}`,
+                    referenceId: String(superBookie._id),
+                });
+            }
+        }
 
         await logActivity({
             action: 'create_super_bookie',
@@ -392,8 +416,9 @@ export const adjustSuperBookieBalance = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Super bookie not found' });
         }
 
+        let parent = null;
         if (operation === 'add') {
-            const parent = await Admin.findOneAndUpdate(
+            parent = await Admin.findOneAndUpdate(
                 { _id: req.admin._id, role: 'bookie', balance: { $gte: delta } },
                 { $inc: { balance: -delta } },
                 { new: true }
@@ -414,6 +439,52 @@ export const adjustSuperBookieBalance = async (req, res) => {
 
         await sb.save();
         await notifyBookiePanelBalances([req.admin._id, sb._id], 'super_bookie_balance_adjust');
+
+        if (operation === 'add') {
+            await recordBookieWalletTransaction({
+                adminId: sb._id,
+                direction: 'credit',
+                type: 'advance_received',
+                amount: delta,
+                balanceAfter: sb.balance ?? 0,
+                description: `Advance from bookie ${req.admin.username}`,
+                referenceId: String(sb._id),
+            });
+            if (parent) {
+                await recordBookieWalletTransaction({
+                    adminId: req.admin._id,
+                    direction: 'debit',
+                    type: 'balance_adjustment',
+                    amount: delta,
+                    balanceAfter: parent.balance ?? 0,
+                    description: `Advance to super bookie ${sb.username}`,
+                    referenceId: String(sb._id),
+                });
+            }
+        } else if (operation === 'deduct') {
+            const parentDoc = await Admin.findById(req.admin._id).select('balance').lean();
+            await recordBookieWalletTransaction({
+                adminId: sb._id,
+                direction: 'debit',
+                type: 'balance_adjustment',
+                amount: delta,
+                balanceAfter: sb.balance ?? 0,
+                description: `Balance returned to bookie ${req.admin.username}`,
+                referenceId: String(sb._id),
+            });
+            if (parentDoc) {
+                await recordBookieWalletTransaction({
+                    adminId: req.admin._id,
+                    direction: 'credit',
+                    type: 'balance_adjustment',
+                    amount: delta,
+                    balanceAfter: parentDoc.balance ?? 0,
+                    description: `Recovered from super bookie ${sb.username}`,
+                    referenceId: String(sb._id),
+                });
+            }
+        }
+
         res.status(200).json({
             success: true,
             data: { id: sb._id, balance: sb.balance },
