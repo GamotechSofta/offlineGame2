@@ -93,7 +93,7 @@ export const FROM_PLAYER_TX_TYPES = [
 ];
 
 /** Counted in "Total from players (add fund)" summary — credits only */
-export const FROM_PLAYER_SUMMARY_TYPES = ['player_deposit'];
+export const FROM_PLAYER_SUMMARY_TYPES = ['player_deposit', 'player_initial_balance'];
 
 /** Subtracted in player & grand total summaries */
 export const FROM_PLAYER_WITHDRAWAL_SUMMARY_TYPES = ['player_withdrawal'];

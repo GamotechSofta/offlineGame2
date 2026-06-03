@@ -903,30 +903,6 @@ export const createUser = async (req, res) => {
             updatedAt: new Date(),
         };
 
-        if ((req.admin?.role === 'bookie' || req.admin?.role === 'super_bookie') && initialBalance > 0) {
-            const updatedOperator = await Admin.findOneAndUpdate(
-                { _id: req.admin._id, balance: { $gte: initialBalance } },
-                { $inc: { balance: -initialBalance } },
-                { new: true }
-            ).select('balance');
-            if (!updatedOperator) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Insufficient balance to set initial player balance',
-                });
-            }
-            await recordBookieWalletTransaction({
-                adminId: req.admin._id,
-                direction: 'debit',
-                type: 'player_initial_balance',
-                amount: initialBalance,
-                balanceAfter: updatedOperator.balance ?? 0,
-                description: `Initial balance for new player`,
-                referenceId: '',
-            });
-            await notifyBookiePanelBalance(req.admin._id, 'player_initial_balance', updatedOperator.balance);
-        }
-
         const user = await User.collection.insertOne(userDoc);
         const userId = user.insertedId;
 
@@ -938,6 +914,27 @@ export const createUser = async (req, res) => {
             updatedAt: new Date(),
         });
         await invalidateAdminReadCaches('player_created');
+
+        if (
+            (req.admin?.role === 'bookie' || req.admin?.role === 'super_bookie')
+            && initialBalance > 0
+        ) {
+            const operator = await Admin.findById(req.admin._id).select('balance').lean();
+            await recordBookieWalletTransaction({
+                adminId: req.admin._id,
+                direction: 'credit',
+                type: 'player_initial_balance',
+                amount: initialBalance,
+                balanceAfter: Number(operator?.balance ?? 0),
+                description: `Initial balance to player ${derivedUsername}`,
+                referenceId: String(userId),
+            });
+            await notifyBookiePanelBalance(
+                req.admin._id,
+                'player_initial_balance',
+                operator?.balance ?? 0
+            );
+        }
 
         if (initialBalance > 0) {
             await WalletTransaction.create({
