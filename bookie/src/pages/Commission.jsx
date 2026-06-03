@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, fetchWithAuth } from '../utils/api';
+import { subscribeBookiePanelBalance } from '../lib/panelSocket';
 import { useLanguage } from '../context/LanguageContext';
 import {
     FaMoneyBillWave,
@@ -10,6 +11,9 @@ import {
     FaPaperPlane,
     FaCheck,
     FaTimes,
+    FaWallet,
+    FaCheckCircle,
+    FaClock,
 } from 'react-icons/fa';
 
 const getPresets = (t) => [
@@ -37,10 +41,32 @@ const getPresets = (t) => [
     }},
 ];
 
+const sumMoney = (a, b) => Math.round((Number(a || 0) + Number(b || 0)) * 100) / 100;
+
 const formatCurrency = (n) => {
-    const num = Number(n);
-    if (!Number.isFinite(num)) return '₹0';
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
+    const num = Number(n || 0);
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(num);
+};
+
+const paymentStatusBadge = (status) => {
+    if (status === 'paid') return 'bg-green-100 text-green-700';
+    if (status === 'partial') return 'bg-amber-100 text-amber-800';
+    if (status === 'advance_recovery') return 'bg-violet-100 text-violet-700';
+    if (status === 'pending') return 'bg-orange-100 text-orange-700';
+    return 'bg-slate-100 text-slate-600';
+};
+
+const paymentStatusLabel = (status) => {
+    if (status === 'paid') return 'Paid';
+    if (status === 'partial') return 'Partial';
+    if (status === 'advance_recovery') return 'Advance recovery';
+    if (status === 'pending') return 'Pending';
+    return status || '—';
 };
 
 const formatDate = (v) => {
@@ -132,6 +158,21 @@ const Commission = () => {
     useEffect(() => {
         fetchPayments();
     }, [fetchPayments]);
+
+    useEffect(() => {
+        const unsub = subscribeBookiePanelBalance((payload) => {
+            const reason = payload?.reason || '';
+            if (
+                reason === 'commission_recovery_settled'
+                || reason === 'commission_settlement'
+                || reason === 'advance_commission_transfer'
+            ) {
+                fetchRevenue();
+                fetchPayments();
+            }
+        });
+        return unsub;
+    }, [fetchRevenue, fetchPayments]);
     useEffect(() => {
         if (tab === 'request') fetchRequests();
     }, [tab, fetchRequests]);
@@ -191,15 +232,21 @@ const Commission = () => {
         { id: 'request', label: t('commissionTabRequest') },
     ];
 
-    const advanceFromBookie = Number(
-        data?.advanceCommissionPaid ?? paymentTotals.advance ?? 0
-    );
-    const advanceOutstanding = Number(data?.advanceOutstanding ?? 0);
+    const advanceGiven = Number(data?.advanceCommissionPaid ?? paymentTotals.advance ?? 0);
+    const advanceRemaining = Number(data?.advanceOutstanding ?? 0);
     const advanceRecovered = Number(data?.advanceRecovered ?? 0);
-    const commissionSettled = Number(data?.allTimePaid ?? paymentTotals.settled ?? 0);
-    const commissionPending = Number(data?.allTimePending ?? 0);
+    const recoveryPendingFromBets = Number(data?.recoveryPendingFromBets ?? 0);
+    const cashSettled = Number(data?.allTimePaid ?? paymentTotals.settled ?? 0);
+    const cashPending = Number(data?.allTimePending ?? 0);
+    const commissionSettled = Number(
+        data?.displaySettled ?? sumMoney(advanceRecovered, cashSettled)
+    );
+    const commissionPending = Number(
+        data?.displayPending ?? sumMoney(recoveryPendingFromBets, cashPending)
+    );
     const commissionEarned = Number(data?.allTimeCommission ?? 0);
-    const isRecoveringAdvance = advanceOutstanding > 0;
+    const hasAdvance = advanceGiven > 0;
+    const isRecoveringAdvance = advanceRemaining > 0 || recoveryPendingFromBets > 0;
 
     return (
         <Layout title="Commission">
@@ -212,38 +259,87 @@ const Commission = () => {
                     <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('commissionSubtitle')}</p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-                        <p className="text-xs uppercase text-violet-700 font-semibold">{t('commissionAdvanceFromBookie')}</p>
-                        <p className="text-2xl font-bold text-violet-900 mt-1">{formatCurrency(advanceFromBookie)}</p>
-                        {advanceRecovered > 0 && (
-                            <p className="text-xs text-violet-600 mt-1">
-                                {t('commissionRecovered')}: {formatCurrency(advanceRecovered)}
-                            </p>
+                <section className="bg-slate-800 rounded-xl p-4 sm:p-5 shadow-sm text-white space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h2 className="text-lg font-semibold">Commission summary</h2>
+                            <p className="text-sm text-slate-300">Your account — all-time totals</p>
+                        </div>
+                        {data?.paymentStatus && (
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${paymentStatusBadge(data.paymentStatus)}`}>
+                                {data.paymentStatus === 'paid' ? <FaCheckCircle /> : <FaClock />}
+                                {paymentStatusLabel(data.paymentStatus)}
+                            </span>
                         )}
                     </div>
-                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                        <p className="text-xs uppercase text-emerald-700 font-semibold">{t('commissionEarned')}</p>
-                        <p className="text-2xl font-bold text-emerald-800 mt-1">{formatCurrency(commissionEarned)}</p>
-                    </div>
-                    <div className="bg-green-50 border border-green-100 rounded-xl p-4">
-                        <p className="text-xs uppercase text-green-700 font-semibold">{t('commissionSettled')}</p>
-                        <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(commissionSettled)}</p>
-                    </div>
-                    <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
-                        <p className="text-xs uppercase text-orange-700 font-semibold">{t('commissionPending')}</p>
-                        <p className="text-2xl font-bold text-orange-700 mt-1">{formatCurrency(commissionPending)}</p>
-                        {isRecoveringAdvance && (
-                            <p className="text-xs text-violet-600 mt-1">
-                                {t('commissionAdvanceDue')}: {formatCurrency(advanceOutstanding)}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
+                            <p className="text-[11px] uppercase tracking-wide text-violet-200 flex items-center gap-1.5">
+                                <FaWallet className="text-violet-300" />
+                                Advance remaining
                             </p>
-                        )}
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(advanceRemaining)}</p>
+                            {advanceGiven > 0 && (
+                                <p className="text-[11px] text-violet-200 mt-1">
+                                    Given: {formatCurrency(advanceGiven)}
+                                </p>
+                            )}
+                        </div>
+                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
+                            <p className="text-[11px] uppercase tracking-wide text-blue-200 flex items-center gap-1.5">
+                                <FaMoneyBillWave className="text-blue-300" />
+                                Total commission
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionEarned)}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
+                            <p className="text-[11px] uppercase tracking-wide text-green-200 flex items-center gap-1.5">
+                                <FaCheckCircle className="text-green-300" />
+                                Settled
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionSettled)}</p>
+                            {hasAdvance && advanceRecovered > 0 && (
+                                <p className="text-[11px] text-green-200 mt-1">
+                                    Recovered {formatCurrency(advanceRecovered)}
+                                </p>
+                            )}
+                            {cashSettled > 0 && (
+                                <p className="text-[11px] text-slate-300 mt-0.5">
+                                    Cash {formatCurrency(cashSettled)}
+                                </p>
+                            )}
+                        </div>
+                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
+                            <p className="text-[11px] uppercase tracking-wide text-orange-200 flex items-center gap-1.5">
+                                <FaClock className="text-orange-300" />
+                                Pending
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionPending)}</p>
+                            {hasAdvance && recoveryPendingFromBets > 0 && (
+                                <p className="text-[11px] text-orange-200 mt-1">
+                                    From bets {formatCurrency(recoveryPendingFromBets)}
+                                </p>
+                            )}
+                            {cashPending > 0 && (
+                                <p className="text-[11px] text-slate-300 mt-0.5">
+                                    Cash {formatCurrency(cashPending)}
+                                </p>
+                            )}
+                        </div>
                     </div>
-                </div>
+                </section>
 
                 {isRecoveringAdvance && (
                     <p className="text-sm text-violet-800 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
-                        {t('commissionRecoveringAdvance')}
+                        {recoveryPendingFromBets > 0
+                            ? `${t('commissionRecoveringAdvance')} — ${formatCurrency(recoveryPendingFromBets)} from player bets can be settled by your bookie toward advance recovery.`
+                            : t('commissionRecoveringAdvance')}
+                        {advanceRecovered > 0 && (
+                            <span className="block mt-1 text-violet-700">
+                                Recovered so far: {formatCurrency(advanceRecovered)}
+                                {advanceRemaining > 0 ? ` · Due: ${formatCurrency(advanceRemaining)}` : ''}
+                            </span>
+                        )}
                     </p>
                 )}
 
@@ -338,24 +434,57 @@ const Commission = () => {
                                     <p className="text-xs text-blue-100 mt-1">Selected period only</p>
                                 </div>
                             </div>
-                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                                <p className="text-sm font-semibold text-slate-700 mb-2">{t('commissionBookieSummary')}</p>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                                    <div>
-                                        <p className="text-xs text-slate-500">{t('commissionAdvanceFromBookie')}</p>
-                                        <p className="font-bold text-violet-700">{formatCurrency(advanceFromBookie)}</p>
+                            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                                <p className="text-sm font-semibold text-slate-800 mb-3">{t('commissionBookieSummary')}</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
+                                    <div className="text-right sm:text-left">
+                                        <p className="text-[11px] uppercase text-slate-500">Commission %</p>
+                                        <p className="font-semibold text-orange-600">{data.commissionPercentage ?? 0}%</p>
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500">{t('commissionSettled')}</p>
-                                        <p className="font-bold text-green-700">{formatCurrency(commissionSettled)}</p>
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase text-slate-500">Player sales</p>
+                                        <p className="font-semibold text-slate-800">{formatCurrency(data.allTimeBetAmount)}</p>
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500">{t('commissionPending')}</p>
-                                        <p className="font-bold text-orange-700">{formatCurrency(commissionPending)}</p>
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase text-slate-500">Advance paid</p>
+                                        <p className="font-semibold text-violet-700">{formatCurrency(advanceGiven)}</p>
+                                        {advanceRemaining > 0 && (
+                                            <p className="text-[10px] text-violet-600 mt-0.5">
+                                                Due: {formatCurrency(advanceRemaining)}
+                                            </p>
+                                        )}
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500">{t('commissionRate')}</p>
-                                        <p className="font-bold text-slate-800">{data.commissionPercentage ?? 0}%</p>
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase text-slate-500">Commission</p>
+                                        <p className="font-semibold text-slate-800">{formatCurrency(commissionEarned)}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase text-slate-500">Settled</p>
+                                        <p className="font-semibold text-green-700">{formatCurrency(commissionSettled)}</p>
+                                        {hasAdvance && advanceRecovered > 0 && (
+                                            <p className="text-[10px] text-green-600 mt-0.5">
+                                                Recovered {formatCurrency(advanceRecovered)}
+                                            </p>
+                                        )}
+                                        {cashSettled > 0 && (
+                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                                Cash {formatCurrency(cashSettled)}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase text-slate-500">Pending</p>
+                                        <p className="font-semibold text-orange-700">{formatCurrency(commissionPending)}</p>
+                                        {hasAdvance && recoveryPendingFromBets > 0 && (
+                                            <p className="text-[10px] text-orange-600 mt-0.5">
+                                                From bets {formatCurrency(recoveryPendingFromBets)}
+                                            </p>
+                                        )}
+                                        {cashPending > 0 && (
+                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                                Cash {formatCurrency(cashPending)}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -372,15 +501,14 @@ const Commission = () => {
                             <h2 className="font-semibold text-gray-700 flex items-center gap-2">
                                 <FaHistory /> Advance commission history
                             </h2>
-                            <p className="text-sm font-bold text-violet-700">
-                                {t('walletTxFromBookieSummary')}: {formatCurrency(fromBookieWallet.received)}
-                            </p>
+                            {advanceGiven > 0 && (
+                                <p className="text-sm font-bold text-violet-700">
+                                    {t('commissionAdvanceFromBookie')}: {formatCurrency(advanceGiven)}
+                                </p>
+                            )}
                             <button
                                 type="button"
-                                onClick={() => {
-                                    fetchPayments();
-                                    fetchFromBookieWallet();
-                                }}
+                                onClick={fetchPayments}
                                 className="text-sm text-sb-primary"
                             >
                                 Refresh
@@ -399,14 +527,20 @@ const Commission = () => {
                                                 className={`text-xs font-semibold uppercase ${
                                                     p.paymentType === 'settlement'
                                                         ? 'text-green-700'
-                                                        : 'text-violet-700'
+                                                        : p.paymentType === 'recovery'
+                                                          ? 'text-amber-700'
+                                                          : 'text-violet-700'
                                                 }`}
                                             >
-                                                {p.label || (p.paymentType === 'settlement' ? t('commissionSettled') : t('commissionAdvanceFromBookie'))}
+                                                {p.label || (p.paymentType === 'settlement' ? t('commissionSettled') : p.paymentType === 'recovery' ? 'Bet commission → advance' : t('commissionAdvanceFromBookie'))}
                                             </p>
                                             <p
                                                 className={`font-semibold ${
-                                                    p.paymentType === 'settlement' ? 'text-green-700' : 'text-violet-800'
+                                                    p.paymentType === 'settlement'
+                                                        ? 'text-green-700'
+                                                        : p.paymentType === 'recovery'
+                                                          ? 'text-amber-800'
+                                                          : 'text-violet-800'
                                                 }`}
                                             >
                                                 {formatCurrency(p.amount)}

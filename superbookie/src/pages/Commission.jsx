@@ -38,6 +38,14 @@ const formatDate = (value) => {
     });
 };
 
+const sumMoney = (a, b) => Math.round((Number(a || 0) + Number(b || 0)) * 100) / 100;
+
+const getRowDisplaySettled = (row) => Number(row.displaySettled ?? sumMoney(row.advanceRecovered, row.totalPaid));
+
+const getRowDisplayPending = (row) => Number(row.displayPending ?? sumMoney(row.recoveryPendingFromBets, row.totalPending));
+
+const hasAdvanceRecovery = (row) => Number(row.advanceCommissionPaid || 0) > 0;
+
 const Commission = () => {
     const { t } = useLanguage();
     const [pageTab, setPageTab] = useState('settlements');
@@ -80,6 +88,10 @@ const Commission = () => {
                     advanceCommissionPaid: row.advanceCommissionPaid ?? 0,
                     advanceOutstanding: row.advanceOutstanding ?? 0,
                     advanceRecovered: row.advanceRecovered ?? 0,
+                    recoveryPendingFromBets: row.recoveryPendingFromBets ?? 0,
+                    commissionPayable: row.commissionPayable ?? row.totalPending ?? 0,
+                    displaySettled: row.displaySettled ?? sumMoney(row.advanceRecovered, row.totalPaid),
+                    displayPending: row.displayPending ?? sumMoney(row.recoveryPendingFromBets, row.totalPending),
                 }));
                 setAllRows(rows);
                 const apiSummary = result.data?.summary || {};
@@ -158,12 +170,19 @@ const Commission = () => {
         rows.reduce(
             (acc, row) => {
                 acc.totalCommission += Number(row.totalCommission || 0);
-                acc.totalPaid += Number(row.totalPaid || 0);
-                acc.totalPending += Number(row.totalPending || 0);
+                acc.totalPaid += getRowDisplaySettled(row);
+                acc.totalPending += getRowDisplayPending(row);
                 acc.advanceCommissionPaid += Number(row.advanceCommissionPaid || 0);
+                acc.advanceOutstanding += Number(row.advanceOutstanding || 0);
                 return acc;
             },
-            { totalCommission: 0, totalPaid: 0, totalPending: 0, advanceCommissionPaid: 0 }
+            {
+                totalCommission: 0,
+                totalPaid: 0,
+                totalPending: 0,
+                advanceCommissionPaid: 0,
+                advanceOutstanding: 0,
+            }
         );
 
     const allTotals = useMemo(() => reduceCommissionRows(allRows), [allRows]);
@@ -172,10 +191,12 @@ const Commission = () => {
         () => ({
             bookieCount: summaryTotals.bookieCount || allRows.length,
             totalCommission: summaryTotals.totalCommission || allTotals.totalCommission,
-            totalPaid: summaryTotals.totalPaid || allTotals.totalPaid,
-            totalPending: summaryTotals.totalPending || allTotals.totalPending,
+            totalPaid: allTotals.totalPaid || summaryTotals.totalPaid,
+            totalPending: allTotals.totalPending || summaryTotals.totalPending,
             advanceCommissionPaid:
                 summaryTotals.totalAdvanceCommissionPaid || allTotals.advanceCommissionPaid,
+            advanceRemaining:
+                summaryTotals.totalAdvanceOutstanding || allTotals.advanceOutstanding,
         }),
         [summaryTotals, allTotals, allRows.length]
     );
@@ -205,30 +226,46 @@ const Commission = () => {
         }));
     };
 
-    const submitPayment = async (row) => {
+    const getRecordPaymentMax = (row) => {
+        if (Number(row.recoveryPendingFromBets || 0) > 0) {
+            return Number(row.recoveryPendingFromBets);
+        }
+        return Number(row.totalPending || 0);
+    };
+
+    const isRecoveryPayment = (row) => Number(row.recoveryPendingFromBets || 0) > 0;
+
+    const canRecordPayment = (row) => getRecordPaymentMax(row) > 0;
+
+    const submitRecordPayment = async (row) => {
         const bookieId = String(row.bookieId);
+        const maxPayable = getRecordPaymentMax(row);
         const mode = payStateByBookie[bookieId]?.mode || 'partial';
         const amountRaw = mode === 'full'
-            ? String(Number(row.totalPending || 0).toFixed(2))
+            ? String(Number(maxPayable || 0).toFixed(2))
             : (payStateByBookie[bookieId]?.amount || '');
         const amount = Number(amountRaw);
         if (!Number.isFinite(amount) || amount <= 0) {
             alert('Please enter a valid paid amount.');
             return;
         }
-        if (amount > Number(row.totalPending || 0)) {
-            alert('Paid amount cannot be more than pending amount.');
+        if (amount > maxPayable) {
+            alert('Paid amount cannot be more than the pending amount.');
             return;
         }
 
         setSubmittingBookieId(bookieId);
         try {
-            const response = await fetchWithAuth(`${API_BASE_URL}/daily-commission/super-bookie/${bookieId}/pay`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    paidAmount: amount,
-                }),
-            });
+            const recovery = isRecoveryPayment(row);
+            const response = await fetchWithAuth(
+                recovery
+                    ? `${API_BASE_URL}/daily-commission/super-bookie/${bookieId}/settle-bets`
+                    : `${API_BASE_URL}/daily-commission/super-bookie/${bookieId}/pay`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({ paidAmount: amount }),
+                },
+            );
             if (response.status === 401) return;
             const result = await response.json();
             if (result.success) {
@@ -241,7 +278,10 @@ const Commission = () => {
                     setHistoryByBookie((prev) => ({ ...prev, [bookieId]: [] }));
                     loadPaymentHistory(bookieId, true);
                 }
-                setToast({ show: true, message: `Payment of ${formatCurrency(amount)} recorded for ${row.username}.` });
+                setToast({
+                    show: true,
+                    message: result.message || `Payment of ${formatCurrency(amount)} recorded for ${row.username}.`,
+                });
                 return;
             }
             alert(result.message || 'Failed to record payment.');
@@ -295,8 +335,84 @@ const Commission = () => {
         return 'Pending';
     };
 
-    const canSettleCommission = (row) =>
-        Number(row.advanceOutstanding || 0) <= 0 && Number(row.totalPending || 0) > 0;
+    const renderRecordPaymentControls = (row, bookieId, isExpanded, compact = false) => {
+        const maxPayable = getRecordPaymentMax(row);
+        const paymentMode = payStateByBookie[bookieId]?.mode || 'partial';
+        const paymentAmount = paymentMode === 'full'
+            ? String(Number(maxPayable || 0).toFixed(2))
+            : (payStateByBookie[bookieId]?.amount || '');
+        const inputClass = compact
+            ? 'flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500/40'
+            : 'w-24 px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-[11px] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500/40';
+        const selectClass = compact
+            ? 'px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-xs'
+            : 'px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px]';
+        const btnClass = compact
+            ? 'px-3 py-2 rounded-lg text-xs bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0'
+            : 'px-2.5 py-1.5 rounded-lg text-[11px] bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0';
+
+        if (!canRecordPayment(row)) {
+            return (
+                <button
+                    type="button"
+                    onClick={() => toggleExpanded(bookieId)}
+                    className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
+                >
+                    <FaHistory />
+                    View history
+                    {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                </button>
+            );
+        }
+
+        return (
+            <div className="space-y-2">
+                <div className={`flex items-center gap-2 ${compact ? 'w-full' : ''}`}>
+                    <select
+                        value={paymentMode}
+                        onChange={(e) => handlePayModeChange(bookieId, e.target.value, maxPayable)}
+                        className={selectClass}
+                    >
+                        <option value="partial">Partial</option>
+                        <option value="full">Pay Full</option>
+                    </select>
+                    <input
+                        type="number"
+                        min="0"
+                        max={maxPayable}
+                        step="0.01"
+                        disabled={paymentMode === 'full'}
+                        value={paymentAmount}
+                        onChange={(e) => handleAmountChange(bookieId, e.target.value)}
+                        className={inputClass}
+                        placeholder="Amount"
+                    />
+                    <button
+                        type="button"
+                        disabled={submittingBookieId === bookieId}
+                        onClick={() => submitRecordPayment(row)}
+                        className={btnClass}
+                    >
+                        {submittingBookieId === bookieId ? 'Paying...' : 'Pay'}
+                    </button>
+                </div>
+                {isRecoveryPayment(row) && (
+                    <p className="text-[10px] text-violet-600 leading-snug">
+                        Applies bet commission to advance (max {formatCurrency(maxPayable)})
+                    </p>
+                )}
+                <button
+                    type="button"
+                    onClick={() => toggleExpanded(bookieId)}
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                >
+                    <FaHistory />
+                    Payment history
+                    {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                </button>
+            </div>
+        );
+    };
 
     const pendingRequestCount = requests.filter((r) => r.status === 'pending' || r.status === 'negotiation').length;
 
@@ -395,12 +511,12 @@ const Commission = () => {
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-violet-200 flex items-center gap-1.5">
                                 <FaWallet className="text-violet-300" />
-                                Advance given
+                                Advance remaining
                             </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(allSummary.advanceCommissionPaid)}</p>
-                            {(summaryTotals.totalAdvanceOutstanding || 0) > 0 && (
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(allSummary.advanceRemaining)}</p>
+                            {allSummary.advanceCommissionPaid > 0 && (
                                 <p className="text-[11px] text-violet-200 mt-1">
-                                    Outstanding: {formatCurrency(summaryTotals.totalAdvanceOutstanding)}
+                                    Given: {formatCurrency(allSummary.advanceCommissionPaid)}
                                 </p>
                             )}
                         </div>
@@ -522,10 +638,6 @@ const Commission = () => {
                                     filteredRows.map((row) => {
                                         const bookieId = String(row.bookieId);
                                         const isExpanded = expandedBookieId === bookieId;
-                                        const paymentMode = payStateByBookie[bookieId]?.mode || 'partial';
-                                        const paymentAmount = paymentMode === 'full'
-                                            ? String(Number(row.totalPending || 0).toFixed(2))
-                                            : (payStateByBookie[bookieId]?.amount || '');
                                         return (
                                             <React.Fragment key={bookieId}>
                                                 <tr className="hover:bg-slate-50 transition-colors">
@@ -548,8 +660,32 @@ const Commission = () => {
                                                             </p>
                                                         )}
                                                     </td>
-                                                    <td className="px-4 py-3.5 text-right font-semibold text-green-700">{formatCurrency(row.totalPaid)}</td>
-                                                    <td className="px-4 py-3.5 text-right font-semibold text-orange-700">{formatCurrency(row.totalPending)}</td>
+                                                    <td className="px-4 py-3.5 text-right align-top">
+                                                        <p className="font-semibold text-green-700">{formatCurrency(getRowDisplaySettled(row))}</p>
+                                                        {hasAdvanceRecovery(row) && Number(row.advanceRecovered || 0) > 0 && (
+                                                            <p className="text-[10px] text-green-600 mt-0.5">
+                                                                Recovered {formatCurrency(row.advanceRecovered)}
+                                                            </p>
+                                                        )}
+                                                        {Number(row.totalPaid || 0) > 0 && (
+                                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                                                Cash {formatCurrency(row.totalPaid)}
+                                                            </p>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-right align-top">
+                                                        <p className="font-semibold text-orange-700">{formatCurrency(getRowDisplayPending(row))}</p>
+                                                        {hasAdvanceRecovery(row) && Number(row.recoveryPendingFromBets || 0) > 0 && (
+                                                            <p className="text-[10px] text-orange-600 mt-0.5">
+                                                                From bets {formatCurrency(row.recoveryPendingFromBets)}
+                                                            </p>
+                                                        )}
+                                                        {Number(row.totalPending || 0) > 0 && (
+                                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                                                Cash {formatCurrency(row.totalPending)}
+                                                            </p>
+                                                        )}
+                                                    </td>
                                                     <td className="px-4 py-3.5">
                                                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${getBadge(row.paymentStatus)}`}>
                                                             {row.paymentStatus === 'paid' ? <FaCheckCircle /> : <FaClock />}
@@ -557,62 +693,7 @@ const Commission = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3.5">
-                                                        {Number(row.advanceOutstanding || 0) > 0 ? (
-                                                            <p className="text-[11px] text-violet-700 max-w-[140px]">
-                                                                Earn commission to clear advance first
-                                                            </p>
-                                                        ) : canSettleCommission(row) ? (
-                                                            <div className="space-y-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <select
-                                                                        value={paymentMode}
-                                                                        onChange={(e) => handlePayModeChange(bookieId, e.target.value, row.totalPending)}
-                                                                        className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px]"
-                                                                    >
-                                                                        <option value="partial">Partial</option>
-                                                                        <option value="full">Pay Full</option>
-                                                                    </select>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        max={Number(row.totalPending || 0)}
-                                                                        step="0.01"
-                                                                        disabled={paymentMode === 'full'}
-                                                                        value={paymentAmount}
-                                                                        onChange={(e) => handleAmountChange(bookieId, e.target.value)}
-                                                                        className="w-24 px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-[11px] disabled:opacity-60"
-                                                                        placeholder="Amount"
-                                                                    />
-                                                                    <button
-                                                                        type="button"
-                                                                        disabled={submittingBookieId === bookieId}
-                                                                        onClick={() => submitPayment(row)}
-                                                                        className="px-2.5 py-1.5 rounded-lg text-[11px] bg-[#1B3150] hover:bg-[#152842] text-white disabled:opacity-50 transition-colors"
-                                                                    >
-                                                                        {submittingBookieId === bookieId ? 'Settling...' : 'Settle'}
-                                                                    </button>
-                                                                </div>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleExpanded(bookieId)}
-                                                                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-                                                                >
-                                                                    <FaHistory />
-                                                                    Payment history
-                                                                    {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => toggleExpanded(bookieId)}
-                                                                className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
-                                                            >
-                                                                <FaHistory />
-                                                                View history
-                                                                {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
-                                                            </button>
-                                                        )}
+                                                        {renderRecordPaymentControls(row, bookieId, isExpanded)}
                                                     </td>
                                                 </tr>
                                                 {isExpanded && (
@@ -672,10 +753,6 @@ const Commission = () => {
                     {!loading && filteredRows.map((row) => {
                         const bookieId = String(row.bookieId);
                         const isExpanded = expandedBookieId === bookieId;
-                        const paymentMode = payStateByBookie[bookieId]?.mode || 'partial';
-                        const paymentAmount = paymentMode === 'full'
-                            ? String(Number(row.totalPending || 0).toFixed(2))
-                            : (payStateByBookie[bookieId]?.amount || '');
                         return (
                             <div key={bookieId} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                                 <div className="flex items-start justify-between gap-2">
@@ -706,62 +783,17 @@ const Commission = () => {
                                     </div>
                                     <div>
                                         <p className="text-[11px] text-slate-500">Settled</p>
-                                        <p className="text-sm font-semibold text-green-700">{formatCurrency(row.totalPaid)}</p>
+                                        <p className="text-sm font-semibold text-green-700">{formatCurrency(getRowDisplaySettled(row))}</p>
                                     </div>
                                     <div>
                                         <p className="text-[11px] text-slate-500">Pending</p>
-                                        <p className="text-sm font-semibold text-orange-700">{formatCurrency(row.totalPending)}</p>
+                                        <p className="text-sm font-semibold text-orange-700">{formatCurrency(getRowDisplayPending(row))}</p>
                                     </div>
                                 </div>
 
-                                {Number(row.advanceOutstanding || 0) > 0 && (
-                                    <p className="mt-3 text-xs text-violet-700">
-                                        Earn commission to clear advance before settlement
-                                    </p>
-                                )}
-                                {canSettleCommission(row) && (
-                                    <div className="mt-3 space-y-2">
-                                        <div className="flex gap-2">
-                                            <select
-                                                value={paymentMode}
-                                                onChange={(e) => handlePayModeChange(bookieId, e.target.value, row.totalPending)}
-                                                className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-xs"
-                                            >
-                                                <option value="partial">Partial</option>
-                                                <option value="full">Pay Full</option>
-                                            </select>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                max={Number(row.totalPending || 0)}
-                                                step="0.01"
-                                                disabled={paymentMode === 'full'}
-                                                value={paymentAmount}
-                                                onChange={(e) => handleAmountChange(bookieId, e.target.value)}
-                                                className="flex-1 px-2.5 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs disabled:opacity-60"
-                                                placeholder="Enter amount"
-                                            />
-                                            <button
-                                                type="button"
-                                                disabled={submittingBookieId === bookieId}
-                                                onClick={() => submitPayment(row)}
-                                                className="px-3 py-2 rounded-lg text-xs bg-[#1B3150] hover:bg-[#152842] text-white disabled:opacity-50"
-                                            >
-                                                {submittingBookieId === bookieId ? 'Settling...' : 'Settle'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <button
-                                    type="button"
-                                    onClick={() => toggleExpanded(bookieId)}
-                                    className="mt-3 inline-flex items-center gap-1 text-xs text-blue-600"
-                                >
-                                    <FaHistory />
-                                    Payment history
-                                    {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
-                                </button>
+                                <div className="mt-3">
+                                    {renderRecordPaymentControls(row, bookieId, isExpanded, true)}
+                                </div>
 
                                 {isExpanded && (
                                     <div className="mt-3 rounded-lg bg-slate-50 border border-slate-200 p-3">

@@ -10,6 +10,7 @@ import {
     getCommissionPaymentKind,
     round2,
 } from '../utils/commissionMetrics.js';
+import { notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
 import { transferCommissionSettlementToSuperBookie } from '../utils/advanceCommissionTransfer.js';
 
 const getPaymentStatusFromAmounts = (commissionAmount, paidAmount) => {
@@ -613,6 +614,7 @@ export const getMyCommissionPayments = async (req, res) => {
             const notes = payment.notes || '';
             let label = 'Advance from bookie';
             if (kind === 'settlement') label = 'Commission settled';
+            else if (kind === 'recovery') label = 'Bet commission → advance recovery';
             else if (/initial balance/i.test(notes)) label = 'Initial balance';
             return {
                 _id: payment._id,
@@ -678,7 +680,10 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
                 advanceCommissionPaid: summary.advanceCommissionPaid ?? 0,
                 advanceOutstanding: summary.advanceOutstanding ?? 0,
                 advanceRecovered: summary.advanceRecovered ?? 0,
+                recoveryPendingFromBets: summary.recoveryPendingFromBets ?? 0,
                 commissionPayable: summary.commissionPayable ?? 0,
+                displaySettled: summary.displaySettled ?? round2((summary.advanceRecovered ?? 0) + (summary.totalPaid ?? 0)),
+                displayPending: summary.displayPending ?? round2((summary.recoveryPendingFromBets ?? 0) + (summary.totalPending ?? 0)),
             });
         }
 
@@ -687,8 +692,8 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
         const totals = commissions.reduce(
             (acc, row) => {
                 acc.totalCommission += row.totalCommission;
-                acc.totalPaid += row.totalPaid;
-                acc.totalPending += row.totalPending;
+                acc.totalPaid += row.displaySettled ?? round2((row.advanceRecovered ?? 0) + (row.totalPaid ?? 0));
+                acc.totalPending += row.displayPending ?? round2((row.recoveryPendingFromBets ?? 0) + (row.totalPending ?? 0));
                 acc.advanceCommissionPaid += row.advanceCommissionPaid;
                 acc.advanceOutstanding += row.advanceOutstanding;
                 return acc;
@@ -753,10 +758,10 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
         }
 
         const summary = await getCommissionSummaryForAccount(superBookie);
-        if (Number(summary.advanceOutstanding || 0) > 0) {
+        if (Number(summary.recoveryPendingFromBets || 0) > 0) {
             return res.status(400).json({
                 success: false,
-                message: `Commission is not payable yet. Earned commission is recovering advance (₹${summary.advanceOutstanding} remaining).`,
+                message: `Settle bet commission first (₹${summary.recoveryPendingFromBets} from player bets can be applied to advance recovery).`,
             });
         }
         if (summary.totalPending <= 0) {
@@ -817,6 +822,80 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
 };
 
 /**
+ * Parent bookie: apply earned bet commission toward advance recovery (no cash transfer).
+ * POST /api/v1/daily-commission/super-bookie/:superBookieId/settle-bets
+ */
+export const settleSuperBookieCommissionFromBets = async (req, res) => {
+    try {
+        if (req.admin?.role !== 'bookie') {
+            return res.status(403).json({ success: false, message: 'Bookie access required' });
+        }
+
+        const { superBookieId } = req.params;
+        const superBookie = await Admin.findOne({
+            _id: superBookieId,
+            role: 'super_bookie',
+            parentBookieId: req.admin._id,
+        }).select('_id username commissionPercentage role parentBookieId');
+        if (!superBookie) {
+            return res.status(404).json({ success: false, message: 'Super bookie not found' });
+        }
+
+        const summary = await getCommissionSummaryForAccount(superBookie);
+        const pending = round2(Number(summary.recoveryPendingFromBets || 0));
+        if (pending <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No bet commission available to settle toward advance recovery',
+            });
+        }
+
+        const requested = round2(Number(req.body?.paidAmount));
+        const appliedPayment = round2(
+            Number.isFinite(requested) && requested > 0
+                ? Math.min(requested, pending)
+                : pending,
+        );
+        if (appliedPayment <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'paidAmount must be a valid number greater than 0',
+            });
+        }
+
+        await CommissionPayment.create({
+            bookieId: superBookie._id,
+            amount: appliedPayment,
+            paymentType: 'recovery',
+            notes: 'Bet commission applied to advance recovery',
+            createdBy: req.admin._id,
+        });
+
+        await notifyBookiePanelBalances(
+            [req.admin._id, superBookie._id],
+            'commission_recovery_settled',
+        );
+
+        const updated = await getCommissionSummaryForAccount(superBookie);
+
+        return res.status(200).json({
+            success: true,
+            message: `₹${appliedPayment} bet commission applied to advance recovery for ${superBookie.username || 'super bookie'}`,
+            data: {
+                superBookieId,
+                appliedRecovery: appliedPayment,
+                summary: updated,
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to settle bet commission',
+        });
+    }
+};
+
+/**
  * Parent bookie: payment history for one super bookie
  * GET /api/v1/daily-commission/super-bookie/:superBookieId/payments
  */
@@ -850,6 +929,7 @@ export const getSuperBookieCommissionPaymentHistory = async (req, res) => {
                 const isInitial = /initial balance/i.test(notes);
                 let label = 'Advance commission';
                 if (kind === 'settlement') label = 'Commission settled';
+                else if (kind === 'recovery') label = 'Bet commission → advance recovery';
                 else if (isInitial) label = 'Initial balance';
                 return {
                     _id: payment._id,

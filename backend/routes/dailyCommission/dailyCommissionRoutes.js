@@ -11,6 +11,7 @@ import {
     getMyCommissionSummary,
     getSuperBookieCommissionSummary,
     recordSuperBookieCommissionPayment,
+    settleSuperBookieCommissionFromBets,
     getSuperBookieCommissionPaymentHistory,
 } from '../../controllers/dailyCommissionController.js';
 import { verifyAdmin, requireBookie } from '../../middleware/adminAuth.js';
@@ -22,6 +23,7 @@ router.get('/my-payments', verifyAdmin, getMyCommissionPayments);
 router.get('/my-summary', verifyAdmin, getMyCommissionSummary);
 router.get('/super-bookie-summary', verifyAdmin, requireBookie, getSuperBookieCommissionSummary);
 router.post('/super-bookie/:superBookieId/pay', verifyAdmin, requireBookie, recordSuperBookieCommissionPayment);
+router.post('/super-bookie/:superBookieId/settle-bets', verifyAdmin, requireBookie, settleSuperBookieCommissionFromBets);
 router.get('/super-bookie/:superBookieId/payments', verifyAdmin, requireBookie, getSuperBookieCommissionPaymentHistory);
 router.get('/', verifyAdmin, getDailyCommissions);
 router.get('/all', verifyAdmin, getAllDailyCommissions);
