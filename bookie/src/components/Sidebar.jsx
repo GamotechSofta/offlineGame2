@@ -14,7 +14,7 @@ import {
     FaCreditCard,
     FaWallet,
 } from 'react-icons/fa';
-import { useLanguage } from '../context/LanguageContext';
+import { useLanguage } from '../context/useLanguage';
 
 const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const navigate = useNavigate();
