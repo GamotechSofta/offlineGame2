@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { API_BASE_URL, fetchWithAuth } from '../utils/api';
 import { useLanguage } from '../context/useLanguage';
 import { useAuth } from '../context/AuthContext';
+import { dispatchWalletSummaryRefresh } from '../hooks/useWalletGrandTotal';
 import { FaWallet, FaSyncAlt, FaArrowUp, FaArrowDown, FaUsers, FaMoneyBillWave, FaList } from 'react-icons/fa';
 
 const formatCurrency = (n) => {
@@ -146,6 +147,7 @@ const BookieWalletTransactions = () => {
             if (json.currentBalance != null) {
                 updateBookie({ balance: json.currentBalance });
             }
+            dispatchWalletSummaryRefresh();
         } catch (e) {
             setError(e.message || 'Failed to load');
             setRows([]);

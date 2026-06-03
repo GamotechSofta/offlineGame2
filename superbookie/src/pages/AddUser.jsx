@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
+import { dispatchWalletSummaryRefresh } from '../hooks/useWalletGrandTotal';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -48,6 +49,7 @@ const AddUser = () => {
             });
             const data = await response.json();
             if (data.success) {
+                dispatchWalletSummaryRefresh();
                 setSuccess(t('playerCreatedSuccess'));
                 setFormData({
                     username: '',

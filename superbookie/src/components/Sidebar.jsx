@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useWalletGrandTotal } from '../hooks/useWalletGrandTotal';
 import {
     FaTachometerAlt,
     FaUserPlus,
@@ -26,6 +27,11 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const location = useLocation();
     const { t, language, changeLanguage } = useLanguage();
     const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+    const { grandTotal, refresh: refreshGrandTotal } = useWalletGrandTotal();
+
+    useEffect(() => {
+        refreshGrandTotal();
+    }, [location.pathname, refreshGrandTotal]);
 
     const menuItems = [
         { path: '/dashboard', label: t('dashboard'), icon: FaTachometerAlt, key: 'dashboard' },
@@ -71,8 +77,8 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
                     {user?.username && (
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{user.username}</p>
                     )}
-                    <p className="text-sm font-semibold text-green-600 mt-1">
-                        {t('balance')}: ₹{Number(user?.balance ?? 0).toLocaleString('en-IN')}
+                    <p className="text-sm font-semibold text-green-600 mt-1" title={t('walletTxGrandTotal')}>
+                        {t('balance')}: ₹{Number(grandTotal).toLocaleString('en-IN')}
                     </p>
                 </div>
                 <button
