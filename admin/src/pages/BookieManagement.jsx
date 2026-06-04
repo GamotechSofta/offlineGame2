@@ -352,12 +352,13 @@ const BookieManagement = () => {
             const data = await response.json();
 
             if (data.success) {
-                setSuccess(`${TOP_LEVEL_LABEL} deleted successfully!`);
+                setSuccess(data.message || `${TOP_LEVEL_LABEL} deleted successfully!`);
                 setShowDeleteModal(false);
                 setSelectedBookie(null);
                 setSecretPassword('');
                 fetchBookies();
-                setTimeout(() => setSuccess(''), 3000);
+                fetchAllSubBookies({ silent: true });
+                setTimeout(() => setSuccess(''), 5000);
             } else {
                 if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
                     setPasswordError(data.message || 'Invalid secret password');
@@ -1241,7 +1242,8 @@ const BookieManagement = () => {
                             Are you sure you want to delete the {TOP_LEVEL_LABEL.toLowerCase()} account <strong className="text-gray-800">"{selectedBookie?.username}"</strong>?
                         </p>
                         <p className="text-red-500 text-sm mb-4">
-                            This action cannot be undone. The {TOP_LEVEL_LABEL.toLowerCase()} will lose access to their account permanently.
+                            This action cannot be undone. All {SUB_LEVEL_LABEL_PLURAL.toLowerCase()} and players under this{' '}
+                            {TOP_LEVEL_LABEL.toLowerCase()} will also be permanently deleted.
                         </p>
                         {hasSecretDeclarePassword && (
                             <div className="mb-4">

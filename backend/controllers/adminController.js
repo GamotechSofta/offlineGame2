@@ -20,6 +20,7 @@ import { canAccessBookieManagement, isSuperAdmin } from '../utils/adminTabAccess
 import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 import { transferAdvanceCommissionFromAdmin } from '../utils/advanceCommissionTransfer.js';
 import { getBookieHierarchySummary, getBookieHierarchyUserIds } from '../utils/bookieFilter.js';
+import { cascadeDeleteSuperBookieHierarchy } from '../utils/bookieHierarchyDelete.js';
 import { getPanelRevenueKpisForAdmin } from '../utils/panelRevenueDashboard.js';
 import Bet from '../models/bet/bet.js';
 import { Wallet } from '../models/wallet/wallet.js';
@@ -931,22 +932,39 @@ export const deleteBookie = async (req, res) => {
         }
 
         const username = bookie.username;
-        await Admin.findByIdAndDelete(id);
+        const cascade = await cascadeDeleteSuperBookieHierarchy(id);
+        if (!cascade) {
+            return res.status(404).json({
+                success: false,
+                message: 'Bookie not found',
+            });
+        }
+
         await invalidateAdminReadCaches('bookie_deleted');
 
+        const detailParts = [
+            `${cascade.superBookiesDeleted} sub-bookie account(s)`,
+            `${cascade.playersDeleted} player(s)`,
+        ];
         await logActivity({
             action: 'delete_bookie',
             performedBy: req.admin?.username || 'Admin',
             performedByType: req.admin?.role || 'admin',
             targetType: 'bookie',
             targetId: id,
-            details: `Bookie "${username}" deleted`,
+            details: `Bookie "${username}" deleted (${detailParts.join(', ')})`,
             ip: getClientIp(req),
         });
 
         res.status(200).json({
             success: true,
-            message: 'Bookie deleted successfully',
+            message: cascade.playersDeleted > 0 || cascade.superBookiesDeleted > 0
+                ? `${username} deleted with ${cascade.superBookiesDeleted} sub-bookie account(s) and ${cascade.playersDeleted} player(s).`
+                : 'Bookie deleted successfully',
+            data: {
+                superBookiesDeleted: cascade.superBookiesDeleted,
+                playersDeleted: cascade.playersDeleted,
+            },
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
