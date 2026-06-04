@@ -22,12 +22,13 @@ export function useWalletGrandTotal() {
                 const cash = Number(
                     json.walletBalance ?? json.cashBalance ?? json.currentBalance ?? 0,
                 );
-                setWalletBalance(cash);
-                setGrandTotal(
-                    Number(json.grandTotalSummary ?? json.summaries?.grandTotal?.received ?? 0),
+                const total = Number(
+                    json.grandTotalSummary ?? json.summaries?.grandTotal?.received ?? cash,
                 );
+                setWalletBalance(cash);
+                setGrandTotal(total);
                 window.dispatchEvent(
-                    new CustomEvent('bookie-panel-wallet-balance', { detail: { balance: cash } }),
+                    new CustomEvent('bookie-panel-wallet-balance', { detail: { balance: total } }),
                 );
             }
         } catch {
@@ -47,5 +48,5 @@ export function useWalletGrandTotal() {
         };
     }, [refresh]);
 
-    return { walletBalance, grandTotal, refresh };
+    return { walletBalance, grandTotal, displayBalance: grandTotal, refresh };
 }

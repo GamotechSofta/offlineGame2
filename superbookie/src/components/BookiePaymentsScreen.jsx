@@ -13,6 +13,7 @@ import {
     FaExclamationTriangle,
 } from 'react-icons/fa';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { dispatchWalletSummaryRefresh } from '../hooks/useWalletGrandTotal';
 import { subscribeBookiePanelPayments } from '../lib/panelSocket';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -307,7 +308,7 @@ const BookiePaymentsScreen = () => {
                     adminRemarks: data.data?.adminRemarks ?? adminRemarks,
                     processedAt: data.data?.processedAt,
                 }));
-                if (data.bookieBalance != null) updateBookie({ balance: Number(data.bookieBalance) });
+                dispatchWalletSummaryRefresh();
                 closeActionModal();
                 fetchPayments();
                 fetchDashboardStats();

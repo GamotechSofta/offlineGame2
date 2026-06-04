@@ -27,7 +27,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const location = useLocation();
     const { t, language, changeLanguage } = useLanguage();
     const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
-    const { walletBalance, refresh: refreshGrandTotal } = useWalletGrandTotal();
+    const { displayBalance, refresh: refreshGrandTotal } = useWalletGrandTotal();
 
     useEffect(() => {
         refreshGrandTotal();
@@ -80,7 +80,7 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{user.username}</p>
                     )}
                     <p className="text-sm font-semibold text-green-600 mt-1" title={t('balance')}>
-                        {t('balance')}: ₹{Number(user?.balance ?? walletBalance ?? 0).toLocaleString('en-IN')}
+                        {t('balance')}: ₹{Number(displayBalance ?? user?.balance ?? 0).toLocaleString('en-IN')}
                     </p>
                 </div>
                 <button

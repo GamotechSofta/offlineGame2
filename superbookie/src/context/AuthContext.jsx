@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { subscribeBookiePanelBalance, disconnectPanelSocket } from '../lib/panelSocket';
+import { dispatchWalletSummaryRefresh } from '../hooks/useWalletGrandTotal';
 
 const AuthContext = createContext(null);
 
@@ -64,8 +65,8 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         if (!bookie?.token) return undefined;
-        const unsub = subscribeBookiePanelBalance((payload) => {
-            updateBookie({ balance: Number(payload.balance) });
+        const unsub = subscribeBookiePanelBalance(() => {
+            dispatchWalletSummaryRefresh();
         });
         const onWalletBalance = (e) => {
             const bal = Number(e.detail?.balance);
