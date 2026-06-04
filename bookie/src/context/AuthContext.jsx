@@ -60,7 +60,15 @@ export const AuthProvider = ({ children }) => {
         const unsub = subscribeBookiePanelBalance((payload) => {
             updateBookie({ balance: Number(payload.balance) });
         });
-        return unsub;
+        const onWalletBalance = (e) => {
+            const bal = Number(e.detail?.balance);
+            if (Number.isFinite(bal)) updateBookie({ balance: bal });
+        };
+        window.addEventListener('bookie-panel-wallet-balance', onWalletBalance);
+        return () => {
+            unsub();
+            window.removeEventListener('bookie-panel-wallet-balance', onWalletBalance);
+        };
     }, [bookie?.token, updateBookie]);
 
     return (

@@ -182,17 +182,34 @@ export const createSuperBookie = async (req, res) => {
         await notifyBookiePanelBalances([req.admin._id, superBookie._id], 'super_bookie_created');
 
         if (initialBalance > 0) {
-            await transferAdvanceCommissionToSuperBookie({
-                parentBookieId: req.admin._id,
-                parentUsername: req.admin.username,
-                superBookieId: superBookie._id,
-                superBookieUsername: superBookie.username,
-                amount: initialBalance,
-                notes: 'Initial balance (advance commission)',
-                createdById: req.admin._id,
-                parentBalanceAfter: parentAfterDeduct?.balance ?? null,
-                superBookieBalanceAfter: superBookie.balance ?? 0,
-            });
+            try {
+                await transferAdvanceCommissionToSuperBookie({
+                    parentBookieId: req.admin._id,
+                    parentUsername: req.admin.username,
+                    superBookieId: superBookie._id,
+                    superBookieUsername: superBookie.username,
+                    amount: initialBalance,
+                    notes: 'Initial balance from bookie',
+                    createdById: req.admin._id,
+                    parentBalanceAfter: parentAfterDeduct?.balance ?? null,
+                    superBookieBalanceAfter: superBookie.balance ?? 0,
+                    isInitialBalance: true,
+                });
+            } catch (ledgerErr) {
+                await Admin.findByIdAndDelete(superBookie._id);
+                if (parentAfterDeduct) {
+                    await Admin.findByIdAndUpdate(req.admin._id, {
+                        $inc: { balance: initialBalance },
+                    });
+                }
+                console.error('[createSuperBookie] Wallet ledger failed:', ledgerErr.message);
+                return res.status(500).json({
+                    success: false,
+                    message:
+                        ledgerErr.message
+                        || 'Super bookie created but wallet ledger failed. Please try again.',
+                });
+            }
         }
 
         await logActivity({

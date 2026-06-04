@@ -49,6 +49,7 @@ export async function recordBookieWalletTxIfPanel(admin, payload) {
 }
 
 export const BOOKIE_WALLET_TX_LABELS = {
+    advance_commission_from_admin: 'Advance / balance from super admin',
     initial_balance: 'Initial balance (from bookie)',
     advance_received: 'Advance / balance received',
     advance_commission: 'Advance commission (from bookie)',
@@ -72,6 +73,7 @@ export function getBookieWalletTxLabel(type) {
 export const FROM_ADMIN_TX_TYPES = [
     'initial_balance',
     'advance_received',
+    'advance_commission_from_admin',
 ];
 
 /** Shown in "from bookie" tab list */

@@ -185,7 +185,7 @@ const PlayerFundsSummaryCard = ({ summary, accent, t }) => {
     );
 };
 
-const CommissionFromAdminSummaryCard = ({ summary, t }) => {
+const CommissionToAdminSummaryCard = ({ summary, t }) => {
     const advance = Number(summary?.advanceFromAdmin ?? 0);
     const settled = Number(summary?.commissionSettledDeducted ?? 0);
     const remaining = Number(summary?.remainingFromAdmin ?? Math.max(0, advance - settled));
@@ -195,21 +195,20 @@ const CommissionFromAdminSummaryCard = ({ summary, t }) => {
             <div className="flex items-center gap-2 mb-2">
                 <FaMoneyBillWave className="w-5 h-5 shrink-0 text-amber-600" />
                 <h3 className="font-semibold text-xs sm:text-sm text-gray-800 leading-tight">
-                    {t('commissionFromAdmin')}
+                    {t('walletTxCommissionToAdmin')}
                 </h3>
             </div>
+            <p className="text-xs text-gray-600">{t('walletTxRemainingFromBookie')}</p>
             <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(remaining)}</p>
             <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-amber-100 pt-2">
                 <div className="flex justify-between gap-2">
-                    <span>{t('walletTxAdvanceFromAdmin')}</span>
+                    <span>{t('walletTxAdvanceFromSuperadmin')}</span>
                     <span className="font-semibold text-amber-800">{formatCurrency(advance)}</span>
                 </div>
-                {settled > 0 && (
-                    <div className="flex justify-between gap-2 text-amber-900">
-                        <span>{t('walletTxCommissionSettledDeduct')}</span>
-                        <span className="font-semibold">−{formatCurrency(settled)}</span>
-                    </div>
-                )}
+                <div className="flex justify-between gap-2 text-amber-900">
+                    <span>{t('walletTxCommissionSettledDeduct')}</span>
+                    <span className="font-semibold">−{formatCurrency(settled)}</span>
+                </div>
                 <div className="flex justify-between gap-2 pt-1 border-t border-amber-50">
                     <span className="font-medium text-gray-700">{t('walletTxRemainingFromBookie')}</span>
                     <span className="font-bold text-green-700">{formatCurrency(remaining)}</span>
@@ -327,8 +326,9 @@ const BookieWalletTransactions = () => {
                 setCommissionFromAdmin(null);
             }
             setPagination(json.pagination || { totalPages: 1, hasNextPage: false, hasPrevPage: false });
-            if (json.currentBalance != null) {
-                updateBookie({ balance: json.currentBalance });
+            const walletBal = json.walletBalance ?? json.cashBalance ?? json.currentBalance;
+            if (walletBal != null) {
+                updateBookie({ balance: Number(walletBal) });
             }
             dispatchWalletSummaryRefresh();
         } catch (e) {
@@ -377,7 +377,7 @@ const BookieWalletTransactions = () => {
                               {t('walletTxPlayerNet')}: {formatCurrency(summaries.from_player?.netTotal ?? 0)}
                           </span>
                           <span className="block">
-                              {t('commissionFromAdmin')}: {formatCurrency(summaries.commission_from_admin?.remainingFromAdmin ?? commissionFromAdmin?.remainingFromAdmin ?? 0)}
+                              {t('walletTxCommissionToAdmin')}: {formatCurrency(summaries.commission_from_admin?.remainingFromAdmin ?? commissionFromAdmin?.remainingFromAdmin ?? 0)}
                           </span>
                       </span>
                   ) : null,
@@ -421,7 +421,7 @@ const BookieWalletTransactions = () => {
                             t={t}
                         />
                         {operatorRole === 'bookie' && commissionFromAdmin != null && (
-                            <CommissionFromAdminSummaryCard
+                            <CommissionToAdminSummaryCard
                                 summary={commissionFromAdmin}
                                 t={t}
                             />

@@ -18,6 +18,7 @@ import { signAdminToken } from '../utils/adminJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { canAccessBookieManagement, isSuperAdmin } from '../utils/adminTabAccess.js';
 import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
+import { transferAdvanceCommissionFromAdmin } from '../utils/advanceCommissionTransfer.js';
 import { getBookieHierarchySummary, getBookieHierarchyUserIds } from '../utils/bookieFilter.js';
 import { getPanelRevenueKpisForAdmin } from '../utils/panelRevenueDashboard.js';
 import Bet from '../models/bet/bet.js';
@@ -252,7 +253,27 @@ export const createBookie = async (req, res) => {
         });
         await bookie.save();
         await invalidateAdminReadCaches('bookie_created');
-        
+
+        if (initialBalance > 0) {
+            try {
+                await transferAdvanceCommissionFromAdmin({
+                    bookieId: bookie._id,
+                    amount: initialBalance,
+                    notes: 'Initial balance from admin',
+                    createdById: req.admin?._id,
+                    bookieBalanceAfter: bookie.balance ?? 0,
+                    isInitialBalance: true,
+                });
+            } catch (ledgerErr) {
+                await Admin.findByIdAndDelete(bookie._id);
+                console.error('[createBookie] Admin wallet ledger failed:', ledgerErr.message);
+                return res.status(500).json({
+                    success: false,
+                    message: ledgerErr.message || 'Failed to record bookie wallet for initial balance',
+                });
+            }
+        }
+
         console.log(`[Bookie Created] ID: ${bookie._id}, Username: ${bookie.username}, Phone: ${bookie.phone}, Balance: ${bookie.balance}, canManagePayments: ${bookie.canManagePayments}, Status: ${bookie.status}`);
         
         // Verify by re-fetching from database
@@ -783,12 +804,15 @@ export const updateBookie = async (req, res) => {
         if (canManagePayments !== undefined) {
             bookie.canManagePayments = Boolean(canManagePayments);
         }
+        const balanceBeforeUpdate = Number(bookie.balance ?? 0);
+        let balanceIncrease = 0;
         // Update balance if provided (super admin can set bookie balance)
         console.log(`[updateBookie] Balance from request: ${balance}, type: ${typeof balance}`);
         if (balance !== undefined && balance !== null && balance !== '') {
             const newBal = Number(balance);
             console.log(`[updateBookie] Setting balance: old=${bookie.balance}, new=${newBal}`);
             if (Number.isFinite(newBal) && newBal >= 0) {
+                balanceIncrease = Math.max(0, Math.round((newBal - balanceBeforeUpdate) * 100) / 100);
                 bookie.balance = newBal;
                 console.log(`[updateBookie] Balance set to: ${bookie.balance}`);
             }
@@ -806,6 +830,29 @@ export const updateBookie = async (req, res) => {
 
         await bookie.save();
         await invalidateAdminReadCaches('bookie_updated');
+
+        if (balanceIncrease > 0) {
+            try {
+                await transferAdvanceCommissionFromAdmin({
+                    bookieId: bookie._id,
+                    amount: balanceIncrease,
+                    notes:
+                        balanceBeforeUpdate <= 0
+                            ? 'Initial balance from admin'
+                            : 'Balance increase from admin',
+                    createdById: req.admin?._id,
+                    bookieBalanceAfter: bookie.balance ?? 0,
+                    isInitialBalance: balanceBeforeUpdate <= 0,
+                });
+            } catch (ledgerErr) {
+                console.error('[updateBookie] Admin wallet ledger failed:', ledgerErr.message);
+                return res.status(500).json({
+                    success: false,
+                    message: ledgerErr.message || 'Failed to record bookie wallet for balance update',
+                });
+            }
+        }
+
         if (balance !== undefined && balance !== null && balance !== '') {
             await notifyBookiePanelBalance(bookie._id, 'admin_update', bookie.balance);
         }

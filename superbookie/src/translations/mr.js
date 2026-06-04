@@ -344,6 +344,8 @@ export default {
     sidebarBookieFromCommission: 'बुकीकडून कमिशन',
     commissionFromAdmin: 'अ‍ॅडमिनकडून कमिशन',
     sidebarCommissionToAdmin: 'अ‍ॅडमिनला कमिशन',
+    walletTxCommissionToAdmin: 'अ‍ॅडमिनला कमिशन',
+    walletTxAdvanceFromSuperadmin: 'सुपर अ‍ॅडमिनकडून अ‍ॅडव्हान्स',
     commissionFromAdminSubtitle: 'अ‍ॅडमिनकडून तुमचे कमिशन (नेटवर्क प्लेयर बेट्सचा %).',
     commissionPageSubtitle: 'प्रत्येक बुकीचे कमिशन (प्लेयर बेट्सचा %). % सेट करा',
     commissionTabSettlements: 'सेटलमेंट',

@@ -209,8 +209,9 @@ const AdminWalletTransactions = () => {
             setSummaries(json.summaries || null);
             if (json.operatorRole) setOperatorRole(json.operatorRole);
             setPagination(json.pagination || { totalPages: 1, hasNextPage: false, hasPrevPage: false });
-            if (json.currentBalance != null) {
-                updateBookie({ balance: json.currentBalance });
+            const walletBal = json.walletBalance ?? json.cashBalance ?? json.currentBalance;
+            if (walletBal != null) {
+                updateBookie({ balance: Number(walletBal) });
             }
             dispatchWalletSummaryRefresh();
         } catch (e) {

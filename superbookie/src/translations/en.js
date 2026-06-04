@@ -345,6 +345,8 @@ export default {
     sidebarBookieFromCommission: 'Bookie from commission',
     commissionFromAdmin: 'Commission from admin',
     sidebarCommissionToAdmin: 'Commission to admin',
+    walletTxCommissionToAdmin: 'Commission to admin',
+    walletTxAdvanceFromSuperadmin: 'Advance from Superadmin',
     commissionFromAdminSubtitle: 'Your commission from admin (% of network player bets). Settled and pending match admin records.',
     commissionPageSubtitle: 'Commission from each bookie (% of player bets). Set % in',
     commissionTabSettlements: 'Settlements',

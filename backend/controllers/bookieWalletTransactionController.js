@@ -253,8 +253,14 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             summaries.from_admin.count = adminCount;
             summaries.from_admin.commissionSettled = adminSettled;
             summaries.from_admin.net = summaries.from_admin.received;
-            summaries.from_admin.advanceFromAdmin = summaries.from_admin.received;
             summaries.from_admin.commissionSettledDeducted = adminSettled;
+            if (untrackedGap > 0) {
+                summaries.from_admin.openingBalance = untrackedGap;
+                summaries.from_admin.received = round2(summaries.from_admin.received + untrackedGap);
+                summaries.from_admin.credit = summaries.from_admin.received;
+                summaries.from_admin.net = summaries.from_admin.received;
+            }
+            summaries.from_admin.advanceFromAdmin = summaries.from_admin.received;
             summaries.from_admin.remainingFromAdmin = round2(
                 Math.max(0, summaries.from_admin.received - adminSettled),
             );
@@ -265,12 +271,7 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             const commissionFromAdminTotal = round2(adminComm.totalCommission || 0);
             const commissionFromAdminPaid = round2(adminComm.displaySettled || 0);
             const commissionFromAdminPending = round2(adminComm.displayPending || 0);
-            const advanceFromAdmin = round2(
-                Math.max(
-                    Number(adminComm.advanceCommissionPaid || 0),
-                    summaries.from_admin.advanceFromAdmin || 0,
-                ),
-            );
+            const advanceFromAdmin = round2(summaries.from_admin.received || 0);
             const commissionSettledDeducted = round2(
                 Math.max(
                     Number(adminComm.displaySettled || 0),
@@ -279,7 +280,6 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             );
             const remainingFromAdmin = round2(
                 Math.max(
-                    Number(adminComm.advanceOutstanding || 0),
                     summaries.from_admin.remainingFromAdmin || 0,
                     advanceFromAdmin - commissionSettledDeducted,
                 ),
@@ -348,8 +348,10 @@ export const listMyBookieWalletTransactions = async (req, res) => {
                 hasNextPage: skip + rows.length < total,
                 hasPrevPage: page > 1,
             },
-            currentBalance: grandTotalNow,
+            walletBalance: currentBalance,
             cashBalance: currentBalance,
+            currentBalance: currentBalance,
+            grandTotalSummary: grandTotalNow,
             operatorRole: fresh?.role || req.admin?.role,
             summaries,
         });

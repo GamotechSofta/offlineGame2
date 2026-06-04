@@ -166,6 +166,7 @@ const CommissionFromAdmin = () => {
                 reason === 'commission_recovery_settled'
                 || reason === 'commission_settlement'
                 || reason === 'advance_commission_transfer'
+                || reason === 'advance_commission_from_admin'
                 || reason === 'admin_update'
             ) {
                 fetchRevenue();

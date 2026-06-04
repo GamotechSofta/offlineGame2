@@ -8,6 +8,7 @@ export function dispatchWalletSummaryRefresh() {
 }
 
 export function useWalletGrandTotal() {
+    const [walletBalance, setWalletBalance] = useState(0);
     const [grandTotal, setGrandTotal] = useState(0);
 
     const refresh = useCallback(async () => {
@@ -18,9 +19,19 @@ export function useWalletGrandTotal() {
             if (res.status === 401) return;
             const json = await res.json();
             if (json.success) {
-                setGrandTotal(Number(json.summaries?.grandTotal?.received ?? 0));
+                const cash = Number(
+                    json.walletBalance ?? json.cashBalance ?? json.currentBalance ?? 0,
+                );
+                setWalletBalance(cash);
+                setGrandTotal(
+                    Number(json.grandTotalSummary ?? json.summaries?.grandTotal?.received ?? 0),
+                );
+                window.dispatchEvent(
+                    new CustomEvent('bookie-panel-wallet-balance', { detail: { balance: cash } }),
+                );
             }
         } catch {
+            setWalletBalance(0);
             setGrandTotal(0);
         }
     }, []);
@@ -36,5 +47,5 @@ export function useWalletGrandTotal() {
         };
     }, [refresh]);
 
-    return { grandTotal, refresh };
+    return { walletBalance, grandTotal, refresh };
 }
