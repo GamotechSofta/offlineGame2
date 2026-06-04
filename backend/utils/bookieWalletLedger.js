@@ -53,7 +53,10 @@ export const BOOKIE_WALLET_TX_LABELS = {
     initial_balance: 'Initial balance (from bookie)',
     advance_received: 'Advance / balance received',
     advance_commission: 'Advance commission (from bookie)',
-    commission_settlement: 'Commission settlement (from Super_bookie)',
+    commission_settlement: 'Commission settlement (legacy)',
+    commission_settlement_advance: 'Commission settled (paid with advance)',
+    commission_settlement_other: 'Commission paid to SuperBookie (paid with other)',
+    commission_received_from_super: 'Commission received from bookie (paid with other)',
     balance_adjustment: 'Balance adjustment',
     player_deposit: 'Player add fund (approved — added to balance)',
     player_withdrawal: 'Player withdrawal (approved — deducted from balance)',
@@ -63,8 +66,10 @@ export const BOOKIE_WALLET_TX_LABELS = {
     bet_placed: 'Bet placed',
     bet_win: 'Bet winnings',
     initial_balance_allocated: 'Initial balance allocated to super bookie',
-    after_paid_initial: 'Initial balance (after paid — from bookie)',
-    after_paid_initial_allocated: 'After paid balance allocated to super bookie',
+    advance_paid_initial: 'Initial balance (advance paid — from bookie)',
+    advance_paid_initial_allocated: 'Advance paid initial balance allocated to super bookie',
+    after_paid_initial: 'Initial balance (legacy — from bookie)',
+    after_paid_initial_allocated: 'Initial balance allocated to super bookie (legacy)',
 };
 
 export function getBookieWalletTxLabel(type) {
@@ -85,21 +90,44 @@ export const FROM_BOOKIE_TX_TYPES = [
     'advance_commission',
     'after_paid_initial',
     'commission_settlement',
+    'commission_settlement_advance',
+    'commission_settlement_other',
+    'commission_received_from_super',
     'balance_adjustment',
 ];
 
 /** Subtracted from grand total (bookie + players) when commission is settled */
 export const FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES = ['commission_settlement'];
 
+/** Super bookie: debits that reduce Advance paid pool (paid with advance only) */
+export const COMMISSION_SETTLEMENT_ADVANCE_DEBIT_TYPES = [
+    'commission_settlement_advance',
+    'commission_settlement',
+];
+
+/** Child bookie: commission paid to parent (paid with other) — reduces wallet / grand total, not Advance paid */
+export const COMMISSION_SETTLEMENT_OTHER_DEBIT_TYPES = ['commission_settlement_other'];
+
+/** Parent bookie: commission collected from super bookie wallet (paid with other) */
+export const COMMISSION_RECEIVED_FROM_SUPER_TYPES = ['commission_received_from_super'];
+
 /** Counted in advance commission / bookie summary — credits only */
 export const FROM_BOOKIE_SUMMARY_TYPES = ['initial_balance', 'advance_received', 'advance_commission'];
 
-/** Adds to wallet balance / grand total but not advance commission recovery */
-export const FROM_BOOKIE_AFTER_PAID_TYPES = ['after_paid_initial'];
+/** Adds to super bookie balance / grand total — no advance commission recovery */
+export const FROM_BOOKIE_ADVANCE_PAID_INITIAL_TYPES = ['advance_paid_initial', 'after_paid_initial'];
 
-/** Parent bookie debits when allocating to super bookie — advance paid only */
+/** Wallet credits for "Advance paid" display (initial balance payment type: advance paid) */
+export const ADVANCE_PAID_INITIAL_WALLET_TYPES = FROM_BOOKIE_ADVANCE_PAID_INITIAL_TYPES;
+
+/** @deprecated Use FROM_BOOKIE_ADVANCE_PAID_INITIAL_TYPES */
+export const FROM_BOOKIE_AFTER_PAID_TYPES = FROM_BOOKIE_ADVANCE_PAID_INITIAL_TYPES;
+
+/** Parent bookie debits when allocating to super bookie */
 export const FROM_BOOKIE_ADVANCE_ALLOCATION_DEBIT_TYPES = [
     'initial_balance_allocated',
+    'advance_paid_initial_allocated',
+    'after_paid_initial_allocated',
     'balance_adjustment',
 ];
 
@@ -146,16 +174,25 @@ export function getGrandTotalDelta(tx) {
     if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(type)) {
         return -amt;
     }
+    if (COMMISSION_RECEIVED_FROM_SUPER_TYPES.includes(type) && direction === 'credit') {
+        return amt;
+    }
+    if (type === 'commission_settlement_other' && direction === 'debit') {
+        return -amt;
+    }
     if (type === 'balance_adjustment' && direction === 'debit' && /commission settlement/i.test(description)) {
         return -amt;
     }
     if (FROM_BOOKIE_SUMMARY_TYPES.includes(type) && direction === 'credit') {
         return amt;
     }
-    if (FROM_BOOKIE_AFTER_PAID_TYPES.includes(type) && direction === 'credit') {
+    if (FROM_BOOKIE_ADVANCE_PAID_INITIAL_TYPES.includes(type) && direction === 'credit') {
         return amt;
     }
-    if (type === 'after_paid_initial_allocated' && direction === 'debit') {
+    if (
+        (type === 'after_paid_initial_allocated' || type === 'advance_paid_initial_allocated')
+        && direction === 'debit'
+    ) {
         return 0;
     }
     if (type === 'initial_balance_allocated' && direction === 'debit') {

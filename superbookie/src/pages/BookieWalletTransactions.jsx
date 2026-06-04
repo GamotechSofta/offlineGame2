@@ -23,9 +23,12 @@ const formatDateTime = (v) => {
     });
 };
 
-/** SuperBookie Panel (parent): commission settlement to super bookie — show as plus. */
-const getAmountDirection = (row) =>
-    row.type === 'commission_settlement' ? 'credit' : row.direction;
+/** SuperBookie Panel (parent): legacy payout to super bookie — show as plus. */
+const getAmountDirection = (row) => {
+    if (row.type === 'commission_received_from_super') return row.direction;
+    if (row.type === 'commission_settlement') return 'credit';
+    return row.direction;
+};
 
 const TxTable = ({ rows, t }) => (
     <>

@@ -6,7 +6,7 @@ import CommissionPayment from '../models/commission/commissionPayment.js';
 import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
 import { getBookieUserIds, getCommissionOperatorIds } from './bookieFilter.js';
 import { ADVANCE_COMMISSION_WALLET_TYPES } from './advanceCommissionTransfer.js';
-import { isFromAdminWalletTx } from './bookieWalletLedger.js';
+import { isFromAdminWalletTx, ADVANCE_PAID_INITIAL_WALLET_TYPES } from './bookieWalletLedger.js';
 
 export const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -177,6 +177,50 @@ export async function getRecoveryRecordedForAccount(adminId) {
     );
 }
 
+export const SETTLEMENT_PAID_WITH_ADVANCE_TAG = 'paid with advance';
+
+export function isSettlementPaidWithAdvance(payment) {
+    if (!payment || getCommissionPaymentKind(payment) !== 'settlement') return false;
+    return /paid with advance/i.test(String(payment.notes || ''));
+}
+
+/** Total commission already settled using "paid with advance". */
+export async function getSettlementsPaidWithAdvanceTotal(adminId) {
+    const payments = await CommissionPayment.find({ bookieId: adminId })
+        .select('amount paymentType notes')
+        .lean();
+    return round2(
+        payments
+            .filter((p) => isSettlementPaidWithAdvance(p))
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0),
+    );
+}
+
+/** Max amount parent can settle via "paid with advance" for this super bookie. */
+export async function getAdvanceAvailableForSettlement(admin) {
+    const summary = await getCommissionSummaryForAccount(admin);
+    const advancePaidInitial = await getAdvancePaidInitialFromBookieForAccount(admin._id);
+    const usedFromAdvance = await getSettlementsPaidWithAdvanceTotal(admin._id);
+    const poolFromInitial = round2(Math.max(0, advancePaidInitial - usedFromAdvance));
+    const recoverable = round2(Number(summary.advanceOutstanding || 0));
+    return round2(Math.max(poolFromInitial, recoverable));
+}
+
+/** Sum of advance-paid initial balance credits from parent bookie (no bet recovery). */
+export async function getAdvancePaidInitialFromBookieForAccount(adminId) {
+    const walletAgg = await BookieWalletTransaction.aggregate([
+        {
+            $match: {
+                adminId,
+                direction: 'credit',
+                type: { $in: ADVANCE_PAID_INITIAL_WALLET_TYPES },
+            },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    return round2(walletAgg?.[0]?.total || 0);
+}
+
 export async function getAdvanceCommissionPaidForAccount(adminId) {
     const id = adminId;
     const [walletAgg, payments] = await Promise.all([
@@ -311,11 +355,40 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
 }
 
 /**
- * Super bookie: earned commission first recovers advance; only then pending/settled apply.
+ * Super bookie: earned commission first recovers recoverable advance; advance-paid initial
+ * balance (payment type advance_paid) shows in "Advance paid" but is not recovered from bets.
  */
 export async function getSuperBookieCommissionDisplaySummary(admin) {
-    const advanceCommissionPaid = await getAdvanceCommissionPaidForAccount(admin._id);
-    return buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissionPaid);
+    const account =
+        admin?.initialBalancePaymentMode != null
+            ? admin
+            : await Admin.findById(admin._id)
+                  .select('initialBalancePaymentMode commissionPercentage role _id')
+                  .lean();
+    const mode = account?.initialBalancePaymentMode || 'advance_paid';
+    const [advancePaidInitial, recoverableAdvance, settledFromAdvance] = await Promise.all([
+        getAdvancePaidInitialFromBookieForAccount(admin._id),
+        getAdvanceCommissionPaidForAccount(admin._id),
+        getSettlementsPaidWithAdvanceTotal(admin._id),
+    ]);
+
+    const summary = await buildAdvanceAwareCommissionDisplaySummary(
+        account || admin,
+        recoverableAdvance,
+    );
+
+    const grossAdvancePaid = round2(advancePaidInitial + recoverableAdvance);
+    const netAdvancePaid = round2(Math.max(0, grossAdvancePaid - settledFromAdvance));
+
+    return {
+        ...summary,
+        initialBalancePaymentMode: mode,
+        advancePaidInitialGross: advancePaidInitial,
+        advancePaidInitial: round2(Math.max(0, advancePaidInitial - settledFromAdvance)),
+        advanceRecoverable: recoverableAdvance,
+        advanceSettledFromAdvance: settledFromAdvance,
+        advanceCommissionPaid: netAdvancePaid,
+    };
 }
 
 /**

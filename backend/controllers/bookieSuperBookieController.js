@@ -19,7 +19,7 @@ import { notifyBookiePanelBalance, notifyBookiePanelBalances } from '../utils/no
 import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
 import {
     transferAdvanceCommissionToSuperBookie,
-    transferAfterPaidInitialBalanceToSuperBookie,
+    transferAdvancePaidInitialBalanceToSuperBookie,
 } from '../utils/advanceCommissionTransfer.js';
 
 /** Admin: list all super bookies with parent bookie + player counts */
@@ -202,7 +202,7 @@ export const createSuperBookie = async (req, res) => {
         if (initialBalance > 0) {
             try {
                 if (paymentMode === 'advance_paid') {
-                    await transferAfterPaidInitialBalanceToSuperBookie({
+                    await transferAdvancePaidInitialBalanceToSuperBookie({
                         parentBookieId: req.admin._id,
                         parentUsername: req.admin.username,
                         superBookieId: superBookie._id,

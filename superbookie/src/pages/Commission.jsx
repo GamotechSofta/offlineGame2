@@ -15,8 +15,8 @@ import {
 import Layout from '../components/Layout';
 import { fetchWithAuth } from '../utils/api';
 import { useLanguage } from '../context/useLanguage';
-import { useAuth } from '../context/AuthContext';
 import { PANEL_LABEL, PANEL_LABEL_PLURAL } from '../config/panelLabels';
+import { dispatchWalletSummaryRefresh } from '../hooks/useWalletGrandTotal';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -45,11 +45,11 @@ const getRowDisplaySettled = (row) => Number(row.displaySettled ?? sumMoney(row.
 
 const getRowDisplayPending = (row) => Number(row.displayPending ?? sumMoney(row.recoveryPendingFromBets, row.totalPending));
 
-const hasAdvanceRecovery = (row) => Number(row.advanceCommissionPaid || 0) > 0;
+const hasAdvanceRecovery = (row) =>
+    Number(row.advanceOutstanding || 0) > 0 || Number(row.recoveryPendingFromBets || 0) > 0;
 
 const Commission = () => {
     const { t } = useLanguage();
-    const { updateBookie } = useAuth();
     const [pageTab, setPageTab] = useState('settlements');
     const [allRows, setAllRows] = useState([]);
     const [requests, setRequests] = useState([]);
@@ -88,6 +88,11 @@ const Commission = () => {
                     bookieId: row.superBookieId,
                     commissionPercentage: row.commissionPercentage ?? 0,
                     advanceCommissionPaid: row.advanceCommissionPaid ?? 0,
+                    advancePaidInitial: row.advancePaidInitial ?? 0,
+                    advanceRecoverable: row.advanceRecoverable ?? 0,
+                    initialBalancePaymentMode: row.initialBalancePaymentMode ?? 'advance_paid',
+                    advanceAvailableForSettlement: row.advanceAvailableForSettlement ?? 0,
+                    advanceSettledFromAdvance: row.advanceSettledFromAdvance ?? 0,
                     advanceOutstanding: row.advanceOutstanding ?? 0,
                     advanceRecovered: row.advanceRecovered ?? 0,
                     recoveryPendingFromBets: row.recoveryPendingFromBets ?? 0,
@@ -208,44 +213,81 @@ const Commission = () => {
     const isListFiltered =
         statusFilter !== 'all' || Boolean(searchText.trim()) || filteredRows.length !== allRows.length;
 
-    const handlePayModeChange = (bookieId, mode, pendingAmount) => {
+    const getPayState = (bookieId) => payStateByBookie[String(bookieId)] || {};
+
+    const handlePayModeChange = (bookieId, mode, pendingAmount, row) => {
+        const id = String(bookieId);
+        const settlementSource = getPayState(id).settlementSource || 'paid_with_other';
+        const max = getRecordPaymentMax(row, settlementSource);
         setPayStateByBookie((prev) => ({
             ...prev,
-            [String(bookieId)]: {
+            [id]: {
+                ...prev[id],
                 mode,
-                amount: mode === 'full' ? String(Number(pendingAmount || 0).toFixed(2)) : (prev[String(bookieId)]?.amount || ''),
+                settlementSource,
+                amount: mode === 'full' ? String(Number(max || 0).toFixed(2)) : (prev[id]?.amount || ''),
             },
         }));
+    };
+
+    const handleSettlementSourceChange = (bookieId, settlementSource, row) => {
+        const id = String(bookieId);
+        const max = getRecordPaymentMax(row, settlementSource);
+        setPayStateByBookie((prev) => {
+            const mode = prev[id]?.mode || 'partial';
+            let amount = prev[id]?.amount || '';
+            if (mode === 'full') {
+                amount = String(Number(max || 0).toFixed(2));
+            } else if (Number(amount) > max) {
+                amount = String(Number(max || 0).toFixed(2));
+            }
+            return {
+                ...prev,
+                [id]: { ...prev[id], settlementSource, mode, amount },
+            };
+        });
     };
 
     const handleAmountChange = (bookieId, value) => {
         setPayStateByBookie((prev) => ({
             ...prev,
             [String(bookieId)]: {
-                mode: prev[String(bookieId)]?.mode || 'partial',
+                settlementSource: 'paid_with_other',
+                mode: 'partial',
+                ...prev[String(bookieId)],
                 amount: value,
             },
         }));
     };
 
-    const getRecordPaymentMax = (row) => {
+    const getRecordPaymentMax = (row, settlementSource = 'paid_with_other') => {
         if (Number(row.recoveryPendingFromBets || 0) > 0) {
             return Number(row.recoveryPendingFromBets);
         }
-        return Number(row.totalPending || 0);
+        const pending = Number(row.totalPending || 0);
+        if (settlementSource === 'paid_with_advance') {
+            const advanceAvail = Number(row.advanceAvailableForSettlement || 0);
+            return Math.min(pending, advanceAvail);
+        }
+        return pending;
     };
 
     const isRecoveryPayment = (row) => Number(row.recoveryPendingFromBets || 0) > 0;
 
-    const canRecordPayment = (row) => getRecordPaymentMax(row) > 0;
+    const canRecordPayment = (row, bookieId) => {
+        const settlementSource = getPayState(bookieId).settlementSource || 'paid_with_other';
+        return getRecordPaymentMax(row, settlementSource) > 0;
+    };
 
     const submitRecordPayment = async (row) => {
         const bookieId = String(row.bookieId);
-        const maxPayable = getRecordPaymentMax(row);
-        const mode = payStateByBookie[bookieId]?.mode || 'partial';
+        const payState = getPayState(bookieId);
+        const mode = payState.mode || 'partial';
+        const settlementSource = payState.settlementSource || 'paid_with_other';
+        const maxPayable = getRecordPaymentMax(row, settlementSource);
         const amountRaw = mode === 'full'
             ? String(Number(maxPayable || 0).toFixed(2))
-            : (payStateByBookie[bookieId]?.amount || '');
+            : (payState.amount || '');
         const amount = Number(amountRaw);
         if (!Number.isFinite(amount) || amount <= 0) {
             alert('Please enter a valid paid amount.');
@@ -265,18 +307,19 @@ const Commission = () => {
                     : `${API_BASE_URL}/daily-commission/super-bookie/${bookieId}/pay`,
                 {
                 method: 'POST',
-                    body: JSON.stringify({ paidAmount: amount }),
+                    body: JSON.stringify({
+                        paidAmount: amount,
+                        settlementSource: recovery ? undefined : settlementSource,
+                    }),
                 },
             );
             if (response.status === 401) return;
             const result = await response.json();
             if (result.success) {
-                if (result.data?.parentBalanceAfter != null) {
-                    updateBookie({ balance: Number(result.data.parentBalanceAfter) });
-                }
+                dispatchWalletSummaryRefresh();
                 setPayStateByBookie((prev) => ({
                     ...prev,
-                    [bookieId]: { mode: 'partial', amount: '' },
+                    [bookieId]: { mode: 'partial', amount: '', settlementSource: 'paid_with_other' },
                 }));
                 loadCommissions();
                 if (expandedBookieId === bookieId) {
@@ -285,7 +328,11 @@ const Commission = () => {
                 }
                 setToast({
                     show: true,
-                    message: result.message || `Payment of ${formatCurrency(amount)} recorded for ${row.username}.`,
+                    message:
+                        result.message
+                        || (settlementSource === 'paid_with_advance'
+                            ? `${formatCurrency(amount)} settled from advance for ${row.username} (wallet unchanged).`
+                            : `${formatCurrency(amount)} added to your wallet, deducted from ${row.username} wallet.`),
                 });
                 return;
             }
@@ -341,22 +388,29 @@ const Commission = () => {
     };
 
     const renderRecordPaymentControls = (row, bookieId, isExpanded, compact = false) => {
-        const maxPayable = getRecordPaymentMax(row);
-        const paymentMode = payStateByBookie[bookieId]?.mode || 'partial';
+        const payState = getPayState(bookieId);
+        const settlementSource = payState.settlementSource || 'paid_with_other';
+        const maxPayable = getRecordPaymentMax(row, settlementSource);
+        const paymentMode = payState.mode || 'partial';
         const paymentAmount = paymentMode === 'full'
             ? String(Number(maxPayable || 0).toFixed(2))
-            : (payStateByBookie[bookieId]?.amount || '');
+            : (payState.amount || '');
+        const showSettlementSource = !isRecoveryPayment(row);
         const inputClass = compact
-            ? 'flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500/40'
-            : 'w-24 px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-[11px] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500/40';
+            ? 'w-20 min-w-[4.5rem] px-2 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500/40 shrink-0'
+            : 'w-20 min-w-[4.5rem] px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-[11px] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500/40 shrink-0';
         const selectClass = compact
-            ? 'px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-xs'
-            : 'px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px]';
+            ? 'px-2 py-2 rounded-lg border border-slate-200 bg-white text-xs shrink-0'
+            : 'px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] shrink-0';
         const btnClass = compact
-            ? 'px-3 py-2 rounded-lg text-xs bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0'
-            : 'px-2.5 py-1.5 rounded-lg text-[11px] bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0';
+            ? 'px-2.5 py-2 rounded-lg text-xs bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0 whitespace-nowrap'
+            : 'px-2 py-1.5 rounded-lg text-[11px] bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0 whitespace-nowrap';
+        const advanceHint =
+            settlementSource === 'paid_with_advance'
+                ? `Advance paid only (avail. ${formatCurrency(row.advanceAvailableForSettlement ?? 0)}) · ${PANEL_LABEL} wallet unchanged`
+                : `Your SuperBookie wallet + · ${PANEL_LABEL} wallet −`;
 
-        if (!canRecordPayment(row)) {
+        if (!canRecordPayment(row, bookieId)) {
             return (
                 <button
                     type="button"
@@ -370,50 +424,61 @@ const Commission = () => {
             );
         }
 
+        const recoveryHint = isRecoveryPayment(row)
+            ? `Bet commission → advance (max ${formatCurrency(maxPayable)})`
+            : advanceHint;
+
         return (
-            <div className="space-y-2">
-                <div className={`flex items-center gap-2 ${compact ? 'w-full' : ''}`}>
+            <div
+                className="flex items-center gap-1.5 flex-nowrap"
+                title={recoveryHint}
+            >
+                {showSettlementSource && (
                     <select
-                        value={paymentMode}
-                        onChange={(e) => handlePayModeChange(bookieId, e.target.value, maxPayable)}
-                        className={selectClass}
+                        value={settlementSource}
+                        onChange={(e) => handleSettlementSourceChange(bookieId, e.target.value, row)}
+                        className={`${selectClass} max-w-[7.25rem]`}
+                        title={advanceHint}
                     >
-                        <option value="partial">Partial</option>
-                        <option value="full">Pay Full</option>
+                        <option value="paid_with_advance">With advance</option>
+                        <option value="paid_with_other">With other</option>
                     </select>
-                    <input
-                        type="number"
-                        min="0"
-                        max={maxPayable}
-                        step="0.01"
-                        disabled={paymentMode === 'full'}
-                        value={paymentAmount}
-                        onChange={(e) => handleAmountChange(bookieId, e.target.value)}
-                        className={inputClass}
-                        placeholder="Amount"
-                    />
-                    <button
-                        type="button"
-                        disabled={submittingBookieId === bookieId}
-                        onClick={() => submitRecordPayment(row)}
-                        className={btnClass}
-                    >
-                        {submittingBookieId === bookieId ? 'Paying...' : 'Pay'}
-                    </button>
-                </div>
-                {isRecoveryPayment(row) && (
-                    <p className="text-[10px] text-violet-600 leading-snug">
-                        Applies bet commission to advance (max {formatCurrency(maxPayable)})
-                    </p>
                 )}
+                <select
+                    value={paymentMode}
+                    onChange={(e) => handlePayModeChange(bookieId, e.target.value, maxPayable, row)}
+                    className={`${selectClass} max-w-[5.5rem]`}
+                >
+                    <option value="partial">Partial</option>
+                    <option value="full">Full</option>
+                </select>
+                <input
+                    type="number"
+                    min="0"
+                    max={maxPayable}
+                    step="0.01"
+                    disabled={paymentMode === 'full' || maxPayable <= 0}
+                    value={paymentAmount}
+                    onChange={(e) => handleAmountChange(bookieId, e.target.value)}
+                    className={inputClass}
+                    placeholder="Amt"
+                />
+                <button
+                    type="button"
+                    disabled={submittingBookieId === bookieId || maxPayable <= 0}
+                    onClick={() => submitRecordPayment(row)}
+                    className={btnClass}
+                >
+                    {submittingBookieId === bookieId ? '...' : 'Pay'}
+                </button>
                 <button
                     type="button"
                     onClick={() => toggleExpanded(bookieId)}
-                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                    className="inline-flex items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[11px] text-blue-600 hover:bg-blue-50 shrink-0 whitespace-nowrap"
+                    title="Payment history"
                 >
-                    <FaHistory />
-                    Payment history
-                    {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                    <FaHistory className="w-3 h-3" />
+                    {isExpanded ? <FaChevronUp className="w-2.5 h-2.5" /> : <FaChevronDown className="w-2.5 h-2.5" />}
                 </button>
             </div>
         );
@@ -627,7 +692,7 @@ const Commission = () => {
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Settled</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Pending</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Status</th>
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Record Payment</th>
+                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500 min-w-[22rem]">Record Payment</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
@@ -658,6 +723,11 @@ const Commission = () => {
                                                     <td className="px-4 py-3.5 text-slate-700">{formatDate(row.lastPaidAt)}</td>
                                                     <td className="px-4 py-3.5 text-right align-top">
                                                         <p className="font-semibold text-violet-700">{formatCurrency(row.advanceCommissionPaid)}</p>
+                                                        {Number(row.advanceSettledFromAdvance || 0) > 0 && (
+                                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                                                Used: {formatCurrency(row.advanceSettledFromAdvance)}
+                                                            </p>
+                                                        )}
                                                         {Number(row.advanceOutstanding || 0) > 0 && (
                                                             <p className="text-[10px] text-violet-600 mt-0.5">
                                                                 Due: {formatCurrency(row.advanceOutstanding)}
@@ -697,7 +767,7 @@ const Commission = () => {
                                                             {getStatusLabel(row.paymentStatus)}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3.5">
+                                                    <td className="px-4 py-3.5 min-w-[22rem] align-top">
                                                         {renderRecordPaymentControls(row, bookieId, isExpanded)}
                                                     </td>
                                                 </tr>

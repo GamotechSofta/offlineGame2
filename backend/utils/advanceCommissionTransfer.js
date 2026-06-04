@@ -91,7 +91,63 @@ export async function transferAdvanceCommissionToSuperBookie({
     return payment;
 }
 
-/** Initial balance that does not count as advance commission (settle commission after earning). */
+/**
+ * Advance paid: credits super bookie balance — no CommissionPayment, no advance recovery.
+ */
+export async function transferAdvancePaidInitialBalanceToSuperBookie({
+    parentBookieId,
+    parentUsername,
+    superBookieId,
+    superBookieUsername,
+    amount,
+    notes = '',
+    parentBalanceAfter = null,
+    superBookieBalanceAfter = null,
+}) {
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) return null;
+
+    const sbBal =
+        superBookieBalanceAfter != null
+            ? Number(superBookieBalanceAfter)
+            : Number((await Admin.findById(superBookieId).select('balance').lean())?.balance ?? 0);
+
+    const superTx = await recordBookieWalletTransaction({
+        adminId: superBookieId,
+        direction: 'credit',
+        type: 'advance_paid_initial',
+        amount: amt,
+        balanceAfter: sbBal,
+        description:
+            notes
+            || `Advance paid initial balance from bookie ${parentUsername || 'bookie'}`,
+    });
+
+    if (!superTx) {
+        throw new Error('Failed to record super bookie advance-paid wallet transaction');
+    }
+
+    if (parentBalanceAfter != null && parentBookieId) {
+        const parentTx = await recordBookieWalletTransaction({
+            adminId: parentBookieId,
+            direction: 'debit',
+            type: 'advance_paid_initial_allocated',
+            amount: amt,
+            balanceAfter: Number(parentBalanceAfter),
+            description: `Advance paid initial balance to ${superBookieUsername || 'super bookie'}`,
+            referenceId: String(superTx._id),
+        });
+        if (!parentTx) {
+            await BookieWalletTransaction.deleteMany({ _id: superTx._id });
+            throw new Error('Failed to record parent bookie advance-paid wallet transaction');
+        }
+    }
+
+    await notifyBookiePanelBalances([parentBookieId, superBookieId], 'super_bookie_initial_balance');
+    return superTx;
+}
+
+/** @deprecated Legacy alias — use transferAdvancePaidInitialBalanceToSuperBookie */
 export async function transferAfterPaidInitialBalanceToSuperBookie({
     parentBookieId,
     parentUsername,
@@ -249,6 +305,167 @@ async function transferCommissionWalletToSuperBookie({
         notifyBookiePanelBalance(parentBookieId, notifyReason, parentBalanceAfter),
         notifyBookiePanelBalance(superBookieId, notifyReason, superBookieBalanceAfter),
     ]);
+
+    return {
+        payment,
+        parentBalanceAfter,
+        superBookieBalanceAfter,
+    };
+}
+
+/**
+ * Settle commission from advance pool only — reduces Advance paid display, not child wallet balance.
+ */
+export async function recordCommissionSettlementPaidWithAdvance({
+    parentBookieId,
+    superBookieId,
+    amount,
+    notes = '',
+    createdById,
+}) {
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) return null;
+
+    const [parent, superBookie] = await Promise.all([
+        Admin.findById(parentBookieId).select('balance username').lean(),
+        Admin.findById(superBookieId).select('balance username role').lean(),
+    ]);
+    if (!superBookie || superBookie.role !== 'super_bookie') {
+        throw new Error('Super bookie not found');
+    }
+
+    const payment = await CommissionPayment.create({
+        bookieId: superBookieId,
+        amount: amt,
+        notes: `${notes || 'Commission settlement'} | Paid with advance`,
+        paymentType: 'settlement',
+        createdBy: createdById || parentBookieId,
+    });
+
+    const sbBal = Number(superBookie.balance ?? 0);
+    await notifyBookiePanelBalance(superBookieId, 'commission_settlement_from_advance', sbBal);
+
+    return {
+        payment,
+        parentBalanceAfter: Number(parent?.balance ?? 0),
+        superBookieBalanceAfter: sbBal,
+    };
+}
+
+/**
+ * Paid with other: SuperBookie panel wallet (parent) +, child Bookie wallet (super_bookie) −.
+ * Does not reduce Advance paid pool.
+ */
+export async function recordCommissionSettlementPaidWithOther({
+    parentBookieId,
+    parentUsername,
+    superBookieId,
+    superBookieUsername,
+    amount,
+    notes = '',
+    createdById,
+}) {
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) return null;
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    let payment;
+    let parentBalanceAfter = 0;
+    let superBookieBalanceAfter = 0;
+    let parentName = parentUsername || 'bookie';
+    let superName = superBookieUsername || 'super bookie';
+
+    try {
+        const superBookie = await Admin.findOneAndUpdate(
+            { _id: superBookieId, role: 'super_bookie', parentBookieId, balance: { $gte: amt } },
+            { $inc: { balance: -amt } },
+            { new: true, session },
+        )
+            .select('balance username')
+            .lean();
+
+        if (!superBookie) {
+            throw new InsufficientBookieBalanceError(
+                'Insufficient child bookie wallet balance for paid with other',
+            );
+        }
+
+        const parent = await Admin.findOneAndUpdate(
+            { _id: parentBookieId, role: 'bookie' },
+            { $inc: { balance: amt } },
+            { new: true, session },
+        )
+            .select('balance username')
+            .lean();
+
+        if (!parent) {
+            throw new Error('Parent bookie not found');
+        }
+
+        parentBalanceAfter = Number(parent.balance ?? 0);
+        superBookieBalanceAfter = Number(superBookie.balance ?? 0);
+        parentName = parent.username || parentName;
+        superName = superBookie.username || superName;
+
+        const settlementNotes = `${notes || 'Commission settlement'} | Paid with other`;
+
+        const [created] = await CommissionPayment.create(
+            [
+                {
+                    bookieId: superBookieId,
+                    amount: amt,
+                    notes: settlementNotes,
+                    paymentType: 'settlement',
+                    createdBy: createdById || parentBookieId,
+                },
+            ],
+            { session },
+        );
+        payment = created;
+
+        await session.commitTransaction();
+    } catch (err) {
+        await session.abortTransaction();
+        throw err;
+    } finally {
+        session.endSession();
+    }
+
+    const superTx = await recordBookieWalletTransaction({
+        adminId: superBookieId,
+        direction: 'debit',
+        type: 'commission_settlement_other',
+        amount: amt,
+        balanceAfter: superBookieBalanceAfter,
+        description: `Commission paid to SuperBookie ${parentName} (paid with other)`,
+        referenceId: String(payment._id),
+    });
+
+    const parentTx = await recordBookieWalletTransaction({
+        adminId: parentBookieId,
+        direction: 'credit',
+        type: 'commission_received_from_super',
+        amount: amt,
+        balanceAfter: parentBalanceAfter,
+        description: `Commission received from bookie ${superName} (paid with other)`,
+        referenceId: String(payment._id),
+    });
+
+    if (!superTx || !parentTx) {
+        await CommissionPayment.findByIdAndDelete(payment._id);
+        if (superTx) await BookieWalletTransaction.deleteMany({ _id: superTx._id });
+        if (parentTx) await BookieWalletTransaction.deleteMany({ _id: parentTx._id });
+        await Admin.findByIdAndUpdate(superBookieId, { $inc: { balance: amt } });
+        await Admin.findByIdAndUpdate(parentBookieId, { $inc: { balance: -amt } });
+        throw new Error('Failed to record paid-with-other settlement');
+    }
+
+    await notifyBookiePanelBalances(
+        [parentBookieId, superBookieId],
+        'commission_settlement_paid_with_other',
+    );
 
     return {
         payment,

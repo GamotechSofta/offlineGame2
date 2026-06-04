@@ -23,9 +23,13 @@ const formatDateTime = (v) => {
     });
 };
 
-/** Super bookie panel: commission from bookie settled — show as minus. */
+/** Super bookie panel: commission paid to parent — show as minus. */
+const COMMISSION_PAID_TO_PARENT_TYPES = [
+    'commission_settlement_other',
+    'commission_settlement',
+];
 const getAmountDirection = (row) =>
-    row.type === 'commission_settlement' ? 'debit' : row.direction;
+    COMMISSION_PAID_TO_PARENT_TYPES.includes(row.type) ? 'debit' : row.direction;
 
 const TxTable = ({ rows, t }) => (
     <>

@@ -8,11 +8,15 @@ import {
     getCommissionDashboardForAccount,
     getCommissionSummaryForAccount,
     getCommissionPaymentKind,
+    getAdvanceAvailableForSettlement,
+    isSettlementPaidWithAdvance,
     round2,
 } from '../utils/commissionMetrics.js';
 import { notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
 import {
     transferCommissionSettlementToSuperBookie,
+    recordCommissionSettlementPaidWithAdvance,
+    recordCommissionSettlementPaidWithOther,
     transferBetCommissionRecoveryToSuperBookie,
     InsufficientBookieBalanceError,
 } from '../utils/advanceCommissionTransfer.js';
@@ -667,12 +671,13 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
             role: 'super_bookie',
             parentBookieId: req.admin._id,
         })
-            .select('_id username phone commissionPercentage role parentBookieId')
+            .select('_id username phone commissionPercentage role parentBookieId initialBalancePaymentMode')
             .lean();
 
         const commissions = [];
         for (const sb of superBookies) {
             const summary = await getCommissionSummaryForAccount(sb);
+            const advanceAvailableForSettlement = await getAdvanceAvailableForSettlement(sb);
             commissions.push({
                 superBookieId: sb._id,
                 username: sb.username || 'Unknown',
@@ -687,12 +692,17 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
                 paymentStatus: summary.paymentStatus,
                 lastPaidAt: summary.lastSettledAt || null,
                 advanceCommissionPaid: summary.advanceCommissionPaid ?? 0,
+                advancePaidInitial: summary.advancePaidInitial ?? 0,
+                advanceSettledFromAdvance: summary.advanceSettledFromAdvance ?? 0,
+                advanceRecoverable: summary.advanceRecoverable ?? 0,
+                initialBalancePaymentMode: summary.initialBalancePaymentMode ?? sb.initialBalancePaymentMode ?? 'advance_paid',
                 advanceOutstanding: summary.advanceOutstanding ?? 0,
                 advanceRecovered: summary.advanceRecovered ?? 0,
                 recoveryPendingFromBets: summary.recoveryPendingFromBets ?? 0,
                 commissionPayable: summary.commissionPayable ?? 0,
                 displaySettled: summary.displaySettled ?? round2((summary.advanceRecovered ?? 0) + (summary.totalPaid ?? 0)),
                 displayPending: summary.displayPending ?? round2((summary.recoveryPendingFromBets ?? 0) + (summary.totalPending ?? 0)),
+                advanceAvailableForSettlement,
             });
         }
 
@@ -748,7 +758,8 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
         }
 
         const { superBookieId } = req.params;
-        const { paidAmount, notes } = req.body;
+        const { paidAmount, notes, settlementSource } = req.body;
+        const payFromAdvance = settlementSource === 'paid_with_advance';
         const paymentToApply = Number(paidAmount);
         if (!Number.isFinite(paymentToApply) || paymentToApply <= 0) {
             return res.status(400).json({
@@ -761,7 +772,7 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
             _id: superBookieId,
             role: 'super_bookie',
             parentBookieId: req.admin._id,
-        }).select('_id commissionPercentage role parentBookieId');
+        }).select('_id username commissionPercentage role parentBookieId');
         if (!superBookie) {
             return res.status(404).json({ success: false, message: 'Super bookie not found' });
         }
@@ -784,20 +795,49 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
 
         let transferResult;
         try {
-            transferResult = await transferCommissionSettlementToSuperBookie({
-                parentBookieId: req.admin._id,
-                parentUsername: req.admin.username,
-                superBookieId: superBookie._id,
-                superBookieUsername: superBookie.username,
-                amount: appliedPayment,
-                notes: typeof notes === 'string' ? notes.trim() : 'Commission settlement',
-                createdById: req.admin._id,
-            });
+            if (payFromAdvance) {
+                const advanceAvailable = await getAdvanceAvailableForSettlement(superBookie);
+                if (advanceAvailable <= 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'No advance balance available to settle with "paid with advance"',
+                    });
+                }
+                if (appliedPayment > advanceAvailable) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Paid with advance cannot exceed available advance (₹${advanceAvailable})`,
+                    });
+                }
+                transferResult = await recordCommissionSettlementPaidWithAdvance({
+                    parentBookieId: req.admin._id,
+                    superBookieId: superBookie._id,
+                    amount: appliedPayment,
+                    notes: typeof notes === 'string' ? notes.trim() : 'Commission settlement',
+                    createdById: req.admin._id,
+                });
+            } else {
+                const cashNotes =
+                    typeof notes === 'string' && notes.trim()
+                        ? notes.trim()
+                        : 'Commission settlement';
+                transferResult = await recordCommissionSettlementPaidWithOther({
+                    parentBookieId: req.admin._id,
+                    parentUsername: req.admin.username,
+                    superBookieId: superBookie._id,
+                    superBookieUsername: superBookie.username,
+                    amount: appliedPayment,
+                    notes: cashNotes,
+                    createdById: req.admin._id,
+                });
+            }
         } catch (error) {
             if (error instanceof InsufficientBookieBalanceError || error?.code === 'INSUFFICIENT_BOOKIE_BALANCE') {
                 return res.status(400).json({
                     success: false,
-                    message: 'Insufficient bookie balance to settle commission',
+                    message: payFromAdvance
+                        ? 'Insufficient advance paid balance to settle with advance'
+                        : 'Insufficient child bookie wallet balance (paid with other)',
                 });
             }
             throw error;
@@ -805,7 +845,9 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: 'Commission settled: deducted from your balance and credited to super bookie',
+            message: payFromAdvance
+                ? 'Commission settled from advance (Advance paid reduced; child bookie wallet unchanged)'
+                : 'Commission settled: added to your SuperBookie wallet, deducted from child bookie wallet',
             data: {
                 superBookieId,
                 appliedPayment,
@@ -938,8 +980,13 @@ export const getSuperBookieCommissionPaymentHistory = async (req, res) => {
                 const kind = getCommissionPaymentKind(payment);
                 const isInitial = /initial balance/i.test(notes);
                 let label = 'Advance commission';
-                if (kind === 'settlement') label = 'Commission settled';
-                else if (kind === 'recovery') label = 'Bet commission → advance recovery';
+                if (kind === 'settlement') {
+                    label = isSettlementPaidWithAdvance(payment)
+                        ? 'Commission settled (paid with advance)'
+                        : /paid with other/i.test(notes)
+                          ? 'Commission settled (paid with other)'
+                          : 'Commission settled';
+                } else if (kind === 'recovery') label = 'Bet commission → advance recovery';
                 else if (isInitial) label = 'Initial balance';
                 return {
                     _id: payment._id,
