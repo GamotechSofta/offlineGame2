@@ -73,6 +73,12 @@ const adminSchema = new mongoose.Schema({
         default: 0,
         min: 0,
     },
+    /** super_bookie: how initial balance from parent counts toward commission (advance recovery vs after paid). */
+    initialBalancePaymentMode: {
+        type: String,
+        enum: ['advance_paid', 'after_paid'],
+        default: 'advance_paid',
+    },
     failedLoginAttempts: {
         type: Number,
         default: 0,

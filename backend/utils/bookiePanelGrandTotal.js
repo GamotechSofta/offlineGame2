@@ -8,6 +8,8 @@ import {
 import {
     FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES,
     FROM_BOOKIE_SUMMARY_TYPES,
+    FROM_BOOKIE_AFTER_PAID_TYPES,
+    FROM_BOOKIE_ADVANCE_ALLOCATION_DEBIT_TYPES,
     FROM_PLAYER_SUMMARY_TYPES,
     FROM_PLAYER_WITHDRAWAL_SUMMARY_TYPES,
     isFromAdminWalletTx,
@@ -33,7 +35,8 @@ export async function getSuperBookiePanelGrandTotal(adminId) {
 
     let ledgerCreditAll = 0;
     let ledgerDebitAll = 0;
-    let fromBookieReceived = 0;
+    let advanceFromBookie = 0;
+    let afterPaidFromBookie = 0;
     let playerReceived = 0;
     let playerWithdrawn = 0;
     let commissionSettledFromBookie = 0;
@@ -42,7 +45,10 @@ export async function getSuperBookiePanelGrandTotal(adminId) {
         ledgerCreditAll += row.credit || 0;
         ledgerDebitAll += row.debit || 0;
         if (FROM_BOOKIE_SUMMARY_TYPES.includes(row._id)) {
-            fromBookieReceived += row.credit || 0;
+            advanceFromBookie += row.credit || 0;
+        }
+        if (FROM_BOOKIE_AFTER_PAID_TYPES.includes(row._id)) {
+            afterPaidFromBookie += row.credit || 0;
         }
         if (FROM_PLAYER_SUMMARY_TYPES.includes(row._id)) {
             playerReceived += row.credit || 0;
@@ -57,14 +63,16 @@ export async function getSuperBookiePanelGrandTotal(adminId) {
 
     const currentBalance = Number(fresh.balance ?? 0);
     const untrackedGap = round2(Math.max(0, currentBalance - (ledgerCreditAll - ledgerDebitAll)));
-    if (untrackedGap > 0) fromBookieReceived = round2(fromBookieReceived + untrackedGap);
+    if (untrackedGap > 0) {
+        afterPaidFromBookie = round2(afterPaidFromBookie + untrackedGap);
+    }
 
     const remainingFromBookie = round2(
-        Math.max(0, fromBookieReceived - commissionSettledFromBookie),
+        Math.max(0, advanceFromBookie - commissionSettledFromBookie),
     );
     const playerNet = round2(playerReceived - playerWithdrawn);
 
-    return round2(remainingFromBookie + playerNet);
+    return round2(remainingFromBookie + afterPaidFromBookie + playerNet);
 }
 
 /**
@@ -108,8 +116,9 @@ export async function getBookiePanelGrandTotal(adminId) {
         if (FROM_PLAYER_WITHDRAWAL_SUMMARY_TYPES.includes(row._id)) {
             playerWithdrawn += row.debit || row.credit || 0;
         }
-        if (row._id === 'balance_adjustment') advanceToSuperBookie += row.debit || 0;
-        if (row._id === 'initial_balance_allocated') advanceToSuperBookie += row.debit || 0;
+        if (FROM_BOOKIE_ADVANCE_ALLOCATION_DEBIT_TYPES.includes(row._id)) {
+            advanceToSuperBookie += row.debit || 0;
+        }
         if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(row._id)) {
             commissionPaidToSuperBookie += row.debit || 0;
         }

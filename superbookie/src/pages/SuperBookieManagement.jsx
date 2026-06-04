@@ -52,6 +52,7 @@ const SuperBookieManagement = () => {
         balance: '',
         commissionPercentage: '0',
         canManagePayments: false,
+        initialBalancePaymentMode: 'advance_paid',
     });
     const [balanceForm, setBalanceForm] = useState({ operation: 'add', amount: '' });
     const [manageData, setManageData] = useState({ commissionPercentage: '0', operation: 'add', amount: '' });
@@ -100,6 +101,7 @@ const SuperBookieManagement = () => {
             balance: '',
             commissionPercentage: '0',
             canManagePayments: false,
+            initialBalancePaymentMode: 'advance_paid',
         });
     };
 
@@ -145,6 +147,7 @@ const SuperBookieManagement = () => {
                             ? Number(formData.commissionPercentage)
                             : 0,
                     canManagePayments: Boolean(formData.canManagePayments),
+                    initialBalancePaymentMode: formData.initialBalancePaymentMode,
                 }),
             });
             const data = await res.json();
@@ -430,13 +433,52 @@ const SuperBookieManagement = () => {
                 <p className="text-xs text-gray-500">Can approve/reject player payment requests</p>
             </div>
             {!isEdit && (
-                <input
-                    name="balance"
-                    value={formData.balance}
-                    onChange={handleChange}
-                    placeholder="Initial balance (from your wallet)"
-                    className="border rounded-lg px-3 py-2 w-full"
-                />
+                <>
+                    <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3 space-y-2">
+                        <p className="text-sm font-semibold text-[#1B3150]">
+                            Initial balance payment type
+                        </p>
+                        <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                            <input
+                                type="radio"
+                                name="initialBalancePaymentMode"
+                                value="advance_paid"
+                                checked={formData.initialBalancePaymentMode === 'advance_paid'}
+                                onChange={handleChange}
+                                className="mt-0.5"
+                            />
+                            <span>
+                                <span className="font-medium">Advance paid</span>
+                                <span className="block text-xs text-gray-500">
+                                    Adds to bookie balance — no advance recovery deduction
+                                </span>
+                            </span>
+                        </label>
+                        <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                            <input
+                                type="radio"
+                                name="initialBalancePaymentMode"
+                                value="after_paid"
+                                checked={formData.initialBalancePaymentMode === 'after_paid'}
+                                onChange={handleChange}
+                                className="mt-0.5"
+                            />
+                            <span>
+                                <span className="font-medium">After paid</span>
+                                <span className="block text-xs text-gray-500">
+                                    Deducts from balance — advance recovered from bets before commission payout
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                    <input
+                        name="balance"
+                        value={formData.balance}
+                        onChange={handleChange}
+                        placeholder="Initial balance (from your wallet)"
+                        className="border rounded-lg px-3 py-2 w-full"
+                    />
+                </>
             )}
             <div className="relative">
                 <input

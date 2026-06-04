@@ -91,6 +91,60 @@ export async function transferAdvanceCommissionToSuperBookie({
     return payment;
 }
 
+/** Initial balance that does not count as advance commission (settle commission after earning). */
+export async function transferAfterPaidInitialBalanceToSuperBookie({
+    parentBookieId,
+    parentUsername,
+    superBookieId,
+    superBookieUsername,
+    amount,
+    notes = '',
+    parentBalanceAfter = null,
+    superBookieBalanceAfter = null,
+}) {
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) return null;
+
+    const sbBal =
+        superBookieBalanceAfter != null
+            ? Number(superBookieBalanceAfter)
+            : Number((await Admin.findById(superBookieId).select('balance').lean())?.balance ?? 0);
+
+    const superTx = await recordBookieWalletTransaction({
+        adminId: superBookieId,
+        direction: 'credit',
+        type: 'after_paid_initial',
+        amount: amt,
+        balanceAfter: sbBal,
+        description:
+            notes
+            || `After paid initial balance from bookie ${parentUsername || 'bookie'}`,
+    });
+
+    if (!superTx) {
+        throw new Error('Failed to record super bookie after-paid wallet transaction');
+    }
+
+    if (parentBalanceAfter != null && parentBookieId) {
+        const parentTx = await recordBookieWalletTransaction({
+            adminId: parentBookieId,
+            direction: 'debit',
+            type: 'after_paid_initial_allocated',
+            amount: amt,
+            balanceAfter: Number(parentBalanceAfter),
+            description: `After paid initial balance to ${superBookieUsername || 'super bookie'}`,
+            referenceId: String(superTx._id),
+        });
+        if (!parentTx) {
+            await BookieWalletTransaction.deleteMany({ _id: superTx._id });
+            throw new Error('Failed to record parent bookie after-paid wallet transaction');
+        }
+    }
+
+    await notifyBookiePanelBalances([parentBookieId, superBookieId], 'super_bookie_initial_balance');
+    return superTx;
+}
+
 /**
  * Deduct parent bookie wallet, credit super bookie wallet, record commission payment + ledger.
  */

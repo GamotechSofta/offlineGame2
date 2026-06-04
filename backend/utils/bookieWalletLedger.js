@@ -63,6 +63,8 @@ export const BOOKIE_WALLET_TX_LABELS = {
     bet_placed: 'Bet placed',
     bet_win: 'Bet winnings',
     initial_balance_allocated: 'Initial balance allocated to super bookie',
+    after_paid_initial: 'Initial balance (after paid — from bookie)',
+    after_paid_initial_allocated: 'After paid balance allocated to super bookie',
 };
 
 export function getBookieWalletTxLabel(type) {
@@ -81,6 +83,7 @@ export const FROM_BOOKIE_TX_TYPES = [
     'initial_balance',
     'advance_received',
     'advance_commission',
+    'after_paid_initial',
     'commission_settlement',
     'balance_adjustment',
 ];
@@ -90,6 +93,15 @@ export const FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES = ['commission_settlement']
 
 /** Counted in advance commission / bookie summary — credits only */
 export const FROM_BOOKIE_SUMMARY_TYPES = ['initial_balance', 'advance_received', 'advance_commission'];
+
+/** Adds to wallet balance / grand total but not advance commission recovery */
+export const FROM_BOOKIE_AFTER_PAID_TYPES = ['after_paid_initial'];
+
+/** Parent bookie debits when allocating to super bookie — advance paid only */
+export const FROM_BOOKIE_ADVANCE_ALLOCATION_DEBIT_TYPES = [
+    'initial_balance_allocated',
+    'balance_adjustment',
+];
 
 /** Player-related balance changes (add fund, wallet ops, etc.) */
 export const FROM_PLAYER_TX_TYPES = [
@@ -139,6 +151,15 @@ export function getGrandTotalDelta(tx) {
     }
     if (FROM_BOOKIE_SUMMARY_TYPES.includes(type) && direction === 'credit') {
         return amt;
+    }
+    if (FROM_BOOKIE_AFTER_PAID_TYPES.includes(type) && direction === 'credit') {
+        return amt;
+    }
+    if (type === 'after_paid_initial_allocated' && direction === 'debit') {
+        return 0;
+    }
+    if (type === 'initial_balance_allocated' && direction === 'debit') {
+        return 0;
     }
     if (FROM_PLAYER_SUMMARY_TYPES.includes(type) && direction === 'credit') {
         return amt;

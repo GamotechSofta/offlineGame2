@@ -11,6 +11,8 @@ import {
     getBookieWalletTxCategory,
     FROM_BOOKIE_TX_TYPES,
     FROM_BOOKIE_SUMMARY_TYPES,
+    FROM_BOOKIE_AFTER_PAID_TYPES,
+    FROM_BOOKIE_ADVANCE_ALLOCATION_DEBIT_TYPES,
     FROM_PLAYER_TX_TYPES,
     FROM_PLAYER_SUMMARY_TYPES,
     FROM_PLAYER_WITHDRAWAL_SUMMARY_TYPES,
@@ -159,6 +161,10 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             if (FROM_BOOKIE_SUMMARY_TYPES.includes(row._id)) {
                 summaries.from_bookie.received += row.credit || 0;
             }
+            if (FROM_BOOKIE_AFTER_PAID_TYPES.includes(row._id)) {
+                summaries.from_bookie.afterPaidReceived =
+                    (summaries.from_bookie.afterPaidReceived || 0) + (row.credit || 0);
+            }
             if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(row._id)) {
                 summaries.from_bookie.commissionSettled += (row.credit || 0) + (row.debit || 0);
             }
@@ -191,6 +197,7 @@ export const listMyBookieWalletTransactions = async (req, res) => {
         ) / 100;
         summaries.from_bookie.commissionSettled = settledTotal;
 
+        const afterPaidFromBookie = round2(summaries.from_bookie.afterPaidReceived || 0);
         let advanceFromBookie = summaries.from_bookie.received || 0;
         let commissionSettledDeducted = settledTotal;
 
@@ -198,10 +205,7 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             let advanceToSuperBookie = 0;
             let commissionPaidToSuperBookie = 0;
             for (const row of summaryAgg) {
-                if (row._id === 'balance_adjustment') {
-                    advanceToSuperBookie += row.debit || 0;
-                }
-                if (row._id === 'initial_balance_allocated') {
+                if (FROM_BOOKIE_ADVANCE_ALLOCATION_DEBIT_TYPES.includes(row._id)) {
                     advanceToSuperBookie += row.debit || 0;
                 }
                 if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(row._id)) {
@@ -218,8 +222,10 @@ export const listMyBookieWalletTransactions = async (req, res) => {
                 }
             }
             commissionSettledDeducted = Math.round(settledFromBookie * 100) / 100;
+            advanceFromBookie = summaries.from_bookie.received || 0;
         }
 
+        summaries.from_bookie.afterPaidFromBookie = afterPaidFromBookie;
         summaries.from_bookie.advanceFromBookie = advanceFromBookie;
         summaries.from_bookie.commissionSettledDeducted = commissionSettledDeducted;
         summaries.from_bookie.remainingFromBookie = Math.round(
@@ -308,10 +314,12 @@ export const listMyBookieWalletTransactions = async (req, res) => {
         } else {
             const superGrandTotal = round2(
                 (summaries.from_bookie.remainingFromBookie || 0)
+                + afterPaidFromBookie
                 + (summaries.from_player.netTotal || 0),
             );
             summaries.grandTotal = {
                 bookieRemaining: summaries.from_bookie.remainingFromBookie || 0,
+                afterPaidFromBookie,
                 playerDeposits: summaries.from_player.received || 0,
                 playerWithdrawals: summaries.from_player.withdrawn || 0,
                 playerNet: summaries.from_player.netTotal || 0,

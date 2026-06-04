@@ -7,7 +7,10 @@ import { canAccessBookieManagement } from '../utils/adminTabAccess.js';
 import { getCommissionSummaryForAccount } from '../utils/commissionMetrics.js';
 import { notifyBookiePanelBalance, notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
 import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
-import { transferAdvanceCommissionToSuperBookie } from '../utils/advanceCommissionTransfer.js';
+import {
+    transferAdvanceCommissionToSuperBookie,
+    transferAfterPaidInitialBalanceToSuperBookie,
+} from '../utils/advanceCommissionTransfer.js';
 
 /** Admin: list all super bookies with parent bookie + player counts */
 export const getAllSuperBookiesAdmin = async (req, res) => {
@@ -100,6 +103,7 @@ export const createSuperBookie = async (req, res) => {
             balance,
             commissionPercentage,
             canManagePayments,
+            initialBalancePaymentMode,
         } = req.body;
         const derivedUsername =
             firstName != null && lastName != null
@@ -165,6 +169,9 @@ export const createSuperBookie = async (req, res) => {
             }
         }
 
+        const paymentMode =
+            initialBalancePaymentMode === 'after_paid' ? 'after_paid' : 'advance_paid';
+
         const superBookie = new Admin({
             username: derivedUsername,
             password,
@@ -176,6 +183,7 @@ export const createSuperBookie = async (req, res) => {
             balance: initialBalance,
             commissionPercentage: commissionPct,
             canManagePayments: Boolean(canManagePayments),
+            initialBalancePaymentMode: initialBalance > 0 ? paymentMode : 'advance_paid',
         });
         await superBookie.save();
         await invalidateAdminReadCaches('super_bookie_created');
@@ -183,18 +191,31 @@ export const createSuperBookie = async (req, res) => {
 
         if (initialBalance > 0) {
             try {
-                await transferAdvanceCommissionToSuperBookie({
-                    parentBookieId: req.admin._id,
-                    parentUsername: req.admin.username,
-                    superBookieId: superBookie._id,
-                    superBookieUsername: superBookie.username,
-                    amount: initialBalance,
-                    notes: 'Initial balance from bookie',
-                    createdById: req.admin._id,
-                    parentBalanceAfter: parentAfterDeduct?.balance ?? null,
-                    superBookieBalanceAfter: superBookie.balance ?? 0,
-                    isInitialBalance: true,
-                });
+                if (paymentMode === 'advance_paid') {
+                    await transferAfterPaidInitialBalanceToSuperBookie({
+                        parentBookieId: req.admin._id,
+                        parentUsername: req.admin.username,
+                        superBookieId: superBookie._id,
+                        superBookieUsername: superBookie.username,
+                        amount: initialBalance,
+                        notes: 'Advance paid initial balance from bookie',
+                        parentBalanceAfter: parentAfterDeduct?.balance ?? null,
+                        superBookieBalanceAfter: superBookie.balance ?? 0,
+                    });
+                } else {
+                    await transferAdvanceCommissionToSuperBookie({
+                        parentBookieId: req.admin._id,
+                        parentUsername: req.admin.username,
+                        superBookieId: superBookie._id,
+                        superBookieUsername: superBookie.username,
+                        amount: initialBalance,
+                        notes: 'After paid initial balance from bookie',
+                        createdById: req.admin._id,
+                        parentBalanceAfter: parentAfterDeduct?.balance ?? null,
+                        superBookieBalanceAfter: superBookie.balance ?? 0,
+                        isInitialBalance: true,
+                    });
+                }
             } catch (ledgerErr) {
                 await Admin.findByIdAndDelete(superBookie._id);
                 if (parentAfterDeduct) {
