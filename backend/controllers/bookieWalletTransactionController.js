@@ -4,6 +4,7 @@ import CommissionPayment from '../models/commission/commissionPayment.js';
 import {
     getCommissionPaymentKind,
     getSuperBookieCommissionDisplaySummary,
+    getSuperBookieAdvancePoolFromBookie,
 } from '../utils/commissionMetrics.js';
 import { getBookiePanelGrandTotal } from '../utils/bookiePanelGrandTotal.js';
 import { isBookiePanelRole } from '../utils/adminRoles.js';
@@ -230,14 +231,9 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             commissionFromChildBookies = round2(commissionFromChildBookies);
             commissionSettledDeducted = Math.round(commissionPaidToSuperBookie * 100) / 100;
         } else if (fresh?.role === 'super_bookie') {
-            let settledFromBookie = 0;
-            for (const row of summaryAgg) {
-                if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(row._id)) {
-                    settledFromBookie += row.credit || 0;
-                }
-            }
-            commissionSettledDeducted = Math.round(settledFromBookie * 100) / 100;
-            advanceFromBookie = summaries.from_bookie.received || 0;
+            const advancePool = await getSuperBookieAdvancePoolFromBookie(req.admin._id);
+            advanceFromBookie = advancePool.gross;
+            commissionSettledDeducted = advancePool.settled;
         }
 
         summaries.from_bookie.afterPaidFromBookie = afterPaidFromBookie;
@@ -246,6 +242,15 @@ export const listMyBookieWalletTransactions = async (req, res) => {
         summaries.from_bookie.remainingFromBookie = Math.round(
             Math.max(0, advanceFromBookie - commissionSettledDeducted) * 100
         ) / 100;
+
+        if (fresh?.role === 'super_bookie' && untrackedGap > 0) {
+            summaries.from_bookie.openingBalance = untrackedGap;
+            advanceFromBookie = round2(advanceFromBookie + untrackedGap);
+            summaries.from_bookie.advanceFromBookie = advanceFromBookie;
+            summaries.from_bookie.remainingFromBookie = round2(
+                summaries.from_bookie.remainingFromBookie + untrackedGap,
+            );
+        }
 
         if (fresh?.role === 'bookie') {
             let adminCredits = 0;
@@ -330,11 +335,12 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             };
         } else {
             const paidToParent = round2(summaries.from_bookie.paidToParentFromWallet || 0);
+            let netAdvanceForGrand = summaries.from_bookie.remainingFromBookie || 0;
+            if (untrackedGap > 0) {
+                netAdvanceForGrand = round2(netAdvanceForGrand + untrackedGap);
+            }
             const superGrandTotal = round2(
-                (summaries.from_bookie.remainingFromBookie || 0)
-                + afterPaidFromBookie
-                + (summaries.from_player.netTotal || 0)
-                - paidToParent,
+                netAdvanceForGrand + (summaries.from_player.netTotal || 0) - paidToParent,
             );
             summaries.grandTotal = {
                 bookieRemaining: summaries.from_bookie.remainingFromBookie || 0,

@@ -4,6 +4,7 @@ import CommissionPayment from '../models/commission/commissionPayment.js';
 import {
     getCommissionPaymentKind,
     getSuperBookieCommissionDisplaySummary,
+    getSuperBookieAdvancePoolFromBookie,
 } from './commissionMetrics.js';
 import {
     FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES,
@@ -37,30 +38,18 @@ export async function getSuperBookiePanelGrandTotal(adminId) {
 
     let ledgerCreditAll = 0;
     let ledgerDebitAll = 0;
-    let advanceFromBookie = 0;
-    let afterPaidFromBookie = 0;
     let playerReceived = 0;
     let playerWithdrawn = 0;
-    let commissionSettledFromBookie = 0;
     let paidToParentFromWallet = 0;
 
     for (const row of summaryAgg) {
         ledgerCreditAll += row.credit || 0;
         ledgerDebitAll += row.debit || 0;
-        if (FROM_BOOKIE_SUMMARY_TYPES.includes(row._id)) {
-            advanceFromBookie += row.credit || 0;
-        }
-        if (FROM_BOOKIE_ADVANCE_PAID_INITIAL_TYPES.includes(row._id)) {
-            afterPaidFromBookie += row.credit || 0;
-        }
         if (FROM_PLAYER_SUMMARY_TYPES.includes(row._id)) {
             playerReceived += row.credit || 0;
         }
         if (FROM_PLAYER_WITHDRAWAL_SUMMARY_TYPES.includes(row._id)) {
             playerWithdrawn += row.debit || row.credit || 0;
-        }
-        if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(row._id)) {
-            commissionSettledFromBookie += row.credit || 0;
         }
         if (COMMISSION_SETTLEMENT_OTHER_DEBIT_TYPES.includes(row._id)) {
             paidToParentFromWallet += row.debit || 0;
@@ -69,18 +58,17 @@ export async function getSuperBookiePanelGrandTotal(adminId) {
 
     const currentBalance = Number(fresh.balance ?? 0);
     const untrackedGap = round2(Math.max(0, currentBalance - (ledgerCreditAll - ledgerDebitAll)));
-    if (untrackedGap > 0) {
-        afterPaidFromBookie = round2(afterPaidFromBookie + untrackedGap);
-    }
-    afterPaidFromBookie = round2(Math.max(0, afterPaidFromBookie));
 
-    const remainingFromBookie = round2(
-        Math.max(0, advanceFromBookie - commissionSettledFromBookie),
-    );
+    const advancePool = await getSuperBookieAdvancePoolFromBookie(adminId);
+    let netAdvanceRemaining = advancePool.remaining;
+    if (untrackedGap > 0) {
+        netAdvanceRemaining = round2(netAdvanceRemaining + untrackedGap);
+    }
+
     const playerNet = round2(playerReceived - playerWithdrawn);
     paidToParentFromWallet = round2(paidToParentFromWallet);
 
-    return round2(remainingFromBookie + afterPaidFromBookie + playerNet - paidToParentFromWallet);
+    return round2(netAdvanceRemaining + playerNet - paidToParentFromWallet);
 }
 
 /**

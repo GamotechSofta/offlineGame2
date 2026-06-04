@@ -122,7 +122,7 @@ const FromBookieSummaryCard = ({ summary, accent, t, role }) => {
             </div>
             <p className="text-xs text-gray-600">{t('walletTxRemainingFromBookie')}</p>
             <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(remaining)}</p>
-            {settled > 0 && (
+            {(advance > 0 || settled > 0) && (
                 <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-violet-100 pt-2">
                     <div className="flex justify-between gap-2">
                         <span>{advanceLabel}</span>

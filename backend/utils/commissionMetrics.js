@@ -206,6 +206,28 @@ export async function getAdvanceAvailableForSettlement(admin) {
     return round2(Math.max(poolFromInitial, recoverable));
 }
 
+/**
+ * Child super bookie: advance / initial from parent bookie minus settlements paid with advance.
+ * Used for wallet "From bookie — Remaining" (not paid-with-other wallet debits).
+ */
+export async function getSuperBookieAdvancePoolFromBookie(adminId) {
+    const [advancePaidInitial, recoverableAdvance, settledFromAdvance] = await Promise.all([
+        getAdvancePaidInitialFromBookieForAccount(adminId),
+        getAdvanceCommissionPaidForAccount(adminId),
+        getSettlementsPaidWithAdvanceTotal(adminId),
+    ]);
+    const gross = round2(advancePaidInitial + recoverableAdvance);
+    const settled = settledFromAdvance;
+    const remaining = round2(Math.max(0, gross - settled));
+    return {
+        gross,
+        settled,
+        remaining,
+        advancePaidInitial,
+        recoverableAdvance,
+    };
+}
+
 /** Sum of advance-paid initial balance credits from parent bookie (no bet recovery). */
 export async function getAdvancePaidInitialFromBookieForAccount(adminId) {
     const walletAgg = await BookieWalletTransaction.aggregate([
