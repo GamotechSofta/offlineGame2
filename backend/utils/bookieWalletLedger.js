@@ -68,6 +68,12 @@ export function getBookieWalletTxLabel(type) {
     return BOOKIE_WALLET_TX_LABELS[type] || type || 'Transaction';
 }
 
+/** Credits from admin to parent bookie (superbookie panel) */
+export const FROM_ADMIN_TX_TYPES = [
+    'initial_balance',
+    'advance_received',
+];
+
 /** Shown in "from bookie" tab list */
 export const FROM_BOOKIE_TX_TYPES = [
     'initial_balance',
@@ -102,6 +108,17 @@ export function getBookieWalletTxCategory(type) {
     if (FROM_BOOKIE_TX_TYPES.includes(type)) return 'from_bookie';
     if (FROM_PLAYER_TX_TYPES.includes(type)) return 'from_player';
     return 'other';
+}
+
+/** Parent bookie: credit from admin (excludes payouts to super bookies). */
+export function isFromAdminWalletTx(tx) {
+    if (!tx || tx.direction !== 'credit') return false;
+    if (FROM_ADMIN_TX_TYPES.includes(tx.type)) return true;
+    if (tx.type === 'balance_adjustment') {
+        const desc = String(tx.description || '').toLowerCase();
+        return !/super bookie|advance commission to|commission settlement to/i.test(desc);
+    }
+    return false;
 }
 
 /** Change to grand total (bookie + players) for one ledger line. */

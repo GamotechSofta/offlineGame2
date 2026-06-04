@@ -11,6 +11,8 @@ import BetHistory from './pages/BetHistory';
 import TopWinners from './pages/TopWinners';
 import Reports from './pages/Reports';
 import Commission from './pages/Commission';
+import CommissionFromAdmin from './pages/CommissionFromAdmin';
+import AdminWalletTransactions from './pages/AdminWalletTransactions';
 import Payments from './pages/Payments';
 import Wallet from './pages/Wallet';
 import Records from './pages/Records';
@@ -85,9 +87,11 @@ const AppRoutes = () => (
         <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
         <Route path="/revenue" element={<Navigate to="/commission" replace />} />
         <Route path="/commission" element={<PrivateRoute><Commission /></PrivateRoute>} />
+        <Route path="/commission-from-admin" element={<PrivateRoute><CommissionFromAdmin /></PrivateRoute>} />
         <Route path="/super-bookie-commissions" element={<Navigate to="/commission" replace />} />
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
         <Route path="/wallet-transactions" element={<PrivateRoute><BookieWalletTransactions /></PrivateRoute>} />
+        <Route path="/wallet-from-admin" element={<PrivateRoute><AdminWalletTransactions /></PrivateRoute>} />
         <Route path="/records" element={<PrivateRoute><Records /></PrivateRoute>} />
         <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
         <Route path="/receipt" element={<PrivateRoute><Receipt /></PrivateRoute>} />

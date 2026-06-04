@@ -1,5 +1,7 @@
 import Admin from '../models/admin/admin.js';
 import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
+import CommissionPayment from '../models/commission/commissionPayment.js';
+import { getCommissionPaymentKind } from '../utils/commissionMetrics.js';
 import { isBookiePanelRole } from '../utils/adminRoles.js';
 import {
     getBookieWalletTxLabel,
@@ -10,7 +12,9 @@ import {
     FROM_PLAYER_SUMMARY_TYPES,
     FROM_PLAYER_WITHDRAWAL_SUMMARY_TYPES,
     FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES,
+    FROM_ADMIN_TX_TYPES,
     buildGrandTotalAfterByTxId,
+    isFromAdminWalletTx,
 } from '../utils/bookieWalletLedger.js';
 
 /**
@@ -35,10 +39,22 @@ export const listMyBookieWalletTransactions = async (req, res) => {
         }
 
         const category = req.query.category;
+        const operatorRoleEarly = req.admin?.role;
         if (category === 'from_bookie') {
             filter.type = { $in: FROM_BOOKIE_TX_TYPES };
         } else if (category === 'from_player') {
             filter.type = { $in: FROM_PLAYER_TX_TYPES };
+        } else if (category === 'from_admin' && operatorRoleEarly === 'bookie') {
+            filter.direction = 'credit';
+            filter.$or = [
+                { type: { $in: FROM_ADMIN_TX_TYPES } },
+                {
+                    type: 'balance_adjustment',
+                    description: {
+                        $not: /super bookie|advance commission to|commission settlement to/i,
+                    },
+                },
+            ];
         } else if (category === 'other') {
             filter.type = { $nin: [...FROM_BOOKIE_TX_TYPES, ...FROM_PLAYER_TX_TYPES] };
         }
@@ -94,6 +110,15 @@ export const listMyBookieWalletTransactions = async (req, res) => {
         const commissionSettled = Math.round((settlementAgg?.[0]?.total || 0) * 100) / 100;
 
         const summaries = {
+            from_admin: {
+                credit: 0,
+                debit: 0,
+                net: 0,
+                received: 0,
+                openingBalance: 0,
+                commissionSettled: 0,
+                count: 0,
+            },
             from_bookie: {
                 credit: 0,
                 debit: 0,
@@ -186,6 +211,35 @@ export const listMyBookieWalletTransactions = async (req, res) => {
         summaries.from_bookie.remainingFromBookie = Math.round(
             Math.max(0, advanceFromBookie - commissionSettledDeducted) * 100
         ) / 100;
+
+        if (fresh?.role === 'bookie') {
+            let adminCredits = 0;
+            let adminCount = 0;
+            const allTxsForAdmin = await BookieWalletTransaction.find({ adminId: req.admin._id })
+                .select('type direction amount description')
+                .lean();
+            for (const tx of allTxsForAdmin) {
+                if (isFromAdminWalletTx(tx)) {
+                    adminCredits += Number(tx.amount || 0);
+                    adminCount += 1;
+                }
+            }
+            const commissionPayments = await CommissionPayment.find({ bookieId: req.admin._id })
+                .select('amount paymentType notes')
+                .lean();
+            let adminSettled = 0;
+            for (const payment of commissionPayments) {
+                if (getCommissionPaymentKind(payment) === 'settlement') {
+                    adminSettled += Number(payment.amount || 0);
+                }
+            }
+            adminSettled = Math.round(adminSettled * 100) / 100;
+            summaries.from_admin.received = Math.round(adminCredits * 100) / 100;
+            summaries.from_admin.credit = summaries.from_admin.received;
+            summaries.from_admin.count = adminCount;
+            summaries.from_admin.commissionSettled = adminSettled;
+            summaries.from_admin.net = summaries.from_admin.received;
+        }
 
         summaries.grandTotal = {
             bookieReceived: summaries.from_bookie.received || 0,

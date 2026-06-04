@@ -15,6 +15,7 @@ import {
 import Layout from '../components/Layout';
 import { fetchWithAuth } from '../utils/api';
 import { useLanguage } from '../context/useLanguage';
+import { useAuth } from '../context/AuthContext';
 import { PANEL_LABEL, PANEL_LABEL_PLURAL } from '../config/panelLabels';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -48,6 +49,7 @@ const hasAdvanceRecovery = (row) => Number(row.advanceCommissionPaid || 0) > 0;
 
 const Commission = () => {
     const { t } = useLanguage();
+    const { updateBookie } = useAuth();
     const [pageTab, setPageTab] = useState('settlements');
     const [allRows, setAllRows] = useState([]);
     const [requests, setRequests] = useState([]);
@@ -269,6 +271,9 @@ const Commission = () => {
             if (response.status === 401) return;
             const result = await response.json();
             if (result.success) {
+                if (result.data?.parentBalanceAfter != null) {
+                    updateBookie({ balance: Number(result.data.parentBalanceAfter) });
+                }
                 setPayStateByBookie((prev) => ({
                     ...prev,
                     [bookieId]: { mode: 'partial', amount: '' },
@@ -450,13 +455,13 @@ const Commission = () => {
     };
 
     return (
-        <Layout title={t('commission')}>
+        <Layout title={t('commissionSuperBookies')}>
             <div className="space-y-4 sm:space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-2">
                             <FaMoneyBillWave className="text-[#1B3150]" />
-                            {t('commission')}
+                            {t('commissionSuperBookies')}
                         </h1>
                         <p className="text-sm text-slate-500 mt-1">
                             {t('commissionPageSubtitle')} {PANEL_LABEL_PLURAL} → Quick Manage; settle pending here.
@@ -617,8 +622,8 @@ const Commission = () => {
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Commission %</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Player sales</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Last Payment</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Commission</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Advance paid</th>
+                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Commission</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Settled</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Pending</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Status</th>
@@ -651,7 +656,6 @@ const Commission = () => {
                                                     <td className="px-4 py-3.5 text-orange-600 font-semibold">{row.commissionPercentage ?? 0}%</td>
                                                     <td className="px-4 py-3.5 text-right text-slate-700">{formatCurrency(row.totalBetAmount)}</td>
                                                     <td className="px-4 py-3.5 text-slate-700">{formatDate(row.lastPaidAt)}</td>
-                                                    <td className="px-4 py-3.5 text-right font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</td>
                                                     <td className="px-4 py-3.5 text-right align-top">
                                                         <p className="font-semibold text-violet-700">{formatCurrency(row.advanceCommissionPaid)}</p>
                                                         {Number(row.advanceOutstanding || 0) > 0 && (
@@ -660,6 +664,7 @@ const Commission = () => {
                                                             </p>
                                                         )}
                                                     </td>
+                                                    <td className="px-4 py-3.5 text-right font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</td>
                                                     <td className="px-4 py-3.5 text-right align-top">
                                                         <p className="font-semibold text-green-700">{formatCurrency(getRowDisplaySettled(row))}</p>
                                                         {hasAdvanceRecovery(row) && Number(row.advanceRecovered || 0) > 0 && (
@@ -778,7 +783,7 @@ const Commission = () => {
                                         )}
                                     </div>
                                     <div>
-                                        <p className="text-[11px] text-slate-500">Total</p>
+                                        <p className="text-[11px] text-slate-500">Commission</p>
                                         <p className="text-sm font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</p>
                                     </div>
                                     <div>
