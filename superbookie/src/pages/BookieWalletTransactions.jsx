@@ -105,16 +105,17 @@ const FromBookieSummaryCard = ({ summary, accent, t, role }) => {
     const settled = Number(summary?.commissionSettledDeducted ?? 0);
     const remaining = Number(summary?.remainingFromBookie ?? Math.max(0, advance - settled));
     const isParentBookie = role === 'bookie';
+    const headline = isParentBookie ? remaining : received;
 
     return (
         <div className={`rounded-xl border p-4 ${accent}`}>
             <div className="flex items-center gap-2 mb-2">
                 <FaMoneyBillWave className="w-5 h-5 shrink-0 text-violet-600" />
                 <h3 className="font-semibold text-xs sm:text-sm text-gray-800 leading-tight">
-                    {t('walletTxFromBookieSummary')}
+                    {isParentBookie ? t('walletTxAdminCommissionSummary') : t('walletTxFromBookieSummary')}
                 </h3>
             </div>
-            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(received)}</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(headline)}</p>
             <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-violet-100 pt-2">
                 <div className="flex justify-between gap-2">
                     <span>
@@ -132,7 +133,87 @@ const FromBookieSummaryCard = ({ summary, accent, t, role }) => {
                     <span className="font-medium text-gray-700">{t('walletTxRemainingFromBookie')}</span>
                     <span className="font-bold text-green-700">{formatCurrency(remaining)}</span>
                 </div>
-                <p className="text-[10px] text-gray-400 pt-0.5">{t('walletTxCommissionDeductNote')}</p>
+                {isParentBookie && (
+                    <p className="text-[10px] text-gray-400 pt-0.5">{t('walletTxGrandTotalFormulaNote')}</p>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const PlayerFundsSummaryCard = ({ summary, accent, t }) => {
+    const deposits = Number(summary?.deposits ?? 0);
+    const withdrawn = Number(summary?.withdrawn ?? 0);
+    const net = Number(summary?.net ?? deposits - withdrawn);
+    const depositCount = Number(summary?.depositCount ?? 0);
+    const showBreakdown = deposits > 0 || withdrawn > 0;
+
+    return (
+        <div className={`rounded-xl border p-4 ${accent}`}>
+            <div className="flex items-center gap-2 mb-2">
+                <FaUsers className="w-5 h-5 shrink-0 text-emerald-600" />
+                <h3 className="font-semibold text-xs sm:text-sm text-gray-800 leading-tight">
+                    {t('walletTxFromPlayerSummary')}
+                </h3>
+            </div>
+            <p className="text-xs text-gray-600">{t('walletTxPlayerNet')}</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(net)}</p>
+            {showBreakdown && (
+                <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-emerald-100 pt-2">
+                    <div className="flex justify-between gap-2">
+                        <span>{t('walletTxPlayerAddFund')}</span>
+                        <span className="font-semibold text-emerald-800">{formatCurrency(deposits)}</span>
+                    </div>
+                    {withdrawn > 0 && (
+                        <div className="flex justify-between gap-2 text-red-700">
+                            <span>{t('walletTxPlayerWithdrawalsLine')}</span>
+                            <span className="font-semibold">−{formatCurrency(withdrawn)}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between gap-2 pt-1 border-t border-emerald-50">
+                        <span className="font-medium text-gray-700">{t('walletTxPlayerNet')}</span>
+                        <span className="font-bold text-emerald-800">{formatCurrency(net)}</span>
+                    </div>
+                </div>
+            )}
+            {depositCount > 0 && (
+                <p className="text-[10px] text-gray-400 mt-1">
+                    {depositCount} {t('walletTxDepositTx')}
+                </p>
+            )}
+        </div>
+    );
+};
+
+const CommissionFromAdminSummaryCard = ({ summary, t }) => {
+    const advance = Number(summary?.advanceFromAdmin ?? 0);
+    const settled = Number(summary?.commissionSettledDeducted ?? 0);
+    const remaining = Number(summary?.remainingFromAdmin ?? Math.max(0, advance - settled));
+
+    return (
+        <div className="rounded-xl border p-4 border-amber-200 bg-amber-50/80">
+            <div className="flex items-center gap-2 mb-2">
+                <FaMoneyBillWave className="w-5 h-5 shrink-0 text-amber-600" />
+                <h3 className="font-semibold text-xs sm:text-sm text-gray-800 leading-tight">
+                    {t('commissionFromAdmin')}
+                </h3>
+            </div>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(remaining)}</p>
+            <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-amber-100 pt-2">
+                <div className="flex justify-between gap-2">
+                    <span>{t('walletTxAdvanceFromAdmin')}</span>
+                    <span className="font-semibold text-amber-800">{formatCurrency(advance)}</span>
+                </div>
+                {settled > 0 && (
+                    <div className="flex justify-between gap-2 text-amber-900">
+                        <span>{t('walletTxCommissionSettledDeduct')}</span>
+                        <span className="font-semibold">−{formatCurrency(settled)}</span>
+                    </div>
+                )}
+                <div className="flex justify-between gap-2 pt-1 border-t border-amber-50">
+                    <span className="font-medium text-gray-700">{t('walletTxRemainingFromBookie')}</span>
+                    <span className="font-bold text-green-700">{formatCurrency(remaining)}</span>
+                </div>
             </div>
         </div>
     );
@@ -180,6 +261,7 @@ const BookieWalletTransactions = () => {
     const [pagination, setPagination] = useState({ totalPages: 1, hasNextPage: false, hasPrevPage: false });
     const [category, setCategory] = useState('all');
     const [operatorRole, setOperatorRole] = useState('bookie');
+    const [commissionFromAdmin, setCommissionFromAdmin] = useState(null);
 
     const fetchTransactions = useCallback(async () => {
         try {
@@ -191,9 +273,59 @@ const BookieWalletTransactions = () => {
             if (!res.ok || !json.success) {
                 throw new Error(json.message || 'Failed to load transactions');
             }
+            const role = json.operatorRole;
             setRows(json.data || []);
             setSummaries(json.summaries || null);
-            if (json.operatorRole) setOperatorRole(json.operatorRole);
+            if (role) setOperatorRole(role);
+            if (role === 'bookie') {
+                const fromWallet = json.summaries?.commission_from_admin;
+                const emptyCommission = {
+                    totalCommission: 0,
+                    totalPaid: 0,
+                    totalPending: 0,
+                    advanceFromAdmin: 0,
+                    commissionSettledDeducted: 0,
+                    remainingFromAdmin: 0,
+                };
+                if (fromWallet) {
+                    setCommissionFromAdmin(fromWallet);
+                } else {
+                    try {
+                        const commRes = await fetchWithAuth(`${API_BASE_URL}/daily-commission/my-summary`);
+                        const commJson = await commRes.json();
+                        const d = commJson.success ? commJson.data : null;
+                        const advanceRecovered = Number(d?.advanceRecovered || 0);
+                        const cashSettled = Number(d?.allTimePaid || 0);
+                        const recoveryPending = Number(d?.recoveryPendingFromBets || 0);
+                        const cashPending = Number(d?.allTimePending || 0);
+                        const advanceFromAdmin = Number(d?.advanceCommissionPaid || 0);
+                        const commissionSettledDeducted = Number(
+                            d?.displaySettled ?? advanceRecovered + cashSettled,
+                        );
+                        setCommissionFromAdmin(
+                            d
+                                ? {
+                                      totalCommission: Number(d.allTimeCommission || 0),
+                                      totalPaid: commissionSettledDeducted,
+                                      totalPending: Number(
+                                          d.displayPending ?? recoveryPending + cashPending,
+                                      ),
+                                      advanceFromAdmin,
+                                      commissionSettledDeducted,
+                                      remainingFromAdmin: Number(
+                                          d.advanceOutstanding
+                                              ?? Math.max(0, advanceFromAdmin - commissionSettledDeducted),
+                                      ),
+                                  }
+                                : emptyCommission,
+                        );
+                    } catch {
+                        setCommissionFromAdmin(emptyCommission);
+                    }
+                }
+            } else {
+                setCommissionFromAdmin(null);
+            }
             setPagination(json.pagination || { totalPages: 1, hasNextPage: false, hasPrevPage: false });
             if (json.currentBalance != null) {
                 updateBookie({ balance: json.currentBalance });
@@ -224,14 +356,32 @@ const BookieWalletTransactions = () => {
               ? t('walletTxEmptyPlayer')
               : t('walletTxEmpty');
 
-    const playerDepositsSummary = summaries?.from_player
-        ? { received: summaries.from_player.received ?? 0, count: summaries.from_player.depositCount }
-        : null;
-    const playerWithdrawalsSummary = summaries?.from_player
-        ? { withdrawn: summaries.from_player.withdrawn ?? 0, count: summaries.from_player.withdrawalCount }
+    const playerFundsSummary = summaries?.from_player
+        ? {
+              deposits: summaries.from_player.received ?? 0,
+              withdrawn: summaries.from_player.withdrawn ?? 0,
+              net: summaries.from_player.netTotal ?? 0,
+              depositCount: summaries.from_player.depositCount ?? 0,
+          }
         : null;
     const grandSummary = summaries?.grandTotal
-        ? { received: summaries.grandTotal.received ?? 0 }
+        ? {
+              received: summaries.grandTotal.received ?? 0,
+              footerNote:
+                  operatorRole === 'bookie' ? (
+                      <span className="block text-[10px] text-gray-500 mt-1 space-y-0.5">
+                          <span className="block">
+                              {t('walletTxAdminCommissionSummary')}: {formatCurrency(summaries.from_bookie?.remainingFromBookie ?? 0)}
+                          </span>
+                          <span className="block">
+                              {t('walletTxPlayerNet')}: {formatCurrency(summaries.from_player?.netTotal ?? 0)}
+                          </span>
+                          <span className="block">
+                              {t('commissionFromAdmin')}: {formatCurrency(summaries.commission_from_admin?.remainingFromAdmin ?? commissionFromAdmin?.remainingFromAdmin ?? 0)}
+                          </span>
+                      </span>
+                  ) : null,
+          }
         : null;
 
     return (
@@ -254,33 +404,34 @@ const BookieWalletTransactions = () => {
                 </div>
 
                 {summaries && grandSummary && (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                    <div
+                        className={`grid grid-cols-2 gap-2 sm:gap-3 ${
+                            operatorRole === 'bookie' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+                        }`}
+                    >
                         <FromBookieSummaryCard
                             summary={summaries.from_bookie}
                             accent="border-violet-200 bg-violet-50/80"
                             t={t}
                             role={operatorRole}
                         />
-                        <SummaryCard
-                            icon={FaUsers}
-                            title={t('walletTxFromPlayerSummary')}
-                            summary={playerDepositsSummary}
+                        <PlayerFundsSummaryCard
+                            summary={playerFundsSummary}
                             accent="border-emerald-200 bg-emerald-50/80"
                             t={t}
                         />
-                        <SummaryCard
-                            icon={FaArrowDown}
-                            title={t('walletTxPlayerWithdrawalsSummary')}
-                            summary={playerWithdrawalsSummary}
-                            accent="border-red-200 bg-red-50/80"
-                            variant="debit"
-                            t={t}
-                        />
+                        {operatorRole === 'bookie' && commissionFromAdmin != null && (
+                            <CommissionFromAdminSummaryCard
+                                summary={commissionFromAdmin}
+                                t={t}
+                            />
+                        )}
                         <SummaryCard
                             icon={FaWallet}
                             title={t('walletTxGrandTotal')}
                             summary={grandSummary}
                             accent="border-[#1B3150]/30 bg-[#1B3150]/10 ring-1 ring-[#1B3150]/20"
+                            footerNote={grandSummary?.footerNote}
                             t={t}
                         />
                     </div>

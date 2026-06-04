@@ -264,7 +264,7 @@ const Commission = () => {
                     ? `${API_BASE_URL}/daily-commission/super-bookie/${bookieId}/settle-bets`
                     : `${API_BASE_URL}/daily-commission/super-bookie/${bookieId}/pay`,
                 {
-                    method: 'POST',
+                method: 'POST',
                     body: JSON.stringify({ paidAmount: amount }),
                 },
             );
@@ -458,11 +458,11 @@ const Commission = () => {
         <Layout title={t('commissionSuperBookies')}>
             <div className="space-y-4 sm:space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
+                <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-2">
                             <FaMoneyBillWave className="text-[#1B3150]" />
                             {t('commissionSuperBookies')}
-                        </h1>
+                    </h1>
                         <p className="text-sm text-slate-500 mt-1">
                             {t('commissionPageSubtitle')} {PANEL_LABEL_PLURAL} → Quick Manage; settle pending here.
                         </p>
@@ -557,9 +557,9 @@ const Commission = () => {
                             { id: 'pending', label: 'Pending', count: tabCounts.pending },
                             { id: 'paid', label: 'Paid', count: tabCounts.paid },
                         ].map((item) => (
-                            <button
+                                    <button
                                 key={item.id}
-                                type="button"
+                                        type="button"
                                 onClick={() => setStatusFilter(item.id)}
                                 className={`px-3 py-1.5 rounded-xl text-sm border transition-colors ${
                                     statusFilter === item.id
@@ -568,14 +568,14 @@ const Commission = () => {
                                 }`}
                             >
                                 {item.label} ({item.count})
-                            </button>
-                        ))}
-                    </div>
+                                    </button>
+                                ))}
+                            </div>
 
                     <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                         <div className="relative w-full sm:max-w-sm">
                             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
+                                <input
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
                                 placeholder={`Search ${PANEL_LABEL.toLowerCase()} by name or phone`}
@@ -610,7 +610,7 @@ const Commission = () => {
                             Filtered pending: {formatCurrency(filteredTotals.totalPending)}
                         </p>
                     )}
-                </div>
+                        </div>
 
                 {/* Desktop table */}
                 <div className="hidden lg:block bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -631,7 +631,7 @@ const Commission = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                                {loading ? (
+                        {loading ? (
                                     <tr>
                                         <td className="px-5 py-8 text-center text-slate-500" colSpan={10}>Loading commissions...</td>
                                     </tr>
@@ -724,8 +724,8 @@ const Commission = () => {
                                                                                 {item.notes ? <p className="text-xs text-slate-500 mt-0.5">{item.notes}</p> : null}
                                                                             </div>
                                                                         </div>
-                                                                    ))}
-                                                                </div>
+                                ))}
+                            </div>
                                                             ) : (
                                                                 <p className="text-xs text-slate-500">No payment history found.</p>
                                                             ))}
@@ -785,15 +785,15 @@ const Commission = () => {
                                     <div>
                                         <p className="text-[11px] text-slate-500">Commission</p>
                                         <p className="text-sm font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</p>
-                                    </div>
+                                </div>
                                     <div>
                                         <p className="text-[11px] text-slate-500">Settled</p>
                                         <p className="text-sm font-semibold text-green-700">{formatCurrency(getRowDisplaySettled(row))}</p>
-                                    </div>
+                                </div>
                                     <div>
                                         <p className="text-[11px] text-slate-500">Pending</p>
                                         <p className="text-sm font-semibold text-orange-700">{formatCurrency(getRowDisplayPending(row))}</p>
-                                    </div>
+                            </div>
                                 </div>
 
                                 <div className="mt-3">
@@ -822,13 +822,13 @@ const Commission = () => {
                                         ) : (
                                             <p className="text-xs text-slate-500">No payment history found.</p>
                                         ))}
-                                    </div>
+                                </div>
                                 )}
                             </div>
                         );
                     })}
-                </div>
-                </>
+                            </div>
+                    </>
                 )}
 
                 {pageTab === 'requests' && (
@@ -861,7 +861,7 @@ const Commission = () => {
                         )}
                     </div>
                 )}
-            </div>
+                        </div>
 
             {negotiateModal.open && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
@@ -873,20 +873,20 @@ const Commission = () => {
                         <form onSubmit={submitNegotiate} className="space-y-3">
                             <input type="text" value={negotiateModal.counterOffer} onChange={(e) => setNegotiateModal((p) => ({ ...p, counterOffer: e.target.value.replace(/[^0-9.]/g, '').slice(0, 6) }))} className="w-full border rounded-lg px-3 py-2" placeholder="Counter %" required />
                             <textarea value={negotiateModal.message} onChange={(e) => setNegotiateModal((p) => ({ ...p, message: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} placeholder="Message" />
-                            <div className="flex gap-2">
+                                                    <div className="flex gap-2">
                                 <button type="button" onClick={() => setNegotiateModal({ open: false, requestId: '', counterOffer: '', message: '' })} className="flex-1 py-2 border rounded-lg">Cancel</button>
                                 <button type="submit" className="flex-1 py-2 bg-[#1B3150] text-white rounded-lg">Send</button>
-                            </div>
+                                                    </div>
                         </form>
-                    </div>
-                </div>
-            )}
+                                            </div>
+                                </div>
+                            )}
 
             {toast.show && (
                 <div className="fixed right-4 bottom-4 z-50 bg-green-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm">
                     {toast.message}
-                </div>
-            )}
+                    </div>
+                )}
         </Layout>
     );
 };

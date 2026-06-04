@@ -1,7 +1,10 @@
 import Admin from '../models/admin/admin.js';
 import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
-import { getCommissionPaymentKind } from '../utils/commissionMetrics.js';
+import {
+    getCommissionPaymentKind,
+    getSuperBookieCommissionDisplaySummary,
+} from '../utils/commissionMetrics.js';
 import { isBookiePanelRole } from '../utils/adminRoles.js';
 import {
     getBookieWalletTxLabel,
@@ -14,8 +17,11 @@ import {
     FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES,
     FROM_ADMIN_TX_TYPES,
     buildGrandTotalAfterByTxId,
+    getGrandTotalDelta,
     isFromAdminWalletTx,
 } from '../utils/bookieWalletLedger.js';
+
+const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 
 /**
  * List wallet ledger entries for the logged-in bookie / super_bookie operator.
@@ -247,20 +253,80 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             summaries.from_admin.count = adminCount;
             summaries.from_admin.commissionSettled = adminSettled;
             summaries.from_admin.net = summaries.from_admin.received;
+            summaries.from_admin.advanceFromAdmin = summaries.from_admin.received;
+            summaries.from_admin.commissionSettledDeducted = adminSettled;
+            summaries.from_admin.remainingFromAdmin = round2(
+                Math.max(0, summaries.from_admin.received - adminSettled),
+            );
         }
 
-        summaries.grandTotal = {
-            bookieReceived: summaries.from_bookie.received || 0,
-            playerDeposits: summaries.from_player.received || 0,
-            playerWithdrawals: summaries.from_player.withdrawn || 0,
-            commissionSettled: settledTotal,
-            received:
-                (summaries.from_bookie.received || 0)
-                + (summaries.from_player.netTotal || 0)
-                - settledTotal,
-        };
+        if (fresh?.role === 'bookie') {
+            const adminComm = await getSuperBookieCommissionDisplaySummary(fresh);
+            const commissionFromAdminTotal = round2(adminComm.totalCommission || 0);
+            const commissionFromAdminPaid = round2(adminComm.displaySettled || 0);
+            const commissionFromAdminPending = round2(adminComm.displayPending || 0);
+            const advanceFromAdmin = round2(
+                Math.max(
+                    Number(adminComm.advanceCommissionPaid || 0),
+                    summaries.from_admin.advanceFromAdmin || 0,
+                ),
+            );
+            const commissionSettledDeducted = round2(
+                Math.max(
+                    Number(adminComm.displaySettled || 0),
+                    summaries.from_admin.commissionSettledDeducted || 0,
+                ),
+            );
+            const remainingFromAdmin = round2(
+                Math.max(
+                    Number(adminComm.advanceOutstanding || 0),
+                    summaries.from_admin.remainingFromAdmin || 0,
+                    advanceFromAdmin - commissionSettledDeducted,
+                ),
+            );
 
-        const openingGap = summaries.from_bookie.openingBalance || 0;
+            summaries.commission_from_admin = {
+                totalCommission: commissionFromAdminTotal,
+                totalPaid: commissionFromAdminPaid,
+                totalPending: commissionFromAdminPending,
+                advanceFromAdmin,
+                commissionSettledDeducted,
+                remainingFromAdmin,
+            };
+
+            summaries.grandTotal = {
+                bookieRemaining: summaries.from_bookie.remainingFromBookie || 0,
+                playerNet: summaries.from_player.netTotal || 0,
+                commissionFromAdminTotal,
+                commissionSettled: settledTotal,
+                received: round2(
+                    (summaries.from_bookie.remainingFromBookie || 0)
+                    + (summaries.from_player.netTotal || 0)
+                    + remainingFromAdmin,
+                ),
+            };
+        } else {
+            summaries.grandTotal = {
+                bookieReceived: summaries.from_bookie.received || 0,
+                playerDeposits: summaries.from_player.received || 0,
+                playerWithdrawals: summaries.from_player.withdrawn || 0,
+                commissionSettled: settledTotal,
+                received:
+                    (summaries.from_bookie.received || 0)
+                    + (summaries.from_player.netTotal || 0)
+                    - settledTotal,
+            };
+        }
+
+        let openingGap = summaries.from_bookie.openingBalance || 0;
+        if (fresh?.role === 'bookie') {
+            let ledgerRunning = 0;
+            for (const tx of allLedgerTxs) {
+                ledgerRunning += getGrandTotalDelta(tx);
+            }
+            ledgerRunning = round2(ledgerRunning);
+            openingGap = round2(summaries.grandTotal.received - ledgerRunning);
+        }
         const grandTotalAfterByTxId = buildGrandTotalAfterByTxId(allLedgerTxs, openingGap);
         const grandTotalNow = summaries.grandTotal.received;
 
