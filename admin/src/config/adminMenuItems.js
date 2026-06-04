@@ -17,13 +17,16 @@ import {
     FaBullhorn,
     FaGamepad,
     FaUserShield,
+    FaUsersCog,
 } from 'react-icons/fa';
+import { SUB_LEVEL_LABEL_PLURAL } from './roleLabels';
 
 /** Full sidebar menu (super_admin base). Specific items added in Sidebar by role. */
 export const ALL_MENU_ITEMS = [
     { path: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt },
     { path: '/all-users', label: 'All Players', icon: FaUserFriends },
     { path: '/bookie-management', label: 'SuperBookie Accounts', icon: FaUsers },
+    { path: '/bookie-management/all-bookies', label: `All ${SUB_LEVEL_LABEL_PLURAL}`, icon: FaUsersCog },
     { path: '/markets', label: 'Markets', icon: FaChartBar },
     {
         path: '/2d-management',
@@ -90,7 +93,14 @@ export function buildMenuForAdmin(admin) {
                 if (!parentAllowed && children.length === 0) return null;
                 return { ...item, children };
             }
-            return allowedTabs.includes(item.path) ? item : null;
+            if (allowedTabs.includes(item.path)) return item;
+            if (
+                item.path === '/bookie-management/all-bookies'
+                && allowedTabs.includes('/bookie-management')
+            ) {
+                return item;
+            }
+            return null;
         }).filter(Boolean);
     }
 

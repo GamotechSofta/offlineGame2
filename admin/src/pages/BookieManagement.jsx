@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEyeSlash, FaCopy, FaPercent, FaSearch, FaWallet, FaUsersCog, FaExternalLinkAlt } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { getAuthHeaders, clearAdminSession, fetchWithAuth, getStoredAdmin } from '../lib/auth';
-import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
+import {
+    TOP_LEVEL_LABEL,
+    TOP_LEVEL_LABEL_PLURAL,
+    SUB_LEVEL_LABEL,
+    SUB_LEVEL_LABEL_PLURAL,
+} from '../config/roleLabels';
+
+const PAGE_TABS = [
+    { id: 'superBookies', label: TOP_LEVEL_LABEL_PLURAL },
+    { id: 'allBookies', label: `All ${SUB_LEVEL_LABEL_PLURAL}` },
+];
 
 const BookieManagement = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const canManageBookies = getStoredAdmin()?.role === 'super_admin';
     const [bookies, setBookies] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -44,6 +55,9 @@ const BookieManagement = () => {
     const [secretPassword, setSecretPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [pendingBookie, setPendingBookie] = useState(null);
+    const [pageTab, setPageTab] = useState('superBookies');
+    const [allSubBookies, setAllSubBookies] = useState([]);
+    const [allSubBookiesLoading, setAllSubBookiesLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [manageData, setManageData] = useState({
@@ -68,24 +82,55 @@ const BookieManagement = () => {
         navigate(`/bookie-management/${bookieId}`);
     };
 
-    const filteredBookies = bookies.filter((b) => {
+    const parentSuperBookieName = (sb) => {
+        const p = sb?.parentBookieId;
+        if (!p) return '—';
+        if (typeof p === 'object') return p.username || '—';
+        const found = bookies.find((b) => String(b._id) === String(p));
+        return found?.username || '—';
+    };
+
+    const parentSuperBookieId = (sb) => {
+        const p = sb?.parentBookieId;
+        if (!p) return null;
+        return typeof p === 'object' ? p._id : p;
+    };
+
+    const matchesSearchAndStatus = (item, extraSearchFields = []) => {
         const q = searchTerm.trim().toLowerCase();
         const matchesSearch =
-            !q ||
-            String(b.username || '').toLowerCase().includes(q) ||
-            String(b.phone || '').toLowerCase().includes(q) ||
-            String(b.email || '').toLowerCase().includes(q);
-        const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
+            !q
+            || String(item.username || '').toLowerCase().includes(q)
+            || String(item.phone || '').toLowerCase().includes(q)
+            || String(item.email || '').toLowerCase().includes(q)
+            || extraSearchFields.some((v) => String(v || '').toLowerCase().includes(q));
+        const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
         return matchesSearch && matchesStatus;
-    });
+    };
 
-    const stats = {
+    const filteredBookies = bookies.filter((b) => matchesSearchAndStatus(b));
+
+    const filteredSubBookies = allSubBookies.filter((sb) =>
+        matchesSearchAndStatus(sb, [parentSuperBookieName(sb)]),
+    );
+
+    const superBookieStats = {
         total: bookies.length,
         active: bookies.filter((b) => b.status === 'active').length,
         suspended: bookies.filter((b) => b.status !== 'active').length,
         totalBalance: bookies.reduce((sum, b) => sum + (Number(b.balance) || 0), 0),
         totalCommission: bookies.reduce((sum, b) => sum + (Number(b.totalCommissionAmount) || 0), 0),
     };
+
+    const allBookieStats = {
+        total: allSubBookies.length,
+        active: allSubBookies.filter((b) => b.status === 'active').length,
+        suspended: allSubBookies.filter((b) => b.status !== 'active').length,
+        totalBalance: allSubBookies.reduce((sum, b) => sum + (Number(b.balance) || 0), 0),
+        totalPlayers: allSubBookies.reduce((sum, b) => sum + (Number(b.playerCount) || 0), 0),
+    };
+
+    const stats = pageTab === 'allBookies' ? allBookieStats : superBookieStats;
 
     // Fetch all bookies
     const fetchBookies = async (options = {}) => {
@@ -107,9 +152,49 @@ const BookieManagement = () => {
         }
     };
 
+    const fetchAllSubBookies = async (options = {}) => {
+        const isSilent = options.silent === true;
+        try {
+            if (!isSilent) setAllSubBookiesLoading(true);
+            const response = await fetchWithAuth(`${API_BASE_URL}/admin/super-bookies`);
+            if (response.status === 401) return;
+            const data = await response.json();
+            if (data.success) {
+                setAllSubBookies(data.data || []);
+            } else if (!isSilent) {
+                setError(data.message || `Failed to fetch ${SUB_LEVEL_LABEL_PLURAL.toLowerCase()}`);
+            }
+        } catch {
+            if (!isSilent) setError('Network error. Please check if the server is running.');
+        } finally {
+            if (!isSilent) setAllSubBookiesLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchBookies();
+        fetchAllSubBookies();
     }, []);
+
+    useEffect(() => {
+        if (location.pathname === '/bookie-management/all-bookies') {
+            setPageTab('allBookies');
+        } else if (location.pathname === '/bookie-management') {
+            setPageTab('superBookies');
+        }
+    }, [location.pathname]);
+
+    const openSubBookieCommission = (sb) => {
+        const parentId = parentSuperBookieId(sb);
+        if (parentId && sb._id) {
+            navigate(`/bookie-management/${parentId}/bookie/${sb._id}/commission`);
+        }
+    };
+
+    const openParentSuperBookie = (sb) => {
+        const parentId = parentSuperBookieId(sb);
+        if (parentId) openBookieDetail(parentId);
+    };
 
     useEffect(() => {
         fetchWithAuth(`${API_BASE_URL}/admin/me/secret-declare-password-status`)
@@ -449,7 +534,7 @@ const BookieManagement = () => {
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
                         <h1 className="text-2xl sm:text-3xl font-bold">{TOP_LEVEL_LABEL} Accounts Management</h1>
-                        {canManageBookies && (
+                        {canManageBookies && pageTab === 'superBookies' && (
                             <button
                                 onClick={() => {
                                     setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false, balance: '' });
@@ -462,6 +547,36 @@ const BookieManagement = () => {
                         )}
                     </div>
 
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {PAGE_TABS.map((tab) => {
+                            const isActive = pageTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setPageTab(tab.id);
+                                        setSearchTerm('');
+                                        setStatusFilter('all');
+                                        navigate(
+                                            tab.id === 'allBookies'
+                                                ? '/bookie-management/all-bookies'
+                                                : '/bookie-management',
+                                        );
+                                    }}
+                                    className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
+                                        isActive
+                                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                                            : 'bg-white text-gray-700 border-gray-200 hover:border-orange-300 hover:bg-orange-50'
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {pageTab === 'superBookies' ? (
                     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
                             <p className="text-xs text-gray-500">Total {TOP_LEVEL_LABEL_PLURAL}</p>
@@ -481,9 +596,33 @@ const BookieManagement = () => {
                         </div>
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
                             <p className="text-xs text-gray-500">Total Commission (All {TOP_LEVEL_LABEL_PLURAL})</p>
-                            <p className="text-xl font-bold text-orange-600">₹{stats.totalCommission.toLocaleString('en-IN')}</p>
+                            <p className="text-xl font-bold text-orange-600">₹{(stats.totalCommission ?? 0).toLocaleString('en-IN')}</p>
                         </div>
                     </div>
+                    ) : (
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+                        <div className="bg-white rounded-lg border border-indigo-200 p-3">
+                            <p className="text-xs text-gray-500">Total {SUB_LEVEL_LABEL_PLURAL}</p>
+                            <p className="text-xl font-bold text-indigo-800">{stats.total}</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Active</p>
+                            <p className="text-xl font-bold text-green-600">{stats.active}</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Suspended</p>
+                            <p className="text-xl font-bold text-red-500">{stats.suspended}</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Total {SUB_LEVEL_LABEL} Balance</p>
+                            <p className="text-xl font-bold text-[#1B3150]">₹{Math.floor(stats.totalBalance).toLocaleString('en-IN')}</p>
+                        </div>
+                        <div className="bg-white rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Total players (all {SUB_LEVEL_LABEL_PLURAL.toLowerCase()})</p>
+                            <p className="text-xl font-bold text-orange-600">{stats.totalPlayers}</p>
+                        </div>
+                    </div>
+                    )}
 
                     <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4 flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
@@ -492,7 +631,11 @@ const BookieManagement = () => {
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search by name, phone or email"
+                                placeholder={
+                                    pageTab === 'allBookies'
+                                        ? `Search ${SUB_LEVEL_LABEL.toLowerCase()}, phone, or ${TOP_LEVEL_LABEL.toLowerCase()} name`
+                                        : 'Search by name, phone or email'
+                                }
                                 className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm"
                             />
                         </div>
@@ -523,14 +666,24 @@ const BookieManagement = () => {
                         </div>
                     )}
 
-                    {/* Bookies List */}
+                    {/* Accounts list */}
                     <div className="bg-white rounded-lg overflow-hidden">
-                        {loading ? (
+                        {pageTab === 'superBookies' && loading ? (
                             <div className="p-8 text-center">
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
                                 <p className="mt-4 text-gray-400">Loading {TOP_LEVEL_LABEL_PLURAL.toLowerCase()}...</p>
                             </div>
-                        ) : filteredBookies.length === 0 ? (
+                        ) : pageTab === 'allBookies' && allSubBookiesLoading ? (
+                            <div className="p-8 text-center">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
+                                <p className="mt-4 text-gray-400">Loading {SUB_LEVEL_LABEL_PLURAL.toLowerCase()}...</p>
+                            </div>
+                        ) : pageTab === 'allBookies' && filteredSubBookies.length === 0 ? (
+                            <div className="p-8 text-center text-gray-400">
+                                <p>No matching {SUB_LEVEL_LABEL.toLowerCase()} accounts found.</p>
+                                <p className="mt-2">Try changing search or filter.</p>
+                            </div>
+                        ) : pageTab === 'superBookies' && filteredBookies.length === 0 ? (
                             <div className="p-8 text-center text-gray-400">
                                 <p>No matching {TOP_LEVEL_LABEL.toLowerCase()} accounts found.</p>
                                 <p className="mt-2">
@@ -538,6 +691,100 @@ const BookieManagement = () => {
                                         ? `Try changing search/filter or add a new ${TOP_LEVEL_LABEL.toLowerCase()}.`
                                         : 'Try changing search or filter.'}
                                 </p>
+                            </div>
+                        ) : pageTab === 'allBookies' ? (
+                            <div className="p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                {filteredSubBookies.map((sb, index) => {
+                                    const parentName = parentSuperBookieName(sb);
+                                    const parentId = parentSuperBookieId(sb);
+                                    return (
+                                        <div
+                                            key={sb._id}
+                                            className="rounded-xl border border-indigo-200 p-4 bg-white shadow-sm"
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="text-xs text-gray-500">#{index + 1}</span>
+                                                        {parentId ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openSubBookieCommission(sb)}
+                                                                className="font-semibold text-indigo-900 truncate text-left hover:text-orange-600 hover:underline"
+                                                            >
+                                                                {sb.username}
+                                                            </button>
+                                                        ) : (
+                                                            <p className="font-semibold text-indigo-900 truncate">{sb.username}</p>
+                                                        )}
+                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+                                                            {SUB_LEVEL_LABEL}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-600 mt-1">
+                                                        Under {TOP_LEVEL_LABEL}:{' '}
+                                                        {parentId ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openParentSuperBookie(sb)}
+                                                                className="font-semibold text-orange-600 hover:underline"
+                                                            >
+                                                                {parentName}
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-gray-500">{parentName}</span>
+                                                        )}
+                                                    </p>
+                                                    <p className="text-sm text-gray-500 mt-0.5 truncate">{sb.email || 'No email'}</p>
+                                                    <p className="text-sm text-gray-600">{sb.phone || '—'}</p>
+                                                </div>
+                                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                                                    sb.status === 'active'
+                                                        ? 'bg-green-100 text-green-700 border border-green-200'
+                                                        : 'bg-red-50 text-red-500 border border-red-200'
+                                                }`}>
+                                                    {sb.status === 'active' ? 'Active' : 'Suspended'}
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 mt-3">
+                                                <div className="rounded-lg bg-indigo-50/50 border border-indigo-100 p-2.5">
+                                                    <p className="text-[11px] text-gray-500">Commission</p>
+                                                    <p className="font-semibold text-orange-600 mt-0.5">{sb.commissionPercentage ?? 0}%</p>
+                                                </div>
+                                                <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
+                                                    <p className="text-[11px] text-gray-500">Balance</p>
+                                                    <p className="font-semibold text-green-600 mt-0.5">₹{Math.floor(Number(sb.balance ?? 0)).toLocaleString('en-IN')}</p>
+                                                </div>
+                                                <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5 col-span-2">
+                                                    <p className="text-[11px] text-gray-500">Players</p>
+                                                    <p className="font-semibold text-gray-800 mt-0.5">{sb.playerCount ?? 0}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                {parentId && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openSubBookieCommission(sb)}
+                                                        className="px-3 py-2 rounded-lg bg-orange-500 text-gray-800 text-xs font-semibold hover:bg-orange-400 inline-flex items-center gap-1.5"
+                                                    >
+                                                        View details <FaExternalLinkAlt className="w-3 h-3" />
+                                                    </button>
+                                                )}
+                                                {parentId && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openParentSuperBookie(sb)}
+                                                        className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-semibold hover:bg-indigo-100"
+                                                    >
+                                                        View {TOP_LEVEL_LABEL}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -655,12 +902,24 @@ const BookieManagement = () => {
 
                     {/* Info Card */}
                     <div className="mt-4 sm:mt-6 bg-white rounded-lg p-4 sm:p-6">
-                        <h3 className="text-base sm:text-lg font-semibold text-orange-500 mb-3">{TOP_LEVEL_LABEL} Login Information</h3>
-                        <div className="text-gray-600 space-y-2 text-sm sm:text-base">
-                            <p><strong>{TOP_LEVEL_LABEL} Panel URL:</strong> <code className="bg-gray-100 px-2 py-1 rounded">/bookie</code></p>
-                            <p><strong>Login:</strong> {TOP_LEVEL_LABEL_PLURAL} use their Phone number and the password you set.</p>
-                            <p><strong>Status:</strong> Suspended {TOP_LEVEL_LABEL_PLURAL.toLowerCase()} cannot login to the {TOP_LEVEL_LABEL.toLowerCase()} panel.</p>
-                        </div>
+                        {pageTab === 'superBookies' ? (
+                            <>
+                                <h3 className="text-base sm:text-lg font-semibold text-orange-500 mb-3">{TOP_LEVEL_LABEL} Login Information</h3>
+                                <div className="text-gray-600 space-y-2 text-sm sm:text-base">
+                                    <p><strong>{TOP_LEVEL_LABEL} Panel URL:</strong> <code className="bg-gray-100 px-2 py-1 rounded">/bookie</code></p>
+                                    <p><strong>Login:</strong> {TOP_LEVEL_LABEL_PLURAL} use their Phone number and the password you set.</p>
+                                    <p><strong>Status:</strong> Suspended {TOP_LEVEL_LABEL_PLURAL.toLowerCase()} cannot login to the {TOP_LEVEL_LABEL.toLowerCase()} panel.</p>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <h3 className="text-base sm:text-lg font-semibold text-indigo-700 mb-3">All {SUB_LEVEL_LABEL_PLURAL}</h3>
+                                <p className="text-gray-600 text-sm sm:text-base">
+                                    Each {SUB_LEVEL_LABEL.toLowerCase()} belongs to one {TOP_LEVEL_LABEL.toLowerCase()}.
+                                    Click a {SUB_LEVEL_LABEL.toLowerCase()} name or <strong>View details</strong> for player revenue and commission, or <strong>View {TOP_LEVEL_LABEL}</strong> for the parent account overview.
+                                </p>
+                            </>
+                        )}
                     </div>
 
             {/* Create Modal */}

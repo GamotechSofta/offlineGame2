@@ -93,6 +93,18 @@ const Sidebar = ({
 
         }
 
+        if (path === '/bookie-management') {
+
+            return location.pathname === '/bookie-management';
+
+        }
+
+        if (path === '/bookie-management/all-bookies') {
+
+            return location.pathname === '/bookie-management/all-bookies';
+
+        }
+
         return location.pathname === path;
 
     };

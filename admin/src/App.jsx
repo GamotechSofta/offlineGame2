@@ -267,6 +267,14 @@ const App = () => {
                     }
                 />
                 <Route
+                    path="/bookie-management/all-bookies"
+                    element={
+                        <PrivateRoute>
+                            <BookieManagement />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
                     path="/bookie-management/:bookieId"
                     element={
                         <PrivateRoute>
