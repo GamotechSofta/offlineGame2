@@ -25,6 +25,7 @@ import Shortcuts from './pages/Shortcuts';
 import Receipt from './pages/Receipt';
 import Settings from './pages/Settings';
 import SuperBookieManagement from './pages/SuperBookieManagement';
+import SuperBookieChildDashboard from './pages/SuperBookieChildDashboard';
 import BookieWalletTransactions from './pages/BookieWalletTransactions';
 import { BetLayoutProvider } from './context/BetLayoutContext';
 
@@ -82,6 +83,7 @@ const AppRoutes = () => (
         <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
         <Route path="/super-bookies" element={<PrivateRoute><SuperBookieManagement /></PrivateRoute>} />
+        <Route path="/super-bookies/:superBookieId" element={<PrivateRoute><SuperBookieChildDashboard /></PrivateRoute>} />
         <Route path="/bet-history" element={<PrivateRoute><BetHistory /></PrivateRoute>} />
         <Route path="/top-winners" element={<PrivateRoute><TopWinners /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />

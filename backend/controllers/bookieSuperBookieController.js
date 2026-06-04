@@ -1,10 +1,20 @@
 import Admin from '../models/admin/admin.js';
 import User from '../models/user/user.js';
+import CommissionPayment from '../models/commission/commissionPayment.js';
+import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
+import { Wallet } from '../models/wallet/wallet.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { PHONE_REGEX } from './superBookieController.js';
 import { canAccessBookieManagement } from '../utils/adminTabAccess.js';
-import { getCommissionSummaryForAccount } from '../utils/commissionMetrics.js';
+import {
+    getCommissionSummaryForAccount,
+    getCommissionDashboardForAccount,
+    getPerPlayerCommissionRows,
+    getCommissionPaymentKind,
+} from '../utils/commissionMetrics.js';
+import { getPanelRevenueKpisForAdmin } from '../utils/panelRevenueDashboard.js';
+import { getBookieWalletTxLabel } from '../utils/bookieWalletLedger.js';
 import { notifyBookiePanelBalance, notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
 import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
 import {
@@ -512,5 +522,154 @@ export const adjustSuperBookieBalance = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const findOwnedSuperBookie = async (parentBookieId, superBookieId, select = '_id username') => {
+    return Admin.findOne({
+        _id: superBookieId,
+        parentBookieId,
+        role: 'super_bookie',
+    })
+        .select(select)
+        .lean();
+};
+
+/** Parent bookie: all players under a child super_bookie (same shape as admin players API) */
+export const getSuperBookiePlayersForParent = async (req, res) => {
+    try {
+        if (!assertParentBookie(req, res)) return;
+
+        const { id: superBookieId } = req.params;
+        const superBookie = await findOwnedSuperBookie(req.admin._id, superBookieId, '_id username');
+        if (!superBookie) {
+            return res.status(404).json({ success: false, message: 'Sub-account not found' });
+        }
+
+        const players = await User.find({ referredBy: superBookieId })
+            .select('username phone email isActive createdAt lastActiveAt')
+            .sort({ createdAt: -1 })
+            .limit(500)
+            .lean();
+
+        let playersWithWallet = players;
+        if (players.length > 0) {
+            const userIds = players.map((p) => p._id);
+            const wallets = await Wallet.find({ userId: { $in: userIds } }).select('userId balance').lean();
+            const walletMap = Object.fromEntries(wallets.map((w) => [String(w.userId), w.balance ?? 0]));
+            playersWithWallet = players.map((p) => ({
+                ...p,
+                walletBalance: walletMap[String(p._id)] ?? 0,
+            }));
+        }
+
+        return res.status(200).json({ success: true, data: playersWithWallet });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/** Parent bookie: commission + revenue dashboard for a child super_bookie */
+export const getSuperBookieCommissionDashboardForParent = async (req, res) => {
+    try {
+        if (!assertParentBookie(req, res)) return;
+
+        const { id: superBookieId } = req.params;
+        const { startDate, endDate } = req.query;
+
+        const parentBookie = await Admin.findById(req.admin._id)
+            .select('_id username')
+            .lean();
+        if (!parentBookie) {
+            return res.status(404).json({ success: false, message: 'Bookie not found' });
+        }
+
+        const superBookie = await findOwnedSuperBookie(
+            req.admin._id,
+            superBookieId,
+            '_id username phone email status balance commissionPercentage role createdAt',
+        );
+        if (!superBookie) {
+            return res.status(404).json({ success: false, message: 'Sub-account not found' });
+        }
+
+        const [summary, dashboard, players, payments, walletTxs, revenueKpis] = await Promise.all([
+            getCommissionSummaryForAccount(superBookie),
+            getCommissionDashboardForAccount(superBookie, { startDate, endDate }),
+            getPerPlayerCommissionRows(superBookie, { startDate, endDate }),
+            CommissionPayment.find({ bookieId: superBookieId })
+                .sort({ createdAt: -1 })
+                .limit(50)
+                .lean(),
+            BookieWalletTransaction.find({ adminId: superBookieId })
+                .sort({ createdAt: -1, _id: -1 })
+                .limit(100)
+                .lean(),
+            getPanelRevenueKpisForAdmin(superBookie, { startDate, endDate }),
+        ]);
+
+        const settledCommission =
+            summary.displaySettled
+            ?? (Number(summary.advanceRecovered || 0) + Number(summary.totalPaid || 0));
+        const pendingCommission =
+            summary.displayPending
+            ?? (Number(summary.recoveryPendingFromBets || 0) + Number(summary.totalPending || 0));
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                parentBookie: {
+                    _id: parentBookie._id,
+                    username: parentBookie.username,
+                },
+                superBookie: {
+                    _id: superBookie._id,
+                    username: superBookie.username,
+                    phone: superBookie.phone || '',
+                    status: superBookie.status,
+                    balance: superBookie.balance ?? 0,
+                    commissionPercentage: superBookie.commissionPercentage ?? 0,
+                    createdAt: superBookie.createdAt,
+                },
+                revenueKpis,
+                topDashboard: {
+                    totalRevenue: revenueKpis.totalBetAmount ?? summary.totalBetAmount ?? 0,
+                    walletBalance: superBookie.balance ?? 0,
+                    commissionSettled: settledCommission,
+                    commissionPending: pendingCommission,
+                    totalPlayers: summary.playerCount ?? 0,
+                    totalCommission: summary.totalCommission ?? 0,
+                    betCount: summary.betCount ?? 0,
+                    paymentStatus: summary.paymentStatus,
+                },
+                summary,
+                dashboard,
+                players,
+                payments: payments.map((p) => ({
+                    _id: p._id,
+                    amount: p.amount,
+                    notes: p.notes,
+                    paymentType: p.paymentType || getCommissionPaymentKind(p),
+                    createdAt: p.createdAt,
+                })),
+                walletTransactions: walletTxs.map((tx) => ({
+                    _id: tx._id,
+                    type: tx.type,
+                    label: getBookieWalletTxLabel(tx.type),
+                    direction: tx.direction,
+                    amount: tx.amount,
+                    balanceAfter: tx.balanceAfter,
+                    description: tx.description,
+                    createdAt: tx.createdAt,
+                })),
+                dateRange: {
+                    startDate: revenueKpis.dateFrom ?? startDate ?? null,
+                    endDate: revenueKpis.dateTo ?? endDate ?? null,
+                    periodLabel: revenueKpis.periodLabel ?? 'Today',
+                },
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
     }
 };

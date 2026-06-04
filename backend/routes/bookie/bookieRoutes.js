@@ -7,6 +7,8 @@ import {
     toggleSuperBookieStatus,
     adjustSuperBookieBalance,
     deleteSuperBookie,
+    getSuperBookiePlayersForParent,
+    getSuperBookieCommissionDashboardForParent,
 } from '../../controllers/bookieSuperBookieController.js';
 import { verifyAdmin, requireBookie } from '../../middleware/adminAuth.js';
 import { listMyBookieWalletTransactions } from '../../controllers/bookieWalletTransactionController.js';
@@ -21,6 +23,13 @@ router.get('/wallet-transactions', verifyAdmin, requireBookie, listMyBookieWalle
 router.patch('/theme', verifyAdmin, requireBookie, updateTheme);
 
 router.get('/super-bookies', verifyAdmin, requireBookie, listSuperBookies);
+router.get('/super-bookies/:id/players', verifyAdmin, requireBookie, getSuperBookiePlayersForParent);
+router.get(
+    '/super-bookies/:id/commission-dashboard',
+    verifyAdmin,
+    requireBookie,
+    getSuperBookieCommissionDashboardForParent,
+);
 router.post('/super-bookies', verifyAdmin, requireBookie, createSuperBookie);
 router.put('/super-bookies/:id', verifyAdmin, requireBookie, updateSuperBookie);
 router.patch('/super-bookies/:id/toggle-status', verifyAdmin, requireBookie, toggleSuperBookieStatus);

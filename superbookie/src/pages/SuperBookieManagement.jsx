@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes, FaEye, FaEyeSlash, FaUsersCog, FaWallet, FaCog, FaTrash } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +26,7 @@ const Modal = ({ open, onClose, title, children }) => {
 };
 
 const SuperBookieManagement = () => {
+    const navigate = useNavigate();
     const { bookie, updateBookie } = useAuth();
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -609,8 +610,23 @@ const SuperBookieManagement = () => {
                                     </tr>
                                 ) : (
                                     filtered.map((sb) => (
-                                        <tr key={sb._id} className="border-t">
-                                            <td className="p-3 font-medium">{sb.username}</td>
+                                        <tr
+                                            key={sb._id}
+                                            className="border-t cursor-pointer hover:bg-emerald-50/40"
+                                            onClick={() => navigate(`/super-bookies/${sb._id}`)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    navigate(`/super-bookies/${sb._id}`);
+                                                }
+                                            }}
+                                            role="button"
+                                            tabIndex={0}
+                                            title={`View all players for ${sb.username}`}
+                                        >
+                                            <td className="p-3 font-medium text-emerald-700 hover:underline">
+                                                {sb.username}
+                                            </td>
                                             <td className="p-3">{sb.phone}</td>
                                             <td className="p-3">₹{Number(sb.balance || 0).toLocaleString('en-IN')}</td>
                                             <td className="p-3 text-orange-600 font-medium">{sb.commissionPercentage ?? 0}%</td>
@@ -623,7 +639,10 @@ const SuperBookieManagement = () => {
                                                     {sb.canManagePayments ? 'Enabled' : 'Disabled'}
                                                 </span>
                                             </td>
-                                            <td className="p-3">{sb.playerCount ?? 0}</td>
+                                            <td className="p-3 text-emerald-700 font-medium">
+                                                {sb.playerCount ?? 0}
+                                                <span className="text-[10px] text-gray-400 block">View players →</span>
+                                            </td>
                                             <td className="p-3">
                                                 <span
                                                     className={`px-2 py-0.5 rounded-full text-xs ${
@@ -635,8 +654,16 @@ const SuperBookieManagement = () => {
                                                     {sb.status}
                                                 </span>
                                             </td>
-                                            <td className="p-3">
+                                            <td className="p-3" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex gap-2 flex-wrap">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigate(`/super-bookies/${sb._id}`)}
+                                                        className="px-2 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold"
+                                                        title="View players & dashboard"
+                                                    >
+                                                        <FaEye className="inline mr-1" /> View
+                                                    </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => openManageModal(sb)}
