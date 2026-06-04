@@ -234,9 +234,10 @@ const BookieWalletTransactions = () => {
             setSummaries(json.summaries || null);
             if (json.operatorRole) setOperatorRole(json.operatorRole);
             setPagination(json.pagination || { totalPages: 1, hasNextPage: false, hasPrevPage: false });
-            const walletBal = json.walletBalance ?? json.cashBalance ?? json.currentBalance;
-            if (walletBal != null) {
-                updateBookie({ balance: Number(walletBal) });
+            const displayBal =
+                json.grandTotalSummary ?? json.summaries?.grandTotal?.received ?? json.walletBalance;
+            if (displayBal != null) {
+                updateBookie({ balance: Number(displayBal) });
             }
             dispatchWalletSummaryRefresh();
         } catch (e) {

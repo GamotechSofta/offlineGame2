@@ -306,27 +306,26 @@ export const listMyBookieWalletTransactions = async (req, res) => {
                 ),
             };
         } else {
+            const superGrandTotal = round2(
+                (summaries.from_bookie.remainingFromBookie || 0)
+                + (summaries.from_player.netTotal || 0),
+            );
             summaries.grandTotal = {
-                bookieReceived: summaries.from_bookie.received || 0,
+                bookieRemaining: summaries.from_bookie.remainingFromBookie || 0,
                 playerDeposits: summaries.from_player.received || 0,
                 playerWithdrawals: summaries.from_player.withdrawn || 0,
+                playerNet: summaries.from_player.netTotal || 0,
                 commissionSettled: settledTotal,
-                received:
-                    (summaries.from_bookie.received || 0)
-                    + (summaries.from_player.netTotal || 0)
-                    - settledTotal,
+                received: superGrandTotal,
             };
         }
 
-        let openingGap = summaries.from_bookie.openingBalance || 0;
-        if (fresh?.role === 'bookie') {
-            let ledgerRunning = 0;
-            for (const tx of allLedgerTxs) {
-                ledgerRunning += getGrandTotalDelta(tx);
-            }
-            ledgerRunning = round2(ledgerRunning);
-            openingGap = round2(summaries.grandTotal.received - ledgerRunning);
+        let ledgerRunning = 0;
+        for (const tx of allLedgerTxs) {
+            ledgerRunning += getGrandTotalDelta(tx);
         }
+        ledgerRunning = round2(ledgerRunning);
+        const openingGap = round2(summaries.grandTotal.received - ledgerRunning);
         const grandTotalAfterByTxId = buildGrandTotalAfterByTxId(allLedgerTxs, openingGap);
         const grandTotalNow = summaries.grandTotal.received;
 

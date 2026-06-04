@@ -1,6 +1,7 @@
 import Admin from '../models/admin/admin.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signAdminToken } from '../utils/adminJwt.js';
+import { getBookiePanelGrandTotal } from '../utils/bookiePanelGrandTotal.js';
 
 const PHONE_REGEX = /^[6-9]\d{9}$/;
 
@@ -99,6 +100,7 @@ export const superBookieLogin = async (req, res) => {
         });
 
         const token = signAdminToken(superBookie);
+        const displayBalance = await getBookiePanelGrandTotal(superBookie._id);
         res.status(200).json({
             success: true,
             message: 'Login successful',
@@ -108,7 +110,8 @@ export const superBookieLogin = async (req, res) => {
                 role: superBookie.role,
                 email: superBookie.email,
                 phone: superBookie.phone,
-                balance: superBookie.balance || 0,
+                balance: displayBalance,
+                cashBalance: superBookie.balance || 0,
                 canManagePayments: superBookie.canManagePayments || false,
                 parentBookieId: superBookie.parentBookieId,
                 token,

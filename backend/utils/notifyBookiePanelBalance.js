@@ -1,5 +1,6 @@
 import Admin from '../models/admin/admin.js';
 import { emitBookiePanelBalanceUpdate } from '../socket/bookiePanelSocketBridge.js';
+import { getBookiePanelGrandTotal } from './bookiePanelGrandTotal.js';
 
 /**
  * Notify connected bookie / super bookie panel of latest wallet balance.
@@ -11,24 +12,21 @@ export async function notifyBookiePanelBalance(adminId, reason = 'balance_change
     if (!adminId) return;
     const id = String(adminId);
 
-    if (balanceOverride !== undefined && balanceOverride !== null) {
-        const balanceNum = Number(balanceOverride);
-        if (!Number.isFinite(balanceNum)) return;
-        const row = await Admin.findById(id).select('role').lean();
-        emitBookiePanelBalanceUpdate({
-            adminId: id,
-            balance: balanceNum,
-            role: row?.role,
-            reason,
-        });
-        return;
-    }
-
     const row = await Admin.findById(id).select('balance role').lean();
     if (!row) return;
+
+    let balanceNum = Number(balanceOverride ?? row.balance ?? 0);
+    if (!Number.isFinite(balanceNum)) return;
+
+    if (row.role === 'bookie' || row.role === 'super_bookie') {
+        balanceNum = await getBookiePanelGrandTotal(id);
+    } else if (balanceOverride === undefined || balanceOverride === null) {
+        balanceNum = Number(row.balance || 0);
+    }
+
     emitBookiePanelBalanceUpdate({
         adminId: id,
-        balance: Number(row.balance || 0),
+        balance: balanceNum,
         role: row.role,
         reason,
     });
