@@ -8,6 +8,7 @@ import {
     getBookieById,
     getBookieManagementDetail,
     getSuperBookiePlayersUnderBookie,
+    getAdminSuperBookieCommissionDashboard,
     updateBookie,
     deleteBookie,
     toggleBookieStatus,
@@ -148,6 +149,11 @@ router.get('/logs', verifyAdmin, getLogs); // Get activity logs
 router.post('/bookies', verifyAdmin, createBookie); // Create new bookie
 router.get('/bookies', verifyAdmin, getAllBookies); // Get all bookies
 router.get('/bookies/:id/super-bookies/:superBookieId/players', verifyAdmin, getSuperBookiePlayersUnderBookie);
+router.get(
+    '/bookies/:id/super-bookies/:superBookieId/commission-dashboard',
+    verifyAdmin,
+    getAdminSuperBookieCommissionDashboard,
+);
 router.get('/bookies/:id/detail', verifyAdmin, getBookieManagementDetail); // Full detail for management UI
 router.get('/bookies/:id', verifyAdmin, getBookieById); // Get single bookie
 router.put('/bookies/:id', verifyAdmin, updateBookie); // Update bookie

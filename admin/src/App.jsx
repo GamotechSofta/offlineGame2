@@ -19,6 +19,7 @@ const HelpDesk = lazy(() => import('./pages/HelpDesk'));
 const Logs = lazy(() => import('./pages/Logs'));
 const BookieManagement = lazy(() => import('./pages/BookieManagement'));
 const BookieManagementDetail = lazy(() => import('./pages/BookieManagementDetail'));
+const SuperBookieCommissionDashboard = lazy(() => import('./pages/SuperBookieCommissionDashboard'));
 const AllUsers = lazy(() => import('./pages/AllUsers'));
 const PlayerDetail = lazy(() => import('./pages/PlayerDetail'));
 import PlayerDevices from './pages/PlayerDevices';
@@ -257,6 +258,14 @@ const App = () => {
                 />
                 <Route path="/suspend-player" element={<Navigate to="/all-users" replace />} />
                 <Route path="/suspend-bookie" element={<Navigate to="/bookie-management" replace />} />
+                <Route
+                    path="/bookie-management/:bookieId/bookie/:superBookieId/commission"
+                    element={
+                        <PrivateRoute>
+                            <SuperBookieCommissionDashboard />
+                        </PrivateRoute>
+                    }
+                />
                 <Route
                     path="/bookie-management/:bookieId"
                     element={

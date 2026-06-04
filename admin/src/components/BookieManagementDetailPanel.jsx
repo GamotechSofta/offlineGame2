@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaSpinner, FaUsers, FaPercent, FaWallet, FaChartLine } from 'react-icons/fa';
 import { TOP_LEVEL_LABEL, SUB_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
 import { fetchWithAuth } from '../lib/auth';
@@ -76,6 +76,7 @@ const BookieManagementDetailPanel = ({
     fullPage = false,
     bookieId,
 }) => {
+    const navigate = useNavigate();
     const wrapClass = fullPage ? 'space-y-4' : 'mt-4 pt-4 border-t border-gray-200 space-y-4';
     const [expandedSuperBookieId, setExpandedSuperBookieId] = useState(null);
     const [playersBySb, setPlayersBySb] = useState({});
@@ -252,12 +253,34 @@ const BookieManagementDetailPanel = ({
                             const isExpanded = expandedSuperBookieId === sbId;
                             return (
                                 <div key={sbId}>
-                                    <div className="px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 text-sm">
+                                    <div
+                                        className="px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 text-sm cursor-pointer hover:bg-indigo-50/50 transition-colors"
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => {
+                                            if (resolvedBookieId) {
+                                                navigate(
+                                                    `/bookie-management/${resolvedBookieId}/bookie/${sbId}/commission`,
+                                                );
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                if (resolvedBookieId) {
+                                                    navigate(
+                                                        `/bookie-management/${resolvedBookieId}/bookie/${sbId}/commission`,
+                                                    );
+                                                }
+                                            }
+                                        }}
+                                    >
                                         <div>
-                                            <p className="font-medium text-gray-800">{sb.username}</p>
+                                            <p className="font-medium text-indigo-800 hover:underline">{sb.username}</p>
                                             <p className="text-xs text-gray-500">{sb.phone || '—'} · {sb.status}</p>
+                                            <p className="text-[10px] text-indigo-600 mt-0.5">Open player commission dashboard →</p>
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex flex-wrap gap-3 text-xs text-gray-600">
                                                 <span><strong>{sb.commissionPercentage ?? 0}%</strong> comm.</span>
                                                 <span>{sb.playerCount ?? 0} players</span>

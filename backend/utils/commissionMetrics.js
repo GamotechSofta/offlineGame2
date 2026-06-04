@@ -1,5 +1,6 @@
 import Bet from '../models/bet/bet.js';
 import QuizBet from '../models/quiz/QuizBet.js';
+import User from '../models/user/user.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
 import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
 import { getBookieUserIds, getCommissionOperatorIds } from './bookieFilter.js';
@@ -325,6 +326,93 @@ export async function getCommissionSummaryForAccount(admin) {
                     ? 'partial'
                     : 'pending',
     };
+}
+
+/**
+ * Per-player bet volume and commission share for a bookie / super bookie account.
+ */
+export async function getPerPlayerCommissionRows(admin, { startDate, endDate } = {}) {
+    const userIds = (await getBookieUserIds(admin)) || [];
+    const commissionPercentage = Number(admin.commissionPercentage || 0);
+    if (!userIds.length) return [];
+
+    const dateFilter = buildCommissionDateFilter(startDate, endDate);
+    const userIdFilter = { userId: { $in: userIds } };
+
+    const [matkaByUser, quizByUser, users] = await Promise.all([
+        Bet.aggregate([
+            {
+                $match: {
+                    ...dateFilter,
+                    ...commissionMatkaMatch,
+                    ...userIdFilter,
+                },
+            },
+            {
+                $group: {
+                    _id: '$userId',
+                    betAmount: { $sum: '$amount' },
+                    betCount: { $sum: 1 },
+                },
+            },
+        ]),
+        QuizBet.aggregate([
+            {
+                $match: {
+                    ...dateFilter,
+                    status: { $ne: 'cancelled' },
+                    ...userIdFilter,
+                },
+            },
+            {
+                $group: {
+                    _id: '$userId',
+                    betAmount: { $sum: '$amount' },
+                    betCount: { $sum: 1 },
+                },
+            },
+        ]),
+        User.find({ _id: { $in: userIds } })
+            .select('username phone isActive createdAt')
+            .lean(),
+    ]);
+
+    const byUser = new Map();
+    const mergeAgg = (rows) => {
+        for (const row of rows) {
+            const id = String(row._id);
+            const prev = byUser.get(id) || { betAmount: 0, betCount: 0 };
+            byUser.set(id, {
+                betAmount: round2(prev.betAmount + Number(row.betAmount || 0)),
+                betCount: prev.betCount + Number(row.betCount || 0),
+            });
+        }
+    };
+    mergeAgg(matkaByUser);
+    mergeAgg(quizByUser);
+
+    const userMap = Object.fromEntries(users.map((u) => [String(u._id), u]));
+
+    const rows = userIds.map((uid) => {
+        const id = String(uid);
+        const metrics = byUser.get(id) || { betAmount: 0, betCount: 0 };
+        const betAmount = metrics.betAmount;
+        const commissionAmount = round2((betAmount * commissionPercentage) / 100);
+        const user = userMap[id];
+        return {
+            playerId: uid,
+            username: user?.username || 'Unknown',
+            phone: user?.phone || '',
+            isActive: user?.isActive !== false,
+            betCount: metrics.betCount,
+            totalBetAmount: betAmount,
+            commissionPercentage,
+            commissionAmount,
+        };
+    });
+
+    rows.sort((a, b) => b.commissionAmount - a.commissionAmount || b.totalBetAmount - a.totalBetAmount);
+    return rows;
 }
 
 /**
