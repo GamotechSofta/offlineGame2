@@ -100,11 +100,13 @@ const TxTable = ({ rows, t }) => (
 );
 
 const FromBookieSummaryCard = ({ summary, accent, t, role }) => {
-    const received = Number(summary?.received ?? 0);
-    const advance = Number(summary?.advanceFromBookie ?? received);
+    const advance = Number(summary?.advanceFromBookie ?? summary?.received ?? 0);
     const settled = Number(summary?.commissionSettledDeducted ?? 0);
     const remaining = Number(summary?.remainingFromBookie ?? Math.max(0, advance - settled));
     const isParentBookie = role === 'bookie';
+    const advanceLabel = isParentBookie
+        ? t('walletTxSuperBookieAdvanceGiven')
+        : t('walletTxAdvanceFromBookie');
 
     return (
         <div className={`rounded-xl border p-4 ${accent}`}>
@@ -114,26 +116,25 @@ const FromBookieSummaryCard = ({ summary, accent, t, role }) => {
                     {t('walletTxFromBookieSummary')}
                 </h3>
             </div>
-            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(received)}</p>
-            <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-violet-100 pt-2">
-                <div className="flex justify-between gap-2">
-                    <span>
-                        {isParentBookie ? t('walletTxSuperBookieAdvanceGiven') : t('walletTxAdvanceFromBookie')}
-                    </span>
-                    <span className="font-semibold text-violet-800">{formatCurrency(advance)}</span>
-                </div>
-                {settled > 0 && (
+            <p className="text-xs text-gray-600">{t('walletTxRemainingFromBookie')}</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(remaining)}</p>
+            {settled > 0 && (
+                <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-violet-100 pt-2">
+                    <div className="flex justify-between gap-2">
+                        <span>{advanceLabel}</span>
+                        <span className="font-semibold text-violet-800">{formatCurrency(advance)}</span>
+                    </div>
                     <div className="flex justify-between gap-2 text-amber-800">
                         <span>{t('walletTxCommissionSettledDeduct')}</span>
                         <span className="font-semibold">−{formatCurrency(settled)}</span>
                     </div>
-                )}
-                <div className="flex justify-between gap-2 pt-1 border-t border-violet-50">
-                    <span className="font-medium text-gray-700">{t('walletTxRemainingFromBookie')}</span>
-                    <span className="font-bold text-green-700">{formatCurrency(remaining)}</span>
+                    <div className="flex justify-between gap-2 pt-1 border-t border-violet-50">
+                        <span className="font-medium text-gray-700">{t('walletTxRemainingFromBookie')}</span>
+                        <span className="font-bold text-green-700">{formatCurrency(remaining)}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 pt-0.5">{t('walletTxCommissionDeductNote')}</p>
                 </div>
-                <p className="text-[10px] text-gray-400 pt-0.5">{t('walletTxCommissionDeductNote')}</p>
-            </div>
+            )}
         </div>
     );
 };
@@ -151,8 +152,8 @@ const PlayerFundsSummaryCard = ({ summary, accent, t }) => {
                     {t('walletTxFromPlayerSummary')}
                 </h3>
             </div>
-            <p className="text-xs text-gray-600">{t('walletTxPlayerAddFund')}</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(deposits)}</p>
+            <p className="text-xs text-gray-600">{t('walletTxPlayerNet')}</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(net)}</p>
             {withdrawn > 0 && (
                 <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-emerald-100 pt-2">
                     <div className="flex justify-between gap-2">
