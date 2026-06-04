@@ -138,6 +138,44 @@ const FromBookieSummaryCard = ({ summary, accent, t, role }) => {
     );
 };
 
+const PlayerFundsSummaryCard = ({ summary, accent, t }) => {
+    const deposits = Number(summary?.deposits ?? 0);
+    const withdrawn = Number(summary?.withdrawn ?? 0);
+    const net = Number(summary?.net ?? deposits - withdrawn);
+
+    return (
+        <div className={`rounded-xl border p-4 ${accent}`}>
+            <div className="flex items-center gap-2 mb-2">
+                <FaUsers className="w-5 h-5 shrink-0 text-emerald-600" />
+                <h3 className="font-semibold text-xs sm:text-sm text-gray-800 leading-tight">
+                    {t('walletTxFromPlayerSummary')}
+                </h3>
+            </div>
+            <p className="text-xs text-gray-600">{t('walletTxPlayerAddFund')}</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(deposits)}</p>
+            {withdrawn > 0 && (
+                <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-emerald-100 pt-2">
+                    <div className="flex justify-between gap-2">
+                        <span>{t('walletTxPlayerAddFund')}</span>
+                        <span className="font-semibold text-emerald-800">{formatCurrency(deposits)}</span>
+                    </div>
+                    <div className="flex justify-between gap-2 text-red-700">
+                        <span>{t('walletTxPlayerWithdrawalsLine')}</span>
+                        <span className="font-semibold">−{formatCurrency(withdrawn)}</span>
+                    </div>
+                    <div className="flex justify-between gap-2 pt-1 border-t border-emerald-50">
+                        <span className="font-medium text-gray-700">{t('walletTxPlayerNet')}</span>
+                        <span className="font-bold text-emerald-800">{formatCurrency(net)}</span>
+                    </div>
+                </div>
+            )}
+            {(summary?.depositCount ?? 0) > 0 && (
+                <p className="text-[10px] text-gray-400 mt-1">{summary.depositCount} deposit tx</p>
+            )}
+        </div>
+    );
+};
+
 const SummaryCard = ({ icon: Icon, title, summary, accent, showOpening, variant, footerNote, t }) => {
     const opening = Number(summary?.openingBalance ?? 0);
     const amount = Number(summary?.received ?? summary?.credit ?? summary?.withdrawn ?? 0);
@@ -224,11 +262,13 @@ const BookieWalletTransactions = () => {
               ? t('walletTxEmptyPlayer')
               : t('walletTxEmpty');
 
-    const playerDepositsSummary = summaries?.from_player
-        ? { received: summaries.from_player.received ?? 0, count: summaries.from_player.depositCount }
-        : null;
-    const playerWithdrawalsSummary = summaries?.from_player
-        ? { withdrawn: summaries.from_player.withdrawn ?? 0, count: summaries.from_player.withdrawalCount }
+    const playerFundsSummary = summaries?.from_player
+        ? {
+              deposits: summaries.from_player.received ?? 0,
+              withdrawn: summaries.from_player.withdrawn ?? 0,
+              net: summaries.from_player.netTotal ?? 0,
+              depositCount: summaries.from_player.depositCount,
+          }
         : null;
     const grandSummary = summaries?.grandTotal
         ? { received: summaries.grandTotal.received ?? 0 }
@@ -254,26 +294,16 @@ const BookieWalletTransactions = () => {
                 </div>
 
                 {summaries && grandSummary && (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                         <FromBookieSummaryCard
                             summary={summaries.from_bookie}
                             accent="border-violet-200 bg-violet-50/80"
                             t={t}
                             role={operatorRole}
                         />
-                        <SummaryCard
-                            icon={FaUsers}
-                            title={t('walletTxFromPlayerSummary')}
-                            summary={playerDepositsSummary}
+                        <PlayerFundsSummaryCard
+                            summary={playerFundsSummary}
                             accent="border-emerald-200 bg-emerald-50/80"
-                            t={t}
-                        />
-                        <SummaryCard
-                            icon={FaArrowDown}
-                            title={t('walletTxPlayerWithdrawalsSummary')}
-                            summary={playerWithdrawalsSummary}
-                            accent="border-red-200 bg-red-50/80"
-                            variant="debit"
                             t={t}
                         />
                         <SummaryCard

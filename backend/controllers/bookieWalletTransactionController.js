@@ -204,6 +204,14 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             }
             advanceFromBookie = Math.round(advanceToSuperBookie * 100) / 100;
             commissionSettledDeducted = Math.round(commissionPaidToSuperBookie * 100) / 100;
+        } else if (fresh?.role === 'super_bookie') {
+            let settledFromBookie = 0;
+            for (const row of summaryAgg) {
+                if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(row._id)) {
+                    settledFromBookie += row.credit || 0;
+                }
+            }
+            commissionSettledDeducted = Math.round(settledFromBookie * 100) / 100;
         }
 
         summaries.from_bookie.advanceFromBookie = advanceFromBookie;
