@@ -89,6 +89,45 @@ const TxTable = ({ rows, t }) => (
     </>
 );
 
+const FromBookieSummaryCard = ({ summary, accent, t, role }) => {
+    const received = Number(summary?.received ?? 0);
+    const advance = Number(summary?.advanceFromBookie ?? received);
+    const settled = Number(summary?.commissionSettledDeducted ?? 0);
+    const remaining = Number(summary?.remainingFromBookie ?? Math.max(0, advance - settled));
+    const isParentBookie = role === 'bookie';
+
+    return (
+        <div className={`rounded-xl border p-4 ${accent}`}>
+            <div className="flex items-center gap-2 mb-2">
+                <FaMoneyBillWave className="w-5 h-5 shrink-0 text-violet-600" />
+                <h3 className="font-semibold text-xs sm:text-sm text-gray-800 leading-tight">
+                    {t('walletTxFromBookieSummary')}
+                </h3>
+            </div>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(received)}</p>
+            <div className="text-xs text-gray-600 mt-2 space-y-1 border-t border-violet-100 pt-2">
+                <div className="flex justify-between gap-2">
+                    <span>
+                        {isParentBookie ? t('walletTxSuperBookieAdvanceGiven') : t('walletTxAdvanceFromBookie')}
+                    </span>
+                    <span className="font-semibold text-violet-800">{formatCurrency(advance)}</span>
+                </div>
+                {settled > 0 && (
+                    <div className="flex justify-between gap-2 text-amber-800">
+                        <span>{t('walletTxCommissionSettledDeduct')}</span>
+                        <span className="font-semibold">−{formatCurrency(settled)}</span>
+                    </div>
+                )}
+                <div className="flex justify-between gap-2 pt-1 border-t border-violet-50">
+                    <span className="font-medium text-gray-700">{t('walletTxRemainingFromBookie')}</span>
+                    <span className="font-bold text-green-700">{formatCurrency(remaining)}</span>
+                </div>
+                <p className="text-[10px] text-gray-400 pt-0.5">{t('walletTxCommissionDeductNote')}</p>
+            </div>
+        </div>
+    );
+};
+
 const SummaryCard = ({ icon: Icon, title, summary, accent, showOpening, variant, footerNote, t }) => {
     const opening = Number(summary?.openingBalance ?? 0);
     const amount = Number(summary?.received ?? summary?.credit ?? summary?.withdrawn ?? 0);
@@ -130,6 +169,7 @@ const BookieWalletTransactions = () => {
     const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState({ totalPages: 1, hasNextPage: false, hasPrevPage: false });
     const [category, setCategory] = useState('all');
+    const [operatorRole, setOperatorRole] = useState('bookie');
 
     const fetchTransactions = useCallback(async () => {
         try {
@@ -143,6 +183,7 @@ const BookieWalletTransactions = () => {
             }
             setRows(json.data || []);
             setSummaries(json.summaries || null);
+            if (json.operatorRole) setOperatorRole(json.operatorRole);
             setPagination(json.pagination || { totalPages: 1, hasNextPage: false, hasPrevPage: false });
             if (json.currentBalance != null) {
                 updateBookie({ balance: json.currentBalance });
@@ -213,13 +254,11 @@ const BookieWalletTransactions = () => {
 
                 {summaries && grandSummary && (
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-                        <SummaryCard
-                            icon={FaMoneyBillWave}
-                            title={t('walletTxFromBookieSummary')}
+                        <FromBookieSummaryCard
                             summary={summaries.from_bookie}
                             accent="border-violet-200 bg-violet-50/80"
-                            showOpening
                             t={t}
+                            role={operatorRole}
                         />
                         <SummaryCard
                             icon={FaUsers}

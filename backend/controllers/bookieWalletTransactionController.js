@@ -160,6 +160,33 @@ export const listMyBookieWalletTransactions = async (req, res) => {
         ) / 100;
         summaries.from_bookie.commissionSettled = settledTotal;
 
+        let advanceFromBookie = summaries.from_bookie.received || 0;
+        let commissionSettledDeducted = settledTotal;
+
+        if (fresh?.role === 'bookie') {
+            let advanceToSuperBookie = 0;
+            let commissionPaidToSuperBookie = 0;
+            for (const row of summaryAgg) {
+                if (row._id === 'balance_adjustment') {
+                    advanceToSuperBookie += row.debit || 0;
+                }
+                if (row._id === 'initial_balance_allocated') {
+                    advanceToSuperBookie += row.debit || 0;
+                }
+                if (FROM_BOOKIE_COMMISSION_SETTLEMENT_TYPES.includes(row._id)) {
+                    commissionPaidToSuperBookie += row.debit || 0;
+                }
+            }
+            advanceFromBookie = Math.round(advanceToSuperBookie * 100) / 100;
+            commissionSettledDeducted = Math.round(commissionPaidToSuperBookie * 100) / 100;
+        }
+
+        summaries.from_bookie.advanceFromBookie = advanceFromBookie;
+        summaries.from_bookie.commissionSettledDeducted = commissionSettledDeducted;
+        summaries.from_bookie.remainingFromBookie = Math.round(
+            Math.max(0, advanceFromBookie - commissionSettledDeducted) * 100
+        ) / 100;
+
         summaries.grandTotal = {
             bookieReceived: summaries.from_bookie.received || 0,
             playerDeposits: summaries.from_player.received || 0,
@@ -195,6 +222,7 @@ export const listMyBookieWalletTransactions = async (req, res) => {
             },
             currentBalance: grandTotalNow,
             cashBalance: currentBalance,
+            operatorRole: fresh?.role || req.admin?.role,
             summaries,
         });
     } catch (error) {
