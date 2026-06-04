@@ -23,6 +23,10 @@ const formatDateTime = (v) => {
     });
 };
 
+/** Super bookie panel: commission from bookie settled — show as minus. */
+const getAmountDirection = (row) =>
+    row.type === 'commission_settlement' ? 'debit' : row.direction;
+
 const TxTable = ({ rows, t }) => (
     <>
         <div className="hidden md:block overflow-x-auto rounded-xl border border-violet-100 bg-white shadow-sm">
@@ -37,43 +41,48 @@ const TxTable = ({ rows, t }) => (
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((row) => (
+                    {rows.map((row) => {
+                        const amountDir = getAmountDirection(row);
+                        return (
                         <tr key={row._id} className="border-t border-gray-100">
                             <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(row.createdAt)}</td>
                             <td className="px-4 py-3">{row.label || row.type}</td>
                             <td className="px-4 py-3">
                                 <span
                                     className={`inline-flex items-center gap-1 font-semibold ${
-                                        row.direction === 'credit' ? 'text-green-600' : 'text-red-600'
+                                        amountDir === 'credit' ? 'text-green-600' : 'text-red-600'
                                     }`}
                                 >
-                                    {row.direction === 'credit' ? (
+                                    {amountDir === 'credit' ? (
                                         <FaArrowUp className="w-3 h-3" />
                                     ) : (
                                         <FaArrowDown className="w-3 h-3" />
                                     )}
-                                    {row.direction === 'credit' ? '+' : '-'}
+                                    {amountDir === 'credit' ? '+' : '−'}
                                     {formatCurrency(row.amount)}
                                 </span>
                             </td>
                             <td className="px-4 py-3 font-medium">{formatCurrency(row.balanceAfter)}</td>
                             <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{row.description || '-'}</td>
                         </tr>
-                    ))}
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
         <div className="md:hidden space-y-3">
-            {rows.map((row) => (
+            {rows.map((row) => {
+                const amountDir = getAmountDirection(row);
+                return (
                 <div key={row._id} className="rounded-xl border border-violet-100 bg-white p-4 shadow-sm">
                     <div className="flex justify-between items-start gap-2">
                         <p className="font-semibold text-gray-800 text-sm">{row.label || row.type}</p>
                         <span
                             className={`text-sm font-bold shrink-0 ${
-                                row.direction === 'credit' ? 'text-green-600' : 'text-red-600'
+                                amountDir === 'credit' ? 'text-green-600' : 'text-red-600'
                             }`}
                         >
-                            {row.direction === 'credit' ? '+' : '-'}
+                            {amountDir === 'credit' ? '+' : '−'}
                             {formatCurrency(row.amount)}
                         </span>
                     </div>
@@ -84,7 +93,8 @@ const TxTable = ({ rows, t }) => (
                         <span className="font-semibold text-gray-800">{formatCurrency(row.balanceAfter)}</span>
                     </p>
                 </div>
-            ))}
+                );
+            })}
         </div>
     </>
 );
@@ -220,17 +230,8 @@ const BookieWalletTransactions = () => {
     const playerWithdrawalsSummary = summaries?.from_player
         ? { withdrawn: summaries.from_player.withdrawn ?? 0, count: summaries.from_player.withdrawalCount }
         : null;
-    const commissionSettledTotal = Number(summaries?.grandTotal?.commissionSettled ?? 0);
     const grandSummary = summaries?.grandTotal
-        ? {
-              received: summaries.grandTotal.received ?? 0,
-              footerNote:
-                  commissionSettledTotal > 0 ? (
-                      <span className="block text-amber-700">
-                          {t('walletTxMinusCommissionSettled')}: −{formatCurrency(commissionSettledTotal)}
-                      </span>
-                  ) : null,
-          }
+        ? { received: summaries.grandTotal.received ?? 0 }
         : null;
 
     return (
@@ -280,7 +281,6 @@ const BookieWalletTransactions = () => {
                             title={t('walletTxGrandTotal')}
                             summary={grandSummary}
                             accent="border-sb-primary/30 bg-sb-primary/10 ring-1 ring-sb-primary/20"
-                            footerNote={grandSummary?.footerNote}
                             t={t}
                         />
                     </div>
