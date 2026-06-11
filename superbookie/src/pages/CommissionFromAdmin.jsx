@@ -11,7 +11,6 @@ import {
     FaPaperPlane,
     FaCheck,
     FaTimes,
-    FaWallet,
     FaCheckCircle,
     FaClock,
 } from 'react-icons/fa';
@@ -278,15 +277,6 @@ const CommissionFromAdmin = () => {
                     </p>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-900 space-y-1">
-                    <p className="font-semibold">How commission flows</p>
-                    <p>1. <span className="font-medium">Direct players</span> — bets × {adminRateOnDirect}% (set by admin)</p>
-                    <p>2. <span className="font-medium">Bookie players</span> — bets × rate you set on each Bookie</p>
-                    <p>3. <span className="font-medium">Gross</span> = direct + bookie commission</p>
-                    <p>4. <span className="font-medium">Admin share</span> = gross × {adminCommissionRate}%</p>
-                    <p>5. <span className="font-medium">Your net</span> = gross − admin share</p>
-                </div>
-
                 <section className="bg-slate-800 rounded-xl p-4 sm:p-5 shadow-sm text-white space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
@@ -301,18 +291,6 @@ const CommissionFromAdmin = () => {
                         )}
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
-                            <p className="text-[11px] uppercase tracking-wide text-violet-200 flex items-center gap-1.5">
-                                <FaWallet className="text-violet-300" />
-                                Advance remaining
-                            </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(advanceRemaining)}</p>
-                            {advanceGiven > 0 && (
-                                <p className="text-[11px] text-violet-200 mt-1">
-                                    Given: {formatCurrency(advanceGiven)}
-                                </p>
-                            )}
-                        </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-blue-200 flex items-center gap-1.5">
                                 <FaMoneyBillWave className="text-blue-300" />
