@@ -15,7 +15,6 @@ import GameTypes from './pages/GameTypes';
 import BookieGameBid from './pages/GameBid/index';
 import Markets from './pages/Markets';
 import Payments from './pages/Payments';
-import BookieWalletTransactions from './pages/BookieWalletTransactions';
 
 const ScrollToTop = () => {
     const { pathname } = useLocation();
@@ -64,7 +63,6 @@ const AppRoutes = () => (
         <Route path="/markets" element={<PrivateRoute><Markets /></PrivateRoute>} />
         <Route path="/add-user" element={<PrivateRoute><AddUser /></PrivateRoute>} />
         <Route path="/commission" element={<PrivateRoute><Commission /></PrivateRoute>} />
-        <Route path="/wallet-transactions" element={<PrivateRoute><BookieWalletTransactions /></PrivateRoute>} />
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
         <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

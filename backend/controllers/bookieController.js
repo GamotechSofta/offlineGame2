@@ -1,7 +1,6 @@
 import Admin from '../models/admin/admin.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signAdminToken } from '../utils/adminJwt.js';
-import { getBookiePanelGrandTotal } from '../utils/bookiePanelGrandTotal.js';
 
 /**
  * Bookie login - only allows users with role 'bookie' and status 'active'
@@ -108,7 +107,6 @@ export const bookieLogin = async (req, res) => {
         });
 
         const token = signAdminToken(bookie);
-        const displayBalance = await getBookiePanelGrandTotal(bookie._id);
         res.status(200).json({
             success: true,
             message: 'Login successful',
@@ -118,8 +116,6 @@ export const bookieLogin = async (req, res) => {
                 role: bookie.role,
                 email: bookie.email,
                 phone: bookie.phone,
-                balance: displayBalance,
-                cashBalance: bookie.balance || 0,
                 uiTheme: bookie.uiTheme || { themeId: 'default' },
                 token,
             },
@@ -188,7 +184,6 @@ export const getProfile = async (req, res) => {
         if (!bookie) {
             return res.status(403).json({ success: false, message: 'Bookie access required' });
         }
-        const displayBalance = await getBookiePanelGrandTotal(bookie._id);
         res.status(200).json({
             success: true,
             data: {
@@ -197,8 +192,6 @@ export const getProfile = async (req, res) => {
                 email: bookie.email,
                 phone: bookie.phone,
                 role: bookie.role,
-                balance: displayBalance,
-                cashBalance: bookie.balance || 0,
                 uiTheme: bookie.uiTheme || { themeId: 'default' },
                 canManagePayments: bookie.canManagePayments || false,
             },

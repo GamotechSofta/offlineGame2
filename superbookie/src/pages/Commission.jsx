@@ -16,8 +16,6 @@ import Layout from '../components/Layout';
 import { fetchWithAuth } from '../utils/api';
 import { useLanguage } from '../context/useLanguage';
 import { PANEL_LABEL, PANEL_LABEL_PLURAL } from '../config/panelLabels';
-import { dispatchWalletSummaryRefresh } from '../hooks/useWalletGrandTotal';
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
 const formatCurrency = (value) => {
@@ -316,7 +314,6 @@ const Commission = () => {
             if (response.status === 401) return;
             const result = await response.json();
             if (result.success) {
-                dispatchWalletSummaryRefresh();
                 setPayStateByBookie((prev) => ({
                     ...prev,
                     [bookieId]: { mode: 'partial', amount: '', settlementSource: 'paid_with_other' },
@@ -331,8 +328,8 @@ const Commission = () => {
                     message:
                         result.message
                         || (settlementSource === 'paid_with_advance'
-                            ? `${formatCurrency(amount)} settled from advance for ${row.username} (wallet unchanged).`
-                            : `${formatCurrency(amount)} added to your wallet, deducted from ${row.username} wallet.`),
+                            ? `${formatCurrency(amount)} settled from advance for ${row.username}.`
+                            : `${formatCurrency(amount)} commission payment recorded for ${row.username}.`),
                 });
                 return;
             }
@@ -407,8 +404,8 @@ const Commission = () => {
             : 'px-2 py-1.5 rounded-lg text-[11px] bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0 whitespace-nowrap';
         const advanceHint =
             settlementSource === 'paid_with_advance'
-                ? `Advance paid only (avail. ${formatCurrency(row.advanceAvailableForSettlement ?? 0)}) · ${PANEL_LABEL} wallet unchanged`
-                : `Your SuperBookie wallet + · ${PANEL_LABEL} wallet −`;
+                ? `Settle from advance only (avail. ${formatCurrency(row.advanceAvailableForSettlement ?? 0)})`
+                : 'Record commission payment';
 
         if (!canRecordPayment(row, bookieId)) {
             return (

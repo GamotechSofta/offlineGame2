@@ -845,9 +845,9 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: payFromAdvance
-                ? 'Commission settled from advance (Advance paid reduced; child bookie wallet unchanged)'
-                : 'Commission settled: added to your SuperBookie wallet, deducted from child bookie wallet',
+                message: payFromAdvance
+                ? 'Commission settled from advance pool'
+                : 'Commission settlement recorded',
             data: {
                 superBookieId,
                 appliedPayment,
@@ -930,7 +930,7 @@ export const settleSuperBookieCommissionFromBets = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: `₹${appliedPayment} deducted from your balance and credited to ${superBookie.username || 'super bookie'} (advance recovery)`,
+            message: `₹${appliedPayment} applied toward advance recovery for ${superBookie.username || 'super bookie'}`,
             data: {
                 superBookieId,
                 appliedRecovery: appliedPayment,

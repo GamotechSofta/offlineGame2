@@ -9,8 +9,6 @@ import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signUserToken, verifyUserToken } from '../utils/userJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { enrichUsersWithReferrerChain } from '../utils/referrerChain.js';
-import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
-import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -780,7 +778,8 @@ const PHONE_REGEX = /^[6-9]\d{9}$/;
 export const createUser = async (req, res) => {
     try {
         const { username, firstName, lastName, email, password, phone, role, balance, referredBy } = req.body;
-        const initialBalance = Number(balance ?? 0);
+        const isBookieOperator = req.admin?.role === 'bookie' || req.admin?.role === 'super_bookie';
+        const initialBalance = isBookieOperator ? 0 : Number(balance ?? 0);
         if (!Number.isFinite(initialBalance) || initialBalance < 0) {
             return res.status(400).json({
                 success: false,
@@ -914,27 +913,6 @@ export const createUser = async (req, res) => {
             updatedAt: new Date(),
         });
         await invalidateAdminReadCaches('player_created');
-
-        if (
-            (req.admin?.role === 'bookie' || req.admin?.role === 'super_bookie')
-            && initialBalance > 0
-        ) {
-            const operator = await Admin.findById(req.admin._id).select('balance').lean();
-            await recordBookieWalletTransaction({
-                adminId: req.admin._id,
-                direction: 'credit',
-                type: 'player_initial_balance',
-                amount: initialBalance,
-                balanceAfter: Number(operator?.balance ?? 0),
-                description: `Initial balance to player ${derivedUsername}`,
-                referenceId: String(userId),
-            });
-            await notifyBookiePanelBalance(
-                req.admin._id,
-                'player_initial_balance',
-                operator?.balance ?? 0
-            );
-        }
 
         if (initialBalance > 0) {
             await WalletTransaction.create({

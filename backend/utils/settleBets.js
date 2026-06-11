@@ -5,8 +5,6 @@ import User from '../models/user/user.js';
 import Admin from '../models/admin/admin.js';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { notifyPlayerWalletBalance } from './playerWalletNotify.js';
-import { notifyBookiePanelBalance } from './notifyBookiePanelBalance.js';
-import { recordBookieWalletTransaction } from './bookieWalletLedger.js';
 import { getRatesMap, DEFAULT_RATES } from '../models/rate/rate.js';
 import { isSpCommon, SP_COMMON_LIST } from '../config/spCommonList.js';
 import { isValidDoublePana } from './doublePanaValidate.js';
@@ -162,43 +160,10 @@ function getTodayMidnight() {
     return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
 }
 
-/**
- * Helper: Pay winnings to the correct account.
- * - If bet was placed by bookie (placedByBookie=true), credit to BOOKIE's balance
- * - If bet was placed by player themselves, credit to PLAYER's wallet
- * Returns the amount added.
- */
-async function payWinnings(userId, payout, description, referenceId, betInfo = {}) {
+/** Credit winnings to the player's wallet. */
+async function payWinnings(userId, payout, description, referenceId) {
     if (!payout || payout <= 0) return 0;
 
-    const { placedByBookie, placedByBookieId } = betInfo;
-    console.log(`[payWinnings] betInfo received:`, JSON.stringify(betInfo));
-    console.log(`[payWinnings] placedByBookie=${placedByBookie}, placedByBookieId=${placedByBookieId}`);
-
-    // If bet was placed by bookie, credit winnings to bookie's balance
-    if (placedByBookie && placedByBookieId) {
-        const updated = await Admin.findByIdAndUpdate(
-            placedByBookieId,
-            { $inc: { balance: payout } },
-            { new: true }
-        ).select('balance role');
-        if (updated) {
-            await notifyBookiePanelBalance(placedByBookieId, 'bet_win', updated.balance);
-            await recordBookieWalletTransaction({
-                adminId: placedByBookieId,
-                direction: 'credit',
-                type: 'bet_win',
-                amount: payout,
-                balanceAfter: updated.balance ?? 0,
-                description: description || 'Bet winnings',
-                referenceId: referenceId ? String(referenceId) : '',
-            });
-        }
-        console.log(`[payWinnings] Credited ₹${payout} to BOOKIE ${placedByBookieId} (bet placed by bookie)`);
-        return payout;
-    }
-
-    // Otherwise, credit to player's wallet (original behavior)
     await Wallet.findOneAndUpdate(
         { userId },
         { $inc: { balance: payout } },

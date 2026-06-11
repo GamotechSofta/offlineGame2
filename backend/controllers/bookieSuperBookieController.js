@@ -1,7 +1,6 @@
 import Admin from '../models/admin/admin.js';
 import User from '../models/user/user.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
-import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
 import { Wallet } from '../models/wallet/wallet.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
@@ -14,13 +13,6 @@ import {
     getCommissionPaymentKind,
 } from '../utils/commissionMetrics.js';
 import { getPanelRevenueKpisForAdmin } from '../utils/panelRevenueDashboard.js';
-import { getBookieWalletTxLabel } from '../utils/bookieWalletLedger.js';
-import { notifyBookiePanelBalance, notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
-import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
-import {
-    transferAdvanceCommissionToSuperBookie,
-    transferAdvancePaidInitialBalanceToSuperBookie,
-} from '../utils/advanceCommissionTransfer.js';
 
 /** Admin: list all super bookies with parent bookie + player counts */
 export const getAllSuperBookiesAdmin = async (req, res) => {
@@ -75,7 +67,7 @@ export const listSuperBookies = async (req, res) => {
             role: 'super_bookie',
             parentBookieId: req.admin._id,
         })
-            .select('username email phone status balance commissionPercentage canManagePayments createdAt role parentBookieId')
+            .select('username email phone status commissionPercentage canManagePayments createdAt role parentBookieId')
             .sort({ createdAt: -1 })
             .lean();
 
@@ -110,10 +102,8 @@ export const createSuperBookie = async (req, res) => {
             email,
             password,
             phone,
-            balance,
             commissionPercentage,
             canManagePayments,
-            initialBalancePaymentMode,
         } = req.body;
         const derivedUsername =
             firstName != null && lastName != null
@@ -150,24 +140,6 @@ export const createSuperBookie = async (req, res) => {
             return res.status(409).json({ success: false, message: 'Username already exists' });
         }
 
-        const initialBalance =
-            balance != null && Number.isFinite(Number(balance)) ? Math.max(0, Number(balance)) : 0;
-
-        let parentAfterDeduct = null;
-        if (initialBalance > 0) {
-            parentAfterDeduct = await Admin.findOneAndUpdate(
-                { _id: req.admin._id, role: 'bookie', balance: { $gte: initialBalance } },
-                { $inc: { balance: -initialBalance } },
-                { new: true }
-            ).select('balance');
-            if (!parentAfterDeduct) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Insufficient bookie balance to allocate to super bookie',
-                });
-            }
-        }
-
         let commissionPct = 0;
         if (commissionPercentage != null && commissionPercentage !== '') {
             commissionPct = Number(commissionPercentage);
@@ -179,9 +151,6 @@ export const createSuperBookie = async (req, res) => {
             }
         }
 
-        const paymentMode =
-            initialBalancePaymentMode === 'after_paid' ? 'after_paid' : 'advance_paid';
-
         const superBookie = new Admin({
             username: derivedUsername,
             password,
@@ -190,58 +159,12 @@ export const createSuperBookie = async (req, res) => {
             email: email && String(email).trim() ? String(email).trim().toLowerCase() : '',
             phone: trimmedPhone,
             status: 'active',
-            balance: initialBalance,
             commissionPercentage: commissionPct,
             canManagePayments: Boolean(canManagePayments),
-            initialBalancePaymentMode: initialBalance > 0 ? paymentMode : 'advance_paid',
+            initialBalancePaymentMode: 'advance_paid',
         });
         await superBookie.save();
         await invalidateAdminReadCaches('super_bookie_created');
-        await notifyBookiePanelBalances([req.admin._id, superBookie._id], 'super_bookie_created');
-
-        if (initialBalance > 0) {
-            try {
-                if (paymentMode === 'advance_paid') {
-                    await transferAdvancePaidInitialBalanceToSuperBookie({
-                        parentBookieId: req.admin._id,
-                        parentUsername: req.admin.username,
-                        superBookieId: superBookie._id,
-                        superBookieUsername: superBookie.username,
-                        amount: initialBalance,
-                        notes: 'Advance paid initial balance from bookie',
-                        parentBalanceAfter: parentAfterDeduct?.balance ?? null,
-                        superBookieBalanceAfter: superBookie.balance ?? 0,
-                    });
-                } else {
-                    await transferAdvanceCommissionToSuperBookie({
-                        parentBookieId: req.admin._id,
-                        parentUsername: req.admin.username,
-                        superBookieId: superBookie._id,
-                        superBookieUsername: superBookie.username,
-                        amount: initialBalance,
-                        notes: 'After paid initial balance from bookie',
-                        createdById: req.admin._id,
-                        parentBalanceAfter: parentAfterDeduct?.balance ?? null,
-                        superBookieBalanceAfter: superBookie.balance ?? 0,
-                        isInitialBalance: true,
-                    });
-                }
-            } catch (ledgerErr) {
-                await Admin.findByIdAndDelete(superBookie._id);
-                if (parentAfterDeduct) {
-                    await Admin.findByIdAndUpdate(req.admin._id, {
-                        $inc: { balance: initialBalance },
-                    });
-                }
-                console.error('[createSuperBookie] Wallet ledger failed:', ledgerErr.message);
-                return res.status(500).json({
-                    success: false,
-                    message:
-                        ledgerErr.message
-                        || 'Super bookie created but wallet ledger failed. Please try again.',
-                });
-            }
-        }
 
         await logActivity({
             action: 'create_super_bookie',
@@ -261,7 +184,6 @@ export const createSuperBookie = async (req, res) => {
                 username: superBookie.username,
                 phone: superBookie.phone,
                 status: superBookie.status,
-                balance: superBookie.balance ?? 0,
                 commissionPercentage: superBookie.commissionPercentage ?? 0,
                 canManagePayments: Boolean(superBookie.canManagePayments),
             },
@@ -343,7 +265,6 @@ export const updateSuperBookie = async (req, res) => {
                 phone: sb.phone,
                 email: sb.email,
                 status: sb.status,
-                balance: sb.balance ?? 0,
                 commissionPercentage: sb.commissionPercentage ?? 0,
                 canManagePayments: Boolean(sb.canManagePayments),
             },
@@ -377,7 +298,7 @@ export const toggleSuperBookieStatus = async (req, res) => {
 };
 
 /**
- * Parent bookie: delete a super bookie (no linked players; balance returned to parent).
+ * Parent bookie: delete a super bookie (no linked players).
  * DELETE /api/v1/bookie/super-bookies/:id
  */
 export const deleteSuperBookie = async (req, res) => {
@@ -403,15 +324,9 @@ export const deleteSuperBookie = async (req, res) => {
             });
         }
 
-        const returnBalance = Math.max(0, Number(sb.balance) || 0);
-        if (returnBalance > 0) {
-            await Admin.findByIdAndUpdate(req.admin._id, { $inc: { balance: returnBalance } });
-        }
-
         const username = sb.username;
         await Admin.findByIdAndDelete(sb._id);
         await invalidateAdminReadCaches('super_bookie_deleted');
-        await notifyBookiePanelBalance(req.admin._id, 'super_bookie_deleted', undefined);
 
         await logActivity({
             action: 'delete_super_bookie',
@@ -419,19 +334,13 @@ export const deleteSuperBookie = async (req, res) => {
             performedByType: 'bookie',
             targetType: 'super_bookie',
             targetId: String(sb._id),
-            details: `Super bookie "${username}" deleted by parent bookie${
-                returnBalance > 0 ? `; ₹${returnBalance} returned to bookie wallet` : ''
-            }`,
+            details: `Super bookie "${username}" deleted by parent bookie`,
             ip: getClientIp(req),
         });
 
         return res.status(200).json({
             success: true,
-            message:
-                returnBalance > 0
-                    ? `Super bookie deleted. ₹${returnBalance} returned to your balance.`
-                    : 'Super bookie deleted successfully',
-            data: { returnedBalance: returnBalance },
+            message: 'Super bookie deleted successfully',
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -439,90 +348,10 @@ export const deleteSuperBookie = async (req, res) => {
 };
 
 export const adjustSuperBookieBalance = async (req, res) => {
-    try {
-        if (!assertParentBookie(req, res)) return;
-        const { operation, amount } = req.body;
-        const delta = Number(amount);
-        if (!Number.isFinite(delta) || delta <= 0) {
-            return res.status(400).json({ success: false, message: 'Valid positive amount required' });
-        }
-
-        const sb = await Admin.findOne({
-            _id: req.params.id,
-            role: 'super_bookie',
-            parentBookieId: req.admin._id,
-        });
-        if (!sb) {
-            return res.status(404).json({ success: false, message: 'Super bookie not found' });
-        }
-
-        let parent = null;
-        if (operation === 'add') {
-            parent = await Admin.findOneAndUpdate(
-                { _id: req.admin._id, role: 'bookie', balance: { $gte: delta } },
-                { $inc: { balance: -delta } },
-                { new: true }
-            );
-            if (!parent) {
-                return res.status(400).json({ success: false, message: 'Insufficient bookie balance' });
-            }
-            sb.balance = (sb.balance || 0) + delta;
-        } else if (operation === 'deduct') {
-            if ((sb.balance || 0) < delta) {
-                return res.status(400).json({ success: false, message: 'Insufficient super bookie balance' });
-            }
-            sb.balance = (sb.balance || 0) - delta;
-            await Admin.findByIdAndUpdate(req.admin._id, { $inc: { balance: delta } });
-        } else {
-            return res.status(400).json({ success: false, message: 'operation must be add or deduct' });
-        }
-
-        await sb.save();
-        await notifyBookiePanelBalances([req.admin._id, sb._id], 'super_bookie_balance_adjust');
-
-        if (operation === 'add') {
-            await transferAdvanceCommissionToSuperBookie({
-                parentBookieId: req.admin._id,
-                parentUsername: req.admin.username,
-                superBookieId: sb._id,
-                superBookieUsername: sb.username,
-                amount: delta,
-                notes: 'Advance commission (balance add)',
-                createdById: req.admin._id,
-                parentBalanceAfter: parent?.balance ?? null,
-                superBookieBalanceAfter: sb.balance ?? 0,
-            });
-        } else if (operation === 'deduct') {
-            const parentDoc = await Admin.findById(req.admin._id).select('balance').lean();
-            await recordBookieWalletTransaction({
-                adminId: sb._id,
-                direction: 'debit',
-                type: 'balance_adjustment',
-                amount: delta,
-                balanceAfter: sb.balance ?? 0,
-                description: `Balance returned to bookie ${req.admin.username}`,
-                referenceId: String(sb._id),
-            });
-            if (parentDoc) {
-                await recordBookieWalletTransaction({
-                    adminId: req.admin._id,
-                    direction: 'credit',
-                    type: 'balance_adjustment',
-                    amount: delta,
-                    balanceAfter: parentDoc.balance ?? 0,
-                    description: `Recovered from super bookie ${sb.username}`,
-                    referenceId: String(sb._id),
-                });
-            }
-        }
-
-        res.status(200).json({
-            success: true,
-            data: { id: sb._id, balance: sb.balance },
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
+    return res.status(410).json({
+        success: false,
+        message: 'Bookie wallet balance adjustments are no longer supported.',
+    });
 };
 
 const findOwnedSuperBookie = async (parentBookieId, superBookieId, select = '_id username') => {
@@ -587,23 +416,19 @@ export const getSuperBookieCommissionDashboardForParent = async (req, res) => {
         const superBookie = await findOwnedSuperBookie(
             req.admin._id,
             superBookieId,
-            '_id username phone email status balance commissionPercentage role createdAt',
+            '_id username phone email status commissionPercentage role createdAt',
         );
         if (!superBookie) {
             return res.status(404).json({ success: false, message: 'Sub-account not found' });
         }
 
-        const [summary, dashboard, players, payments, walletTxs, revenueKpis] = await Promise.all([
+        const [summary, dashboard, players, payments, revenueKpis] = await Promise.all([
             getCommissionSummaryForAccount(superBookie),
             getCommissionDashboardForAccount(superBookie, { startDate, endDate }),
             getPerPlayerCommissionRows(superBookie, { startDate, endDate }),
             CommissionPayment.find({ bookieId: superBookieId })
                 .sort({ createdAt: -1 })
                 .limit(50)
-                .lean(),
-            BookieWalletTransaction.find({ adminId: superBookieId })
-                .sort({ createdAt: -1, _id: -1 })
-                .limit(100)
                 .lean(),
             getPanelRevenueKpisForAdmin(superBookie, { startDate, endDate }),
         ]);
@@ -627,14 +452,12 @@ export const getSuperBookieCommissionDashboardForParent = async (req, res) => {
                     username: superBookie.username,
                     phone: superBookie.phone || '',
                     status: superBookie.status,
-                    balance: superBookie.balance ?? 0,
                     commissionPercentage: superBookie.commissionPercentage ?? 0,
                     createdAt: superBookie.createdAt,
                 },
                 revenueKpis,
                 topDashboard: {
                     totalRevenue: revenueKpis.totalBetAmount ?? summary.totalBetAmount ?? 0,
-                    walletBalance: superBookie.balance ?? 0,
                     commissionSettled: settledCommission,
                     commissionPending: pendingCommission,
                     totalPlayers: summary.playerCount ?? 0,
@@ -651,16 +474,6 @@ export const getSuperBookieCommissionDashboardForParent = async (req, res) => {
                     notes: p.notes,
                     paymentType: p.paymentType || getCommissionPaymentKind(p),
                     createdAt: p.createdAt,
-                })),
-                walletTransactions: walletTxs.map((tx) => ({
-                    _id: tx._id,
-                    type: tx.type,
-                    label: getBookieWalletTxLabel(tx.type),
-                    direction: tx.direction,
-                    amount: tx.amount,
-                    balanceAfter: tx.balanceAfter,
-                    description: tx.description,
-                    createdAt: tx.createdAt,
                 })),
                 dateRange: {
                     startDate: revenueKpis.dateFrom ?? startDate ?? null,

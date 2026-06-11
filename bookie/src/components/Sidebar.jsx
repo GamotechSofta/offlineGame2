@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useWalletGrandTotal } from '../hooks/useWalletGrandTotal';
 import {
     FaTachometerAlt,
     FaUserPlus,
@@ -13,7 +12,6 @@ import {
     FaMoneyBillWave,
     FaChartBar,
     FaCreditCard,
-    FaWallet,
 } from 'react-icons/fa';
 import { useLanguage } from '../context/useLanguage';
 
@@ -22,11 +20,6 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const location = useLocation();
     const { t, language, changeLanguage } = useLanguage();
     const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
-    const { displayBalance, refresh: refreshGrandTotal } = useWalletGrandTotal();
-
-    useEffect(() => {
-        refreshGrandTotal();
-    }, [location.pathname, refreshGrandTotal]);
 
     const menuItems = [
         { path: '/dashboard', label: t('dashboard'), icon: FaTachometerAlt },
@@ -34,7 +27,6 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/markets', label: t('markets'), icon: FaChartBar },
         { path: '/add-user', label: t('addPlayer'), icon: FaUserPlus },
         { path: '/commission', label: 'Commission', icon: FaMoneyBillWave },
-        { path: '/wallet-transactions', label: t('walletTransaction'), icon: FaWallet },
         { path: '/payments', label: t('payments'), icon: FaCreditCard },
         { path: '/settings', label: t('settings'), icon: FaCog },
     ];
@@ -63,9 +55,6 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
                     {user?.username && (
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{user.username}</p>
                     )}
-                    <p className="text-sm font-semibold text-green-600 mt-1" title={t('balance')}>
-                        {t('balance')}: ₹{Number(displayBalance ?? user?.balance ?? 0).toLocaleString('en-IN')}
-                    </p>
                 </div>
                 <button
                     type="button"

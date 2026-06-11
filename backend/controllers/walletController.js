@@ -7,8 +7,6 @@ import { isBookiePanelRole } from '../utils/adminRoles.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { emitUserWalletUpdate } from '../socket/walletSocketBridge.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
-import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
-import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
 
 const getActorLabel = (admin) => {
     if (admin?.role === 'bookie') return 'Bookie';
@@ -184,32 +182,6 @@ export const adjustBalance = async (req, res) => {
             });
         }
 
-        // When a bookie adds funds to a player, deduct the same amount from the bookie's balance.
-        if (type === 'credit' && isBookiePanelRole(req.admin)) {
-            const updatedBookie = await Admin.findOneAndUpdate(
-                { _id: req.admin._id, balance: { $gte: numAmount } },
-                { $inc: { balance: -numAmount } },
-                { new: true }
-            ).select('balance');
-
-            if (!updatedBookie) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Insufficient bookie balance',
-                });
-            }
-            await notifyBookiePanelBalance(req.admin._id, 'wallet_credit', updatedBookie.balance);
-            await recordBookieWalletTransaction({
-                adminId: req.admin._id,
-                direction: 'debit',
-                type: 'wallet_credit_player',
-                amount: numAmount,
-                balanceAfter: updatedBookie.balance ?? 0,
-                description: `Fund added to player ${userId}`,
-                referenceId: String(userId),
-            });
-        }
-
         let wallet = await Wallet.findOne({ userId });
         if (!wallet) {
             wallet = new Wallet({ userId, balance: 0 });
@@ -233,27 +205,6 @@ export const adjustBalance = async (req, res) => {
         }
 
         await wallet.save();
-
-        // When a bookie withdraws funds from a player, add that amount to the bookie's balance.
-        if (type === 'debit' && isBookiePanelRole(req.admin)) {
-            const updatedBookie = await Admin.findOneAndUpdate(
-                { _id: req.admin._id },
-                { $inc: { balance: numAmount } },
-                { new: true }
-            ).select('balance');
-            if (updatedBookie) {
-                await notifyBookiePanelBalance(req.admin._id, 'wallet_debit', updatedBookie.balance);
-                await recordBookieWalletTransaction({
-                    adminId: req.admin._id,
-                    direction: 'credit',
-                    type: 'wallet_debit_player',
-                    amount: numAmount,
-                    balanceAfter: updatedBookie.balance ?? 0,
-                    description: `Fund taken from player ${userId}`,
-                    referenceId: String(userId),
-                });
-            }
-        }
 
         await WalletTransaction.create({
             userId,

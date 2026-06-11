@@ -12,9 +12,7 @@ import TopWinners from './pages/TopWinners';
 import Reports from './pages/Reports';
 import Commission from './pages/Commission';
 import CommissionFromAdmin from './pages/CommissionFromAdmin';
-import AdminWalletTransactions from './pages/AdminWalletTransactions';
 import Payments from './pages/Payments';
-import Wallet from './pages/Wallet';
 import Records from './pages/Records';
 import HelpDesk from './pages/HelpDesk';
 import PlayerDetail from './pages/PlayerDetail';
@@ -26,7 +24,6 @@ import Receipt from './pages/Receipt';
 import Settings from './pages/Settings';
 import SuperBookieManagement from './pages/SuperBookieManagement';
 import SuperBookieChildDashboard from './pages/SuperBookieChildDashboard';
-import BookieWalletTransactions from './pages/BookieWalletTransactions';
 import { BetLayoutProvider } from './context/BetLayoutContext';
 
 // Scroll to top on route change
@@ -92,10 +89,7 @@ const AppRoutes = () => (
         <Route path="/commission-from-admin" element={<PrivateRoute><CommissionFromAdmin /></PrivateRoute>} />
         <Route path="/super-bookie-commissions" element={<Navigate to="/commission" replace />} />
         <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
-        <Route path="/wallet-transactions" element={<PrivateRoute><BookieWalletTransactions /></PrivateRoute>} />
-        <Route path="/wallet-from-admin" element={<PrivateRoute><AdminWalletTransactions /></PrivateRoute>} />
         <Route path="/records" element={<PrivateRoute><Records /></PrivateRoute>} />
-        <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
         <Route path="/receipt" element={<PrivateRoute><Receipt /></PrivateRoute>} />
         <Route path="/receipt/:sessionId" element={<PrivateRoute><Receipt /></PrivateRoute>} />
 

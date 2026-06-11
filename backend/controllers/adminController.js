@@ -9,16 +9,12 @@ import {
     aggregatePlayerBetMetrics,
 } from '../utils/commissionMetrics.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
-import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
-import { getBookieWalletTxLabel } from '../utils/bookieWalletLedger.js';
 import { SP_COMMON_LIST } from '../config/spCommonList.js';
 import { DP_COMMON_LIST } from '../config/dpCommonList.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signAdminToken } from '../utils/adminJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { canAccessBookieManagement, isSuperAdmin } from '../utils/adminTabAccess.js';
-import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
-import { transferAdvanceCommissionFromAdmin } from '../utils/advanceCommissionTransfer.js';
 import { getBookieHierarchySummary, getBookieHierarchyUserIds } from '../utils/bookieFilter.js';
 import { cascadeDeleteSuperBookieHierarchy } from '../utils/bookieHierarchyDelete.js';
 import { getPanelRevenueKpisForAdmin } from '../utils/panelRevenueDashboard.js';
@@ -182,7 +178,7 @@ export const createBookie = async (req, res) => {
             });
         }
 
-        const { username, firstName, lastName, email, password, phone, commissionPercentage, balance } = req.body;
+        const { username, firstName, lastName, email, password, phone, commissionPercentage } = req.body;
 
         const derivedUsername = (firstName != null && lastName != null)
             ? `${String(firstName).trim()} ${String(lastName).trim()}`.trim()
@@ -241,7 +237,6 @@ export const createBookie = async (req, res) => {
             return res.status(409).json({ success: false, message: 'A bookie with this name already exists' });
         }
 
-        const initialBalance = (balance != null && Number.isFinite(Number(balance))) ? Math.max(0, Number(balance)) : 0;
         const bookie = new Admin({
             username: derivedUsername,
             password,
@@ -250,36 +245,9 @@ export const createBookie = async (req, res) => {
             phone: trimmedPhone,
             status: 'active',
             commissionPercentage: (commissionPercentage != null && Number.isFinite(Number(commissionPercentage))) ? Math.min(100, Math.max(0, Number(commissionPercentage))) : 0,
-            balance: initialBalance,
         });
         await bookie.save();
         await invalidateAdminReadCaches('bookie_created');
-
-        if (initialBalance > 0) {
-            try {
-                await transferAdvanceCommissionFromAdmin({
-                    bookieId: bookie._id,
-                    amount: initialBalance,
-                    notes: 'Initial balance from admin',
-                    createdById: req.admin?._id,
-                    bookieBalanceAfter: bookie.balance ?? 0,
-                    isInitialBalance: true,
-                });
-            } catch (ledgerErr) {
-                await Admin.findByIdAndDelete(bookie._id);
-                console.error('[createBookie] Admin wallet ledger failed:', ledgerErr.message);
-                return res.status(500).json({
-                    success: false,
-                    message: ledgerErr.message || 'Failed to record bookie wallet for initial balance',
-                });
-            }
-        }
-
-        console.log(`[Bookie Created] ID: ${bookie._id}, Username: ${bookie.username}, Phone: ${bookie.phone}, Balance: ${bookie.balance}, canManagePayments: ${bookie.canManagePayments}, Status: ${bookie.status}`);
-        
-        // Verify by re-fetching from database
-        const verifyBookie = await Admin.findById(bookie._id).select('balance canManagePayments').lean();
-        console.log(`[Bookie Verify] Database values - Balance: ${verifyBookie?.balance}, canManagePayments: ${verifyBookie?.canManagePayments}`);
 
         await logActivity({
             action: 'create_bookie',
@@ -302,7 +270,6 @@ export const createBookie = async (req, res) => {
                 phone: bookie.phone,
                 status: bookie.status,
                 commissionPercentage: bookie.commissionPercentage,
-                balance: bookie.balance ?? 0,
             },
         });
     } catch (error) {
@@ -363,8 +330,10 @@ export const getAllBookies = async (req, res) => {
         const enrichedBookies = await Promise.all(
             bookies.map(async (b) => {
                 const summary = await getCommissionSummaryForAccount(b);
+                const row = b.toObject();
+                delete row.balance;
                 return {
-                    ...b.toObject(),
+                    ...row,
                     totalCommissionAmount: summary.totalCommission,
                     totalCommissionPaid: summary.totalPaid,
                     totalCommissionPending: summary.totalPending,
@@ -372,11 +341,6 @@ export const getAllBookies = async (req, res) => {
                 };
             })
         );
-
-        // Debug: log first bookie's balance
-        if (bookies.length > 0) {
-            console.log(`[getAllBookies] First bookie - Username: ${bookies[0].username}, Balance: ${bookies[0].balance}, canManagePayments: ${bookies[0].canManagePayments}`);
-        }
 
         res.status(200).json({
             success: true,
@@ -636,23 +600,19 @@ export const getAdminSuperBookieCommissionDashboard = async (req, res) => {
             parentBookieId: id,
             role: 'super_bookie',
         })
-            .select('_id username phone email status balance commissionPercentage role createdAt')
+            .select('_id username phone email status commissionPercentage role createdAt')
             .lean();
         if (!superBookie) {
             return res.status(404).json({ success: false, message: 'Sub-account not found' });
         }
 
-        const [summary, dashboard, players, payments, walletTxs, revenueKpis] = await Promise.all([
+        const [summary, dashboard, players, payments, revenueKpis] = await Promise.all([
             getCommissionSummaryForAccount(superBookie),
             getCommissionDashboardForAccount(superBookie, { startDate, endDate }),
             getPerPlayerCommissionRows(superBookie, { startDate, endDate }),
             CommissionPayment.find({ bookieId: superBookieId })
                 .sort({ createdAt: -1 })
                 .limit(50)
-                .lean(),
-            BookieWalletTransaction.find({ adminId: superBookieId })
-                .sort({ createdAt: -1, _id: -1 })
-                .limit(100)
                 .lean(),
             getPanelRevenueKpisForAdmin(superBookie, { startDate, endDate }),
         ]);
@@ -676,14 +636,12 @@ export const getAdminSuperBookieCommissionDashboard = async (req, res) => {
                     username: superBookie.username,
                     phone: superBookie.phone || '',
                     status: superBookie.status,
-                    balance: superBookie.balance ?? 0,
                     commissionPercentage: superBookie.commissionPercentage ?? 0,
                     createdAt: superBookie.createdAt,
                 },
                 revenueKpis,
                 topDashboard: {
                     totalRevenue: revenueKpis.totalBetAmount ?? summary.totalBetAmount ?? 0,
-                    walletBalance: superBookie.balance ?? 0,
                     commissionSettled: settledCommission,
                     commissionPending: pendingCommission,
                     totalPlayers: summary.playerCount ?? 0,
@@ -700,16 +658,6 @@ export const getAdminSuperBookieCommissionDashboard = async (req, res) => {
                     notes: p.notes,
                     paymentType: p.paymentType || getCommissionPaymentKind(p),
                     createdAt: p.createdAt,
-                })),
-                walletTransactions: walletTxs.map((tx) => ({
-                    _id: tx._id,
-                    type: tx.type,
-                    label: getBookieWalletTxLabel(tx.type),
-                    direction: tx.direction,
-                    amount: tx.amount,
-                    balanceAfter: tx.balanceAfter,
-                    description: tx.description,
-                    createdAt: tx.createdAt,
                 })),
                 dateRange: {
                     startDate: revenueKpis.dateFrom ?? startDate ?? null,
@@ -738,7 +686,7 @@ export const updateBookie = async (req, res) => {
         }
 
         const { id } = req.params;
-        const { username, firstName, lastName, email, phone, status, password, uiTheme, commissionPercentage, canManagePayments, balance } = req.body;
+        const { username, firstName, lastName, email, phone, status, password, uiTheme, commissionPercentage, canManagePayments } = req.body;
 
         const bookie = await Admin.findOne({ _id: id, role: 'bookie' });
         if (!bookie) {
@@ -805,19 +753,6 @@ export const updateBookie = async (req, res) => {
         if (canManagePayments !== undefined) {
             bookie.canManagePayments = Boolean(canManagePayments);
         }
-        const balanceBeforeUpdate = Number(bookie.balance ?? 0);
-        let balanceIncrease = 0;
-        // Update balance if provided (super admin can set bookie balance)
-        console.log(`[updateBookie] Balance from request: ${balance}, type: ${typeof balance}`);
-        if (balance !== undefined && balance !== null && balance !== '') {
-            const newBal = Number(balance);
-            console.log(`[updateBookie] Setting balance: old=${bookie.balance}, new=${newBal}`);
-            if (Number.isFinite(newBal) && newBal >= 0) {
-                balanceIncrease = Math.max(0, Math.round((newBal - balanceBeforeUpdate) * 100) / 100);
-                bookie.balance = newBal;
-                console.log(`[updateBookie] Balance set to: ${bookie.balance}`);
-            }
-        }
         // Update password if provided
         if (password) {
             if (password.length < 6) {
@@ -831,32 +766,6 @@ export const updateBookie = async (req, res) => {
 
         await bookie.save();
         await invalidateAdminReadCaches('bookie_updated');
-
-        if (balanceIncrease > 0) {
-            try {
-                await transferAdvanceCommissionFromAdmin({
-                    bookieId: bookie._id,
-                    amount: balanceIncrease,
-                    notes:
-                        balanceBeforeUpdate <= 0
-                            ? 'Initial balance from admin'
-                            : 'Balance increase from admin',
-                    createdById: req.admin?._id,
-                    bookieBalanceAfter: bookie.balance ?? 0,
-                    isInitialBalance: balanceBeforeUpdate <= 0,
-                });
-            } catch (ledgerErr) {
-                console.error('[updateBookie] Admin wallet ledger failed:', ledgerErr.message);
-                return res.status(500).json({
-                    success: false,
-                    message: ledgerErr.message || 'Failed to record bookie wallet for balance update',
-                });
-            }
-        }
-
-        if (balance !== undefined && balance !== null && balance !== '') {
-            await notifyBookiePanelBalance(bookie._id, 'admin_update', bookie.balance);
-        }
 
         await logActivity({
             action: 'update_bookie',

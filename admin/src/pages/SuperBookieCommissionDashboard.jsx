@@ -5,13 +5,9 @@ import {
     FaMoneyBillWave,
     FaSyncAlt,
     FaSearch,
-    FaWallet,
     FaUsers,
     FaChartLine,
     FaCheckCircle,
-    FaList,
-    FaArrowUp,
-    FaArrowDown,
 } from 'react-icons/fa';
 import AdminLayout from '../components/AdminLayout';
 import { TOP_LEVEL_LABEL, SUB_LEVEL_LABEL } from '../config/roleLabels';
@@ -22,7 +18,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010
 const TABS = [
     { id: 'players', label: 'Players', icon: FaUsers },
     { id: 'commission', label: 'Commission', icon: FaMoneyBillWave },
-    { id: 'wallet', label: 'Wallet transactions', icon: FaList },
 ];
 
 const formatCurrency = (value) => {
@@ -123,7 +118,6 @@ const SuperBookieCommissionDashboard = () => {
 
     const top = data?.topDashboard || {};
     const rev = data?.revenueKpis || {};
-    const walletTxs = data?.walletTransactions || [];
     const payments = data?.payments || [];
     const summary = data?.summary || {};
 
@@ -240,18 +234,12 @@ const SuperBookieCommissionDashboard = () => {
                             </div>
                         </section>
 
-                        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                             <StatCard
                                 icon={FaChartLine}
                                 label="All bookie revenue (bets)"
                                 value={formatCurrency(top.totalRevenue)}
                                 accent="bg-blue-50 border-blue-100"
-                            />
-                            <StatCard
-                                icon={FaWallet}
-                                label="Bookie wallet balance"
-                                value={formatCurrency(top.walletBalance)}
-                                accent="bg-emerald-50 border-emerald-100"
                             />
                             <StatCard
                                 icon={FaCheckCircle}
@@ -399,72 +387,6 @@ const SuperBookieCommissionDashboard = () => {
                             </div>
                         )}
 
-                        {activeTab === 'wallet' && (
-                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                <div className="px-4 py-3 border-b">
-                                    <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-                                        <FaList className="text-gray-600" />
-                                        Wallet transactions ({walletTxs.length})
-                                    </h2>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Current balance: {formatCurrency(top.walletBalance)}
-                                    </p>
-                                </div>
-                                {walletTxs.length === 0 ? (
-                                    <p className="p-8 text-center text-gray-500 text-sm">No wallet transactions yet.</p>
-                                ) : (
-                                    <div className="overflow-x-auto max-h-[28rem] overflow-y-auto">
-                                        <table className="w-full text-sm">
-                                            <thead className="bg-gray-50 text-xs uppercase text-gray-500 sticky top-0">
-                                                <tr>
-                                                    <th className="text-left px-3 py-2">Date</th>
-                                                    <th className="text-left px-3 py-2">Type</th>
-                                                    <th className="text-right px-3 py-2">Amount</th>
-                                                    <th className="text-right px-3 py-2">Balance after</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-100">
-                                                {walletTxs.map((tx) => (
-                                                    <tr key={tx._id} className="hover:bg-gray-50">
-                                                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
-                                                            {formatDateTime(tx.createdAt)}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <p className="font-medium text-gray-800">{tx.label}</p>
-                                                            {tx.description && (
-                                                                <p className="text-[10px] text-gray-500 truncate max-w-[200px]">
-                                                                    {tx.description}
-                                                                </p>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-3 py-2 text-right">
-                                                            <span
-                                                                className={`inline-flex items-center gap-0.5 font-semibold ${
-                                                                    tx.direction === 'credit'
-                                                                        ? 'text-green-600'
-                                                                        : 'text-red-600'
-                                                                }`}
-                                                            >
-                                                                {tx.direction === 'credit' ? (
-                                                                    <FaArrowUp className="w-3 h-3" />
-                                                                ) : (
-                                                                    <FaArrowDown className="w-3 h-3" />
-                                                                )}
-                                                                {tx.direction === 'credit' ? '+' : '-'}
-                                                                {formatCurrency(tx.amount)}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-3 py-2 text-right font-medium">
-                                                            {formatCurrency(tx.balanceAfter)}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </>
                 ) : null}
             </div>

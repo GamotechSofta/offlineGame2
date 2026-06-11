@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useWalletGrandTotal } from '../hooks/useWalletGrandTotal';
 import {
     FaTachometerAlt,
     FaUserPlus,
     FaHistory,
     FaChartLine,
     FaChartBar,
-    FaWallet,
     FaSignOutAlt,
     FaUsers,
     FaUsersCog,
@@ -27,11 +25,6 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const location = useLocation();
     const { t, language, changeLanguage } = useLanguage();
     const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
-    const { displayBalance, refresh: refreshGrandTotal } = useWalletGrandTotal();
-
-    useEffect(() => {
-        refreshGrandTotal();
-    }, [location.pathname, refreshGrandTotal]);
 
     const menuItems = [
         { path: '/dashboard', label: t('dashboard'), icon: FaTachometerAlt, key: 'dashboard' },
@@ -42,11 +35,8 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
         { path: '/reports', label: t('report'), icon: FaChartLine, key: 'report' },
         { path: '/commission', label: t('sidebarBookieFromCommission'), icon: FaMoneyBillWave, key: 'commission' },
         { path: '/commission-from-admin', label: t('sidebarCommissionToAdmin'), icon: FaMoneyBillWave, key: 'commissionFromAdmin' },
-        { path: '/wallet-transactions', label: t('walletTransaction'), icon: FaWallet, key: 'walletTransactions' },
-        { path: '/wallet-from-admin', label: t('walletTxFromAdmin'), icon: FaWallet, key: 'walletFromAdmin' },
         { path: '/payments', label: t('payments'), icon: FaCreditCard, key: 'payments' },
         { path: '/records', label: t('betHistory'), icon: FaFileInvoiceDollar, key: 'records' },
-        { path: '/wallet', label: t('wallet'), icon: FaWallet, key: 'wallet' },
         { path: '/shortcuts', label: t('shortcuts'), icon: FaKeyboard, key: 'shortcuts' },
         { path: '/settings', label: t('settings'), icon: FaCog, key: 'settings' },
     ];
@@ -79,9 +69,6 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
                     {user?.username && (
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{user.username}</p>
                     )}
-                    <p className="text-sm font-semibold text-green-600 mt-1" title={t('balance')}>
-                        {t('balance')}: ₹{Number(displayBalance ?? user?.balance ?? 0).toLocaleString('en-IN')}
-                    </p>
                 </div>
                 <button
                     type="button"

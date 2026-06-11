@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEyeSlash, FaCopy, FaPercent, FaSearch, FaWallet, FaUsersCog, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEyeSlash, FaCopy, FaPercent, FaSearch, FaUsersCog, FaExternalLinkAlt } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -45,7 +45,6 @@ const BookieManagement = () => {
         confirmPassword: '',
         commissionPercentage: '',
         canManagePayments: false,
-        balance: '',
     });
 
     const [formLoading, setFormLoading] = useState(false);
@@ -62,8 +61,6 @@ const BookieManagement = () => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [manageData, setManageData] = useState({
         commissionPercentage: '',
-        operation: 'add',
-        amount: '',
     });
     const closeCreateModal = useModalBackHandler(showCreateModal, () => setShowCreateModal(false));
     const closeEditModal = useModalBackHandler(showEditModal, () => setShowEditModal(false));
@@ -118,7 +115,6 @@ const BookieManagement = () => {
         total: bookies.length,
         active: bookies.filter((b) => b.status === 'active').length,
         suspended: bookies.filter((b) => b.status !== 'active').length,
-        totalBalance: bookies.reduce((sum, b) => sum + (Number(b.balance) || 0), 0),
         totalCommission: bookies.reduce((sum, b) => sum + (Number(b.totalCommissionAmount) || 0), 0),
     };
 
@@ -126,7 +122,6 @@ const BookieManagement = () => {
         total: allSubBookies.length,
         active: allSubBookies.filter((b) => b.status === 'active').length,
         suspended: allSubBookies.filter((b) => b.status !== 'active').length,
-        totalBalance: allSubBookies.reduce((sum, b) => sum + (Number(b.balance) || 0), 0),
         totalPlayers: allSubBookies.reduce((sum, b) => sum + (Number(b.playerCount) || 0), 0),
     };
 
@@ -211,7 +206,6 @@ const BookieManagement = () => {
         let processed = value;
         if (name === 'phone') processed = value.replace(/\D/g, '').slice(0, 10);
         if (name === 'commissionPercentage') processed = value.replace(/[^0-9.]/g, '').slice(0, 6);
-        if (name === 'balance') processed = value.replace(/[^0-9.]/g, '').slice(0, 16);
         setFormData({ ...formData, [name]: processed });
         setError('');
     };
@@ -254,7 +248,6 @@ const BookieManagement = () => {
                 password: formData.password,
                 commissionPercentage: formData.commissionPercentage ? Number(formData.commissionPercentage) : 0,
                 canManagePayments: formData.canManagePayments || false,
-                balance: formData.balance !== '' ? Math.max(0, Number(formData.balance)) : 0,
             };
             const response = await fetchWithAuth(`${API_BASE_URL}/admin/bookies`, {
                 method: 'POST',
@@ -266,7 +259,7 @@ const BookieManagement = () => {
                 const phoneNumber = formData.phone.replace(/\D/g, '').slice(0, 10);
                 setSuccess(`${TOP_LEVEL_LABEL} account created successfully! Login with Phone: ${phoneNumber} and the password you set.`);
                 setShowCreateModal(false);
-                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false, balance: '' });
+                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false });
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 10000); // Show for 10 seconds so user can note the credentials
             } else {
@@ -306,7 +299,6 @@ const BookieManagement = () => {
                 phone: formData.phone.replace(/\D/g, '').slice(0, 10) || formData.phone,
                 commissionPercentage: formData.commissionPercentage !== '' ? Number(formData.commissionPercentage) : undefined,
                 canManagePayments: formData.canManagePayments,
-                balance: formData.balance !== '' ? Math.max(0, Number(formData.balance)) : undefined,
             };
             if (formData.password) updateData.password = formData.password;
 
@@ -320,7 +312,7 @@ const BookieManagement = () => {
                 setSuccess(`${TOP_LEVEL_LABEL} updated successfully!`);
                 setShowEditModal(false);
                 setSelectedBookie(null);
-                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false, balance: '' });
+                setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false });
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 3000);
             } else {
@@ -442,7 +434,6 @@ const BookieManagement = () => {
             confirmPassword: '',
             commissionPercentage: bookie.commissionPercentage != null ? String(bookie.commissionPercentage) : '0',
             canManagePayments: bookie.canManagePayments || false,
-            balance: bookie.balance != null ? String(bookie.balance) : '0',
         });
         setShowEditModal(true);
     };
@@ -459,8 +450,6 @@ const BookieManagement = () => {
         setSelectedBookie(bookie);
         setManageData({
             commissionPercentage: String(bookie.commissionPercentage ?? 0),
-            operation: 'add',
-            amount: '',
         });
         setShowManageModal(true);
     };
@@ -468,22 +457,11 @@ const BookieManagement = () => {
     const handleManageSave = async (e) => {
         e.preventDefault();
         if (!selectedBookie?._id) return;
-        const currentBalance = Number(selectedBookie.balance) || 0;
-        const amount = Number(manageData.amount || 0);
         const commission = Number(manageData.commissionPercentage || 0);
         if (!Number.isFinite(commission) || commission < 0 || commission > 100) {
             setError('Commission must be between 0 and 100');
             return;
         }
-        if (!Number.isFinite(amount) || amount < 0) {
-            setError('Amount must be a non-negative number');
-            return;
-        }
-
-        const newBalance =
-            manageData.operation === 'subtract'
-                ? Math.max(0, currentBalance - amount)
-                : currentBalance + amount;
 
         setFormLoading(true);
         setError('');
@@ -497,7 +475,6 @@ const BookieManagement = () => {
                     phone: selectedBookie.phone || '',
                     commissionPercentage: commission,
                     canManagePayments: Boolean(selectedBookie.canManagePayments),
-                    balance: newBalance,
                 }),
             });
             if (response.status === 401) return;
@@ -538,7 +515,7 @@ const BookieManagement = () => {
                         {canManageBookies && pageTab === 'superBookies' && (
                             <button
                                 onClick={() => {
-                                    setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false, balance: '' });
+                                    setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', commissionPercentage: '', canManagePayments: false });
                                     setShowCreateModal(true);
                                 }}
                                 className="w-full sm:w-auto flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-gray-800 font-bold py-2.5 px-4 rounded-lg transition-colors text-sm sm:text-base"
@@ -578,7 +555,7 @@ const BookieManagement = () => {
                     </div>
 
                     {pageTab === 'superBookies' ? (
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
                             <p className="text-xs text-gray-500">Total {TOP_LEVEL_LABEL_PLURAL}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.total}</p>
@@ -592,16 +569,12 @@ const BookieManagement = () => {
                             <p className="text-xl font-bold text-red-500">{stats.suspended}</p>
                         </div>
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Total {TOP_LEVEL_LABEL} Balance</p>
-                            <p className="text-xl font-bold text-[#1B3150]">₹{Math.floor(stats.totalBalance).toLocaleString('en-IN')}</p>
-                        </div>
-                        <div className="bg-white rounded-lg border border-gray-200 p-3">
                             <p className="text-xs text-gray-500">Total Commission (All {TOP_LEVEL_LABEL_PLURAL})</p>
                             <p className="text-xl font-bold text-orange-600">₹{(stats.totalCommission ?? 0).toLocaleString('en-IN')}</p>
                         </div>
                     </div>
                     ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
                         <div className="bg-white rounded-lg border border-indigo-200 p-3">
                             <p className="text-xs text-gray-500">Total {SUB_LEVEL_LABEL_PLURAL}</p>
                             <p className="text-xl font-bold text-indigo-800">{stats.total}</p>
@@ -613,10 +586,6 @@ const BookieManagement = () => {
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
                             <p className="text-xs text-gray-500">Suspended</p>
                             <p className="text-xl font-bold text-red-500">{stats.suspended}</p>
-                        </div>
-                        <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Total {SUB_LEVEL_LABEL} Balance</p>
-                            <p className="text-xl font-bold text-[#1B3150]">₹{Math.floor(stats.totalBalance).toLocaleString('en-IN')}</p>
                         </div>
                         <div className="bg-white rounded-lg border border-gray-200 p-3">
                             <p className="text-xs text-gray-500">Total players (all {SUB_LEVEL_LABEL_PLURAL.toLowerCase()})</p>
@@ -754,10 +723,6 @@ const BookieManagement = () => {
                                                     <p className="font-semibold text-orange-600 mt-0.5">{sb.commissionPercentage ?? 0}%</p>
                                                 </div>
                                                 <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
-                                                    <p className="text-[11px] text-gray-500">Balance</p>
-                                                    <p className="font-semibold text-green-600 mt-0.5">₹{Math.floor(Number(sb.balance ?? 0)).toLocaleString('en-IN')}</p>
-                                                </div>
-                                                <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5 col-span-2">
                                                     <p className="text-[11px] text-gray-500">Players</p>
                                                     <p className="font-semibold text-gray-800 mt-0.5">{sb.playerCount ?? 0}</p>
                                                 </div>
@@ -832,10 +797,6 @@ const BookieManagement = () => {
                                                 <p className="font-semibold text-orange-600 mt-0.5">{bookie.commissionPercentage ?? 0}%</p>
                                             </div>
                                             <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
-                                                <p className="text-[11px] text-gray-500">Balance</p>
-                                                <p className="font-semibold text-green-600 mt-0.5">₹{Math.floor(Number(bookie.balance ?? 0)).toLocaleString('en-IN')}</p>
-                                            </div>
-                                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
                                                 <p className="text-[11px] text-gray-500">Total Commission Amount</p>
                                                 <p className="font-semibold text-[#1B3150] mt-0.5">₹{(bookie.totalCommissionAmount ?? 0).toLocaleString('en-IN')}</p>
                                             </div>
@@ -863,7 +824,7 @@ const BookieManagement = () => {
                                                 type="button"
                                                 onClick={() => openManageModal(bookie)}
                                                 className="px-3 py-2 rounded-lg bg-[#1B3150] text-white text-xs font-semibold hover:bg-[#152842]"
-                                                title="Quick Manage Balance & Commission"
+                                                title="Quick Manage Commission"
                                             >
                                                 Quick Manage
                                             </button>
@@ -1001,19 +962,6 @@ const BookieManagement = () => {
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
                                     </div>
                                     <p className="mt-0.5 text-xs text-gray-500">0–100%. Default: 0%</p>
-                                </div>
-                                <div>
-                                    <label className="block text-gray-600 text-sm font-medium mb-1">Initial Balance (₹)</label>
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        name="balance"
-                                        value={formData.balance}
-                                        onChange={handleChange}
-                                        className="w-full px-3 py-1.5 text-sm bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                                        placeholder="0"
-                                    />
-                                    <p className="mt-0.5 text-xs text-gray-500">Deducted when {TOP_LEVEL_LABEL.toLowerCase()} gives balance to players.</p>
                                 </div>
                                 <div>
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1158,19 +1106,6 @@ const BookieManagement = () => {
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
                                     </div>
                                     <p className="mt-0.5 text-xs text-gray-500">0–100%</p>
-                                </div>
-                                <div>
-                                    <label className="block text-gray-600 text-sm font-medium mb-1">Balance (₹)</label>
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        name="balance"
-                                        value={formData.balance}
-                                        onChange={handleChange}
-                                        className="w-full px-3 py-1.5 text-sm bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                                        placeholder="0"
-                                    />
-                                    <p className="mt-0.5 text-xs text-gray-500">Deducted when {TOP_LEVEL_LABEL.toLowerCase()} gives balance to players.</p>
                                 </div>
                                 <div>
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1325,7 +1260,6 @@ const BookieManagement = () => {
                             <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
                                 <p className="text-sm text-gray-500">{TOP_LEVEL_LABEL}</p>
                                 <p className="font-semibold text-gray-800">{selectedBookie.username}</p>
-                                <p className="text-sm text-gray-500 mt-1">Current Balance: <span className="font-semibold text-green-600">₹{Number(selectedBookie.balance || 0).toLocaleString('en-IN')}</span></p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-600 mb-1">Commission %</label>
@@ -1335,24 +1269,6 @@ const BookieManagement = () => {
                                     value={manageData.commissionPercentage}
                                     onChange={(e) => setManageData((p) => ({ ...p, commissionPercentage: e.target.value.replace(/[^0-9.]/g, '').slice(0, 6) }))}
                                     className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50"
-                                />
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                                <select
-                                    value={manageData.operation}
-                                    onChange={(e) => setManageData((p) => ({ ...p, operation: e.target.value }))}
-                                    className="px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm"
-                                >
-                                    <option value="add">Add</option>
-                                    <option value="subtract">Subtract</option>
-                                </select>
-                                <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    placeholder="Amount"
-                                    value={manageData.amount}
-                                    onChange={(e) => setManageData((p) => ({ ...p, amount: e.target.value.replace(/[^0-9.]/g, '').slice(0, 16) }))}
-                                    className="col-span-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50"
                                 />
                             </div>
                             <div className="flex gap-2 pt-1">

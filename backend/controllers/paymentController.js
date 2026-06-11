@@ -11,7 +11,6 @@ import { uploadToCloudinary } from '../config/cloudinary.js';
 import { invalidateAdminPaymentRelatedCaches } from '../services/cacheInvalidationService.js';
 import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
-import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
 import PaymentUiConfig from '../models/settings/PaymentUiConfig.js';
 import { enrichPaymentsWithUserReferrerChain } from '../utils/referrerChain.js';
 
@@ -1324,66 +1323,6 @@ export const approvePayment = async (req, res) => {
             });
         }
 
-        let updatedBookieBalance = null;
-        let deductedBookieId = null;
-
-        // Add fund approved: credit owner operator balance (player deposit increases bookie pool).
-        if (payment.type === 'deposit') {
-            if (
-                ownerOperator
-                && isPaymentOperatorRole(ownerOperator.role)
-                && ownerOperator.canManagePayments
-            ) {
-                const updatedBookie = await Admin.findOneAndUpdate(
-                    { _id: ownerOperator._id },
-                    { $inc: { balance: payment.amount } },
-                    { new: true }
-                ).select('balance');
-
-                if (updatedBookie) {
-                    deductedBookieId = String(ownerOperator._id);
-                    updatedBookieBalance = Number(updatedBookie.balance || 0);
-                    await recordBookieWalletTransaction({
-                        adminId: ownerOperator._id,
-                        direction: 'credit',
-                        type: 'player_deposit',
-                        amount: payment.amount,
-                        balanceAfter: updatedBookieBalance,
-                        description: `Player add fund approved for ${payment.userId?.username || 'player'}`,
-                        referenceId: String(id),
-                    });
-                }
-            }
-        } else if (
-            payment.type === 'withdrawal'
-            && ownerOperator
-            && isPaymentOperatorRole(ownerOperator.role)
-            && ownerOperator.canManagePayments
-        ) {
-            const updatedBookie = await Admin.findOneAndUpdate(
-                { _id: ownerOperator._id, balance: { $gte: payment.amount } },
-                { $inc: { balance: -payment.amount } },
-                { new: true }
-            ).select('balance');
-            if (!updatedBookie) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Insufficient bookie balance to approve this withdrawal',
-                });
-            }
-            deductedBookieId = String(ownerOperator._id);
-            updatedBookieBalance = Number(updatedBookie.balance || 0);
-            await recordBookieWalletTransaction({
-                adminId: ownerOperator._id,
-                direction: 'debit',
-                type: 'player_withdrawal',
-                amount: payment.amount,
-                balanceAfter: updatedBookieBalance,
-                description: `Player withdrawal approved for ${payment.userId?.username || 'player'}`,
-                referenceId: String(id),
-            });
-        }
-
         // For withdrawals without prior wallet hold (legacy pending), ensure balance still covers the payout.
         if (payment.type === 'withdrawal' && !payment.withdrawalWalletHeld) {
             const wallet = await Wallet.findOne({ userId: payment.userId._id });
@@ -1447,23 +1386,14 @@ export const approvePayment = async (req, res) => {
                 paymentId: id,
                 type: payment.type,
                 amount: payment.amount,
-                bookieDeducted: deductedBookieId !== null,
-                deductedBookieId,
             },
             ip: getClientIp(req),
         });
-
-        if (deductedBookieId && updatedBookieBalance !== null) {
-            const notifyReason =
-                payment.type === 'withdrawal' ? 'payment_withdrawal_approved' : 'payment_deposit_approved';
-            await notifyBookiePanelBalance(deductedBookieId, notifyReason, updatedBookieBalance);
-        }
 
         res.status(200).json({
             success: true,
             message: `${payment.type === 'deposit' ? 'Deposit' : 'Withdrawal'} approved successfully`,
             data: payment,
-            ...(updatedBookieBalance !== null ? { bookieBalance: updatedBookieBalance } : {}),
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

@@ -23,7 +23,6 @@ const Shortcuts = () => {
                 { keys: ['Alt', 'M'], description: 'Go to Markets', icon: FaChartBar },
                 { keys: ['Alt', 'G'], description: 'Go to Games', icon: FaGamepad },
                 { keys: ['Alt', 'R'], description: 'Go to Reports', icon: null },
-                { keys: ['Alt', 'W'], description: 'Go to Wallet', icon: null },
                 { keys: ['Alt', 'H'], description: 'Go to Help Desk', icon: null },
                 { keys: ['Alt', '?'], description: 'View Keyboard Shortcuts', icon: null },
             ],

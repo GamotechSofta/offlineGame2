@@ -77,9 +77,6 @@ const Layout = ({ children, title }) => {
                     case 'r':
                         navigate('/reports');
                         break;
-                    case 'w':
-                        navigate('/wallet');
-                        break;
                     case 'h':
                         navigate('/help-desk');
                         break;

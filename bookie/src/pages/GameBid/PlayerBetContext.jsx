@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useParams, useSearchParams } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders, fetchWithAuth } from '../../utils/api';
 import { placeBetForPlayer } from './bookieApi';
-import { useAuth } from '../../context/AuthContext';
 
 const PlayerBetContext = createContext({});
 
@@ -16,12 +15,10 @@ export const PlayerBetProvider = ({ children }) => {
     const [loadingMarket, setLoadingMarket] = useState(true);
     const [loadingPlayers, setLoadingPlayers] = useState(true);
     const [selectedPlayerId, setSelectedPlayerId] = useState(preSelectedPlayerId);
-    const { bookie, updateBookie } = useAuth();
 
     useEffect(() => {
         if (preSelectedPlayerId) setSelectedPlayerId(preSelectedPlayerId);
     }, [preSelectedPlayerId]);
-    const bookieBalance = Number(bookie?.balance) || 0;
 
     // Fetch market data
     useEffect(() => {
@@ -88,23 +85,6 @@ export const PlayerBetProvider = ({ children }) => {
         }
     }, []);
 
-    // Place bet on behalf of player - matches frontend's placeBet signature but wraps bookie API
-    // NOTE: Bet amount is deducted from BOOKIE's balance, not player's wallet
-    const placeBet = useCallback(async (mktId, bets, scheduledDate = null) => {
-        if (!selectedPlayerId) {
-            return { success: false, message: 'No player selected' };
-        }
-        const result = await placeBetForPlayer(selectedPlayerId, mktId, bets, scheduledDate);
-        if (result.success) {
-            // Update bookie's balance in localStorage (amount was deducted from bookie)
-            if (result.data?.newBookieBalance != null) {
-                updateBookie({ balance: Number(result.data.newBookieBalance) });
-            }
-        }
-        return result;
-    }, [selectedPlayerId, updateBookie]);
-
-    // Update balance locally after successful bet (like frontend's updateUserBalance)
     const updatePlayerBalance = useCallback((newBalance) => {
         setPlayers(prev => prev.map(p =>
             p._id === selectedPlayerId
@@ -112,6 +92,17 @@ export const PlayerBetProvider = ({ children }) => {
                 : p
         ));
     }, [selectedPlayerId]);
+
+    const placeBet = useCallback(async (mktId, bets, scheduledDate = null) => {
+        if (!selectedPlayerId) {
+            return { success: false, message: 'No player selected' };
+        }
+        const result = await placeBetForPlayer(selectedPlayerId, mktId, bets, scheduledDate);
+        if (result.success && result.data?.newBalance != null) {
+            updatePlayerBalance(Number(result.data.newBalance));
+        }
+        return result;
+    }, [selectedPlayerId, updatePlayerBalance]);
 
     const value = useMemo(() => ({
         market,
@@ -121,14 +112,13 @@ export const PlayerBetProvider = ({ children }) => {
         setSelectedPlayerId,
         selectedPlayer,
         walletBalance,
-        bookieBalance,
         playerName,
         loadingMarket,
         loadingPlayers,
         placeBet,
         updatePlayerBalance,
         refreshPlayers,
-    }), [market, marketId, players, selectedPlayerId, selectedPlayer, walletBalance, bookieBalance, playerName, loadingMarket, loadingPlayers, placeBet, updatePlayerBalance, refreshPlayers]);
+    }), [market, marketId, players, selectedPlayerId, selectedPlayer, walletBalance, playerName, loadingMarket, loadingPlayers, placeBet, updatePlayerBalance, refreshPlayers]);
 
     return (
         <PlayerBetContext.Provider value={value}>

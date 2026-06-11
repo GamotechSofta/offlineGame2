@@ -5,7 +5,6 @@ import {
     getSuperBookieProfile,
     getSuperBookieReferralLink,
 } from '../../controllers/superBookieController.js';
-import { listMyBookieWalletTransactions } from '../../controllers/bookieWalletTransactionController.js';
 import { verifyAdmin, requireSuperBookie } from '../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -14,6 +13,4 @@ router.post('/login', superBookieLogin);
 router.post('/heartbeat', verifyAdmin, requireSuperBookie, superBookieHeartbeat);
 router.get('/profile', verifyAdmin, requireSuperBookie, getSuperBookieProfile);
 router.get('/referral-link', verifyAdmin, requireSuperBookie, getSuperBookieReferralLink);
-router.get('/wallet-transactions', verifyAdmin, requireSuperBookie, listMyBookieWalletTransactions);
-
 export default router;

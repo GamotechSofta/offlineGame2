@@ -166,22 +166,17 @@ const PlaceBetForPlayer = () => {
             const data = await res.json();
 
             if (data.success) {
-                setSuccess(`Bet placed successfully! Your new balance: ₹${Number(data.data?.newBookieBalance ?? 0).toLocaleString('en-IN')}`);
+                setSuccess(`Bet placed successfully! Player balance: ₹${Number(data.data?.newBalance ?? 0).toLocaleString('en-IN')}`);
                 setBets([{ betNumber: '', amount: '' }]);
-                // Refresh bookie profile to update sidebar balance
-                try {
-                    const profileRes = await fetch(`${API_BASE_URL}/super-bookie/profile`, { headers: getBookieAuthHeaders() });
-                    const profileData = await profileRes.json();
-                    if (profileData.success && profileData.data) {
-                        // Update AuthContext with new balance
-                        const stored = localStorage.getItem('bookie');
-                        if (stored) {
-                            const bookie = JSON.parse(stored);
-                            bookie.balance = profileData.data.balance;
-                            localStorage.setItem('bookie', JSON.stringify(bookie));
-                        }
-                    }
-                } catch (e) { /* ignore */ }
+                if (data.data?.newBalance != null) {
+                    setPlayers((prev) =>
+                        prev.map((p) =>
+                            p._id === selectedPlayerId
+                                ? { ...p, walletBalance: Number(data.data.newBalance) }
+                                : p,
+                        ),
+                    );
+                }
             } else {
                 setError(data.message || 'Failed to place bet');
             }

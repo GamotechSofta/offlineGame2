@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes, FaEye, FaEyeSlash, FaUsersCog, FaWallet, FaCog, FaTrash } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
+import { FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes, FaEye, FaEyeSlash, FaUsersCog, FaCog, FaTrash } from 'react-icons/fa';
 import { API_BASE_URL, fetchWithAuth } from '../utils/api';
 import { PANEL_LABEL, PANEL_LABEL_PLURAL } from '../config/panelLabels';
 
@@ -27,7 +26,6 @@ const Modal = ({ open, onClose, title, children }) => {
 
 const SuperBookieManagement = () => {
     const navigate = useNavigate();
-    const { bookie, updateBookie } = useAuth();
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -35,7 +33,6 @@ const SuperBookieManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [showBalanceModal, setShowBalanceModal] = useState(false);
     const [showManageModal, setShowManageModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selected, setSelected] = useState(null);
@@ -50,13 +47,10 @@ const SuperBookieManagement = () => {
         phone: '',
         password: '',
         confirmPassword: '',
-        balance: '',
         commissionPercentage: '0',
         canManagePayments: false,
-        initialBalancePaymentMode: 'advance_paid',
     });
-    const [balanceForm, setBalanceForm] = useState({ operation: 'add', amount: '' });
-    const [manageData, setManageData] = useState({ commissionPercentage: '0', operation: 'add', amount: '' });
+    const [manageData, setManageData] = useState({ commissionPercentage: '0' });
 
     const fetchList = async (silent = false) => {
         try {
@@ -99,10 +93,8 @@ const SuperBookieManagement = () => {
             phone: '',
             password: '',
             confirmPassword: '',
-            balance: '',
             commissionPercentage: '0',
             canManagePayments: false,
-            initialBalancePaymentMode: 'advance_paid',
         });
     };
 
@@ -110,7 +102,6 @@ const SuperBookieManagement = () => {
         const { name, value } = e.target;
         let v = value;
         if (name === 'phone') v = value.replace(/\D/g, '').slice(0, 10);
-        if (name === 'balance') v = value.replace(/[^0-9.]/g, '');
         if (name === 'commissionPercentage') v = value.replace(/[^0-9.]/g, '').slice(0, 6);
         setFormData((prev) => ({ ...prev, [name]: v }));
         setError('');
@@ -142,13 +133,11 @@ const SuperBookieManagement = () => {
                     email: formData.email.trim(),
                     phone,
                     password: formData.password,
-                    balance: formData.balance !== '' ? Math.max(0, Number(formData.balance)) : 0,
                     commissionPercentage:
                         formData.commissionPercentage !== ''
                             ? Number(formData.commissionPercentage)
                             : 0,
                     canManagePayments: Boolean(formData.canManagePayments),
-                    initialBalancePaymentMode: formData.initialBalancePaymentMode,
                 }),
             });
             const data = await res.json();
@@ -219,39 +208,10 @@ const SuperBookieManagement = () => {
         }
     };
 
-    const handleBalanceAdjust = async (e) => {
-        e.preventDefault();
-        const amount = Number(balanceForm.amount);
-        if (!selected || !Number.isFinite(amount) || amount <= 0) {
-            setError('Valid amount required');
-            return;
-        }
-        setFormLoading(true);
-        try {
-            const res = await fetchWithAuth(
-                `${API_BASE_URL}/bookie/super-bookies/${selected._id}/balance`,
-                {
-                    method: 'PATCH',
-                    body: JSON.stringify({ operation: balanceForm.operation, amount }),
-                }
-            );
-            const data = await res.json();
-            if (data.success) {
-                setShowBalanceModal(false);
-                setBalanceForm({ operation: 'add', amount: '' });
-                fetchList(true);
-            } else setError(data.message || 'Failed');
-        } finally {
-            setFormLoading(false);
-        }
-    };
-
     const openManageModal = (sb) => {
         setSelected(sb);
         setManageData({
             commissionPercentage: String(sb.commissionPercentage ?? 0),
-            operation: 'add',
-            amount: '',
         });
         setError('');
         setShowManageModal(true);
@@ -265,7 +225,6 @@ const SuperBookieManagement = () => {
             setError('Commission must be between 0 and 100');
             return;
         }
-        const amount = Number(manageData.amount || 0);
         setFormLoading(true);
         setError('');
         try {
@@ -277,20 +236,6 @@ const SuperBookieManagement = () => {
             if (!data.success) {
                 setError(data.message || 'Failed to update commission');
                 return;
-            }
-            if (Number.isFinite(amount) && amount > 0) {
-                const balRes = await fetchWithAuth(
-                    `${API_BASE_URL}/bookie/super-bookies/${selected._id}/balance`,
-                    {
-                        method: 'PATCH',
-                        body: JSON.stringify({ operation: manageData.operation, amount }),
-                    }
-                );
-                const balData = await balRes.json();
-                if (!balData.success) {
-                    setError(balData.message || 'Commission saved but balance update failed');
-                    return;
-                }
             }
             setSuccess(`${PANEL_LABEL} updated`);
             setShowManageModal(false);
@@ -322,10 +267,6 @@ const SuperBookieManagement = () => {
                 setSuccess(data.message || `${PANEL_LABEL} deleted`);
                 setShowDeleteModal(false);
                 setSelected(null);
-                const returned = Number(data.data?.returnedBalance) || 0;
-                if (returned > 0) {
-                    updateBookie({ balance: Number(bookie?.balance || 0) + returned });
-                }
                 fetchList(true);
             } else {
                 setError(data.message || 'Delete failed');
@@ -347,7 +288,6 @@ const SuperBookieManagement = () => {
             phone: sb.phone || '',
             password: '',
             confirmPassword: '',
-            balance: '',
             commissionPercentage: String(sb.commissionPercentage ?? 0),
             canManagePayments: Boolean(sb.canManagePayments),
         });
@@ -433,54 +373,6 @@ const SuperBookieManagement = () => {
                 </label>
                 <p className="text-xs text-gray-500">Can approve/reject player payment requests</p>
             </div>
-            {!isEdit && (
-                <>
-                    <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3 space-y-2">
-                        <p className="text-sm font-semibold text-[#1B3150]">
-                            Initial balance payment type
-                        </p>
-                        <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input
-                                type="radio"
-                                name="initialBalancePaymentMode"
-                                value="advance_paid"
-                                checked={formData.initialBalancePaymentMode === 'advance_paid'}
-                                onChange={handleChange}
-                                className="mt-0.5"
-                            />
-                            <span>
-                                <span className="font-medium">Advance paid</span>
-                                <span className="block text-xs text-gray-500">
-                                    Adds to bookie balance — no advance recovery deduction
-                                </span>
-                            </span>
-                        </label>
-                        <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input
-                                type="radio"
-                                name="initialBalancePaymentMode"
-                                value="after_paid"
-                                checked={formData.initialBalancePaymentMode === 'after_paid'}
-                                onChange={handleChange}
-                                className="mt-0.5"
-                            />
-                            <span>
-                                <span className="font-medium">After paid</span>
-                                <span className="block text-xs text-gray-500">
-                                    Deducts from balance — advance recovered from bets before commission payout
-                                </span>
-                            </span>
-                        </label>
-                    </div>
-                    <input
-                        name="balance"
-                        value={formData.balance}
-                        onChange={handleChange}
-                        placeholder="Initial balance (from your wallet)"
-                        className="border rounded-lg px-3 py-2 w-full"
-                    />
-                </>
-            )}
             <div className="relative">
                 <input
                     name="password"
@@ -593,7 +485,6 @@ const SuperBookieManagement = () => {
                                 <tr>
                                     <th className="p-3">Name</th>
                                     <th className="p-3">Phone</th>
-                                    <th className="p-3">Balance</th>
                                     <th className="p-3">Commission</th>
                                     <th className="p-3">Payment Mgmt</th>
                                     <th className="p-3">Players</th>
@@ -604,7 +495,7 @@ const SuperBookieManagement = () => {
                             <tbody>
                                 {filtered.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="p-6 text-center text-gray-400">
+                                        <td colSpan={7} className="p-6 text-center text-gray-400">
                                             No {PANEL_LABEL_PLURAL.toLowerCase()} yet
                                         </td>
                                     </tr>
@@ -628,7 +519,6 @@ const SuperBookieManagement = () => {
                                                 {sb.username}
                                             </td>
                                             <td className="p-3">{sb.phone}</td>
-                                            <td className="p-3">₹{Number(sb.balance || 0).toLocaleString('en-IN')}</td>
                                             <td className="p-3 text-orange-600 font-medium">{sb.commissionPercentage ?? 0}%</td>
                                             <td className="p-3">
                                                 <span className={`px-2 py-0.5 rounded-full text-xs ${
@@ -668,7 +558,7 @@ const SuperBookieManagement = () => {
                                                         type="button"
                                                         onClick={() => openManageModal(sb)}
                                                         className="px-2 py-1.5 rounded-lg bg-[#1B3150] text-white text-xs font-semibold"
-                                                        title="Quick Manage Commission & Balance"
+                                                        title="Quick Manage Commission"
                                                     >
                                                         <FaCog className="inline mr-1" /> Manage
                                                     </button>
@@ -679,17 +569,6 @@ const SuperBookieManagement = () => {
                                                         title="Edit"
                                                     >
                                                         <FaEdit />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSelected(sb);
-                                                            setShowBalanceModal(true);
-                                                        }}
-                                                        className="p-2 rounded-lg bg-amber-50 text-amber-700"
-                                                        title="Balance"
-                                                    >
-                                                        <FaWallet />
                                                     </button>
                                                     <button
                                                         type="button"
@@ -735,9 +614,6 @@ const SuperBookieManagement = () => {
                         <div className="rounded-lg bg-gray-50 border p-3 text-sm">
                             <p className="font-semibold text-[#1B3150]">{selected.username}</p>
                             <p className="text-gray-500 mt-1">
-                                Balance: ₹{Number(selected.balance || 0).toLocaleString('en-IN')}
-                            </p>
-                            <p className="text-gray-500">
                                 Total commission earned: ₹{Number(selected.totalCommissionAmount || 0).toLocaleString('en-IN')}
                             </p>
                         </div>
@@ -757,29 +633,6 @@ const SuperBookieManagement = () => {
                             className="w-full border rounded-lg px-3 py-2"
                         />
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                        <select
-                            value={manageData.operation}
-                            onChange={(e) => setManageData((p) => ({ ...p, operation: e.target.value }))}
-                            className="border rounded-lg px-2 py-2 text-sm"
-                        >
-                            <option value="add">Add balance</option>
-                            <option value="deduct">Deduct balance</option>
-                        </select>
-                        <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="Amount (optional)"
-                            value={manageData.amount}
-                            onChange={(e) =>
-                                setManageData((p) => ({
-                                    ...p,
-                                    amount: e.target.value.replace(/[^0-9.]/g, '').slice(0, 16),
-                                }))
-                            }
-                            className="col-span-2 border rounded-lg px-3 py-2"
-                        />
-                    </div>
                     {error && <p className="text-red-600 text-sm">{error}</p>}
                     <button
                         type="submit"
@@ -787,35 +640,6 @@ const SuperBookieManagement = () => {
                         className="w-full py-2.5 rounded-xl bg-[#1B3150] text-white font-semibold disabled:opacity-50"
                     >
                         {formLoading ? 'Saving...' : 'Save Changes'}
-                    </button>
-                </form>
-            </Modal>
-            <Modal open={showBalanceModal} onClose={() => setShowBalanceModal(false)} title="Adjust balance">
-                <form onSubmit={handleBalanceAdjust} className="space-y-3">
-                    <select
-                        value={balanceForm.operation}
-                        onChange={(e) => setBalanceForm({ ...balanceForm, operation: e.target.value })}
-                        className="w-full border rounded-lg px-3 py-2"
-                    >
-                        <option value="add">Add (from your balance)</option>
-                        <option value="deduct">Deduct (return to your balance)</option>
-                    </select>
-                    <input
-                        type="number"
-                        min="0"
-                        value={balanceForm.amount}
-                        onChange={(e) => setBalanceForm({ ...balanceForm, amount: e.target.value })}
-                        placeholder="Amount"
-                        className="w-full border rounded-lg px-3 py-2"
-                        required
-                    />
-                    {error && <p className="text-red-600 text-sm">{error}</p>}
-                    <button
-                        type="submit"
-                        disabled={formLoading}
-                        className="w-full py-2.5 rounded-xl bg-[#1B3150] text-white font-semibold"
-                    >
-                        Apply
                     </button>
                 </form>
             </Modal>
@@ -833,12 +657,6 @@ const SuperBookieManagement = () => {
                         ) : (
                             <ul className="text-sm text-gray-500 list-disc pl-5 space-y-1">
                                 <li>Login for this {PANEL_LABEL.toLowerCase()} will stop working.</li>
-                                {Number(selected.balance || 0) > 0 && (
-                                    <li>
-                                        Remaining balance ₹{Number(selected.balance).toLocaleString('en-IN')} will
-                                        return to your wallet.
-                                    </li>
-                                )}
                             </ul>
                         )}
                         {error && <p className="text-red-600 text-sm">{error}</p>}

@@ -14,8 +14,6 @@ import { isSpCommon } from '../config/spCommonList.js';
 import { isValidDoublePana } from '../utils/doublePanaValidate.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
-import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
-import { recordBookieWalletTransaction } from '../utils/bookieWalletLedger.js';
 const THREE_DIGITS = /^\d{3}$/;
 /** CP (Common Pana): 3-digit chart single, chart double, or triple (matches frontend generateCPCommon). */
 const isValidCpCommonThreeDigit = (sn) =>
@@ -530,26 +528,22 @@ export const placeBetForPlayer = async (req, res) => {
             sanitized.push({ betType, betNumber: storedBetNumber, amount, betOn });
         }
 
-        // Deduct from BOOKIE's balance (not user's wallet)
-        // Use atomic operation to prevent race conditions
-        const bookieUpdate = await Admin.findOneAndUpdate(
-            { _id: bookie._id, balance: { $gte: totalAmount } },
+        const walletUpdate = await Wallet.findOneAndUpdate(
+            { userId, balance: { $gte: totalAmount } },
             { $inc: { balance: -totalAmount } },
-            { new: true }
+            { new: true, upsert: false },
         );
 
-        if (!bookieUpdate) {
-            // Check bookie's current balance for better error message
-            const currentBookie = await Admin.findById(bookie._id).select('balance').lean();
-            const currentBalance = currentBookie?.balance ?? 0;
+        if (!walletUpdate) {
+            const existingWallet = await Wallet.findOne({ userId });
+            const currentBalance = existingWallet?.balance ?? 0;
             return res.status(400).json({
                 success: false,
-                message: `Insufficient bookie balance. Required: ₹${totalAmount}, Available: ₹${currentBalance}`,
+                message: `Insufficient player balance. Required: ₹${totalAmount}, Available: ₹${currentBalance}`,
             });
         }
 
-        const newBookieBalance = bookieUpdate.balance;
-
+        const wallet = walletUpdate;
         const betIds = [];
         const createdBets = [];
         try {
@@ -565,41 +559,49 @@ export const placeBetForPlayer = async (req, res) => {
                     payout: 0,
                     placedByBookie: true,
                     placedByBookieId: bookie._id,
-                    commissionAmount: 0, // Commission calculated at end of day
-                    commissionPercentage: 0, // Commission calculated at end of day
+                    commissionAmount: 0,
+                    commissionPercentage: 0,
                 });
                 betIds.push(bet._id);
                 createdBets.push(bet);
             }
         } catch (createErr) {
-            // Rollback: restore bookie balance atomically
-            await Admin.findOneAndUpdate(
-                { _id: bookie._id },
-                { $inc: { balance: totalAmount } }
+            await Wallet.findOneAndUpdate(
+                { userId },
+                { $inc: { balance: totalAmount } },
+                { upsert: false },
             );
             throw createErr;
         }
 
-        // Note: No wallet transaction for user since bookie pays from their balance
-        // Bookie's balance is already deducted above
+        try {
+            if (createdBets.length > 0) {
+                await WalletTransaction.insertMany(
+                    createdBets.map((b) => ({
+                        userId,
+                        type: 'debit',
+                        amount: Number(b.amount) || 0,
+                        description: `Bet placed by bookie – ${market.marketName}`,
+                        referenceId: b._id.toString(),
+                    })),
+                );
+            }
+        } catch (txErr) {
+            await Wallet.findOneAndUpdate(
+                { userId },
+                { $inc: { balance: totalAmount } },
+                { upsert: false },
+            );
+            throw txErr;
+        }
 
         await invalidateAdminReadCaches('bookie_market_bet_placed');
-        await notifyBookiePanelBalance(bookie._id, 'bet_placed', newBookieBalance);
-        await recordBookieWalletTransaction({
-            adminId: bookie._id,
-            direction: 'debit',
-            type: 'bet_placed',
-            amount: totalAmount,
-            balanceAfter: newBookieBalance,
-            description: `Bet placed for ${user.username}`,
-            referenceId: betIds.length ? String(betIds[0]) : '',
-            meta: { userId: String(userId), marketId: String(marketId), betCount: betIds.length },
-        });
+        notifyPlayerWalletBalance(userId, 'bet_placed').catch(() => {});
         res.status(201).json({
             success: true,
             message: `Bet placed successfully for ${user.username}`,
             data: {
-                newBookieBalance: newBookieBalance,
+                newBalance: wallet.balance,
                 betIds,
                 totalAmount,
                 playerName: user.username,

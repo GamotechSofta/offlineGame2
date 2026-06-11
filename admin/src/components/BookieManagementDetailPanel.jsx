@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaSpinner, FaUsers, FaPercent, FaWallet, FaChartLine, FaList } from 'react-icons/fa';
+import { FaSpinner, FaUsers, FaPercent, FaChartLine, FaList } from 'react-icons/fa';
 import { TOP_LEVEL_LABEL, SUB_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
 
 const DETAIL_TABS = [
@@ -71,19 +71,13 @@ const BookieManagementDetailPanel = ({
         <div className={wrapClass}>
             <p className="text-sm font-semibold text-gray-800">Account overview</p>
 
-            {/* Commission & wallet */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* Commission */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div className="rounded-lg bg-orange-50 border border-orange-100 p-2.5">
                     <p className="text-[10px] text-gray-500 flex items-center gap-1">
                         <FaPercent className="w-3 h-3" /> Commission %
                     </p>
                     <p className="font-bold text-orange-600">{bookie.commissionPercentage ?? 0}%</p>
-                </div>
-                <div className="rounded-lg bg-green-50 border border-green-100 p-2.5">
-                    <p className="text-[10px] text-gray-500 flex items-center gap-1">
-                        <FaWallet className="w-3 h-3" /> Balance
-                    </p>
-                    <p className="font-bold text-green-700">{formatCurrency(bookie.balance)}</p>
                 </div>
                 <div className="rounded-lg bg-blue-50 border border-blue-100 p-2.5">
                     <p className="text-[10px] text-gray-500">Total commission earned</p>
@@ -197,7 +191,6 @@ const BookieManagementDetailPanel = ({
                                     <div className="flex flex-wrap gap-3 text-xs text-gray-600">
                                         <span><strong>{sb.commissionPercentage ?? 0}%</strong> comm.</span>
                                         <span>{sb.playerCount ?? 0} players</span>
-                                        <span>Bal {formatCurrency(sb.balance)}</span>
                                         <span className="text-[#1B3150]">Earned {formatCurrency(sb.totalCommissionAmount)}</span>
                                     </div>
                                 </div>

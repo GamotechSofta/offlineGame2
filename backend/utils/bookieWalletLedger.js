@@ -1,43 +1,9 @@
 import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
 import { isBookiePanelRole } from './adminRoles.js';
 
-/**
- * Record a ledger line for bookie / super_bookie wallet balance changes.
- * @param {import('mongoose').Types.ObjectId|string} adminId
- * @param {object} payload
- */
-export async function recordBookieWalletTransaction({
-    adminId,
-    direction,
-    type,
-    amount,
-    balanceAfter,
-    description = '',
-    referenceId = '',
-    meta = null,
-}) {
-    if (!adminId) return null;
-    const amt = Number(amount);
-    const bal = Number(balanceAfter);
-    if (!Number.isFinite(amt) || amt < 0 || !Number.isFinite(bal) || bal < 0) return null;
-    if (direction !== 'credit' && direction !== 'debit') return null;
-    if (!type) return null;
-
-    try {
-        return await BookieWalletTransaction.create({
-            adminId,
-            direction,
-            type: String(type),
-            amount: amt,
-            balanceAfter: bal,
-            description: String(description || '').slice(0, 500),
-            referenceId: referenceId ? String(referenceId) : '',
-            meta,
-        });
-    } catch (err) {
-        console.error('[BookieWalletLedger] Failed to record:', err.message);
-        return null;
-    }
+/** No-op — bookie operator wallet ledger removed (commission-only model). */
+export async function recordBookieWalletTransaction() {
+    return null;
 }
 
 export async function recordBookieWalletTxIfPanel(admin, payload) {
