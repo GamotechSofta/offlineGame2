@@ -1,5 +1,6 @@
 import CommissionRequest from '../models/commission/commission.js';
 import Admin from '../models/admin/admin.js';
+import { getEffectiveCommissionPercentage } from '../utils/commissionMetrics.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { ADMIN_TAB, denyUnlessTabAccess, denyUnlessSuperAdmin } from '../utils/adminTabAccess.js';
 import { isBookiePanelRole } from '../utils/adminRoles.js';
@@ -74,7 +75,7 @@ export const createCommissionRequest = async (req, res) => {
             });
         }
 
-        const currentPercentage = account.commissionPercentage || 0;
+        const currentPercentage = await getEffectiveCommissionPercentage(account);
 
         const request = await CommissionRequest.create({
             bookieId: account._id,
@@ -118,10 +119,12 @@ export const getMyCommissionRequests = async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
+        const currentCommission = await getEffectiveCommissionPercentage(account);
+
         res.status(200).json({
             success: true,
             data: {
-                currentCommission: account.commissionPercentage || 0,
+                currentCommission,
                 requests,
             },
         });

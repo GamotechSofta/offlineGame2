@@ -246,7 +246,22 @@ const CommissionFromAdmin = () => {
     const commissionPending = Number(
         data?.displayPending ?? sumMoney(recoveryPendingFromBets, cashPending)
     );
-    const commissionEarned = Number(data?.allTimeCommission ?? 0);
+    const adminRateOnDirect = Number(data?.commissionPercentage ?? 0);
+    const directCommissionAllTime = Number(data?.directCommission ?? 0);
+    const subCommissionAllTime = Number(data?.subCommission ?? 0);
+    const commissionEarned = Number(data?.allTimeCommission ?? directCommissionAllTime + subCommissionAllTime);
+    const adminCommissionRate = Number(data?.adminCommissionPercentage ?? 10);
+    const adminCommissionAllTime = Number(data?.adminCommissionAmount ?? 0);
+    const periodGrossCommission = Number(data?.periodCommission ?? 0);
+    const periodDirectCommission = Number(data?.periodDirectCommission ?? 0);
+    const periodSubCommission = Number(data?.periodSubCommission ?? 0);
+    const periodAdminCommission = Number(data?.periodAdminCommission ?? 0);
+    const netCommissionAfterAdmin = Number(
+        data?.netCommissionAfterAdmin ?? Math.max(0, commissionEarned - adminCommissionAllTime)
+    );
+    const periodNetAfterAdmin = Number(
+        data?.periodNetCommissionAfterAdmin ?? Math.max(0, periodGrossCommission - periodAdminCommission)
+    );
     const hasAdvance = advanceGiven > 0;
     const isRecoveringAdvance = advanceRemaining > 0 || recoveryPendingFromBets > 0;
 
@@ -258,7 +273,18 @@ const CommissionFromAdmin = () => {
                         <FaMoneyBillWave className="text-emerald-500" />
                         {t('commissionFromAdmin')}
                     </h1>
-                    <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('commissionFromAdminSubtitle')}</p>
+                    <p className="text-gray-400 text-xs sm:text-sm mt-1">
+                        Admin sets your direct-player rate. You set each Bookie&apos;s rate. Admin share is {adminCommissionRate}% of your gross commission.
+                    </p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-900 space-y-1">
+                    <p className="font-semibold">How commission flows</p>
+                    <p>1. <span className="font-medium">Direct players</span> — bets × {adminRateOnDirect}% (set by admin)</p>
+                    <p>2. <span className="font-medium">Bookie players</span> — bets × rate you set on each Bookie</p>
+                    <p>3. <span className="font-medium">Gross</span> = direct + bookie commission</p>
+                    <p>4. <span className="font-medium">Admin share</span> = gross × {adminCommissionRate}%</p>
+                    <p>5. <span className="font-medium">Your net</span> = gross − admin share</p>
                 </div>
 
                 <section className="bg-slate-800 rounded-xl p-4 sm:p-5 shadow-sm text-white space-y-4">
@@ -274,7 +300,7 @@ const CommissionFromAdmin = () => {
                             </span>
                         )}
                     </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-violet-200 flex items-center gap-1.5">
                                 <FaWallet className="text-violet-300" />
@@ -290,9 +316,28 @@ const CommissionFromAdmin = () => {
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-blue-200 flex items-center gap-1.5">
                                 <FaMoneyBillWave className="text-blue-300" />
-                                Total commission
+                                Gross commission
                             </p>
                             <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionEarned)}</p>
+                            <p className="text-[11px] text-blue-200 mt-1">
+                                Direct {formatCurrency(directCommissionAllTime)} + Bookies {formatCurrency(subCommissionAllTime)}
+                            </p>
+                        </div>
+                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
+                            <p className="text-[11px] uppercase tracking-wide text-rose-200 flex items-center gap-1.5">
+                                <FaMoneyBillWave className="text-rose-300" />
+                                Admin share
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(adminCommissionAllTime)}</p>
+                            <p className="text-[11px] text-rose-200 mt-1">{adminCommissionRate}% of your commission</p>
+                        </div>
+                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
+                            <p className="text-[11px] uppercase tracking-wide text-cyan-200 flex items-center gap-1.5">
+                                <FaCheckCircle className="text-cyan-300" />
+                                Your net
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(netCommissionAfterAdmin)}</p>
+                            <p className="text-[11px] text-cyan-200 mt-1">After admin share</p>
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-green-200 flex items-center gap-1.5">
@@ -421,27 +466,48 @@ const CommissionFromAdmin = () => {
                             </div>
                         ) : data ? (
                             <div className="space-y-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <div className="bg-white rounded-xl border p-4">
-                                    <p className="text-xs uppercase text-gray-500 font-semibold">Period sales</p>
+                                    <p className="text-xs uppercase text-gray-500 font-semibold">Period player sales</p>
                                     <p className="text-2xl font-bold mt-1">{formatCurrency(data.periodBetAmount)}</p>
-                                </div>
-                                <div className="bg-white rounded-xl border p-4">
-                                    <p className="text-xs uppercase text-gray-500 font-semibold">All-time sales</p>
-                                    <p className="text-xl font-bold mt-1">{formatCurrency(data.allTimeBetAmount)}</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Direct {formatCurrency(data.periodDirectBetAmount ?? 0)} · Bookies {formatCurrency(data.periodSubBetAmount ?? 0)}
+                                    </p>
                                 </div>
                                 <div className="bg-sb-primary rounded-xl p-4 text-white">
-                                    <p className="text-xs uppercase text-blue-100">Period commission ({data.commissionPercentage}%)</p>
-                                    <p className="text-2xl font-bold mt-1">{formatCurrency(data.periodCommission)}</p>
-                                    <p className="text-xs text-blue-100 mt-1">Selected period only</p>
+                                    <p className="text-xs uppercase text-blue-100">Gross commission (period)</p>
+                                    <p className="text-2xl font-bold mt-1">{formatCurrency(periodGrossCommission)}</p>
+                                    <p className="text-xs text-blue-100 mt-1">
+                                        Direct {formatCurrency(periodDirectCommission)} + Bookies {formatCurrency(periodSubCommission)}
+                                    </p>
+                                </div>
+                                <div className="bg-rose-600 rounded-xl p-4 text-white">
+                                    <p className="text-xs uppercase text-rose-100">Admin share ({adminCommissionRate}%)</p>
+                                    <p className="text-2xl font-bold mt-1">{formatCurrency(periodAdminCommission)}</p>
+                                    <p className="text-xs text-rose-100 mt-1">
+                                        {formatCurrency(periodGrossCommission)} × {adminCommissionRate}%
+                                    </p>
+                                </div>
+                                <div className="bg-emerald-700 rounded-xl p-4 text-white">
+                                    <p className="text-xs uppercase text-emerald-100">Your net (period)</p>
+                                    <p className="text-2xl font-bold mt-1">{formatCurrency(periodNetAfterAdmin)}</p>
+                                    <p className="text-xs text-emerald-100 mt-1">Gross minus admin share</p>
                                 </div>
                             </div>
                             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                                 <p className="text-sm font-semibold text-slate-800 mb-3">{t('commissionAdminSummary')}</p>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
                                     <div className="text-right sm:text-left">
-                                        <p className="text-[11px] uppercase text-slate-500">Commission %</p>
-                                        <p className="font-semibold text-orange-600">{data.commissionPercentage ?? 0}%</p>
+                                        <p className="text-[11px] uppercase text-slate-500">Admin rate (direct)</p>
+                                        <p className="font-semibold text-orange-600">{adminRateOnDirect}%</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase text-slate-500">Direct commission</p>
+                                        <p className="font-semibold text-slate-800">{formatCurrency(directCommissionAllTime)}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase text-slate-500">Bookie commission</p>
+                                        <p className="font-semibold text-slate-800">{formatCurrency(subCommissionAllTime)}</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[11px] uppercase text-slate-500">Player sales</p>
@@ -457,8 +523,16 @@ const CommissionFromAdmin = () => {
                                         )}
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">Commission</p>
+                                        <p className="text-[11px] uppercase text-slate-500">Gross commission</p>
                                         <p className="font-semibold text-slate-800">{formatCurrency(commissionEarned)}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase text-slate-500">Admin ({adminCommissionRate}%)</p>
+                                        <p className="font-semibold text-rose-700">{formatCurrency(adminCommissionAllTime)}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase text-slate-500">Your net</p>
+                                        <p className="font-semibold text-emerald-700">{formatCurrency(netCommissionAfterAdmin)}</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[11px] uppercase text-slate-500">Settled</p>
@@ -561,8 +635,8 @@ const CommissionFromAdmin = () => {
                     <div className="space-y-4">
                         <div className="bg-white rounded-xl border p-4">
                             <p className="text-sm text-gray-600">
-                                Current commission rate:{' '}
-                                <span className="font-bold text-sb-primary">{requests.currentCommission ?? data?.commissionPercentage ?? 0}%</span>
+                                Admin rate on your direct players:{' '}
+                                <span className="font-bold text-sb-primary">{requests.currentCommission ?? adminRateOnDirect}%</span>
                             </p>
                         </div>
 

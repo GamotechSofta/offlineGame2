@@ -1,13 +1,21 @@
 /** Shared date-range presets for admin reports (dashboard, bookie detail, etc.). */
 
+function getIstTodayKey() {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date());
+}
+
 export const DATE_RANGE_PRESETS = [
     { id: 'all', label: 'All', getRange: () => ({ from: '', to: '' }) },
     {
         id: 'today',
         label: 'Today',
         getRange: () => {
-            const d = new Date();
-            const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const from = getIstTodayKey();
             return { from, to: from };
         },
     },

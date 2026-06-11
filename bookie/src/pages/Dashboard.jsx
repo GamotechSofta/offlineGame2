@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { getIstTodayKey } from '../utils/istDate';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -26,9 +27,7 @@ const getPresets = (t) => [
         return { from: null, to: null };
     }},
     { id: 'today', label: t('today'), getRange: () => {
-        const d = new Date();
-        const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
-        const from = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const from = getIstTodayKey();
         return { from, to: from };
     }},
     { id: 'yesterday', label: t('yesterday'), getRange: () => {
@@ -443,6 +442,13 @@ const Dashboard = () => {
     const twoDAllSlotsNet = Number(lotteryStats?.twoD?.allSlots?.net || 0);
     const threeDAllSlotsNet = Number(lotteryStats?.threeD?.allSlots?.net || 0);
     const lotteryAllSlotsNet = twoDAllSlotsNet + threeDAllSlotsNet;
+    const dashboardMatkaRevenue = Number(stats?.revenue?.total || 0);
+    const displayTotalBetAmount =
+        commissionBaseTotal > 0
+            ? commissionBaseTotal
+            : dashboardMatkaRevenue + (commissionLotteryTotal || lotteryAllSlotsRevenue);
+    const displayMatkaBet =
+        commissionMatkaTotal > 0 ? commissionMatkaTotal : dashboardMatkaRevenue;
     const marketPendingAmount = Number(marketReport.pendingAmount || 0);
     const computedTotalProfit = (Number(marketReport.netProfit) || 0) + lotteryAllSlotsNet + (toReceived - toGive);
 
@@ -600,10 +606,10 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetAmount')}</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(commissionBaseTotal)}</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(displayTotalBetAmount)}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('totalBetAmountDescription')}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                        Matka: <span className="font-medium">{formatCurrency(commissionMatkaTotal)}</span>
+                        Matka: <span className="font-medium">{formatCurrency(displayMatkaBet)}</span>
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                         2D & 3D: <span className="font-medium">{formatCurrency(commissionLotteryTotal)}</span>

@@ -71,21 +71,44 @@ const BookieManagementDetailPanel = ({
         <div className={wrapClass}>
             <p className="text-sm font-semibold text-gray-800">Account overview</p>
 
+            <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-900 space-y-0.5">
+                <p className="font-semibold">Commission flow</p>
+                <p>Direct players: bets × {bookie.commissionPercentage ?? 0}% (you set) · Bookie players: bets × rate {TOP_LEVEL_LABEL} sets per Bookie</p>
+                <p>Gross = direct + bookie commission · Admin share = gross × {commission?.adminCommissionPercentage ?? bookie.adminCommissionPercentage ?? 10}%</p>
+            </div>
+
             {/* Commission */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div className="rounded-lg bg-orange-50 border border-orange-100 p-2.5">
                     <p className="text-[10px] text-gray-500 flex items-center gap-1">
-                        <FaPercent className="w-3 h-3" /> Commission %
+                        <FaPercent className="w-3 h-3" /> Admin rate (direct)
                     </p>
                     <p className="font-bold text-orange-600">{bookie.commissionPercentage ?? 0}%</p>
                 </div>
                 <div className="rounded-lg bg-blue-50 border border-blue-100 p-2.5">
-                    <p className="text-[10px] text-gray-500">Total commission earned</p>
+                    <p className="text-[10px] text-gray-500">Gross commission (all-time)</p>
                     <p className="font-bold text-[#1B3150]">{formatCurrency(commission?.totalCommission ?? bookie.totalCommissionAmount)}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">
+                        Direct {formatCurrency(commission?.directCommission ?? 0)} + Bookies {formatCurrency(commission?.subCommission ?? 0)}
+                    </p>
                 </div>
+                <div className="rounded-lg bg-rose-50 border border-rose-100 p-2.5">
+                    <p className="text-[10px] text-gray-500">Admin share (all-time)</p>
+                    <p className="font-bold text-rose-700">{formatCurrency(commission?.adminCommissionAmount ?? 0)}</p>
+                </div>
+                <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-2.5">
+                    <p className="text-[10px] text-gray-500">Net to {TOP_LEVEL_LABEL}</p>
+                    <p className="font-bold text-emerald-700">{formatCurrency(commission?.netCommissionAfterAdmin ?? 0)}</p>
+                </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
                 <div className="rounded-lg bg-amber-50 border border-amber-100 p-2.5">
-                    <p className="text-[10px] text-gray-500">Commission pending</p>
-                    <p className="font-bold text-amber-700">{formatCurrency(commission?.totalPending ?? bookie.totalCommissionPending)}</p>
+                    <p className="text-[10px] text-gray-500">Admin share pending</p>
+                    <p className="font-bold text-amber-700">{formatCurrency(commission?.adminCommissionPending ?? commission?.totalPending ?? bookie.totalCommissionPending)}</p>
+                </div>
+                <div className="rounded-lg bg-green-50 border border-green-100 p-2.5">
+                    <p className="text-[10px] text-gray-500">Admin share paid</p>
+                    <p className="font-bold text-green-700">{formatCurrency(commission?.adminCommissionPaid ?? commission?.totalPaid ?? bookie.totalCommissionPaid)}</p>
                 </div>
             </div>
 
@@ -120,8 +143,12 @@ const BookieManagementDetailPanel = ({
                     </div>
                     <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
                         <div>
-                            <p className="text-[10px] text-gray-500 uppercase">Total bets</p>
+                            <p className="text-[10px] text-gray-500 uppercase">Total bet amount</p>
                             <p className="font-semibold">{formatCurrency(revenue.totalBetAmount)}</p>
+                            <p className="text-[10px] text-gray-400">
+                                Matka {formatCurrency(revenue.matkaBetAmount ?? 0)} · 2D/3D{' '}
+                                {formatCurrency(revenue.lotteryBetAmount ?? 0)}
+                            </p>
                             <p className="text-[10px] text-gray-400">{formatNumber(revenue.totalBetCount)} bets</p>
                         </div>
                         <div>
@@ -129,8 +156,30 @@ const BookieManagementDetailPanel = ({
                             <p className="font-semibold text-red-600">{formatCurrency(revenue.totalPayouts)}</p>
                         </div>
                         <div>
-                            <p className="text-[10px] text-gray-500 uppercase">{TOP_LEVEL_LABEL} share</p>
-                            <p className="font-semibold text-orange-600">{formatCurrency(revenue.bookieShare)}</p>
+                            <p className="text-[10px] text-gray-500 uppercase">Gross commission (period)</p>
+                            <p className="font-semibold text-orange-600">
+                                {formatCurrency(commission?.periodCommission ?? revenue.bookieShare)}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                                Direct {formatCurrency(commission?.periodDirectCommission ?? revenue.directCommission ?? 0)}
+                                {' + '}
+                                Bookies {formatCurrency(commission?.periodSubCommission ?? revenue.subCommission ?? 0)}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-500 uppercase">Admin share (period)</p>
+                            <p className="font-semibold text-amber-700">
+                                {formatCurrency(commission?.periodAdminCommission ?? revenue.adminCommission ?? 0)}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                                {formatCurrency(commission?.periodCommission ?? revenue.bookieShare)} × {commission?.adminCommissionPercentage ?? revenue.adminCommissionPercentage ?? 10}%
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-500 uppercase">Net to {TOP_LEVEL_LABEL} (period)</p>
+                            <p className="font-semibold text-emerald-700">
+                                {formatCurrency(commission?.netCommissionAfterAdmin ?? revenue.netBookieShare ?? 0)}
+                            </p>
                         </div>
                         <div>
                             <p className="text-[10px] text-gray-500 uppercase">Admin profit</p>
@@ -189,9 +238,9 @@ const BookieManagementDetailPanel = ({
                                         <p className="text-[10px] text-indigo-600 mt-0.5">Open player commission dashboard →</p>
                                     </div>
                                     <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-                                        <span><strong>{sb.commissionPercentage ?? 0}%</strong> comm.</span>
+                                        <span><strong>{sb.commissionPercentage ?? 0}%</strong> rate</span>
                                         <span>{sb.playerCount ?? 0} players</span>
-                                        <span className="text-[#1B3150]">Earned {formatCurrency(sb.totalCommissionAmount)}</span>
+                                        <span className="text-[#1B3150]">To {TOP_LEVEL_LABEL}: {formatCurrency(sb.totalCommissionAmount)}</span>
                                     </div>
                                 </div>
                             );

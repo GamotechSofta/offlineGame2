@@ -27,11 +27,24 @@ export const resolveCommissionRole = (admin) => {
  * Get user IDs scoped to bookie / super bookie (referredBy = operator id).
  * Returns null if admin can see all players (super_admin / Super Bookie with All Players tab).
  */
-export const getBookieUserIds = async (admin) => {
+/** Players referred directly by a SuperBookie (parent) — excludes sub-bookie downline. */
+export const getBookieDirectUserIds = async (bookieId) => {
+    const users = await User.find({ referredBy: toObjectId(bookieId) }).select('_id').lean();
+    return users.map((u) => u._id);
+};
+
+/**
+ * @param {{ directOnly?: boolean }} options
+ *   directOnly — SuperBookie panel: own direct players only (no sub-bookie players).
+ */
+export const getBookieUserIds = async (admin, options = {}) => {
     if (!admin) return null;
     if (hasFullPlayerListScope(admin)) return null;
     const role = resolveCommissionRole(admin);
     if (role === 'bookie') {
+        if (options.directOnly) {
+            return getBookieDirectUserIds(admin._id);
+        }
         return getBookieHierarchyUserIds(admin._id);
     }
     if (role === 'super_bookie') {
@@ -53,10 +66,13 @@ export const getBookieHierarchyUserIds = async (bookieId) => {
 };
 
 /** Admin ids whose placed-by-bookie bets count toward this account's commission. */
-export const getCommissionOperatorIds = async (admin) => {
+export const getCommissionOperatorIds = async (admin, options = {}) => {
     if (!admin?._id) return [];
     const role = resolveCommissionRole(admin);
     if (role === 'bookie') {
+        if (options.directOnly) {
+            return [toObjectId(admin._id)];
+        }
         const superBookies = await Admin.find({
             parentBookieId: toObjectId(admin._id),
             role: 'super_bookie',

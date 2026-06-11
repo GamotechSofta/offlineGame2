@@ -244,7 +244,9 @@ const Commission = () => {
     const commissionPending = Number(
         data?.displayPending ?? sumMoney(recoveryPendingFromBets, cashPending)
     );
-    const commissionEarned = Number(data?.allTimeCommission ?? 0);
+    const parentCommissionEarned = Number(data?.allTimeParentCommission ?? data?.parentCommissionAmount ?? 0);
+    const parentCommissionRate = Number(data?.parentCommissionPercentage ?? 0);
+    const periodParentCommission = Number(data?.periodParentCommission ?? 0);
     const hasAdvance = advanceGiven > 0;
     const isRecoveringAdvance = advanceRemaining > 0 || recoveryPendingFromBets > 0;
 
@@ -288,9 +290,12 @@ const Commission = () => {
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-blue-200 flex items-center gap-1.5">
                                 <FaMoneyBillWave className="text-blue-300" />
-                                Total commission
+                                To SuperBookie (all-time)
                             </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionEarned)}</p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(parentCommissionEarned)}</p>
+                            {parentCommissionRate > 0 && (
+                                <p className="text-[11px] text-blue-200 mt-1">{parentCommissionRate}% of your player bets</p>
+                            )}
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-green-200 flex items-center gap-1.5">
@@ -429,17 +434,21 @@ const Commission = () => {
                                     <p className="text-xl font-bold mt-1">{formatCurrency(data.allTimeBetAmount)}</p>
                                 </div>
                                 <div className="bg-sb-primary rounded-xl p-4 text-white">
-                                    <p className="text-xs uppercase text-blue-100">Period commission ({data.commissionPercentage}%)</p>
-                                    <p className="text-2xl font-bold mt-1">{formatCurrency(data.periodCommission)}</p>
-                                    <p className="text-xs text-blue-100 mt-1">Selected period only</p>
+                                    <p className="text-xs uppercase text-blue-100">
+                                        To SuperBookie ({parentCommissionRate}%)
+                                    </p>
+                                    <p className="text-2xl font-bold mt-1">{formatCurrency(periodParentCommission)}</p>
+                                    <p className="text-xs text-blue-100 mt-1">
+                                        {formatCurrency(data.periodBetAmount)} player bets × {parentCommissionRate}%
+                                    </p>
                                 </div>
                             </div>
                             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                                 <p className="text-sm font-semibold text-slate-800 mb-3">{t('commissionBookieSummary')}</p>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
                                     <div className="text-right sm:text-left">
-                                        <p className="text-[11px] uppercase text-slate-500">Commission %</p>
-                                        <p className="font-semibold text-orange-600">{data.commissionPercentage ?? 0}%</p>
+                                        <p className="text-[11px] uppercase text-slate-500">SuperBookie rate</p>
+                                        <p className="font-semibold text-orange-600">{parentCommissionRate}%</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[11px] uppercase text-slate-500">Player sales</p>
@@ -455,8 +464,8 @@ const Commission = () => {
                                         )}
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">Commission</p>
-                                        <p className="font-semibold text-slate-800">{formatCurrency(commissionEarned)}</p>
+                                        <p className="text-[11px] uppercase text-slate-500">To SuperBookie</p>
+                                        <p className="font-semibold text-slate-800">{formatCurrency(parentCommissionEarned)}</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[11px] uppercase text-slate-500">Settled</p>
@@ -560,7 +569,9 @@ const Commission = () => {
                         <div className="bg-white rounded-xl border p-4">
                             <p className="text-sm text-gray-600">
                                 Current commission rate:{' '}
-                                <span className="font-bold text-sb-primary">{requests.currentCommission ?? data?.commissionPercentage ?? 0}%</span>
+                                <span className="font-bold text-sb-primary">
+                                    {requests.currentCommission ?? parentCommissionRate ?? data?.commissionPercentage ?? 0}%
+                                </span>
                             </p>
                         </div>
 

@@ -177,10 +177,12 @@ const Revenue = () => {
                             <div className="bg-sb-primary rounded-xl border border-sb-primary p-4">
                                 <div className="flex items-center justify-between">
                                     <p className="text-xs uppercase tracking-wide text-blue-100 font-semibold">Commission Amount</p>
-                                    <span className="text-[11px] bg-white/20 text-white px-2 py-0.5 rounded-full">{data.commissionPercentage}%</span>
+                                    <span className="text-[11px] bg-white/20 text-white px-2 py-0.5 rounded-full">
+                                        {data.commissionPercentage ?? data.parentCommissionPercentage ?? 0}%
+                                    </span>
                                 </div>
                                 <p className="mt-2 text-2xl font-bold text-white">{formatCurrency(data.bookieRevenue)}</p>
-                                <p className="mt-1 text-xs text-blue-100">Your earning for selected period</p>
+                                <p className="mt-1 text-xs text-blue-100">Commission to SuperBookie for selected period</p>
                             </div>
                         </div>
 
@@ -193,7 +195,7 @@ const Revenue = () => {
                                 <div className="px-4 py-3 flex items-center justify-between">
                                     <span className="text-sm text-gray-600">Commission Formula</span>
                                     <span className="text-sm font-semibold text-gray-800">
-                                        {formatCurrency(data.totalBetAmount)} x {data.commissionPercentage}% = {formatCurrency(data.bookieRevenue)}
+                                        {formatCurrency(data.totalBetAmount)} x {data.commissionPercentage ?? data.parentCommissionPercentage ?? 0}% = {formatCurrency(data.bookieRevenue)}
                                     </span>
                                 </div>
                                 <div className="px-4 py-3 flex items-center justify-between">

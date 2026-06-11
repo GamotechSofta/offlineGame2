@@ -10,6 +10,10 @@ import {
     getCommissionPaymentKind,
     getAdvanceAvailableForSettlement,
     isSettlementPaidWithAdvance,
+    calculateCommissionAmount,
+    calculateAdminCommissionAmount,
+    getAdminShareSettlementForBookie,
+    getAdminSharePaymentStatus,
     round2,
 } from '../utils/commissionMetrics.js';
 import { notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
@@ -336,9 +340,15 @@ export const getAllCommissionSummary = async (req, res) => {
 
         const { paymentStatus } = req.query;
 
-        const bookies = await Admin.find({ role: 'bookie' })
-            .select('_id username phone commissionPercentage role')
-            .lean();
+        const [parentBookies, subBookies] = await Promise.all([
+            Admin.find({ role: 'bookie' })
+                .select('_id username phone commissionPercentage role')
+                .lean(),
+            Admin.find({ role: 'super_bookie' })
+                .select('_id username phone commissionPercentage role parentBookieId')
+                .populate('parentBookieId', 'username')
+                .lean(),
+        ]);
 
         const paymentAgg = await CommissionPayment.aggregate([
             { $group: { _id: '$bookieId', totalPaid: { $sum: '$amount' }, lastPaidAt: { $max: '$createdAt' } } },
@@ -352,21 +362,65 @@ export const getAllCommissionSummary = async (req, res) => {
         }
 
         const normalized = [];
-        for (const bookie of bookies) {
-            const summary = await getCommissionSummaryForAccount(bookie);
+        const pushRow = (account, extra = {}) => {
             normalized.push({
-                bookieId: bookie._id,
-                username: bookie.username || 'Unknown',
-                phone: bookie.phone || '',
+                bookieId: account._id,
+                username: account.username || 'Unknown',
+                phone: account.phone || '',
+                role: account.role,
+                ...extra,
+            });
+        };
+        for (const bookie of parentBookies) {
+            const summary = await getCommissionSummaryForAccount(bookie);
+            const totalCommission = Number(summary.totalCommission ?? 0);
+            const adminCommissionPercentage = Number(summary.adminCommissionPercentage ?? bookie.adminCommissionPercentage ?? 10);
+            const adminCommissionAmount = Number(summary.adminCommissionAmount ?? calculateAdminCommissionAmount(
+                totalCommission,
+                adminCommissionPercentage,
+            ));
+            const { adminPaid, adminPending } = await getAdminShareSettlementForBookie(
+                bookie._id,
+                adminCommissionAmount,
+            );
+            pushRow(bookie, {
+                accountLabel: 'parent',
+                parentBookieUsername: '',
                 commissionPercentage: summary.commissionPercentage,
+                adminCommissionPercentage,
+                adminCommissionAmount,
+                adminCommissionPaid: adminPaid,
+                adminCommissionPending: adminPending,
+                netCommissionAfterAdmin: Number(summary.netCommissionAfterAdmin ?? round2(Math.max(0, totalCommission - adminCommissionAmount))),
+                directCommission: summary.directCommission ?? 0,
+                subCommission: summary.subCommission ?? 0,
                 playerCount: summary.playerCount,
                 betCount: summary.betCount,
                 totalBetAmount: summary.totalBetAmount,
-                totalCommission: summary.totalCommission,
-                totalPaid: summary.totalPaid,
-                totalPending: summary.totalPending,
-                paymentStatus: summary.paymentStatus,
+                totalCommission,
+                totalPaid: adminPaid,
+                totalPending: adminPending,
+                paymentStatus: getAdminSharePaymentStatus(adminCommissionAmount, adminPaid),
                 lastPaidAt: paidMap[String(bookie._id)]?.lastPaidAt || null,
+            });
+        }
+
+        for (const sb of subBookies) {
+            const summary = await getCommissionSummaryForAccount(sb);
+            pushRow(sb, {
+                accountLabel: 'sub',
+                parentBookieUsername: sb.parentBookieId?.username || summary.parentBookieUsername || '',
+                commissionPercentage: 0,
+                parentCommissionPercentage: summary.parentCommissionPercentage ?? 0,
+                parentCommissionAmount: summary.parentCommissionAmount ?? 0,
+                playerCount: summary.playerCount,
+                betCount: summary.betCount,
+                totalBetAmount: summary.totalBetAmount,
+                totalCommission: 0,
+                totalPaid: 0,
+                totalPending: 0,
+                paymentStatus: 'none',
+                lastPaidAt: paidMap[String(sb._id)]?.lastPaidAt || null,
             });
         }
 
@@ -510,23 +564,40 @@ export const recordBookieCommissionPayment = async (req, res) => {
             });
         }
 
-        const bookie = await Admin.findOne({ _id: bookieId, role: 'bookie' })
+        const bookie = await Admin.findOne({
+            _id: bookieId,
+            role: { $in: ['bookie', 'super_bookie'] },
+        })
             .select('_id commissionPercentage role')
             .lean();
         if (!bookie) {
             return res.status(404).json({
                 success: false,
-                message: 'Bookie not found',
+                message: 'Bookie account not found',
             });
         }
 
         const summary = await getCommissionSummaryForAccount(bookie);
-        const totalPending = summary.totalPending;
+        let totalPending = summary.totalPending;
+        if (bookie.role === 'bookie') {
+            const adminCommissionAmount = Number(
+                summary.adminCommissionAmount
+                ?? calculateAdminCommissionAmount(
+                    summary.totalCommission ?? 0,
+                    summary.adminCommissionPercentage ?? 10,
+                ),
+            );
+            const { adminPending } = await getAdminShareSettlementForBookie(
+                bookie._id,
+                adminCommissionAmount,
+            );
+            totalPending = adminPending;
+        }
 
         if (totalPending <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'No pending commission found for this bookie',
+                message: 'No pending admin commission found for this account',
             });
         }
 
@@ -677,32 +748,35 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
         const commissions = [];
         for (const sb of superBookies) {
             const summary = await getCommissionSummaryForAccount(sb);
-            const advanceAvailableForSettlement = await getAdvanceAvailableForSettlement(sb);
+            const subCommissionPct = Number(sb.commissionPercentage ?? summary.parentCommissionPercentage ?? 0);
+            const parentCommissionFromSub = calculateCommissionAmount(summary.totalBetAmount, subCommissionPct);
             commissions.push({
                 superBookieId: sb._id,
                 username: sb.username || 'Unknown',
                 phone: sb.phone || '',
-                commissionPercentage: summary.commissionPercentage,
+                commissionPercentage: subCommissionPct,
+                subEarnedCommission: 0,
                 playerCount: summary.playerCount,
                 betCount: summary.betCount,
                 totalBetAmount: summary.totalBetAmount,
-                totalCommission: summary.totalCommission,
-                totalPaid: summary.totalPaid,
-                totalPending: summary.totalPending,
-                paymentStatus: summary.paymentStatus,
-                lastPaidAt: summary.lastSettledAt || null,
-                advanceCommissionPaid: summary.advanceCommissionPaid ?? 0,
-                advancePaidInitial: summary.advancePaidInitial ?? 0,
-                advanceSettledFromAdvance: summary.advanceSettledFromAdvance ?? 0,
-                advanceRecoverable: summary.advanceRecoverable ?? 0,
+                totalCommission: parentCommissionFromSub,
+                parentCommissionFromSub,
+                totalPaid: 0,
+                totalPending: parentCommissionFromSub,
+                paymentStatus: parentCommissionFromSub > 0 ? 'pending' : 'none',
+                lastPaidAt: null,
+                advanceCommissionPaid: 0,
+                advancePaidInitial: 0,
+                advanceSettledFromAdvance: 0,
+                advanceRecoverable: 0,
                 initialBalancePaymentMode: summary.initialBalancePaymentMode ?? sb.initialBalancePaymentMode ?? 'advance_paid',
-                advanceOutstanding: summary.advanceOutstanding ?? 0,
-                advanceRecovered: summary.advanceRecovered ?? 0,
-                recoveryPendingFromBets: summary.recoveryPendingFromBets ?? 0,
-                commissionPayable: summary.commissionPayable ?? 0,
-                displaySettled: summary.displaySettled ?? round2((summary.advanceRecovered ?? 0) + (summary.totalPaid ?? 0)),
-                displayPending: summary.displayPending ?? round2((summary.recoveryPendingFromBets ?? 0) + (summary.totalPending ?? 0)),
-                advanceAvailableForSettlement,
+                advanceOutstanding: 0,
+                advanceRecovered: 0,
+                recoveryPendingFromBets: 0,
+                commissionPayable: parentCommissionFromSub,
+                displaySettled: 0,
+                displayPending: parentCommissionFromSub,
+                advanceAvailableForSettlement: 0,
             });
         }
 

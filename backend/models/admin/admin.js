@@ -49,10 +49,17 @@ const adminSchema = new mongoose.Schema({
         primaryColor: { type: String, trim: true },
         accentColor: { type: String, trim: true },
     },
-    /** Bookie-only: Commission percentage (0-100). Set by super admin upon approval. */
+    /** SuperBookie (bookie role): % of player bet amount earned as commission. */
     commissionPercentage: {
         type: Number,
         default: 0,
+        min: 0,
+        max: 100,
+    },
+    /** SuperBookie only: % of this account's commission paid to admin (e.g. 10% of ₹400 = ₹40). */
+    adminCommissionPercentage: {
+        type: Number,
+        default: 10,
         min: 0,
         max: 100,
     },

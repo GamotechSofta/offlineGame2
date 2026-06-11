@@ -10,6 +10,7 @@ import {
     getCommissionScopeMatch,
     round2,
 } from './commissionMetrics.js';
+import { getIstBusinessDayRange } from './istDateRange.js';
 import {
     getSlotContext,
     istDayKey,
@@ -20,72 +21,7 @@ const USER_PLACED_MATKA = {
     $or: [{ placedByBookie: false }, { placedByBookie: { $exists: false } }],
 };
 
-const IST_OFFSET_MINUTES = 330;
-
-/** Same IST business-day bounds as GET /dashboard/stats (from + to YYYY-MM-DD). */
-export function getIstBusinessDayRange(fromStr, toStr) {
-    if (!fromStr || !toStr) {
-        return { start: null, end: null };
-    }
-
-    const parseDayKey = (value) => {
-        if (typeof value !== 'string') return null;
-        const m = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (!m) return null;
-        const y = Number(m[1]);
-        const mo = Number(m[2]);
-        const d = Number(m[3]);
-        if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return null;
-        const utcMs = Date.UTC(y, mo - 1, d);
-        const check = new Date(utcMs);
-        if (
-            check.getUTCFullYear() !== y
-            || (check.getUTCMonth() + 1) !== mo
-            || check.getUTCDate() !== d
-        ) {
-            return null;
-        }
-        return { y, m: mo, d };
-    };
-
-    const from = parseDayKey(fromStr);
-    const to = parseDayKey(toStr);
-    let start = null;
-    let end = null;
-
-    if (from) {
-        const startUtcMs = Date.UTC(from.y, from.m - 1, from.d, 0, 0, 0, 0)
-            - (IST_OFFSET_MINUTES * 60 * 1000);
-        start = new Date(startUtcMs);
-    }
-    if (to) {
-        const nextDayUtcMs = Date.UTC(to.y, to.m - 1, to.d + 1, 0, 0, 0, 0)
-            - (IST_OFFSET_MINUTES * 60 * 1000);
-        end = new Date(nextDayUtcMs - 1);
-    }
-
-    if (!start || !end) {
-        return { start: null, end: null };
-    }
-    return { start, end };
-}
-
-/** Same as GET /bets/history startDate/endDate filter (local calendar day). */
-function getBetHistoryDateFilter(startDate, endDate) {
-    if (!startDate && !endDate) return {};
-    const filter = { createdAt: {} };
-    if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        filter.createdAt.$gte = start;
-    }
-    if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        filter.createdAt.$lte = end;
-    }
-    return filter;
-}
+export { getIstBusinessDayRange } from './istDateRange.js';
 
 /** Bookie dashboard default is "today" (IST), not all-time. */
 export function resolveBookiePanelDateRange({ startDate, endDate } = {}) {
@@ -282,7 +218,7 @@ async function computeMarketReport(userIds, { from, to, allTime }) {
         return { totalBetAmount: 0, totalPayout: 0, pendingAmount: 0, netProfit: 0 };
     }
 
-    const dateFilter = allTime ? {} : getBetHistoryDateFilter(from, to);
+    const dateFilter = allTime ? {} : buildCommissionDateFilter(from, to);
     const base = {
         userId: { $in: userIds },
         status: { $ne: 'cancelled' },
@@ -340,12 +276,13 @@ async function computeDashboardMatkaRevenue(admin, userIds, { from, to, allTime 
  */
 export async function computeBookiePanelKpis(admin, { startDate, endDate } = {}) {
     const { from, to, allTime } = resolveBookiePanelDateRange({ startDate, endDate });
+    const scope = await getCommissionScopeMatch(admin);
     const userIds = (await getBookieUserIds(admin)) || [];
     const periodLabel = formatBookiePanelPeriodLabel(from, to);
     const dateFrom = allTime ? null : from;
     const dateTo = allTime ? null : to;
 
-    if (!userIds.length) {
+    if (!scope) {
         return {
             totalBetAmount: 0,
             matkaBetAmount: 0,
@@ -365,7 +302,7 @@ export async function computeBookiePanelKpis(admin, { startDate, endDate } = {})
             twoDRevenue: 0,
             threeDRevenue: 0,
             totalProfit: 0,
-            totalPlayers: 0,
+            totalPlayers: userIds.length,
             dateFrom,
             dateTo,
             periodLabel,

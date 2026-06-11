@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { getIstTodayKey } from '../utils/istDate';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { PANEL_LABEL, PANEL_LABEL_PLURAL } from '../config/panelLabels';
@@ -28,9 +29,7 @@ const getPresets = (t) => [
         return { from: null, to: null };
     }},
     { id: 'today', label: t('today'), getRange: () => {
-        const d = new Date();
-        const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
-        const from = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const from = getIstTodayKey();
         return { from, to: from };
     }},
     { id: 'yesterday', label: t('yesterday'), getRange: () => {
@@ -450,7 +449,7 @@ const Dashboard = () => {
     const displayTotalBetAmount =
         commissionBaseTotal > 0
             ? commissionBaseTotal
-            : dashboardMatkaRevenue + (commissionLotteryTotal || lotteryAllSlotsRevenue);
+            : dashboardMatkaRevenue + (commissionLotteryTotal || 0);
     const displayMatkaBet =
         commissionMatkaTotal > 0 ? commissionMatkaTotal : dashboardMatkaRevenue;
     const marketPendingAmount = Number(marketReport.pendingAmount || 0);

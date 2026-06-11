@@ -92,10 +92,12 @@ export const getRevenueReport = async (req, res) => {
 
         // ---- BOOKIE / SUPER BOOKIE VIEW ----
         if (isBookiePanelRole(admin)) {
-            const userIds = (await getBookieUserIds(admin)) || [];
+            // SuperBookie (parent): revenue KPIs = direct players only, not sub-bookie network.
+            const directOnly = admin.role === 'bookie';
+            const userIds = (await getBookieUserIds(admin, { directOnly })) || [];
             const dashboard = await getCommissionDashboardForAccount(admin, { startDate, endDate });
 
-            if (userIds.length === 0) {
+            if (userIds.length === 0 && !directOnly) {
                 return res.status(200).json({
                     success: true,
                     data: {
@@ -118,8 +120,11 @@ export const getRevenueReport = async (req, res) => {
                 });
             }
 
-            const metrics = await aggregatePlayerBetMetrics({ admin, dateFilter });
-            const commissionPct = dashboard.commissionPercentage;
+            const metrics = await aggregatePlayerBetMetrics({ admin, dateFilter, directOnly });
+            const commissionPct = Number(dashboard.commissionPercentage || 0);
+            const bookieRevenue = admin.role === 'super_bookie'
+                ? Number(dashboard.bookieRevenue ?? dashboard.periodParentCommission ?? 0)
+                : round2((metrics.totalBetAmount * commissionPct) / 100);
 
             return res.status(200).json({
                 success: true,
@@ -129,7 +134,8 @@ export const getRevenueReport = async (req, res) => {
                     lotteryBetAmount: metrics.lotteryBetAmount,
                     totalPayouts: metrics.totalPayouts,
                     commissionPercentage: commissionPct,
-                    bookieRevenue: round2((metrics.totalBetAmount * commissionPct) / 100),
+                    parentCommissionPercentage: dashboard.parentCommissionPercentage ?? commissionPct,
+                    bookieRevenue,
                     periodCommission: dashboard.periodCommission,
                     allTimeCommission: dashboard.allTimeCommission,
                     allTimeBetAmount: dashboard.allTimeBetAmount,

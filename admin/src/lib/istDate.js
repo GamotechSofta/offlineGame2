@@ -8,5 +8,5 @@ export function getTodayIST() {
     }).format(new Date());
 }
 
-/** Alias used by dashboard revenue KPIs. */
+/** Alias used by commission dashboard revenue KPIs. */
 export const getIstTodayKey = getTodayIST;

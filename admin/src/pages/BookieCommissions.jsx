@@ -15,7 +15,7 @@ import {
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
-import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL, SUB_LEVEL_LABEL } from '../config/roleLabels';
+import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL, SUB_LEVEL_LABEL, SUB_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -244,7 +244,7 @@ const BookieCommissions = () => {
                             {TOP_LEVEL_LABEL} Commissions
                         </h1>
                         <p className="text-sm text-slate-500 mt-1">
-                            All-time commission from player bets (including {SUB_LEVEL_LABEL.toLowerCase()} players). Settle pending via payments below.
+                            {TOP_LEVEL_LABEL}: gross = direct commission (your rate) + bookie commission (rates they set). Admin share = % of gross, not bets.
                         </p>
                     </div>
                     <button
@@ -257,25 +257,31 @@ const BookieCommissions = () => {
                     </button>
                 </div>
 
+                <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-blue-900">
+                    <p className="font-semibold mb-1">How commission is calculated</p>
+                    <p><span className="font-medium">{TOP_LEVEL_LABEL}</span> — Direct player bets × admin rate + each {SUB_LEVEL_LABEL}&apos;s bets × rate {TOP_LEVEL_LABEL} set on that account. Admin share = gross × admin %.</p>
+                    <p className="mt-1"><span className="font-medium">{SUB_LEVEL_LABEL}</span> — Player bets × rate {TOP_LEVEL_LABEL} set on that account (flows to parent).</p>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-blue-700/80 flex items-center gap-2">
                             <FaMoneyBillWave className="text-blue-600" />
-                            Total Commission
+                            {TOP_LEVEL_LABEL} gross commission
                         </p>
                         <p className="text-2xl sm:text-3xl font-bold text-blue-800 mt-1">{formatCurrency(totals.totalCommission)}</p>
                     </div>
                     <div className="bg-green-50 border border-green-100 rounded-xl p-4 sm:p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-green-700/80 flex items-center gap-2">
                             <FaCheckCircle className="text-green-600" />
-                            Paid
+                            Admin share paid
                         </p>
                         <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(totals.totalPaid)}</p>
                     </div>
                     <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 sm:p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-orange-700/80 flex items-center gap-2">
                             <FaWallet className="text-orange-600" />
-                            Pending
+                            Admin share pending
                         </p>
                         <p className="text-2xl font-bold text-orange-700 mt-1">{formatCurrency(totals.totalPending)}</p>
                     </div>
@@ -340,12 +346,12 @@ const BookieCommissions = () => {
                                 </tr>
                                 <tr className="bg-slate-50 border-b border-slate-200">
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">{TOP_LEVEL_LABEL}</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Rate</th>
+                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Rate %</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Total Sales</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Last Payment</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Commission</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Paid</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Pending</th>
+                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Admin paid</th>
+                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Admin pending</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Status</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Record Payment</th>
                                 </tr>
@@ -373,19 +379,66 @@ const BookieCommissions = () => {
                                                     <td className="px-4 py-3.5 align-top">
                                                         <p className="font-semibold text-slate-800 text-sm">{row.username || 'Unknown'}</p>
                                                         <p className="text-xs text-slate-500 mt-1">{row.phone || '-'}</p>
+                                                        {row.accountLabel === 'sub' && row.parentBookieUsername && (
+                                                            <p className="text-[10px] text-indigo-600 mt-0.5">
+                                                                {SUB_LEVEL_LABEL} · under {row.parentBookieUsername}
+                                                            </p>
+                                                        )}
+                                                        {row.accountLabel === 'parent' && (
+                                                            <p className="text-[10px] text-slate-400 mt-0.5">{TOP_LEVEL_LABEL}</p>
+                                                        )}
                                                         <p className="text-xs text-slate-400 mt-0.5">
                                                             {Number(row.playerCount || 0)} players · {Number(row.betCount || 0)} bets
                                                         </p>
                                                     </td>
                                                     <td className="px-4 py-3.5 text-right text-slate-700">
-                                                        {Number(row.commissionPercentage || 0)}%
-                                                        {Number(row.commissionPercentage || 0) <= 0 && (
-                                                            <p className="text-[10px] text-amber-600 font-normal">Set % in {TOP_LEVEL_LABEL} Accounts</p>
+                                                        {row.accountLabel === 'sub' ? (
+                                                            <>
+                                                                {Number(row.parentCommissionPercentage || 0)}%
+                                                                <p className="text-[10px] text-indigo-600 font-normal">to {TOP_LEVEL_LABEL}</p>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                {Number(row.commissionPercentage || 0)}%
+                                                                <p className="text-[10px] text-slate-400 font-normal">admin on direct</p>
+                                                            </>
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3.5 text-right text-slate-700">{formatCurrency(row.totalBetAmount)}</td>
                                                     <td className="px-4 py-3.5 text-slate-700">{formatDate(row.lastPaidAt)}</td>
-                                                    <td className="px-4 py-3.5 text-right font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</td>
+                                                    <td className="px-4 py-3.5 text-right">
+                                                        {row.accountLabel === 'sub' ? (
+                                                            <>
+                                                                <p className="font-semibold text-indigo-700">
+                                                                    {formatCurrency(row.parentCommissionAmount ?? 0)}
+                                                                </p>
+                                                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                                                    to {TOP_LEVEL_LABEL}: {formatCurrency(row.totalBetAmount)} × {Number(row.parentCommissionPercentage || 0)}%
+                                                                </p>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <p className="font-semibold text-slate-800">
+                                                                    Gross {formatCurrency(row.totalCommission)}
+                                                                </p>
+                                                                {(Number(row.directCommission || 0) > 0 || Number(row.subCommission || 0) > 0) && (
+                                                                    <p className="text-[10px] text-slate-400 mt-0.5">
+                                                                        Direct {formatCurrency(row.directCommission)} + Bookies {formatCurrency(row.subCommission)}
+                                                                    </p>
+                                                                )}
+                                                                {Number(row.adminCommissionAmount || 0) > 0 && (
+                                                                    <p className="text-[10px] text-amber-600 mt-0.5">
+                                                                        Admin: {formatCurrency(row.adminCommissionAmount)} ({Number(row.adminCommissionPercentage || 0)}% of gross)
+                                                                    </p>
+                                                                )}
+                                                                {Number(row.netCommissionAfterAdmin || 0) > 0 && (
+                                                                    <p className="text-[10px] text-emerald-700 mt-0.5">
+                                                                        Net: {formatCurrency(row.netCommissionAfterAdmin)}
+                                                                    </p>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </td>
                                                     <td className="px-4 py-3.5 text-right font-semibold text-green-700">{formatCurrency(row.totalPaid)}</td>
                                                     <td className="px-4 py-3.5 text-right font-semibold text-orange-700">{formatCurrency(row.totalPending)}</td>
                                                     <td className="px-4 py-3.5">
@@ -520,15 +573,38 @@ const BookieCommissions = () => {
 
                                 <div className="grid grid-cols-3 gap-2 mt-3 text-right">
                                     <div>
-                                        <p className="text-[11px] text-slate-500">Total</p>
-                                        <p className="text-sm font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</p>
+                                        <p className="text-[11px] text-slate-500">Commission</p>
+                                        {row.accountLabel === 'sub' ? (
+                                            <>
+                                                <p className="text-sm font-semibold text-indigo-700">
+                                                    {formatCurrency(row.parentCommissionAmount ?? 0)}
+                                                </p>
+                                                <p className="text-[10px] text-slate-400">
+                                                    to {TOP_LEVEL_LABEL} · {Number(row.parentCommissionPercentage || 0)}%
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="text-sm font-semibold text-slate-800">
+                                                    {formatCurrency(row.totalCommission)}
+                                                </p>
+                                                <p className="text-[10px] text-slate-400">
+                                                    Direct {formatCurrency(row.directCommission)} + Bookies {formatCurrency(row.subCommission)}
+                                                </p>
+                                                {Number(row.adminCommissionAmount || 0) > 0 && (
+                                                    <p className="text-[10px] text-amber-600">
+                                                        Admin {formatCurrency(row.adminCommissionAmount)}
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                     <div>
-                                        <p className="text-[11px] text-slate-500">Paid</p>
+                                        <p className="text-[11px] text-slate-500">Admin paid</p>
                                         <p className="text-sm font-semibold text-green-700">{formatCurrency(row.totalPaid)}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[11px] text-slate-500">Pending</p>
+                                        <p className="text-[11px] text-slate-500">Admin pending</p>
                                         <p className="text-sm font-semibold text-orange-700">{formatCurrency(row.totalPending)}</p>
                                     </div>
                                 </div>

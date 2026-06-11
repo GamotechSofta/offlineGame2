@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fa';
 import Layout from '../components/Layout';
 import { API_BASE_URL, fetchWithAuth } from '../utils/api';
+import { getIstTodayKey } from '../utils/istDate';
 import { PANEL_LABEL } from '../config/panelLabels';
 
 const TABS = [
@@ -63,8 +64,10 @@ const SuperBookieChildDashboard = () => {
         setLoading(true);
         setError('');
         try {
+            const today = getIstTodayKey();
+            const params = new URLSearchParams({ startDate: today, endDate: today });
             const response = await fetchWithAuth(
-                `${API_BASE_URL}/bookie/super-bookies/${superBookieId}/commission-dashboard`,
+                `${API_BASE_URL}/bookie/super-bookies/${superBookieId}/commission-dashboard?${params}`,
             );
             if (response.status === 401) return;
             const json = await response.json();

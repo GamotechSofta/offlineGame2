@@ -7,6 +7,12 @@ import {
     getPerPlayerCommissionRows,
     getCommissionPaymentKind,
     aggregatePlayerBetMetrics,
+    buildCommissionDateFilter,
+    calculateCommissionAmount,
+    calculateAdminCommissionAmount,
+    calculateSuperBookieGrossCommission,
+    getAdminShareSettlementForBookie,
+    round2,
 } from '../utils/commissionMetrics.js';
 import CommissionPayment from '../models/commission/commissionPayment.js';
 import { SP_COMMON_LIST } from '../config/spCommonList.js';
@@ -178,7 +184,7 @@ export const createBookie = async (req, res) => {
             });
         }
 
-        const { username, firstName, lastName, email, password, phone, commissionPercentage } = req.body;
+        const { username, firstName, lastName, email, password, phone, commissionPercentage, adminCommissionPercentage } = req.body;
 
         const derivedUsername = (firstName != null && lastName != null)
             ? `${String(firstName).trim()} ${String(lastName).trim()}`.trim()
@@ -245,6 +251,9 @@ export const createBookie = async (req, res) => {
             phone: trimmedPhone,
             status: 'active',
             commissionPercentage: (commissionPercentage != null && Number.isFinite(Number(commissionPercentage))) ? Math.min(100, Math.max(0, Number(commissionPercentage))) : 0,
+            adminCommissionPercentage: (adminCommissionPercentage != null && Number.isFinite(Number(adminCommissionPercentage)))
+                ? Math.min(100, Math.max(0, Number(adminCommissionPercentage)))
+                : 10,
         });
         await bookie.save();
         await invalidateAdminReadCaches('bookie_created');
@@ -406,27 +415,24 @@ export const getBookieManagementDetail = async (req, res) => {
         }
 
         const commissionSummary = await getCommissionSummaryForAccount(bookie);
+        const adminShareSettlement = await getAdminShareSettlementForBookie(
+            bookie._id,
+            commissionSummary.adminCommissionAmount ?? 0,
+        );
 
-        const dateMatch = {};
-        if (startDate || endDate) {
-            dateMatch.createdAt = {};
-            if (startDate) dateMatch.createdAt.$gte = new Date(startDate + 'T00:00:00.000Z');
-            if (endDate) dateMatch.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
-        }
+        const dateFilter = buildCommissionDateFilter(startDate, endDate);
+        const dateMatch = { ...dateFilter };
 
         const hierarchy = await getBookieHierarchySummary(bookie._id, dateMatch);
 
-        const dateFilter = {};
-        if (startDate || endDate) {
-            dateFilter.createdAt = {};
-            if (startDate) dateFilter.createdAt.$gte = new Date(startDate + 'T00:00:00.000Z');
-            if (endDate) dateFilter.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
-        }
-
         const userIds = await getBookieHierarchyUserIds(bookie._id);
+        const revenueKpis = await getPanelRevenueKpisForAdmin(bookie, { startDate, endDate });
+
         let revenue = {
-            totalBetAmount: 0,
-            totalPayouts: 0,
+            totalBetAmount: revenueKpis.totalBetAmount ?? 0,
+            matkaBetAmount: revenueKpis.matkaBetAmount ?? 0,
+            lotteryBetAmount: revenueKpis.lotteryBetAmount ?? 0,
+            totalPayouts: revenueKpis.totalPayouts ?? 0,
             totalBetCount: 0,
             winningBets: 0,
             losingBets: 0,
@@ -434,42 +440,54 @@ export const getBookieManagementDetail = async (req, res) => {
             adminPool: 0,
             adminProfit: 0,
             winRate: '0',
+            periodLabel: revenueKpis.periodLabel ?? 'Today',
         };
 
-        if (userIds.length > 0) {
-            const metrics = await aggregatePlayerBetMetrics({ userIds, dateFilter });
-            const commPct = bookie.commissionPercentage || 0;
-            const totalBetAmount = metrics.totalBetAmount;
-            const totalPayouts = metrics.totalPayouts;
-            const bookieShare = Math.round((totalBetAmount * commPct / 100) * 100) / 100;
-            const adminPool = Math.round((totalBetAmount * (100 - commPct) / 100) * 100) / 100;
-            const adminProfit = Math.round((adminPool - totalPayouts) * 100) / 100;
-            revenue = {
-                totalBetAmount,
-                totalPayouts,
-                totalBetCount: metrics.totalBets,
-                winningBets: metrics.winningBets,
-                losingBets: metrics.losingBets,
-                bookieShare,
-                adminPool,
-                adminProfit,
-                winRate:
-                    metrics.totalBets > 0
-                        ? ((metrics.winningBets / metrics.totalBets) * 100).toFixed(2)
-                        : '0',
-            };
-        }
+        const metrics = await aggregatePlayerBetMetrics({ admin: bookie, dateFilter });
+        const periodGross = await calculateSuperBookieGrossCommission(bookie, dateFilter);
+        const commPct = bookie.commissionPercentage || 0;
+        const totalBetAmount = periodGross.totalBetAmount || revenueKpis.totalBetAmount || metrics.totalBetAmount;
+        const totalPayouts = revenueKpis.totalPayouts ?? metrics.totalPayouts;
+        const bookieShare = periodGross.totalCommission;
+        const periodCommission = bookieShare;
+        const adminCommPct = periodGross.adminCommissionPercentage;
+        const adminCommission = periodGross.adminCommissionAmount;
+        const netBookieShare = periodGross.netCommissionAfterAdmin;
+        const adminPool = Math.round((totalBetAmount * (100 - commPct) / 100) * 100) / 100;
+        const adminProfit = Math.round((adminPool - totalPayouts) * 100) / 100;
+        revenue = {
+            ...revenue,
+            totalBetAmount,
+            directBetAmount: periodGross.directBetAmount,
+            subBetAmount: periodGross.subBetAmount,
+            directCommission: periodGross.directCommission,
+            subCommission: periodGross.subCommission,
+            totalPayouts,
+            totalBetCount: metrics.totalBets,
+            winningBets: metrics.winningBets,
+            losingBets: metrics.losingBets,
+            bookieShare,
+            adminCommission,
+            adminCommissionPercentage: adminCommPct,
+            netBookieShare,
+            adminPool,
+            adminProfit,
+            winRate:
+                metrics.totalBets > 0
+                    ? ((metrics.winningBets / metrics.totalBets) * 100).toFixed(2)
+                    : '0',
+        };
 
         const superBookiesWithCommission = await Promise.all(
             (hierarchy.superBookies || []).map(async (sb) => {
                 const sbDoc = await Admin.findById(sb.id).select('-password').lean();
                 const sbCommission = sbDoc
                     ? await getCommissionSummaryForAccount(sbDoc)
-                    : { totalCommission: 0, totalPaid: 0, totalPending: 0 };
+                    : { parentCommissionAmount: 0, totalPaid: 0, totalPending: 0 };
                 return {
                     ...sb,
                     commissionPercentage: sbDoc?.commissionPercentage ?? 0,
-                    totalCommissionAmount: sbCommission.totalCommission,
+                    totalCommissionAmount: sbCommission.parentCommissionAmount ?? 0,
                     totalCommissionPaid: sbCommission.totalPaid,
                     totalCommissionPending: sbCommission.totalPending,
                 };
@@ -498,11 +516,27 @@ export const getBookieManagementDetail = async (req, res) => {
                 bookie: {
                     ...bookie,
                     totalCommissionAmount: commissionSummary.totalCommission,
-                    totalCommissionPaid: commissionSummary.totalPaid,
-                    totalCommissionPending: commissionSummary.totalPending,
+                    totalCommissionPaid: adminShareSettlement.adminPaid,
+                    totalCommissionPending: adminShareSettlement.adminPending,
                     totalBetAmountForCommission: commissionSummary.totalBetAmount,
                 },
-                commission: commissionSummary,
+                commission: {
+                    ...commissionSummary,
+                    adminCommissionPaid: adminShareSettlement.adminPaid,
+                    adminCommissionPending: adminShareSettlement.adminPending,
+                    totalPaid: adminShareSettlement.adminPaid,
+                    totalPending: adminShareSettlement.adminPending,
+                    periodBetAmount: totalBetAmount,
+                    periodDirectBetAmount: periodGross.directBetAmount,
+                    periodSubBetAmount: periodGross.subBetAmount,
+                    periodDirectCommission: periodGross.directCommission,
+                    periodSubCommission: periodGross.subCommission,
+                    periodCommission,
+                    periodCommissionPercentage: commPct,
+                    periodAdminCommission: adminCommission,
+                    adminCommissionPercentage: adminCommPct,
+                    netCommissionAfterAdmin: netBookieShare,
+                },
                 hierarchy: {
                     ...hierarchy,
                     superBookies: superBookiesWithCommission,
@@ -624,6 +658,12 @@ export const getAdminSuperBookieCommissionDashboard = async (req, res) => {
             summary.displayPending
             ?? (Number(summary.recoveryPendingFromBets || 0) + Number(summary.totalPending || 0));
 
+        const periodBetAmount = revenueKpis.totalBetAmount ?? dashboard.periodBetAmount ?? 0;
+        const periodCommissionPct = Number(superBookie.commissionPercentage ?? 0);
+        const periodCommission = calculateCommissionAmount(periodBetAmount, periodCommissionPct);
+        const periodAdminCommission = 0;
+        const adminCommPct = 0;
+
         return res.status(200).json({
             success: true,
             data: {
@@ -636,16 +676,22 @@ export const getAdminSuperBookieCommissionDashboard = async (req, res) => {
                     username: superBookie.username,
                     phone: superBookie.phone || '',
                     status: superBookie.status,
-                    commissionPercentage: superBookie.commissionPercentage ?? 0,
+                    commissionPercentage: periodCommissionPct,
                     createdAt: superBookie.createdAt,
                 },
                 revenueKpis,
                 topDashboard: {
-                    totalRevenue: revenueKpis.totalBetAmount ?? summary.totalBetAmount ?? 0,
+                    totalRevenue: periodBetAmount,
+                    periodBetAmount,
+                    periodCommission,
+                    periodCommissionPercentage: periodCommissionPct,
+                    periodAdminCommission,
+                    adminCommissionPercentage: adminCommPct,
+                    netCommissionAfterAdmin: round2(Math.max(0, periodCommission - periodAdminCommission)),
                     commissionSettled: settledCommission,
                     commissionPending: pendingCommission,
                     totalPlayers: summary.playerCount ?? 0,
-                    totalCommission: summary.totalCommission ?? 0,
+                    totalCommission: summary.parentCommissionAmount ?? 0,
                     betCount: summary.betCount ?? 0,
                     paymentStatus: summary.paymentStatus,
                 },
@@ -686,7 +732,19 @@ export const updateBookie = async (req, res) => {
         }
 
         const { id } = req.params;
-        const { username, firstName, lastName, email, phone, status, password, uiTheme, commissionPercentage, canManagePayments } = req.body;
+        const {
+            username,
+            firstName,
+            lastName,
+            email,
+            phone,
+            status,
+            password,
+            uiTheme,
+            commissionPercentage,
+            adminCommissionPercentage,
+            canManagePayments,
+        } = req.body;
 
         const bookie = await Admin.findOne({ _id: id, role: 'bookie' });
         if (!bookie) {
@@ -747,6 +805,12 @@ export const updateBookie = async (req, res) => {
             const cp = Number(commissionPercentage);
             if (Number.isFinite(cp) && cp >= 0 && cp <= 100) {
                 bookie.commissionPercentage = cp;
+            }
+        }
+        if (adminCommissionPercentage != null) {
+            const acp = Number(adminCommissionPercentage);
+            if (Number.isFinite(acp) && acp >= 0 && acp <= 100) {
+                bookie.adminCommissionPercentage = acp;
             }
         }
         // Update payment management permission if provided

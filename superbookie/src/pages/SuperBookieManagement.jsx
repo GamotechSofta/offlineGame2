@@ -133,10 +133,7 @@ const SuperBookieManagement = () => {
                     email: formData.email.trim(),
                     phone,
                     password: formData.password,
-                    commissionPercentage:
-                        formData.commissionPercentage !== ''
-                            ? Number(formData.commissionPercentage)
-                            : 0,
+                    commissionPercentage: commissionPct,
                     canManagePayments: Boolean(formData.canManagePayments),
                 }),
             });
@@ -331,31 +328,23 @@ const SuperBookieManagement = () => {
                 className="border rounded-lg px-3 py-2 w-full"
             />
             <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-3 space-y-2">
-                <p className="text-sm font-semibold text-[#1B3150]">Commission</p>
+                <p className="text-sm font-semibold text-[#1B3150]">Commission %</p>
                 <p className="text-xs text-gray-500">
-                    {isEdit
-                        ? `${PANEL_LABEL} earns this % on their players’ bets.`
-                        : `Set commission % now — same as when you create a ${PANEL_LABEL.toLowerCase()} in admin.`}
+                    You earn this % on this {PANEL_LABEL.toLowerCase()}&apos;s player bets.
                 </p>
-                <div>
-                    <label htmlFor={isEdit ? 'sb-commission-edit' : 'sb-commission-create'} className="block text-sm font-medium text-gray-600 mb-1">
-                        Commission %
-                    </label>
-                    <div className="relative">
-                        <input
-                            id={isEdit ? 'sb-commission-edit' : 'sb-commission-create'}
-                            type="text"
-                            inputMode="decimal"
-                            name="commissionPercentage"
-                            value={formData.commissionPercentage}
-                            onChange={handleChange}
-                            placeholder="0"
-                            className="w-full border rounded-lg px-3 py-2 pr-10 bg-white"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">%</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">0–100%. Default: 0%</p>
+                <div className="relative">
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        name="commissionPercentage"
+                        value={formData.commissionPercentage}
+                        onChange={handleChange}
+                        placeholder="0"
+                        className="w-full border rounded-lg px-3 py-2 pr-10 bg-white"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">%</span>
                 </div>
+                <p className="text-xs text-gray-500">0–100%</p>
             </div>
             <div className="rounded-xl border border-green-100 bg-green-50/50 p-3 space-y-2">
                 <p className="text-sm font-semibold text-[#1B3150]">Payment Management</p>
@@ -632,6 +621,7 @@ const SuperBookieManagement = () => {
                             }
                             className="w-full border rounded-lg px-3 py-2"
                         />
+                        <p className="text-xs text-gray-500 mt-1">% you earn on this {PANEL_LABEL.toLowerCase()}&apos;s player bets</p>
                     </div>
                     {error && <p className="text-red-600 text-sm">{error}</p>}
                     <button

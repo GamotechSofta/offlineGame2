@@ -12,6 +12,7 @@ import {
 import AdminLayout from '../components/AdminLayout';
 import { TOP_LEVEL_LABEL, SUB_LEVEL_LABEL } from '../config/roleLabels';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
+import { getIstTodayKey } from '../lib/istDate';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -71,8 +72,10 @@ const SuperBookieCommissionDashboard = () => {
         setLoading(true);
         setError('');
         try {
+            const today = getIstTodayKey();
+            const params = new URLSearchParams({ startDate: today, endDate: today });
             const response = await fetchWithAuth(
-                `${API_BASE_URL}/admin/bookies/${bookieId}/super-bookies/${superBookieId}/commission-dashboard`,
+                `${API_BASE_URL}/admin/bookies/${bookieId}/super-bookies/${superBookieId}/commission-dashboard?${params}`,
             );
             if (response.status === 401) return;
             const json = await response.json();
@@ -342,9 +345,23 @@ const SuperBookieCommissionDashboard = () => {
 
                         {activeTab === 'commission' && (
                             <div className="space-y-4">
+                                <div className="rounded-lg border border-orange-100 bg-orange-50/50 p-3 text-sm">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide">Commission to {TOP_LEVEL_LABEL}</p>
+                                    <p className="text-xl font-bold text-orange-600 mt-1">
+                                        {formatCurrency(top.periodCommission ?? 0)}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {formatCurrency(top.periodBetAmount ?? rev.totalBetAmount ?? 0)} player bets ×{' '}
+                                        {Number(top.periodCommissionPercentage ?? data?.superBookie?.commissionPercentage ?? 0)}%
+                                        <span className="text-indigo-600"> (rate {TOP_LEVEL_LABEL} set on this {SUB_LEVEL_LABEL})</span>
+                                    </p>
+                                    <p className="text-[10px] text-gray-400 mt-1">
+                                        Period: {data?.dateRange?.periodLabel || 'Today'} · Admin share applies on parent {TOP_LEVEL_LABEL} account only
+                                    </p>
+                                </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
                                     <div className="rounded-lg bg-slate-50 border p-3">
-                                        <p className="text-xs text-gray-500">Total commission</p>
+                                        <p className="text-xs text-gray-500">All-time commission</p>
                                         <p className="font-bold">{formatCurrency(top.totalCommission)}</p>
                                     </div>
                                     <div className="rounded-lg bg-green-50 border border-green-100 p-3">

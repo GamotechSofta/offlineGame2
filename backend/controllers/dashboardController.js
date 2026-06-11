@@ -105,11 +105,16 @@ export const getDashboardStats = async (req, res) => {
         // Get all user IDs that belong to this bookie (via referredBy field)
         // Returns null for super_admin (no filter - see all), array of IDs for bookie, empty array if no users
         const bookieUserIds = await getBookieUserIds(req.admin);
-        
+        // SuperBookie (parent): bet revenue KPIs exclude sub-bookie player bets.
+        const revenueUserIds = req.admin?.role === 'bookie'
+            ? await getBookieUserIds(req.admin, { directOnly: true })
+            : bookieUserIds;
+
         // Build filters: if bookieUserIds is null (super_admin), filter is {} (match all)
         // If bookieUserIds is array (even empty), filter by those IDs (empty array = match nothing, which is correct)
         const userFilter = bookieUserIds !== null ? { _id: { $in: bookieUserIds } } : {};
-        const betFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {}; // All bets from bookie's players
+        const betFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
+        const revenueBetFilter = revenueUserIds !== null ? { userId: { $in: revenueUserIds } } : betFilter;
         const paymentFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
         const walletMatch = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
         const helpDeskFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
@@ -130,8 +135,8 @@ export const getDashboardStats = async (req, res) => {
             ? { marketId: new mongoose.Types.ObjectId(selectedMarketId) }
             : {};
 
-        const revenueMatch = { ...dateMatch, ...betFilter, ...marketMatch, status: { $ne: 'cancelled' } };
-        const payoutMatch = { status: 'won', ...dateMatch, ...betFilter, ...marketMatch };
+        const revenueMatch = { ...dateMatch, ...revenueBetFilter, ...marketMatch, status: { $ne: 'cancelled' } };
+        const payoutMatch = { status: 'won', ...dateMatch, ...revenueBetFilter, ...marketMatch };
         const betCountMatch = { ...dateMatch, ...betFilter, ...marketMatch, status: { $ne: 'cancelled' } };
         const lossMatch = { status: 'lost', ...dateMatch, ...betFilter, ...marketMatch };
         const isSuperAdmin = bookieUserIds === null && req.admin?.role === 'super_admin';
