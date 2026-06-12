@@ -44,7 +44,6 @@ const BookieManagement = () => {
         password: '',
         confirmPassword: '',
         commissionPercentage: '',
-        adminCommissionPercentage: '10',
         canManagePayments: false,
     });
 
@@ -62,7 +61,6 @@ const BookieManagement = () => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [manageData, setManageData] = useState({
         commissionPercentage: '',
-        adminCommissionPercentage: '10',
     });
     const closeCreateModal = useModalBackHandler(showCreateModal, () => setShowCreateModal(false));
     const closeEditModal = useModalBackHandler(showEditModal, () => setShowEditModal(false));
@@ -207,7 +205,7 @@ const BookieManagement = () => {
         const { name, value } = e.target;
         let processed = value;
         if (name === 'phone') processed = value.replace(/\D/g, '').slice(0, 10);
-        if (name === 'commissionPercentage' || name === 'adminCommissionPercentage') {
+        if (name === 'commissionPercentage') {
             processed = value.replace(/[^0-9.]/g, '').slice(0, 6);
         }
         setFormData({ ...formData, [name]: processed });
@@ -251,9 +249,6 @@ const BookieManagement = () => {
                 phone: formData.phone.replace(/\D/g, '').slice(0, 10),
                 password: formData.password,
                 commissionPercentage: formData.commissionPercentage ? Number(formData.commissionPercentage) : 0,
-                adminCommissionPercentage: formData.adminCommissionPercentage
-                    ? Number(formData.adminCommissionPercentage)
-                    : 10,
                 canManagePayments: formData.canManagePayments || false,
             };
             const response = await fetchWithAuth(`${API_BASE_URL}/admin/bookies`, {
@@ -268,7 +263,7 @@ const BookieManagement = () => {
                 setShowCreateModal(false);
                 setFormData({
                     firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '',
-                    commissionPercentage: '', adminCommissionPercentage: '10', canManagePayments: false,
+                    commissionPercentage: '', canManagePayments: false,
                 });
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 10000); // Show for 10 seconds so user can note the credentials
@@ -308,9 +303,6 @@ const BookieManagement = () => {
                 email: formData.email.trim(),
                 phone: formData.phone.replace(/\D/g, '').slice(0, 10) || formData.phone,
                 commissionPercentage: formData.commissionPercentage !== '' ? Number(formData.commissionPercentage) : undefined,
-                adminCommissionPercentage: formData.adminCommissionPercentage !== ''
-                    ? Number(formData.adminCommissionPercentage)
-                    : undefined,
                 canManagePayments: formData.canManagePayments,
             };
             if (formData.password) updateData.password = formData.password;
@@ -327,7 +319,7 @@ const BookieManagement = () => {
                 setSelectedBookie(null);
                 setFormData({
                     firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '',
-                    commissionPercentage: '', adminCommissionPercentage: '10', canManagePayments: false,
+                    commissionPercentage: '', canManagePayments: false,
                 });
                 fetchBookies();
                 setTimeout(() => setSuccess(''), 3000);
@@ -449,9 +441,6 @@ const BookieManagement = () => {
             password: '',
             confirmPassword: '',
             commissionPercentage: bookie.commissionPercentage != null ? String(bookie.commissionPercentage) : '0',
-            adminCommissionPercentage: bookie.adminCommissionPercentage != null
-                ? String(bookie.adminCommissionPercentage)
-                : '10',
             canManagePayments: bookie.canManagePayments || false,
         });
         setShowEditModal(true);
@@ -469,7 +458,6 @@ const BookieManagement = () => {
         setSelectedBookie(bookie);
         setManageData({
             commissionPercentage: String(bookie.commissionPercentage ?? 0),
-            adminCommissionPercentage: String(bookie.adminCommissionPercentage ?? 10),
         });
         setShowManageModal(true);
     };
@@ -478,13 +466,8 @@ const BookieManagement = () => {
         e.preventDefault();
         if (!selectedBookie?._id) return;
         const commission = Number(manageData.commissionPercentage || 0);
-        const adminCommission = Number(manageData.adminCommissionPercentage ?? 10);
         if (!Number.isFinite(commission) || commission < 0 || commission > 100) {
-            setError('Commission must be between 0 and 100');
-            return;
-        }
-        if (!Number.isFinite(adminCommission) || adminCommission < 0 || adminCommission > 100) {
-            setError('Admin commission must be between 0 and 100');
+            setError('Total commission must be between 0 and 100');
             return;
         }
 
@@ -499,7 +482,6 @@ const BookieManagement = () => {
                     email: selectedBookie.email || '',
                     phone: selectedBookie.phone || '',
                     commissionPercentage: commission,
-                    adminCommissionPercentage: adminCommission,
                     canManagePayments: Boolean(selectedBookie.canManagePayments),
                 }),
             });
@@ -543,7 +525,7 @@ const BookieManagement = () => {
                                 onClick={() => {
                                     setFormData({
                                         firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '',
-                                        commissionPercentage: '', adminCommissionPercentage: '10', canManagePayments: false,
+                                        commissionPercentage: '', canManagePayments: false,
                                     });
                                     setShowCreateModal(true);
                                 }}
@@ -822,7 +804,7 @@ const BookieManagement = () => {
 
                                         <div className="grid grid-cols-2 gap-2 mt-3">
                                             <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
-                                                <p className="text-[11px] text-gray-500">Commission</p>
+                                                <p className="text-[11px] text-gray-500">Total commission</p>
                                                 <p className="font-semibold text-orange-600 mt-0.5">{bookie.commissionPercentage ?? 0}%</p>
                                             </div>
                                             <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
@@ -977,7 +959,7 @@ const BookieManagement = () => {
                                     <p className="mt-0.5 text-xs text-gray-500">{TOP_LEVEL_LABEL_PLURAL} log in with phone + password.</p>
                                 </div>
                                 <div>
-                                    <label className="block text-gray-600 text-sm font-medium mb-1">Commission %</label>
+                                    <label className="block text-gray-600 text-sm font-medium mb-1">Total Commission %</label>
                                     <div className="relative">
                                         <input
                                             type="text"
@@ -990,23 +972,9 @@ const BookieManagement = () => {
                                         />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
                                     </div>
-                                    <p className="mt-0.5 text-xs text-gray-500">Player bets × this % = SuperBookie commission (e.g. 20%)</p>
-                                </div>
-                                <div>
-                                    <label className="block text-gray-600 text-sm font-medium mb-1">Admin commission %</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            name="adminCommissionPercentage"
-                                            value={formData.adminCommissionPercentage}
-                                            onChange={handleChange}
-                                            className="w-full px-3 py-1.5 text-sm bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 pr-10"
-                                            placeholder="10"
-                                        />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
-                                    </div>
-                                    <p className="mt-0.5 text-xs text-gray-500">% of SuperBookie commission to admin (e.g. ₹400 × 10% = ₹40)</p>
+                                    <p className="mt-0.5 text-xs text-gray-500">
+                                        Direct bets × % → full amount to admin · {SUB_LEVEL_LABEL} commission × % → admin share (e.g. 10%: ₹1000→₹100 + ₹100 bookie×10%=₹10 → admin ₹110)
+                                    </p>
                                 </div>
                                 <div>
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1137,7 +1105,7 @@ const BookieManagement = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-gray-600 text-sm font-medium mb-1">Commission %</label>
+                                    <label className="block text-gray-600 text-sm font-medium mb-1">Total Commission %</label>
                                     <div className="relative">
                                         <input
                                             type="text"
@@ -1150,23 +1118,9 @@ const BookieManagement = () => {
                                         />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
                                     </div>
-                                    <p className="mt-0.5 text-xs text-gray-500">Player bets × this % = SuperBookie commission</p>
-                                </div>
-                                <div>
-                                    <label className="block text-gray-600 text-sm font-medium mb-1">Admin commission %</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            name="adminCommissionPercentage"
-                                            value={formData.adminCommissionPercentage}
-                                            onChange={handleChange}
-                                            className="w-full px-3 py-1.5 text-sm bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 pr-10"
-                                            placeholder="10"
-                                        />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
-                                    </div>
-                                    <p className="mt-0.5 text-xs text-gray-500">% of SuperBookie commission paid to admin</p>
+                                    <p className="mt-0.5 text-xs text-gray-500">
+                                        Direct bets × % → full amount to admin · {SUB_LEVEL_LABEL} commission × % → admin share (e.g. 10%: ₹1000→₹100 + ₹100 bookie×10%=₹10 → admin ₹110)
+                                    </p>
                                 </div>
                                 <div>
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1323,7 +1277,7 @@ const BookieManagement = () => {
                                 <p className="font-semibold text-gray-800">{selectedBookie.username}</p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-600 mb-1">Commission %</label>
+                                <label className="block text-sm font-medium text-gray-600 mb-1">Total Commission %</label>
                                 <input
                                     type="text"
                                     inputMode="decimal"
@@ -1331,21 +1285,9 @@ const BookieManagement = () => {
                                     onChange={(e) => setManageData((p) => ({ ...p, commissionPercentage: e.target.value.replace(/[^0-9.]/g, '').slice(0, 6) }))}
                                     className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50"
                                 />
-                                <p className="mt-1 text-xs text-gray-500">On player bet amount</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-600 mb-1">Admin commission %</label>
-                                <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={manageData.adminCommissionPercentage}
-                                    onChange={(e) => setManageData((p) => ({
-                                        ...p,
-                                        adminCommissionPercentage: e.target.value.replace(/[^0-9.]/g, '').slice(0, 6),
-                                    }))}
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50"
-                                />
-                                <p className="mt-1 text-xs text-gray-500">% of SuperBookie commission to admin</p>
+                                <p className="mt-1 text-xs text-gray-500">
+                                    Direct player bets × % and admin share from {SUB_LEVEL_LABEL.toLowerCase()} commission × same %
+                                </p>
                             </div>
                             <div className="flex gap-2 pt-1">
                                 <button type="button" onClick={closeManageModal} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-lg">Cancel</button>

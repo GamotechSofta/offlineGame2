@@ -12,6 +12,7 @@ import {
     isSettlementPaidWithAdvance,
     calculateCommissionAmount,
     calculateAdminCommissionAmount,
+    calculateSuperBookieAdminCommissionTotal,
     getAdminShareSettlementForBookie,
     buildAdminAllCommissionSummaryRows,
     round2,
@@ -505,9 +506,10 @@ export const recordBookieCommissionPayment = async (req, res) => {
         if (bookie.role === 'bookie') {
             const adminCommissionAmount = Number(
                 summary.adminCommissionAmount
-                ?? calculateAdminCommissionAmount(
-                    summary.totalCommission ?? 0,
-                    summary.adminCommissionPercentage ?? 10,
+                ?? calculateSuperBookieAdminCommissionTotal(
+                    summary.directCommission ?? 0,
+                    summary.subCommission ?? 0,
+                    summary.adminCommissionPercentage ?? summary.commissionPercentage ?? 10,
                 ),
             );
             const { adminPending } = await getAdminShareSettlementForBookie(

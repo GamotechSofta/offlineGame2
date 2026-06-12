@@ -269,7 +269,7 @@ const BookieCommissions = () => {
                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-blue-700/80 flex items-center gap-2">
                             <FaMoneyBillWave className="text-blue-600" />
-                            Admin commission
+                            Commission on {SUB_LEVEL_LABEL} of {TOP_LEVEL_LABEL}
                         </p>
                         <p className="text-2xl sm:text-3xl font-bold text-blue-800 mt-1">{formatCurrency(totals.adminCommission)}</p>
                     </div>
@@ -351,7 +351,7 @@ const BookieCommissions = () => {
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Rate %</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Total Sales</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Last Payment</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Admin commission</th>
+                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">On {SUB_LEVEL_LABEL} commission</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Admin paid</th>
                                     <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Admin pending</th>
                                     <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Status</th>
@@ -551,7 +551,7 @@ const BookieCommissions = () => {
 
                                 <div className="grid grid-cols-3 gap-2 mt-3 text-right">
                                     <div>
-                                        <p className="text-[11px] text-slate-500">Admin commission</p>
+                                        <p className="text-[11px] text-slate-500">On {SUB_LEVEL_LABEL} commission</p>
                                         {row.accountLabel === 'sub' ? (
                                             <p className="text-sm text-slate-400">—</p>
                                         ) : (

@@ -243,6 +243,9 @@ export const createBookie = async (req, res) => {
             return res.status(409).json({ success: false, message: 'A bookie with this name already exists' });
         }
 
+        const totalCommissionPct = (commissionPercentage != null && Number.isFinite(Number(commissionPercentage)))
+            ? Math.min(100, Math.max(0, Number(commissionPercentage)))
+            : 0;
         const bookie = new Admin({
             username: derivedUsername,
             password,
@@ -250,10 +253,8 @@ export const createBookie = async (req, res) => {
             email: (email && String(email).trim()) ? email.trim().toLowerCase() : '',
             phone: trimmedPhone,
             status: 'active',
-            commissionPercentage: (commissionPercentage != null && Number.isFinite(Number(commissionPercentage))) ? Math.min(100, Math.max(0, Number(commissionPercentage))) : 0,
-            adminCommissionPercentage: (adminCommissionPercentage != null && Number.isFinite(Number(adminCommissionPercentage)))
-                ? Math.min(100, Math.max(0, Number(adminCommissionPercentage)))
-                : 10,
+            commissionPercentage: totalCommissionPct,
+            adminCommissionPercentage: totalCommissionPct,
         });
         await bookie.save();
         await invalidateAdminReadCaches('bookie_created');
@@ -805,12 +806,13 @@ export const updateBookie = async (req, res) => {
             const cp = Number(commissionPercentage);
             if (Number.isFinite(cp) && cp >= 0 && cp <= 100) {
                 bookie.commissionPercentage = cp;
+                bookie.adminCommissionPercentage = cp;
             }
-        }
-        if (adminCommissionPercentage != null) {
+        } else if (adminCommissionPercentage != null) {
             const acp = Number(adminCommissionPercentage);
             if (Number.isFinite(acp) && acp >= 0 && acp <= 100) {
                 bookie.adminCommissionPercentage = acp;
+                bookie.commissionPercentage = acp;
             }
         }
         // Update payment management permission if provided

@@ -17,9 +17,24 @@ export function calculateCommissionAmount(totalBetAmount, commissionPercentage) 
     return round2((Number(totalBetAmount || 0) * Number(commissionPercentage || 0)) / 100);
 }
 
-/** Admin share = SuperBookie commission × admin rate (%). */
-export function calculateAdminCommissionAmount(superBookieCommission, adminCommissionPercentage) {
-    return calculateCommissionAmount(superBookieCommission, adminCommissionPercentage);
+/** Admin share on Bookie (sub) commission only — bookieCommission × rate (%). */
+export function calculateAdminCommissionAmount(bookieCommissionAmount, adminCommissionPercentage) {
+    return calculateCommissionAmount(bookieCommissionAmount, adminCommissionPercentage);
+}
+
+/**
+ * Total admin commission from a SuperBookie:
+ * - Direct player bets × rate → full direct commission to admin
+ * - Bookie commission × rate → admin share on bookie part only
+ */
+export function calculateSuperBookieAdminCommissionTotal(
+    directCommission,
+    subCommission,
+    adminCommissionPercentage,
+) {
+    const fromDirect = round2(directCommission);
+    const fromSub = calculateAdminCommissionAmount(subCommission, adminCommissionPercentage);
+    return round2(fromDirect + fromSub);
 }
 
 /** Parent SuperBookie account for a sub Bookie (role super_bookie). */
@@ -386,9 +401,17 @@ export async function buildAdminAllCommissionSummaryRows(parentBookies, subBooki
 
         const totalBetAmount = round2(directBetAmount + subBetAmount);
         const totalCommission = round2(directCommission + subCommission);
-        const adminCommissionPercentage = Number(bookie.adminCommissionPercentage ?? 10);
-        const adminCommissionAmount = calculateAdminCommissionAmount(
-            totalCommission,
+        const adminCommissionPercentage = Number(
+            bookie.adminCommissionPercentage ?? bookie.commissionPercentage ?? 10,
+        );
+        const adminCommissionFromDirect = round2(directCommission);
+        const adminCommissionFromSub = calculateAdminCommissionAmount(
+            subCommission,
+            adminCommissionPercentage,
+        );
+        const adminCommissionAmount = calculateSuperBookieAdminCommissionTotal(
+            directCommission,
+            subCommission,
             adminCommissionPercentage,
         );
         const { adminPaid, adminPending } = computeAdminShareSettlement(
@@ -405,10 +428,12 @@ export async function buildAdminAllCommissionSummaryRows(parentBookies, subBooki
             parentBookieUsername: '',
             commissionPercentage: adminRate,
             adminCommissionPercentage,
+            adminCommissionFromDirect,
+            adminCommissionFromSub,
             adminCommissionAmount,
             adminCommissionPaid: adminPaid,
             adminCommissionPending: adminPending,
-            netCommissionAfterAdmin: round2(Math.max(0, totalCommission - adminCommissionAmount)),
+            netCommissionAfterAdmin: round2(Math.max(0, subCommission - adminCommissionFromSub)),
             directCommission,
             subCommission,
             playerCount: hierarchyPlayerCount,
@@ -616,7 +641,8 @@ export async function getAdvanceFromAdminForBookie(bookieId) {
  * SuperBookie gross commission (before admin share):
  * - Direct players: bets × commission % set by admin on SuperBookie
  * - Sub Bookies: each sub's player bets × commission % set by SuperBookie on that sub
- * Admin share = gross × adminCommissionPercentage (on commission, not bets).
+ * Admin total = direct commission (100% to admin) + sub commission × adminCommissionPercentage.
+ * SuperBookie net = sub commission − admin share on sub (keeps nothing from direct commission).
  */
 export async function calculateSuperBookieGrossCommission(admin, dateFilter = {}) {
     const account =
@@ -663,9 +689,20 @@ export async function calculateSuperBookieGrossCommission(admin, dateFilter = {}
 
     const totalBetAmount = round2(directVolume.totalBetAmount + subBetAmount);
     const totalCommission = round2(directCommission + subCommission);
-    const adminCommissionPercentage = Number(account.adminCommissionPercentage ?? 10);
-    const adminCommissionAmount = calculateAdminCommissionAmount(totalCommission, adminCommissionPercentage);
-    const netCommissionAfterAdmin = round2(Math.max(0, totalCommission - adminCommissionAmount));
+    const adminCommissionPercentage = Number(
+        account.adminCommissionPercentage ?? account.commissionPercentage ?? 10,
+    );
+    const adminCommissionFromDirect = round2(directCommission);
+    const adminCommissionFromSub = calculateAdminCommissionAmount(
+        subCommission,
+        adminCommissionPercentage,
+    );
+    const adminCommissionAmount = calculateSuperBookieAdminCommissionTotal(
+        directCommission,
+        subCommission,
+        adminCommissionPercentage,
+    );
+    const netCommissionAfterAdmin = round2(Math.max(0, subCommission - adminCommissionFromSub));
 
     return {
         directBetAmount: directVolume.totalBetAmount,
@@ -676,6 +713,8 @@ export async function calculateSuperBookieGrossCommission(admin, dateFilter = {}
         totalCommission,
         commissionPercentage: adminRate,
         adminCommissionPercentage,
+        adminCommissionFromDirect,
+        adminCommissionFromSub,
         adminCommissionAmount,
         netCommissionAfterAdmin,
         betCount: Number(directVolume.betCount || 0) + subBetCount,
@@ -729,6 +768,8 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
     const displayPending = round2(recoveryPendingFromBets + totalPending);
 
     const adminCommissionPercentage = gross.adminCommissionPercentage;
+    const adminCommissionFromDirect = gross.adminCommissionFromDirect ?? round2(gross.directCommission);
+    const adminCommissionFromSub = gross.adminCommissionFromSub ?? 0;
     const adminCommissionAmount = gross.adminCommissionAmount;
     const netCommissionAfterAdmin = gross.netCommissionAfterAdmin;
 
@@ -744,6 +785,8 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
         commissionPercentage,
         totalCommission,
         adminCommissionPercentage,
+        adminCommissionFromDirect,
+        adminCommissionFromSub,
         adminCommissionAmount,
         netCommissionAfterAdmin,
         advanceCommissionPaid: advancePaid,
@@ -1029,6 +1072,8 @@ export async function getCommissionDashboardForAccount(admin, { startDate, endDa
         parentCommissionAmount: summary.parentCommissionAmount ?? 0,
         parentBookieUsername: summary.parentBookieUsername ?? '',
         adminCommissionPercentage: summary.adminCommissionPercentage ?? 0,
+        adminCommissionFromDirect: summary.adminCommissionFromDirect ?? summary.directCommission ?? 0,
+        adminCommissionFromSub: summary.adminCommissionFromSub ?? 0,
         adminCommissionAmount: summary.adminCommissionAmount ?? 0,
         netCommissionAfterAdmin: summary.netCommissionAfterAdmin ?? summary.totalCommission ?? 0,
         directBetAmount: summary.directBetAmount ?? 0,
@@ -1039,8 +1084,10 @@ export async function getCommissionDashboardForAccount(admin, { startDate, endDa
         periodSubBetAmount: periodGrossBreakdown?.subBetAmount ?? 0,
         periodDirectCommission: periodGrossBreakdown?.directCommission ?? 0,
         periodSubCommission: periodGrossBreakdown?.subCommission ?? 0,
+        periodAdminCommissionFromDirect: periodGrossBreakdown?.adminCommissionFromDirect ?? 0,
+        periodAdminCommissionFromSub: periodGrossBreakdown?.adminCommissionFromSub ?? 0,
         periodNetCommissionAfterAdmin: periodGrossBreakdown?.netCommissionAfterAdmin ?? round2(
-            Math.max(0, periodCommission - periodAdminCommission),
+            Math.max(0, (periodGrossBreakdown?.subCommission ?? 0) - (periodGrossBreakdown?.adminCommissionFromSub ?? 0)),
         ),
         allTimeBetAmount: summary.totalBetAmount,
         allTimeCommission: summary.totalCommission,

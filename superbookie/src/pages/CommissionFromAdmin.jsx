@@ -273,7 +273,7 @@ const CommissionFromAdmin = () => {
                         {t('commissionFromAdmin')}
                     </h1>
                     <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                        Admin sets your direct-player rate. You set each Bookie&apos;s rate. Admin share is {adminCommissionRate}% of your gross commission.
+                        Total rate {adminRateOnDirect}%: direct bets × rate → full amount to admin; Bookie commission × rate → admin share (e.g. ₹100 + ₹10 = ₹110 admin).
                     </p>
                 </div>
 
@@ -307,7 +307,9 @@ const CommissionFromAdmin = () => {
                                 Admin share
                             </p>
                             <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(adminCommissionAllTime)}</p>
-                            <p className="text-[11px] text-rose-200 mt-1">{adminCommissionRate}% of your commission</p>
+                            <p className="text-[11px] text-rose-200 mt-1">
+                                Direct {formatCurrency(data?.adminCommissionFromDirect ?? directCommissionAllTime)} + Bookie × {adminCommissionRate}%
+                            </p>
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-cyan-200 flex items-center gap-1.5">
@@ -467,7 +469,7 @@ const CommissionFromAdmin = () => {
                                     <p className="text-xs uppercase text-rose-100">Admin share ({adminCommissionRate}%)</p>
                                     <p className="text-2xl font-bold mt-1">{formatCurrency(periodAdminCommission)}</p>
                                     <p className="text-xs text-rose-100 mt-1">
-                                        {formatCurrency(periodGrossCommission)} × {adminCommissionRate}%
+                                        Direct {formatCurrency(data?.periodAdminCommissionFromDirect ?? periodDirectCommission)} + Bookie {formatCurrency(periodSubCommission)} × {adminCommissionRate}%
                                     </p>
                                 </div>
                                 <div className="bg-emerald-700 rounded-xl p-4 text-white">
@@ -509,7 +511,7 @@ const CommissionFromAdmin = () => {
                                         <p className="font-semibold text-slate-800">{formatCurrency(commissionEarned)}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">Admin ({adminCommissionRate}%)</p>
+                                        <p className="text-[11px] uppercase text-slate-500">On Bookies ({adminCommissionRate}%)</p>
                                         <p className="font-semibold text-rose-700">{formatCurrency(adminCommissionAllTime)}</p>
                                     </div>
                                     <div className="text-right">

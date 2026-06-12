@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaSpinner, FaUsers, FaPercent, FaChartLine, FaList } from 'react-icons/fa';
-import { TOP_LEVEL_LABEL, SUB_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
+import { TOP_LEVEL_LABEL, SUB_LEVEL_LABEL, SUB_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
 
 const DETAIL_TABS = [
     { id: 'directPlayers', label: 'Direct players', icon: FaUsers },
@@ -74,14 +74,16 @@ const BookieManagementDetailPanel = ({
             <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-900 space-y-0.5">
                 <p className="font-semibold">Commission flow</p>
                 <p>Direct players: bets × {bookie.commissionPercentage ?? 0}% (you set) · Bookie players: bets × rate {TOP_LEVEL_LABEL} sets per Bookie</p>
-                <p>Gross = direct + bookie commission · Admin share = gross × {commission?.adminCommissionPercentage ?? bookie.adminCommissionPercentage ?? 10}%</p>
+                <p>
+                    Total {bookie.commissionPercentage ?? 0}% · Admin gets: direct commission (100%) + {SUB_LEVEL_LABEL.toLowerCase()} commission × {bookie.commissionPercentage ?? 0}%
+                </p>
             </div>
 
             {/* Commission */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div className="rounded-lg bg-orange-50 border border-orange-100 p-2.5">
                     <p className="text-[10px] text-gray-500 flex items-center gap-1">
-                        <FaPercent className="w-3 h-3" /> Admin rate (direct)
+                        <FaPercent className="w-3 h-3" /> Total commission %
                     </p>
                     <p className="font-bold text-orange-600">{bookie.commissionPercentage ?? 0}%</p>
                 </div>
@@ -93,7 +95,7 @@ const BookieManagementDetailPanel = ({
                     </p>
                 </div>
                 <div className="rounded-lg bg-rose-50 border border-rose-100 p-2.5">
-                    <p className="text-[10px] text-gray-500">Admin share (all-time)</p>
+                    <p className="text-[10px] text-gray-500">{SUB_LEVEL_LABEL} commission share (all-time)</p>
                     <p className="font-bold text-rose-700">{formatCurrency(commission?.adminCommissionAmount ?? 0)}</p>
                 </div>
                 <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-2.5">
@@ -167,12 +169,12 @@ const BookieManagementDetailPanel = ({
                             </p>
                         </div>
                         <div>
-                            <p className="text-[10px] text-gray-500 uppercase">Admin share (period)</p>
+                            <p className="text-[10px] text-gray-500 uppercase">{SUB_LEVEL_LABEL} commission share (period)</p>
                             <p className="font-semibold text-amber-700">
                                 {formatCurrency(commission?.periodAdminCommission ?? revenue.adminCommission ?? 0)}
                             </p>
                             <p className="text-[10px] text-gray-400">
-                                {formatCurrency(commission?.periodCommission ?? revenue.bookieShare)} × {commission?.adminCommissionPercentage ?? revenue.adminCommissionPercentage ?? 10}%
+                                Direct {formatCurrency(commission?.periodDirectCommission ?? revenue.directCommission ?? 0)} + Bookie {formatCurrency(commission?.periodSubCommission ?? revenue.subCommission ?? 0)} × {commission?.adminCommissionPercentage ?? revenue.adminCommissionPercentage ?? 10}%
                             </p>
                         </div>
                         <div>
