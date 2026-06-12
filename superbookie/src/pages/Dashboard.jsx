@@ -141,18 +141,8 @@ const Dashboard = () => {
     const [customMode, setCustomMode] = useState(false);
     const [customOpen, setCustomOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const [markets, setMarkets] = useState([]);
-    const [selectedMarketId, setSelectedMarketId] = useState('all');
     const [topWalletPlayers, setTopWalletPlayers] = useState([]);
-    const [marketReport, setMarketReport] = useState({
-        totalBetAmount: 0,
-        totalPayout: 0,
-        pendingAmount: 0,
-        netProfit: 0,
-    });
-    const [commissionBaseTotal, setCommissionBaseTotal] = useState(0);
-    const [commissionMatkaTotal, setCommissionMatkaTotal] = useState(0);
-    const [commissionLotteryTotal, setCommissionLotteryTotal] = useState(0);
+    const [commissionSummary, setCommissionSummary] = useState(null);
     const [lotteryStats, setLotteryStats] = useState({
         twoD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
         threeD: { current: null, latest: null, nextUpcoming: null, allSlots: null, error: '' },
@@ -185,7 +175,6 @@ const Dashboard = () => {
     useEffect(() => {
         fetchDashboardStats();
         refreshBookieProfile();
-        fetchMarkets();
     }, []);
 
     const fetchLotteryModeStats = async (mode, rangeOverride) => {
@@ -274,43 +263,23 @@ const Dashboard = () => {
         }
     };
 
-    const fetchMarkets = async () => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/markets/get-markets?marketType=main`, {
-                headers: getBookieAuthHeaders(),
-            });
-            const data = await res.json();
-            if (data?.success) setMarkets(Array.isArray(data.data) ? data.data : []);
-        } catch (_) {
-            setMarkets([]);
-        }
-    };
-
-    const fetchMarketReport = async (rangeOverride, marketIdOverride) => {
+    const fetchCommissionSummary = async (rangeOverride) => {
         try {
             const { from, to } = rangeOverride || getFromTo();
-            const marketId = marketIdOverride ?? selectedMarketId;
             const params = new URLSearchParams();
-            if (from) params.set('startDate', from);
-            if (to) params.set('endDate', to);
-            if (marketId && marketId !== 'all') params.set('marketId', marketId);
-            params.set('placedBy', 'user');
-            const res = await fetch(`${API_BASE_URL}/bets/history?${params.toString()}`, {
-                headers: getBookieAuthHeaders(),
-            });
+            if (from && to) {
+                params.set('startDate', from);
+                params.set('endDate', to);
+            }
+            const query = params.toString();
+            const res = await fetch(
+                `${API_BASE_URL}/daily-commission/my-summary${query ? `?${query}` : ''}`,
+                { headers: getBookieAuthHeaders() },
+            );
             const data = await res.json();
-            const rows = data?.success && Array.isArray(data?.data) ? data.data : [];
-            const totalBetAmount = rows.reduce((s, b) => s + (Number(b?.amount) || 0), 0);
-            const totalPayout = rows
-                .filter((b) => String(b?.status || '').toLowerCase() === 'won')
-                .reduce((s, b) => s + (Number(b?.payout) || 0), 0);
-            const pendingAmount = rows
-                .filter((b) => String(b?.status || '').toLowerCase() === 'pending')
-                .reduce((s, b) => s + (Number(b?.amount) || 0), 0);
-            const netProfit = totalBetAmount - totalPayout;
-            setMarketReport({ totalBetAmount, totalPayout, pendingAmount, netProfit });
-        } catch (_) {
-            setMarketReport({ totalBetAmount: 0, totalPayout: 0, pendingAmount: 0, netProfit: 0 });
+            setCommissionSummary(data.success ? data.data : null);
+        } catch {
+            setCommissionSummary(null);
         }
     };
 
@@ -331,13 +300,7 @@ const Dashboard = () => {
             const query = params.toString();
             const url = `${API_BASE_URL}/dashboard/stats${query ? `?${query}` : ''}`;
             const headers = getBookieAuthHeaders();
-            const revenueParams = new URLSearchParams();
-            if (from && to) {
-                revenueParams.set('startDate', from);
-                revenueParams.set('endDate', to);
-            }
-            const revenueUrl = `${API_BASE_URL}/reports/revenue${revenueParams.toString() ? `?${revenueParams.toString()}` : ''}`;
-            const [statsRes, usersRes, revenueRes] = await Promise.all([
+            const [statsRes, usersRes] = await Promise.all([
                 fetch(url, {
                     headers,
                     cache: isRefresh ? 'no-store' : 'default',
@@ -346,23 +309,16 @@ const Dashboard = () => {
                     headers,
                     cache: isRefresh ? 'no-store' : 'default',
                 }),
-                fetch(revenueUrl, {
-                    headers,
-                    cache: isRefresh ? 'no-store' : 'default',
-                }),
             ]);
-            const [statsData, usersData, revenueData] = await Promise.all([statsRes.json(), usersRes.json(), revenueRes.json()]);
+            const [statsData, usersData] = await Promise.all([statsRes.json(), usersRes.json()]);
             if (statsData.success) {
                 setStats(statsData.data);
-                setCommissionBaseTotal(revenueData?.success ? Number(revenueData?.data?.totalBetAmount || 0) : 0);
-                setCommissionMatkaTotal(revenueData?.success ? Number(revenueData?.data?.matkaBetAmount || 0) : 0);
-                setCommissionLotteryTotal(revenueData?.success ? Number(revenueData?.data?.lotteryBetAmount || 0) : 0);
                 const allUsers = usersData?.success && Array.isArray(usersData?.data) ? usersData.data : [];
                 const topPlayers = [...allUsers]
                     .sort((a, b) => (Number(b?.walletBalance ?? 0) || 0) - (Number(a?.walletBalance ?? 0) || 0))
                     .slice(0, 3);
                 setTopWalletPlayers(topPlayers);
-                void fetchMarketReport(rangeOverride);
+                void fetchCommissionSummary(rangeOverride);
                 void fetchLotteryDashboardStats(rangeOverride);
             }
             else setError(statsData.message || 'Failed to fetch dashboard stats');
@@ -434,26 +390,20 @@ const Dashboard = () => {
     const pendingPayments = stats?.payments?.pending || 0;
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
     const pendingWithdrawals = stats?.payments?.pendingWithdrawals ?? 0;
-    const helpDeskOpen = stats?.helpDesk?.open || 0;
-    // Help Desk open tickets should not trigger the "Action Required" banner on bookie dashboard.
     const hasActionRequired = pendingPayments > 0;
-    const toReceived = Number(stats?.toTake || 0);
-    const toGive = Number(stats?.toGive || 0);
-    const twoDAllSlotsRevenue = Number(lotteryStats?.twoD?.allSlots?.revenue || 0);
-    const threeDAllSlotsRevenue = Number(lotteryStats?.threeD?.allSlots?.revenue || 0);
-    const lotteryAllSlotsRevenue = twoDAllSlotsRevenue + threeDAllSlotsRevenue;
-    const twoDAllSlotsNet = Number(lotteryStats?.twoD?.allSlots?.net || 0);
-    const threeDAllSlotsNet = Number(lotteryStats?.threeD?.allSlots?.net || 0);
-    const lotteryAllSlotsNet = twoDAllSlotsNet + threeDAllSlotsNet;
-    const dashboardMatkaRevenue = Number(stats?.revenue?.total || 0);
-    const displayTotalBetAmount =
-        commissionBaseTotal > 0
-            ? commissionBaseTotal
-            : dashboardMatkaRevenue + (commissionLotteryTotal || 0);
-    const displayMatkaBet =
-        commissionMatkaTotal > 0 ? commissionMatkaTotal : dashboardMatkaRevenue;
-    const marketPendingAmount = Number(marketReport.pendingAmount || 0);
-    const computedTotalProfit = (Number(marketReport.netProfit) || 0) + lotteryAllSlotsNet + (toReceived - toGive);
+
+    const { from: rangeFrom, to: rangeTo } = getFromTo();
+    const hasDateFilter = Boolean(rangeFrom && rangeTo);
+    const totalDeposit = Number(stats?.payments?.totalDeposits || 0);
+    const totalWithdrawal = Number(stats?.payments?.totalWithdrawals || 0);
+    const totalCommissionToTakeFromBookie = hasDateFilter
+        ? Number(commissionSummary?.periodSubCommission ?? 0)
+        : Number(commissionSummary?.subCommission ?? 0);
+    const totalCommissionToGive = hasDateFilter
+        ? Number(commissionSummary?.periodAdminCommission ?? 0)
+        : Number(commissionSummary?.adminCommissionAmount ?? 0);
+    const dashboardTotalRevenue =
+        totalDeposit + totalCommissionToTakeFromBookie - totalWithdrawal - totalCommissionToGive;
 
     if (loading) {
         return (
@@ -462,8 +412,8 @@ const Dashboard = () => {
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{t('dashboardOverview')}</h1>
                     <p className="text-gray-400 text-sm mt-2">{t('loading')}</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
@@ -582,67 +532,39 @@ const Dashboard = () => {
                 </div>
             )}
 
-            {/* Market Wise Report */}
-            <div className="mb-4 bg-white rounded-xl p-4 border border-gray-200">
-                <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Market Wise Report</p>
-                    <select
-                        value={selectedMarketId}
-                        onChange={(e) => {
-                            const mid = e.target.value;
-                            setSelectedMarketId(mid);
-                            fetchMarketReport(undefined, mid);
-                        }}
-                        className="px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3150]/30"
-                    >
-                        <option value="all">All Markets</option>
-                        {markets.map((m) => (
-                            <option key={m._id || m.id} value={m._id || m.id}>
-                                {m.marketName}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            </div>
-
-            {/* Primary KPIs - Market Report */}
+            {/* Primary KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalBetAmount')}</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(displayTotalBetAmount)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('totalBetAmountDescription')}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        Matka: <span className="font-medium">{formatCurrency(displayMatkaBet)}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        2D & 3D: <span className="font-medium">{formatCurrency(commissionLotteryTotal)}</span>
-                    </p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalDeposit')}</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(totalDeposit)}</p>
+                    <p className="text-xs text-gray-500 mt-1">{hasDateFilter ? t('selectedPeriod') : t('all')}</p>
+                </div>
+                <div className="bg-gradient-to-br from-indigo-50 to-transparent rounded-xl p-5 border border-indigo-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalCommissionToTakeFromBookie')}</p>
+                    <p className="text-2xl font-bold text-indigo-600 font-mono">{formatCurrency(totalCommissionToTakeFromBookie)}</p>
+                    <p className="text-xs text-gray-500 mt-1">{hasDateFilter ? t('selectedPeriod') : t('all')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toReceived')}</p>
-                    <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(toReceived)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('moneyToTakeFromPlayers')}</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalWithdrawal')}</p>
+                    <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(totalWithdrawal)}</p>
+                    <p className="text-xs text-gray-500 mt-1">{hasDateFilter ? t('selectedPeriod') : t('all')}</p>
+                </div>
+                <div className="bg-gradient-to-br from-orange-50 to-transparent rounded-xl p-5 border border-orange-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalCommissionToGive')}</p>
+                    <p className="text-2xl font-bold text-orange-600 font-mono">{formatCurrency(totalCommissionToGive)}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        {hasDateFilter ? t('selectedPeriod') : t('all')}
+                        {commissionSummary?.adminCommissionPercentage
+                            ? ` · ${commissionSummary.adminCommissionPercentage}%`
+                            : ''}
+                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('toGive')}</p>
-                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(toGive)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('moneyToGiveToPlayers')}</p>
-                </div>
-                <div className="bg-gradient-to-br from-[#1B3150]/5 to-transparent rounded-xl p-5 border border-[#1B3150]/20">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('pending')}</p>
-                    <p className="text-2xl font-bold text-[#1B3150] font-mono">{formatCurrency(marketPendingAmount + lotteryAllSlotsNet)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('pendingBetsAmount')}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        2D net: <span className="font-medium">{formatCurrency(twoDAllSlotsNet)}</span> · 3D net: <span className="font-medium">{formatCurrency(threeDAllSlotsNet)}</span> · Total net: <span className="font-medium text-[#1B3150]">{formatCurrency(lotteryAllSlotsNet)}</span>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalRevenue')}</p>
+                    <p className={`text-2xl font-bold font-mono ${dashboardTotalRevenue >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                        {formatCurrency(dashboardTotalRevenue)}
                     </p>
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalProfit')}</p>
-                    <p className="text-2xl font-bold text-purple-600 font-mono">{formatCurrency(computedTotalProfit)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{t('totalProfitDescription')}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                        Lottery profit - 2D: <span className="font-medium">{formatCurrency(twoDAllSlotsNet)}</span> · 3D: <span className="font-medium">{formatCurrency(threeDAllSlotsNet)}</span> · Total: <span className="font-medium text-purple-600">{formatCurrency(lotteryAllSlotsNet)}</span>
-                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{t('superBookieTotalRevenueFormula')}</p>
                 </div>
             </div>
 

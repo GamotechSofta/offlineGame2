@@ -15,6 +15,7 @@ import {
     calculateSuperBookieAdminCommissionTotal,
     getAdminShareSettlementForBookie,
     buildAdminAllCommissionSummaryRows,
+    getAdminPlatformCommissionFromSuperBookies,
     round2,
 } from '../utils/commissionMetrics.js';
 import { notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
@@ -191,6 +192,31 @@ export const getMyCommissionSummary = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to fetch commission summary',
+        });
+    }
+};
+
+/**
+ * Admin dashboard: platform commission from all SuperBookies.
+ * GET /api/v1/daily-commission/admin-platform-summary?startDate=&endDate=
+ */
+export const getAdminPlatformCommissionSummary = async (req, res) => {
+    try {
+        if (denyUnlessTabAccess(res, req.admin, ADMIN_TAB.BOOKIE_COMMISSIONS, 'You do not have access to bookie commissions')) {
+            return;
+        }
+
+        const { startDate, endDate } = req.query;
+        const data = await getAdminPlatformCommissionFromSuperBookies({ startDate, endDate });
+
+        return res.status(200).json({
+            success: true,
+            data,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch admin platform commission',
         });
     }
 };

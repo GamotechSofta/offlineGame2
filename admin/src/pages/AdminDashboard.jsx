@@ -340,9 +340,33 @@ const AdminDashboard = () => {
         });
     };
 
+    const fetchAdminCommissionQuery = async () => {
+        const { from, to } = effectiveRange || {};
+        const params = new URLSearchParams();
+        if (from && to) {
+            params.set('startDate', from);
+            params.set('endDate', to);
+        }
+        const key = `dashboard:admin-commission:${params.toString()}`;
+        return dedupeRequest(key, async () => {
+            const url = `${API_BASE_URL}/daily-commission/admin-platform-summary${params.toString() ? `?${params.toString()}` : ''}`;
+            const response = await fetchWithAuth(url);
+            if (response.status === 401) return null;
+            const data = await response.json();
+            if (!data?.success) return null;
+            return data.data || null;
+        });
+    };
+
     const dashboardStatsQuery = useQuery({
         queryKey: ['dashboard-stats', effectiveRange?.from || '', effectiveRange?.to || ''],
         queryFn: fetchDashboardStatsQuery,
+        enabled: bootstrapped && !!localStorage.getItem('admin'),
+    });
+
+    const adminCommissionQuery = useQuery({
+        queryKey: ['dashboard-admin-commission', effectiveRange?.from || '', effectiveRange?.to || ''],
+        queryFn: fetchAdminCommissionQuery,
         enabled: bootstrapped && !!localStorage.getItem('admin'),
     });
 
@@ -398,10 +422,10 @@ const AdminDashboard = () => {
     useEffect(() => {
         // Guard against stuck "Updating selected range data..." when query data is unchanged
         // (React Query may preserve object reference and skip data-effect callbacks).
-        if (!dashboardStatsQuery.isFetching && !lotteryStatsQuery.isFetching) {
+        if (!dashboardStatsQuery.isFetching && !lotteryStatsQuery.isFetching && !adminCommissionQuery.isFetching) {
             setRangeUpdating(false);
         }
-    }, [dashboardStatsQuery.isFetching, lotteryStatsQuery.isFetching]);
+    }, [dashboardStatsQuery.isFetching, lotteryStatsQuery.isFetching, adminCommissionQuery.isFetching]);
 
     useEffect(() => {
         if (!rangeMarketEffectPrimedRef.current) {
@@ -419,12 +443,14 @@ const AdminDashboard = () => {
 
     const handleRefresh = () => {
         queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard-admin-commission'] });
     };
     const handleRefreshAll = () => {
         setRefreshing(true);
         Promise.all([
             queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] }),
             queryClient.invalidateQueries({ queryKey: ['dashboard-lottery'] }),
+            queryClient.invalidateQueries({ queryKey: ['dashboard-admin-commission'] }),
         ]).finally(() => setRefreshing(false));
     };
     const handlePresetSelect = (presetId) => {
@@ -503,16 +529,24 @@ const AdminDashboard = () => {
     const lotteryAllSlotsTotalPayout = isLotteryReady ? ((twoDAllSlotsPayout || 0) + (threeDAllSlotsPayout || 0)) : null;
     const lotteryAllSlotsTotalNet = isLotteryReady ? (Number(twoDAllSlots.net || 0) + Number(threeDAllSlots.net || 0)) : null;
     const lotteryAllSlotsTotalUsers = isLotteryReady ? (Number(twoDAllSlots.users || 0) + Number(threeDAllSlots.users || 0)) : null;
-    const gameRevenueTotal = Number(gameWiseRevenue?.total?.revenue || 0);
-    const mainRevenueWithLottery = Number(stats?.revenue?.total || 0) + Number(lotteryAllSlotsTotalRevenue || 0) + gameRevenueTotal;
-    const mainNetWithLottery = Number(stats?.revenue?.netProfit || 0) + Number(lotteryAllSlotsTotalNet || 0);
-    const mainBetsWithLottery = Number(stats?.bets?.total || 0) + Number(lotteryAllSlotsTotalTickets || 0);
+    const hasDateFilter = Boolean(effectiveRange?.from && effectiveRange?.to);
+    const isSuperAdmin = adminRole === 'super_admin';
+    const adminPlayerDeposits = Number(stats?.payments?.adminPlayerDeposits ?? 0);
+    const adminPlayerWithdrawals = Number(stats?.payments?.adminPlayerWithdrawals ?? 0);
+    const totalDeposit = isSuperAdmin
+        ? adminPlayerDeposits
+        : Number(stats?.payments?.totalDeposits ?? 0);
+    const totalWithdrawal = isSuperAdmin
+        ? adminPlayerWithdrawals
+        : Number(stats?.payments?.totalWithdrawals ?? 0);
+    const commissionSummary = adminCommissionQuery.data;
+    const totalCommissionFromSuperBookie = Number(commissionSummary?.commissionFromSuperBookies || 0);
+    const dashboardTotalRevenue = totalDeposit + totalCommissionFromSuperBookie - totalWithdrawal;
 
     const pendingPayments = stats?.payments?.pending || 0;
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
     const pendingWithdrawals = stats?.payments?.pendingWithdrawals ?? 0;
     const helpDeskOpen = stats?.helpDesk?.open || 0;
-    const isSuperAdmin = adminRole === 'super_admin';
     const marketsPendingResultList = stats?.marketsPendingResultList || [];
     const starlinePendingList = marketsPendingResultList.filter((m) => (m.marketType || '').toString().toLowerCase() === 'startline');
     const mainPendingList = marketsPendingResultList.filter((m) => (m.marketType || '').toString().toLowerCase() !== 'startline');
@@ -672,75 +706,33 @@ const AdminDashboard = () => {
             {/* Primary KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Revenue (period)</p>
-                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(mainRevenueWithLottery)}</p>
-                    <p className="text-xs text-gray-500 mt-1">Bet amount collected in selected range</p>
-                    {isLotteryLoading ? (
-                        <p className="text-xs text-blue-600 mt-1 font-medium">Loading 2D/3D lottery totals...</p>
-                    ) : (
-                        <>
-                            <p className="text-xs text-gray-500 mt-1">
-                                2D: <span className="font-medium">{formatCurrencyMaybe(twoDCurrentRevenue)}</span> · 3D: <span className="font-medium">{formatCurrencyMaybe(threeDCurrentRevenue)}</span> · Total: <span className="font-medium text-green-600">{formatCurrencyMaybe(lotteryCurrentTotalRevenue)}</span>
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                                All slots total - 2D: <span className="font-medium">{formatCurrencyMaybe(isLotteryReady ? Number(twoDAllSlots.revenue || 0) : null)}</span> · 3D: <span className="font-medium">{formatCurrencyMaybe(isLotteryReady ? Number(threeDAllSlots.revenue || 0) : null)}</span> · Total: <span className="font-medium text-green-600">{formatCurrencyMaybe(lotteryAllSlotsTotalRevenue)}</span>
-                            </p>
-                        </>
-                    )}
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Deposit</p>
+                    <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(totalDeposit)}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                        Games total - Aviator/FunTimer/Roulette: <span className="font-medium text-green-600">{formatCurrency(gameRevenueTotal)}</span>
+                        {hasDateFilter ? 'Selected period' : 'All'} · Admin players only
+                    </p>
+                </div>
+                <div className="bg-gradient-to-br from-indigo-50 to-transparent rounded-xl p-5 border border-indigo-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Commission from {TOP_LEVEL_LABEL_PLURAL}</p>
+                    <p className="text-2xl font-bold text-indigo-600 font-mono">{formatCurrency(totalCommissionFromSuperBookie)}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        {hasDateFilter ? 'Selected period' : 'All'}
+                        {adminCommissionQuery.isFetching && !commissionSummary ? ' · Loading...' : ''}
+                    </p>
+                </div>
+                <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Withdrawal</p>
+                    <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(totalWithdrawal)}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        {hasDateFilter ? 'Selected period' : 'All'} · Admin players only
                     </p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-transparent rounded-xl p-5 border border-blue-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Net Profit (period)</p>
-                    <p className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(mainNetWithLottery)}</p>
-                    <p className="text-xs text-gray-500 mt-1">Revenue − Payouts in selected range</p>
-                    {isLotteryLoading ? (
-                        <p className="text-xs text-blue-600 mt-1 font-medium">Loading 2D/3D lottery net...</p>
-                    ) : (
-                        <>
-                            <p className="text-xs text-gray-500 mt-1">
-                                2D net: <span className="font-medium">{formatCurrencyMaybe(twoDCurrentNet)}</span> · 3D net: <span className="font-medium">{formatCurrencyMaybe(threeDCurrentNet)}</span> · Total net: <span className="font-medium text-blue-600">{formatCurrencyMaybe(lotteryCurrentTotalNet)}</span>
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                                All slots net - 2D: <span className="font-medium">{formatCurrencyMaybe(isLotteryReady ? Number(twoDAllSlots.net || 0) : null)}</span> · 3D: <span className="font-medium">{formatCurrencyMaybe(isLotteryReady ? Number(threeDAllSlots.net || 0) : null)}</span> · Total: <span className="font-medium text-blue-600">{formatCurrencyMaybe(lotteryAllSlotsTotalNet)}</span>
-                            </p>
-                        </>
-                    )}
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-5 border border-purple-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Players (all-time)</p>
-                    <p className="text-2xl font-bold text-purple-600 font-mono">{stats?.users?.total ?? 0}</p>
-                    <p className="text-xs text-gray-500 mt-1">{stats?.users?.active ?? 0} active · {stats?.users?.newToday ?? 0} new in range</p>
-                    {isLotteryLoading ? (
-                        <p className="text-xs text-blue-600 mt-1 font-medium">Loading 2D/3D lottery user stats...</p>
-                    ) : (
-                        <>
-                            <p className="text-xs text-gray-500 mt-1">
-                                2D users: <span className="font-medium">{formatNumberMaybe(twoDCurrentUsers)}</span> · 3D users: <span className="font-medium">{formatNumberMaybe(threeDCurrentUsers)}</span> · Total: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? ((twoDCurrentUsers || 0) + (threeDCurrentUsers || 0)) : null)}</span>
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                                All slots users - 2D: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? Number(twoDAllSlots.users || 0) : null)}</span> · 3D: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? Number(threeDAllSlots.users || 0) : null)}</span> · Total: <span className="font-medium">{formatNumberMaybe(lotteryAllSlotsTotalUsers)}</span>
-                            </p>
-                        </>
-                    )}
-                </div>
-                <div className="bg-gradient-to-br from-orange-50 to-transparent rounded-xl p-5 border border-orange-200">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Bets (period)</p>
-                    <p className="text-2xl font-bold text-orange-500 font-mono">{formatNumber(mainBetsWithLottery)}</p>
-                    <p className="text-xs text-gray-500 mt-1">Win rate: {stats?.bets?.winRate ?? 0}%</p>
-                    {isLotteryLoading ? (
-                        <p className="text-xs text-blue-600 mt-1 font-medium">Loading 2D/3D lottery bet stats...</p>
-                    ) : (
-                        <>
-                            <p className="text-xs text-gray-500 mt-1">
-                                2D bets: <span className="font-medium">{formatNumberMaybe(twoDCurrentBets)}</span> · 3D bets: <span className="font-medium">{formatNumberMaybe(threeDCurrentBets)}</span> · Total: <span className="font-medium text-orange-600">{formatNumberMaybe(lotteryCurrentTotalTickets)}</span>
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                                All slots bets - 2D: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? Number(twoDAllSlots.tickets || 0) : null)}</span> · 3D: <span className="font-medium">{formatNumberMaybe(isLotteryReady ? Number(threeDAllSlots.tickets || 0) : null)}</span> · Total: <span className="font-medium text-orange-600">{formatNumberMaybe(lotteryAllSlotsTotalTickets)}</span>
-                            </p>
-                        </>
-                    )}
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Revenue</p>
+                    <p className={`text-2xl font-bold font-mono ${dashboardTotalRevenue >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                        {formatCurrency(dashboardTotalRevenue)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Deposit + {TOP_LEVEL_LABEL} commission − Withdrawal</p>
                 </div>
             </div>
 
@@ -779,9 +771,23 @@ const AdminDashboard = () => {
                 </SectionCard>
 
                 {/* Payments */}
-                <SectionCard title="Payments" description="Deposits & Withdrawals" icon={FaCreditCard} linkTo="/payment-management" linkLabel="Manage Payments">
-                    <StatRow label="Deposits (period)" value={formatCurrency(stats?.payments?.totalDeposits)} colorClass="text-green-600" />
-                    <StatRow label="Withdrawals (period)" value={formatCurrency(stats?.payments?.totalWithdrawals)} colorClass="text-red-500" />
+                <SectionCard
+                    title="Payments"
+                    description={isSuperAdmin ? 'Admin players only' : 'Deposits & Withdrawals'}
+                    icon={FaCreditCard}
+                    linkTo="/payment-management"
+                    linkLabel="Manage Payments"
+                >
+                    <StatRow
+                        label="Deposits (period)"
+                        value={formatCurrency(isSuperAdmin ? adminPlayerDeposits : stats?.payments?.totalDeposits)}
+                        colorClass="text-green-600"
+                    />
+                    <StatRow
+                        label="Withdrawals (period)"
+                        value={formatCurrency(isSuperAdmin ? adminPlayerWithdrawals : stats?.payments?.totalWithdrawals)}
+                        colorClass="text-red-500"
+                    />
                     <StatRow label="Pending Deposits" value={pendingDeposits} colorClass="text-orange-500" />
                     <StatRow label="Pending Withdrawals" value={pendingWithdrawals} colorClass="text-orange-500" />
                     <StatRow label="Total Pending" value={pendingPayments} colorClass="text-orange-500" />

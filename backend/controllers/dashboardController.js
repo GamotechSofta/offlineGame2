@@ -7,7 +7,7 @@ import Admin from '../models/admin/admin.js';
 
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import HelpDesk from '../models/helpDesk/helpDesk.js';
-import { getBookieUserIds, getBookieHierarchySummary } from '../utils/bookieFilter.js';
+import { getBookieUserIds, getBookieHierarchySummary, getAdminDirectUserIds } from '../utils/bookieFilter.js';
 import { isBettingClosed, isMarketOpenOnISTDay } from '../utils/marketTiming.js';
 import { cacheGet, cacheSet, getCacheMetrics } from '../services/cacheService.js';
 import { getRuntimeMetrics } from '../services/runtimeMonitorService.js';
@@ -140,6 +140,10 @@ export const getDashboardStats = async (req, res) => {
         const betCountMatch = { ...dateMatch, ...betFilter, ...marketMatch, status: { $ne: 'cancelled' } };
         const lossMatch = { status: 'lost', ...dateMatch, ...betFilter, ...marketMatch };
         const isSuperAdmin = bookieUserIds === null && req.admin?.role === 'super_admin';
+        const adminDirectUserIds = isSuperAdmin ? await getAdminDirectUserIds() : [];
+        const adminDirectPaymentFilter = isSuperAdmin
+            ? { userId: { $in: adminDirectUserIds } }
+            : null;
 
         // Run all independent DB queries in parallel for faster dashboard load
         const [
@@ -173,6 +177,8 @@ export const getDashboardStats = async (req, res) => {
             inProgressTickets,
             bookiesTotal,
             bookiesActive,
+            adminPlayerDeposits,
+            adminPlayerWithdrawals,
         ] = await Promise.all([
             User.countDocuments(userFilter),
             User.countDocuments({ ...userFilter, isActive: true }),
@@ -230,6 +236,18 @@ export const getDashboardStats = async (req, res) => {
             HelpDesk.countDocuments({ status: 'in-progress', ...helpDeskFilter }),
             isSuperAdmin ? Admin.countDocuments({ role: 'bookie' }) : 0,
             isSuperAdmin ? Admin.countDocuments({ role: 'bookie', status: 'active' }) : 0,
+            adminDirectPaymentFilter
+                ? Payment.aggregate([
+                    { $match: { type: 'deposit', status: { $in: ['approved', 'completed'] }, ...dateMatch, ...adminDirectPaymentFilter } },
+                    { $group: { _id: null, total: { $sum: '$amount' } } },
+                ])
+                : Promise.resolve([]),
+            adminDirectPaymentFilter
+                ? Payment.aggregate([
+                    { $match: { type: 'withdrawal', status: { $in: ['approved', 'completed'] }, ...dateMatch, ...adminDirectPaymentFilter } },
+                    { $group: { _id: null, total: { $sum: '$amount' } } },
+                ])
+                : Promise.resolve([]),
         ]);
 
         const now = new Date();
@@ -458,6 +476,12 @@ export const getDashboardStats = async (req, res) => {
                     pendingWithdrawals,
                     totalDeposits: totalDeposits[0]?.total || 0,
                     totalWithdrawals: totalWithdrawals[0]?.total || 0,
+                    ...(isSuperAdmin
+                        ? {
+                            adminPlayerDeposits: adminPlayerDeposits[0]?.total || 0,
+                            adminPlayerWithdrawals: adminPlayerWithdrawals[0]?.total || 0,
+                        }
+                        : {}),
                 },
                 wallet: {
                     totalBalance: totalWalletBalance[0]?.total || 0,

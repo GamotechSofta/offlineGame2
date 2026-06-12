@@ -54,6 +54,20 @@ export const getBookieUserIds = async (admin, options = {}) => {
     return [];
 };
 
+/** Super admin pool: self-signup / admin-created players (not under any bookie). */
+export const getAdminDirectUserIds = async () => {
+    const users = await User.find({
+        $or: [
+            { source: 'super_admin' },
+            { referredBy: null },
+            { referredBy: { $exists: false } },
+        ],
+    })
+        .select('_id')
+        .lean();
+    return users.map((u) => u._id);
+};
+
 /** All player IDs under a bookie (direct + via super bookies). */
 export const getBookieHierarchyUserIds = async (bookieId) => {
     const bookieOid = toObjectId(bookieId);

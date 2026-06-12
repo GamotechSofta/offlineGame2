@@ -1109,3 +1109,35 @@ export async function getCommissionDashboardForAccount(admin, { startDate, endDa
         pendingAmount: summary.totalPending,
     };
 }
+
+/**
+ * Admin dashboard: total commission receivable from all SuperBookies (parent bookie accounts).
+ */
+export async function getAdminPlatformCommissionFromSuperBookies({ startDate, endDate } = {}) {
+    const parentBookies = await Admin.find({ role: 'bookie' })
+        .select('_id commissionPercentage adminCommissionPercentage role')
+        .lean();
+
+    const dateFilter = (startDate || endDate) ? buildCommissionDateFilter(startDate, endDate) : {};
+
+    const breakdowns = await Promise.all(
+        parentBookies.map((bookie) => calculateSuperBookieGrossCommission(bookie, dateFilter)),
+    );
+
+    const commissionFromSuperBookies = round2(
+        breakdowns.reduce((sum, row) => sum + Number(row.adminCommissionAmount || 0), 0),
+    );
+    const directCommission = round2(
+        breakdowns.reduce((sum, row) => sum + Number(row.adminCommissionFromDirect ?? row.directCommission ?? 0), 0),
+    );
+    const commissionFromSubBookies = round2(
+        breakdowns.reduce((sum, row) => sum + Number(row.adminCommissionFromSub ?? 0), 0),
+    );
+
+    return {
+        commissionFromSuperBookies,
+        directCommission,
+        commissionFromSubBookies,
+        superBookieCount: parentBookies.length,
+    };
+}
