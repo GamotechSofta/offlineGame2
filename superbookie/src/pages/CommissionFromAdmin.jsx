@@ -374,8 +374,10 @@ const CommissionFromAdmin = () => {
                             key={item.id}
                             type="button"
                             onClick={() => setTab(item.id)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                                tab === item.id ? 'bg-sb-primary text-white' : 'bg-gray-100 text-gray-600'
+                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                                tab === item.id
+                                    ? 'bg-[#1B3150] text-white'
+                                    : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'
                             }`}
                         >
                             {item.label}
@@ -392,8 +394,10 @@ const CommissionFromAdmin = () => {
                                         key={p.id}
                                         type="button"
                                         onClick={() => applyPreset(p.id)}
-                                        className={`px-2.5 py-1 rounded-lg text-xs sm:text-sm ${
-                                            activePreset === p.id ? 'bg-sb-primary text-white' : 'bg-gray-100'
+                                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                            activePreset === p.id
+                                                ? 'bg-[#1B3150] text-white'
+                                                : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'
                                         }`}
                                     >
                                         {p.label}
@@ -428,7 +432,7 @@ const CommissionFromAdmin = () => {
                                         fetchPayments();
                                     }}
                                     disabled={loading}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-sb-primary text-white rounded-lg text-sm"
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#1B3150] text-white rounded-lg text-sm"
                                 >
                                     <FaSyncAlt className={loading ? 'animate-spin' : ''} />
                                     Refresh
@@ -452,7 +456,7 @@ const CommissionFromAdmin = () => {
                                         Direct {formatCurrency(data.periodDirectBetAmount ?? 0)} · Bookies {formatCurrency(data.periodSubBetAmount ?? 0)}
                                     </p>
                                 </div>
-                                <div className="bg-sb-primary rounded-xl p-4 text-white">
+                                <div className="bg-[#1B3150] rounded-xl p-4 text-white">
                                     <p className="text-xs uppercase text-blue-100">Gross commission (period)</p>
                                     <p className="text-2xl font-bold mt-1">{formatCurrency(periodGrossCommission)}</p>
                                     <p className="text-xs text-blue-100 mt-1">
@@ -563,7 +567,7 @@ const CommissionFromAdmin = () => {
                             <button
                                 type="button"
                                 onClick={fetchPayments}
-                                className="text-sm text-sb-primary"
+                                className="text-sm text-[#1B3150]"
                             >
                                 Refresh
                             </button>
@@ -614,7 +618,7 @@ const CommissionFromAdmin = () => {
                         <div className="bg-white rounded-xl border p-4">
                             <p className="text-sm text-gray-600">
                                 Admin rate on your direct players:{' '}
-                                <span className="font-bold text-sb-primary">{requests.currentCommission ?? adminRateOnDirect}%</span>
+                                <span className="font-bold text-[#1B3150]">{requests.currentCommission ?? adminRateOnDirect}%</span>
                             </p>
                         </div>
 
@@ -640,7 +644,7 @@ const CommissionFromAdmin = () => {
                                 type="button"
                                 disabled={submitting}
                                 onClick={submitRequest}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-sb-primary text-white rounded-lg text-sm disabled:opacity-50"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#1B3150] text-white rounded-lg text-sm disabled:opacity-50"
                             >
                                 <FaPaperPlane />
                                 {submitting ? 'Submitting...' : 'Submit request'}

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Bet from '../models/bet/bet.js';
 import QuizBet from '../models/quiz/QuizBet.js';
 import User from '../models/user/user.js';
@@ -186,11 +187,18 @@ export async function getCommissionBetVolume(admin, dateFilter = {}, options = {
 }
 
 /** Admin panel: settled admin share vs gross SuperBookie commission. */
-export async function getAdminShareSettlementForBookie(bookieId, adminCommissionAmount) {
+export function computeAdminShareSettlement(settlementPaidTotal, adminCommissionAmount) {
     const cap = round2(Number(adminCommissionAmount || 0));
     if (cap <= 0) {
         return { adminPaid: 0, adminPending: 0 };
     }
+    const settledTotal = round2(Number(settlementPaidTotal || 0));
+    const adminPaid = round2(Math.min(settledTotal, cap));
+    const adminPending = round2(Math.max(0, cap - adminPaid));
+    return { adminPaid, adminPending };
+}
+
+export async function getAdminShareSettlementForBookie(bookieId, adminCommissionAmount) {
     const payments = await CommissionPayment.find({ bookieId })
         .select('amount paymentType notes')
         .lean();
@@ -199,9 +207,254 @@ export async function getAdminShareSettlementForBookie(bookieId, adminCommission
             .filter((p) => getCommissionPaymentKind(p) === 'settlement')
             .reduce((sum, p) => sum + Number(p.amount || 0), 0),
     );
-    const adminPaid = round2(Math.min(settledTotal, cap));
-    const adminPending = round2(Math.max(0, cap - adminPaid));
-    return { adminPaid, adminPending };
+    return computeAdminShareSettlement(settledTotal, adminCommissionAmount);
+}
+
+const toOperatorObjectId = (id) => {
+    if (id instanceof mongoose.Types.ObjectId) return id;
+    if (mongoose.Types.ObjectId.isValid(String(id))) {
+        return new mongoose.Types.ObjectId(String(id));
+    }
+    return id;
+};
+
+/**
+ * Matka + lottery bet volume grouped by attributed operator (parent or sub bookie).
+ * Single pass for admin commission list instead of per-account aggregations.
+ */
+async function aggregateOperatorBetVolumes(operatorIds) {
+    const volumeMap = {};
+    if (!operatorIds?.length) return volumeMap;
+
+    const operatorObjectIds = operatorIds.map(toOperatorObjectId);
+    const operatorIdSet = new Set(operatorObjectIds.map(String));
+
+    const addRow = (id, amount, count) => {
+        const key = String(id);
+        if (!operatorIdSet.has(key)) return;
+        if (!volumeMap[key]) volumeMap[key] = { totalAmount: 0, betCount: 0 };
+        volumeMap[key].totalAmount = round2(volumeMap[key].totalAmount + Number(amount || 0));
+        volumeMap[key].betCount += Number(count || 0);
+    };
+
+    const userRows = await User.find({ referredBy: { $in: operatorObjectIds } })
+        .select('_id')
+        .lean();
+    const allUserIds = userRows.map((u) => u._id);
+
+    const orClauses = [{ placedByBookieId: { $in: operatorObjectIds } }];
+    if (allUserIds.length) orClauses.unshift({ userId: { $in: allUserIds } });
+
+    const matkaMatch = {
+        status: { $ne: 'cancelled' },
+        $or: orClauses,
+    };
+
+    const userLookup = {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: '_user',
+        pipeline: [{ $project: { referredBy: 1 } }],
+    };
+
+    const [matkaGroups, quizGroups] = await Promise.all([
+        Bet.aggregate([
+            { $match: matkaMatch },
+            { $lookup: userLookup },
+            {
+                $addFields: {
+                    _attr: {
+                        $cond: {
+                            if: { $in: ['$placedByBookieId', operatorObjectIds] },
+                            then: '$placedByBookieId',
+                            else: { $arrayElemAt: ['$_user.referredBy', 0] },
+                        },
+                    },
+                },
+            },
+            { $match: { _attr: { $in: operatorObjectIds } } },
+            {
+                $group: {
+                    _id: '$_attr',
+                    totalAmount: { $sum: '$amount' },
+                    count: { $sum: 1 },
+                },
+            },
+        ]),
+        allUserIds.length
+            ? QuizBet.aggregate([
+                  { $match: { status: { $ne: 'cancelled' }, userId: { $in: allUserIds } } },
+                  { $lookup: userLookup },
+                  {
+                      $addFields: {
+                          _attr: { $arrayElemAt: ['$_user.referredBy', 0] },
+                      },
+                  },
+                  { $match: { _attr: { $in: operatorObjectIds } } },
+                  {
+                      $group: {
+                          _id: '$_attr',
+                          totalAmount: { $sum: '$amount' },
+                          count: { $sum: 1 },
+                      },
+                  },
+              ])
+            : Promise.resolve([]),
+    ]);
+
+    for (const row of [...matkaGroups, ...quizGroups]) {
+        addRow(row._id, row.totalAmount, row.count);
+    }
+
+    return volumeMap;
+}
+
+/**
+ * Batched rows for GET /daily-commission/all-summary (admin SuperBookie commissions).
+ */
+export async function buildAdminAllCommissionSummaryRows(parentBookies, subBookies) {
+    const parentIds = parentBookies.map((b) => b._id);
+    const allOperatorIds = [...parentIds, ...subBookies.map((sb) => sb._id)];
+    const allOperatorObjectIds = allOperatorIds.map(toOperatorObjectId);
+
+    const [volumeMap, playerCountAgg, payments] = await Promise.all([
+        aggregateOperatorBetVolumes(allOperatorIds),
+        User.aggregate([
+            { $match: { referredBy: { $in: allOperatorObjectIds } } },
+            { $group: { _id: '$referredBy', count: { $sum: 1 } } },
+        ]),
+        CommissionPayment.find({ bookieId: { $in: allOperatorObjectIds } })
+            .select('bookieId amount paymentType notes createdAt')
+            .lean(),
+    ]);
+
+    const playerCountMap = Object.fromEntries(
+        playerCountAgg.map((row) => [String(row._id), row.count]),
+    );
+
+    const settlementPaidMap = {};
+    const lastPaidMap = {};
+    for (const payment of payments) {
+        const key = String(payment.bookieId);
+        if (getCommissionPaymentKind(payment) === 'settlement') {
+            settlementPaidMap[key] = round2(
+                (settlementPaidMap[key] || 0) + Number(payment.amount || 0),
+            );
+        }
+        if (payment.createdAt) {
+            const ts = new Date(payment.createdAt).getTime();
+            if (!lastPaidMap[key] || ts > new Date(lastPaidMap[key]).getTime()) {
+                lastPaidMap[key] = payment.createdAt;
+            }
+        }
+    }
+
+    const subsByParent = {};
+    const parentUsernameMap = Object.fromEntries(
+        parentBookies.map((b) => [String(b._id), b.username || '']),
+    );
+    for (const sb of subBookies) {
+        const parentId = String(sb.parentBookieId?._id ?? sb.parentBookieId ?? '');
+        if (!subsByParent[parentId]) subsByParent[parentId] = [];
+        subsByParent[parentId].push(sb);
+    }
+
+    const normalized = [];
+
+    for (const bookie of parentBookies) {
+        const bookieId = String(bookie._id);
+        const directVol = volumeMap[bookieId] || { totalAmount: 0, betCount: 0 };
+        const adminRate = Number(bookie.commissionPercentage || 0);
+        const directBetAmount = round2(directVol.totalAmount);
+        const directCommission = calculateCommissionAmount(directBetAmount, adminRate);
+
+        let subBetAmount = 0;
+        let subCommission = 0;
+        let subBetCount = 0;
+        let hierarchyPlayerCount = playerCountMap[bookieId] || 0;
+
+        for (const sub of subsByParent[bookieId] || []) {
+            const subKey = String(sub._id);
+            const subVol = volumeMap[subKey] || { totalAmount: 0, betCount: 0 };
+            const subRate = Number(sub.commissionPercentage || 0);
+            subBetAmount = round2(subBetAmount + subVol.totalAmount);
+            subCommission = round2(subCommission + calculateCommissionAmount(subVol.totalAmount, subRate));
+            subBetCount += subVol.betCount;
+            hierarchyPlayerCount += playerCountMap[subKey] || 0;
+        }
+
+        const totalBetAmount = round2(directBetAmount + subBetAmount);
+        const totalCommission = round2(directCommission + subCommission);
+        const adminCommissionPercentage = Number(bookie.adminCommissionPercentage ?? 10);
+        const adminCommissionAmount = calculateAdminCommissionAmount(
+            totalCommission,
+            adminCommissionPercentage,
+        );
+        const { adminPaid, adminPending } = computeAdminShareSettlement(
+            settlementPaidMap[bookieId] || 0,
+            adminCommissionAmount,
+        );
+
+        normalized.push({
+            bookieId: bookie._id,
+            username: bookie.username || 'Unknown',
+            phone: bookie.phone || '',
+            role: bookie.role,
+            accountLabel: 'parent',
+            parentBookieUsername: '',
+            commissionPercentage: adminRate,
+            adminCommissionPercentage,
+            adminCommissionAmount,
+            adminCommissionPaid: adminPaid,
+            adminCommissionPending: adminPending,
+            netCommissionAfterAdmin: round2(Math.max(0, totalCommission - adminCommissionAmount)),
+            directCommission,
+            subCommission,
+            playerCount: hierarchyPlayerCount,
+            betCount: directVol.betCount + subBetCount,
+            totalBetAmount,
+            totalCommission,
+            totalPaid: adminPaid,
+            totalPending: adminPending,
+            paymentStatus: getAdminSharePaymentStatus(adminCommissionAmount, adminPaid),
+            lastPaidAt: lastPaidMap[bookieId] || null,
+        });
+    }
+
+    for (const sb of subBookies) {
+        const subKey = String(sb._id);
+        const subVol = volumeMap[subKey] || { totalAmount: 0, betCount: 0 };
+        const parentCommissionPercentage = Number(sb.commissionPercentage || 0);
+        const parentId = String(sb.parentBookieId?._id ?? sb.parentBookieId ?? '');
+
+        normalized.push({
+            bookieId: sb._id,
+            username: sb.username || 'Unknown',
+            phone: sb.phone || '',
+            role: sb.role,
+            accountLabel: 'sub',
+            parentBookieUsername: sb.parentBookieId?.username || parentUsernameMap[parentId] || '',
+            commissionPercentage: 0,
+            parentCommissionPercentage,
+            parentCommissionAmount: calculateCommissionAmount(subVol.totalAmount, parentCommissionPercentage),
+            playerCount: playerCountMap[subKey] || 0,
+            betCount: subVol.betCount,
+            totalBetAmount: subVol.totalAmount,
+            totalCommission: 0,
+            totalPaid: 0,
+            totalPending: 0,
+            paymentStatus: 'none',
+            lastPaidAt: lastPaidMap[subKey] || null,
+        });
+    }
+
+    normalized.sort((a, b) => {
+        if (b.totalPending !== a.totalPending) return b.totalPending - a.totalPending;
+        return String(a.username).localeCompare(String(b.username));
+    });
+
+    return normalized;
 }
 
 export function getAdminSharePaymentStatus(adminCommissionAmount, adminPaid) {
