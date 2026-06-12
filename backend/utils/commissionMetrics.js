@@ -1133,11 +1133,27 @@ export async function getAdminPlatformCommissionFromSuperBookies({ startDate, en
     const commissionFromSubBookies = round2(
         breakdowns.reduce((sum, row) => sum + Number(row.adminCommissionFromSub ?? 0), 0),
     );
+    const directBetAmount = round2(
+        breakdowns.reduce((sum, row) => sum + Number(row.directBetAmount || 0), 0),
+    );
+    const subBetAmount = round2(
+        breakdowns.reduce((sum, row) => sum + Number(row.subBetAmount || 0), 0),
+    );
+    const subCommission = round2(
+        breakdowns.reduce((sum, row) => sum + Number(row.subCommission || 0), 0),
+    );
+    const superBookiePlayersBetAmount = round2(
+        breakdowns.reduce((sum, row) => sum + Number(row.totalBetAmount || 0), 0),
+    );
 
     return {
         commissionFromSuperBookies,
         directCommission,
         commissionFromSubBookies,
+        directBetAmount,
+        subBetAmount,
+        subCommission,
+        superBookiePlayersBetAmount,
         superBookieCount: parentBookies.length,
     };
 }

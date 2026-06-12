@@ -90,17 +90,17 @@ const formatRangeLabel = (from, to, t) => {
 
 /** Section card wrapper */
 const SectionCard = ({ title, description, icon: Icon, children, linkTo, linkLabel, t }) => (
-    <div className="bg-white rounded-xl p-5 sm:p-6 border border-gray-200 hover:border-gray-200/80 transition-all">
-        <div className="flex items-start justify-between mb-4">
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    {Icon && <Icon className="w-5 h-5 text-[#1B3150]" />}
-                    {title}
+    <div className="bg-white rounded-xl p-4 border border-gray-200 hover:border-gray-200/80 transition-all h-fit self-start w-full">
+        <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="min-w-0">
+                <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    {Icon && <Icon className="w-4 h-4 shrink-0 text-[#1B3150]" />}
+                    <span className="truncate">{title}</span>
                 </h3>
-                {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
+                {description && <p className="text-xs text-gray-500 mt-0.5 leading-snug">{description}</p>}
             </div>
             {linkTo && (
-                <Link to={linkTo} className="text-xs font-medium text-[#1B3150] hover:text-[#152842] flex items-center gap-1">
+                <Link to={linkTo} className="text-xs font-medium text-[#1B3150] hover:text-[#152842] flex items-center gap-1 shrink-0 whitespace-nowrap">
                     {linkLabel || t('view')} <FaArrowRight className="w-3 h-3" />
                 </Link>
             )}
@@ -111,10 +111,10 @@ const SectionCard = ({ title, description, icon: Icon, children, linkTo, linkLab
 
 /** Stat row */
 const StatRow = ({ label, value, subValue, colorClass = 'text-gray-800' }) => (
-    <div className="flex justify-between items-center py-2.5 border-b border-gray-200 last:border-0">
-        <span className="text-sm text-gray-500">{label}</span>
-        <div className="text-right">
-            <span className={`font-semibold font-mono ${colorClass}`}>{value}</span>
+    <div className="flex justify-between items-center gap-3 py-1.5 border-b border-gray-100 last:border-0">
+        <span className="text-sm text-gray-500 leading-snug">{label}</span>
+        <div className="text-right shrink-0">
+            <span className={`text-sm font-semibold font-mono ${colorClass}`}>{value}</span>
             {subValue && <span className="text-xs text-gray-500 ml-2">{subValue}</span>}
         </div>
     </div>
@@ -405,6 +405,27 @@ const Dashboard = () => {
     const dashboardTotalRevenue =
         totalDeposit + totalCommissionToTakeFromBookie - totalWithdrawal - totalCommissionToGive;
 
+    const bookiePlayersBetAmount = hasDateFilter
+        ? Number(commissionSummary?.periodSubBetAmount ?? 0)
+        : Number(commissionSummary?.subBetAmount ?? 0);
+    const subCommissionAmount = hasDateFilter
+        ? Number(commissionSummary?.periodSubCommission ?? totalCommissionToTakeFromBookie)
+        : Number(commissionSummary?.subCommission ?? totalCommissionToTakeFromBookie);
+    const bookieCommissionPercent = bookiePlayersBetAmount > 0
+        ? Math.round((subCommissionAmount / bookiePlayersBetAmount) * 10000) / 100
+        : 0;
+    const superBookiePlayersBetAmount = hasDateFilter
+        ? Number(commissionSummary?.periodDirectBetAmount ?? 0)
+        : Number(commissionSummary?.directBetAmount ?? 0);
+    const adminCommissionPercent = Number(commissionSummary?.commissionPercentage ?? 0);
+    const adminCommissionOnDirect = hasDateFilter
+        ? Number(commissionSummary?.periodAdminCommissionFromDirect ?? commissionSummary?.periodDirectCommission ?? 0)
+        : Number(commissionSummary?.adminCommissionFromDirect ?? commissionSummary?.directCommission ?? 0);
+    const adminShareOnBookiePercent = Number(commissionSummary?.adminCommissionPercentage ?? 10);
+    const adminCommissionOnBookie = hasDateFilter
+        ? Number(commissionSummary?.periodAdminCommissionFromSub ?? 0)
+        : Number(commissionSummary?.adminCommissionFromSub ?? 0);
+
     if (loading) {
         return (
             <Layout title={t('dashboard')}>
@@ -537,7 +558,9 @@ const Dashboard = () => {
                 <div className="bg-gradient-to-br from-green-50 to-transparent rounded-xl p-5 border border-green-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalDeposit')}</p>
                     <p className="text-2xl font-bold text-green-600 font-mono">{formatCurrency(totalDeposit)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{hasDateFilter ? t('selectedPeriod') : t('all')}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        {hasDateFilter ? t('selectedPeriod') : t('all')} · {t('directPlayersOnly')}
+                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-indigo-50 to-transparent rounded-xl p-5 border border-indigo-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalCommissionToTakeFromBookie')}</p>
@@ -547,7 +570,9 @@ const Dashboard = () => {
                 <div className="bg-gradient-to-br from-red-50 to-transparent rounded-xl p-5 border border-red-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalWithdrawal')}</p>
                     <p className="text-2xl font-bold text-red-600 font-mono">{formatCurrency(totalWithdrawal)}</p>
-                    <p className="text-xs text-gray-500 mt-1">{hasDateFilter ? t('selectedPeriod') : t('all')}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        {hasDateFilter ? t('selectedPeriod') : t('all')} · {t('directPlayersOnly')}
+                    </p>
                 </div>
                 <div className="bg-gradient-to-br from-orange-50 to-transparent rounded-xl p-5 border border-orange-200">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('totalCommissionToGive')}</p>
@@ -569,12 +594,91 @@ const Dashboard = () => {
             </div>
 
             {/* Detailed Sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 mb-6 items-start">
                 {/* Revenue Details */}
-                <SectionCard title={t('revenueAndPayouts')} description={t('selectedPeriod')} icon={FaMoneyBillWave} linkTo="/reports" linkLabel={t('report')} t={t}>
-                    <StatRow label={t('totalRevenue')} value={formatCurrency(stats?.revenue?.total)} colorClass="text-green-600" />
-                    <StatRow label={t('totalPayouts')} value={formatCurrency(stats?.revenue?.payouts)} colorClass="text-red-500" />
-                    <StatRow label={t('netProfit')} value={formatCurrency(stats?.revenue?.netProfit)} colorClass="text-blue-600" />
+                <SectionCard
+                    title={t('revenueAndPayouts')}
+                    description={`${hasDateFilter ? t('selectedPeriod') : t('all')} · ${t('directPlayersOnly')}`}
+                    icon={FaMoneyBillWave}
+                    linkTo="/reports"
+                    linkLabel={t('report')}
+                    t={t}
+                >
+                    <StatRow label={t('totalDeposit')} value={formatCurrency(totalDeposit)} colorClass="text-green-600" />
+                    <StatRow label={t('totalCommissionToTakeFromBookie')} value={formatCurrency(totalCommissionToTakeFromBookie)} colorClass="text-indigo-600" />
+                    <StatRow label={t('totalWithdrawal')} value={formatCurrency(totalWithdrawal)} colorClass="text-red-500" />
+                    <StatRow label={t('totalCommissionToGive')} value={formatCurrency(totalCommissionToGive)} colorClass="text-orange-600" />
+                    <StatRow
+                        label={t('totalRevenue')}
+                        value={formatCurrency(dashboardTotalRevenue)}
+                        colorClass={dashboardTotalRevenue >= 0 ? 'text-blue-600' : 'text-red-500'}
+                    />
+                </SectionCard>
+
+                {/* Commission from Bookies — right of Revenue & Payouts */}
+                <SectionCard
+                    title={t('commissionFromBookies')}
+                    description={`${hasDateFilter ? t('selectedPeriod') : t('all')}`}
+                    icon={FaChartLine}
+                    linkTo="/commission"
+                    linkLabel={t('commissionFromBookies')}
+                    t={t}
+                >
+                    <StatRow
+                        label={t('bookiePlayersBetAmount')}
+                        value={formatCurrency(bookiePlayersBetAmount)}
+                        colorClass="text-[#1B3150]"
+                    />
+                    <StatRow
+                        label={t('totalCommissionPercent')}
+                        value={`${bookieCommissionPercent}%`}
+                        colorClass="text-green-600"
+                    />
+                    <StatRow
+                        label={t('totalCommission')}
+                        value={formatCurrency(subCommissionAmount)}
+                        colorClass="text-indigo-600"
+                    />
+                </SectionCard>
+
+                {/* Commission to Admin */}
+                <SectionCard
+                    title={t('sidebarCommissionToAdmin')}
+                    description={`${hasDateFilter ? t('selectedPeriod') : t('all')}`}
+                    icon={FaMoneyBillWave}
+                    linkTo="/commission-from-admin"
+                    linkLabel={t('sidebarCommissionToAdmin')}
+                    t={t}
+                >
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-0.5">
+                        {t('directPlayersOnly')}
+                    </p>
+                    <StatRow
+                        label={t('superBookiePlayersBetAmount')}
+                        value={formatCurrency(superBookiePlayersBetAmount)}
+                        colorClass="text-[#1B3150]"
+                    />
+                    <StatRow
+                        label={t('totalCommissionPercent')}
+                        value={`${adminCommissionPercent}%`}
+                        colorClass="text-green-600"
+                    />
+                    <StatRow
+                        label={t('directCommissionToAdmin')}
+                        value={formatCurrency(adminCommissionOnDirect)}
+                        colorClass="text-orange-600"
+                    />
+                    <div className="border-t border-gray-100 my-1" />
+                    <StatRow
+                        label={`${t('commissionOnBookieCommission')} (${adminShareOnBookiePercent}%)`}
+                        value={formatCurrency(adminCommissionOnBookie)}
+                        colorClass="text-orange-600"
+                    />
+                    <StatRow
+                        label={t('totalCommissionToGive')}
+                        value={formatCurrency(totalCommissionToGive)}
+                        colorClass="text-orange-700"
+                    />
                 </SectionCard>
 
                 {/* Players (direct + super bookie network) */}
@@ -644,7 +748,7 @@ const Dashboard = () => {
                 </SectionCard>
 
                 {/* Payments */}
-                <SectionCard title={t('payments')} description={t('depositsAndWithdrawals')} icon={FaCreditCard} linkTo="/payments" linkLabel={t('managePayments')} t={t}>
+                <SectionCard title={t('payments')} description={t('directPlayersOnly')} icon={FaCreditCard} linkTo="/payments" linkLabel={t('managePayments')} t={t}>
                     <StatRow label={t('depositsPeriod')} value={formatCurrency(stats?.payments?.totalDeposits)} colorClass="text-green-600" />
                     <StatRow label={t('withdrawalsPeriod')} value={formatCurrency(stats?.payments?.totalWithdrawals)} colorClass="text-red-500" />
                     <StatRow label={t('pendingDeposits')} value={pendingDeposits} colorClass="text-[#1B3150]" />
@@ -677,19 +781,29 @@ const Dashboard = () => {
                     <FaMoneyBillWave className="w-4 h-4 text-[#1B3150]" />
                     {t('revenueSummary')}
                 </h3>
-                <p className="text-xs text-gray-500 mb-4">{t('totalRevenueInRange')}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <p className="text-xs text-gray-500 mb-4">{t('superBookieTotalRevenueFormula')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-gray-500 text-sm mb-1">{t('totalDeposit')}</p>
+                        <p className="text-xl font-bold text-green-600 font-mono">{formatCurrency(totalDeposit)}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-gray-500 text-sm mb-1">{t('totalCommissionToTakeFromBookie')}</p>
+                        <p className="text-xl font-bold text-indigo-600 font-mono">{formatCurrency(totalCommissionToTakeFromBookie)}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-gray-500 text-sm mb-1">{t('totalWithdrawal')}</p>
+                        <p className="text-xl font-bold text-red-500 font-mono">{formatCurrency(totalWithdrawal)}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-gray-500 text-sm mb-1">{t('totalCommissionToGive')}</p>
+                        <p className="text-xl font-bold text-orange-600 font-mono">{formatCurrency(totalCommissionToGive)}</p>
+                    </div>
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <p className="text-gray-500 text-sm mb-1">{t('totalRevenue')}</p>
-                        <p className="text-xl font-bold text-green-600 font-mono">{formatCurrency(stats?.revenue?.total)}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p className="text-gray-500 text-sm mb-1">{t('totalPayouts')}</p>
-                        <p className="text-xl font-bold text-red-500 font-mono">{formatCurrency(stats?.revenue?.payouts)}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p className="text-gray-500 text-sm mb-1">{t('netProfit')}</p>
-                        <p className="text-xl font-bold text-blue-600 font-mono">{formatCurrency(stats?.revenue?.netProfit)}</p>
+                        <p className={`text-xl font-bold font-mono ${dashboardTotalRevenue >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                            {formatCurrency(dashboardTotalRevenue)}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -717,7 +831,7 @@ const Dashboard = () => {
             </div>
 
             {/* Lottery 2D + 3D */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6 items-start">
                 <SectionCard title="2D Lottery Overview" description="Current slot + previous slot + selected range total" icon={FaDice} t={t}>
                     {lotteryStats.twoD.error ? (
                         <p className="text-sm text-red-500">{lotteryStats.twoD.error}</p>

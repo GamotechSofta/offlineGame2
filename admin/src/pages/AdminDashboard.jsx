@@ -8,7 +8,6 @@ import {
     FaMoneyBillWave,
     FaChartBar,
     FaSyncAlt,
-    FaWallet,
     FaCreditCard,
     FaUserFriends,
     FaLifeRing,
@@ -20,7 +19,7 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
-import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
+import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL, SUB_LEVEL_LABEL } from '../config/roleLabels';
 import { useQuery } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { dedupeRequest } from '../lib/requestDedupe';
@@ -95,17 +94,17 @@ const formatRangeLabel = (from, to) => {
 
 /** Section card wrapper */
 const SectionCard = ({ title, description, icon: Icon, children, linkTo, linkLabel }) => (
-    <div className="bg-white rounded-xl p-5 sm:p-6 border border-gray-200 hover:border-gray-200/80 transition-all">
-        <div className="flex items-start justify-between mb-4">
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    {Icon && <Icon className="w-5 h-5 text-orange-500" />}
-                    {title}
+    <div className="bg-white rounded-xl p-4 border border-gray-200 hover:border-gray-200/80 transition-all h-fit self-start w-full">
+        <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="min-w-0">
+                <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                    {Icon && <Icon className="w-4 h-4 shrink-0 text-orange-500" />}
+                    <span className="truncate">{title}</span>
                 </h3>
-                {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
+                {description && <p className="text-xs text-gray-500 mt-0.5 leading-snug">{description}</p>}
             </div>
             {linkTo && (
-                <Link to={linkTo} className="text-xs font-medium text-orange-500 hover:text-orange-600 flex items-center gap-1">
+                <Link to={linkTo} className="text-xs font-medium text-orange-500 hover:text-orange-600 flex items-center gap-1 shrink-0 whitespace-nowrap">
                     {linkLabel || 'View'} <FaArrowRight className="w-3 h-3" />
                 </Link>
             )}
@@ -116,10 +115,10 @@ const SectionCard = ({ title, description, icon: Icon, children, linkTo, linkLab
 
 /** Stat row */
 const StatRow = ({ label, value, subValue, colorClass = 'text-gray-800' }) => (
-    <div className="flex justify-between items-center py-2.5 border-b border-gray-200 last:border-0">
-        <span className="text-sm text-gray-500">{label}</span>
-        <div className="text-right">
-            <span className={`font-semibold font-mono ${colorClass}`}>{value}</span>
+    <div className="flex justify-between items-center gap-3 py-1.5 border-b border-gray-100 last:border-0">
+        <span className="text-sm text-gray-500 leading-snug">{label}</span>
+        <div className="text-right shrink-0">
+            <span className={`text-sm font-semibold font-mono ${colorClass}`}>{value}</span>
             {subValue && <span className="text-xs text-gray-500 ml-2">{subValue}</span>}
         </div>
     </div>
@@ -542,6 +541,9 @@ const AdminDashboard = () => {
     const commissionSummary = adminCommissionQuery.data;
     const totalCommissionFromSuperBookie = Number(commissionSummary?.commissionFromSuperBookies || 0);
     const dashboardTotalRevenue = totalDeposit + totalCommissionFromSuperBookie - totalWithdrawal;
+    const directSuperBookiePlayersBetAmount = Number(commissionSummary?.directBetAmount || 0);
+    const commissionOnDirectSuperBookiePlayers = Number(commissionSummary?.directCommission || 0);
+    const commissionOnBookieCommission = Number(commissionSummary?.commissionFromSubBookies || 0);
 
     const pendingPayments = stats?.payments?.pending || 0;
     const pendingDeposits = stats?.payments?.pendingDeposits ?? stats?.payments?.pending ?? 0;
@@ -737,12 +739,57 @@ const AdminDashboard = () => {
             </div>
 
             {/* Detailed Sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
-                {/* Revenue Details */}
-                <SectionCard title="Revenue & Payouts" description="Selected period" icon={FaMoneyBillWave} linkTo="/reports" linkLabel="Reports">
-                    <StatRow label="Total Revenue" value={formatCurrency(stats?.revenue?.total)} colorClass="text-green-600" />
-                    <StatRow label="Total Payouts" value={formatCurrency(stats?.revenue?.payouts)} colorClass="text-red-500" />
-                    <StatRow label="Net Profit" value={formatCurrency(stats?.revenue?.netProfit)} colorClass="text-blue-600" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 mb-6 items-start">
+                {/* Revenue & Payouts */}
+                <SectionCard
+                    title="Revenue & Payouts"
+                    description={`${hasDateFilter ? 'Selected period' : 'All'}${isSuperAdmin ? ' · Admin players only' : ''}`}
+                    icon={FaMoneyBillWave}
+                    linkTo="/reports"
+                    linkLabel="Reports"
+                >
+                    <StatRow label="Total Deposit" value={formatCurrency(totalDeposit)} colorClass="text-green-600" />
+                    <StatRow
+                        label={`Commission from ${TOP_LEVEL_LABEL_PLURAL}`}
+                        value={formatCurrency(totalCommissionFromSuperBookie)}
+                        colorClass="text-indigo-600"
+                    />
+                    <StatRow label="Total Withdrawal" value={formatCurrency(totalWithdrawal)} colorClass="text-red-500" />
+                    <StatRow
+                        label="Total Revenue"
+                        value={formatCurrency(dashboardTotalRevenue)}
+                        colorClass={dashboardTotalRevenue >= 0 ? 'text-blue-600' : 'text-red-500'}
+                    />
+                </SectionCard>
+
+                {/* Commission from SuperBookies */}
+                <SectionCard
+                    title={`Commission from ${TOP_LEVEL_LABEL_PLURAL}`}
+                    description={hasDateFilter ? 'Selected period' : 'All'}
+                    icon={FaChartLine}
+                    linkTo="/bookie-commissions"
+                    linkLabel={`Commission from ${TOP_LEVEL_LABEL_PLURAL}`}
+                >
+                    <StatRow
+                        label={`Direct ${TOP_LEVEL_LABEL} Players Bet Amount`}
+                        value={formatCurrency(directSuperBookiePlayersBetAmount)}
+                        colorClass="text-gray-800"
+                    />
+                    <StatRow
+                        label={`Commission on Direct ${TOP_LEVEL_LABEL} Players`}
+                        value={formatCurrency(commissionOnDirectSuperBookiePlayers)}
+                        colorClass="text-green-600"
+                    />
+                    <StatRow
+                        label={`Commission on ${SUB_LEVEL_LABEL} Commission`}
+                        value={formatCurrency(commissionOnBookieCommission)}
+                        colorClass="text-orange-600"
+                    />
+                    <StatRow
+                        label="Total Commission"
+                        value={formatCurrency(totalCommissionFromSuperBookie)}
+                        colorClass="text-indigo-600"
+                    />
                 </SectionCard>
 
                 {/* Players */}
@@ -791,11 +838,6 @@ const AdminDashboard = () => {
                     <StatRow label="Pending Deposits" value={pendingDeposits} colorClass="text-orange-500" />
                     <StatRow label="Pending Withdrawals" value={pendingWithdrawals} colorClass="text-orange-500" />
                     <StatRow label="Total Pending" value={pendingPayments} colorClass="text-orange-500" />
-                </SectionCard>
-
-                {/* Wallet */}
-                <SectionCard title="Wallet Balance" description="All players combined (all-time)" icon={FaWallet} linkTo="/wallet" linkLabel="Wallet">
-                    <StatRow label="Total Balance" value={formatCurrency(stats?.wallet?.totalBalance)} colorClass="text-green-600" />
                 </SectionCard>
 
                 {/* Bookies (Super Admin only) */}

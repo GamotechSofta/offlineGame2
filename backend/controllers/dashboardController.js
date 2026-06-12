@@ -115,7 +115,9 @@ export const getDashboardStats = async (req, res) => {
         const userFilter = bookieUserIds !== null ? { _id: { $in: bookieUserIds } } : {};
         const betFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
         const revenueBetFilter = revenueUserIds !== null ? { userId: { $in: revenueUserIds } } : betFilter;
-        const paymentFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
+        // SuperBookie (bookie role): deposits/withdrawals = direct players only, not sub-bookie downline.
+        const paymentUserIds = req.admin?.role === 'bookie' ? revenueUserIds : bookieUserIds;
+        const paymentFilter = paymentUserIds !== null ? { userId: { $in: paymentUserIds } } : {};
         const walletMatch = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
         const helpDeskFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
 
@@ -536,9 +538,13 @@ export const getDashboardSummary = async (req, res) => {
         }
         const computePromise = (async () => {
         const bookieUserIds = await getBookieUserIds(req.admin);
+        const revenueUserIds = req.admin?.role === 'bookie'
+            ? await getBookieUserIds(req.admin, { directOnly: true })
+            : bookieUserIds;
         const userFilter = bookieUserIds !== null ? { _id: { $in: bookieUserIds } } : {};
         const betFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
-        const paymentFilter = bookieUserIds !== null ? { userId: { $in: bookieUserIds } } : {};
+        const paymentUserIds = req.admin?.role === 'bookie' ? revenueUserIds : bookieUserIds;
+        const paymentFilter = paymentUserIds !== null ? { userId: { $in: paymentUserIds } } : {};
         const { from, to } = req.query;
         const { start: rangeStart, end: rangeEnd } = getDateRange(from, to);
         const dateMatch = (rangeStart === null || rangeEnd === null)

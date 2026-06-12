@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { getIstTodayKey } from '../utils/istDate';
 import { useLanguage } from '../context/LanguageContext';
 import {
     FaSearch,
@@ -26,6 +27,38 @@ const formatCurrency = (n) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(num);
 };
 
+const getFinancialPresets = (t) => [
+    { id: 'all', label: t('all'), getRange: () => ({ from: null, to: null }) },
+    { id: 'today', label: t('today'), getRange: () => {
+        const from = getIstTodayKey();
+        return { from, to: from };
+    }},
+    { id: 'yesterday', label: t('yesterday'), getRange: () => {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return { from, to: from };
+    }},
+    { id: 'this_week', label: t('thisWeek'), getRange: () => {
+        const d = new Date();
+        const day = d.getDay();
+        const sun = new Date(d);
+        sun.setDate(d.getDate() - day);
+        const sat = new Date(sun);
+        sat.setDate(sun.getDate() + 6);
+        const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+        return { from: fmt(sun), to: fmt(sat) };
+    }},
+    { id: 'this_month', label: t('thisMonth'), getRange: () => {
+        const d = new Date();
+        const y = d.getFullYear(), m = d.getMonth();
+        const last = new Date(y, m + 1, 0);
+        const from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+        const to = `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+        return { from, to };
+    }},
+];
+
 const Reports = () => {
     const { t } = useLanguage();
     const [customers, setCustomers] = useState([]);
@@ -38,10 +71,50 @@ const Reports = () => {
     const [updateError, setUpdateError] = useState('');
     const [updateSuccess, setUpdateSuccess] = useState('');
     const [refreshing, setRefreshing] = useState(false);
+    const [finPreset, setFinPreset] = useState('today');
+    const [finStats, setFinStats] = useState(null);
+    const [finCommission, setFinCommission] = useState(null);
+    const [finLoading, setFinLoading] = useState(true);
+    const FIN_PRESETS = getFinancialPresets(t);
+
+    const fetchFinancialSummary = useCallback(async (rangeOverride) => {
+        try {
+            setFinLoading(true);
+            const preset = FIN_PRESETS.find((p) => p.id === finPreset);
+            const { from, to } = rangeOverride || (preset ? preset.getRange() : { from: null, to: null });
+            const params = new URLSearchParams();
+            if (from && to) {
+                params.set('from', from);
+                params.set('to', to);
+            }
+            const commParams = new URLSearchParams();
+            if (from && to) {
+                commParams.set('startDate', from);
+                commParams.set('endDate', to);
+            }
+            const headers = getBookieAuthHeaders();
+            const [statsRes, commRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/dashboard/stats${params.toString() ? `?${params.toString()}` : ''}`, { headers }),
+                fetch(`${API_BASE_URL}/daily-commission/my-summary${commParams.toString() ? `?${commParams.toString()}` : ''}`, { headers }),
+            ]);
+            const [statsData, commData] = await Promise.all([statsRes.json(), commRes.json()]);
+            setFinStats(statsData.success ? statsData.data : null);
+            setFinCommission(commData.success ? commData.data : null);
+        } catch {
+            setFinStats(null);
+            setFinCommission(null);
+        } finally {
+            setFinLoading(false);
+        }
+    }, [finPreset, t]);
 
     useEffect(() => {
         fetchCustomerBalance();
     }, []);
+
+    useEffect(() => {
+        fetchFinancialSummary();
+    }, [fetchFinancialSummary]);
 
     const fetchCustomerBalance = async (showRefreshing = false) => {
         try {
@@ -369,6 +442,19 @@ const Reports = () => {
         : customers;
 
     // Calculate summary statistics
+    const finPresetDef = FIN_PRESETS.find((p) => p.id === finPreset);
+    const finRange = finPresetDef ? finPresetDef.getRange() : { from: null, to: null };
+    const finHasDateFilter = Boolean(finRange.from && finRange.to);
+    const finDeposit = Number(finStats?.payments?.totalDeposits || 0);
+    const finWithdrawal = Number(finStats?.payments?.totalWithdrawals || 0);
+    const finCommissionFromBookie = finHasDateFilter
+        ? Number(finCommission?.periodSubCommission ?? 0)
+        : Number(finCommission?.subCommission ?? 0);
+    const finCommissionToGive = finHasDateFilter
+        ? Number(finCommission?.periodAdminCommission ?? 0)
+        : Number(finCommission?.adminCommissionAmount ?? 0);
+    const finTotalRevenue = finDeposit + finCommissionFromBookie - finWithdrawal - finCommissionToGive;
+
     const totalYene = filteredCustomers.reduce((sum, c) => sum + (c.yene || 0), 0);
     const totalDene = filteredCustomers.reduce((sum, c) => sum + (c.dene || 0), 0);
     const totalAad = filteredCustomers.reduce((sum, c) => sum + (c.aad || 0), 0);
@@ -399,6 +485,70 @@ const Reports = () => {
                         {t('refresh')}
                     </button>
                                     </div>
+
+                {/* Financial Summary */}
+                <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                                <FaMoneyBillWave className="text-[#1B3150]" />
+                                {t('revenueAndPayouts')}
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-1">
+                                {t('directPlayersOnly')} · {t('superBookieTotalRevenueFormula')}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => fetchFinancialSummary()}
+                            disabled={finLoading}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-[#1B3150]/10 text-sm font-medium text-gray-600 disabled:opacity-60"
+                        >
+                            <FaSyncAlt className={`w-3.5 h-3.5 ${finLoading ? 'animate-spin' : ''}`} />
+                            {t('refresh')}
+                        </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {FIN_PRESETS.map((p) => (
+                            <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => setFinPreset(p.id)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${finPreset === p.id ? 'bg-[#1B3150] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+                    {finLoading ? (
+                        <div className="py-8 text-center text-gray-400 text-sm">{t('loading')}</div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                            <div className="rounded-lg border border-green-200 bg-green-50/50 p-3">
+                                <p className="text-[11px] uppercase text-gray-500">{t('totalDeposit')}</p>
+                                <p className="text-lg font-bold text-green-600 font-mono mt-1">{formatCurrency(finDeposit)}</p>
+                            </div>
+                            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3">
+                                <p className="text-[11px] uppercase text-gray-500">{t('totalCommissionToTakeFromBookie')}</p>
+                                <p className="text-lg font-bold text-indigo-600 font-mono mt-1">{formatCurrency(finCommissionFromBookie)}</p>
+                            </div>
+                            <div className="rounded-lg border border-red-200 bg-red-50/50 p-3">
+                                <p className="text-[11px] uppercase text-gray-500">{t('totalWithdrawal')}</p>
+                                <p className="text-lg font-bold text-red-600 font-mono mt-1">{formatCurrency(finWithdrawal)}</p>
+                            </div>
+                            <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-3">
+                                <p className="text-[11px] uppercase text-gray-500">{t('totalCommissionToGive')}</p>
+                                <p className="text-lg font-bold text-orange-600 font-mono mt-1">{formatCurrency(finCommissionToGive)}</p>
+                            </div>
+                            <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                                <p className="text-[11px] uppercase text-gray-500">{t('totalRevenue')}</p>
+                                <p className={`text-lg font-bold font-mono mt-1 ${finTotalRevenue >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                    {formatCurrency(finTotalRevenue)}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 {/* Summary Cards */}
                 {!loading && filteredCustomers.length > 0 && (
