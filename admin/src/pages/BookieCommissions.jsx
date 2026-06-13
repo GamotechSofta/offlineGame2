@@ -15,7 +15,7 @@ import {
 import AdminLayout from '../components/AdminLayout';
 import { clearAdminSession, fetchWithAuth } from '../lib/auth';
 
-import { TOP_LEVEL_LABEL, TOP_LEVEL_LABEL_PLURAL, SUB_LEVEL_LABEL, SUB_LEVEL_LABEL_PLURAL } from '../config/roleLabels';
+import { TOP_LEVEL_LABEL, SUB_LEVEL_LABEL } from '../config/roleLabels';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
 
@@ -27,15 +27,6 @@ const formatCurrency = (value) => {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(amount);
-};
-
-const formatDate = (value) => {
-    if (!value) return '-';
-    return new Date(value).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    });
 };
 
 const formatPaymentDateTime = (value) => {
@@ -55,13 +46,9 @@ const formatPaymentDateTime = (value) => {
     return `${date} · ${time}`;
 };
 
-const renderPaymentHistorySection = (items, { loading = false, accountLabel = TOP_LEVEL_LABEL } = {}) => (
+const renderPaymentHistorySection = (items, { loading = false } = {}) => (
     <div className="w-full bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-3">
-            <p className="text-sm font-semibold text-slate-800">Payment history</p>
-            <span className="text-slate-300 hidden sm:inline">·</span>
-            <p className="text-xs text-slate-500">Commission payments recorded for this {accountLabel}</p>
-        </div>
+        <p className="text-sm font-semibold text-slate-800 mb-3">Payment history</p>
         <div className="rounded-lg border border-slate-100 overflow-hidden">
             {loading ? (
                 <p className="text-sm text-slate-500 py-4 text-center">Loading payment history...</p>
@@ -95,6 +82,59 @@ const renderPaymentHistorySection = (items, { loading = false, accountLabel = TO
             )}
         </div>
     </div>
+);
+
+const renderRatesCell = (row) => {
+    if (row.accountLabel === 'sub') {
+        return (
+            <span className="font-medium text-slate-800 tabular-nums">
+                {Number(row.parentCommissionPercentage || 0)}%
+            </span>
+        );
+    }
+    const rate = Number(row.commissionPercentage || 0);
+    return (
+        <span className="font-medium text-slate-800 tabular-nums">
+            {rate}%
+        </span>
+    );
+};
+
+const renderAdminShareCell = (row) => {
+    if (row.accountLabel === 'sub') {
+        return <span className="text-slate-400">—</span>;
+    }
+    const direct = Number(row.adminCommissionFromDirect ?? 0);
+    const bookie = Number(row.adminCommissionFromSub ?? 0);
+    return (
+        <>
+            <p className="font-semibold text-slate-800 tabular-nums">{formatCurrency(row.adminCommissionAmount ?? 0)}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                Direct {formatCurrency(direct)} + {SUB_LEVEL_LABEL} {formatCurrency(bookie)}
+            </p>
+        </>
+    );
+};
+
+const renderSettledCell = (row) => (
+    <span className="font-semibold text-green-700 tabular-nums">{formatCurrency(row.totalPaid)}</span>
+);
+
+const renderPlayerBetsCell = (row) => {
+    if (row.accountLabel === 'sub') {
+        return <span className="text-slate-400">—</span>;
+    }
+    return (
+        <span className="font-medium text-slate-800 tabular-nums">
+            {formatCurrency(Number(row.directBetAmount ?? 0))}
+        </span>
+    );
+};
+
+const TableHeader = ({ label, align = 'left' }) => (
+    <th className={`px-4 py-3 align-middle text-[11px] font-semibold text-slate-600 uppercase tracking-wide ${align === 'right' ? 'text-right' : 'text-left'}`}>
+        {label}
+    </th>
 );
 
 const BookieCommissions = () => {
@@ -304,9 +344,6 @@ const BookieCommissions = () => {
                             <FaMoneyBillWave className="text-blue-600" />
                             {TOP_LEVEL_LABEL} Commissions
                         </h1>
-                        <p className="text-sm text-slate-500 mt-1">
-                            {TOP_LEVEL_LABEL}: gross = direct commission (your rate) + bookie commission (rates they set). Admin share = % of gross, not bets.
-                        </p>
                     </div>
                     <button
                         type="button"
@@ -318,39 +355,33 @@ const BookieCommissions = () => {
                     </button>
                 </div>
 
-                <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-blue-900">
-                    <p className="font-semibold mb-1">How commission is calculated</p>
-                    <p><span className="font-medium">{TOP_LEVEL_LABEL}</span> — Direct player bets × admin rate + each {SUB_LEVEL_LABEL}&apos;s bets × rate {TOP_LEVEL_LABEL} set on that account. Admin share = gross × admin %.</p>
-                    <p className="mt-1"><span className="font-medium">{SUB_LEVEL_LABEL}</span> — Player bets × rate {TOP_LEVEL_LABEL} set on that account (flows to parent).</p>
-                </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-blue-700/80 flex items-center gap-2">
                             <FaMoneyBillWave className="text-blue-600" />
-                            Commission on {SUB_LEVEL_LABEL} of {TOP_LEVEL_LABEL}
+                            Total admin share
                         </p>
                         <p className="text-2xl sm:text-3xl font-bold text-blue-800 mt-1">{formatCurrency(totals.adminCommission)}</p>
                     </div>
                     <div className="bg-green-50 border border-green-100 rounded-xl p-4 sm:p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-green-700/80 flex items-center gap-2">
                             <FaCheckCircle className="text-green-600" />
-                            Admin share paid
+                            Settled
                         </p>
                         <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(totals.totalPaid)}</p>
                     </div>
                     <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 sm:p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-orange-700/80 flex items-center gap-2">
                             <FaWallet className="text-orange-600" />
-                            Admin share pending
+                            Pending
                         </p>
                         <p className="text-2xl font-bold text-orange-700 mt-1">{formatCurrency(totals.totalPending)}</p>
                     </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <FaFilter className="text-slate-500" />
+                <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
+                        <FaFilter className="text-slate-500 shrink-0" />
                         {[
                             { id: 'all', label: 'All', count: tabCounts.all },
                             { id: 'pending', label: 'Pending', count: tabCounts.pending },
@@ -360,7 +391,7 @@ const BookieCommissions = () => {
                                 key={item.id}
                                 type="button"
                                 onClick={() => setStatusFilter(item.id)}
-                                className={`px-3 py-1.5 rounded-xl text-sm border transition-colors ${
+                                className={`px-2.5 py-1.5 rounded-lg text-xs sm:text-sm border whitespace-nowrap shrink-0 transition-colors ${
                                     statusFilter === item.id
                                         ? 'bg-blue-600 text-white border-blue-600'
                                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -369,22 +400,18 @@ const BookieCommissions = () => {
                                 {item.label} ({item.count})
                             </button>
                         ))}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-                        <div className="relative w-full sm:max-w-sm">
-                            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                                placeholder={`Search ${TOP_LEVEL_LABEL.toLowerCase()} by name or phone`}
-                                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                            />
-                        </div>
+                        <span className="hidden sm:inline w-px h-6 bg-slate-200 shrink-0" aria-hidden />
+                        <FaSearch className="text-slate-400 shrink-0" />
+                        <input
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            placeholder={`Search ${TOP_LEVEL_LABEL.toLowerCase()} by name or phone`}
+                            className="min-w-[10rem] sm:min-w-[14rem] flex-1 max-w-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                        />
                         <select
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700"
+                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-sm shrink-0"
                         >
                             <option value="pending_desc">Sort: Pending (High to Low)</option>
                             <option value="pending_asc">Sort: Pending (Low to High)</option>
@@ -398,33 +425,27 @@ const BookieCommissions = () => {
                 {/* Desktop table */}
                 <div className="hidden lg:block bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
+                        <table className="w-full text-sm">
                             <thead>
-                                <tr className="bg-slate-50 border-b border-slate-200">
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={2}>{TOP_LEVEL_LABEL} Info</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={5}>Financials (all-time)</th>
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wide text-slate-500" colSpan={2}>Actions</th>
-                                </tr>
-                                <tr className="bg-slate-50 border-b border-slate-200">
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">{TOP_LEVEL_LABEL}</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Rate %</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Total Sales</th>
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Last Payment</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">On {SUB_LEVEL_LABEL} commission</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Admin paid</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Admin pending</th>
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Status</th>
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Record Payment</th>
+                                <tr className="border-b border-slate-200 bg-slate-50">
+                                    <TableHeader label="Account" />
+                                    <TableHeader label="Rates" align="right" />
+                                    <TableHeader label={`${TOP_LEVEL_LABEL} direct player bets`} align="right" />
+                                    <TableHeader label="Admin share" align="right" />
+                                    <TableHeader label="Settled" align="right" />
+                                    <TableHeader label="Pending" align="right" />
+                                    <TableHeader label="Status" />
+                                    <TableHeader label="Pay" />
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-200">
+                            <tbody className="divide-y divide-slate-100">
                                 {loading ? (
                                     <tr>
-                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={9}>Loading commissions...</td>
+                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={8}>Loading commissions...</td>
                                     </tr>
                                 ) : filteredRows.length === 0 ? (
                                     <tr>
-                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={9}>No commission records found.</td>
+                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={8}>No commission records found.</td>
                                     </tr>
                                 ) : (
                                     filteredRows.map((row) => {
@@ -436,55 +457,33 @@ const BookieCommissions = () => {
                                             : (payStateByBookie[bookieId]?.amount || '');
                                         return (
                                             <React.Fragment key={bookieId}>
-                                                <tr className="hover:bg-slate-50 transition-colors">
-                                                    <td className="px-4 py-3.5 align-top">
-                                                        <p className="font-semibold text-slate-800 text-sm">{row.username || 'Unknown'}</p>
-                                                        <p className="text-xs text-slate-500 mt-1">{row.phone || '-'}</p>
-                                                        {row.accountLabel === 'sub' && row.parentBookieUsername && (
-                                                            <p className="text-[10px] text-indigo-600 mt-0.5">
-                                                                {SUB_LEVEL_LABEL} · under {row.parentBookieUsername}
-                                                            </p>
-                                                        )}
-                                                        {row.accountLabel === 'parent' && (
-                                                            <p className="text-[10px] text-slate-400 mt-0.5">{TOP_LEVEL_LABEL}</p>
-                                                        )}
-                                                        <p className="text-xs text-slate-400 mt-0.5">
-                                                            {Number(row.playerCount || 0)} players · {Number(row.betCount || 0)} bets
-                                                        </p>
+                                                <tr className="hover:bg-slate-50/80 transition-colors align-top">
+                                                    <td className="px-4 py-3.5">
+                                                        <p className="font-semibold text-slate-800">{row.username || 'Unknown'}</p>
+                                                        <p className="text-xs text-slate-500 mt-0.5">{row.phone || '-'}</p>
                                                     </td>
                                                     <td className="px-4 py-3.5 text-right text-slate-700">
-                                                        {row.accountLabel === 'sub' ? (
-                                                            <>
-                                                                {Number(row.parentCommissionPercentage || 0)}%
-                                                                <p className="text-[10px] text-indigo-600 font-normal">to {TOP_LEVEL_LABEL}</p>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                {Number(row.commissionPercentage || 0)}%
-                                                                <p className="text-[10px] text-slate-400 font-normal">admin on direct</p>
-                                                            </>
-                                                        )}
+                                                        {renderRatesCell(row)}
                                                     </td>
-                                                    <td className="px-4 py-3.5 text-right text-slate-700">{formatCurrency(row.totalBetAmount)}</td>
-                                                    <td className="px-4 py-3.5 text-slate-700">{formatDate(row.lastPaidAt)}</td>
                                                     <td className="px-4 py-3.5 text-right">
-                                                        {row.accountLabel === 'sub' ? (
-                                                            <span className="text-slate-400">—</span>
-                                                        ) : (
-                                                            <p className="font-semibold text-slate-800">
-                                                                {formatCurrency(row.adminCommissionAmount ?? 0)}
-                                                            </p>
-                                                        )}
+                                                        {renderPlayerBetsCell(row)}
                                                     </td>
-                                                    <td className="px-4 py-3.5 text-right font-semibold text-green-700">{formatCurrency(row.totalPaid)}</td>
-                                                    <td className="px-4 py-3.5 text-right font-semibold text-orange-700">{formatCurrency(row.totalPending)}</td>
+                                                    <td className="px-4 py-3.5 text-right">
+                                                        {renderAdminShareCell(row)}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-right">
+                                                        {renderSettledCell(row)}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-right font-semibold text-orange-700 tabular-nums">
+                                                        {formatCurrency(row.totalPending)}
+                                                    </td>
                                                     <td className="px-4 py-3.5">
-                                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${getBadge(row.paymentStatus)}`}>
-                                                            {row.paymentStatus === 'paid' ? <FaCheckCircle /> : <FaClock />}
+                                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getBadge(row.paymentStatus)}`}>
+                                                            {row.paymentStatus === 'paid' ? <FaCheckCircle className="w-3 h-3" /> : <FaClock className="w-3 h-3" />}
                                                             {getStatusLabel(row.paymentStatus)}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3.5">
+                                                    <td className="px-4 py-3.5 min-w-[11rem]">
                                                         {Number(row.totalPending || 0) > 0 ? (
                                                             <div className="space-y-2">
                                                                 <div className="flex items-center gap-2">
@@ -541,7 +540,7 @@ const BookieCommissions = () => {
                                                 </tr>
                                                 {isExpanded && (
                                                     <tr>
-                                                        <td colSpan={9} className="px-4 py-3 bg-slate-50/70">
+                                                        <td colSpan={8} className="px-4 py-3 bg-slate-50/70">
                                                             {renderPaymentHistorySection(historyByBookie[bookieId], {
                                                                 loading: historyLoadingByBookie[bookieId],
                                                             })}
@@ -584,31 +583,32 @@ const BookieCommissions = () => {
                                     <div>
                                         <p className="font-semibold text-slate-800">{row.username || 'Unknown'}</p>
                                         <p className="text-xs text-slate-500">{row.phone || '-'}</p>
-                                        <p className="text-xs text-slate-500 mt-1">Last payment: {formatDate(row.lastPaidAt)}</p>
                                     </div>
                                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${getBadge(row.paymentStatus)}`}>
                                         {getStatusLabel(row.paymentStatus)}
                                     </span>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-2 mt-3 text-right">
-                                    <div>
-                                        <p className="text-[11px] text-slate-500">On {SUB_LEVEL_LABEL} commission</p>
-                                        {row.accountLabel === 'sub' ? (
-                                            <p className="text-sm text-slate-400">—</p>
-                                        ) : (
-                                            <p className="text-sm font-semibold text-slate-800">
-                                                {formatCurrency(row.adminCommissionAmount ?? 0)}
-                                            </p>
-                                        )}
+                                <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+                                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5">
+                                        <p className="text-[10px] uppercase text-slate-500">Rates</p>
+                                        <div className="mt-1">{renderRatesCell(row)}</div>
                                     </div>
-                                    <div>
-                                        <p className="text-[11px] text-slate-500">Admin paid</p>
-                                        <p className="text-sm font-semibold text-green-700">{formatCurrency(row.totalPaid)}</p>
+                                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5 text-right">
+                                        <p className="text-[10px] uppercase text-slate-500">{TOP_LEVEL_LABEL} direct player bets</p>
+                                        <div className="mt-1 text-right">{renderPlayerBetsCell(row)}</div>
                                     </div>
-                                    <div>
-                                        <p className="text-[11px] text-slate-500">Admin pending</p>
-                                        <p className="text-sm font-semibold text-orange-700">{formatCurrency(row.totalPending)}</p>
+                                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5">
+                                        <p className="text-[10px] uppercase text-slate-500">Admin share</p>
+                                        <div className="mt-1">{renderAdminShareCell(row)}</div>
+                                    </div>
+                                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5 text-right">
+                                        <p className="text-[10px] uppercase text-slate-500">Pending</p>
+                                        <p className="font-semibold text-orange-700 mt-1 tabular-nums">{formatCurrency(row.totalPending)}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-green-50 border border-green-100 p-2.5 col-span-2">
+                                        <p className="text-[10px] uppercase text-green-700/80">Settled</p>
+                                        <div className="mt-1">{renderSettledCell(row)}</div>
                                     </div>
                                 </div>
 

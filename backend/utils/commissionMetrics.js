@@ -375,13 +375,22 @@ export async function buildAdminAllCommissionSummaryRows(parentBookies, subBooki
         subsByParent[parentId].push(sb);
     }
 
+    const directVolumeByParent = Object.fromEntries(
+        await Promise.all(
+            parentBookies.map(async (bookie) => {
+                const vol = await getCommissionBetVolume(bookie, {}, { directOnly: true });
+                return [String(bookie._id), vol];
+            }),
+        ),
+    );
+
     const normalized = [];
 
     for (const bookie of parentBookies) {
         const bookieId = String(bookie._id);
-        const directVol = volumeMap[bookieId] || { totalAmount: 0, betCount: 0 };
+        const directVol = directVolumeByParent[bookieId] || { totalBetAmount: 0, betCount: 0 };
         const adminRate = Number(bookie.commissionPercentage || 0);
-        const directBetAmount = round2(directVol.totalAmount);
+        const directBetAmount = round2(directVol.totalBetAmount);
         const directCommission = calculateCommissionAmount(directBetAmount, adminRate);
 
         let subBetAmount = 0;
@@ -436,6 +445,10 @@ export async function buildAdminAllCommissionSummaryRows(parentBookies, subBooki
             netCommissionAfterAdmin: round2(Math.max(0, subCommission - adminCommissionFromSub)),
             directCommission,
             subCommission,
+            directBetAmount,
+            directPlayerCount: playerCountMap[bookieId] || 0,
+            directBetCount: directVol.betCount,
+            subBetAmount,
             playerCount: hierarchyPlayerCount,
             betCount: directVol.betCount + subBetCount,
             totalBetAmount,
