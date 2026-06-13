@@ -38,6 +38,65 @@ const formatDate = (value) => {
     });
 };
 
+const formatPaymentDateTime = (value) => {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    const date = d.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
+    const time = d.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
+    return `${date} · ${time}`;
+};
+
+const renderPaymentHistorySection = (items, { loading = false, accountLabel = TOP_LEVEL_LABEL } = {}) => (
+    <div className="w-full bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-3">
+            <p className="text-sm font-semibold text-slate-800">Payment history</p>
+            <span className="text-slate-300 hidden sm:inline">·</span>
+            <p className="text-xs text-slate-500">Commission payments recorded for this {accountLabel}</p>
+        </div>
+        <div className="rounded-lg border border-slate-100 overflow-hidden">
+            {loading ? (
+                <p className="text-sm text-slate-500 py-4 text-center">Loading payment history...</p>
+            ) : !items?.length ? (
+                <p className="text-sm text-slate-500 py-4 text-center">No payment history found.</p>
+            ) : (
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 font-medium">
+                            <th className="text-left px-3 py-2 w-[28%]">Amount</th>
+                            <th className="text-left px-3 py-2 w-[32%]">From</th>
+                            <th className="text-left px-3 py-2">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {items.map((item) => (
+                            <tr key={item._id} className="hover:bg-slate-50/80">
+                                <td className="px-3 py-2.5 font-semibold text-green-700 tabular-nums whitespace-nowrap">
+                                    {formatCurrency(item.amount)}
+                                </td>
+                                <td className="px-3 py-2.5 text-slate-800 font-medium truncate max-w-[10rem] sm:max-w-none">
+                                    {item.createdBy || 'Admin'}
+                                </td>
+                                <td className="px-3 py-2.5 text-xs text-slate-600 tabular-nums whitespace-nowrap">
+                                    {formatPaymentDateTime(item.createdAt)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </div>
+    </div>
+);
+
 const BookieCommissions = () => {
     const navigate = useNavigate();
     const [allRows, setAllRows] = useState([]);
@@ -482,27 +541,10 @@ const BookieCommissions = () => {
                                                 </tr>
                                                 {isExpanded && (
                                                     <tr>
-                                                        <td colSpan={9} className="px-5 py-4 bg-slate-50">
-                                                            <p className="text-sm font-semibold text-slate-700 mb-2">Payment History</p>
-                                                            {historyLoadingByBookie[bookieId] ? (
-                                                                <p className="text-xs text-slate-500">Loading payment history...</p>
-                                                            ) : (historyByBookie[bookieId]?.length ? (
-                                                                <div className="space-y-2">
-                                                                    {historyByBookie[bookieId].map((item) => (
-                                                                        <div key={item._id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                                                            <div>
-                                                                                <p className="text-sm font-medium text-slate-800">{formatCurrency(item.amount)}</p>
-                                                                                <p className="text-xs text-slate-500">
-                                                                                    {formatDate(item.createdAt)} • by {item.createdBy}
-                                                                                </p>
-                                                                                {item.notes ? <p className="text-xs text-slate-500 mt-0.5">{item.notes}</p> : null}
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            ) : (
-                                                                <p className="text-xs text-slate-500">No payment history found.</p>
-                                                            ))}
+                                                        <td colSpan={9} className="px-4 py-3 bg-slate-50/70">
+                                                            {renderPaymentHistorySection(historyByBookie[bookieId], {
+                                                                loading: historyLoadingByBookie[bookieId],
+                                                            })}
                                                         </td>
                                                     </tr>
                                                 )}
@@ -615,22 +657,10 @@ const BookieCommissions = () => {
                                 </button>
 
                                 {isExpanded && (
-                                    <div className="mt-3 rounded-lg bg-slate-50 border border-slate-200 p-3">
-                                        {historyLoadingByBookie[bookieId] ? (
-                                            <p className="text-xs text-slate-500">Loading payment history...</p>
-                                        ) : (historyByBookie[bookieId]?.length ? (
-                                            <div className="space-y-2">
-                                                {historyByBookie[bookieId].map((item) => (
-                                                    <div key={item._id} className="rounded-lg bg-white border border-slate-200 p-2.5">
-                                                        <p className="text-sm font-medium text-slate-800">{formatCurrency(item.amount)}</p>
-                                                        <p className="text-xs text-slate-500">{formatDate(item.createdAt)} • by {item.createdBy}</p>
-                                                        {item.notes ? <p className="text-xs text-slate-500 mt-0.5">{item.notes}</p> : null}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-slate-500">No payment history found.</p>
-                                        ))}
+                                    <div className="mt-3">
+                                        {renderPaymentHistorySection(historyByBookie[bookieId], {
+                                            loading: historyLoadingByBookie[bookieId],
+                                        })}
                                     </div>
                                 )}
                             </div>

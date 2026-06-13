@@ -16,6 +16,7 @@ import {
     getAdminShareSettlementForBookie,
     buildAdminAllCommissionSummaryRows,
     getAdminPlatformCommissionFromSuperBookies,
+    getParentReceivableCommissionFromSubBookie,
     round2,
 } from '../utils/commissionMetrics.js';
 import { notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
@@ -648,8 +649,13 @@ export const getMyCommissionPayments = async (req, res) => {
             let label = isSuperBookie
                 ? (isFromAdmin ? 'Advance from admin' : 'Advance from bookie')
                 : 'Advance from admin';
-            if (kind === 'settlement') label = 'Commission settled';
-            else if (kind === 'recovery') label = 'Bet commission → advance recovery';
+            if (kind === 'settlement') {
+                label = isSettlementPaidWithAdvance(payment)
+                    ? 'Commission settled (paid with advance)'
+                    : /paid with other/i.test(notes)
+                      ? 'Commission settled (paid with other)'
+                      : 'Commission settled';
+            } else if (kind === 'recovery') label = 'Bet commission → advance recovery';
             else if (/initial balance/i.test(notes)) label = 'Initial balance';
             return {
                 _id: payment._id,
@@ -698,37 +704,7 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
 
         const commissions = [];
         for (const sb of superBookies) {
-            const summary = await getCommissionSummaryForAccount(sb);
-            const subCommissionPct = Number(sb.commissionPercentage ?? summary.parentCommissionPercentage ?? 0);
-            const parentCommissionFromSub = calculateCommissionAmount(summary.totalBetAmount, subCommissionPct);
-            commissions.push({
-                superBookieId: sb._id,
-                username: sb.username || 'Unknown',
-                phone: sb.phone || '',
-                commissionPercentage: subCommissionPct,
-                subEarnedCommission: 0,
-                playerCount: summary.playerCount,
-                betCount: summary.betCount,
-                totalBetAmount: summary.totalBetAmount,
-                totalCommission: parentCommissionFromSub,
-                parentCommissionFromSub,
-                totalPaid: 0,
-                totalPending: parentCommissionFromSub,
-                paymentStatus: parentCommissionFromSub > 0 ? 'pending' : 'none',
-                lastPaidAt: null,
-                advanceCommissionPaid: 0,
-                advancePaidInitial: 0,
-                advanceSettledFromAdvance: 0,
-                advanceRecoverable: 0,
-                initialBalancePaymentMode: summary.initialBalancePaymentMode ?? sb.initialBalancePaymentMode ?? 'advance_paid',
-                advanceOutstanding: 0,
-                advanceRecovered: 0,
-                recoveryPendingFromBets: 0,
-                commissionPayable: parentCommissionFromSub,
-                displaySettled: 0,
-                displayPending: parentCommissionFromSub,
-                advanceAvailableForSettlement: 0,
-            });
+            commissions.push(await getParentReceivableCommissionFromSubBookie(sb));
         }
 
         commissions.sort((a, b) => b.totalPending - a.totalPending);
@@ -802,7 +778,7 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Super bookie not found' });
         }
 
-        const summary = await getCommissionSummaryForAccount(superBookie);
+        const summary = await getParentReceivableCommissionFromSubBookie(superBookie);
         if (Number(summary.recoveryPendingFromBets || 0) > 0) {
             return res.status(400).json({
                 success: false,

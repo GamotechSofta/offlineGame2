@@ -9,7 +9,6 @@ import {
     FaHistory,
     FaChevronDown,
     FaChevronUp,
-    FaWallet,
     FaTimes,
 } from 'react-icons/fa';
 import Layout from '../components/Layout';
@@ -35,6 +34,57 @@ const formatDate = (value) => {
         month: 'short',
         year: 'numeric',
     });
+};
+
+const formatPaymentDateTime = (value) => {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    const date = d.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
+    const time = d.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
+    return `${date} · ${time}`;
+};
+
+const renderPaymentHistoryTable = (items, t, { loading = false, loadingText = 'Loading payment history...', emptyText = 'No payment history found.' } = {}) => {
+    if (loading) {
+        return <p className="text-xs text-slate-500">{loadingText}</p>;
+    }
+    if (!items?.length) {
+        return <p className="text-xs text-slate-500">{emptyText}</p>;
+    }
+    return (
+        <div className="rounded-lg border border-slate-100 overflow-hidden text-sm bg-white">
+            <div className="grid grid-cols-3 gap-2 px-3 py-1.5 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 font-medium">
+                <span>{t('amount')}</span>
+                <span>{t('from')}</span>
+                <span>{t('date')}</span>
+            </div>
+            {items.map((item) => (
+                <div
+                    key={item._id}
+                    className="grid grid-cols-3 gap-2 px-3 py-2 border-t border-slate-100 items-center leading-tight"
+                >
+                    <span className="font-semibold text-green-700 tabular-nums">
+                        {formatCurrency(item.amount)}
+                    </span>
+                    <span className="text-slate-700 font-medium truncate">
+                        {item.createdBy || 'Bookie'}
+                    </span>
+                    <p className="text-xs text-slate-700 tabular-nums min-w-0 truncate">
+                        {formatPaymentDateTime(item.createdAt)}
+                    </p>
+                </div>
+            ))}
+        </div>
+    );
 };
 
 const sumMoney = (a, b) => Math.round((Number(a || 0) + Number(b || 0)) * 100) / 100;
@@ -215,42 +265,21 @@ const Commission = () => {
 
     const handlePayModeChange = (bookieId, mode, pendingAmount, row) => {
         const id = String(bookieId);
-        const settlementSource = getPayState(id).settlementSource || 'paid_with_other';
-        const max = getRecordPaymentMax(row, settlementSource);
+        const max = getRecordPaymentMax(row);
         setPayStateByBookie((prev) => ({
             ...prev,
             [id]: {
                 ...prev[id],
                 mode,
-                settlementSource,
                 amount: mode === 'full' ? String(Number(max || 0).toFixed(2)) : (prev[id]?.amount || ''),
             },
         }));
-    };
-
-    const handleSettlementSourceChange = (bookieId, settlementSource, row) => {
-        const id = String(bookieId);
-        const max = getRecordPaymentMax(row, settlementSource);
-        setPayStateByBookie((prev) => {
-            const mode = prev[id]?.mode || 'partial';
-            let amount = prev[id]?.amount || '';
-            if (mode === 'full') {
-                amount = String(Number(max || 0).toFixed(2));
-            } else if (Number(amount) > max) {
-                amount = String(Number(max || 0).toFixed(2));
-            }
-            return {
-                ...prev,
-                [id]: { ...prev[id], settlementSource, mode, amount },
-            };
-        });
     };
 
     const handleAmountChange = (bookieId, value) => {
         setPayStateByBookie((prev) => ({
             ...prev,
             [String(bookieId)]: {
-                settlementSource: 'paid_with_other',
                 mode: 'partial',
                 ...prev[String(bookieId)],
                 amount: value,
@@ -258,31 +287,22 @@ const Commission = () => {
         }));
     };
 
-    const getRecordPaymentMax = (row, settlementSource = 'paid_with_other') => {
+    const getRecordPaymentMax = (row) => {
         if (Number(row.recoveryPendingFromBets || 0) > 0) {
             return Number(row.recoveryPendingFromBets);
         }
-        const pending = Number(row.totalPending || 0);
-        if (settlementSource === 'paid_with_advance') {
-            const advanceAvail = Number(row.advanceAvailableForSettlement || 0);
-            return Math.min(pending, advanceAvail);
-        }
-        return pending;
+        return Number(row.totalPending || 0);
     };
 
     const isRecoveryPayment = (row) => Number(row.recoveryPendingFromBets || 0) > 0;
 
-    const canRecordPayment = (row, bookieId) => {
-        const settlementSource = getPayState(bookieId).settlementSource || 'paid_with_other';
-        return getRecordPaymentMax(row, settlementSource) > 0;
-    };
+    const canRecordPayment = (row) => getRecordPaymentMax(row) > 0;
 
     const submitRecordPayment = async (row) => {
         const bookieId = String(row.bookieId);
         const payState = getPayState(bookieId);
         const mode = payState.mode || 'partial';
-        const settlementSource = payState.settlementSource || 'paid_with_other';
-        const maxPayable = getRecordPaymentMax(row, settlementSource);
+        const maxPayable = getRecordPaymentMax(row);
         const amountRaw = mode === 'full'
             ? String(Number(maxPayable || 0).toFixed(2))
             : (payState.amount || '');
@@ -307,7 +327,7 @@ const Commission = () => {
                 method: 'POST',
                     body: JSON.stringify({
                         paidAmount: amount,
-                        settlementSource: recovery ? undefined : settlementSource,
+                        settlementSource: recovery ? undefined : 'paid_with_other',
                     }),
                 },
             );
@@ -316,7 +336,7 @@ const Commission = () => {
             if (result.success) {
                 setPayStateByBookie((prev) => ({
                     ...prev,
-                    [bookieId]: { mode: 'partial', amount: '', settlementSource: 'paid_with_other' },
+                    [bookieId]: { mode: 'partial', amount: '' },
                 }));
                 loadCommissions();
                 if (expandedBookieId === bookieId) {
@@ -327,9 +347,7 @@ const Commission = () => {
                     show: true,
                     message:
                         result.message
-                        || (settlementSource === 'paid_with_advance'
-                            ? `${formatCurrency(amount)} settled from advance for ${row.username}.`
-                            : `${formatCurrency(amount)} commission payment recorded for ${row.username}.`),
+                        || `${formatCurrency(amount)} commission payment recorded for ${row.username}.`,
                 });
                 return;
             }
@@ -386,28 +404,21 @@ const Commission = () => {
 
     const renderRecordPaymentControls = (row, bookieId, isExpanded, compact = false) => {
         const payState = getPayState(bookieId);
-        const settlementSource = payState.settlementSource || 'paid_with_other';
-        const maxPayable = getRecordPaymentMax(row, settlementSource);
+        const maxPayable = getRecordPaymentMax(row);
         const paymentMode = payState.mode || 'partial';
         const paymentAmount = paymentMode === 'full'
             ? String(Number(maxPayable || 0).toFixed(2))
             : (payState.amount || '');
-        const showSettlementSource = !isRecoveryPayment(row);
         const inputClass = compact
             ? 'w-20 min-w-[4.5rem] px-2 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500/40 shrink-0'
-            : 'w-20 min-w-[4.5rem] px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-[11px] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500/40 shrink-0';
+            : 'w-[4.5rem] px-2 py-1.5 rounded-md border border-slate-200 bg-white text-xs disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 shrink-0';
         const selectClass = compact
             ? 'px-2 py-2 rounded-lg border border-slate-200 bg-white text-xs shrink-0'
-            : 'px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] shrink-0';
+            : 'h-8 px-2 rounded-md border border-slate-200 bg-white text-xs shrink-0 min-w-[5.25rem]';
         const btnClass = compact
             ? 'px-2.5 py-2 rounded-lg text-xs bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0 whitespace-nowrap'
-            : 'px-2 py-1.5 rounded-lg text-[11px] bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0 whitespace-nowrap';
-        const advanceHint =
-            settlementSource === 'paid_with_advance'
-                ? `Settle from advance only (avail. ${formatCurrency(row.advanceAvailableForSettlement ?? 0)})`
-                : 'Record commission payment';
-
-        if (!canRecordPayment(row, bookieId)) {
+            : 'h-8 px-3 rounded-md text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors shrink-0 whitespace-nowrap';
+        if (!canRecordPayment(row)) {
             return (
                 <button
                     type="button"
@@ -421,30 +432,19 @@ const Commission = () => {
             );
         }
 
-        const recoveryHint = isRecoveryPayment(row)
-            ? `Bet commission → advance (max ${formatCurrency(maxPayable)})`
-            : advanceHint;
+        const paymentHint = isRecoveryPayment(row)
+            ? `Bet commission recovery (max ${formatCurrency(maxPayable)})`
+            : 'Record commission payment';
 
         return (
             <div
-                className="flex items-center gap-1.5 flex-nowrap"
-                title={recoveryHint}
+                className="inline-flex items-center gap-1.5 flex-nowrap"
+                title={paymentHint}
             >
-                {showSettlementSource && (
-                    <select
-                        value={settlementSource}
-                        onChange={(e) => handleSettlementSourceChange(bookieId, e.target.value, row)}
-                        className={`${selectClass} max-w-[7.25rem]`}
-                        title={advanceHint}
-                    >
-                        <option value="paid_with_advance">With advance</option>
-                        <option value="paid_with_other">With other</option>
-                    </select>
-                )}
                 <select
                     value={paymentMode}
                     onChange={(e) => handlePayModeChange(bookieId, e.target.value, maxPayable, row)}
-                    className={`${selectClass} max-w-[5.5rem]`}
+                    className={selectClass}
                 >
                     <option value="partial">Partial</option>
                     <option value="full">Full</option>
@@ -471,11 +471,10 @@ const Commission = () => {
                 <button
                     type="button"
                     onClick={() => toggleExpanded(bookieId)}
-                    className="inline-flex items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[11px] text-blue-600 hover:bg-blue-50 shrink-0 whitespace-nowrap"
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-slate-200 text-blue-600 hover:bg-blue-50 shrink-0"
                     title="Payment history"
                 >
-                    <FaHistory className="w-3 h-3" />
-                    {isExpanded ? <FaChevronUp className="w-2.5 h-2.5" /> : <FaChevronDown className="w-2.5 h-2.5" />}
+                    <FaHistory className="w-3.5 h-3.5" />
                 </button>
             </div>
         );
@@ -563,30 +562,19 @@ const Commission = () => {
                 <>
                 <section className="bg-slate-800 rounded-xl p-4 sm:p-5 shadow-sm text-white space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             <h2 className="text-lg font-semibold">All {PANEL_LABEL_PLURAL}</h2>
+                            <span className="text-slate-500 hidden sm:inline">·</span>
                             <p className="text-sm text-slate-300">
                                 Combined total across {allSummary.bookieCount} {PANEL_LABEL.toLowerCase()}
                                 {allSummary.bookieCount === 1 ? '' : 's'}
                             </p>
                         </div>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/15 text-sm font-medium">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/15 text-sm font-medium shrink-0">
                             All ({allSummary.bookieCount})
                         </span>
                     </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
-                            <p className="text-[11px] uppercase tracking-wide text-violet-200 flex items-center gap-1.5">
-                                <FaWallet className="text-violet-300" />
-                                Advance remaining
-                            </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(allSummary.advanceRemaining)}</p>
-                            {allSummary.advanceCommissionPaid > 0 && (
-                                <p className="text-[11px] text-violet-200 mt-1">
-                                    Given: {formatCurrency(allSummary.advanceCommissionPaid)}
-                                </p>
-                            )}
-                        </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-blue-200 flex items-center gap-1.5">
                                 <FaMoneyBillWave className="text-blue-300" />
@@ -611,43 +599,45 @@ const Commission = () => {
                     </div>
                 </section>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <FaFilter className="text-slate-500" />
+                <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
+                        <h2 className="text-sm font-semibold text-slate-800 shrink-0 whitespace-nowrap">
+                            Per {PANEL_LABEL.toLowerCase()}
+                        </h2>
+                        <span className="hidden md:inline w-px h-6 bg-slate-200 shrink-0" aria-hidden />
+                        <FaFilter className="text-slate-400 shrink-0 hidden sm:block" />
                         {[
                             { id: 'all', label: 'All', count: tabCounts.all },
                             { id: 'pending', label: 'Pending', count: tabCounts.pending },
                             { id: 'paid', label: 'Paid', count: tabCounts.paid },
                         ].map((item) => (
-                                    <button
+                            <button
                                 key={item.id}
-                                        type="button"
+                                type="button"
                                 onClick={() => setStatusFilter(item.id)}
-                                className={`px-3 py-1.5 rounded-xl text-sm border transition-colors ${
+                                className={`px-2.5 py-1.5 rounded-lg text-xs sm:text-sm border transition-colors shrink-0 whitespace-nowrap ${
                                     statusFilter === item.id
                                         ? 'bg-[#1B3150] text-white border-[#1B3150]'
                                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                                 }`}
                             >
                                 {item.label} ({item.count})
-                                    </button>
-                                ))}
-                            </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-                        <div className="relative w-full sm:max-w-sm">
-                            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                <input
+                            </button>
+                        ))}
+                        <span className="hidden sm:inline w-px h-6 bg-slate-200 shrink-0" aria-hidden />
+                        <div className="relative min-w-[10rem] sm:min-w-[14rem] flex-1 shrink-0">
+                            <FaSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                            <input
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
                                 placeholder={`Search ${PANEL_LABEL.toLowerCase()} by name or phone`}
-                                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                             />
                         </div>
                         <select
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700"
+                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-sm shrink-0 whitespace-nowrap"
                         >
                             <option value="pending_desc">Sort: Pending (High to Low)</option>
                             <option value="pending_asc">Sort: Pending (Low to High)</option>
@@ -655,51 +645,39 @@ const Commission = () => {
                             <option value="last_payment_asc">Sort: Last Payment (Oldest)</option>
                             <option value="name_asc">Sort: Name (A-Z)</option>
                         </select>
+                        {isListFiltered && filteredRows.length > 0 && (
+                            <p className="text-[11px] text-slate-600 bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 shrink-0 whitespace-nowrap">
+                                Pending: {formatCurrency(filteredTotals.totalPending)}
+                            </p>
+                        )}
                     </div>
                 </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                        <h2 className="text-base font-semibold text-slate-800">Per {PANEL_LABEL.toLowerCase()}</h2>
-                        <p className="text-xs text-slate-500">
-                            {isListFiltered
-                                ? `Showing ${filteredRows.length} of ${allRows.length} ${PANEL_LABEL_PLURAL.toLowerCase()}`
-                                : `Commission breakdown for each ${PANEL_LABEL.toLowerCase()}`}
-                        </p>
-                    </div>
-                    {isListFiltered && filteredRows.length > 0 && (
-                        <p className="text-xs text-slate-600 bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5">
-                            Filtered pending: {formatCurrency(filteredTotals.totalPending)}
-                        </p>
-                    )}
-                        </div>
 
                 {/* Desktop table */}
                 <div className="hidden lg:block bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
+                        <table className="w-full text-sm">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200">
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">{PANEL_LABEL}</th>
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Commission %</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Player sales</th>
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Last Payment</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Advance paid</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Commission</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Settled</th>
-                                    <th className="text-right px-4 py-2.5 text-[10px] uppercase text-slate-500">Pending</th>
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500">Status</th>
-                                    <th className="text-left px-4 py-2.5 text-[10px] uppercase text-slate-500 min-w-[22rem]">Record Payment</th>
+                                    <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500">{PANEL_LABEL}</th>
+                                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Player sales</th>
+                                    <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Commission %</th>
+                                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Commission</th>
+                                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Settled</th>
+                                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Pending</th>
+                                    <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Last Payment</th>
+                                    <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Status</th>
+                                    <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Record Payment</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
                         {loading ? (
                                     <tr>
-                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={10}>Loading commissions...</td>
+                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={9}>Loading commissions...</td>
                                     </tr>
                                 ) : filteredRows.length === 0 ? (
                                     <tr>
-                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={10}>No commission records found.</td>
+                                        <td className="px-5 py-8 text-center text-slate-500" colSpan={9}>No commission records found.</td>
                                     </tr>
                                 ) : (
                                     filteredRows.map((row) => {
@@ -708,94 +686,49 @@ const Commission = () => {
                                         return (
                                             <React.Fragment key={bookieId}>
                                                 <tr className="hover:bg-slate-50 transition-colors">
-                                                    <td className="px-4 py-3.5 align-top">
-                                                        <p className="font-semibold text-slate-800 text-sm">{row.username || 'Unknown'}</p>
-                                                        <p className="text-xs text-slate-500 mt-1">{row.phone || '-'}</p>
-                                                        <p className="text-xs text-slate-400 mt-0.5">
-                                                            {Number(row.playerCount || 0)} players · {Number(row.betCount || 0)} bets
-                                                        </p>
+                                                    <td className="px-3 py-3 align-middle">
+                                                        <div className="min-w-0 leading-tight">
+                                                            <p className="font-semibold text-slate-800 truncate">{row.username || 'Unknown'}</p>
+                                                            <p className="text-xs text-slate-500 mt-0.5">{row.phone || '-'}</p>
+                                                        </div>
                                                     </td>
-                                                    <td className="px-4 py-3.5 text-orange-600 font-semibold">{row.commissionPercentage ?? 0}%</td>
-                                                    <td className="px-4 py-3.5 text-right text-slate-700">{formatCurrency(row.totalBetAmount)}</td>
-                                                    <td className="px-4 py-3.5 text-slate-700">{formatDate(row.lastPaidAt)}</td>
-                                                    <td className="px-4 py-3.5 text-right align-top">
-                                                        <p className="font-semibold text-violet-700">{formatCurrency(row.advanceCommissionPaid)}</p>
-                                                        {Number(row.advanceSettledFromAdvance || 0) > 0 && (
-                                                            <p className="text-[10px] text-slate-500 mt-0.5">
-                                                                Used: {formatCurrency(row.advanceSettledFromAdvance)}
-                                                            </p>
-                                                        )}
-                                                        {Number(row.advanceOutstanding || 0) > 0 && (
-                                                            <p className="text-[10px] text-violet-600 mt-0.5">
-                                                                Due: {formatCurrency(row.advanceOutstanding)}
-                                                            </p>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-4 py-3.5 text-right font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</td>
-                                                    <td className="px-4 py-3.5 text-right align-top">
-                                                        <p className="font-semibold text-green-700">{formatCurrency(getRowDisplaySettled(row))}</p>
+                                                    <td className="px-3 py-3 text-right align-middle tabular-nums text-slate-700 whitespace-nowrap">{formatCurrency(row.totalBetAmount)}</td>
+                                                    <td className="px-3 py-3 text-center align-middle text-orange-600 font-semibold whitespace-nowrap">{row.commissionPercentage ?? 0}%</td>
+                                                    <td className="px-3 py-3 text-right align-middle tabular-nums font-semibold text-slate-800 whitespace-nowrap">{formatCurrency(row.totalCommission)}</td>
+                                                    <td className="px-3 py-3 text-right align-middle whitespace-nowrap">
+                                                        <p className="font-semibold text-green-700 tabular-nums">{formatCurrency(getRowDisplaySettled(row))}</p>
                                                         {hasAdvanceRecovery(row) && Number(row.advanceRecovered || 0) > 0 && (
-                                                            <p className="text-[10px] text-green-600 mt-0.5">
+                                                            <p className="text-[10px] text-green-600 mt-0.5 tabular-nums">
                                                                 Recovered {formatCurrency(row.advanceRecovered)}
                                                             </p>
                                                         )}
-                                                        {Number(row.totalPaid || 0) > 0 && (
-                                                            <p className="text-[10px] text-slate-500 mt-0.5">
-                                                                Cash {formatCurrency(row.totalPaid)}
-                                                            </p>
-                                                        )}
                                                     </td>
-                                                    <td className="px-4 py-3.5 text-right align-top">
-                                                        <p className="font-semibold text-orange-700">{formatCurrency(getRowDisplayPending(row))}</p>
+                                                    <td className="px-3 py-3 text-right align-middle whitespace-nowrap">
+                                                        <p className="font-semibold text-orange-700 tabular-nums">{formatCurrency(getRowDisplayPending(row))}</p>
                                                         {hasAdvanceRecovery(row) && Number(row.recoveryPendingFromBets || 0) > 0 && (
-                                                            <p className="text-[10px] text-orange-600 mt-0.5">
+                                                            <p className="text-[10px] text-orange-600 mt-0.5 tabular-nums">
                                                                 From bets {formatCurrency(row.recoveryPendingFromBets)}
                                                             </p>
                                                         )}
-                                                        {Number(row.totalPending || 0) > 0 && (
-                                                            <p className="text-[10px] text-slate-500 mt-0.5">
-                                                                Cash {formatCurrency(row.totalPending)}
-                                                            </p>
-                                                        )}
                                                     </td>
-                                                    <td className="px-4 py-3.5">
-                                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${getBadge(row.paymentStatus)}`}>
-                                                            {row.paymentStatus === 'paid' ? <FaCheckCircle /> : <FaClock />}
+                                                    <td className="px-3 py-3 align-middle text-slate-700 whitespace-nowrap">{formatDate(row.lastPaidAt)}</td>
+                                                    <td className="px-3 py-3 align-middle text-center">
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${getBadge(row.paymentStatus)}`}>
+                                                            {row.paymentStatus === 'paid' ? <FaCheckCircle className="w-3 h-3" /> : <FaClock className="w-3 h-3" />}
                                                             {getStatusLabel(row.paymentStatus)}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3.5 min-w-[22rem] align-top">
+                                                    <td className="px-3 py-3 align-middle">
                                                         {renderRecordPaymentControls(row, bookieId, isExpanded)}
                                                     </td>
                                                 </tr>
                                                 {isExpanded && (
                                                     <tr>
-                                                        <td colSpan={10} className="px-5 py-4 bg-slate-50">
+                                                        <td colSpan={9} className="px-5 py-4 bg-slate-50">
                                                             <p className="text-sm font-semibold text-slate-700 mb-2">Payment History</p>
-                                                            {historyLoadingByBookie[bookieId] ? (
-                                                                <p className="text-xs text-slate-500">Loading payment history...</p>
-                                                            ) : (historyByBookie[bookieId]?.length ? (
-                                                                <div className="space-y-2">
-                                                                    {historyByBookie[bookieId].map((item) => (
-                                                                        <div key={item._id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                                                            <div>
-                                                                                <p className="text-sm font-medium text-slate-800">
-                                                                                    {formatCurrency(item.amount)}
-                                                                                    {item.label ? (
-                                                                                        <span className="ml-2 text-xs font-normal text-violet-600">{item.label}</span>
-                                                                                    ) : null}
-                                                                                </p>
-                                                                                <p className="text-xs text-slate-500">
-                                                                                    {formatDate(item.createdAt)} • by {item.createdBy}
-                                                                                </p>
-                                                                                {item.notes ? <p className="text-xs text-slate-500 mt-0.5">{item.notes}</p> : null}
-                                                                            </div>
-                                                                        </div>
-                                ))}
-                            </div>
-                                                            ) : (
-                                                                <p className="text-xs text-slate-500">No payment history found.</p>
-                                                            ))}
+                                                            {renderPaymentHistoryTable(historyByBookie[bookieId], t, {
+                                                                loading: historyLoadingByBookie[bookieId],
+                                                            })}
                                                         </td>
                                                     </tr>
                                                 )}
@@ -831,24 +764,17 @@ const Commission = () => {
                                     <div>
                                         <p className="font-semibold text-slate-800">{row.username || 'Unknown'}</p>
                                         <p className="text-xs text-slate-500">{row.phone || '-'}</p>
-                                        <p className="text-xs text-slate-400">
-                                            {Number(row.playerCount || 0)} players · {Number(row.betCount || 0)} bets
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Player sales: {formatCurrency(row.totalBetAmount)} · Commission %: {row.commissionPercentage ?? 0}%
                                         </p>
-                                        <p className="text-xs text-slate-500 mt-1">Last payment: {formatDate(row.lastPaidAt)}</p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Last payment: {formatDate(row.lastPaidAt)}</p>
                                     </div>
                                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${getBadge(row.paymentStatus)}`}>
                                         {getStatusLabel(row.paymentStatus)}
                                     </span>
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-right">
-                                    <div>
-                                        <p className="text-[11px] text-slate-500">Advance paid</p>
-                                        <p className="text-sm font-semibold text-violet-700">{formatCurrency(row.advanceCommissionPaid)}</p>
-                                        {Number(row.advanceOutstanding || 0) > 0 && (
-                                            <p className="text-[10px] text-violet-600">Due: {formatCurrency(row.advanceOutstanding)}</p>
-                                        )}
-                                    </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 text-right">
                                     <div>
                                         <p className="text-[11px] text-slate-500">Commission</p>
                                         <p className="text-sm font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</p>
@@ -869,27 +795,11 @@ const Commission = () => {
 
                                 {isExpanded && (
                                     <div className="mt-3 rounded-lg bg-slate-50 border border-slate-200 p-3">
-                                        {historyLoadingByBookie[bookieId] ? (
-                                            <p className="text-xs text-slate-500">Loading payment history...</p>
-                                        ) : (historyByBookie[bookieId]?.length ? (
-                                            <div className="space-y-2">
-                                                {historyByBookie[bookieId].map((item) => (
-                                                    <div key={item._id} className="rounded-lg bg-white border border-slate-200 p-2.5">
-                                                        <p className="text-sm font-medium text-slate-800">
-                                                            {formatCurrency(item.amount)}
-                                                            {item.label ? (
-                                                                <span className="ml-2 text-xs font-normal text-violet-600">{item.label}</span>
-                                                            ) : null}
-                                                        </p>
-                                                        <p className="text-xs text-slate-500">{formatDate(item.createdAt)} • by {item.createdBy}</p>
-                                                        {item.notes ? <p className="text-xs text-slate-500 mt-0.5">{item.notes}</p> : null}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-slate-500">No payment history found.</p>
-                                        ))}
-                                </div>
+                                        <p className="text-sm font-semibold text-slate-700 mb-2">Payment History</p>
+                                        {renderPaymentHistoryTable(historyByBookie[bookieId], t, {
+                                            loading: historyLoadingByBookie[bookieId],
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         );

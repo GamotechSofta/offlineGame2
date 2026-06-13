@@ -727,6 +727,11 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
     const totalBetAmount = gross.totalBetAmount;
     const commissionPercentage = gross.commissionPercentage;
     const totalCommission = gross.totalCommission;
+    const adminCommissionAmount = gross.adminCommissionAmount;
+    const { adminPaid, adminPending } = await getAdminShareSettlementForBookie(
+        admin._id,
+        adminCommissionAmount,
+    );
 
     const advancePaid = round2(advanceCommissionPaid);
     const recoveryRecorded = await getRecoveryRecordedForAccount(admin._id);
@@ -742,16 +747,6 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
         .select('amount paymentType notes createdAt')
         .lean();
 
-    let commissionSettled = round2(
-        payments
-            .filter((p) => getCommissionPaymentKind(p) === 'settlement')
-            .reduce((sum, p) => sum + Number(p.amount || 0), 0)
-    );
-    commissionSettled = round2(Math.min(commissionSettled, commissionPayable));
-
-    const totalPending = round2(Math.max(0, commissionPayable - commissionSettled));
-    const totalPaid = commissionSettled;
-
     const activityDates = payments
         .filter((p) => {
             const kind = getCommissionPaymentKind(p);
@@ -764,13 +759,9 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
             ? new Date(Math.max(...activityDates.map((d) => new Date(d).getTime())))
             : null;
 
-    const displaySettled = round2(advanceRecovered + totalPaid);
-    const displayPending = round2(recoveryPendingFromBets + totalPending);
-
     const adminCommissionPercentage = gross.adminCommissionPercentage;
     const adminCommissionFromDirect = gross.adminCommissionFromDirect ?? round2(gross.directCommission);
     const adminCommissionFromSub = gross.adminCommissionFromSub ?? 0;
-    const adminCommissionAmount = gross.adminCommissionAmount;
     const netCommissionAfterAdmin = gross.netCommissionAfterAdmin;
 
     return {
@@ -788,6 +779,8 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
         adminCommissionFromDirect,
         adminCommissionFromSub,
         adminCommissionAmount,
+        adminCommissionPaid: adminPaid,
+        adminCommissionPending: adminPending,
         netCommissionAfterAdmin,
         advanceCommissionPaid: advancePaid,
         advanceRecovered,
@@ -795,20 +788,142 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
         recoveryPendingFromBets,
         maxRecoveryFromBets,
         commissionPayable,
+        totalPaid: adminPaid,
+        totalPending: adminPending,
+        displaySettled: adminPaid,
+        displayPending: adminPending,
+        lastSettledAt,
+        paymentStatus: getAdminSharePaymentStatus(adminCommissionAmount, adminPaid),
+    };
+}
+
+/**
+ * Parent receivable commission from a sub Bookie (super_bookie): bet volume × rate minus settlements.
+ */
+export async function getSubBookieCommissionSettlementSummary(admin) {
+    const account =
+        admin?.role === 'super_bookie' && admin?.commissionPercentage != null
+            ? admin
+            : await Admin.findById(admin?._id ?? admin)
+                .select('_id username phone commissionPercentage role parentBookieId initialBalancePaymentMode')
+                .lean();
+
+    if (!account || account.role !== 'super_bookie') {
+        return {
+            accountId: admin?._id,
+            username: '',
+            phone: '',
+            playerCount: 0,
+            betCount: 0,
+            totalBetAmount: 0,
+            commissionPercentage: 0,
+            totalCommission: 0,
+            parentCommissionAmount: 0,
+            totalPaid: 0,
+            totalPending: 0,
+            paymentStatus: 'none',
+            lastPaidAt: null,
+            initialBalancePaymentMode: 'advance_paid',
+        };
+    }
+
+    const userIds = (await getBookieUserIds(account)) || [];
+    const volume = await getCommissionBetVolume(account);
+    const commissionPercentage = Number(account.commissionPercentage || 0);
+    const totalCommission = calculateCommissionAmount(volume.totalBetAmount, commissionPercentage);
+
+    const payments = await CommissionPayment.find({ bookieId: account._id })
+        .select('amount paymentType notes createdAt')
+        .lean();
+
+    const totalPaidRaw = round2(
+        payments
+            .filter((p) => getCommissionPaymentKind(p) === 'settlement')
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0),
+    );
+    const totalPaid = round2(Math.min(totalPaidRaw, totalCommission));
+    const totalPending = round2(Math.max(0, totalCommission - totalPaid));
+
+    const settlementDates = payments
+        .filter((p) => getCommissionPaymentKind(p) === 'settlement')
+        .map((p) => p.createdAt)
+        .filter(Boolean);
+    const lastPaidAt =
+        settlementDates.length > 0
+            ? new Date(Math.max(...settlementDates.map((d) => new Date(d).getTime())))
+            : null;
+
+    const paymentStatus =
+        totalCommission <= 0
+            ? 'none'
+            : totalPending <= 0
+              ? 'paid'
+              : totalPaid > 0
+                ? 'partial'
+                : 'pending';
+
+    return {
+        accountId: account._id,
+        username: account.username || '',
+        phone: account.phone || '',
+        playerCount: userIds.length,
+        betCount: volume.betCount,
+        totalBetAmount: volume.totalBetAmount,
+        commissionPercentage,
+        totalCommission,
+        parentCommissionAmount: totalCommission,
         totalPaid,
         totalPending,
-        displaySettled,
-        displayPending,
-        lastSettledAt,
-        paymentStatus: (() => {
-            if (advanceOutstanding > 0 && totalCommission <= 0) return 'advance_recovery';
-            if (totalCommission <= 0) return 'none';
-            if (recoveryPendingFromBets > 0) return 'advance_recovery';
-            if (totalPending <= 0 && advanceOutstanding <= 0) return 'paid';
-            if (totalPending > 0) return totalPaid > 0 ? 'partial' : 'pending';
-            if (advanceOutstanding > 0) return 'advance_recovery';
-            return 'paid';
-        })(),
+        paymentStatus,
+        lastPaidAt,
+        initialBalancePaymentMode: account.initialBalancePaymentMode || 'advance_paid',
+    };
+}
+
+/** Parent SuperBookie panel row: commission receivable from one sub Bookie. */
+export async function getParentReceivableCommissionFromSubBookie(superBookie) {
+    const base = await getSubBookieCommissionSettlementSummary(superBookie);
+    const [
+        advancePaidInitial,
+        advanceRecoverable,
+        advanceSettledFromAdvance,
+        advanceAvailableForSettlement,
+    ] = await Promise.all([
+        getAdvancePaidInitialFromBookieForAccount(base.accountId),
+        getAdvanceCommissionPaidForAccount(base.accountId),
+        getSettlementsPaidWithAdvanceTotal(base.accountId),
+        getAdvanceAvailableForSettlement({ _id: base.accountId, role: 'super_bookie' }),
+    ]);
+    const advanceCommissionPaid = round2(advancePaidInitial + advanceRecoverable);
+    const advanceOutstanding = round2(Math.max(0, advanceCommissionPaid - advanceSettledFromAdvance));
+
+    return {
+        superBookieId: base.accountId,
+        username: base.username,
+        phone: base.phone,
+        commissionPercentage: base.commissionPercentage,
+        subEarnedCommission: 0,
+        playerCount: base.playerCount,
+        betCount: base.betCount,
+        totalBetAmount: base.totalBetAmount,
+        totalCommission: base.totalCommission,
+        parentCommissionFromSub: base.totalCommission,
+        totalPaid: base.totalPaid,
+        totalPending: base.totalPending,
+        paymentStatus: base.paymentStatus,
+        lastPaidAt: base.lastPaidAt,
+        advanceCommissionPaid,
+        advancePaidInitial,
+        advanceRecoverable,
+        advanceSettledFromAdvance,
+        advanceOutstanding,
+        advanceAvailableForSettlement,
+        initialBalancePaymentMode: base.initialBalancePaymentMode,
+        advanceRecovered: 0,
+        recoveryPendingFromBets: 0,
+        commissionPayable: base.totalPending,
+        displaySettled: base.totalPaid,
+        displayPending: base.totalPending,
     };
 }
 
@@ -818,7 +933,7 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
  */
 export async function getSuperBookieCommissionDisplaySummary(admin) {
     const account = await Admin.findById(admin._id)
-        .select('parentBookieId role _id initialBalancePaymentMode commissionPercentage')
+        .select('parentBookieId role _id initialBalancePaymentMode commissionPercentage username phone')
         .lean();
     if (!account) {
         return {
@@ -838,29 +953,26 @@ export async function getSuperBookieCommissionDisplaySummary(admin) {
         };
     }
 
-    const userIds = (await getBookieUserIds(account)) || [];
-    const volume = await getCommissionBetVolume(account);
-    const parent = await getParentSuperBookieAccount(account);
-    const parentCommissionPercentage = Number(account.commissionPercentage || 0);
-    const parentCommissionAmount = calculateCommissionAmount(
-        volume.totalBetAmount,
-        parentCommissionPercentage,
-    );
+    const [base, parent] = await Promise.all([
+        getSubBookieCommissionSettlementSummary(account),
+        getParentSuperBookieAccount(account),
+    ]);
 
     return {
-        accountId: account._id,
-        playerCount: userIds.length,
-        betCount: volume.betCount,
-        totalBetAmount: volume.totalBetAmount,
+        accountId: base.accountId,
+        playerCount: base.playerCount,
+        betCount: base.betCount,
+        totalBetAmount: base.totalBetAmount,
         commissionPercentage: 0,
-        parentCommissionPercentage,
-        parentCommissionAmount,
+        parentCommissionPercentage: base.commissionPercentage,
+        parentCommissionAmount: base.parentCommissionAmount,
         parentBookieUsername: parent?.username || '',
-        totalCommission: 0,
-        totalPaid: 0,
-        totalPending: 0,
-        paymentStatus: 'none',
-        initialBalancePaymentMode: account?.initialBalancePaymentMode || 'advance_paid',
+        totalCommission: base.parentCommissionAmount,
+        totalPaid: base.totalPaid,
+        totalPending: base.totalPending,
+        paymentStatus: base.paymentStatus,
+        lastSettledAt: base.lastPaidAt,
+        initialBalancePaymentMode: base.initialBalancePaymentMode,
     };
 }
 
@@ -1055,6 +1167,8 @@ export async function getCommissionDashboardForAccount(admin, { startDate, endDa
               advanceRecovered: summary.advanceRecovered ?? 0,
               recoveryPendingFromBets: summary.recoveryPendingFromBets ?? 0,
               commissionPayable: summary.commissionPayable ?? summary.totalPending ?? 0,
+              adminCommissionPaid: summary.adminCommissionPaid ?? summary.totalPaid ?? 0,
+              adminCommissionPending: summary.adminCommissionPending ?? summary.totalPending ?? 0,
               displaySettled: summary.displaySettled ?? 0,
               displayPending: summary.displayPending ?? 0,
               paymentStatus: summary.paymentStatus,

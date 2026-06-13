@@ -7,15 +7,12 @@ import {
     FaMoneyBillWave,
     FaSyncAlt,
     FaCalendarAlt,
-    FaHistory,
-    FaPaperPlane,
-    FaCheck,
-    FaTimes,
     FaCheckCircle,
     FaClock,
 } from 'react-icons/fa';
 
 const getPresets = (t) => [
+    { id: 'all', label: t('all'), getRange: () => ({ from: '', to: '' }) },
     { id: 'today', label: t('today'), getRange: () => {
         const d = new Date();
         const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -39,8 +36,6 @@ const getPresets = (t) => [
         return { from: `${y}-${String(m + 1).padStart(2, '0')}-01`, to: `${y}-${String(m + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}` };
     }},
 ];
-
-const sumMoney = (a, b) => Math.round((Number(a || 0) + Number(b || 0)) * 100) / 100;
 
 const formatCurrency = (n) => {
     const num = Number(n || 0);
@@ -68,32 +63,31 @@ const paymentStatusLabel = (status) => {
     return status || '—';
 };
 
-const formatDate = (v) => {
-    if (!v) return '-';
-    return new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-};
-
-const statusBadge = (status) => {
-    if (status === 'approved') return 'bg-green-100 text-green-700';
-    if (status === 'rejected') return 'bg-red-100 text-red-700';
-    if (status === 'negotiation') return 'bg-blue-100 text-blue-700';
-    return 'bg-orange-100 text-orange-700';
+const formatPaymentDateTime = (value) => {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    const date = d.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
+    const time = d.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
+    return `${date} · ${time}`;
 };
 
 const CommissionFromAdmin = () => {
     const { t } = useLanguage();
     const PRESETS = getPresets(t);
-    const [tab, setTab] = useState('overview');
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [payments, setPayments] = useState([]);
     const [paymentTotals, setPaymentTotals] = useState({ advance: 0, settled: 0 });
+    const [payments, setPayments] = useState([]);
     const [paymentsLoading, setPaymentsLoading] = useState(false);
-    const [requests, setRequests] = useState({ currentCommission: 0, requests: [] });
-    const [requestsLoading, setRequestsLoading] = useState(false);
-    const [requestPct, setRequestPct] = useState('');
-    const [requestMsg, setRequestMsg] = useState('');
-    const [submitting, setSubmitting] = useState(false);
     const [dateRange, setDateRange] = useState(() => {
         const d = new Date();
         const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -104,12 +98,14 @@ const CommissionFromAdmin = () => {
     const fetchRevenue = useCallback(async () => {
         try {
             setLoading(true);
-            const params = new URLSearchParams({
-                startDate: dateRange.startDate,
-                endDate: dateRange.endDate,
-            });
+            const params = new URLSearchParams();
+            if (dateRange.startDate && dateRange.endDate) {
+                params.set('startDate', dateRange.startDate);
+                params.set('endDate', dateRange.endDate);
+            }
+            const query = params.toString();
             const res = await fetchWithAuth(
-                `${API_BASE_URL}/daily-commission/my-summary?${params.toString()}`
+                `${API_BASE_URL}/daily-commission/my-summary${query ? `?${query}` : ''}`
             );
             const result = await res.json();
             setData(result.success ? result.data : null);
@@ -140,19 +136,6 @@ const CommissionFromAdmin = () => {
         }
     }, []);
 
-    const fetchRequests = useCallback(async () => {
-        try {
-            setRequestsLoading(true);
-            const res = await fetchWithAuth(`${API_BASE_URL}/commission/my-requests`);
-            const result = await res.json();
-            if (result.success) setRequests(result.data || { currentCommission: 0, requests: [] });
-        } catch {
-            setRequests({ currentCommission: 0, requests: [] });
-        } finally {
-            setRequestsLoading(false);
-        }
-    }, []);
-
     useEffect(() => { fetchRevenue(); }, [fetchRevenue]);
     useEffect(() => {
         fetchPayments();
@@ -174,9 +157,6 @@ const CommissionFromAdmin = () => {
         });
         return unsub;
     }, [fetchRevenue, fetchPayments]);
-    useEffect(() => {
-        if (tab === 'request') fetchRequests();
-    }, [tab, fetchRequests]);
 
     const applyPreset = (presetId) => {
         const preset = PRESETS.find((p) => p.id === presetId);
@@ -187,82 +167,44 @@ const CommissionFromAdmin = () => {
         }
     };
 
-    const submitRequest = async () => {
-        const pct = Number(requestPct);
-        if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-            alert('Enter a valid percentage between 0 and 100');
-            return;
-        }
-        setSubmitting(true);
-        try {
-            const res = await fetchWithAuth(`${API_BASE_URL}/commission/request`, {
-                method: 'POST',
-                body: JSON.stringify({ requestedPercentage: pct, message: requestMsg }),
-            });
-            const result = await res.json();
-            if (result.success) {
-                setRequestPct('');
-                setRequestMsg('');
-                fetchRequests();
-                alert(result.message || 'Request submitted');
-            } else {
-                alert(result.message || 'Failed to submit request');
-            }
-        } catch {
-            alert('Failed to submit request');
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const handleCounter = async (requestId, accept) => {
-        const path = accept ? 'accept-counter' : 'reject-counter';
-        const res = await fetchWithAuth(`${API_BASE_URL}/commission/${path}/${requestId}`, { method: 'POST' });
-        const result = await res.json();
-        if (result.success) {
-            fetchRequests();
-            fetchRevenue();
-        } else {
-            alert(result.message || 'Action failed');
-        }
-    };
-
-    const tabs = [
-        { id: 'overview', label: t('commissionTabOverview') },
-        { id: 'payments', label: t('commissionTabAdminPayments') },
-        { id: 'request', label: t('commissionTabRequest') },
-    ];
-
     const advanceGiven = Number(data?.advanceCommissionPaid ?? paymentTotals.advance ?? 0);
     const advanceRemaining = Number(data?.advanceOutstanding ?? 0);
     const advanceRecovered = Number(data?.advanceRecovered ?? 0);
     const recoveryPendingFromBets = Number(data?.recoveryPendingFromBets ?? 0);
-    const cashSettled = Number(data?.allTimePaid ?? paymentTotals.settled ?? 0);
-    const cashPending = Number(data?.allTimePending ?? 0);
-    const commissionSettled = Number(
-        data?.displaySettled ?? sumMoney(advanceRecovered, cashSettled)
-    );
-    const commissionPending = Number(
-        data?.displayPending ?? sumMoney(recoveryPendingFromBets, cashPending)
-    );
+    const cashSettled = Number(data?.adminCommissionPaid ?? data?.allTimePaid ?? paymentTotals.settled ?? 0);
+    const cashPending = Number(data?.adminCommissionPending ?? data?.allTimePending ?? 0);
+    const commissionSettled = Number(data?.displaySettled ?? cashSettled);
+    const commissionPending = Number(data?.displayPending ?? cashPending);
     const adminRateOnDirect = Number(data?.commissionPercentage ?? 0);
     const directCommissionAllTime = Number(data?.directCommission ?? 0);
-    const subCommissionAllTime = Number(data?.subCommission ?? 0);
-    const commissionEarned = Number(data?.allTimeCommission ?? directCommissionAllTime + subCommissionAllTime);
     const adminCommissionRate = Number(data?.adminCommissionPercentage ?? 10);
     const adminCommissionAllTime = Number(data?.adminCommissionAmount ?? 0);
-    const periodGrossCommission = Number(data?.periodCommission ?? 0);
-    const periodDirectCommission = Number(data?.periodDirectCommission ?? 0);
-    const periodSubCommission = Number(data?.periodSubCommission ?? 0);
-    const periodAdminCommission = Number(data?.periodAdminCommission ?? 0);
-    const netCommissionAfterAdmin = Number(
-        data?.netCommissionAfterAdmin ?? Math.max(0, commissionEarned - adminCommissionAllTime)
-    );
-    const periodNetAfterAdmin = Number(
-        data?.periodNetCommissionAfterAdmin ?? Math.max(0, periodGrossCommission - periodAdminCommission)
-    );
+    const adminCommissionFromDirect = Number(data?.adminCommissionFromDirect ?? directCommissionAllTime);
+    const adminCommissionFromSub = Number(data?.adminCommissionFromSub ?? 0);
     const hasAdvance = advanceGiven > 0;
     const isRecoveringAdvance = advanceRemaining > 0 || recoveryPendingFromBets > 0;
+
+    const hasDateFilter = Boolean(dateRange.startDate && dateRange.endDate);
+    const displayDirectPlayerCommission = hasDateFilter
+        ? Number(data?.periodDirectCommission ?? 0)
+        : Number(directCommissionAllTime);
+    const displayDirectPlayerBetAmount = hasDateFilter
+        ? Number(data?.periodDirectBetAmount ?? 0)
+        : Number(data?.directBetAmount ?? 0);
+    const displayCommissionOnBookie = hasDateFilter
+        ? Number(data?.periodAdminCommissionFromSub ?? 0)
+        : Number(data?.adminCommissionFromSub ?? 0);
+    const displayTotalCommission = hasDateFilter
+        ? Number(data?.periodAdminCommission ?? 0)
+        : Number(adminCommissionAllTime);
+    const settlementHistory = payments.filter((payment) => {
+        if (payment.paymentType !== 'settlement') return false;
+        if (!hasDateFilter) return true;
+        const d = new Date(payment.createdAt);
+        if (Number.isNaN(d.getTime())) return false;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return key >= dateRange.startDate && key <= dateRange.endDate;
+    });
 
     return (
         <Layout title={t('commissionFromAdmin')}>
@@ -290,15 +232,15 @@ const CommissionFromAdmin = () => {
                             </span>
                         )}
                     </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-blue-200 flex items-center gap-1.5">
                                 <FaMoneyBillWave className="text-blue-300" />
-                                Gross commission
+                                {t('totalCommission')}
                             </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionEarned)}</p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(adminCommissionAllTime)}</p>
                             <p className="text-[11px] text-blue-200 mt-1">
-                                Direct {formatCurrency(directCommissionAllTime)} + Bookies {formatCurrency(subCommissionAllTime)}
+                                Direct {formatCurrency(adminCommissionFromDirect)} + Bookie {formatCurrency(adminCommissionFromSub)}
                             </p>
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
@@ -308,16 +250,8 @@ const CommissionFromAdmin = () => {
                             </p>
                             <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(adminCommissionAllTime)}</p>
                             <p className="text-[11px] text-rose-200 mt-1">
-                                Direct {formatCurrency(data?.adminCommissionFromDirect ?? directCommissionAllTime)} + Bookie × {adminCommissionRate}%
+                                Direct {formatCurrency(adminCommissionFromDirect)} + Bookie {formatCurrency(adminCommissionFromSub)}
                             </p>
-                        </div>
-                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
-                            <p className="text-[11px] uppercase tracking-wide text-cyan-200 flex items-center gap-1.5">
-                                <FaCheckCircle className="text-cyan-300" />
-                                Your net
-                            </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(netCommissionAfterAdmin)}</p>
-                            <p className="text-[11px] text-cyan-200 mt-1">After admin share</p>
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-green-200 flex items-center gap-1.5">
@@ -325,16 +259,6 @@ const CommissionFromAdmin = () => {
                                 Settled
                             </p>
                             <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionSettled)}</p>
-                            {hasAdvance && advanceRecovered > 0 && (
-                                <p className="text-[11px] text-green-200 mt-1">
-                                    Recovered {formatCurrency(advanceRecovered)}
-                                </p>
-                            )}
-                            {cashSettled > 0 && (
-                                <p className="text-[11px] text-slate-300 mt-0.5">
-                                    Cash {formatCurrency(cashSettled)}
-                                </p>
-                            )}
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-orange-200 flex items-center gap-1.5">
@@ -342,16 +266,6 @@ const CommissionFromAdmin = () => {
                                 Pending
                             </p>
                             <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionPending)}</p>
-                            {hasAdvance && recoveryPendingFromBets > 0 && (
-                                <p className="text-[11px] text-orange-200 mt-1">
-                                    From bets {formatCurrency(recoveryPendingFromBets)}
-                                </p>
-                            )}
-                            {cashPending > 0 && (
-                                <p className="text-[11px] text-slate-300 mt-0.5">
-                                    Cash {formatCurrency(cashPending)}
-                                </p>
-                            )}
                         </div>
                     </div>
                 </section>
@@ -370,44 +284,24 @@ const CommissionFromAdmin = () => {
                     </p>
                 )}
 
-                <div className="flex flex-wrap gap-2">
-                    {tabs.map((item) => (
-                        <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => setTab(item.id)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                                tab === item.id
-                                    ? 'bg-[#1B3150] text-white'
-                                    : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'
-                            }`}
-                        >
-                            {item.label}
-                        </button>
-                    ))}
-                </div>
-
-                {tab === 'overview' && (
-                    <>
-                        <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
-                            <div className="flex flex-wrap gap-1.5 mb-3">
+                <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
+                            <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
                                 {PRESETS.map((p) => (
                                     <button
                                         key={p.id}
                                         type="button"
                                         onClick={() => applyPreset(p.id)}
-                                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs sm:text-sm whitespace-nowrap shrink-0 ${
                                             activePreset === p.id
                                                 ? 'bg-[#1B3150] text-white'
-                                                : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'
+                                                : 'bg-gray-100 border border-gray-200 text-gray-600'
                                         }`}
                                     >
                                         {p.label}
                                     </button>
                                 ))}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <FaCalendarAlt className="text-gray-400" />
+                                <span className="hidden sm:inline w-px h-6 bg-gray-200 shrink-0" aria-hidden />
+                                <FaCalendarAlt className="text-gray-400 shrink-0" />
                                 <input
                                     type="date"
                                     value={dateRange.startDate}
@@ -415,9 +309,9 @@ const CommissionFromAdmin = () => {
                                         setDateRange((r) => ({ ...r, startDate: e.target.value }));
                                         setActivePreset('');
                                     }}
-                                    className="px-2 py-1.5 border rounded-lg text-sm"
+                                    className="px-2 py-1.5 border rounded-lg text-sm shrink-0"
                                 />
-                                <span className="text-gray-500">to</span>
+                                <span className="text-gray-500 text-sm shrink-0">to</span>
                                 <input
                                     type="date"
                                     value={dateRange.endDate}
@@ -425,7 +319,7 @@ const CommissionFromAdmin = () => {
                                         setDateRange((r) => ({ ...r, endDate: e.target.value }));
                                         setActivePreset('');
                                     }}
-                                    className="px-2 py-1.5 border rounded-lg text-sm"
+                                    className="px-2 py-1.5 border rounded-lg text-sm shrink-0"
                                 />
                                 <button
                                     type="button"
@@ -434,7 +328,7 @@ const CommissionFromAdmin = () => {
                                         fetchPayments();
                                     }}
                                     disabled={loading}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#1B3150] text-white rounded-lg text-sm"
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#1B3150] text-white rounded-lg text-sm shrink-0 whitespace-nowrap"
                                 >
                                     <FaSyncAlt className={loading ? 'animate-spin' : ''} />
                                     Refresh
@@ -443,264 +337,91 @@ const CommissionFromAdmin = () => {
                         </div>
 
                         {loading ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                {[1, 2, 3].map((i) => (
-                                    <div key={i} className="h-28 bg-white rounded-xl border animate-pulse" />
-                                ))}
-                            </div>
+                            <div className="h-28 bg-white rounded-xl border animate-pulse" />
                         ) : data ? (
-                            <div className="space-y-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                <div className="bg-white rounded-xl border p-4">
-                                    <p className="text-xs uppercase text-gray-500 font-semibold">Period player sales</p>
-                                    <p className="text-2xl font-bold mt-1">{formatCurrency(data.periodBetAmount)}</p>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Direct {formatCurrency(data.periodDirectBetAmount ?? 0)} · Bookies {formatCurrency(data.periodSubBetAmount ?? 0)}
-                                    </p>
-                                </div>
-                                <div className="bg-[#1B3150] rounded-xl p-4 text-white">
-                                    <p className="text-xs uppercase text-blue-100">Gross commission (period)</p>
-                                    <p className="text-2xl font-bold mt-1">{formatCurrency(periodGrossCommission)}</p>
-                                    <p className="text-xs text-blue-100 mt-1">
-                                        Direct {formatCurrency(periodDirectCommission)} + Bookies {formatCurrency(periodSubCommission)}
-                                    </p>
-                                </div>
-                                <div className="bg-rose-600 rounded-xl p-4 text-white">
-                                    <p className="text-xs uppercase text-rose-100">Admin share ({adminCommissionRate}%)</p>
-                                    <p className="text-2xl font-bold mt-1">{formatCurrency(periodAdminCommission)}</p>
-                                    <p className="text-xs text-rose-100 mt-1">
-                                        Direct {formatCurrency(data?.periodAdminCommissionFromDirect ?? periodDirectCommission)} + Bookie {formatCurrency(periodSubCommission)} × {adminCommissionRate}%
-                                    </p>
-                                </div>
-                                <div className="bg-emerald-700 rounded-xl p-4 text-white">
-                                    <p className="text-xs uppercase text-emerald-100">Your net (period)</p>
-                                    <p className="text-2xl font-bold mt-1">{formatCurrency(periodNetAfterAdmin)}</p>
-                                    <p className="text-xs text-emerald-100 mt-1">Gross minus admin share</p>
-                                </div>
-                            </div>
                             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                                <p className="text-sm font-semibold text-slate-800 mb-3">{t('commissionAdminSummary')}</p>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-4">
+                                    <p className="text-sm font-semibold text-slate-800">{t('commissionAdminSummary')}</p>
+                                    <span className="text-slate-300 hidden sm:inline">·</span>
+                                    <p className="text-xs text-slate-500">{hasDateFilter ? t('selectedPeriod') : t('all')}</p>
+                                </div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 text-sm">
                                     <div className="text-right sm:text-left">
-                                        <p className="text-[11px] uppercase text-slate-500">Admin rate (direct)</p>
-                                        <p className="font-semibold text-orange-600">{adminRateOnDirect}%</p>
+                                        <p className="text-[11px] uppercase text-slate-500">{t('adminRate')}</p>
+                                        <p className="font-semibold text-orange-600 mt-0.5">{adminRateOnDirect}%</p>
+                                        <p className="text-[10px] text-slate-500 mt-0.5">
+                                            {t('commissionOnBookie')} {adminCommissionRate}%
+                                        </p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">Direct commission</p>
-                                        <p className="font-semibold text-slate-800">{formatCurrency(directCommissionAllTime)}</p>
+                                    <div className="text-right sm:text-left">
+                                        <p className="text-[11px] uppercase text-slate-500">{t('directPlayerBetAmount')}</p>
+                                        <p className="font-semibold text-slate-800 tabular-nums mt-0.5">{formatCurrency(displayDirectPlayerBetAmount)}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">Bookie commission</p>
-                                        <p className="font-semibold text-slate-800">{formatCurrency(subCommissionAllTime)}</p>
+                                    <div className="text-right sm:text-left">
+                                        <p className="text-[11px] uppercase text-slate-500">{t('directPlayerCommission')}</p>
+                                        <p className="font-semibold text-slate-800 tabular-nums mt-0.5">{formatCurrency(displayDirectPlayerCommission)}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">Player sales</p>
-                                        <p className="font-semibold text-slate-800">{formatCurrency(data.allTimeBetAmount)}</p>
+                                    <div className="text-right sm:text-left">
+                                        <p className="text-[11px] uppercase text-slate-500">{t('commissionOnBookie')}</p>
+                                        <p className="font-semibold text-rose-700 tabular-nums mt-0.5">{formatCurrency(displayCommissionOnBookie)}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">Advance paid</p>
-                                        <p className="font-semibold text-violet-700">{formatCurrency(advanceGiven)}</p>
-                                        {advanceRemaining > 0 && (
-                                            <p className="text-[10px] text-violet-600 mt-0.5">
-                                                Due: {formatCurrency(advanceRemaining)}
-                                            </p>
-                                        )}
+                                    <div className="text-right sm:text-left">
+                                        <p className="text-[11px] uppercase text-slate-500">{t('totalCommission')}</p>
+                                        <p className="font-semibold text-slate-800 tabular-nums mt-0.5">{formatCurrency(displayTotalCommission)}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">Gross commission</p>
-                                        <p className="font-semibold text-slate-800">{formatCurrency(commissionEarned)}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">On Bookies ({adminCommissionRate}%)</p>
-                                        <p className="font-semibold text-rose-700">{formatCurrency(adminCommissionAllTime)}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">Your net</p>
-                                        <p className="font-semibold text-emerald-700">{formatCurrency(netCommissionAfterAdmin)}</p>
-                                    </div>
-                                    <div className="text-right">
+                                    <div className="text-right sm:text-left">
                                         <p className="text-[11px] uppercase text-slate-500">Settled</p>
-                                        <p className="font-semibold text-green-700">{formatCurrency(commissionSettled)}</p>
-                                        {hasAdvance && advanceRecovered > 0 && (
-                                            <p className="text-[10px] text-green-600 mt-0.5">
-                                                Recovered {formatCurrency(advanceRecovered)}
-                                            </p>
-                                        )}
-                                        {cashSettled > 0 && (
-                                            <p className="text-[10px] text-slate-500 mt-0.5">
-                                                Cash {formatCurrency(cashSettled)}
-                                            </p>
-                                        )}
+                                        <p className="font-semibold text-green-700 tabular-nums mt-0.5">{formatCurrency(commissionSettled)}</p>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="text-right sm:text-left">
                                         <p className="text-[11px] uppercase text-slate-500">Pending</p>
-                                        <p className="font-semibold text-orange-700">{formatCurrency(commissionPending)}</p>
-                                        {hasAdvance && recoveryPendingFromBets > 0 && (
-                                            <p className="text-[10px] text-orange-600 mt-0.5">
-                                                From bets {formatCurrency(recoveryPendingFromBets)}
-                                            </p>
-                                        )}
-                                        {cashPending > 0 && (
-                                            <p className="text-[10px] text-slate-500 mt-0.5">
-                                                Cash {formatCurrency(cashPending)}
-                                            </p>
-                                        )}
+                                        <p className="font-semibold text-orange-700 tabular-nums mt-0.5">{formatCurrency(commissionPending)}</p>
                                     </div>
                                 </div>
-                            </div>
                             </div>
                         ) : (
                             <div className="bg-white rounded-xl border p-8 text-center text-gray-500">No data</div>
                         )}
-                    </>
-                )}
 
-                {tab === 'payments' && (
-                    <div className="bg-white rounded-xl border overflow-hidden">
-                        <div className="px-4 py-3 border-b flex flex-wrap justify-between items-center gap-2">
-                            <h2 className="font-semibold text-gray-700 flex items-center gap-2">
-                                <FaHistory /> Advance commission history
-                            </h2>
-                            {advanceGiven > 0 && (
-                                <p className="text-sm font-bold text-violet-700">
-                                    {t('commissionAdvanceFromAdmin')}: {formatCurrency(advanceGiven)}
-                                </p>
-                            )}
-                            <button
-                                type="button"
-                                onClick={fetchPayments}
-                                className="text-sm text-[#1B3150]"
-                            >
-                                Refresh
-                            </button>
-                        </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-2">
+                        <p className="text-sm font-semibold text-slate-700">{t('commissionPaymentsTitle')}</p>
+                        <span className="text-slate-300 hidden sm:inline">·</span>
+                        <p className="text-xs text-slate-500">{t('commissionPaymentsHint')}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 overflow-hidden text-sm">
                         {paymentsLoading ? (
-                            <p className="p-6 text-gray-500 text-sm">Loading...</p>
-                        ) : payments.length === 0 ? (
-                            <p className="p-6 text-gray-500 text-sm">No payments recorded yet.</p>
+                            <p className="text-sm text-slate-500 py-3 text-center">{t('loading')}</p>
+                        ) : settlementHistory.length === 0 ? (
+                            <p className="text-sm text-slate-500 py-3 text-center">{t('commissionPaymentsEmpty')}</p>
                         ) : (
-                            <div className="divide-y">
-                                {payments.map((p) => (
-                                    <div key={p._id} className="px-4 py-3 flex justify-between">
-                                        <div>
-                                            <p
-                                                className={`text-xs font-semibold uppercase ${
-                                                    p.paymentType === 'settlement'
-                                                        ? 'text-green-700'
-                                                        : p.paymentType === 'recovery'
-                                                          ? 'text-amber-700'
-                                                          : 'text-violet-700'
-                                                }`}
-                                            >
-                                                {p.label || (p.paymentType === 'settlement' ? t('commissionSettled') : p.paymentType === 'recovery' ? 'Bet commission → advance' : t('commissionAdvanceFromAdmin'))}
-                                            </p>
-                                            <p
-                                                className={`font-semibold ${
-                                                    p.paymentType === 'settlement'
-                                                        ? 'text-green-700'
-                                                        : p.paymentType === 'recovery'
-                                                          ? 'text-amber-800'
-                                                          : 'text-violet-800'
-                                                }`}
-                                            >
-                                                {formatCurrency(p.amount)}
-                                            </p>
-                                            <p className="text-xs text-gray-500">{formatDate(p.createdAt)} · {p.createdBy}</p>
-                                            {p.notes ? <p className="text-xs text-gray-400">{p.notes}</p> : null}
-                                        </div>
+                            <>
+                                <div className="grid grid-cols-3 gap-2 px-3 py-1.5 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 font-medium">
+                                    <span>{t('amount')}</span>
+                                    <span>{t('from')}</span>
+                                    <span>{t('date')}</span>
+                                </div>
+                                {settlementHistory.map((payment) => (
+                                    <div
+                                        key={payment._id}
+                                        className="grid grid-cols-3 gap-2 px-3 py-2 border-t border-slate-100 items-center leading-tight"
+                                    >
+                                        <span className="font-semibold text-green-700 tabular-nums">
+                                            {formatCurrency(payment.amount)}
+                                        </span>
+                                        <span className="text-slate-700 font-medium truncate">
+                                            {payment.createdBy || 'Admin'}
+                                        </span>
+                                        <p className="text-xs text-slate-700 tabular-nums min-w-0 truncate">
+                                            {formatPaymentDateTime(payment.createdAt)}
+                                        </p>
                                     </div>
                                 ))}
-                            </div>
+                            </>
                         )}
                     </div>
-                )}
-
-                {tab === 'request' && (
-                    <div className="space-y-4">
-                        <div className="bg-white rounded-xl border p-4">
-                            <p className="text-sm text-gray-600">
-                                Admin rate on your direct players:{' '}
-                                <span className="font-bold text-[#1B3150]">{requests.currentCommission ?? adminRateOnDirect}%</span>
-                            </p>
-                        </div>
-
-                        <div className="bg-white rounded-xl border p-4 space-y-3">
-                            <h2 className="font-semibold text-gray-800">Request new percentage</h2>
-                            <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={requestPct}
-                                onChange={(e) => setRequestPct(e.target.value)}
-                                placeholder="Requested %"
-                                className="w-full px-3 py-2 border rounded-lg"
-                            />
-                            <textarea
-                                value={requestMsg}
-                                onChange={(e) => setRequestMsg(e.target.value)}
-                                placeholder="Message (optional)"
-                                rows={2}
-                                className="w-full px-3 py-2 border rounded-lg text-sm"
-                            />
-                            <button
-                                type="button"
-                                disabled={submitting}
-                                onClick={submitRequest}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#1B3150] text-white rounded-lg text-sm disabled:opacity-50"
-                            >
-                                <FaPaperPlane />
-                                {submitting ? 'Submitting...' : 'Submit request'}
-                            </button>
-                        </div>
-
-                        <div className="bg-white rounded-xl border overflow-hidden">
-                            <div className="px-4 py-3 border-b font-semibold text-gray-700">Your requests</div>
-                            {requestsLoading ? (
-                                <p className="p-4 text-sm text-gray-500">Loading...</p>
-                            ) : (requests.requests || []).length === 0 ? (
-                                <p className="p-4 text-sm text-gray-500">No requests yet.</p>
-                            ) : (
-                                <div className="divide-y">
-                                    {(requests.requests || []).map((req) => (
-                                        <div key={req._id} className="p-4">
-                                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                                <div>
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadge(req.status)}`}>
-                                                        {req.status}
-                                                    </span>
-                                                    <p className="text-sm mt-1">
-                                                        {req.currentPercentage}% → <strong>{req.requestedPercentage}%</strong>
-                                                    </p>
-                                                    {req.adminResponse ? (
-                                                        <p className="text-xs text-gray-500 mt-1">{req.adminResponse}</p>
-                                                    ) : null}
-                                                </div>
-                                                {req.status === 'negotiation' && req.counterOffer != null && (
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleCounter(req._id, true)}
-                                                            className="px-2 py-1 bg-green-600 text-white rounded text-xs flex items-center gap-1"
-                                                        >
-                                                            <FaCheck /> Accept {req.counterOffer}%
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleCounter(req._id, false)}
-                                                            className="px-2 py-1 bg-red-500 text-white rounded text-xs flex items-center gap-1"
-                                                        >
-                                                            <FaTimes /> Reject
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                </div>
             </div>
         </Layout>
     );
