@@ -11,10 +11,10 @@ const activityLogSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    /** admin | super_admin | bookie | user | system */
+    /** admin | super_admin | bookie | super_bookie | user | system */
     performedByType: {
         type: String,
-        enum: ['admin', 'super_admin', 'bookie', 'user', 'system'],
+        enum: ['admin', 'super_admin', 'bookie', 'super_bookie', 'user', 'system'],
         default: 'admin',
     },
     /** Target type: market | user | bookie | wallet | etc. */

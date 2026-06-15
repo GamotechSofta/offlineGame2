@@ -22,7 +22,7 @@ export const getAllWallets = async (req, res) => {
             query.userId = { $in: bookieUserIds };
         }
         const wallets = await Wallet.find(query)
-            .populate('userId', 'username email')
+            .populate('userId', 'username email phone')
             .sort({ balance: -1 });
 
         res.status(200).json({ success: true, data: wallets });
@@ -43,7 +43,7 @@ export const getTransactions = async (req, res) => {
             query.userId = userId;
         }
         const transactions = await WalletTransaction.find(query)
-            .populate('userId', 'username email')
+            .populate('userId', 'username email phone')
             .sort({ createdAt: -1 })
             .limit(1000)
             .lean();
