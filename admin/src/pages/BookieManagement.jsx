@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaEdit, FaTrash, FaToggleOn, FaToggleOff, FaPlus, FaTimes, FaEye, FaEyeSlash, FaCopy, FaPercent, FaSearch, FaUsersCog, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaPlus, FaTimes, FaEye, FaEyeSlash, FaSearch, FaUsersCog, FaFilter } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -17,6 +17,32 @@ const PAGE_TABS = [
     { id: 'superBookies', label: TOP_LEVEL_LABEL_PLURAL },
     { id: 'allBookies', label: `All ${SUB_LEVEL_LABEL_PLURAL}` },
 ];
+
+const formatCurrency = (value) => {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+};
+
+const TableHeader = ({ label, align = 'left' }) => (
+    <th className={`px-4 py-3 align-middle text-[11px] font-semibold text-slate-600 uppercase tracking-wide ${align === 'right' ? 'text-right' : 'text-left'}`}>
+        {label}
+    </th>
+);
+
+const StatusBadge = ({ status }) => (
+    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+        status === 'active'
+            ? 'bg-green-100 text-green-700'
+            : 'bg-red-50 text-red-600'
+    }`}>
+        {status === 'active' ? 'Active' : 'Suspended'}
+    </span>
+);
 
 const BookieManagement = () => {
     const navigate = useNavigate();
@@ -115,14 +141,12 @@ const BookieManagement = () => {
         total: bookies.length,
         active: bookies.filter((b) => b.status === 'active').length,
         suspended: bookies.filter((b) => b.status !== 'active').length,
-        totalCommission: bookies.reduce((sum, b) => sum + (Number(b.totalCommissionAmount) || 0), 0),
     };
 
     const allBookieStats = {
         total: allSubBookies.length,
         active: allSubBookies.filter((b) => b.status === 'active').length,
         suspended: allSubBookies.filter((b) => b.status !== 'active').length,
-        totalPlayers: allSubBookies.reduce((sum, b) => sum + (Number(b.playerCount) || 0), 0),
     };
 
     const stats = pageTab === 'allBookies' ? allBookieStats : superBookieStats;
@@ -503,13 +527,6 @@ const BookieManagement = () => {
         }
     };
 
-    // Copy to clipboard
-    const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text);
-        setSuccess('Copied to clipboard!');
-        setTimeout(() => setSuccess(''), 2000);
-    };
-
     const handleLogout = () => {
         clearAdminSession();
         navigate('/');
@@ -518,8 +535,8 @@ const BookieManagement = () => {
     return (
         <AdminLayout onLogout={handleLogout} title={`${TOP_LEVEL_LABEL} Accounts`}>
                     {/* Header */}
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
-                        <h1 className="text-2xl sm:text-3xl font-bold">{TOP_LEVEL_LABEL} Accounts Management</h1>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">{TOP_LEVEL_LABEL} Accounts</h1>
                         {canManageBookies && pageTab === 'superBookies' && (
                             <button
                                 onClick={() => {
@@ -529,106 +546,80 @@ const BookieManagement = () => {
                                     });
                                     setShowCreateModal(true);
                                 }}
-                                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-gray-800 font-bold py-2.5 px-4 rounded-lg transition-colors text-sm sm:text-base"
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
                             >
-                                <FaPlus /> Add New {TOP_LEVEL_LABEL}
+                                <FaPlus /> Add {TOP_LEVEL_LABEL}
                             </button>
                         )}
                     </div>
 
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        {PAGE_TABS.map((tab) => {
-                            const isActive = pageTab === tab.id;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    type="button"
-                                    onClick={() => {
-                                        setPageTab(tab.id);
-                                        setSearchTerm('');
-                                        setStatusFilter('all');
-                                        navigate(
-                                            tab.id === 'allBookies'
-                                                ? '/bookie-management/all-bookies'
-                                                : '/bookie-management',
-                                        );
-                                    }}
-                                    className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
-                                        isActive
-                                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                                            : 'bg-white text-gray-700 border-gray-200 hover:border-orange-300 hover:bg-orange-50'
-                                    }`}
-                                >
-                                    {tab.label}
-                                </button>
-                            );
-                        })}
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <p className="text-xs uppercase tracking-wide text-slate-500">Total</p>
+                            <p className="text-2xl font-bold text-slate-800 mt-1">{stats.total}</p>
+                        </div>
+                        <div className="bg-green-50 rounded-xl border border-green-100 p-4 shadow-sm">
+                            <p className="text-xs uppercase tracking-wide text-green-700/80">Active</p>
+                            <p className="text-2xl font-bold text-green-700 mt-1">{stats.active}</p>
+                        </div>
+                        <div className="bg-red-50 rounded-xl border border-red-100 p-4 shadow-sm">
+                            <p className="text-xs uppercase tracking-wide text-red-700/80">Suspended</p>
+                            <p className="text-2xl font-bold text-red-600 mt-1">{stats.suspended}</p>
+                        </div>
                     </div>
 
-                    {pageTab === 'superBookies' ? (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                        <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Total {TOP_LEVEL_LABEL_PLURAL}</p>
-                            <p className="text-xl font-bold text-gray-800">{stats.total}</p>
-                        </div>
-                        <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Active</p>
-                            <p className="text-xl font-bold text-green-600">{stats.active}</p>
-                        </div>
-                        <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Suspended</p>
-                            <p className="text-xl font-bold text-red-500">{stats.suspended}</p>
-                        </div>
-                        <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Total Commission (All {TOP_LEVEL_LABEL_PLURAL})</p>
-                            <p className="text-xl font-bold text-orange-600">₹{(stats.totalCommission ?? 0).toLocaleString('en-IN')}</p>
-                        </div>
-                    </div>
-                    ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                        <div className="bg-white rounded-lg border border-indigo-200 p-3">
-                            <p className="text-xs text-gray-500">Total {SUB_LEVEL_LABEL_PLURAL}</p>
-                            <p className="text-xl font-bold text-indigo-800">{stats.total}</p>
-                        </div>
-                        <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Active</p>
-                            <p className="text-xl font-bold text-green-600">{stats.active}</p>
-                        </div>
-                        <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Suspended</p>
-                            <p className="text-xl font-bold text-red-500">{stats.suspended}</p>
-                        </div>
-                        <div className="bg-white rounded-lg border border-gray-200 p-3">
-                            <p className="text-xs text-gray-500">Total players (all {SUB_LEVEL_LABEL_PLURAL.toLowerCase()})</p>
-                            <p className="text-xl font-bold text-orange-600">{stats.totalPlayers}</p>
-                        </div>
-                    </div>
-                    )}
-
-                    <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4 flex flex-col sm:flex-row gap-3">
-                        <div className="relative flex-1">
-                            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm mb-4">
+                        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
+                            {PAGE_TABS.map((tab) => {
+                                const isActive = pageTab === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setPageTab(tab.id);
+                                            setSearchTerm('');
+                                            setStatusFilter('all');
+                                            navigate(
+                                                tab.id === 'allBookies'
+                                                    ? '/bookie-management/all-bookies'
+                                                    : '/bookie-management',
+                                            );
+                                        }}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs sm:text-sm border whitespace-nowrap shrink-0 transition-colors ${
+                                            isActive
+                                                ? 'bg-orange-500 text-white border-orange-500'
+                                                : 'bg-white text-slate-700 border-slate-200 hover:bg-orange-50'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                );
+                            })}
+                            <span className="hidden sm:inline w-px h-6 bg-slate-200 shrink-0" aria-hidden />
+                            <FaSearch className="text-slate-400 shrink-0" />
                             <input
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder={
                                     pageTab === 'allBookies'
-                                        ? `Search ${SUB_LEVEL_LABEL.toLowerCase()}, phone, or ${TOP_LEVEL_LABEL.toLowerCase()} name`
-                                        : 'Search by name, phone or email'
+                                        ? `Search ${SUB_LEVEL_LABEL.toLowerCase()} or ${TOP_LEVEL_LABEL.toLowerCase()}`
+                                        : 'Search name, phone or email'
                                 }
-                                className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm"
+                                className="min-w-[10rem] sm:min-w-[14rem] flex-1 max-w-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
                             />
+                            <FaFilter className="text-slate-400 shrink-0 hidden sm:block" />
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-sm shrink-0"
+                            >
+                                <option value="all">All status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Suspended</option>
+                            </select>
                         </div>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm"
-                        >
-                            <option value="all">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Suspended</option>
-                        </select>
                     </div>
 
                     {/* Alerts */}
@@ -648,249 +639,275 @@ const BookieManagement = () => {
                     )}
 
                     {/* Accounts list */}
-                    <div className="bg-white rounded-lg overflow-hidden">
+                    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                         {pageTab === 'superBookies' && loading ? (
-                            <div className="p-8 text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-                                <p className="mt-4 text-gray-400">Loading {TOP_LEVEL_LABEL_PLURAL.toLowerCase()}...</p>
-                            </div>
+                            <div className="p-8 text-center text-slate-500">Loading {TOP_LEVEL_LABEL_PLURAL.toLowerCase()}...</div>
                         ) : pageTab === 'allBookies' && allSubBookiesLoading ? (
-                            <div className="p-8 text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-                                <p className="mt-4 text-gray-400">Loading {SUB_LEVEL_LABEL_PLURAL.toLowerCase()}...</p>
-                            </div>
+                            <div className="p-8 text-center text-slate-500">Loading {SUB_LEVEL_LABEL_PLURAL.toLowerCase()}...</div>
                         ) : pageTab === 'allBookies' && filteredSubBookies.length === 0 ? (
-                            <div className="p-8 text-center text-gray-400">
-                                <p>No matching {SUB_LEVEL_LABEL.toLowerCase()} accounts found.</p>
-                                <p className="mt-2">Try changing search or filter.</p>
-                            </div>
+                            <div className="p-8 text-center text-slate-500">No matching {SUB_LEVEL_LABEL.toLowerCase()} accounts found.</div>
                         ) : pageTab === 'superBookies' && filteredBookies.length === 0 ? (
-                            <div className="p-8 text-center text-gray-400">
-                                <p>No matching {TOP_LEVEL_LABEL.toLowerCase()} accounts found.</p>
-                                <p className="mt-2">
-                                    {canManageBookies
-                                        ? `Try changing search/filter or add a new ${TOP_LEVEL_LABEL.toLowerCase()}.`
-                                        : 'Try changing search or filter.'}
-                                </p>
+                            <div className="p-8 text-center text-slate-500">
+                                No matching {TOP_LEVEL_LABEL.toLowerCase()} accounts found.
+                                {canManageBookies ? ` Add a new ${TOP_LEVEL_LABEL.toLowerCase()} to get started.` : ''}
                             </div>
-                        ) : pageTab === 'allBookies' ? (
-                            <div className="p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
-                                {filteredSubBookies.map((sb, index) => {
-                                    const parentName = parentSuperBookieName(sb);
-                                    const parentId = parentSuperBookieId(sb);
-                                    return (
-                                        <div
-                                            key={sb._id}
-                                            className="rounded-xl border border-indigo-200 p-4 bg-white shadow-sm"
-                                        >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <span className="text-xs text-gray-500">#{index + 1}</span>
-                                                        {parentId ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => openSubBookieCommission(sb)}
-                                                                className="font-semibold text-indigo-900 truncate text-left hover:text-orange-600 hover:underline"
-                                                            >
-                                                                {sb.username}
-                                                            </button>
-                                                        ) : (
-                                                            <p className="font-semibold text-indigo-900 truncate">{sb.username}</p>
-                                                        )}
-                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
-                                                            {SUB_LEVEL_LABEL}
+                        ) : pageTab === 'superBookies' ? (
+                            <>
+                                <div className="hidden lg:block overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-200 bg-slate-50">
+                                                <TableHeader label="Account" />
+                                                <TableHeader label="Rate" align="right" />
+                                                <TableHeader label="Commission" align="right" />
+                                                <TableHeader label="Player payments" />
+                                                <TableHeader label="Status" />
+                                                <TableHeader label="Actions" />
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {filteredBookies.map((bookie) => (
+                                                <tr key={bookie._id} className="hover:bg-slate-50/80 align-middle">
+                                                    <td className="px-4 py-3.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openBookieDetail(bookie._id)}
+                                                            className="font-semibold text-slate-800 hover:text-orange-600 text-left"
+                                                        >
+                                                            {bookie.username}
+                                                        </button>
+                                                        <p className="text-xs text-slate-500 mt-0.5">{bookie.phone || '—'}</p>
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-right font-medium tabular-nums">
+                                                        {bookie.commissionPercentage ?? 0}%
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-right font-medium tabular-nums text-orange-700">
+                                                        {formatCurrency(bookie.totalCommissionAmount)}
+                                                    </td>
+                                                    <td className="px-4 py-3.5">
+                                                        <span className={bookie.canManagePayments ? 'text-green-700 font-medium' : 'text-slate-500'}>
+                                                            {bookie.canManagePayments ? 'On' : 'Off'}
                                                         </span>
-                                                    </div>
-                                                    <p className="text-xs text-gray-600 mt-1">
-                                                        Under {TOP_LEVEL_LABEL}:{' '}
-                                                        {parentId ? (
+                                                    </td>
+                                                    <td className="px-4 py-3.5">
+                                                        <StatusBadge status={bookie.status} />
+                                                    </td>
+                                                    <td className="px-4 py-3.5">
+                                                        <div className="flex flex-wrap gap-1.5">
                                                             <button
                                                                 type="button"
-                                                                onClick={() => openParentSuperBookie(sb)}
-                                                                className="font-semibold text-orange-600 hover:underline"
+                                                                onClick={() => openBookieDetail(bookie._id)}
+                                                                className="px-2 py-1 rounded-lg bg-orange-500 text-white text-xs font-medium hover:bg-orange-600"
                                                             >
-                                                                {parentName}
+                                                                View
                                                             </button>
-                                                        ) : (
-                                                            <span className="text-gray-500">{parentName}</span>
-                                                        )}
-                                                    </p>
-                                                    <p className="text-sm text-gray-500 mt-0.5 truncate">{sb.email || 'No email'}</p>
-                                                    <p className="text-sm text-gray-600">{sb.phone || '—'}</p>
-                                                </div>
-                                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
-                                                    sb.status === 'active'
-                                                        ? 'bg-green-100 text-green-700 border border-green-200'
-                                                        : 'bg-red-50 text-red-500 border border-red-200'
-                                                }`}>
-                                                    {sb.status === 'active' ? 'Active' : 'Suspended'}
-                                                </span>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-2 mt-3">
-                                                <div className="rounded-lg bg-indigo-50/50 border border-indigo-100 p-2.5">
-                                                    <p className="text-[11px] text-gray-500">Commission</p>
-                                                    <p className="font-semibold text-orange-600 mt-0.5">{sb.commissionPercentage ?? 0}%</p>
-                                                </div>
-                                                <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
-                                                    <p className="text-[11px] text-gray-500">Players</p>
-                                                    <p className="font-semibold text-gray-800 mt-0.5">{sb.playerCount ?? 0}</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-wrap gap-2 mt-3">
-                                                {parentId && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => openSubBookieCommission(sb)}
-                                                        className="px-3 py-2 rounded-lg bg-orange-500 text-gray-800 text-xs font-semibold hover:bg-orange-400 inline-flex items-center gap-1.5"
-                                                    >
-                                                        View details <FaExternalLinkAlt className="w-3 h-3" />
-                                                    </button>
-                                                )}
-                                                {parentId && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => openParentSuperBookie(sb)}
-                                                        className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-semibold hover:bg-indigo-100"
-                                                    >
-                                                        View {TOP_LEVEL_LABEL}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
-                                {filteredBookies.map((bookie, index) => (
-                                    <div
-                                        key={bookie._id}
-                                        className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm"
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-gray-500">#{index + 1}</span>
+                                                            {canManageBookies && (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openManageModal(bookie)}
+                                                                        className="px-2 py-1 rounded-lg bg-slate-800 text-white text-xs font-medium hover:bg-slate-900"
+                                                                    >
+                                                                        Rate
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleToggleStatus(bookie)}
+                                                                        disabled={togglingId === bookie._id}
+                                                                        className={`px-2 py-1 rounded-lg text-xs font-medium disabled:opacity-50 ${
+                                                                            bookie.status === 'active'
+                                                                                ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                                                                                : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                                                                        }`}
+                                                                    >
+                                                                        {togglingId === bookie._id ? '…' : (bookie.status === 'active' ? 'Suspend' : 'Unsuspend')}
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openEditModal(bookie)}
+                                                                        className="px-2 py-1 rounded-lg border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-50"
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openDeleteModal(bookie)}
+                                                                        className="px-2 py-1 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50"
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="lg:hidden divide-y divide-slate-100">
+                                    {filteredBookies.map((bookie) => (
+                                        <div key={bookie._id} className="p-4">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div>
                                                     <button
                                                         type="button"
                                                         onClick={() => openBookieDetail(bookie._id)}
-                                                        className="font-semibold text-gray-800 truncate text-left hover:text-orange-600"
+                                                        className="font-semibold text-slate-800 hover:text-orange-600"
                                                     >
                                                         {bookie.username}
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => copyToClipboard(bookie.username)}
-                                                        className="text-gray-400 hover:text-orange-500"
-                                                        title="Copy name"
-                                                    >
-                                                        <FaCopy size={13} />
-                                                    </button>
+                                                    <p className="text-xs text-slate-500 mt-0.5">{bookie.phone || '—'}</p>
                                                 </div>
-                                                <p className="text-sm text-gray-500 mt-0.5 truncate">{bookie.email || 'No email'}</p>
-                                                <p className="text-sm text-gray-600">{bookie.phone || '-'}</p>
+                                                <StatusBadge status={bookie.status} />
                                             </div>
-                                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
-                                                bookie.status === 'active'
-                                                    ? 'bg-green-100 text-green-700 border border-green-200'
-                                                    : 'bg-red-50 text-red-500 border border-red-200'
-                                            }`}>
-                                                {bookie.status === 'active' ? 'Active' : 'Suspended'}
-                                            </span>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-2 mt-3">
-                                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
-                                                <p className="text-[11px] text-gray-500">Total commission</p>
-                                                <p className="font-semibold text-orange-600 mt-0.5">{bookie.commissionPercentage ?? 0}%</p>
+                                            <div className="grid grid-cols-3 gap-2 mt-3 text-sm">
+                                                <div>
+                                                    <p className="text-[10px] uppercase text-slate-500">Rate</p>
+                                                    <p className="font-semibold mt-0.5">{bookie.commissionPercentage ?? 0}%</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] uppercase text-slate-500">Commission</p>
+                                                    <p className="font-semibold text-orange-700 mt-0.5 tabular-nums">{formatCurrency(bookie.totalCommissionAmount)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] uppercase text-slate-500">Payments</p>
+                                                    <p className="font-semibold mt-0.5">{bookie.canManagePayments ? 'On' : 'Off'}</p>
+                                                </div>
                                             </div>
-                                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
-                                                <p className="text-[11px] text-gray-500">Total Commission Amount</p>
-                                                <p className="font-semibold text-[#1B3150] mt-0.5">₹{(bookie.totalCommissionAmount ?? 0).toLocaleString('en-IN')}</p>
-                                            </div>
-                                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5 col-span-2">
-                                                <p className="text-[11px] text-gray-500">Payment Management</p>
-                                                <p className={`font-semibold mt-0.5 ${bookie.canManagePayments ? 'text-green-600' : 'text-gray-600'}`}>
-                                                    {bookie.canManagePayments ? 'Enabled' : 'Disabled'}
-                                                </p>
+                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                <button type="button" onClick={() => openBookieDetail(bookie._id)} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-medium">View</button>
+                                                {canManageBookies && (
+                                                    <>
+                                                        <button type="button" onClick={() => openManageModal(bookie)} className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-medium">Rate</button>
+                                                        <button type="button" onClick={() => openEditModal(bookie)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium">Edit</button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
-
-                                        <div className="flex flex-wrap gap-2 mt-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => openBookieDetail(bookie._id)}
-                                                className="px-3 py-2 rounded-lg bg-orange-500 text-gray-800 text-xs font-semibold hover:bg-orange-400 inline-flex items-center gap-1.5"
-                                            >
-                                                View details <FaExternalLinkAlt className="w-3 h-3" />
-                                            </button>
-                                        </div>
-
-                                        {canManageBookies && (
-                                        <div className="flex flex-wrap gap-2 mt-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => openManageModal(bookie)}
-                                                className="px-3 py-2 rounded-lg bg-[#1B3150] text-white text-xs font-semibold hover:bg-[#152842]"
-                                                title="Quick Manage Commission"
-                                            >
-                                                Quick Manage
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleToggleStatus(bookie)}
-                                                disabled={togglingId === bookie._id}
-                                                className={`px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 ${
-                                                    bookie.status === 'active'
-                                                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                                        : 'bg-green-50 text-green-700 border border-green-200'
-                                                }`}
-                                            >
-                                                {togglingId === bookie._id ? 'Please wait...' : (bookie.status === 'active' ? 'Suspend' : 'Unsuspend')}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => openEditModal(bookie)}
-                                                className="px-3 py-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => openDeleteModal(bookie)}
-                                                className="px-3 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 text-xs font-semibold"
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Info Card */}
-                    <div className="mt-4 sm:mt-6 bg-white rounded-lg p-4 sm:p-6">
-                        {pageTab === 'superBookies' ? (
-                            <>
-                                <h3 className="text-base sm:text-lg font-semibold text-orange-500 mb-3">{TOP_LEVEL_LABEL} Login Information</h3>
-                                <div className="text-gray-600 space-y-2 text-sm sm:text-base">
-                                    <p><strong>{TOP_LEVEL_LABEL} Panel URL:</strong> <code className="bg-gray-100 px-2 py-1 rounded">/bookie</code></p>
-                                    <p><strong>Login:</strong> {TOP_LEVEL_LABEL_PLURAL} use their Phone number and the password you set.</p>
-                                    <p><strong>Status:</strong> Suspended {TOP_LEVEL_LABEL_PLURAL.toLowerCase()} cannot login to the {TOP_LEVEL_LABEL.toLowerCase()} panel.</p>
+                                    ))}
                                 </div>
                             </>
                         ) : (
                             <>
-                                <h3 className="text-base sm:text-lg font-semibold text-indigo-700 mb-3">All {SUB_LEVEL_LABEL_PLURAL}</h3>
-                                <p className="text-gray-600 text-sm sm:text-base">
-                                    Each {SUB_LEVEL_LABEL.toLowerCase()} belongs to one {TOP_LEVEL_LABEL.toLowerCase()}.
-                                    Click a {SUB_LEVEL_LABEL.toLowerCase()} name or <strong>View details</strong> for player revenue and commission, or <strong>View {TOP_LEVEL_LABEL}</strong> for the parent account overview.
-                                </p>
+                                <div className="hidden lg:block overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-200 bg-slate-50">
+                                                <TableHeader label="Account" />
+                                                <TableHeader label={TOP_LEVEL_LABEL} />
+                                                <TableHeader label="Rate" align="right" />
+                                                <TableHeader label="Players" align="right" />
+                                                <TableHeader label="Status" />
+                                                <TableHeader label="Actions" />
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {filteredSubBookies.map((sb) => {
+                                                const parentName = parentSuperBookieName(sb);
+                                                const parentId = parentSuperBookieId(sb);
+                                                return (
+                                                    <tr key={sb._id} className="hover:bg-slate-50/80 align-middle">
+                                                        <td className="px-4 py-3.5">
+                                                            {parentId ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openSubBookieCommission(sb)}
+                                                                    className="font-semibold text-slate-800 hover:text-orange-600 text-left"
+                                                                >
+                                                                    {sb.username}
+                                                                </button>
+                                                            ) : (
+                                                                <p className="font-semibold text-slate-800">{sb.username}</p>
+                                                            )}
+                                                            <p className="text-xs text-slate-500 mt-0.5">{sb.phone || '—'}</p>
+                                                        </td>
+                                                        <td className="px-4 py-3.5">
+                                                            {parentId ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openParentSuperBookie(sb)}
+                                                                    className="text-sm text-orange-600 hover:underline font-medium"
+                                                                >
+                                                                    {parentName}
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-slate-400">—</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3.5 text-right font-medium tabular-nums">
+                                                            {sb.commissionPercentage ?? 0}%
+                                                        </td>
+                                                        <td className="px-4 py-3.5 text-right font-medium tabular-nums">
+                                                            {sb.playerCount ?? 0}
+                                                        </td>
+                                                        <td className="px-4 py-3.5">
+                                                            <StatusBadge status={sb.status} />
+                                                        </td>
+                                                        <td className="px-4 py-3.5">
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {parentId && (
+                                                                    <>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => openSubBookieCommission(sb)}
+                                                                            className="px-2 py-1 rounded-lg bg-orange-500 text-white text-xs font-medium hover:bg-orange-600"
+                                                                        >
+                                                                            View
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => openParentSuperBookie(sb)}
+                                                                            className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                                                        >
+                                                                            {TOP_LEVEL_LABEL}
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="lg:hidden divide-y divide-slate-100">
+                                    {filteredSubBookies.map((sb) => {
+                                        const parentName = parentSuperBookieName(sb);
+                                        const parentId = parentSuperBookieId(sb);
+                                        return (
+                                            <div key={sb._id} className="p-4">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className="font-semibold text-slate-800">{sb.username}</p>
+                                                        <p className="text-xs text-slate-500 mt-0.5">{sb.phone || '—'}</p>
+                                                        {parentId && (
+                                                            <p className="text-xs text-orange-600 mt-1">{TOP_LEVEL_LABEL}: {parentName}</p>
+                                                        )}
+                                                    </div>
+                                                    <StatusBadge status={sb.status} />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
+                                                    <div>
+                                                        <p className="text-[10px] uppercase text-slate-500">Rate</p>
+                                                        <p className="font-semibold mt-0.5">{sb.commissionPercentage ?? 0}%</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-[10px] uppercase text-slate-500">Players</p>
+                                                        <p className="font-semibold mt-0.5">{sb.playerCount ?? 0}</p>
+                                                    </div>
+                                                </div>
+                                                {parentId && (
+                                                    <div className="flex gap-2 mt-3">
+                                                        <button type="button" onClick={() => openSubBookieCommission(sb)} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-medium">View</button>
+                                                        <button type="button" onClick={() => openParentSuperBookie(sb)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium">{TOP_LEVEL_LABEL}</button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </>
                         )}
                     </div>
@@ -959,7 +976,7 @@ const BookieManagement = () => {
                                     <p className="mt-0.5 text-xs text-gray-500">{TOP_LEVEL_LABEL_PLURAL} log in with phone + password.</p>
                                 </div>
                                 <div>
-                                    <label className="block text-gray-600 text-sm font-medium mb-1">Total Commission %</label>
+                                    <label className="block text-gray-600 text-sm font-medium mb-1">Rate %</label>
                                     <div className="relative">
                                         <input
                                             type="text"
@@ -972,9 +989,6 @@ const BookieManagement = () => {
                                         />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
                                     </div>
-                                    <p className="mt-0.5 text-xs text-gray-500">
-                                        Direct bets × % → full amount to admin · {SUB_LEVEL_LABEL} commission × % → admin share (e.g. 10%: ₹1000→₹100 + ₹100 bookie×10%=₹10 → admin ₹110)
-                                    </p>
                                 </div>
                                 <div>
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1105,7 +1119,7 @@ const BookieManagement = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-gray-600 text-sm font-medium mb-1">Total Commission %</label>
+                                    <label className="block text-gray-600 text-sm font-medium mb-1">Rate %</label>
                                     <div className="relative">
                                         <input
                                             type="text"
@@ -1118,9 +1132,6 @@ const BookieManagement = () => {
                                         />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
                                     </div>
-                                    <p className="mt-0.5 text-xs text-gray-500">
-                                        Direct bets × % → full amount to admin · {SUB_LEVEL_LABEL} commission × % → admin share (e.g. 10%: ₹1000→₹100 + ₹100 bookie×10%=₹10 → admin ₹110)
-                                    </p>
                                 </div>
                                 <div>
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1277,7 +1288,7 @@ const BookieManagement = () => {
                                 <p className="font-semibold text-gray-800">{selectedBookie.username}</p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-600 mb-1">Total Commission %</label>
+                                <label className="block text-sm font-medium text-gray-600 mb-1">Rate %</label>
                                 <input
                                     type="text"
                                     inputMode="decimal"
@@ -1285,9 +1296,6 @@ const BookieManagement = () => {
                                     onChange={(e) => setManageData((p) => ({ ...p, commissionPercentage: e.target.value.replace(/[^0-9.]/g, '').slice(0, 6) }))}
                                     className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50"
                                 />
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Direct player bets × % and admin share from {SUB_LEVEL_LABEL.toLowerCase()} commission × same %
-                                </p>
                             </div>
                             <div className="flex gap-2 pt-1">
                                 <button type="button" onClick={closeManageModal} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-lg">Cancel</button>

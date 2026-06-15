@@ -359,7 +359,7 @@ const BookieCommissions = () => {
                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-blue-700/80 flex items-center gap-2">
                             <FaMoneyBillWave className="text-blue-600" />
-                            Total admin share
+                            Total admin profit
                         </p>
                         <p className="text-2xl sm:text-3xl font-bold text-blue-800 mt-1">{formatCurrency(totals.adminCommission)}</p>
                     </div>
@@ -431,7 +431,7 @@ const BookieCommissions = () => {
                                     <TableHeader label="Account" />
                                     <TableHeader label="Rates" align="right" />
                                     <TableHeader label={`${TOP_LEVEL_LABEL} direct player bets`} align="right" />
-                                    <TableHeader label="Admin share" align="right" />
+                                    <TableHeader label="Admin profit" align="right" />
                                     <TableHeader label="Settled" align="right" />
                                     <TableHeader label="Pending" align="right" />
                                     <TableHeader label="Status" />
@@ -599,7 +599,7 @@ const BookieCommissions = () => {
                                         <div className="mt-1 text-right">{renderPlayerBetsCell(row)}</div>
                                     </div>
                                     <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5">
-                                        <p className="text-[10px] uppercase text-slate-500">Admin share</p>
+                                        <p className="text-[10px] uppercase text-slate-500">Admin profit</p>
                                         <div className="mt-1">{renderAdminShareCell(row)}</div>
                                     </div>
                                     <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5 text-right">

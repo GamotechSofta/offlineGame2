@@ -65,8 +65,13 @@ export const ALL_MENU_ITEMS = [
     { path: '/settings', label: 'Settings', icon: FaCog },
 ];
 
+export const SUPER_BOOKIE_COMMISSIONS_ITEM = {
+    path: '/bookie-commissions',
+    label: 'SuperBookie Commissions',
+    icon: FaMoneyBillWave,
+};
+
 export const SUPER_ADMIN_ONLY_ITEMS = [
-    { path: '/bookie-commissions', label: 'SuperBookie Commissions', icon: FaMoneyBillWave },
     { path: '/help-desk', label: 'Help Desk Issues', icon: FaLifeRing },
 ];
 
@@ -105,6 +110,13 @@ export function buildMenuForAdmin(admin) {
     }
 
     const items = [...ALL_MENU_ITEMS];
+
+    if (role === 'super_admin') {
+        const allBookiesIdx = items.findIndex((item) => item.path === '/bookie-management/all-bookies');
+        const insertAt = allBookiesIdx >= 0 ? allBookiesIdx + 1 : items.length;
+        items.splice(insertAt, 0, SUPER_BOOKIE_COMMISSIONS_ITEM);
+    }
+
     const revenueIdx = items.findIndex((item) => item.path === '/revenue');
     const insertAt = revenueIdx >= 0 ? revenueIdx : items.length;
     items.splice(insertAt, 0, ...SUPER_ADMIN_ONLY_ITEMS);
