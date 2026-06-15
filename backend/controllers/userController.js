@@ -778,8 +778,7 @@ const PHONE_REGEX = /^[6-9]\d{9}$/;
 export const createUser = async (req, res) => {
     try {
         const { username, firstName, lastName, email, password, phone, role, balance, referredBy } = req.body;
-        const isBookieOperator = req.admin?.role === 'bookie' || req.admin?.role === 'super_bookie';
-        const initialBalance = isBookieOperator ? 0 : Number(balance ?? 0);
+        const initialBalance = Number(balance ?? 0);
         if (!Number.isFinite(initialBalance) || initialBalance < 0) {
             return res.status(400).json({
                 success: false,

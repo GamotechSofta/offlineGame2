@@ -10,6 +10,7 @@ const AddUser = () => {
         username: '',
         password: '',
         phone: '',
+        balance: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -34,6 +35,7 @@ const AddUser = () => {
             const payload = {
                 username: formData.username,
                 password: formData.password,
+                balance: formData.balance === '' ? 0 : (parseFloat(formData.balance) || 0),
                 // Keep API compatibility while removing visible email/role fields from the form.
                 email: `${trimmedPhone}@player.local`,
                 role: 'user',
@@ -52,6 +54,7 @@ const AddUser = () => {
                     username: '',
                     password: '',
                     phone: '',
+                    balance: '',
                 });
             } else {
                 setError(data.message || t('failedToCreateUser'));
@@ -140,6 +143,23 @@ const AddUser = () => {
                                 </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">{t('passwordRequiredForLogin')}</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-gray-600 text-sm font-medium mb-2">
+                                {t('initialBalance')} (₹)
+                            </label>
+                            <input
+                                type="number"
+                                name="balance"
+                                value={formData.balance}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150]"
+                                placeholder="0"
+                                min="0"
+                                step="1"
+                                autoComplete="off"
+                            />
                         </div>
 
                         <button
