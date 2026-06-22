@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+:root {
+  --rs-navy: #1b3150;
+  --rs-navy-dark: #152842;
+  --rs-surface: #f0f3f7;
+  --rs-panel: #ffffff;
+  --rs-border: #d8dee8;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(160deg, #eef2f7 0%, #e6eaef 45%, #dfe5ed 100%);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rs-app {
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: #b8c4d4 transparent;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.scroll-area::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scroll-area::-webkit-scrollbar-thumb {
+  background: #b8c4d4;
+  border-radius: 999px;
+}
+
+.scroll-area::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes rs-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.rs-live-dot {
+  animation: rs-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes rs-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.rs-skeleton {
+  background: linear-gradient(90deg, #e8edf3 25%, #f4f7fa 50%, #e8edf3 75%);
+  background-size: 200% 100%;
+  animation: rs-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes rs-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rs-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.rs-mode-enter {
+  animation: rs-fade-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.rs-results-view {
+  transition:
+    opacity 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.rs-results-view.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.rs-results-view.is-hidden {
+  opacity: 0;
+  transform: translateY(8px) scale(0.992);
+  pointer-events: none;
+}
+
+.rs-mode-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  height: 2px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.rs-mode-progress::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, #1b3150, transparent);
+  animation: rs-mode-progress 0.9s ease-in-out infinite;
+}
+
+@keyframes rs-mode-progress {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(320%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-results-view {
+    transition: opacity 0.15s ease;
+    transform: none !important;
+  }
+
+  .rs-results-view.is-hidden {
+    transform: none;
+  }
+
+  .rs-mode-progress::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.35;
+  }
+}
