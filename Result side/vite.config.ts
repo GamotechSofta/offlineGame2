@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const devProxyTarget =
-    env.VITE_DEV_PROXY_TARGET?.replace(/\/$/, '') || 'http://localhost:3010'
+    env.VITE_DEV_PROXY_TARGET?.replace(/\/$/, '') || 'https://api.singlepana.in'
 
   return {
     plugins: [react(), tailwindcss()],
