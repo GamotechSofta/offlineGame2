@@ -74,55 +74,6 @@ export async function recordCommissionSettlementPaidWithAdvance({
     return { payment, parentBalanceAfter: 0, superBookieBalanceAfter: 0 };
 }
 
-export async function recordCommissionSettlementPaidWithOther({
-    parentBookieId,
-    superBookieId,
-    amount,
-    notes = '',
-    createdById,
-}) {
-    const amt = Number(amount);
-    if (!Number.isFinite(amt) || amt <= 0) return null;
-
-    const payment = await CommissionPayment.create({
-        bookieId: superBookieId,
-        amount: amt,
-        notes: `${notes || 'Commission settlement'} | Paid with other`,
-        paymentType: 'settlement',
-        createdBy: createdById || parentBookieId,
-    });
-
-    return { payment, parentBalanceAfter: 0, superBookieBalanceAfter: 0 };
-}
-
-export async function transferCommissionSettlementToSuperBookie(params) {
-    return recordCommissionSettlementPaidWithOther({
-        ...params,
-        notes: params.notes || 'Commission settlement',
-    });
-}
-
-export async function transferBetCommissionRecoveryToSuperBookie({
-    parentBookieId,
-    superBookieId,
-    amount,
-    notes = '',
-    createdById,
-}) {
-    const amt = Number(amount);
-    if (!Number.isFinite(amt) || amt <= 0) return null;
-
-    const payment = await CommissionPayment.create({
-        bookieId: superBookieId,
-        amount: amt,
-        notes: notes || 'Bet commission applied to advance recovery',
-        paymentType: 'recovery',
-        createdBy: createdById || parentBookieId,
-    });
-
-    return { payment, parentBalanceAfter: 0, superBookieBalanceAfter: 0 };
-}
-
 export async function transferAdvanceCommissionFromAdmin({
     bookieId,
     amount,

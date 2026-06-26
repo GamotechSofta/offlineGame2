@@ -148,7 +148,8 @@ const Revenue = () => {
                 </div>
 
                 {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="bg-white rounded-xl h-28 animate-pulse border border-gray-200" />
                         <div className="bg-white rounded-xl h-28 animate-pulse border border-gray-200" />
                         <div className="bg-white rounded-xl h-28 animate-pulse border border-gray-200" />
                         <div className="bg-white rounded-xl h-28 animate-pulse border border-gray-200" />
@@ -156,33 +157,31 @@ const Revenue = () => {
                 ) : data ? (
                     <>
                         {/* Top KPI cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div className="bg-white rounded-xl border border-gray-200 p-4">
                                 <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Total Sale</p>
                                 <p className="mt-2 text-2xl font-bold text-gray-800">{formatCurrency(data.totalBetAmount)}</p>
                                 <p className="mt-1 text-xs text-gray-500">Total bet amount</p>
                             </div>
                             <div className="bg-white rounded-xl border border-gray-200 p-4">
-                                <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Paid / Pending</p>
-                                <div className="mt-2 space-y-1">
-                                    <p className="text-lg font-bold text-green-600">
-                                        Paid: {formatCurrency(data.paidAmount || 0)}
-                                    </p>
-                                    <p className="text-lg font-bold text-red-500">
-                                        Pending: {formatCurrency(data.pendingAmount || 0)}
-                                    </p>
-                                </div>
-                                <p className="mt-1 text-xs text-gray-500">All-time commission settlement</p>
+                                <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Payouts</p>
+                                <p className="mt-2 text-2xl font-bold text-red-500">{formatCurrency(data.totalPayouts || 0)}</p>
+                                <p className="mt-1 text-xs text-gray-500">Winner payouts</p>
+                            </div>
+                            <div className="bg-white rounded-xl border border-gray-200 p-4">
+                                <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Gross Profit</p>
+                                <p className="mt-2 text-2xl font-bold text-emerald-600">{formatCurrency(data.grossProfit ?? (data.totalBetAmount - (data.totalPayouts || 0)))}</p>
+                                <p className="mt-1 text-xs text-gray-500">Sale minus payouts</p>
                             </div>
                             <div className="bg-sb-primary rounded-xl border border-sb-primary p-4">
                                 <div className="flex items-center justify-between">
-                                    <p className="text-xs uppercase tracking-wide text-blue-100 font-semibold">Commission Amount</p>
+                                    <p className="text-xs uppercase tracking-wide text-blue-100 font-semibold">Your Commission</p>
                                     <span className="text-[11px] bg-white/20 text-white px-2 py-0.5 rounded-full">
                                         {data.commissionPercentage ?? data.parentCommissionPercentage ?? 0}%
                                     </span>
                                 </div>
                                 <p className="mt-2 text-2xl font-bold text-white">{formatCurrency(data.bookieRevenue)}</p>
-                                <p className="mt-1 text-xs text-blue-100">Commission to SuperBookie for selected period</p>
+                                <p className="mt-1 text-xs text-blue-100">Actual (profit-capped) for period</p>
                             </div>
                         </div>
 
@@ -193,11 +192,28 @@ const Revenue = () => {
                             </div>
                             <div className="divide-y divide-gray-200">
                                 <div className="px-4 py-3 flex items-center justify-between">
-                                    <span className="text-sm text-gray-600">Commission Formula</span>
-                                    <span className="text-sm font-semibold text-gray-800">
-                                        {formatCurrency(data.totalBetAmount)} x {data.commissionPercentage ?? data.parentCommissionPercentage ?? 0}% = {formatCurrency(data.bookieRevenue)}
+                                    <span className="text-sm text-gray-600">Gross Profit</span>
+                                    <span className="text-sm font-semibold text-emerald-600">
+                                        {formatCurrency(data.grossProfit ?? (data.totalBetAmount - (data.totalPayouts || 0)))}
                                     </span>
                                 </div>
+                                <div className="px-4 py-3 flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">Calculated at {data.commissionPercentage ?? data.parentCommissionPercentage ?? 0}%</span>
+                                    <span className="text-sm font-semibold text-gray-800">
+                                        {formatCurrency(data.calculatedCommission ?? data.bookieRevenue)}
+                                    </span>
+                                </div>
+                                <div className="px-4 py-3 flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">Actual Commission</span>
+                                    <span className="text-sm font-semibold text-sb-primary">
+                                        {formatCurrency(data.bookieRevenue)}
+                                    </span>
+                                </div>
+                                {data.calculatedCommission != null && data.calculatedCommission !== data.bookieRevenue && (
+                                    <div className="px-4 py-3 bg-amber-50 text-xs text-amber-800">
+                                        Commission capped at gross profit — calculated {formatCurrency(data.calculatedCommission)} exceeds available profit.
+                                    </div>
+                                )}
                                 <div className="px-4 py-3 flex items-center justify-between">
                                     <span className="text-sm text-gray-600">Total Bets</span>
                                     <span className="text-sm font-semibold text-gray-800">{formatNumber(data.totalBets)} bets</span>
@@ -209,13 +225,13 @@ const Revenue = () => {
                                     </span>
                                 </div>
                                 <div className="px-4 py-3 flex items-center justify-between">
-                                    <span className="text-sm text-gray-600">Paid Amount</span>
+                                    <span className="text-sm text-gray-600">Paid (all-time)</span>
                                     <span className="text-sm font-semibold text-green-600">
                                         {formatCurrency(data.paidAmount || 0)}
                                     </span>
                                 </div>
                                 <div className="px-4 py-3 flex items-center justify-between">
-                                    <span className="text-sm text-gray-600">Pending Amount</span>
+                                    <span className="text-sm text-gray-600">Pending (all-time)</span>
                                     <span className="text-sm font-semibold text-orange-500">
                                         {formatCurrency(data.pendingAmount || 0)}
                                     </span>

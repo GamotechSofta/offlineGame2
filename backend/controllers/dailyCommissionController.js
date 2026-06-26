@@ -10,21 +10,23 @@ import {
     getCommissionPaymentKind,
     getAdvanceAvailableForSettlement,
     isSettlementPaidWithAdvance,
-    calculateCommissionAmount,
-    calculateAdminCommissionAmount,
-    calculateSuperBookieAdminCommissionTotal,
-    getAdminShareSettlementForBookie,
     buildAdminAllCommissionSummaryRows,
     getAdminPlatformCommissionFromSuperBookies,
     getParentReceivableCommissionFromSubBookie,
+    getAdminShareSettlementForBookie,
     round2,
+    executeCommissionEngineSettlement,
+    getDailyCommissionEngineV2Snapshot,
+    resolveCommissionDisplayAmount,
+    resolveDailyCommissionPaidAmount,
 } from '../utils/commissionMetrics.js';
+import {
+    parseSettlementPeriod,
+    assertValidPeriod,
+} from '../services/commissionEngine/index.js';
 import { notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
 import {
-    transferCommissionSettlementToSuperBookie,
     recordCommissionSettlementPaidWithAdvance,
-    recordCommissionSettlementPaidWithOther,
-    transferBetCommissionRecoveryToSuperBookie,
     InsufficientBookieBalanceError,
 } from '../utils/advanceCommissionTransfer.js';
 
@@ -34,6 +36,26 @@ const getPaymentStatusFromAmounts = (commissionAmount, paidAmount) => {
     if (paid <= 0) return 'pending';
     if (paid >= total) return 'paid';
     return 'partial';
+};
+
+const resolveCommissionSettlementPeriod = (body = {}) => {
+    if (body?.date || body?.startDate || body?.endDate) {
+        return parseSettlementPeriod(body);
+    }
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const iso = yesterday.toISOString().split('T')[0];
+    return parseSettlementPeriod({ date: iso });
+};
+
+const runCommissionEngineSettlement = async ({ rootOperatorId, body, actor }) => {
+    const period = resolveCommissionSettlementPeriod(body);
+    assertValidPeriod(period);
+    return executeCommissionEngineSettlement({
+        rootOperatorId,
+        period,
+        actor,
+    });
 };
 
 /**
@@ -78,11 +100,10 @@ export const calculateDailyCommission = async (req, res) => {
                 const totalBets = metrics.totalBets;
                 const totalPayouts = metrics.totalPayouts;
                 const commissionPercentage = bookie.commissionPercentage || 0;
-                
-                // Calculate commission on total daily revenue
-                const commissionAmount = commissionPercentage > 0
-                    ? Math.round((totalRevenue * commissionPercentage / 100) * 100) / 100
-                    : 0;
+
+                const period = { start: startOfDay, end: endOfDay };
+                const engineSnapshot = await getDailyCommissionEngineV2Snapshot(bookie._id, period);
+                const commissionAmount = engineSnapshot.commissionAmount;
                 
                 // Check if record already exists
                 const existing = await DailyCommission.findOne({
@@ -92,7 +113,11 @@ export const calculateDailyCommission = async (req, res) => {
                 
                 if (existing) {
                     // Update existing record
-                    const safePaidAmount = round2(Math.min(existing.paidAmount || 0, commissionAmount));
+                    const safePaidAmount = resolveDailyCommissionPaidAmount({
+                        engineSnapshot,
+                        existingPaid: existing.paidAmount,
+                        commissionAmount,
+                    });
                     const pendingAmount = round2(Math.max(0, commissionAmount - safePaidAmount));
                     existing.totalRevenue = totalRevenue;
                     existing.commissionPercentage = commissionPercentage;
@@ -104,6 +129,10 @@ export const calculateDailyCommission = async (req, res) => {
                     existing.totalPayouts = totalPayouts;
                     existing.status = 'processed';
                     existing.processedAt = new Date();
+                    existing.actualCommission = engineSnapshot.actualCommission;
+                    existing.calculatedCommission = engineSnapshot.calculatedCommission;
+                    existing.grossProfit = engineSnapshot.grossProfit;
+                    existing.engineV2 = true;
                     await existing.save();
                     
                     results.push({
@@ -113,6 +142,14 @@ export const calculateDailyCommission = async (req, res) => {
                         totalRevenue,
                         commissionPercentage,
                         commissionAmount,
+                        ...(engineSnapshot
+                            ? {
+                                  actualCommission: engineSnapshot.actualCommission,
+                                  calculatedCommission: engineSnapshot.calculatedCommission,
+                                  grossProfit: engineSnapshot.grossProfit,
+                                  engineV2: true,
+                              }
+                            : {}),
                         status: 'updated',
                     });
                 } else {
@@ -123,13 +160,22 @@ export const calculateDailyCommission = async (req, res) => {
                         totalRevenue,
                         commissionPercentage,
                         commissionAmount,
-                        paidAmount: 0,
-                        pendingAmount: commissionAmount,
-                        paymentStatus: commissionAmount > 0 ? 'pending' : 'paid',
+                        paidAmount: engineSnapshot?.paidAmount ?? 0,
+                        pendingAmount: engineSnapshot?.pendingAmount ?? commissionAmount,
+                        paymentStatus: engineSnapshot?.paymentStatus
+                            ?? (commissionAmount > 0 ? 'pending' : 'paid'),
                         totalBets,
                         totalPayouts,
                         status: 'processed',
                         processedAt: new Date(),
+                        ...(engineSnapshot
+                            ? {
+                                  actualCommission: engineSnapshot.actualCommission,
+                                  calculatedCommission: engineSnapshot.calculatedCommission,
+                                  grossProfit: engineSnapshot.grossProfit,
+                                  engineV2: true,
+                              }
+                            : {}),
                     });
                     
                     results.push({
@@ -139,6 +185,14 @@ export const calculateDailyCommission = async (req, res) => {
                         totalRevenue,
                         commissionPercentage,
                         commissionAmount,
+                        ...(engineSnapshot
+                            ? {
+                                  actualCommission: engineSnapshot.actualCommission,
+                                  calculatedCommission: engineSnapshot.calculatedCommission,
+                                  grossProfit: engineSnapshot.grossProfit,
+                                  engineV2: true,
+                              }
+                            : {}),
                         status: 'created',
                     });
                 }
@@ -312,7 +366,7 @@ export const getAllDailyCommissions = async (req, res) => {
             .lean();
         
         const normalizedCommissions = commissions.map((item) => {
-            const commissionAmount = round2(item.commissionAmount || 0);
+            const commissionAmount = resolveCommissionDisplayAmount(item);
             const paidAmount = round2(item.paidAmount || 0);
             const pendingAmount = round2(
                 item.pendingAmount === undefined || item.pendingAmount === null
@@ -324,6 +378,9 @@ export const getAllDailyCommissions = async (req, res) => {
             return {
                 ...item,
                 commissionAmount,
+                ...(item.engineV2 && item.calculatedCommission != null
+                    ? { calculatedCommission: round2(item.calculatedCommission) }
+                    : {}),
                 paidAmount,
                 pendingAmount,
                 paymentStatus: normalizedPaymentStatus,
@@ -388,9 +445,15 @@ export const getAllCommissionSummary = async (req, res) => {
         }
 
         const summary = filtered.reduce((acc, row) => {
-            acc.totalCommission += row.totalCommission;
-            acc.totalPaid += row.totalPaid;
-            acc.totalPending += row.totalPending;
+            if (row.accountLabel === 'parent') {
+                acc.totalCommission += Number(row.adminCommissionAmount || 0);
+                acc.totalPaid += Number(row.adminCommissionPaid ?? row.totalPaid ?? 0);
+                acc.totalPending += Number(row.adminCommissionPending ?? row.totalPending ?? 0);
+            } else {
+                acc.totalCommission += Number(row.totalCommission || 0);
+                acc.totalPaid += Number(row.totalPaid || 0);
+                acc.totalPending += Number(row.totalPending || 0);
+            }
             return acc;
         }, { totalCommission: 0, totalPaid: 0, totalPending: 0 });
 
@@ -528,49 +591,30 @@ export const recordBookieCommissionPayment = async (req, res) => {
             });
         }
 
-        const summary = await getCommissionSummaryForAccount(bookie);
-        let totalPending = summary.totalPending;
-        if (bookie.role === 'bookie') {
-            const adminCommissionAmount = Number(
-                summary.adminCommissionAmount
-                ?? calculateSuperBookieAdminCommissionTotal(
-                    summary.directCommission ?? 0,
-                    summary.subCommission ?? 0,
-                    summary.adminCommissionPercentage ?? summary.commissionPercentage ?? 10,
-                ),
-            );
-            const { adminPending } = await getAdminShareSettlementForBookie(
-                bookie._id,
-                adminCommissionAmount,
-            );
-            totalPending = adminPending;
-        }
-
-        if (totalPending <= 0) {
+        const settlement = await runCommissionEngineSettlement({
+            rootOperatorId: bookieId,
+            body: req.body,
+            actor: req.admin,
+        });
+        const targetEdge = settlement.edges?.find(
+            (e) => String(e.operatorId) === String(bookieId),
+        );
+        const appliedPayment = round2(targetEdge?.actualCommission ?? settlement.summary?.totalActualCommission ?? 0);
+        if (appliedPayment <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'No pending admin commission found for this account',
+                message: 'No commission to settle for this period',
+                data: { settlement },
             });
         }
-
-        const appliedPayment = round2(Math.min(paymentToApply, totalPending));
-        const remaining = round2(Math.max(0, totalPending - appliedPayment));
-
-        await CommissionPayment.create({
-            bookieId: bookie._id,
-            amount: appliedPayment,
-            notes: typeof notes === 'string' ? notes.trim() : '',
-            paymentType: 'settlement',
-            createdBy: req.admin._id,
-        });
-
         return res.status(200).json({
             success: true,
-            message: 'Commission payment recorded',
+            message: 'Commission settlement executed',
             data: {
                 bookieId,
                 appliedPayment,
-                leftoverAmount: remaining,
+                engineV2: true,
+                settlement,
             },
         });
     } catch (error) {
@@ -711,9 +755,9 @@ export const getSuperBookieCommissionSummary = async (req, res) => {
 
         const totals = commissions.reduce(
             (acc, row) => {
-                acc.totalCommission += row.totalCommission;
-                acc.totalPaid += row.displaySettled ?? round2((row.advanceRecovered ?? 0) + (row.totalPaid ?? 0));
-                acc.totalPending += row.displayPending ?? round2((row.recoveryPendingFromBets ?? 0) + (row.totalPending ?? 0));
+                acc.totalCommission += Number(row.parentRemainderAmount ?? row.totalCommission ?? 0);
+                acc.totalPaid += Number(row.parentRemainderPaid ?? row.displaySettled ?? row.totalPaid ?? 0);
+                acc.totalPending += Number(row.parentRemainderPending ?? row.displayPending ?? row.totalPending ?? 0);
                 acc.advanceCommissionPaid += row.advanceCommissionPaid;
                 acc.advanceOutstanding += row.advanceOutstanding;
                 return acc;
@@ -778,38 +822,31 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Super bookie not found' });
         }
 
-        const summary = await getParentReceivableCommissionFromSubBookie(superBookie);
-        if (Number(summary.recoveryPendingFromBets || 0) > 0) {
-            return res.status(400).json({
-                success: false,
-                message: `Settle bet commission first (₹${summary.recoveryPendingFromBets} from player bets can be applied to advance recovery).`,
-            });
-        }
-        if (summary.totalPending <= 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No pending commission for this super bookie',
-            });
-        }
-
-        const appliedPayment = round2(Math.min(paymentToApply, summary.totalPending));
-
-        let transferResult;
-        try {
-            if (payFromAdvance) {
-                const advanceAvailable = await getAdvanceAvailableForSettlement(superBookie);
-                if (advanceAvailable <= 0) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'No advance balance available to settle with "paid with advance"',
-                    });
-                }
-                if (appliedPayment > advanceAvailable) {
-                    return res.status(400).json({
-                        success: false,
-                        message: `Paid with advance cannot exceed available advance (₹${advanceAvailable})`,
-                    });
-                }
+        if (payFromAdvance) {
+            const summary = await getParentReceivableCommissionFromSubBookie(superBookie);
+            const childPending = Number(summary.bookieCommissionPending ?? summary.commissionPayable ?? 0);
+            if (childPending <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No pending commission for this super bookie',
+                });
+            }
+            const appliedPayment = round2(Math.min(paymentToApply, childPending));
+            const advanceAvailable = await getAdvanceAvailableForSettlement(superBookie);
+            if (advanceAvailable <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No advance balance available to settle with "paid with advance"',
+                });
+            }
+            if (appliedPayment > advanceAvailable) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Paid with advance cannot exceed available advance (₹${advanceAvailable})`,
+                });
+            }
+            let transferResult;
+            try {
                 transferResult = await recordCommissionSettlementPaidWithAdvance({
                     parentBookieId: req.admin._id,
                     superBookieId: superBookie._id,
@@ -817,44 +854,50 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
                     notes: typeof notes === 'string' ? notes.trim() : 'Commission settlement',
                     createdById: req.admin._id,
                 });
-            } else {
-                const cashNotes =
-                    typeof notes === 'string' && notes.trim()
-                        ? notes.trim()
-                        : 'Commission settlement';
-                transferResult = await recordCommissionSettlementPaidWithOther({
-                    parentBookieId: req.admin._id,
-                    parentUsername: req.admin.username,
-                    superBookieId: superBookie._id,
-                    superBookieUsername: superBookie.username,
-                    amount: appliedPayment,
-                    notes: cashNotes,
-                    createdById: req.admin._id,
-                });
+            } catch (error) {
+                if (error instanceof InsufficientBookieBalanceError || error?.code === 'INSUFFICIENT_BOOKIE_BALANCE') {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Insufficient advance paid balance to settle with advance',
+                    });
+                }
+                throw error;
             }
-        } catch (error) {
-            if (error instanceof InsufficientBookieBalanceError || error?.code === 'INSUFFICIENT_BOOKIE_BALANCE') {
-                return res.status(400).json({
-                    success: false,
-                    message: payFromAdvance
-                        ? 'Insufficient advance paid balance to settle with advance'
-                        : 'Insufficient child bookie wallet balance (paid with other)',
-                });
-            }
-            throw error;
+            return res.status(200).json({
+                success: true,
+                message: 'Commission settled from advance pool',
+                data: {
+                    superBookieId,
+                    appliedPayment,
+                    leftoverAmount: round2(Math.max(0, childPending - appliedPayment)),
+                    parentBalanceAfter: transferResult?.parentBalanceAfter ?? 0,
+                    newSuperBookieBalance: transferResult?.superBookieBalanceAfter ?? 0,
+                },
+            });
         }
 
+        const settlement = await runCommissionEngineSettlement({
+            rootOperatorId: superBookieId,
+            body: req.body,
+            actor: req.admin,
+        });
+        const targetEdge = settlement.edges?.find(
+            (e) => String(e.operatorId) === String(superBookieId),
+        );
+        const appliedPayment = round2(
+            Number.isFinite(paymentToApply) && paymentToApply > 0
+                ? Math.min(paymentToApply, targetEdge?.actualCommission ?? settlement.summary?.totalActualCommission ?? 0)
+                : (targetEdge?.actualCommission ?? settlement.summary?.totalActualCommission ?? 0),
+        );
         return res.status(200).json({
             success: true,
-                message: payFromAdvance
-                ? 'Commission settled from advance pool'
-                : 'Commission settlement recorded',
+            message: 'Commission settlement executed',
             data: {
                 superBookieId,
                 appliedPayment,
-                leftoverAmount: round2(Math.max(0, summary.totalPending - appliedPayment)),
-                parentBalanceAfter: transferResult?.parentBalanceAfter ?? 0,
-                newSuperBookieBalance: transferResult?.superBookieBalanceAfter ?? 0,
+                leftoverAmount: round2(Math.max(0, (targetEdge?.calculatedCommission ?? 0) - appliedPayment)),
+                engineV2: true,
+                settlement,
             },
         });
     } catch (error) {
@@ -885,59 +928,35 @@ export const settleSuperBookieCommissionFromBets = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Super bookie not found' });
         }
 
-        const summary = await getCommissionSummaryForAccount(superBookie);
-        const pending = round2(Number(summary.recoveryPendingFromBets || 0));
-        if (pending <= 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No bet commission available to settle toward advance recovery',
-            });
-        }
-
-        const requested = round2(Number(req.body?.paidAmount));
+        const settlement = await runCommissionEngineSettlement({
+            rootOperatorId: superBookieId,
+            body: req.body,
+            actor: req.admin,
+        });
+        const targetEdge = settlement.edges?.find(
+            (e) => String(e.operatorId) === String(superBookieId),
+        );
         const appliedPayment = round2(
-            Number.isFinite(requested) && requested > 0
-                ? Math.min(requested, pending)
-                : pending,
+            Number.isFinite(Number(req.body?.paidAmount)) && Number(req.body.paidAmount) > 0
+                ? Math.min(Number(req.body.paidAmount), targetEdge?.actualCommission ?? settlement.summary?.totalActualCommission ?? 0)
+                : (targetEdge?.actualCommission ?? settlement.summary?.totalActualCommission ?? 0),
         );
         if (appliedPayment <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'paidAmount must be a valid number greater than 0',
+                message: 'No bet commission available to settle for this period',
+                data: { settlement },
             });
         }
-
-        let transferResult;
-        try {
-            transferResult = await transferBetCommissionRecoveryToSuperBookie({
-                parentBookieId: req.admin._id,
-                parentUsername: req.admin.username,
-                superBookieId: superBookie._id,
-                superBookieUsername: superBookie.username,
-                amount: appliedPayment,
-                createdById: req.admin._id,
-            });
-        } catch (error) {
-            if (error instanceof InsufficientBookieBalanceError || error?.code === 'INSUFFICIENT_BOOKIE_BALANCE') {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Insufficient bookie balance to settle commission',
-                });
-            }
-            throw error;
-        }
-
-        const updated = await getCommissionSummaryForAccount(superBookie);
 
         return res.status(200).json({
             success: true,
-            message: `₹${appliedPayment} applied toward advance recovery for ${superBookie.username || 'super bookie'}`,
+            message: `₹${appliedPayment} commission settled for ${superBookie.username || 'super bookie'}`,
             data: {
                 superBookieId,
                 appliedRecovery: appliedPayment,
-                parentBalanceAfter: transferResult?.parentBalanceAfter ?? 0,
-                newSuperBookieBalance: transferResult?.superBookieBalanceAfter ?? 0,
-                summary: updated,
+                engineV2: true,
+                settlement,
             },
         });
     } catch (error) {

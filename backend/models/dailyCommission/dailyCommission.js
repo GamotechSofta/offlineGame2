@@ -29,6 +29,25 @@ const dailyCommissionSchema = new mongoose.Schema({
         default: 0,
         min: 0,
     },
+    /** Engine V2: cap-aware commission (actualCommission from bottom-up settlement). */
+    actualCommission: {
+        type: Number,
+        default: null,
+        min: 0,
+    },
+    calculatedCommission: {
+        type: Number,
+        default: null,
+        min: 0,
+    },
+    grossProfit: {
+        type: Number,
+        default: null,
+    },
+    engineV2: {
+        type: Boolean,
+        default: false,
+    },
     paidAmount: {
         type: Number,
         default: 0,

@@ -171,24 +171,53 @@ const Commission = () => {
     const advanceRemaining = Number(data?.advanceOutstanding ?? 0);
     const advanceRecovered = Number(data?.advanceRecovered ?? 0);
     const recoveryPendingFromBets = Number(data?.recoveryPendingFromBets ?? 0);
-    const cashSettled = Number(data?.allTimePaid ?? paymentTotals.settled ?? 0);
-    const parentCommissionEarned = Number(data?.allTimeParentCommission ?? data?.parentCommissionAmount ?? 0);
-    const parentCommissionRate = Number(data?.parentCommissionPercentage ?? 0);
-    const totalCommissionAllTime = parentCommissionEarned;
-    const settledCommissionAllTime = cashSettled;
-    const pendingCommissionAllTime = Math.max(0, totalCommissionAllTime - settledCommissionAllTime);
-    const displayPlayerSales = hasDateFilter
-        ? Number(data?.periodBetAmount ?? 0)
-        : Number(data?.allTimeBetAmount ?? 0);
-    const displayCommissionToSuperBookie = hasDateFilter
-        ? Number(data?.periodParentCommission ?? 0)
-        : parentCommissionEarned;
-    const displaySettled = settledCommissionAllTime;
-    const displayPending = hasDateFilter
-        ? Math.max(0, displayCommissionToSuperBookie - displaySettled)
-        : pendingCommissionAllTime;
+    const ownCommissionAllTime = Number(data?.allTimeCommission ?? data?.totalCommission ?? 0);
+    const ownCommissionSettled = Number(
+        data?.allTimePaid ?? data?.paidAmount ?? data?.totalPaid ?? paymentTotals.settled ?? 0,
+    );
+    const ownCommissionPending = Number(
+        data?.allTimePending
+        ?? data?.pendingAmount
+        ?? data?.totalPending
+        ?? Math.max(0, ownCommissionAllTime - ownCommissionSettled),
+    );
+    const commissionRate = Number(data?.commissionPercentage ?? data?.parentCommissionPercentage ?? 0);
     const hasAdvance = advanceGiven > 0;
     const isRecoveringAdvance = advanceRemaining > 0 || recoveryPendingFromBets > 0;
+
+    const displayPlayerBetAmount = hasDateFilter
+        ? Number(data?.periodBetAmount ?? data?.totalBetAmount ?? 0)
+        : Number(data?.allTimeBetAmount ?? 0);
+    const displayPlayerPayouts = hasDateFilter
+        ? Number(data?.periodPlayerWinning ?? data?.periodPayouts ?? 0)
+        : Number(data?.playerWinning ?? data?.totalPayouts ?? 0);
+    const displayGrossProfit = hasDateFilter
+        ? (Number(data?.periodGrossProfit) > 0
+            ? Number(data?.periodGrossProfit)
+            : Math.round((displayPlayerBetAmount - displayPlayerPayouts) * 100) / 100)
+        : Number(data?.grossProfit ?? 0);
+    const displayOwnCommission = hasDateFilter
+        ? Number(data?.periodSuperBookieCommission ?? data?.periodCommission ?? 0)
+        : ownCommissionAllTime;
+    const displaySettled = hasDateFilter
+        ? Number(data?.periodSettled ?? ownCommissionSettled)
+        : ownCommissionSettled;
+    const displayPending = hasDateFilter
+        ? Number(data?.periodPending ?? Math.max(0, displayOwnCommission - displaySettled))
+        : ownCommissionPending;
+    const parentSuperBookieName = data?.parentBookieUsername || 'SuperBookie';
+    const parentSuperBookieRate = Number(data?.parentSuperBookieRate ?? 0);
+    const allTimeSuperBookieShare = Number(data?.superBookieShare ?? 0);
+    const allTimeAdminShare = Number(data?.adminShare ?? 0);
+    const displaySuperBookieShare = hasDateFilter
+        ? Number(data?.periodSuperBookieShare ?? 0)
+        : allTimeSuperBookieShare;
+    const displayAdminShare = hasDateFilter
+        ? Number(data?.periodAdminShare ?? 0)
+        : allTimeAdminShare;
+    const displayCalculatedCommission = hasDateFilter
+        ? Number(data?.periodCalculatedCommission ?? data?.calculatedCommission ?? displayOwnCommission)
+        : Number(data?.calculatedCommission ?? displayOwnCommission);
     const settlementHistory = payments.filter((payment) => {
         if (payment.paymentType !== 'settlement') return false;
         if (!hasDateFilter) return true;
@@ -206,7 +235,9 @@ const Commission = () => {
                         <FaMoneyBillWave className="text-emerald-500" />
                         Commission
                     </h1>
-                    <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('commissionSubtitle')}</p>
+                    <p className="text-gray-400 text-xs sm:text-sm mt-1">
+                        Player bets × {commissionRate}% = your commission (profit-capped).
+                    </p>
                 </div>
 
                 <section className="bg-slate-800 rounded-xl p-4 sm:p-5 shadow-sm text-white space-y-4">
@@ -223,27 +254,51 @@ const Commission = () => {
                             </span>
                         )}
                     </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-blue-200 flex items-center gap-1.5">
                                 <FaMoneyBillWave className="text-blue-300" />
-                                {t('totalCommission')}
+                                Your commission
                             </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(totalCommissionAllTime)}</p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(ownCommissionAllTime)}</p>
+                            <p className="text-[11px] text-blue-200 mt-1">
+                                {commissionRate}% of player bets (all-time)
+                            </p>
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-green-200 flex items-center gap-1.5">
                                 <FaCheckCircle className="text-green-300" />
-                                {t('settledCommission')}
+                                Settled
                             </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(settledCommissionAllTime)}</p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(ownCommissionSettled)}</p>
+                            <p className="text-[11px] text-green-200 mt-1">Your commission paid</p>
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-orange-200 flex items-center gap-1.5">
                                 <FaClock className="text-orange-300" />
-                                {t('pendingCommission')}
+                                Pending
                             </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(pendingCommissionAllTime)}</p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(ownCommissionPending)}</p>
+                            <p className="text-[11px] text-orange-200 mt-1">Your commission due</p>
+                            {(allTimeSuperBookieShare > 0 || allTimeAdminShare > 0) && (
+                                <div className="mt-2.5 pt-2.5 border-t border-white/15 space-y-1">
+                                    <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                                        From your player sales
+                                    </p>
+                                    {allTimeSuperBookieShare > 0 && (
+                                        <p className="text-[11px] text-violet-200 tabular-nums">
+                                            {parentSuperBookieName}
+                                            {parentSuperBookieRate > 0 ? ` (${parentSuperBookieRate}%)` : ''}
+                                            : {formatCurrency(allTimeSuperBookieShare)}
+                                        </p>
+                                    )}
+                                    {allTimeAdminShare > 0 && (
+                                        <p className="text-[11px] text-slate-300 tabular-nums">
+                                            Admin: {formatCurrency(allTimeAdminShare)}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </section>
@@ -321,26 +376,50 @@ const Commission = () => {
                                     <span className="text-slate-300 hidden sm:inline">·</span>
                                     <p className="text-xs text-slate-500">{hasDateFilter ? t('selectedPeriod') : t('all')}</p>
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
                                     <div className="text-right sm:text-left">
-                                        <p className="text-[11px] uppercase text-slate-500">SuperBookie rate</p>
-                                        <p className="font-semibold text-orange-600">{parentCommissionRate}%</p>
-                                    </div>
-                                    <div className="text-right">
                                         <p className="text-[11px] uppercase text-slate-500">Player sales</p>
-                                        <p className="font-semibold text-slate-800">{formatCurrency(displayPlayerSales)}</p>
+                                        <p className="font-semibold text-slate-800 tabular-nums mt-0.5">{formatCurrency(displayPlayerBetAmount)}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[11px] uppercase text-slate-500">To SuperBookie</p>
-                                        <p className="font-semibold text-slate-800">{formatCurrency(displayCommissionToSuperBookie)}</p>
+                                    <div className="text-right sm:text-left">
+                                        <p className="text-[11px] uppercase text-slate-500">Player payouts</p>
+                                        <p className="font-semibold text-red-600 tabular-nums mt-0.5">{formatCurrency(displayPlayerPayouts)}</p>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="text-right sm:text-left">
+                                        <p className="text-[11px] uppercase text-slate-500">Gross profit</p>
+                                        <p className="font-semibold text-emerald-600 tabular-nums mt-0.5">{formatCurrency(displayGrossProfit)}</p>
+                                        <p className="text-[10px] text-slate-500 mt-0.5">Bets − payouts</p>
+                                    </div>
+                                    <div className="text-right sm:text-left">
+                                        <p className="text-[11px] uppercase text-slate-500">Your commission ({commissionRate}%)</p>
+                                        <p className="font-semibold text-orange-600 tabular-nums mt-0.5">{formatCurrency(displayOwnCommission)}</p>
+                                        {displayCalculatedCommission !== displayOwnCommission && (
+                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                                Capped from {formatCurrency(displayCalculatedCommission)}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="text-right sm:text-left">
                                         <p className="text-[11px] uppercase text-slate-500">Settled</p>
-                                        <p className="font-semibold text-green-700">{formatCurrency(displaySettled)}</p>
+                                        <p className="font-semibold text-green-700 tabular-nums mt-0.5">{formatCurrency(displaySettled)}</p>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="text-right sm:text-left">
                                         <p className="text-[11px] uppercase text-slate-500">Pending</p>
-                                        <p className="font-semibold text-orange-700">{formatCurrency(displayPending)}</p>
+                                        <p className="font-semibold text-orange-700 tabular-nums mt-0.5">{formatCurrency(displayPending)}</p>
+                                        {(displaySuperBookieShare > 0 || displayAdminShare > 0) && (
+                                            <div className="mt-1 space-y-0.5">
+                                                {displaySuperBookieShare > 0 && (
+                                                    <p className="text-[10px] text-violet-600 tabular-nums">
+                                                        {parentSuperBookieName}: {formatCurrency(displaySuperBookieShare)}
+                                                    </p>
+                                                )}
+                                                {displayAdminShare > 0 && (
+                                                    <p className="text-[10px] text-slate-500 tabular-nums">
+                                                        Admin: {formatCurrency(displayAdminShare)}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

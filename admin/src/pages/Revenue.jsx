@@ -248,7 +248,7 @@ const Revenue = () => {
                                 <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${summary.totalAdminProfit >= 0 ? 'from-emerald-500 to-emerald-400' : 'from-red-500 to-red-400'}`} />
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="min-w-0">
-                                        <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Admin Profit</p>
+                                        <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Admin Remainder</p>
                                         <p className={`text-base sm:text-xl lg:text-2xl font-bold mt-1 truncate ${summary.totalAdminProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                             {formatCurrency(summary.totalAdminProfit)}
                                         </p>
@@ -282,9 +282,8 @@ const Revenue = () => {
                                             <th className="text-right px-3 py-3 font-medium">Total Bets</th>
                                             <th className="text-right px-3 py-3 font-medium">Payouts</th>
                                             <th className="text-center px-3 py-3 font-medium">Comm %</th>
-                                            <th className="text-right px-3 py-3 font-medium">{TOP_LEVEL_LABEL} Share</th>
-                                            <th className="text-right px-3 py-3 font-medium">Admin Pool</th>
-                                            <th className="text-right px-4 py-3 font-medium">Admin Profit</th>
+                                            <th className="text-right px-3 py-3 font-medium">{TOP_LEVEL_LABEL} Commission</th>
+                                            <th className="text-right px-4 py-3 font-medium">Admin Remainder</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-700/40">
@@ -308,7 +307,6 @@ const Revenue = () => {
                                                     </span>
                                                 </td>
                                                 <td className="text-right px-3 py-3 text-orange-400 font-medium">{formatCurrency(b.bookieShare)}</td>
-                                                <td className="text-right px-3 py-3 text-gray-400">{formatCurrency(b.adminPool)}</td>
                                                 <td className={`text-right px-4 py-3 font-semibold ${b.adminProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                                     {formatCurrency(b.adminProfit)}
                                                 </td>
@@ -333,7 +331,6 @@ const Revenue = () => {
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/15 text-blue-600">0%</span>
                                                 </td>
                                                 <td className="text-right px-3 py-3 text-gray-600">-</td>
-                                                <td className="text-right px-3 py-3 text-gray-400">{formatCurrency(direct.totalBetAmount)}</td>
                                                 <td className={`text-right px-4 py-3 font-semibold ${direct.adminProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                                     {formatCurrency(direct.adminProfit)}
                                                 </td>
@@ -348,7 +345,6 @@ const Revenue = () => {
                                             <td className="text-right px-3 py-3.5 text-red-500 font-bold">{formatCurrency(summary.grandTotalPayouts)}</td>
                                             <td className="text-center px-3 py-3.5 text-gray-500">-</td>
                                             <td className="text-right px-3 py-3.5 text-orange-400 font-bold">{formatCurrency(summary.totalBookieCommission)}</td>
-                                            <td className="text-right px-3 py-3.5 text-gray-500">-</td>
                                             <td className={`text-right px-4 py-3.5 font-bold ${summary.totalAdminProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                                 {formatCurrency(summary.totalAdminProfit)}
                                             </td>
@@ -385,11 +381,11 @@ const Revenue = () => {
                                                 <p className="text-xs font-semibold text-red-500 truncate">{formatCurrency(b.totalPayouts)}</p>
                                             </div>
                                             <div className="bg-gray-100/40 rounded-lg px-2.5 py-2">
-                                                <p className="text-[10px] text-gray-500 uppercase">{TOP_LEVEL_LABEL} Share</p>
+                                                <p className="text-[10px] text-gray-500 uppercase">{TOP_LEVEL_LABEL} Commission</p>
                                                 <p className="text-xs font-semibold text-orange-400 truncate">{formatCurrency(b.bookieShare)}</p>
                                             </div>
                                             <div className="bg-gray-100/40 rounded-lg px-2.5 py-2">
-                                                <p className="text-[10px] text-gray-500 uppercase">Admin Profit</p>
+                                                <p className="text-[10px] text-gray-500 uppercase">Admin Remainder</p>
                                                 <p className={`text-xs font-semibold truncate ${b.adminProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                                     {formatCurrency(b.adminProfit)}
                                                 </p>
@@ -397,7 +393,6 @@ const Revenue = () => {
                                         </div>
                                         <div className="flex items-center justify-between mt-2 text-[11px] text-gray-500">
                                             <span>{formatNumber(b.totalUsers)} users</span>
-                                            <span>Pool: {formatCurrency(b.adminPool)}</span>
                                         </div>
                                     </div>
                                 ))}

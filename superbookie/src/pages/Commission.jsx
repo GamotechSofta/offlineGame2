@@ -89,9 +89,17 @@ const renderPaymentHistoryTable = (items, t, { loading = false, loadingText = 'L
 
 const sumMoney = (a, b) => Math.round((Number(a || 0) + Number(b || 0)) * 100) / 100;
 
-const getRowDisplaySettled = (row) => Number(row.displaySettled ?? sumMoney(row.advanceRecovered, row.totalPaid));
+const getRowDisplaySettled = (row) => Number(
+    row.parentRemainderPaid ?? row.displaySettled ?? sumMoney(row.advanceRecovered, row.totalPaid),
+);
 
-const getRowDisplayPending = (row) => Number(row.displayPending ?? sumMoney(row.recoveryPendingFromBets, row.totalPending));
+const getRowDisplayPending = (row) => Number(
+    row.parentRemainderPending ?? row.displayPending ?? sumMoney(row.recoveryPendingFromBets, row.totalPending),
+);
+
+const getRowPayablePending = (row) => Number(
+    row.bookieCommissionPending ?? row.commissionPayable ?? 0,
+);
 
 const hasAdvanceRecovery = (row) =>
     Number(row.advanceOutstanding || 0) > 0 || Number(row.recoveryPendingFromBets || 0) > 0;
@@ -144,9 +152,9 @@ const Commission = () => {
                     advanceOutstanding: row.advanceOutstanding ?? 0,
                     advanceRecovered: row.advanceRecovered ?? 0,
                     recoveryPendingFromBets: row.recoveryPendingFromBets ?? 0,
-                    commissionPayable: row.commissionPayable ?? row.totalPending ?? 0,
-                    displaySettled: row.displaySettled ?? sumMoney(row.advanceRecovered, row.totalPaid),
-                    displayPending: row.displayPending ?? sumMoney(row.recoveryPendingFromBets, row.totalPending),
+                    commissionPayable: row.bookieCommissionPending ?? row.commissionPayable ?? 0,
+                    displaySettled: row.parentRemainderPaid ?? row.displaySettled ?? row.totalPaid ?? 0,
+                    displayPending: row.parentRemainderPending ?? row.displayPending ?? row.totalPending ?? 0,
                 }));
                 setAllRows(rows);
                 const apiSummary = result.data?.summary || {};
@@ -224,7 +232,7 @@ const Commission = () => {
     const reduceCommissionRows = (rows) =>
         rows.reduce(
             (acc, row) => {
-                acc.totalCommission += Number(row.totalCommission || 0);
+                acc.totalCommission += Number(row.parentRemainderAmount ?? row.totalCommission ?? 0);
                 acc.totalPaid += getRowDisplaySettled(row);
                 acc.totalPending += getRowDisplayPending(row);
                 acc.advanceCommissionPaid += Number(row.advanceCommissionPaid || 0);
@@ -291,7 +299,7 @@ const Commission = () => {
         if (Number(row.recoveryPendingFromBets || 0) > 0) {
             return Number(row.recoveryPendingFromBets);
         }
-        return Number(row.totalPending || 0);
+        return getRowPayablePending(row);
     };
 
     const isRecoveryPayment = (row) => Number(row.recoveryPendingFromBets || 0) > 0;
@@ -578,7 +586,7 @@ const Commission = () => {
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-blue-200 flex items-center gap-1.5">
                                 <FaMoneyBillWave className="text-blue-300" />
-                                Total commission
+                                Your remainder
                             </p>
                             <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(allSummary.totalCommission)}</p>
                         </div>
@@ -662,7 +670,7 @@ const Commission = () => {
                                     <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500">{PANEL_LABEL}</th>
                                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Player sales</th>
                                     <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Commission %</th>
-                                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Commission</th>
+                                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Your remainder</th>
                                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Settled</th>
                                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Pending</th>
                                     <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wide text-slate-500 whitespace-nowrap">Last Payment</th>
@@ -776,7 +784,7 @@ const Commission = () => {
 
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 text-right">
                                     <div>
-                                        <p className="text-[11px] text-slate-500">Commission</p>
+                                        <p className="text-[11px] text-slate-500">Your remainder</p>
                                         <p className="text-sm font-semibold text-slate-800">{formatCurrency(row.totalCommission)}</p>
                                 </div>
                                     <div>

@@ -93,11 +93,8 @@ const BookieManagementDetailPanel = ({
                     <p className="font-bold text-slate-800 mt-1 tabular-nums">{formatCurrency(commission?.directBetAmount ?? 0)}</p>
                 </div>
                 <div className="rounded-lg bg-blue-50 border border-blue-100 p-3">
-                    <p className="text-[10px] uppercase text-slate-500">Admin profit</p>
+                    <p className="text-[10px] uppercase text-slate-500">Admin remainder</p>
                     <p className="font-bold text-slate-800 mt-1 tabular-nums">{formatCurrency(adminShare)}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                        Direct {formatCurrency(adminFromDirect)} + {SUB_LEVEL_LABEL} {formatCurrency(adminFromBookie)}
-                    </p>
                 </div>
                 <div className="rounded-lg bg-green-50 border border-green-100 p-3">
                     <p className="text-[10px] uppercase text-slate-500">Settled</p>
@@ -135,7 +132,7 @@ const BookieManagementDetailPanel = ({
                         <FaChartLine className="text-orange-500 w-4 h-4" />
                         <p className="text-sm font-semibold text-gray-800">Revenue (selected period)</p>
                     </div>
-                    <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                    <div className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-sm">
                         <div>
                             <p className="text-[10px] text-gray-500 uppercase">Direct player bets</p>
                             <p className="font-semibold tabular-nums">{formatCurrency(revenue.totalBetAmount)}</p>
@@ -150,11 +147,21 @@ const BookieManagementDetailPanel = ({
                             <p className="font-semibold text-red-600 tabular-nums">{formatCurrency(revenue.totalPayouts)}</p>
                         </div>
                         <div>
-                            <p className="text-[10px] text-gray-500 uppercase">Admin profit</p>
-                            <p className="font-semibold text-slate-800 tabular-nums">{formatCurrency(periodAdminProfit)}</p>
-                            <p className="text-[10px] text-gray-400">
-                                Direct {formatCurrency(periodAdminFromDirect)} + {SUB_LEVEL_LABEL} {formatCurrency(periodAdminFromBookie)}
+                            <p className="text-[10px] text-gray-500 uppercase">Gross profit</p>
+                            <p className="font-semibold text-emerald-600 tabular-nums">
+                                {formatCurrency(revenue.grossProfit ?? (revenue.totalBetAmount - revenue.totalPayouts))}
                             </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-500 uppercase">{TOP_LEVEL_LABEL} commission</p>
+                            <p className="font-semibold text-orange-600 tabular-nums">{formatCurrency(revenue.bookieShare ?? 0)}</p>
+                            {revenue.calculatedCommission != null && revenue.calculatedCommission !== revenue.bookieShare && (
+                                <p className="text-[10px] text-gray-400">Capped from {formatCurrency(revenue.calculatedCommission)}</p>
+                            )}
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-500 uppercase">Admin remainder</p>
+                            <p className="font-semibold text-slate-800 tabular-nums">{formatCurrency(periodAdminProfit)}</p>
                         </div>
                         <div>
                             <p className="text-[10px] text-gray-500 uppercase">Win rate</p>

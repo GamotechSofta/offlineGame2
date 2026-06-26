@@ -12,7 +12,10 @@
     "create-admin": "node scripts/createAdmin.js",
     "create-bookie": "node scripts/createBookie.js",
     "check-env": "node scripts/checkEnv.js",
-    "seed-3d-quiz-questions": "node scripts/seed3DQuizQuestions.js"
+    "seed-3d-quiz-questions": "node scripts/seed3DQuizQuestions.js",
+    "test:commission": "node --test services/commissionEngine/commissionEngine.test.js services/commissionEngine/commissionEngine.validation.test.js",
+    "test:commission:integration": "node --test services/commissionEngine/commissionEngine.integration.test.js",
+    "benchmark:commission": "node scripts/benchmarkCommissionEngine.js"
   },
   "dependencies": {
     "axios": "^1.15.0",
@@ -36,6 +39,7 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
+    "mongodb-memory-server": "^10.4.3",
     "nodemon": "^3.1.14"
   }
 }

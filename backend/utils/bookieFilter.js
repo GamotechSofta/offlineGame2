@@ -68,13 +68,11 @@ export const getAdminDirectUserIds = async () => {
     return users.map((u) => u._id);
 };
 
-/** All player IDs under a bookie (direct + via super bookies). */
+/** All player IDs under a bookie (direct + all descendant operators). */
 export const getBookieHierarchyUserIds = async (bookieId) => {
-    const bookieOid = toObjectId(bookieId);
-    const superBookies = await Admin.find({ parentBookieId: bookieOid, role: 'super_bookie' })
-        .select('_id')
-        .lean();
-    const ownerIds = [bookieOid, ...superBookies.map((sb) => sb._id)];
+    const { getOperatorDescendantIds } = await import('../services/commissionEngine/hierarchyService.js');
+    const descendantIds = await getOperatorDescendantIds(bookieId);
+    const ownerIds = [toObjectId(bookieId), ...descendantIds.map((id) => toObjectId(id))];
     const users = await User.find({ referredBy: { $in: ownerIds } }).select('_id').lean();
     return users.map((u) => u._id);
 };
@@ -87,13 +85,9 @@ export const getCommissionOperatorIds = async (admin, options = {}) => {
         if (options.directOnly) {
             return [toObjectId(admin._id)];
         }
-        const superBookies = await Admin.find({
-            parentBookieId: toObjectId(admin._id),
-            role: 'super_bookie',
-        })
-            .select('_id')
-            .lean();
-        return [toObjectId(admin._id), ...superBookies.map((sb) => sb._id)];
+        const { getOperatorDescendantIds } = await import('../services/commissionEngine/hierarchyService.js');
+        const descendantIds = await getOperatorDescendantIds(admin._id);
+        return [toObjectId(admin._id), ...descendantIds.map((id) => toObjectId(id))];
     }
     if (role === 'super_bookie') {
         return [toObjectId(admin._id)];

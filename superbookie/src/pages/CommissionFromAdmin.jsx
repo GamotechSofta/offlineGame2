@@ -171,32 +171,29 @@ const CommissionFromAdmin = () => {
     const advanceRemaining = Number(data?.advanceOutstanding ?? 0);
     const advanceRecovered = Number(data?.advanceRecovered ?? 0);
     const recoveryPendingFromBets = Number(data?.recoveryPendingFromBets ?? 0);
-    const cashSettled = Number(data?.adminCommissionPaid ?? data?.allTimePaid ?? paymentTotals.settled ?? 0);
-    const cashPending = Number(data?.adminCommissionPending ?? data?.allTimePending ?? 0);
-    const commissionSettled = Number(data?.displaySettled ?? cashSettled);
-    const commissionPending = Number(data?.displayPending ?? cashPending);
+    const superBookieCommissionAllTime = Number(data?.allTimeCommission ?? data?.totalCommission ?? 0);
+    const superBookieSettled = Number(data?.displaySettled ?? data?.totalPaid ?? 0);
+    const superBookiePending = Number(data?.displayPending ?? data?.totalPending ?? recoveryPendingFromBets);
     const adminRateOnDirect = Number(data?.commissionPercentage ?? 0);
-    const directCommissionAllTime = Number(data?.directCommission ?? 0);
-    const adminCommissionRate = Number(data?.adminCommissionPercentage ?? 10);
-    const adminCommissionAllTime = Number(data?.adminCommissionAmount ?? 0);
-    const adminCommissionFromDirect = Number(data?.adminCommissionFromDirect ?? directCommissionAllTime);
-    const adminCommissionFromSub = Number(data?.adminCommissionFromSub ?? 0);
     const hasAdvance = advanceGiven > 0;
     const isRecoveringAdvance = advanceRemaining > 0 || recoveryPendingFromBets > 0;
 
     const hasDateFilter = Boolean(dateRange.startDate && dateRange.endDate);
-    const displayDirectPlayerCommission = hasDateFilter
-        ? Number(data?.periodDirectCommission ?? 0)
-        : Number(directCommissionAllTime);
     const displayDirectPlayerBetAmount = hasDateFilter
-        ? Number(data?.periodDirectBetAmount ?? 0)
-        : Number(data?.directBetAmount ?? 0);
-    const displayCommissionOnBookie = hasDateFilter
-        ? Number(data?.periodAdminCommissionFromSub ?? 0)
-        : Number(data?.adminCommissionFromSub ?? 0);
-    const displayTotalCommission = hasDateFilter
-        ? Number(data?.periodAdminCommission ?? 0)
-        : Number(adminCommissionAllTime);
+        ? Number(data?.periodDirectBetAmount ?? data?.periodBetAmount ?? data?.totalBetAmount ?? 0)
+        : Number(data?.directBetAmount ?? data?.allTimeBetAmount ?? 0);
+    const displayPlayerPayouts = hasDateFilter
+        ? Number(data?.periodPayouts ?? 0)
+        : 0;
+    const displayGrossProfit = hasDateFilter
+        ? Number(data?.periodGrossProfit ?? (displayDirectPlayerBetAmount - displayPlayerPayouts))
+        : Number(data?.grossProfit ?? 0);
+    const displaySuperBookieCommission = hasDateFilter
+        ? Number(data?.periodSuperBookieCommission ?? data?.periodCommission ?? 0)
+        : superBookieCommissionAllTime;
+    const displayCalculatedCommission = hasDateFilter
+        ? Number(data?.periodCalculatedCommission ?? data?.calculatedCommission ?? displaySuperBookieCommission)
+        : Number(data?.calculatedCommission ?? displaySuperBookieCommission);
     const settlementHistory = payments.filter((payment) => {
         if (payment.paymentType !== 'settlement') return false;
         if (!hasDateFilter) return true;
@@ -215,7 +212,7 @@ const CommissionFromAdmin = () => {
                         {t('commissionFromAdmin')}
                     </h1>
                     <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                        Total rate {adminRateOnDirect}%: direct bets × rate → full amount to admin; Bookie commission × rate → admin share (e.g. ₹100 + ₹10 = ₹110 admin).
+                        Player bets × {adminRateOnDirect}% = your commission (profit-capped).
                     </p>
                 </div>
 
@@ -232,25 +229,15 @@ const CommissionFromAdmin = () => {
                             </span>
                         )}
                     </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-blue-200 flex items-center gap-1.5">
                                 <FaMoneyBillWave className="text-blue-300" />
-                                {t('totalCommission')}
+                                Your commission
                             </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(adminCommissionAllTime)}</p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(superBookieCommissionAllTime)}</p>
                             <p className="text-[11px] text-blue-200 mt-1">
-                                Direct {formatCurrency(adminCommissionFromDirect)} + Bookie {formatCurrency(adminCommissionFromSub)}
-                            </p>
-                        </div>
-                        <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
-                            <p className="text-[11px] uppercase tracking-wide text-rose-200 flex items-center gap-1.5">
-                                <FaMoneyBillWave className="text-rose-300" />
-                                Admin share
-                            </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(adminCommissionAllTime)}</p>
-                            <p className="text-[11px] text-rose-200 mt-1">
-                                Direct {formatCurrency(adminCommissionFromDirect)} + Bookie {formatCurrency(adminCommissionFromSub)}
+                                {adminRateOnDirect}% of player bets (all-time)
                             </p>
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
@@ -258,14 +245,16 @@ const CommissionFromAdmin = () => {
                                 <FaCheckCircle className="text-green-300" />
                                 Settled
                             </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionSettled)}</p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(superBookieSettled)}</p>
+                            <p className="text-[11px] text-green-200 mt-1">Your commission paid</p>
                         </div>
                         <div className="rounded-lg bg-white/10 border border-white/15 p-3 sm:p-4">
                             <p className="text-[11px] uppercase tracking-wide text-orange-200 flex items-center gap-1.5">
                                 <FaClock className="text-orange-300" />
                                 Pending
                             </p>
-                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(commissionPending)}</p>
+                            <p className="text-xl sm:text-2xl font-bold mt-1">{formatCurrency(superBookiePending)}</p>
+                            <p className="text-[11px] text-orange-200 mt-1">Your commission due</p>
                         </div>
                     </div>
                 </section>
@@ -346,37 +335,36 @@ const CommissionFromAdmin = () => {
                                     <p className="text-xs text-slate-500">{hasDateFilter ? t('selectedPeriod') : t('all')}</p>
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 text-sm">
-                                    <div className="text-right sm:text-left">
-                                        <p className="text-[11px] uppercase text-slate-500">{t('adminRate')}</p>
-                                        <p className="font-semibold text-orange-600 mt-0.5">{adminRateOnDirect}%</p>
-                                        <p className="text-[10px] text-slate-500 mt-0.5">
-                                            {t('commissionOnBookie')} {adminCommissionRate}%
-                                        </p>
-                                    </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
                                     <div className="text-right sm:text-left">
                                         <p className="text-[11px] uppercase text-slate-500">{t('directPlayerBetAmount')}</p>
                                         <p className="font-semibold text-slate-800 tabular-nums mt-0.5">{formatCurrency(displayDirectPlayerBetAmount)}</p>
                                     </div>
                                     <div className="text-right sm:text-left">
-                                        <p className="text-[11px] uppercase text-slate-500">{t('directPlayerCommission')}</p>
-                                        <p className="font-semibold text-slate-800 tabular-nums mt-0.5">{formatCurrency(displayDirectPlayerCommission)}</p>
+                                        <p className="text-[11px] uppercase text-slate-500">Player payouts</p>
+                                        <p className="font-semibold text-red-600 tabular-nums mt-0.5">{formatCurrency(displayPlayerPayouts)}</p>
                                     </div>
                                     <div className="text-right sm:text-left">
-                                        <p className="text-[11px] uppercase text-slate-500">{t('commissionOnBookie')}</p>
-                                        <p className="font-semibold text-rose-700 tabular-nums mt-0.5">{formatCurrency(displayCommissionOnBookie)}</p>
+                                        <p className="text-[11px] uppercase text-slate-500">Gross profit</p>
+                                        <p className="font-semibold text-emerald-600 tabular-nums mt-0.5">{formatCurrency(displayGrossProfit)}</p>
+                                        <p className="text-[10px] text-slate-500 mt-0.5">Bets − payouts</p>
                                     </div>
                                     <div className="text-right sm:text-left">
-                                        <p className="text-[11px] uppercase text-slate-500">{t('totalCommission')}</p>
-                                        <p className="font-semibold text-slate-800 tabular-nums mt-0.5">{formatCurrency(displayTotalCommission)}</p>
+                                        <p className="text-[11px] uppercase text-slate-500">Your commission ({adminRateOnDirect}%)</p>
+                                        <p className="font-semibold text-orange-600 tabular-nums mt-0.5">{formatCurrency(displaySuperBookieCommission)}</p>
+                                        {displayCalculatedCommission !== displaySuperBookieCommission && (
+                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                                Capped from {formatCurrency(displayCalculatedCommission)}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="text-right sm:text-left">
                                         <p className="text-[11px] uppercase text-slate-500">Settled</p>
-                                        <p className="font-semibold text-green-700 tabular-nums mt-0.5">{formatCurrency(commissionSettled)}</p>
+                                        <p className="font-semibold text-green-700 tabular-nums mt-0.5">{formatCurrency(superBookieSettled)}</p>
                                     </div>
                                     <div className="text-right sm:text-left">
                                         <p className="text-[11px] uppercase text-slate-500">Pending</p>
-                                        <p className="font-semibold text-orange-700 tabular-nums mt-0.5">{formatCurrency(commissionPending)}</p>
+                                        <p className="font-semibold text-orange-700 tabular-nums mt-0.5">{formatCurrency(superBookiePending)}</p>
                                     </div>
                                 </div>
                             </div>

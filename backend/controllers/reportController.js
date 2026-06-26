@@ -12,6 +12,10 @@ import {
     getCommissionDashboardForAccount,
     round2,
 } from '../utils/commissionMetrics.js';
+import {
+    getOperatorCommissionReport,
+    getPlatformRemainderReport,
+} from '../services/commissionEngine/index.js';
 
 export const getReport = async (req, res) => {
     try {
@@ -124,7 +128,11 @@ export const getRevenueReport = async (req, res) => {
             const commissionPct = Number(dashboard.commissionPercentage || 0);
             const bookieRevenue = admin.role === 'super_bookie'
                 ? Number(dashboard.bookieRevenue ?? dashboard.periodParentCommission ?? 0)
-                : round2((metrics.totalBetAmount * commissionPct) / 100);
+                : Number(dashboard.periodCommission ?? dashboard.actualCommission ?? 0);
+            const periodReport = dashboard.engineV2Period?.report;
+            const grossProfit = periodReport?.grossProfit
+                ?? round2(metrics.totalBetAmount - metrics.totalPayouts);
+            const calculatedCommission = periodReport?.calculatedCommission ?? 0;
 
             return res.status(200).json({
                 success: true,
@@ -133,10 +141,14 @@ export const getRevenueReport = async (req, res) => {
                     matkaBetAmount: metrics.matkaBetAmount,
                     lotteryBetAmount: metrics.lotteryBetAmount,
                     totalPayouts: metrics.totalPayouts,
+                    grossProfit,
+                    calculatedCommission,
+                    actualCommission: bookieRevenue,
                     commissionPercentage: commissionPct,
                     parentCommissionPercentage: dashboard.parentCommissionPercentage ?? commissionPct,
                     bookieRevenue,
                     periodCommission: dashboard.periodCommission,
+                    platformRemainder: dashboard.engineV2Period?.platform?.platformRemainder ?? 0,
                     allTimeCommission: dashboard.allTimeCommission,
                     allTimeBetAmount: dashboard.allTimeBetAmount,
                     totalUsers: userIds.length,
@@ -145,6 +157,7 @@ export const getRevenueReport = async (req, res) => {
                     losingBets: metrics.losingBets,
                     paidAmount: dashboard.allTimePaid,
                     pendingAmount: dashboard.allTimePending,
+                    engineV2: true,
                 },
             });
         }
@@ -220,9 +233,12 @@ export const getRevenueReport = async (req, res) => {
             const totalBets = metrics.totalBets;
             const commPct = bookie.commissionPercentage || 0;
 
-            const bookieShare = round2((totalBetAmount * commPct) / 100);
-            const adminPool = Math.round((totalBetAmount * (100 - commPct) / 100) * 100) / 100;
-            const adminProfit = Math.round((adminPool - totalPayouts) * 100) / 100;
+            const [report, platform] = await Promise.all([
+                getOperatorCommissionReport(bookie._id, { startDate, endDate }),
+                getPlatformRemainderReport({ startDate, endDate, rootOperatorId: bookie._id }),
+            ]);
+            const bookieShare = report.totalEarned;
+            const adminProfit = platform.platformRemainder;
 
             totalBookieCommission += bookieShare;
             totalAdminProfit += adminProfit;
@@ -238,7 +254,7 @@ export const getRevenueReport = async (req, res) => {
                 totalBetAmount,
                 totalPayouts,
                 bookieShare,
-                adminPool,
+                adminPool: adminProfit,
                 adminProfit,
                 totalUsers: userIds.length,
                 totalBets,
@@ -303,41 +319,34 @@ export const getBookieRevenueDetail = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Bookie not found' });
         }
 
-        // Date filter
-        const dateFilter = {};
-        if (startDate || endDate) {
-            dateFilter.createdAt = {};
-            if (startDate) dateFilter.createdAt.$gte = new Date(startDate + 'T00:00:00.000Z');
-            if (endDate) dateFilter.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
-        }
+        const dateFilter = buildCommissionDateFilter(startDate, endDate);
 
-        // Get bookie's users
-        const users = await User.find({ referredBy: bookieId })
-            .select('_id username email phone isActive createdAt')
-            .sort({ createdAt: -1 })
-            .lean();
-        const userIds = users.map((u) => u._id);
+        const userIds = (await getBookieUserIds(bookie)) || [];
+        const users = userIds.length > 0
+            ? await User.find({ _id: { $in: userIds } })
+                .select('_id username email phone isActive createdAt')
+                .sort({ createdAt: -1 })
+                .lean()
+            : [];
 
-        // Revenue stats
-        let totalBetAmount = 0;
-        let totalPayouts = 0;
-        let totalBetCount = 0;
-        let winningBets = 0;
-        let losingBets = 0;
-
-        if (userIds.length > 0) {
-            const metrics = await aggregatePlayerBetMetrics({ userIds, dateFilter });
-            totalBetAmount = metrics.totalBetAmount;
-            totalPayouts = metrics.totalPayouts;
-            totalBetCount = metrics.totalBets;
-            winningBets = metrics.winningBets;
-            losingBets = metrics.losingBets;
-        }
+        const metrics = await aggregatePlayerBetMetrics({ admin: bookie, dateFilter });
+        const totalBetAmount = metrics.totalBetAmount;
+        const totalPayouts = metrics.totalPayouts;
+        const totalBetCount = metrics.totalBets;
+        const winningBets = metrics.winningBets;
+        const losingBets = metrics.losingBets;
 
         const commPct = bookie.commissionPercentage || 0;
-        const bookieShare = Math.round((totalBetAmount * commPct / 100) * 100) / 100;
-        const adminPool = Math.round((totalBetAmount * (100 - commPct) / 100) * 100) / 100;
-        const adminProfit = Math.round((adminPool - totalPayouts) * 100) / 100;
+        const periodOpts = { startDate, endDate };
+        const [report, platform] = await Promise.all([
+            getOperatorCommissionReport(bookie._id, periodOpts),
+            getPlatformRemainderReport({ ...periodOpts, rootOperatorId: bookie._id }),
+        ]);
+        const bookieShare = report.totalEarned;
+        const adminProfit = platform.platformRemainder;
+        const adminPool = adminProfit;
+        const grossProfit = report.grossProfit ?? round2(totalBetAmount - totalPayouts);
+        const calculatedCommission = report.calculatedCommission ?? 0;
 
         // Recent bets from bookie's users (last 100)
         let recentBets = [];
@@ -417,6 +426,8 @@ export const getBookieRevenueDetail = async (req, res) => {
                 revenue: {
                     totalBetAmount,
                     totalPayouts,
+                    grossProfit,
+                    calculatedCommission,
                     bookieShare,
                     adminPool,
                     adminProfit,
@@ -424,6 +435,7 @@ export const getBookieRevenueDetail = async (req, res) => {
                     winningBets,
                     losingBets,
                     winRate: totalBetCount > 0 ? ((winningBets / totalBetCount) * 100).toFixed(2) : 0,
+                    engineV2: true,
                 },
                 users: userBetSummary,
                 totalUsers: users.length,

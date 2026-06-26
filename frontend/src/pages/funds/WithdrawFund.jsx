@@ -81,6 +81,11 @@ const WithdrawFund = () => {
         }
     };
 
+    const minWithdraw = config?.minWithdrawal || 500;
+    const configMaxWithdraw = config?.maxWithdrawal || 25000;
+    const withdrawableMax = Math.min(configMaxWithdraw, walletBalance);
+    const canWithdraw = withdrawableMax >= minWithdraw && bankAccounts.length > 0;
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -92,11 +97,18 @@ const WithdrawFund = () => {
         }
 
         const numAmount = parseFloat(amount);
-        const minWithdraw = config?.minWithdrawal || 500;
-        const maxWithdraw = config?.maxWithdrawal || 25000;
 
-        if (!numAmount || numAmount < minWithdraw || numAmount > maxWithdraw) {
-            setError(`Amount must be between ₹${minWithdraw} and ₹${maxWithdraw}`);
+        if (walletBalance < minWithdraw) {
+            setError(
+                walletBalance <= 0
+                    ? 'Insufficient wallet balance. Add funds before withdrawing.'
+                    : `Minimum withdrawal is ₹${minWithdraw}. Your available balance is ₹${Math.floor(walletBalance).toLocaleString('en-IN')}.`,
+            );
+            return;
+        }
+
+        if (!numAmount || numAmount < minWithdraw || numAmount > configMaxWithdraw) {
+            setError(`Amount must be between ₹${minWithdraw} and ₹${configMaxWithdraw}`);
             return;
         }
 
@@ -180,7 +192,14 @@ const WithdrawFund = () => {
                 </div>
 
                 <div className="mt-3 text-gray-600 text-sm">
-                    Min: ₹{config?.minWithdrawal || 500} | Max: ₹{config?.maxWithdrawal || 25000}
+                    Min: ₹{minWithdraw} | Max: ₹{configMaxWithdraw}
+                    {walletBalance < minWithdraw && (
+                        <span className="block mt-1 text-amber-700">
+                            {walletBalance <= 0
+                                ? 'Add funds to your wallet to withdraw.'
+                                : `You need at least ₹${minWithdraw} to withdraw (balance: ₹${Math.floor(walletBalance).toLocaleString('en-IN')}).`}
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -213,17 +232,20 @@ const WithdrawFund = () => {
                         type="number"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
-                        placeholder="Enter amount"
-                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150]"
-                        min={config?.minWithdrawal || 500}
-                        max={Math.min(config?.maxWithdrawal || 25000, walletBalance)}
+                        placeholder={canWithdraw ? 'Enter amount' : 'Insufficient balance'}
+                        disabled={!canWithdraw}
+                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1B3150] focus:border-[#1B3150] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                        {...(canWithdraw
+                            ? { min: minWithdraw, max: withdrawableMax }
+                            : {})}
                     />
                     <button
                         type="button"
-                        onClick={() => setAmount(Math.min(walletBalance, config?.maxWithdrawal || 25000).toString())}
-                        className="mt-2 text-[#1B3150] text-sm hover:text-[#1B3150]"
+                        onClick={() => setAmount(withdrawableMax.toString())}
+                        disabled={!canWithdraw}
+                        className="mt-2 text-[#1B3150] text-sm hover:text-[#1B3150] disabled:text-gray-400 disabled:cursor-not-allowed"
                     >
-                        Withdraw Max (₹{Math.min(walletBalance, config?.maxWithdrawal || 25000).toLocaleString()})
+                        Withdraw Max (₹{withdrawableMax.toLocaleString('en-IN')})
                     </button>
                 </div>
 
@@ -293,7 +315,7 @@ const WithdrawFund = () => {
                 {/* Submit Button */}
                 <button
                     type="submit"
-                    disabled={loading || bankAccounts.length === 0}
+                    disabled={loading || !canWithdraw}
                     className="w-full py-4 bg-gradient-to-r from-[#1B3150] to-[#1B3150] hover:from-[#1B3150] hover:bg-[#152842] text-white font-bold rounded-xl transition-all disabled:opacity-50 shadow-md hover:shadow-lg"
                 >
                     {loading ? 'Submitting...' : 'Submit Withdrawal Request'}
@@ -306,8 +328,8 @@ const WithdrawFund = () => {
                 <ul className="text-gray-700 text-sm space-y-1">
                     <li>• Withdrawals are processed within 24 hours</li>
                     <li>• Ensure your bank details are correct</li>
-                    <li>• Minimum withdrawal: ₹{config?.minWithdrawal || 500}</li>
-                    <li>• Maximum withdrawal: ₹{config?.maxWithdrawal || 25000}</li>
+                    <li>• Minimum withdrawal: ₹{minWithdraw}</li>
+                    <li>• Maximum withdrawal: ₹{configMaxWithdraw}</li>
                 </ul>
             </div>
 

@@ -8,9 +8,7 @@ import {
     getCommissionPaymentKind,
     aggregatePlayerBetMetrics,
     buildCommissionDateFilter,
-    calculateCommissionAmount,
-    calculateAdminCommissionAmount,
-    calculateSuperBookieGrossCommission,
+    getOperatorHierarchyVolumeBreakdown,
     getCommissionBetVolume,
     getAdminShareSettlementForBookie,
     round2,
@@ -448,7 +446,23 @@ export const getBookieManagementDetail = async (req, res) => {
         const metrics = await aggregatePlayerBetMetrics({ admin: bookie, dateFilter });
         const directMetrics = await aggregatePlayerBetMetrics({ admin: bookie, dateFilter, directOnly: true });
         const directVolume = await getCommissionBetVolume(bookie, dateFilter, { directOnly: true });
-        const periodGross = await calculateSuperBookieGrossCommission(bookie, dateFilter);
+
+        const { getOperatorCommissionReport, getPlatformRemainderReport } =
+            await import('../services/commissionEngine/index.js');
+
+        const periodGross = await getOperatorHierarchyVolumeBreakdown(bookie, dateFilter);
+
+        const periodOpts = startDate || endDate ? { startDate, endDate } : {};
+        const [report, platform] = await Promise.all([
+            getOperatorCommissionReport(bookie._id, periodOpts),
+            getPlatformRemainderReport({ ...periodOpts, rootOperatorId: bookie._id }),
+        ]);
+        const bookieShare = report.totalEarned;
+        const periodCommission = report.totalEarned;
+        const adminCommission = platform.platformRemainder;
+        const netBookieShare = report.totalEarned;
+        const adminCommPct = periodGross.adminCommissionPercentage;
+
         const commPct = bookie.commissionPercentage || 0;
         const totalBetAmount = periodGross.directBetAmount;
         const totalPayouts = directMetrics.totalPayouts ?? 0;
@@ -457,13 +471,8 @@ export const getBookieManagementDetail = async (req, res) => {
         const totalBetCount = Number(directVolume.betCount || 0);
         const winningBets = Number(directMetrics.winningBets || 0);
         const losingBets = Number(directMetrics.losingBets || 0);
-        const bookieShare = periodGross.totalCommission;
-        const periodCommission = bookieShare;
-        const adminCommPct = periodGross.adminCommissionPercentage;
-        const adminCommission = periodGross.adminCommissionAmount;
-        const netBookieShare = periodGross.netCommissionAfterAdmin;
-        const adminPool = Math.round((totalBetAmount * (100 - commPct) / 100) * 100) / 100;
-        const adminProfit = Math.round((adminPool - totalPayouts) * 100) / 100;
+        const adminPool = platform.platformRemainder;
+        const adminProfit = adminCommission;
         revenue = {
             ...revenue,
             totalBetAmount,
@@ -471,12 +480,12 @@ export const getBookieManagementDetail = async (req, res) => {
             lotteryBetAmount,
             directBetAmount: periodGross.directBetAmount,
             subBetAmount: periodGross.subBetAmount,
-            directCommission: periodGross.directCommission,
-            subCommission: periodGross.subCommission,
             totalPayouts,
             totalBetCount,
             winningBets,
             losingBets,
+            grossProfit: report.grossProfit,
+            calculatedCommission: report.calculatedCommission,
             bookieShare,
             adminCommission,
             adminCommissionPercentage: adminCommPct,
@@ -498,7 +507,9 @@ export const getBookieManagementDetail = async (req, res) => {
                 return {
                     ...sb,
                     commissionPercentage: sbDoc?.commissionPercentage ?? 0,
-                    totalCommissionAmount: sbCommission.parentCommissionAmount ?? 0,
+                    totalCommissionAmount: sbCommission.actualCommission
+                        ?? sbCommission.parentCommissionAmount
+                        ?? 0,
                     totalCommissionPaid: sbCommission.totalPaid,
                     totalCommissionPending: sbCommission.totalPending,
                 };
@@ -540,16 +551,11 @@ export const getBookieManagementDetail = async (req, res) => {
                     periodBetAmount: totalBetAmount,
                     periodDirectBetAmount: periodGross.directBetAmount,
                     periodSubBetAmount: periodGross.subBetAmount,
-                    periodDirectCommission: periodGross.directCommission,
-                    periodSubCommission: periodGross.subCommission,
                     periodCommission,
                     periodCommissionPercentage: commPct,
                     periodAdminCommission: adminCommission,
-                    periodAdminCommissionFromDirect: periodGross.directCommission,
-                    periodAdminCommissionFromSub: calculateAdminCommissionAmount(
-                        periodGross.subCommission,
-                        adminCommPct,
-                    ),
+                    periodAdminCommissionFromDirect: 0,
+                    periodAdminCommissionFromSub: 0,
                     adminCommissionPercentage: adminCommPct,
                     periodNetCommissionAfterAdmin: netBookieShare,
                 },
@@ -676,7 +682,9 @@ export const getAdminSuperBookieCommissionDashboard = async (req, res) => {
 
         const periodBetAmount = revenueKpis.totalBetAmount ?? dashboard.periodBetAmount ?? 0;
         const periodCommissionPct = Number(superBookie.commissionPercentage ?? 0);
-        const periodCommission = calculateCommissionAmount(periodBetAmount, periodCommissionPct);
+        const periodCommission = Number(
+            dashboard.periodParentCommission ?? dashboard.actualCommission ?? 0,
+        );
         const periodAdminCommission = 0;
         const adminCommPct = 0;
 
@@ -707,7 +715,7 @@ export const getAdminSuperBookieCommissionDashboard = async (req, res) => {
                     commissionSettled: settledCommission,
                     commissionPending: pendingCommission,
                     totalPlayers: summary.playerCount ?? 0,
-                    totalCommission: summary.parentCommissionAmount ?? 0,
+                    totalCommission: summary.actualCommission ?? summary.parentCommissionAmount ?? 0,
                     betCount: summary.betCount ?? 0,
                     paymentStatus: summary.paymentStatus,
                 },

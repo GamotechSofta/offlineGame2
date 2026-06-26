@@ -51,6 +51,7 @@ export const BOOKIE_WALLET_TX_LABELS = {
     commission_settlement_advance: 'Commission settled (paid with advance)',
     commission_settlement_other: 'Commission paid to SuperBookie (paid with other)',
     commission_received_from_super: 'Commission received from bookie (paid with other)',
+    commission_bet_settlement: 'Commission earned (bet settlement)',
     balance_adjustment: 'Balance adjustment',
     player_deposit: 'Player add fund (approved — added to balance)',
     player_withdrawal: 'Player withdrawal (approved — deducted from balance)',

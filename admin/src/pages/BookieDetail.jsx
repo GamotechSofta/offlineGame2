@@ -236,13 +236,22 @@ const BookieDetail = () => {
                                 <p className="text-[10px] text-gray-500 mt-0.5">{formatNumber(revenue.winningBets)} wins, {formatNumber(revenue.losingBets)} losses</p>
                             </div>
                             <div className="bg-white rounded-xl p-3 sm:p-4 border border-gray-200/60 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
+                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Gross Profit</p>
+                                <p className="text-sm sm:text-lg lg:text-xl font-bold text-emerald-600 mt-1 truncate">{formatCurrency(revenue.grossProfit ?? (revenue.totalBetAmount - revenue.totalPayouts))}</p>
+                                <p className="text-[10px] text-gray-500 mt-0.5">Bets minus payouts</p>
+                            </div>
+                            <div className="bg-white rounded-xl p-3 sm:p-4 border border-gray-200/60 relative overflow-hidden">
                                 <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
-                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">{TOP_LEVEL_LABEL} Share ({bookie?.commissionPercentage}%)</p>
+                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">{TOP_LEVEL_LABEL} Commission ({bookie?.commissionPercentage}%)</p>
                                 <p className="text-sm sm:text-lg lg:text-xl font-bold text-orange-400 mt-1 truncate">{formatCurrency(revenue.bookieShare)}</p>
+                                {revenue.calculatedCommission != null && revenue.calculatedCommission !== revenue.bookieShare && (
+                                    <p className="text-[10px] text-gray-500 mt-0.5">Capped from {formatCurrency(revenue.calculatedCommission)}</p>
+                                )}
                             </div>
                             <div className={`bg-white rounded-xl p-3 sm:p-4 border relative overflow-hidden ${revenue.adminProfit >= 0 ? 'border-emerald-500/40' : 'border-red-500/40'}`}>
-                                <div className={`absolute top-0 left-0 right-0 h-1 ${revenue.adminProfit >= 0 ? 'bg-orange-500' : 'bg-red-500'}`} />
-                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Admin Profit</p>
+                                <div className={`absolute top-0 left-0 right-0 h-1 ${revenue.adminProfit >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Admin Remainder</p>
                                 <p className={`text-sm sm:text-lg lg:text-xl font-bold mt-1 truncate ${revenue.adminProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                     {formatCurrency(revenue.adminProfit)}
                                 </p>
@@ -262,19 +271,25 @@ const BookieDetail = () => {
                                     <span className="text-gray-800 font-medium">{formatNumber(revenue.totalBetCount)} bets <span className="text-gray-500">({formatNumber(revenue.winningBets)} W / {formatNumber(revenue.losingBets)} L)</span></span>
                                 </div>
                                 <div className="flex justify-between py-1.5 border-b border-gray-200/40">
-                                    <span className="text-gray-400">{TOP_LEVEL_LABEL} Commission ({bookie?.commissionPercentage}%)</span>
-                                    <span className="text-orange-400 font-medium">- {formatCurrency(revenue.bookieShare)}</span>
-                                </div>
-                                <div className="flex justify-between py-1.5 border-b border-gray-200/40">
-                                    <span className="text-gray-400">Admin Pool ({100 - (bookie?.commissionPercentage || 0)}%)</span>
-                                    <span className="text-gray-800 font-medium">{formatCurrency(revenue.adminPool)}</span>
-                                </div>
-                                <div className="flex justify-between py-1.5 border-b border-gray-200/40">
                                     <span className="text-gray-400">Winner Payouts</span>
                                     <span className="text-red-500 font-medium">- {formatCurrency(revenue.totalPayouts)}</span>
                                 </div>
+                                <div className="flex justify-between py-1.5 border-b border-gray-200/40">
+                                    <span className="text-gray-400">Gross Profit</span>
+                                    <span className="text-emerald-600 font-medium">{formatCurrency(revenue.grossProfit ?? (revenue.totalBetAmount - revenue.totalPayouts))}</span>
+                                </div>
+                                <div className="flex justify-between py-1.5 border-b border-gray-200/40">
+                                    <span className="text-gray-400">{TOP_LEVEL_LABEL} Commission ({bookie?.commissionPercentage}%)</span>
+                                    <span className="text-orange-400 font-medium">{formatCurrency(revenue.bookieShare)}</span>
+                                </div>
+                                {revenue.calculatedCommission != null && revenue.calculatedCommission !== revenue.bookieShare && (
+                                    <div className="flex justify-between py-1.5 border-b border-gray-200/40">
+                                        <span className="text-gray-400">Calculated (before cap)</span>
+                                        <span className="text-gray-500 font-medium">{formatCurrency(revenue.calculatedCommission)}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between py-2 font-bold">
-                                    <span className="text-orange-500">Admin Profit</span>
+                                    <span className="text-emerald-600">Admin Remainder</span>
                                     <span className={revenue.adminProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}>{formatCurrency(revenue.adminProfit)}</span>
                                 </div>
                             </div>

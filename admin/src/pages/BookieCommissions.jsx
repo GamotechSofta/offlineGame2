@@ -104,20 +104,27 @@ const renderAdminShareCell = (row) => {
     if (row.accountLabel === 'sub') {
         return <span className="text-slate-400">—</span>;
     }
-    const direct = Number(row.adminCommissionFromDirect ?? 0);
-    const bookie = Number(row.adminCommissionFromSub ?? 0);
     return (
-        <>
-            <p className="font-semibold text-slate-800 tabular-nums">{formatCurrency(row.adminCommissionAmount ?? 0)}</p>
-            <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
-                Direct {formatCurrency(direct)} + {SUB_LEVEL_LABEL} {formatCurrency(bookie)}
-            </p>
-        </>
+        <p className="font-semibold text-slate-800 tabular-nums">{formatCurrency(row.adminCommissionAmount ?? 0)}</p>
     );
 };
 
+const getRowPending = (row) => {
+    if (row.accountLabel === 'parent') {
+        return Number(row.adminCommissionPending ?? row.totalPending ?? 0);
+    }
+    return Number(row.totalPending ?? 0);
+};
+
+const getRowSettled = (row) => {
+    if (row.accountLabel === 'parent') {
+        return Number(row.adminCommissionPaid ?? row.totalPaid ?? 0);
+    }
+    return Number(row.totalPaid ?? 0);
+};
+
 const renderSettledCell = (row) => (
-    <span className="font-semibold text-green-700 tabular-nums">{formatCurrency(row.totalPaid)}</span>
+    <span className="font-semibold text-green-700 tabular-nums">{formatCurrency(getRowSettled(row))}</span>
 );
 
 const renderPlayerBetsCell = (row) => {
@@ -206,8 +213,8 @@ const BookieCommissions = () => {
         }
 
         rows.sort((a, b) => {
-            if (sortBy === 'pending_desc') return Number(b.totalPending || 0) - Number(a.totalPending || 0);
-            if (sortBy === 'pending_asc') return Number(a.totalPending || 0) - Number(b.totalPending || 0);
+            if (sortBy === 'pending_desc') return getRowPending(b) - getRowPending(a);
+            if (sortBy === 'pending_asc') return getRowPending(a) - getRowPending(b);
             if (sortBy === 'last_payment_desc') return new Date(b.lastPaidAt || 0) - new Date(a.lastPaidAt || 0);
             if (sortBy === 'last_payment_asc') return new Date(a.lastPaidAt || 0) - new Date(b.lastPaidAt || 0);
             return String(a.username || '').localeCompare(String(b.username || ''));
@@ -220,9 +227,9 @@ const BookieCommissions = () => {
         return filteredRows.reduce((acc, row) => {
             if (row.accountLabel === 'parent') {
                 acc.adminCommission += Number(row.adminCommissionAmount || 0);
+                acc.totalPaid += getRowSettled(row);
+                acc.totalPending += getRowPending(row);
             }
-            acc.totalPaid += Number(row.totalPaid || 0);
-            acc.totalPending += Number(row.totalPending || 0);
             return acc;
         }, { adminCommission: 0, totalPaid: 0, totalPending: 0 });
     }, [filteredRows]);
@@ -251,14 +258,15 @@ const BookieCommissions = () => {
         const bookieId = String(row.bookieId);
         const mode = payStateByBookie[bookieId]?.mode || 'partial';
         const amountRaw = mode === 'full'
-            ? String(Number(row.totalPending || 0).toFixed(2))
+            ? String(getRowPending(row).toFixed(2))
             : (payStateByBookie[bookieId]?.amount || '');
         const amount = Number(amountRaw);
         if (!Number.isFinite(amount) || amount <= 0) {
             alert('Please enter a valid paid amount.');
             return;
         }
-        if (amount > Number(row.totalPending || 0)) {
+        const rowPending = getRowPending(row);
+        if (amount > rowPending) {
             alert('Paid amount cannot be more than pending amount.');
             return;
         }
@@ -373,7 +381,7 @@ const BookieCommissions = () => {
                     <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 sm:p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-orange-700/80 flex items-center gap-2">
                             <FaWallet className="text-orange-600" />
-                            Pending
+                            Admin remainder pending
                         </p>
                         <p className="text-2xl font-bold text-orange-700 mt-1">{formatCurrency(totals.totalPending)}</p>
                     </div>
@@ -431,7 +439,7 @@ const BookieCommissions = () => {
                                     <TableHeader label="Account" />
                                     <TableHeader label="Rates" align="right" />
                                     <TableHeader label={`${TOP_LEVEL_LABEL} direct player bets`} align="right" />
-                                    <TableHeader label="Admin profit" align="right" />
+                                    <TableHeader label="Admin remainder" align="right" />
                                     <TableHeader label="Settled" align="right" />
                                     <TableHeader label="Pending" align="right" />
                                     <TableHeader label="Status" />
@@ -450,10 +458,11 @@ const BookieCommissions = () => {
                                 ) : (
                                     filteredRows.map((row) => {
                                         const bookieId = String(row.bookieId);
+                                        const rowPending = getRowPending(row);
                                         const isExpanded = expandedBookieId === bookieId;
                                         const paymentMode = payStateByBookie[bookieId]?.mode || 'partial';
                                         const paymentAmount = paymentMode === 'full'
-                                            ? String(Number(row.totalPending || 0).toFixed(2))
+                                            ? String(rowPending.toFixed(2))
                                             : (payStateByBookie[bookieId]?.amount || '');
                                         return (
                                             <React.Fragment key={bookieId}>
@@ -475,7 +484,7 @@ const BookieCommissions = () => {
                                                         {renderSettledCell(row)}
                                                     </td>
                                                     <td className="px-4 py-3.5 text-right font-semibold text-orange-700 tabular-nums">
-                                                        {formatCurrency(row.totalPending)}
+                                                        {formatCurrency(rowPending)}
                                                     </td>
                                                     <td className="px-4 py-3.5">
                                                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getBadge(row.paymentStatus)}`}>
@@ -484,12 +493,12 @@ const BookieCommissions = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3.5 min-w-[11rem]">
-                                                        {Number(row.totalPending || 0) > 0 ? (
+                                                        {rowPending > 0 ? (
                                                             <div className="space-y-2">
                                                                 <div className="flex items-center gap-2">
                                                                     <select
                                                                         value={paymentMode}
-                                                                        onChange={(e) => handlePayModeChange(bookieId, e.target.value, row.totalPending)}
+                                                                        onChange={(e) => handlePayModeChange(bookieId, e.target.value, rowPending)}
                                                                         className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px]"
                                                                     >
                                                                         <option value="partial">Partial</option>
@@ -498,7 +507,7 @@ const BookieCommissions = () => {
                                                                     <input
                                                                         type="number"
                                                                         min="0"
-                                                                        max={Number(row.totalPending || 0)}
+                                                                        max={rowPending}
                                                                         step="0.01"
                                                                         disabled={paymentMode === 'full'}
                                                                         value={paymentAmount}
@@ -572,10 +581,11 @@ const BookieCommissions = () => {
                     )}
                     {!loading && filteredRows.map((row) => {
                         const bookieId = String(row.bookieId);
+                        const rowPending = getRowPending(row);
                         const isExpanded = expandedBookieId === bookieId;
                         const paymentMode = payStateByBookie[bookieId]?.mode || 'partial';
                         const paymentAmount = paymentMode === 'full'
-                            ? String(Number(row.totalPending || 0).toFixed(2))
+                            ? String(rowPending.toFixed(2))
                             : (payStateByBookie[bookieId]?.amount || '');
                         return (
                             <div key={bookieId} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
@@ -604,7 +614,7 @@ const BookieCommissions = () => {
                                     </div>
                                     <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5 text-right">
                                         <p className="text-[10px] uppercase text-slate-500">Pending</p>
-                                        <p className="font-semibold text-orange-700 mt-1 tabular-nums">{formatCurrency(row.totalPending)}</p>
+                                        <p className="font-semibold text-orange-700 mt-1 tabular-nums">{formatCurrency(rowPending)}</p>
                                     </div>
                                     <div className="rounded-lg bg-green-50 border border-green-100 p-2.5 col-span-2">
                                         <p className="text-[10px] uppercase text-green-700/80">Settled</p>
@@ -612,12 +622,12 @@ const BookieCommissions = () => {
                                     </div>
                                 </div>
 
-                                {Number(row.totalPending || 0) > 0 && (
+                                {rowPending > 0 && (
                                     <div className="mt-3 space-y-2">
                                         <div className="flex gap-2">
                                             <select
                                                 value={paymentMode}
-                                                onChange={(e) => handlePayModeChange(bookieId, e.target.value, row.totalPending)}
+                                                onChange={(e) => handlePayModeChange(bookieId, e.target.value, rowPending)}
                                                 className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-xs"
                                             >
                                                 <option value="partial">Partial</option>
@@ -626,7 +636,7 @@ const BookieCommissions = () => {
                                             <input
                                                 type="number"
                                                 min="0"
-                                                max={Number(row.totalPending || 0)}
+                                                max={rowPending}
                                                 step="0.01"
                                                 disabled={paymentMode === 'full'}
                                                 value={paymentAmount}
