@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { API_BASE_URL, getBookieAuthHeaders } from '../utils/api';
+import { dispatchWalletSummaryRefresh } from '../hooks/useWalletGrandTotal';
 import { PANEL_LABEL } from '../config/panelLabels';
 import { formatPlayerIp } from '../utils/ipDisplay';
 import { useLanguage } from '../context/LanguageContext';
@@ -761,6 +762,7 @@ const PlayerDetail = () => {
                     setFundSuccess(`Balance set to ${formatCurrency(num)}`);
                     fetchPlayer();
                     if (activeTab === 'wallet') fetchWalletTx();
+                    dispatchWalletSummaryRefresh();
                 } else {
                     setFundError(data.message || 'Failed');
                 }
@@ -781,6 +783,7 @@ const PlayerDetail = () => {
                     setFundSuccess(`${type === 'credit' ? 'Added' : 'Withdrawn'} ${formatCurrency(num)} successfully`);
                     fetchPlayer();
                     if (activeTab === 'wallet') fetchWalletTx();
+                    dispatchWalletSummaryRefresh();
                 } else {
                     setFundError(data.message || 'Failed');
                 }

@@ -1,9 +1,37 @@
 import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
 import { isBookiePanelRole } from './adminRoles.js';
 
-/** No-op — bookie operator wallet ledger removed (commission-only model). */
-export async function recordBookieWalletTransaction() {
-    return null;
+const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
+
+export async function recordBookieWalletTransaction({
+    adminId,
+    direction,
+    type,
+    amount,
+    balanceAfter,
+    description = '',
+    referenceId = '',
+    meta = null,
+    session = null,
+}) {
+    if (!adminId || !direction || !type) return null;
+    const amt = round2(amount);
+    if (!Number.isFinite(amt) || amt < 0) return null;
+    const doc = {
+        adminId,
+        direction,
+        type,
+        amount: amt,
+        balanceAfter: round2(balanceAfter),
+        description: String(description || ''),
+        referenceId: String(referenceId || ''),
+        meta: meta ?? null,
+    };
+    if (session) {
+        const [created] = await BookieWalletTransaction.create([doc], { session });
+        return created;
+    }
+    return BookieWalletTransaction.create(doc);
 }
 
 export async function recordBookieWalletTxIfPanel(admin, payload) {

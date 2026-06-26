@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
@@ -11,7 +11,6 @@ const Layout = ({ children, title }) => {
     const location = useLocation();
     const { bookie, logout, updateBookie } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const lastProfileFetch = useRef(0);
 
     const handleLogout = () => {
         logout();
@@ -21,10 +20,6 @@ const Layout = ({ children, title }) => {
     // Sync bookie profile periodically (every 2 minutes) or on route change
     useEffect(() => {
         const syncProfile = async () => {
-            const now = Date.now();
-            // Only fetch if more than 2 minutes since last fetch
-            if (now - lastProfileFetch.current < 120000) return;
-            lastProfileFetch.current = now;
             try {
                 const response = await fetch(`${API_BASE_URL}/super-bookie/profile`, { headers: getBookieAuthHeaders() });
                 const data = await response.json();
@@ -36,6 +31,8 @@ const Layout = ({ children, title }) => {
             }
         };
         syncProfile();
+        const interval = setInterval(syncProfile, 60000);
+        return () => clearInterval(interval);
     }, [location.pathname, updateBookie]);
 
     // Global keyboard shortcuts

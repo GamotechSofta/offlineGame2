@@ -9,6 +9,11 @@ import {
     getSuperBookiePlayersForParent,
     getSuperBookieCommissionDashboardForParent,
 } from '../../controllers/bookieSuperBookieController.js';
+import {
+    getSuperBookieChildWallet,
+    adjustSuperBookieChildWallet,
+    listMyBookieWalletTransactions,
+} from '../../controllers/operatorWalletController.js';
 import { verifyAdmin, requireBookie } from '../../middleware/adminAuth.js';
 const router = express.Router();
 
@@ -17,8 +22,11 @@ router.post('/heartbeat', verifyAdmin, requireBookie, bookieHeartbeat);
 router.get('/referral-link', verifyAdmin, requireBookie, getReferralLink);
 router.get('/profile', verifyAdmin, requireBookie, getProfile);
 router.patch('/theme', verifyAdmin, requireBookie, updateTheme);
+router.get('/wallet-transactions', verifyAdmin, requireBookie, listMyBookieWalletTransactions);
 
 router.get('/super-bookies', verifyAdmin, requireBookie, listSuperBookies);
+router.get('/super-bookies/:id/wallet', verifyAdmin, requireBookie, getSuperBookieChildWallet);
+router.post('/super-bookies/:id/wallet/adjust', verifyAdmin, requireBookie, adjustSuperBookieChildWallet);
 router.get('/super-bookies/:id/players', verifyAdmin, requireBookie, getSuperBookiePlayersForParent);
 router.get(
     '/super-bookies/:id/commission-dashboard',

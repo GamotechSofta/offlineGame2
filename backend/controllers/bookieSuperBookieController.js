@@ -44,6 +44,7 @@ export const getAllSuperBookiesAdmin = async (req, res) => {
             success: true,
             data: list.map((sb) => ({
                 ...sb,
+                walletBalance: Number(sb.balance ?? 0),
                 playerCount: countMap[String(sb._id)] || 0,
             })),
         });
@@ -67,7 +68,7 @@ export const listSuperBookies = async (req, res) => {
             role: 'super_bookie',
             parentBookieId: req.admin._id,
         })
-            .select('username email phone status commissionPercentage canManagePayments createdAt role parentBookieId')
+            .select('username email phone status commissionPercentage canManagePayments balance createdAt role parentBookieId')
             .sort({ createdAt: -1 })
             .lean();
 
@@ -77,6 +78,7 @@ export const listSuperBookies = async (req, res) => {
                 const commissionSummary = await getCommissionSummaryForAccount(sb);
                 return {
                     ...sb,
+                    walletBalance: Number(sb.balance ?? 0),
                     playerCount,
                     totalCommissionAmount: commissionSummary.totalCommission,
                     totalCommissionPaid: commissionSummary.totalPaid,
@@ -348,10 +350,8 @@ export const deleteSuperBookie = async (req, res) => {
 };
 
 export const adjustSuperBookieBalance = async (req, res) => {
-    return res.status(410).json({
-        success: false,
-        message: 'Bookie wallet balance adjustments are no longer supported.',
-    });
+    const { adjustSuperBookieChildWallet } = await import('./operatorWalletController.js');
+    return adjustSuperBookieChildWallet(req, res);
 };
 
 const findOwnedSuperBookie = async (parentBookieId, superBookieId, select = '_id username') => {

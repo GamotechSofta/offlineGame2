@@ -12,14 +12,30 @@ import {
     FaMoneyBillWave,
     FaChartBar,
     FaCreditCard,
+    FaWallet,
 } from 'react-icons/fa';
 import { useLanguage } from '../context/useLanguage';
+import { useWalletGrandTotal } from '../hooks/useWalletGrandTotal';
+
+const formatCurrency = (value) => {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+};
 
 const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { t, language, changeLanguage } = useLanguage();
     const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+    const { walletBalance } = useWalletGrandTotal();
+    const displayWalletBalance = Number(
+        walletBalance ?? user?.walletBalance ?? user?.balance ?? 0,
+    );
 
     const menuItems = [
         { path: '/dashboard', label: t('dashboard'), icon: FaTachometerAlt },
@@ -55,6 +71,15 @@ const Sidebar = ({ user, onLogout, isOpen = true, onClose }) => {
                     {user?.username && (
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{user.username}</p>
                     )}
+                    <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-50 border border-violet-100">
+                        <FaWallet className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                        <span className="text-[10px] uppercase tracking-wide text-violet-700/80 font-medium">
+                            {t('walletBalance')}
+                        </span>
+                        <span className="text-sm font-bold text-violet-700 tabular-nums">
+                            {formatCurrency(displayWalletBalance)}
+                        </span>
+                    </div>
                 </div>
                 <button
                     type="button"

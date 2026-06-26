@@ -73,6 +73,10 @@ import {
     updateSpecificAdmin,
     deleteSpecificAdmin,
 } from '../../controllers/specificAdminController.js';
+import {
+    getAdminBookieWallet,
+    adjustAdminBookieWallet,
+} from '../../controllers/operatorWalletController.js';
 
 const router = express.Router();
 
@@ -156,6 +160,8 @@ router.get(
 );
 router.get('/bookies/:id/detail', verifyAdmin, getBookieManagementDetail); // Full detail for management UI
 router.get('/bookies/:id', verifyAdmin, getBookieById); // Get single bookie
+router.get('/bookies/:id/wallet', verifyAdmin, getAdminBookieWallet);
+router.post('/bookies/:id/wallet/adjust', verifyAdmin, adjustAdminBookieWallet);
 router.put('/bookies/:id', verifyAdmin, updateBookie); // Update bookie
 router.delete('/bookies/:id', verifyAdmin, deleteBookie); // Delete bookie
 router.patch('/bookies/:id/toggle-status', verifyAdmin, toggleBookieStatus); // Toggle status

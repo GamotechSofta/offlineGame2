@@ -44,6 +44,7 @@ const ACTION_LABELS = {
     suspend_player: 'Suspend Player',
     unsuspend_player: 'Unsuspend Player',
     wallet_adjust: 'Wallet Adjust',
+    operator_wallet_adjust: 'Operator Wallet Adjust',
     wallet_set_balance: 'Wallet Set Balance',
     deposit_request_created: 'Deposit Request',
     withdrawal_request_created: 'Withdrawal Request',

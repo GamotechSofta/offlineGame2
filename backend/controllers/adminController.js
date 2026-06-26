@@ -342,9 +342,9 @@ export const getAllBookies = async (req, res) => {
             bookies.map(async (b) => {
                 const summary = await getCommissionSummaryForAccount(b);
                 const row = b.toObject();
-                delete row.balance;
                 return {
                     ...row,
+                    walletBalance: Number(row.balance ?? 0),
                     totalCommissionAmount: summary.totalCommission,
                     totalCommissionPaid: summary.totalPaid,
                     totalCommissionPending: summary.totalPending,

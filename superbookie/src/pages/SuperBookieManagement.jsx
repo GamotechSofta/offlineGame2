@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes, FaEye, FaEyeSlash, FaUsersCog, FaCog, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaTimes, FaEye, FaEyeSlash, FaUsersCog, FaCog, FaTrash, FaWallet } from 'react-icons/fa';
 import { API_BASE_URL, fetchWithAuth } from '../utils/api';
 import { PANEL_LABEL, PANEL_LABEL_PLURAL } from '../config/panelLabels';
+import { dispatchWalletSummaryRefresh } from '../hooks/useWalletGrandTotal';
 
 const PHONE_REGEX = /^[6-9]\d{9}$/;
+
+const formatCurrency = (value) => {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+};
 
 const Modal = ({ open, onClose, title, children }) => {
     if (!open) return null;
@@ -51,6 +62,10 @@ const SuperBookieManagement = () => {
         canManagePayments: false,
     });
     const [manageData, setManageData] = useState({ commissionPercentage: '0' });
+    const [showWalletModal, setShowWalletModal] = useState(false);
+    const [walletAmount, setWalletAmount] = useState('');
+    const [walletLoading, setWalletLoading] = useState(false);
+    const [walletError, setWalletError] = useState('');
 
     const fetchList = async (silent = false) => {
         try {
@@ -248,6 +263,53 @@ const SuperBookieManagement = () => {
         setSelected(sb);
         setError('');
         setShowDeleteModal(true);
+    };
+
+    const openWalletModal = (sb) => {
+        setSelected(sb);
+        setWalletAmount('');
+        setWalletError('');
+        setShowWalletModal(true);
+    };
+
+    const handleWalletAdjust = async (type) => {
+        if (!selected?._id) return;
+        const amount = Number(walletAmount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            setWalletError('Enter a valid amount greater than 0');
+            return;
+        }
+        const currentBalance = Number(selected.walletBalance ?? selected.balance ?? 0);
+        if (type === 'debit' && currentBalance < amount) {
+            setWalletError('Insufficient wallet balance');
+            return;
+        }
+
+        setWalletLoading(true);
+        setWalletError('');
+        try {
+            const res = await fetchWithAuth(
+                `${API_BASE_URL}/bookie/super-bookies/${selected._id}/wallet/adjust`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({ amount, type }),
+                },
+            );
+            const data = await res.json();
+            if (data.success) {
+                setSuccess(data.message || 'Wallet updated');
+                setShowWalletModal(false);
+                setSelected(null);
+                fetchList(true);
+                dispatchWalletSummaryRefresh();
+            } else {
+                setWalletError(data.message || 'Failed to update wallet');
+            }
+        } catch {
+            setWalletError('Network error');
+        } finally {
+            setWalletLoading(false);
+        }
     };
 
     const handleDelete = async () => {
@@ -474,6 +536,7 @@ const SuperBookieManagement = () => {
                                 <tr>
                                     <th className="p-3">Name</th>
                                     <th className="p-3">Phone</th>
+                                    <th className="p-3 text-right">Wallet</th>
                                     <th className="p-3">Commission</th>
                                     <th className="p-3">Payment Mgmt</th>
                                     <th className="p-3">Players</th>
@@ -484,7 +547,7 @@ const SuperBookieManagement = () => {
                             <tbody>
                                 {filtered.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="p-6 text-center text-gray-400">
+                                        <td colSpan={8} className="p-6 text-center text-gray-400">
                                             No {PANEL_LABEL_PLURAL.toLowerCase()} yet
                                         </td>
                                     </tr>
@@ -508,6 +571,22 @@ const SuperBookieManagement = () => {
                                                 {sb.username}
                                             </td>
                                             <td className="p-3">{sb.phone}</td>
+                                            <td className="p-3 text-right">
+                                                <p className="font-semibold tabular-nums text-[#1B3150]">
+                                                    {formatCurrency(sb.walletBalance ?? sb.balance ?? 0)}
+                                                </p>
+                                                <div className="flex justify-end mt-1.5" onClick={(e) => e.stopPropagation()}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openWalletModal(sb)}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-semibold"
+                                                        title="Edit wallet"
+                                                    >
+                                                        <FaWallet className="w-3 h-3" />
+                                                        Edit Wallet
+                                                    </button>
+                                                </div>
+                                            </td>
                                             <td className="p-3 text-orange-600 font-medium">{sb.commissionPercentage ?? 0}%</td>
                                             <td className="p-3">
                                                 <span className={`px-2 py-0.5 rounded-full text-xs ${
@@ -542,6 +621,14 @@ const SuperBookieManagement = () => {
                                                         title="View players & dashboard"
                                                     >
                                                         <FaEye className="inline mr-1" /> View
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openWalletModal(sb)}
+                                                        className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold"
+                                                        title="Edit wallet"
+                                                    >
+                                                        <FaWallet className="inline w-3 h-3" /> Edit Wallet
                                                     </button>
                                                     <button
                                                         type="button"
@@ -633,6 +720,67 @@ const SuperBookieManagement = () => {
                     </button>
                 </form>
             </Modal>
+            {showWalletModal && selected && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/30">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-base sm:text-lg font-semibold text-orange-500">Edit Wallet</h3>
+                            <button
+                                type="button"
+                                onClick={() => { setShowWalletModal(false); setWalletError(''); }}
+                                className="text-gray-400 hover:text-gray-800 p-1"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            <div className="rounded-lg bg-gray-50 px-3 py-2">
+                                <p className="text-gray-400 text-xs uppercase tracking-wider">Current Balance</p>
+                                <p className="text-green-600 font-mono font-bold text-lg sm:text-xl break-all">
+                                    {formatCurrency(selected.walletBalance ?? selected.balance ?? 0)}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">{selected.username}</p>
+                            </div>
+                            {walletError && (
+                                <div className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2">{walletError}</div>
+                            )}
+                            <div>
+                                <p className="text-gray-400 text-sm mb-2">Add (Credit) or Deduct (Debit)</p>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        placeholder="Amount"
+                                        value={walletAmount}
+                                        onChange={(e) => setWalletAmount(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                                        className="w-full sm:flex-1 px-3 py-2.5 rounded-lg bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400"
+                                        autoFocus
+                                    />
+                                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleWalletAdjust('credit')}
+                                            disabled={walletLoading}
+                                            className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold disabled:opacity-50"
+                                        >
+                                            Add
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleWalletAdjust('debit')}
+                                            disabled={walletLoading}
+                                            className="px-4 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold disabled:opacity-50"
+                                        >
+                                            Deduct
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             <Modal open={showDeleteModal} onClose={() => setShowDeleteModal(false)} title={`Delete ${PANEL_LABEL}`}>
                 {selected && (
                     <div className="space-y-4">

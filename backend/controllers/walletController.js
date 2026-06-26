@@ -2,11 +2,13 @@ import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import User from '../models/user/user.js';
 import Bet from '../models/bet/bet.js';
 import Admin from '../models/admin/admin.js';
+import mongoose from 'mongoose';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { isBookiePanelRole } from '../utils/adminRoles.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { emitUserWalletUpdate } from '../socket/walletSocketBridge.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
+import { mirrorSuperBookieWalletForPlayerAdjust } from '../utils/operatorWalletService.js';
 
 const getActorLabel = (admin) => {
     if (admin?.role === 'bookie') return 'Bookie';
@@ -174,6 +176,13 @@ export const adjustBalance = async (req, res) => {
             });
         }
 
+        if (type !== 'credit' && type !== 'debit') {
+            return res.status(400).json({
+                success: false,
+                message: 'type must be credit or debit',
+            });
+        }
+
         const bookieUserIds = await getBookieUserIds(req.admin);
         if (bookieUserIds !== null && !bookieUserIds.some((id) => String(id) === String(userId))) {
             return res.status(403).json({
@@ -182,36 +191,91 @@ export const adjustBalance = async (req, res) => {
             });
         }
 
-        let wallet = await Wallet.findOne({ userId });
-        if (!wallet) {
-            wallet = new Wallet({ userId, balance: 0 });
-        }
+        const isSuperBookieActor = req.admin?.role === 'bookie';
+        let wallet;
 
-        if (type === 'credit') {
-            wallet.balance += numAmount;
-        } else if (type === 'debit') {
-            if (wallet.balance < numAmount) {
+        if (isSuperBookieActor) {
+            const session = await mongoose.startSession();
+            try {
+                await session.withTransaction(async () => {
+                    wallet = await Wallet.findOne({ userId }).session(session);
+                    if (!wallet) {
+                        wallet = new Wallet({ userId, balance: 0 });
+                    }
+
+                    if (type === 'credit') {
+                        const player = await User.findById(userId).select('username').session(session);
+                        await mirrorSuperBookieWalletForPlayerAdjust({
+                            superBookieId: req.admin._id,
+                            amount: numAmount,
+                            type: 'credit',
+                            playerUsername: player?.username || '',
+                            actor: req.admin,
+                            session,
+                        });
+                        wallet.balance += numAmount;
+                    } else if (type === 'debit') {
+                        if (wallet.balance < numAmount) {
+                            const err = new Error('Insufficient balance');
+                            err.status = 400;
+                            throw err;
+                        }
+                        wallet.balance -= numAmount;
+                        const player = await User.findById(userId).select('username').session(session);
+                        await mirrorSuperBookieWalletForPlayerAdjust({
+                            superBookieId: req.admin._id,
+                            amount: numAmount,
+                            type: 'debit',
+                            playerUsername: player?.username || '',
+                            actor: req.admin,
+                            session,
+                        });
+                    }
+
+                    await wallet.save({ session });
+                    await WalletTransaction.create([{
+                        userId,
+                        type,
+                        amount: numAmount,
+                        description: `${getActorLabel(req.admin)} ${type}: ₹${numAmount}`,
+                    }], { session });
+                });
+                await invalidateAdminReadCaches('operator_wallet_adjust');
+            } finally {
+                await session.endSession();
+            }
+        } else {
+            wallet = await Wallet.findOne({ userId });
+            if (!wallet) {
+                wallet = new Wallet({ userId, balance: 0 });
+            }
+
+            if (type === 'credit') {
+                wallet.balance += numAmount;
+            } else if (type === 'debit') {
+                if (wallet.balance < numAmount) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Insufficient balance',
+                    });
+                }
+                wallet.balance -= numAmount;
+            } else {
                 return res.status(400).json({
                     success: false,
-                    message: 'Insufficient balance',
+                    message: 'type must be credit or debit',
                 });
             }
-            wallet.balance -= numAmount;
-        } else {
-            return res.status(400).json({
-                success: false,
-                message: 'type must be credit or debit',
+
+            await wallet.save();
+
+            await WalletTransaction.create({
+                userId,
+                type,
+                amount: numAmount,
+                description: `${getActorLabel(req.admin)} ${type}: ₹${numAmount}`,
             });
         }
-
-        await wallet.save();
-
-        await WalletTransaction.create({
-            userId,
-            type,
-            amount: numAmount,
-            description: `${getActorLabel(req.admin)} ${type}: ₹${numAmount}`,
-        });
 
         emitUserWalletUpdate({
             userId: String(userId),
@@ -236,7 +300,8 @@ export const adjustBalance = async (req, res) => {
 
         res.status(200).json({ success: true, data: wallet });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        const status = error.status || 500;
+        res.status(status).json({ success: false, message: error.message });
     }
 };
 
@@ -271,24 +336,76 @@ export const setBalance = async (req, res) => {
             });
         }
 
-        let wallet = await Wallet.findOne({ userId });
-        if (!wallet) {
-            wallet = new Wallet({ userId, balance: 0 });
+        const isSuperBookieActor = req.admin?.role === 'bookie';
+        let wallet;
+        let previousBalance;
+        let diff;
+
+        if (isSuperBookieActor) {
+            const session = await mongoose.startSession();
+            try {
+                await session.withTransaction(async () => {
+                    wallet = await Wallet.findOne({ userId }).session(session);
+                    if (!wallet) {
+                        wallet = new Wallet({ userId, balance: 0 });
+                    }
+
+                    previousBalance = wallet.balance;
+                    diff = newBalance - previousBalance;
+                    wallet.balance = newBalance;
+
+                    if (diff !== 0) {
+                        const player = await User.findById(userId).select('username').session(session);
+                        const mirrorType = diff > 0 ? 'credit' : 'debit';
+                        await mirrorSuperBookieWalletForPlayerAdjust({
+                            superBookieId: req.admin._id,
+                            amount: Math.abs(diff),
+                            type: mirrorType,
+                            playerUsername: player?.username || '',
+                            actor: req.admin,
+                            session,
+                        });
+                    }
+
+                    await wallet.save({ session });
+
+                    if (diff !== 0) {
+                        const txType = diff >= 0 ? 'credit' : 'debit';
+                        const absDiff = Math.abs(diff);
+                        await WalletTransaction.create([{
+                            userId,
+                            type: txType,
+                            amount: absDiff,
+                            description: `${getActorLabel(req.admin)} ${txType}: ₹${absDiff} (set balance to ₹${newBalance}, was ₹${previousBalance})`,
+                        }], { session });
+                    }
+                });
+                await invalidateAdminReadCaches('operator_wallet_adjust');
+            } finally {
+                await session.endSession();
+            }
+        } else {
+            wallet = await Wallet.findOne({ userId });
+            if (!wallet) {
+                wallet = new Wallet({ userId, balance: 0 });
+            }
+
+            previousBalance = wallet.balance;
+            wallet.balance = newBalance;
+            await wallet.save();
+
+            diff = newBalance - previousBalance;
+            if (diff !== 0) {
+                const txType = diff >= 0 ? 'credit' : 'debit';
+                const absDiff = Math.abs(diff);
+                await WalletTransaction.create({
+                    userId,
+                    type: txType,
+                    amount: absDiff,
+                    description: `${getActorLabel(req.admin)} ${txType}: ₹${absDiff} (set balance to ₹${newBalance}, was ₹${previousBalance})`,
+                });
+            }
         }
-
-        const previousBalance = wallet.balance;
-        wallet.balance = newBalance;
-        await wallet.save();
-
-        const diff = newBalance - previousBalance;
-        const type = diff >= 0 ? 'credit' : 'debit';
-        const absDiff = Math.abs(diff);
-        await WalletTransaction.create({
-            userId,
-            type,
-            amount: absDiff,
-            description: `${getActorLabel(req.admin)} ${type}: ₹${absDiff} (set balance to ₹${newBalance}, was ₹${previousBalance})`,
-        });
 
         emitUserWalletUpdate({
             userId: String(userId),
@@ -313,7 +430,8 @@ export const setBalance = async (req, res) => {
 
         res.status(200).json({ success: true, data: wallet });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        const status = error.status || 500;
+        res.status(status).json({ success: false, message: error.message });
     }
 };
 

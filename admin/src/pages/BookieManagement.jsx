@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaPlus, FaTimes, FaEye, FaEyeSlash, FaSearch, FaUsersCog, FaFilter } from 'react-icons/fa';
+import { FaPlus, FaTimes, FaEye, FaEyeSlash, FaSearch, FaUsersCog, FaFilter, FaCheckCircle, FaWallet } from 'react-icons/fa';
 import useModalBackHandler from '../hooks/useModalBackHandler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010/api/v1';
@@ -85,6 +85,12 @@ const BookieManagement = () => {
     const [allSubBookiesLoading, setAllSubBookiesLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [deleteToast, setDeleteToast] = useState('');
+    const [showWalletModal, setShowWalletModal] = useState(false);
+    const [walletTarget, setWalletTarget] = useState(null);
+    const [walletAmount, setWalletAmount] = useState('');
+    const [walletLoading, setWalletLoading] = useState(false);
+    const [walletError, setWalletError] = useState('');
     const [manageData, setManageData] = useState({
         commissionPercentage: '',
     });
@@ -92,6 +98,12 @@ const BookieManagement = () => {
     const closeEditModal = useModalBackHandler(showEditModal, () => setShowEditModal(false));
     const closeDeleteModal = useModalBackHandler(showDeleteModal, () => setShowDeleteModal(false));
     const closeManageModal = useModalBackHandler(showManageModal, () => setShowManageModal(false));
+    const closeWalletModal = useModalBackHandler(showWalletModal, () => {
+        setShowWalletModal(false);
+        setWalletTarget(null);
+        setWalletAmount('');
+        setWalletError('');
+    });
     const closePasswordModal = useModalBackHandler(showPasswordModal, () => {
         setShowPasswordModal(false);
         setPendingBookie(null);
@@ -118,6 +130,8 @@ const BookieManagement = () => {
         if (!p) return null;
         return typeof p === 'object' ? p._id : p;
     };
+
+    const hasActiveFilters = Boolean(searchTerm.trim()) || statusFilter !== 'all';
 
     const matchesSearchAndStatus = (item, extraSearchFields = []) => {
         const q = searchTerm.trim().toLowerCase();
@@ -376,13 +390,26 @@ const BookieManagement = () => {
             const data = await response.json();
 
             if (data.success) {
-                setSuccess(data.message || `${TOP_LEVEL_LABEL} deleted successfully!`);
+                const deletedUsername = selectedBookie.username || '';
+                const subCount = Number(data.data?.superBookiesDeleted ?? 0);
+                const playerCount = Number(data.data?.playersDeleted ?? 0);
+                let successMessage = `${TOP_LEVEL_LABEL} "${deletedUsername}" deleted successfully!`;
+                if (subCount > 0 || playerCount > 0) {
+                    successMessage += ` ${subCount} ${SUB_LEVEL_LABEL.toLowerCase()} account(s) and ${playerCount} player(s) were also removed.`;
+                }
+                setSuccess(successMessage);
+                setDeleteToast(successMessage);
                 setShowDeleteModal(false);
                 setSelectedBookie(null);
                 setSecretPassword('');
-                fetchBookies();
+                setSearchTerm('');
+                fetchBookies({ silent: true });
                 fetchAllSubBookies({ silent: true });
-                setTimeout(() => setSuccess(''), 5000);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setTimeout(() => {
+                    setSuccess('');
+                    setDeleteToast('');
+                }, 6000);
             } else {
                 if (data.code === 'INVALID_SECRET_DECLARE_PASSWORD') {
                     setPasswordError(data.message || 'Invalid secret password');
@@ -484,6 +511,53 @@ const BookieManagement = () => {
             commissionPercentage: String(bookie.commissionPercentage ?? 0),
         });
         setShowManageModal(true);
+    };
+
+    const openWalletModal = (bookie) => {
+        setWalletTarget(bookie);
+        setWalletAmount('');
+        setWalletError('');
+        setShowWalletModal(true);
+    };
+
+    const handleWalletAdjust = async (type) => {
+        if (!walletTarget?._id) return;
+        const amount = Number(walletAmount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            setWalletError('Enter a valid amount greater than 0');
+            return;
+        }
+        const currentBalance = Number(walletTarget.walletBalance ?? walletTarget.balance ?? 0);
+        if (type === 'debit' && currentBalance < amount) {
+            setWalletError('Insufficient wallet balance');
+            return;
+        }
+
+        setWalletLoading(true);
+        setWalletError('');
+        try {
+            const response = await fetchWithAuth(
+                `${API_BASE_URL}/admin/bookies/${walletTarget._id}/wallet/adjust`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({ amount, type }),
+                },
+            );
+            if (response.status === 401) return;
+            const data = await response.json();
+            if (data.success) {
+                setSuccess(data.message || `Wallet updated for ${walletTarget.username}`);
+                closeWalletModal();
+                fetchBookies({ silent: true });
+                setTimeout(() => setSuccess(''), 5000);
+            } else {
+                setWalletError(data.message || 'Failed to update wallet');
+            }
+        } catch {
+            setWalletError('Network error. Please try again.');
+        } finally {
+            setWalletLoading(false);
+        }
     };
 
     const handleManageSave = async (e) => {
@@ -599,7 +673,9 @@ const BookieManagement = () => {
                             <span className="hidden sm:inline w-px h-6 bg-slate-200 shrink-0" aria-hidden />
                             <FaSearch className="text-slate-400 shrink-0" />
                             <input
-                                type="text"
+                                type="search"
+                                name="bookie-account-search"
+                                autoComplete="off"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder={
@@ -633,8 +709,17 @@ const BookieManagement = () => {
                     )}
 
                     {success && (
-                        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
-                            {success}
+                        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 flex items-start gap-3">
+                            <FaCheckCircle className="shrink-0 mt-0.5" />
+                            <p className="flex-1 text-sm font-medium">{success}</p>
+                            <button
+                                type="button"
+                                onClick={() => { setSuccess(''); setDeleteToast(''); }}
+                                className="text-green-600/70 hover:text-green-800 shrink-0"
+                                aria-label="Dismiss"
+                            >
+                                <FaTimes />
+                            </button>
                         </div>
                     )}
 
@@ -645,11 +730,16 @@ const BookieManagement = () => {
                         ) : pageTab === 'allBookies' && allSubBookiesLoading ? (
                             <div className="p-8 text-center text-slate-500">Loading {SUB_LEVEL_LABEL_PLURAL.toLowerCase()}...</div>
                         ) : pageTab === 'allBookies' && filteredSubBookies.length === 0 ? (
-                            <div className="p-8 text-center text-slate-500">No matching {SUB_LEVEL_LABEL.toLowerCase()} accounts found.</div>
+                            <div className="p-8 text-center text-slate-500">
+                                {hasActiveFilters
+                                    ? `No matching ${SUB_LEVEL_LABEL.toLowerCase()} accounts found.`
+                                    : `No ${SUB_LEVEL_LABEL.toLowerCase()} accounts found.`}
+                            </div>
                         ) : pageTab === 'superBookies' && filteredBookies.length === 0 ? (
                             <div className="p-8 text-center text-slate-500">
-                                No matching {TOP_LEVEL_LABEL.toLowerCase()} accounts found.
-                                {canManageBookies ? ` Add a new ${TOP_LEVEL_LABEL.toLowerCase()} to get started.` : ''}
+                                {hasActiveFilters
+                                    ? `No matching ${TOP_LEVEL_LABEL.toLowerCase()} accounts found.`
+                                    : `No ${TOP_LEVEL_LABEL.toLowerCase()} accounts yet.${canManageBookies ? ` Add a new ${TOP_LEVEL_LABEL.toLowerCase()} to get started.` : ''}`}
                             </div>
                         ) : pageTab === 'superBookies' ? (
                             <>
@@ -658,6 +748,7 @@ const BookieManagement = () => {
                                         <thead>
                                             <tr className="border-b border-slate-200 bg-slate-50">
                                                 <TableHeader label="Account" />
+                                                <TableHeader label="Wallet" align="right" />
                                                 <TableHeader label="Rate" align="right" />
                                                 <TableHeader label="Commission" align="right" />
                                                 <TableHeader label="Player payments" />
@@ -677,6 +768,22 @@ const BookieManagement = () => {
                                                             {bookie.username}
                                                         </button>
                                                         <p className="text-xs text-slate-500 mt-0.5">{bookie.phone || '—'}</p>
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-right">
+                                                        <p className="font-semibold tabular-nums text-slate-800">
+                                                            {formatCurrency(bookie.walletBalance ?? bookie.balance ?? 0)}
+                                                        </p>
+                                                        {canManageBookies && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openWalletModal(bookie)}
+                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-semibold mt-1.5"
+                                                                title="Edit wallet"
+                                                            >
+                                                                <FaWallet className="w-3 h-3" />
+                                                                Edit Wallet
+                                                            </button>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3.5 text-right font-medium tabular-nums">
                                                         {bookie.commissionPercentage ?? 0}%
@@ -763,6 +870,10 @@ const BookieManagement = () => {
                                             </div>
                                             <div className="grid grid-cols-3 gap-2 mt-3 text-sm">
                                                 <div>
+                                                    <p className="text-[10px] uppercase text-slate-500">Wallet</p>
+                                                    <p className="font-semibold mt-0.5 tabular-nums">{formatCurrency(bookie.walletBalance ?? bookie.balance ?? 0)}</p>
+                                                </div>
+                                                <div>
                                                     <p className="text-[10px] uppercase text-slate-500">Rate</p>
                                                     <p className="font-semibold mt-0.5">{bookie.commissionPercentage ?? 0}%</p>
                                                 </div>
@@ -779,6 +890,9 @@ const BookieManagement = () => {
                                                 <button type="button" onClick={() => openBookieDetail(bookie._id)} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-medium">View</button>
                                                 {canManageBookies && (
                                                     <>
+                                                        <button type="button" onClick={() => openWalletModal(bookie)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold">
+                                                            <FaWallet className="w-3 h-3" /> Edit Wallet
+                                                        </button>
                                                         <button type="button" onClick={() => openManageModal(bookie)} className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-medium">Rate</button>
                                                         <button type="button" onClick={() => openEditModal(bookie)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium">Edit</button>
                                                     </>
@@ -796,6 +910,7 @@ const BookieManagement = () => {
                                             <tr className="border-b border-slate-200 bg-slate-50">
                                                 <TableHeader label="Account" />
                                                 <TableHeader label={TOP_LEVEL_LABEL} />
+                                                <TableHeader label="Wallet" align="right" />
                                                 <TableHeader label="Rate" align="right" />
                                                 <TableHeader label="Players" align="right" />
                                                 <TableHeader label="Status" />
@@ -834,6 +949,9 @@ const BookieManagement = () => {
                                                             ) : (
                                                                 <span className="text-slate-400">—</span>
                                                             )}
+                                                        </td>
+                                                        <td className="px-4 py-3.5 text-right font-medium tabular-nums text-slate-700">
+                                                            {formatCurrency(sb.walletBalance ?? sb.balance ?? 0)}
                                                         </td>
                                                         <td className="px-4 py-3.5 text-right font-medium tabular-nums">
                                                             {sb.commissionPercentage ?? 0}%
@@ -1211,6 +1329,8 @@ const BookieManagement = () => {
                                 <label className="block text-gray-400 text-sm mb-2">Secret declare password *</label>
                                 <input
                                     type="password"
+                                    name="delete-bookie-secret-password"
+                                    autoComplete="new-password"
                                     placeholder="Secret declare password"
                                     value={secretPassword}
                                     onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
@@ -1254,6 +1374,8 @@ const BookieManagement = () => {
                             </p>
                             <input
                                 type="password"
+                                name="toggle-bookie-secret-password"
+                                autoComplete="new-password"
                                 placeholder="Secret declare password"
                                 value={secretPassword}
                                 onChange={(e) => { setSecretPassword(e.target.value); setPasswordError(''); }}
@@ -1305,6 +1427,77 @@ const BookieManagement = () => {
                             </div>
                         </form>
                     </div>
+                </div>
+            )}
+
+            {showWalletModal && walletTarget && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-base sm:text-lg font-semibold text-orange-500">Edit Wallet</h3>
+                            <button type="button" onClick={closeWalletModal} className="text-gray-400 hover:text-gray-800 p-1">×</button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            <div className="rounded-lg bg-gray-50 px-3 py-2">
+                                <p className="text-gray-400 text-xs uppercase tracking-wider">Current Balance</p>
+                                <p className="text-green-600 font-mono font-bold text-lg sm:text-xl break-all">
+                                    {formatCurrency(walletTarget.walletBalance ?? walletTarget.balance ?? 0)}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">{walletTarget.username}</p>
+                            </div>
+                            {walletError && (
+                                <div className="rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2">{walletError}</div>
+                            )}
+                            <div>
+                                <p className="text-gray-400 text-sm mb-2">Add (Credit) or Deduct (Debit)</p>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        placeholder="Amount"
+                                        value={walletAmount}
+                                        onChange={(e) => setWalletAmount(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                                        className="w-full sm:flex-1 px-3 py-2.5 rounded-lg bg-gray-100 border border-gray-200 text-gray-800 placeholder-gray-400"
+                                        autoFocus
+                                    />
+                                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleWalletAdjust('credit')}
+                                            disabled={walletLoading}
+                                            className="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold disabled:opacity-50"
+                                        >
+                                            Add
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleWalletAdjust('debit')}
+                                            disabled={walletLoading}
+                                            className="px-4 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold disabled:opacity-50"
+                                        >
+                                            Deduct
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteToast && (
+                <div className="fixed right-4 bottom-4 z-[60] flex items-start gap-3 bg-green-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm max-w-sm">
+                    <FaCheckCircle className="shrink-0 mt-0.5" />
+                    <p className="flex-1 font-medium">{deleteToast}</p>
+                    <button
+                        type="button"
+                        onClick={() => { setDeleteToast(''); setSuccess(''); }}
+                        className="text-white/80 hover:text-white shrink-0"
+                        aria-label="Dismiss"
+                    >
+                        <FaTimes />
+                    </button>
                 </div>
             )}
         </AdminLayout>
