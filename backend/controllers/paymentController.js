@@ -8,11 +8,12 @@ import bcrypt from 'bcryptjs';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
-import { invalidateAdminPaymentRelatedCaches } from '../services/cacheInvalidationService.js';
+import { invalidateAdminPaymentRelatedCaches, invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 import { notifyPlayerWalletBalance } from '../utils/playerWalletNotify.js';
 import { notifyBookiePanelBalance } from '../utils/notifyBookiePanelBalance.js';
 import PaymentUiConfig from '../models/settings/PaymentUiConfig.js';
 import { enrichPaymentsWithUserReferrerChain } from '../utils/referrerChain.js';
+import { deductOperatorWalletForPlayerWithdrawal } from '../utils/operatorWalletService.js';
 
 const DEFAULT_UPI_FALLBACK = 'upi@ybl';
 const DEFAULT_PAYEE_NAME = 'Golden Games';
@@ -136,9 +137,16 @@ const resolvePaymentOwnerId = (payment) => {
     return String(ref._id || ref);
 };
 
+/** Parent SuperBookie may approve withdrawal for a child Bookie's player (debited from child wallet). */
+const isSubBookiePlayerUnderParent = (payment, parentId, childOwnerId) => {
+    const chain = payment?.userId?.referrerChain;
+    if (!chain?.superBookie?._id || !chain?.bookie?._id) return false;
+    return String(chain.bookie._id) === String(parentId) && String(chain.superBookie._id) === String(childOwnerId);
+};
+
 /**
- * Who may approve/reject: only the direct referrer (bookie/super_bookie) with canManagePayments.
- * Parent bookie (role bookie) sees sub-bookie players but cannot act. Admins view-only when owner locked.
+ * Who may approve/reject: direct referrer (bookie/super_bookie) with canManagePayments.
+ * Parent SuperBookie may approve withdrawals for sub-bookie players (debited from child Bookie wallet).
  */
 const computePaymentActionAccess = (actingAdmin, payment, ownerOperator = null) => {
     const ownerId =
@@ -152,7 +160,17 @@ const computePaymentActionAccess = (actingAdmin, payment, ownerOperator = null) 
     const isDirectOwner = Boolean(ownerId && actorId === ownerId);
 
     if (actorRole === 'bookie' || actorRole === 'super_bookie') {
-        const canApproveReject = isDirectOwner && Boolean(actingAdmin.canManagePayments);
+        let canApproveReject = isDirectOwner && Boolean(actingAdmin.canManagePayments);
+        const parentApprovesSubBookieWithdrawal =
+            actorRole === 'bookie'
+            && payment?.type === 'withdrawal'
+            && Boolean(actingAdmin.canManagePayments)
+            && isSubBookiePlayerUnderParent(payment, actorId, ownerId);
+
+        if (parentApprovesSubBookieWithdrawal) {
+            canApproveReject = true;
+        }
+
         let message = '';
         if (!canApproveReject) {
             if (!isDirectOwner) {
@@ -1334,12 +1352,72 @@ export const approvePayment = async (req, res) => {
             }
         }
 
-        // Update payment status
-        payment.status = 'approved';
-        payment.adminRemarks = adminRemarks || 'Approved';
-        payment.processedBy = req.admin._id;
-        payment.processedAt = new Date();
-        await payment.save();
+        const playerUsername = payment.userId?.username || '';
+        const operatorWalletOwnerId = ownerOperator?._id || payment.userId?.referredBy?._id || payment.userId?.referredBy;
+        const shouldDeductOperatorWallet =
+            payment.type === 'withdrawal'
+            && operatorWalletOwnerId
+            && ownerOperator
+            && isPaymentOperatorRole(ownerOperator.role);
+
+        if (shouldDeductOperatorWallet) {
+            const session = await mongoose.startSession();
+            try {
+                await session.withTransaction(async () => {
+                    await deductOperatorWalletForPlayerWithdrawal({
+                        operatorAdminId: operatorWalletOwnerId,
+                        amount: payment.amount,
+                        playerUsername,
+                        paymentId: payment._id,
+                        actor: req.admin,
+                        session,
+                    });
+
+                    payment.status = 'approved';
+                    payment.adminRemarks = adminRemarks || 'Approved';
+                    payment.processedBy = req.admin._id;
+                    payment.processedAt = new Date();
+                    await payment.save({ session });
+
+                    if (!payment.withdrawalWalletHeld) {
+                        const uid = payment.userId._id || payment.userId;
+                        const walletUpdate = await Wallet.findOneAndUpdate(
+                            { userId: uid, balance: { $gte: payment.amount } },
+                            { $inc: { balance: -payment.amount } },
+                            { new: true, session },
+                        );
+                        if (!walletUpdate) {
+                            const err = new Error('User has insufficient balance for this withdrawal');
+                            err.status = 400;
+                            throw err;
+                        }
+                    }
+                });
+                await invalidateAdminReadCaches('operator_wallet_adjust');
+            } finally {
+                session.endSession();
+            }
+        } else {
+            payment.status = 'approved';
+            payment.adminRemarks = adminRemarks || 'Approved';
+            payment.processedBy = req.admin._id;
+            payment.processedAt = new Date();
+            await payment.save();
+
+            let wallet = await Wallet.findOne({ userId: payment.userId._id });
+            if (!wallet) {
+                wallet = new Wallet({ userId: payment.userId._id, balance: 0 });
+            }
+
+            if (payment.type === 'deposit') {
+                wallet.balance += payment.amount;
+                await wallet.save();
+            } else if (payment.type === 'withdrawal' && !payment.withdrawalWalletHeld) {
+                wallet.balance -= payment.amount;
+                await wallet.save();
+            }
+        }
+
         const paymentForBroadcast = paymentWithChain?.[0] || {
             ...payment.toObject(),
             userId: payment.userId,
@@ -1349,20 +1427,6 @@ export const approvePayment = async (req, res) => {
             actorId: req.admin._id,
             ownerOperator,
         });
-
-        // Update wallet (deposits credit; legacy withdrawals debit — new withdrawals already debited on request)
-        let wallet = await Wallet.findOne({ userId: payment.userId._id });
-        if (!wallet) {
-            wallet = new Wallet({ userId: payment.userId._id, balance: 0 });
-        }
-
-        if (payment.type === 'deposit') {
-            wallet.balance += payment.amount;
-            await wallet.save();
-        } else if (payment.type === 'withdrawal' && !payment.withdrawalWalletHeld) {
-            wallet.balance -= payment.amount;
-            await wallet.save();
-        }
 
         const walletNotifyUid = payment.userId?._id || payment.userId;
         if (
@@ -1396,7 +1460,8 @@ export const approvePayment = async (req, res) => {
             data: payment,
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        const status = error.status || 500;
+        res.status(status).json({ success: false, message: error.message });
     }
 };
 

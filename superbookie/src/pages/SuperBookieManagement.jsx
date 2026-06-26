@@ -624,14 +624,6 @@ const SuperBookieManagement = () => {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => openWalletModal(sb)}
-                                                        className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold"
-                                                        title="Edit wallet"
-                                                    >
-                                                        <FaWallet className="inline w-3 h-3" /> Edit Wallet
-                                                    </button>
-                                                    <button
-                                                        type="button"
                                                         onClick={() => openManageModal(sb)}
                                                         className="px-2 py-1.5 rounded-lg bg-[#1B3150] text-white text-xs font-semibold"
                                                         title="Quick Manage Commission"

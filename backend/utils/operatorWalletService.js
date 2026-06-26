@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Admin from '../models/admin/admin.js';
 import BookieWalletTransaction from '../models/bookieWalletTransaction/bookieWalletTransaction.js';
 import { recordBookieWalletTransaction } from './bookieWalletLedger.js';
+import { isBookiePanelRole } from './adminRoles.js';
 import { logActivity, getClientIp } from './activityLogger.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
 
@@ -324,6 +325,70 @@ export async function mirrorSuperBookieWalletForPlayerAdjust({
 
     await parent.save(session ? { session } : undefined);
     return { balance: parent.balance, previousBalance: parentBal };
+}
+
+/**
+ * Deduct operator wallet when a player withdrawal is approved.
+ * Bookie (super_bookie) or SuperBookie (bookie) — whoever directly owns the player.
+ */
+export async function deductOperatorWalletForPlayerWithdrawal({
+    operatorAdminId,
+    amount,
+    playerUsername = '',
+    paymentId,
+    actor = null,
+    session = null,
+}) {
+    const numAmount = round2(amount);
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
+        const err = new Error('Invalid withdrawal amount');
+        err.status = 400;
+        throw err;
+    }
+
+    const operator = await Admin.findById(operatorAdminId)
+        .select('username role balance status')
+        .session(session);
+    if (!operator || !isBookiePanelRole(operator) || operator.status !== 'active') {
+        const err = new Error('Operator wallet account not found');
+        err.status = 404;
+        throw err;
+    }
+
+    const currentBalance = round2(operator.balance || 0);
+    if (currentBalance < numAmount) {
+        const err = new Error(
+            operator.role === 'super_bookie'
+                ? 'Insufficient Bookie wallet balance'
+                : 'Insufficient SuperBookie wallet balance',
+        );
+        err.status = 400;
+        throw err;
+    }
+
+    operator.balance = round2(currentBalance - numAmount);
+    const playerLabel = playerUsername ? `"${playerUsername}"` : 'player';
+    await recordBookieWalletTransaction({
+        adminId: operator._id,
+        direction: 'debit',
+        type: 'player_withdrawal',
+        amount: numAmount,
+        balanceAfter: operator.balance,
+        description: `Player withdrawal approved — ${playerLabel}`,
+        referenceId: String(paymentId || ''),
+        meta: { performedBy: String(actor?._id || '') },
+        session,
+    });
+    await operator.save(session ? { session } : undefined);
+
+    return {
+        adminId: operator._id,
+        username: operator.username,
+        role: operator.role,
+        balance: operator.balance,
+        previousBalance: currentBalance,
+        amount: numAmount,
+    };
 }
 
 export async function getOperatorWalletSummary(adminId, { limit = 20 } = {}) {
