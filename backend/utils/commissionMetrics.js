@@ -520,10 +520,8 @@ export async function buildAdminAllCommissionSummaryRows(parentBookies, subBooki
             getOperatorCommissionReport(bookie._id, {}),
             getPlatformRemainderReport({ rootOperatorId: bookie._id }),
         ]);
-        const { adminPaid, adminPending } = computeAdminShareSettlement(
-            settlementPaidMap[bookieId] || 0,
-            platform.platformRemainder,
-        );
+        const adminCommissionPaid = 0;
+        const adminCommissionPending = platform.platformRemainder;
 
         normalized.push({
             bookieId: bookie._id,
@@ -535,8 +533,8 @@ export async function buildAdminAllCommissionSummaryRows(parentBookies, subBooki
             commissionPercentage: adminRate,
             adminCommissionPercentage,
             adminCommissionAmount: platform.platformRemainder,
-            adminCommissionPaid: adminPaid,
-            adminCommissionPending: adminPending,
+            adminCommissionPaid,
+            adminCommissionPending,
             netCommissionAfterAdmin: report.totalEarned,
             actualCommission: report.totalEarned,
             calculatedCommission: report.calculatedCommission,
@@ -552,9 +550,9 @@ export async function buildAdminAllCommissionSummaryRows(parentBookies, subBooki
             betCount: directVol.betCount + subBetCount,
             totalBetAmount,
             totalCommission: report.totalEarned,
-            totalPaid: adminPaid,
-            totalPending: adminPending,
-            paymentStatus: getAdminSharePaymentStatus(platform.platformRemainder, adminPaid),
+            totalPaid: report.totalSettled,
+            totalPending: adminCommissionPending,
+            paymentStatus: report.paymentStatus,
             lastPaidAt: lastPaidMap[bookieId] || report.lastSettledAt || null,
             engineV2: true,
         });
@@ -764,10 +762,8 @@ async function buildAdvanceAwareCommissionDisplaySummary(admin, advanceCommissio
     const totalBetAmount = report.totalBet ?? volumes.totalBetAmount;
     const totalCommission = report.totalEarned;
     const adminCommissionAmount = report.platformRemainder;
-    const { adminPaid, adminPending } = await getAdminShareSettlementForBookie(
-        admin._id,
-        adminCommissionAmount,
-    );
+    const adminPaid = 0;
+    const adminPending = adminCommissionAmount;
 
     const totalSettled = report.totalSettled;
     const recoveryPendingFromBets = report.totalPending;
@@ -881,16 +877,17 @@ export async function getSubBookieCommissionSettlementSummary(admin) {
 /** Parent SuperBookie panel row: parent remainder + child bookie commission from one sub account. */
 export async function getParentReceivableCommissionFromSubBookie(superBookie) {
     const base = await getSubBookieCommissionSettlementSummary(superBookie);
-    const { getPlatformRemainderReport } = await import('../services/commissionEngine/index.js');
-    const platform = await getPlatformRemainderReport({ rootOperatorId: base.accountId });
+    const distribution = await getChildBookieProfitDistribution(superBookie);
 
-    const parentRemainderAmount = platform.platformRemainder;
+    const parentRemainderAmount = distribution.superBookieShare;
+    const adminShareFromChild = distribution.adminShare;
     const bookieCommission = base.totalCommission;
     const bookieCommissionPending = base.totalPending;
     const bookieCommissionSettled = base.totalPaid;
 
-    const { adminPaid: parentRemainderPaid, adminPending: parentRemainderPending } =
-        await getAdminShareSettlementForBookie(base.accountId, parentRemainderAmount);
+    // Parent earned share from this child is informational (kept by parent); not tied to child payouts.
+    const parentRemainderPaid = 0;
+    const parentRemainderPending = parentRemainderAmount;
 
     const [
         advancePaidInitial,
@@ -914,7 +911,7 @@ export async function getParentReceivableCommissionFromSubBookie(superBookie) {
         playerCount: base.playerCount,
         betCount: base.betCount,
         totalBetAmount: base.totalBetAmount,
-        grossProfit: base.grossProfit,
+        grossProfit: base.grossProfit ?? distribution.grossProfit,
         calculatedCommission: base.calculatedCommission,
         actualCommission: base.actualCommission,
         bookieCommission,
@@ -923,12 +920,14 @@ export async function getParentReceivableCommissionFromSubBookie(superBookie) {
         parentRemainderAmount,
         parentRemainderPaid,
         parentRemainderPending,
+        adminShareFromChild,
         parentCommissionFromSub: parentRemainderAmount,
         subEarnedCommission: bookieCommission,
         totalCommission: parentRemainderAmount,
         totalPaid: parentRemainderPaid,
         totalPending: parentRemainderPending,
-        paymentStatus: getAdminSharePaymentStatus(parentRemainderAmount, parentRemainderPaid),
+        paymentStatus: base.paymentStatus,
+        parentRemainderPaymentStatus: getAdminSharePaymentStatus(parentRemainderAmount, parentRemainderPaid),
         lastPaidAt: base.lastPaidAt,
         advanceCommissionPaid,
         advancePaidInitial,

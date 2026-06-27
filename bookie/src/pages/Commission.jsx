@@ -63,6 +63,16 @@ const paymentStatusLabel = (status) => {
     return status || '—';
 };
 
+const formatSettlementPeriod = (start, end) => {
+    const fmt = (value) => {
+        if (!value) return '-';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return '-';
+        return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+    return `${fmt(start)} – ${fmt(end)}`;
+};
+
 const formatPaymentDateTime = (value) => {
     if (!value) return '-';
     const d = new Date(value);
@@ -88,6 +98,8 @@ const Commission = () => {
     const [paymentTotals, setPaymentTotals] = useState({ advance: 0, settled: 0 });
     const [payments, setPayments] = useState([]);
     const [paymentsLoading, setPaymentsLoading] = useState(false);
+    const [settlements, setSettlements] = useState([]);
+    const [settlementsLoading, setSettlementsLoading] = useState(false);
     const [dateRange, setDateRange] = useState(() => {
         const d = new Date();
         const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -138,10 +150,24 @@ const Commission = () => {
         }
     }, []);
 
+    const fetchSettlements = useCallback(async () => {
+        try {
+            setSettlementsLoading(true);
+            const res = await fetchWithAuth(`${API_BASE_URL}/daily-commission/my-settlements`);
+            const result = await res.json();
+            setSettlements(result.success ? (result.data || []) : []);
+        } catch {
+            setSettlements([]);
+        } finally {
+            setSettlementsLoading(false);
+        }
+    }, []);
+
     useEffect(() => { fetchRevenue(); }, [fetchRevenue]);
     useEffect(() => {
         fetchPayments();
-    }, [fetchPayments]);
+        fetchSettlements();
+    }, [fetchPayments, fetchSettlements]);
 
     useEffect(() => {
         const unsub = subscribeBookiePanelBalance((payload) => {
@@ -153,10 +179,11 @@ const Commission = () => {
             ) {
                 fetchRevenue();
                 fetchPayments();
+                fetchSettlements();
             }
         });
         return unsub;
-    }, [fetchRevenue, fetchPayments]);
+    }, [fetchRevenue, fetchPayments, fetchSettlements]);
 
     const applyPreset = (presetId) => {
         const preset = PRESETS.find((p) => p.id === presetId);
@@ -459,6 +486,41 @@ const Commission = () => {
                                         <p className="text-xs text-slate-700 tabular-nums min-w-0 truncate">
                                             {formatPaymentDateTime(payment.createdAt)}
                                         </p>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-2">
+                        <p className="text-sm font-semibold text-slate-700">Settlement history</p>
+                        <span className="text-slate-300 hidden sm:inline">·</span>
+                        <p className="text-xs text-slate-500">Engine-recorded commission per period</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 overflow-hidden text-sm">
+                        {settlementsLoading ? (
+                            <p className="text-sm text-slate-500 py-3 text-center">{t('loading')}</p>
+                        ) : settlements.length === 0 ? (
+                            <p className="text-sm text-slate-500 py-3 text-center">No settlements recorded yet.</p>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-4 gap-2 px-3 py-1.5 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500 font-medium">
+                                    <span>Period</span>
+                                    <span className="text-right">Bets</span>
+                                    <span className="text-right">Commission</span>
+                                    <span className="text-right">Settled</span>
+                                </div>
+                                {settlements.map((row) => (
+                                    <div
+                                        key={row._id}
+                                        className="grid grid-cols-4 gap-2 px-3 py-2 border-t border-slate-100 items-center leading-tight"
+                                    >
+                                        <span className="text-xs text-slate-700">{formatSettlementPeriod(row.periodStart, row.periodEnd)}</span>
+                                        <span className="text-right tabular-nums text-slate-700">{formatCurrency(row.totalBet)}</span>
+                                        <span className="text-right tabular-nums text-orange-700">{formatCurrency(row.actualCommission)}</span>
+                                        <span className="text-right text-xs text-slate-500 tabular-nums">{formatPaymentDateTime(row.settledAt)}</span>
                                     </div>
                                 ))}
                             </>

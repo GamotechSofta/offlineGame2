@@ -8,6 +8,7 @@ import {
     recordBookieCommissionPayment,
     getBookieCommissionPaymentHistory,
     getMyCommissionPayments,
+    getMyCommissionSettlements,
     getMyCommissionSummary,
     getAdminPlatformCommissionSummary,
     getSuperBookieCommissionSummary,
@@ -21,6 +22,7 @@ const router = express.Router();
 
 router.post('/calculate', verifyAdmin, calculateDailyCommission);
 router.get('/my-payments', verifyAdmin, getMyCommissionPayments);
+router.get('/my-settlements', verifyAdmin, getMyCommissionSettlements);
 router.get('/my-summary', verifyAdmin, getMyCommissionSummary);
 router.get('/admin-platform-summary', verifyAdmin, getAdminPlatformCommissionSummary);
 router.get('/super-bookie-summary', verifyAdmin, requireBookie, getSuperBookieCommissionSummary);

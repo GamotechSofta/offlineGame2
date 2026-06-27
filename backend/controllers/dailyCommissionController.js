@@ -730,6 +730,57 @@ export const getMyCommissionPayments = async (req, res) => {
 };
 
 /**
+ * Bookie / Super Bookie: engine settlement audit trail
+ * GET /api/v1/daily-commission/my-settlements
+ */
+export const getMyCommissionSettlements = async (req, res) => {
+    try {
+        if (!isBookiePanelRole(req.admin)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Bookie or super bookie access required',
+            });
+        }
+
+        const CommissionSettlement = (await import('../models/commission/commissionSettlement.js')).default;
+        const { SETTLEMENT_STATUS } = await import('../services/commissionEngine/constants.js');
+        const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+
+        const settlements = await CommissionSettlement.find({
+            childOperatorId: req.admin._id,
+            status: SETTLEMENT_STATUS.COMPLETED,
+        })
+            .sort({ settledAt: -1, createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        const rows = settlements.map((settlement) => ({
+            _id: settlement._id,
+            periodStart: settlement.periodStart,
+            periodEnd: settlement.periodEnd,
+            totalBet: round2(settlement.totalBet),
+            playerWinning: round2(settlement.playerWinning),
+            grossProfit: round2(settlement.grossProfit),
+            commissionPercentage: settlement.commissionPercentage,
+            calculatedCommission: round2(settlement.calculatedCommission),
+            actualCommission: round2(settlement.actualCommission),
+            status: settlement.status,
+            settledAt: settlement.settledAt || settlement.updatedAt,
+        }));
+
+        return res.status(200).json({
+            success: true,
+            data: rows,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to fetch settlement history',
+        });
+    }
+};
+
+/**
  * Parent bookie: commission summary for all super bookies
  * GET /api/v1/daily-commission/super-bookie-summary
  */

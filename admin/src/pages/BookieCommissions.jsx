@@ -118,9 +118,16 @@ const getRowPending = (row) => {
 
 const getRowSettled = (row) => {
     if (row.accountLabel === 'parent') {
-        return Number(row.adminCommissionPaid ?? row.totalPaid ?? 0);
+        return Number(row.superBookieCommissionSettled ?? row.totalPaid ?? 0);
     }
     return Number(row.totalPaid ?? 0);
+};
+
+const getRowPayable = (row) => {
+    if (row.accountLabel === 'parent') {
+        return Number(row.superBookieCommissionPending ?? 0);
+    }
+    return Number(row.totalPending ?? 0);
 };
 
 const renderSettledCell = (row) => (
@@ -257,19 +264,22 @@ const BookieCommissions = () => {
     const submitPayment = async (row) => {
         const bookieId = String(row.bookieId);
         const mode = payStateByBookie[bookieId]?.mode || 'partial';
+        const rowPayable = getRowPayable(row);
         const amountRaw = mode === 'full'
-            ? String(getRowPending(row).toFixed(2))
+            ? String(rowPayable.toFixed(2))
             : (payStateByBookie[bookieId]?.amount || '');
         const amount = Number(amountRaw);
         if (!Number.isFinite(amount) || amount <= 0) {
             alert('Please enter a valid paid amount.');
             return;
         }
-        const rowPending = getRowPending(row);
-        if (amount > rowPending) {
-            alert('Paid amount cannot be more than pending amount.');
+        if (amount > rowPayable) {
+            alert('Paid amount cannot be more than pending SuperBookie commission.');
             return;
         }
+
+        const today = new Date();
+        const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
         setSubmittingBookieId(bookieId);
         try {
@@ -277,6 +287,7 @@ const BookieCommissions = () => {
                 method: 'POST',
                 body: JSON.stringify({
                     paidAmount: amount,
+                    date,
                 }),
             });
             if (response.status === 401) return;
@@ -459,10 +470,11 @@ const BookieCommissions = () => {
                                     filteredRows.map((row) => {
                                         const bookieId = String(row.bookieId);
                                         const rowPending = getRowPending(row);
+                                        const rowPayable = getRowPayable(row);
                                         const isExpanded = expandedBookieId === bookieId;
                                         const paymentMode = payStateByBookie[bookieId]?.mode || 'partial';
                                         const paymentAmount = paymentMode === 'full'
-                                            ? String(rowPending.toFixed(2))
+                                            ? String(rowPayable.toFixed(2))
                                             : (payStateByBookie[bookieId]?.amount || '');
                                         return (
                                             <React.Fragment key={bookieId}>
@@ -493,12 +505,12 @@ const BookieCommissions = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3.5 min-w-[11rem]">
-                                                        {rowPending > 0 ? (
+                                                        {rowPayable > 0 ? (
                                                             <div className="space-y-2">
                                                                 <div className="flex items-center gap-2">
                                                                     <select
                                                                         value={paymentMode}
-                                                                        onChange={(e) => handlePayModeChange(bookieId, e.target.value, rowPending)}
+                                                                        onChange={(e) => handlePayModeChange(bookieId, e.target.value, rowPayable)}
                                                                         className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px]"
                                                                     >
                                                                         <option value="partial">Partial</option>
@@ -507,7 +519,7 @@ const BookieCommissions = () => {
                                                                     <input
                                                                         type="number"
                                                                         min="0"
-                                                                        max={rowPending}
+                                                                        max={rowPayable}
                                                                         step="0.01"
                                                                         disabled={paymentMode === 'full'}
                                                                         value={paymentAmount}
@@ -582,10 +594,11 @@ const BookieCommissions = () => {
                     {!loading && filteredRows.map((row) => {
                         const bookieId = String(row.bookieId);
                         const rowPending = getRowPending(row);
+                        const rowPayable = getRowPayable(row);
                         const isExpanded = expandedBookieId === bookieId;
                         const paymentMode = payStateByBookie[bookieId]?.mode || 'partial';
                         const paymentAmount = paymentMode === 'full'
-                            ? String(rowPending.toFixed(2))
+                            ? String(rowPayable.toFixed(2))
                             : (payStateByBookie[bookieId]?.amount || '');
                         return (
                             <div key={bookieId} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
@@ -622,12 +635,12 @@ const BookieCommissions = () => {
                                     </div>
                                 </div>
 
-                                {rowPending > 0 && (
+                                {rowPayable > 0 && (
                                     <div className="mt-3 space-y-2">
                                         <div className="flex gap-2">
                                             <select
                                                 value={paymentMode}
-                                                onChange={(e) => handlePayModeChange(bookieId, e.target.value, rowPending)}
+                                                onChange={(e) => handlePayModeChange(bookieId, e.target.value, rowPayable)}
                                                 className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-xs"
                                             >
                                                 <option value="partial">Partial</option>
@@ -636,7 +649,7 @@ const BookieCommissions = () => {
                                             <input
                                                 type="number"
                                                 min="0"
-                                                max={rowPending}
+                                                max={rowPayable}
                                                 step="0.01"
                                                 disabled={paymentMode === 'full'}
                                                 value={paymentAmount}
