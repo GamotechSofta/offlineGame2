@@ -27,6 +27,8 @@ import {
 import { notifyBookiePanelBalances } from '../utils/notifyBookiePanelBalance.js';
 import {
     recordCommissionSettlementPaidWithAdvance,
+    recordCommissionSettlementPaidWithOther,
+    recordAdminCommissionSettlementFromSuperBookie,
     InsufficientBookieBalanceError,
 } from '../utils/advanceCommissionTransfer.js';
 
@@ -591,34 +593,54 @@ export const recordBookieCommissionPayment = async (req, res) => {
             });
         }
 
-        const settlement = await runCommissionEngineSettlement({
-            rootOperatorId: bookieId,
-            body: req.body,
-            actor: req.admin,
-        });
-        const targetEdge = settlement.edges?.find(
-            (e) => String(e.operatorId) === String(bookieId),
+        const { getPlatformRemainderReport } = await import('../services/commissionEngine/index.js');
+        const platform = await getPlatformRemainderReport({ rootOperatorId: bookieId });
+        const { adminPending } = await getAdminShareSettlementForBookie(
+            bookieId,
+            platform.platformRemainder,
         );
-        const appliedPayment = round2(targetEdge?.actualCommission ?? settlement.summary?.totalActualCommission ?? 0);
-        if (appliedPayment <= 0) {
+        if (adminPending <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'No commission to settle for this period',
-                data: { settlement },
+                message: 'No pending admin commission to settle for this account',
             });
         }
+
+        const appliedPayment = round2(Math.min(paymentToApply, adminPending));
+
+        let transferResult;
+        try {
+            transferResult = await recordAdminCommissionSettlementFromSuperBookie({
+                adminId: req.admin._id,
+                adminUsername: req.admin.username,
+                superBookieId: bookie._id,
+                superBookieUsername: bookie.username,
+                amount: appliedPayment,
+                notes: typeof notes === 'string' ? notes.trim() : 'Commission settlement',
+                createdById: req.admin._id,
+            });
+        } catch (error) {
+            if (error instanceof InsufficientBookieBalanceError || error?.code === 'INSUFFICIENT_BOOKIE_BALANCE') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Insufficient SuperBookie wallet balance for settlement',
+                });
+            }
+            throw error;
+        }
+
         return res.status(200).json({
             success: true,
-            message: 'Commission settlement executed',
+            message: 'Commission settlement recorded',
             data: {
                 bookieId,
-                appliedPayment,
+                appliedPayment: transferResult?.appliedPayment ?? appliedPayment,
+                leftoverAmount: round2(Math.max(0, adminPending - appliedPayment)),
                 engineV2: true,
-                settlement,
             },
         });
     } catch (error) {
-        return res.status(500).json({
+        return res.status(error.status || 500).json({
             success: false,
             message: error.message || 'Failed to record commission payment',
         });
@@ -873,16 +895,18 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Super bookie not found' });
         }
 
+        const summary = await getParentReceivableCommissionFromSubBookie(superBookie);
+        const remainderPending = Number(summary.parentRemainderPending ?? summary.displayPending ?? 0);
+        if (remainderPending <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No pending remainder to settle for this bookie',
+            });
+        }
+
+        const appliedPayment = round2(Math.min(paymentToApply, remainderPending));
+
         if (payFromAdvance) {
-            const summary = await getParentReceivableCommissionFromSubBookie(superBookie);
-            const childPending = Number(summary.bookieCommissionPending ?? summary.commissionPayable ?? 0);
-            if (childPending <= 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'No pending commission for this super bookie',
-                });
-            }
-            const appliedPayment = round2(Math.min(paymentToApply, childPending));
             const advanceAvailable = await getAdvanceAvailableForSettlement(superBookie);
             if (advanceAvailable <= 0) {
                 return res.status(400).json({
@@ -920,39 +944,47 @@ export const recordSuperBookieCommissionPayment = async (req, res) => {
                 data: {
                     superBookieId,
                     appliedPayment,
-                    leftoverAmount: round2(Math.max(0, childPending - appliedPayment)),
+                    leftoverAmount: round2(Math.max(0, remainderPending - appliedPayment)),
                     parentBalanceAfter: transferResult?.parentBalanceAfter ?? 0,
                     newSuperBookieBalance: transferResult?.superBookieBalanceAfter ?? 0,
                 },
             });
         }
 
-        const settlement = await runCommissionEngineSettlement({
-            rootOperatorId: superBookieId,
-            body: req.body,
-            actor: req.admin,
-        });
-        const targetEdge = settlement.edges?.find(
-            (e) => String(e.operatorId) === String(superBookieId),
-        );
-        const appliedPayment = round2(
-            Number.isFinite(paymentToApply) && paymentToApply > 0
-                ? Math.min(paymentToApply, targetEdge?.actualCommission ?? settlement.summary?.totalActualCommission ?? 0)
-                : (targetEdge?.actualCommission ?? settlement.summary?.totalActualCommission ?? 0),
-        );
+        let transferResult;
+        try {
+            transferResult = await recordCommissionSettlementPaidWithOther({
+                parentBookieId: req.admin._id,
+                parentUsername: req.admin.username,
+                superBookieId: superBookie._id,
+                superBookieUsername: superBookie.username,
+                amount: appliedPayment,
+                notes: typeof notes === 'string' ? notes.trim() : 'Commission settlement',
+                createdById: req.admin._id,
+            });
+        } catch (error) {
+            if (error instanceof InsufficientBookieBalanceError || error?.code === 'INSUFFICIENT_BOOKIE_BALANCE') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Insufficient child bookie wallet balance for settlement',
+                });
+            }
+            throw error;
+        }
+
         return res.status(200).json({
             success: true,
-            message: 'Commission settlement executed',
+            message: 'Commission settlement recorded',
             data: {
                 superBookieId,
-                appliedPayment,
-                leftoverAmount: round2(Math.max(0, (targetEdge?.calculatedCommission ?? 0) - appliedPayment)),
-                engineV2: true,
-                settlement,
+                appliedPayment: transferResult?.appliedPayment ?? appliedPayment,
+                leftoverAmount: round2(Math.max(0, remainderPending - appliedPayment)),
+                parentBalanceAfter: transferResult?.parentBalanceAfter ?? 0,
+                newSuperBookieBalance: transferResult?.superBookieBalanceAfter ?? 0,
             },
         });
     } catch (error) {
-        return res.status(500).json({
+        return res.status(error.status || 500).json({
             success: false,
             message: error.message || 'Failed to record payment',
         });

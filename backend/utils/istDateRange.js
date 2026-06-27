@@ -57,3 +57,21 @@ export function buildIstDateFilter(startDate, endDate) {
     if (!start || !end) return {};
     return { createdAt: { $gte: start, $lte: end } };
 }
+
+/** Today's calendar date in IST as YYYY-MM-DD. */
+export function getIstTodayDateKey() {
+    const ist = new Date(Date.now() + IST_OFFSET_MINUTES * 60 * 1000);
+    const y = ist.getUTCFullYear();
+    const m = String(ist.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(ist.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+/** Shift an IST YYYY-MM-DD key by deltaDays (negative = past). */
+export function shiftIstDateKey(dateKey, deltaDays) {
+    const m = String(dateKey || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return dateKey;
+    const utc = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + deltaDays);
+    const d = new Date(utc);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}

@@ -267,11 +267,12 @@ export async function adjustChildWalletWithParentMirror({
 }
 
 /**
- * Mirror SuperBookie wallet when funding / recovering player wallets.
- * Player credit => SuperBookie debit | Player debit => SuperBookie credit
+ * Mirror operator wallet when funding / recovering player wallets.
+ * Player credit => operator debit | Player debit => operator credit
+ * Works for SuperBookie (bookie) and child Bookie (super_bookie).
  */
-export async function mirrorSuperBookieWalletForPlayerAdjust({
-    superBookieId,
+export async function mirrorOperatorWalletForPlayerAdjust({
+    operatorAdminId,
     amount,
     type,
     playerUsername = '',
@@ -282,49 +283,78 @@ export async function mirrorSuperBookieWalletForPlayerAdjust({
     if (!Number.isFinite(numAmount) || numAmount <= 0) return null;
     if (type !== 'credit' && type !== 'debit') return null;
 
-    const parent = await Admin.findById(superBookieId).select('username role balance status').session(session);
-    if (!parent || parent.role !== 'bookie' || parent.status !== 'active') {
-        const err = new Error('SuperBookie account not found');
+    const operator = await Admin.findById(operatorAdminId)
+        .select('username role balance status')
+        .session(session);
+    if (!operator || !isBookiePanelRole(operator) || operator.status !== 'active') {
+        const err = new Error(
+            operator?.role === 'super_bookie'
+                ? 'Bookie wallet account not found'
+                : 'SuperBookie account not found',
+        );
         err.status = 404;
         throw err;
     }
 
-    const parentBal = round2(parent.balance || 0);
+    const operatorBal = round2(operator.balance || 0);
     const playerLabel = playerUsername ? `"${playerUsername}"` : 'player';
 
     if (type === 'credit') {
-        if (parentBal < numAmount) {
-            const err = new Error('Insufficient SuperBookie wallet balance');
+        if (operatorBal < numAmount) {
+            const err = new Error(
+                operator.role === 'super_bookie'
+                    ? 'Insufficient Bookie wallet balance'
+                    : 'Insufficient SuperBookie wallet balance',
+            );
             err.status = 400;
             throw err;
         }
-        parent.balance = round2(parentBal - numAmount);
+        operator.balance = round2(operatorBal - numAmount);
         await recordBookieWalletTransaction({
-            adminId: parent._id,
+            adminId: operator._id,
             direction: 'debit',
             type: 'wallet_credit_player',
             amount: numAmount,
-            balanceAfter: parent.balance,
+            balanceAfter: operator.balance,
             description: `Fund added to player ${playerLabel}`,
             meta: { performedBy: String(actor?._id || '') },
             session,
         });
     } else {
-        parent.balance = round2(parentBal + numAmount);
+        operator.balance = round2(operatorBal + numAmount);
         await recordBookieWalletTransaction({
-            adminId: parent._id,
+            adminId: operator._id,
             direction: 'credit',
             type: 'wallet_debit_player',
             amount: numAmount,
-            balanceAfter: parent.balance,
+            balanceAfter: operator.balance,
             description: `Fund recovered from player ${playerLabel}`,
             meta: { performedBy: String(actor?._id || '') },
             session,
         });
     }
 
-    await parent.save(session ? { session } : undefined);
-    return { balance: parent.balance, previousBalance: parentBal };
+    await operator.save(session ? { session } : undefined);
+    return { balance: operator.balance, previousBalance: operatorBal };
+}
+
+/** @deprecated Use mirrorOperatorWalletForPlayerAdjust */
+export async function mirrorSuperBookieWalletForPlayerAdjust({
+    superBookieId,
+    amount,
+    type,
+    playerUsername = '',
+    actor = null,
+    session = null,
+} = {}) {
+    return mirrorOperatorWalletForPlayerAdjust({
+        operatorAdminId: superBookieId,
+        amount,
+        type,
+        playerUsername,
+        actor,
+        session,
+    });
 }
 
 /**

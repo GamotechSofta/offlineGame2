@@ -98,7 +98,7 @@ const getRowDisplayPending = (row) => Number(
 );
 
 const getRowPayablePending = (row) => Number(
-    row.bookieCommissionPending ?? row.commissionPayable ?? 0,
+    row.parentRemainderPending ?? row.displayPending ?? row.commissionPayable ?? 0,
 );
 
 const hasAdvanceRecovery = (row) =>
@@ -324,9 +324,6 @@ const Commission = () => {
             return;
         }
 
-        const today = new Date();
-        const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
         setSubmittingBookieId(bookieId);
         try {
             const recovery = isRecoveryPayment(row);
@@ -338,7 +335,6 @@ const Commission = () => {
                 method: 'POST',
                     body: JSON.stringify({
                         paidAmount: amount,
-                        date,
                         settlementSource: recovery ? undefined : 'paid_with_other',
                     }),
                 },

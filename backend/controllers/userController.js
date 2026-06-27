@@ -5,6 +5,8 @@ import Payment from '../models/payment/payment.js';
 import bcrypt from 'bcryptjs';
 import { Wallet, WalletTransaction } from '../models/wallet/wallet.js';
 import { getBookieUserIds } from '../utils/bookieFilter.js';
+import { isBookiePanelRole } from '../utils/adminRoles.js';
+import { mirrorOperatorWalletForPlayerAdjust } from '../utils/operatorWalletService.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { signUserToken, verifyUserToken } from '../utils/userJwt.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
@@ -827,6 +829,22 @@ export const createUser = async (req, res) => {
             });
         }
 
+        if (initialBalance > 0 && isBookiePanelRole(req.admin)) {
+            const operator = await Admin.findById(req.admin._id).select('balance status role').lean();
+            if (!operator || operator.status !== 'active') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Your wallet account is not active',
+                });
+            }
+            if (Number(operator.balance || 0) < initialBalance) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Insufficient wallet balance. Need ₹${initialBalance}, available ₹${Number(operator.balance || 0)}`,
+                });
+            }
+        }
+
         // Super admin creates → default source=super_admin, referredBy can be assigned to super_admin/bookie.
         // Bookie creates → forced source=bookie and referredBy=bookie_id.
         let finalReferredBy = (referredBy != null && String(referredBy).trim()) ? String(referredBy).trim() : null;
@@ -920,6 +938,17 @@ export const createUser = async (req, res) => {
                 amount: initialBalance,
                 description: `${req.admin?.role === 'bookie' ? 'Bookie' : req.admin?.role === 'super_bookie' ? 'Super Bookie' : 'Admin'} credit: ₹${initialBalance} (initial balance on player creation)`,
             });
+
+            if (isBookiePanelRole(req.admin)) {
+                await mirrorOperatorWalletForPlayerAdjust({
+                    operatorAdminId: req.admin._id,
+                    amount: initialBalance,
+                    type: 'credit',
+                    playerUsername: derivedUsername,
+                    actor: req.admin,
+                });
+                await invalidateAdminReadCaches('operator_wallet_adjust');
+            }
         }
 
         if (req.admin) {

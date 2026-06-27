@@ -520,8 +520,8 @@ export async function buildAdminAllCommissionSummaryRows(parentBookies, subBooki
             getOperatorCommissionReport(bookie._id, {}),
             getPlatformRemainderReport({ rootOperatorId: bookie._id }),
         ]);
-        const adminCommissionPaid = 0;
-        const adminCommissionPending = platform.platformRemainder;
+        const { adminPaid: adminCommissionPaid, adminPending: adminCommissionPending } =
+            await getAdminShareSettlementForBookie(bookie._id, platform.platformRemainder);
 
         normalized.push({
             bookieId: bookie._id,
@@ -550,9 +550,9 @@ export async function buildAdminAllCommissionSummaryRows(parentBookies, subBooki
             betCount: directVol.betCount + subBetCount,
             totalBetAmount,
             totalCommission: report.totalEarned,
-            totalPaid: report.totalSettled,
+            totalPaid: adminCommissionPaid,
             totalPending: adminCommissionPending,
-            paymentStatus: report.paymentStatus,
+            paymentStatus: getAdminSharePaymentStatus(platform.platformRemainder, adminCommissionPaid),
             lastPaidAt: lastPaidMap[bookieId] || report.lastSettledAt || null,
             engineV2: true,
         });
@@ -885,9 +885,8 @@ export async function getParentReceivableCommissionFromSubBookie(superBookie) {
     const bookieCommissionPending = base.totalPending;
     const bookieCommissionSettled = base.totalPaid;
 
-    // Parent earned share from this child is informational (kept by parent); not tied to child payouts.
-    const parentRemainderPaid = 0;
-    const parentRemainderPending = parentRemainderAmount;
+    const { adminPaid: parentRemainderPaid, adminPending: parentRemainderPending } =
+        await getAdminShareSettlementForBookie(base.accountId, parentRemainderAmount);
 
     const [
         advancePaidInitial,
@@ -926,7 +925,7 @@ export async function getParentReceivableCommissionFromSubBookie(superBookie) {
         totalCommission: parentRemainderAmount,
         totalPaid: parentRemainderPaid,
         totalPending: parentRemainderPending,
-        paymentStatus: base.paymentStatus,
+        paymentStatus: getAdminSharePaymentStatus(parentRemainderAmount, parentRemainderPaid),
         parentRemainderPaymentStatus: getAdminSharePaymentStatus(parentRemainderAmount, parentRemainderPaid),
         lastPaidAt: base.lastPaidAt,
         advanceCommissionPaid,

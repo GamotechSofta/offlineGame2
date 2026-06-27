@@ -8,7 +8,7 @@ import { isBookiePanelRole } from '../utils/adminRoles.js';
 import { logActivity, getClientIp } from '../utils/activityLogger.js';
 import { emitUserWalletUpdate } from '../socket/walletSocketBridge.js';
 import { invalidateAdminReadCaches } from '../services/cacheInvalidationService.js';
-import { mirrorSuperBookieWalletForPlayerAdjust } from '../utils/operatorWalletService.js';
+import { mirrorOperatorWalletForPlayerAdjust } from '../utils/operatorWalletService.js';
 
 const getActorLabel = (admin) => {
     if (admin?.role === 'bookie') return 'Bookie';
@@ -191,10 +191,10 @@ export const adjustBalance = async (req, res) => {
             });
         }
 
-        const isSuperBookieActor = req.admin?.role === 'bookie';
+        const isOperatorPanelActor = isBookiePanelRole(req.admin);
         let wallet;
 
-        if (isSuperBookieActor) {
+        if (isOperatorPanelActor) {
             const session = await mongoose.startSession();
             try {
                 await session.withTransaction(async () => {
@@ -205,8 +205,8 @@ export const adjustBalance = async (req, res) => {
 
                     if (type === 'credit') {
                         const player = await User.findById(userId).select('username').session(session);
-                        await mirrorSuperBookieWalletForPlayerAdjust({
-                            superBookieId: req.admin._id,
+                        await mirrorOperatorWalletForPlayerAdjust({
+                            operatorAdminId: req.admin._id,
                             amount: numAmount,
                             type: 'credit',
                             playerUsername: player?.username || '',
@@ -222,8 +222,8 @@ export const adjustBalance = async (req, res) => {
                         }
                         wallet.balance -= numAmount;
                         const player = await User.findById(userId).select('username').session(session);
-                        await mirrorSuperBookieWalletForPlayerAdjust({
-                            superBookieId: req.admin._id,
+                        await mirrorOperatorWalletForPlayerAdjust({
+                            operatorAdminId: req.admin._id,
                             amount: numAmount,
                             type: 'debit',
                             playerUsername: player?.username || '',
@@ -336,12 +336,12 @@ export const setBalance = async (req, res) => {
             });
         }
 
-        const isSuperBookieActor = req.admin?.role === 'bookie';
+        const isOperatorPanelActor = isBookiePanelRole(req.admin);
         let wallet;
         let previousBalance;
         let diff;
 
-        if (isSuperBookieActor) {
+        if (isOperatorPanelActor) {
             const session = await mongoose.startSession();
             try {
                 await session.withTransaction(async () => {
@@ -357,8 +357,8 @@ export const setBalance = async (req, res) => {
                     if (diff !== 0) {
                         const player = await User.findById(userId).select('username').session(session);
                         const mirrorType = diff > 0 ? 'credit' : 'debit';
-                        await mirrorSuperBookieWalletForPlayerAdjust({
-                            superBookieId: req.admin._id,
+                        await mirrorOperatorWalletForPlayerAdjust({
+                            operatorAdminId: req.admin._id,
                             amount: Math.abs(diff),
                             type: mirrorType,
                             playerUsername: player?.username || '',

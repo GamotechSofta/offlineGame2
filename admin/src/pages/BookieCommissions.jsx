@@ -118,14 +118,14 @@ const getRowPending = (row) => {
 
 const getRowSettled = (row) => {
     if (row.accountLabel === 'parent') {
-        return Number(row.superBookieCommissionSettled ?? row.totalPaid ?? 0);
+        return Number(row.adminCommissionPaid ?? row.totalPaid ?? 0);
     }
     return Number(row.totalPaid ?? 0);
 };
 
 const getRowPayable = (row) => {
     if (row.accountLabel === 'parent') {
-        return Number(row.superBookieCommissionPending ?? 0);
+        return Number(row.adminCommissionPending ?? 0);
     }
     return Number(row.totalPending ?? 0);
 };
@@ -278,16 +278,12 @@ const BookieCommissions = () => {
             return;
         }
 
-        const today = new Date();
-        const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
         setSubmittingBookieId(bookieId);
         try {
             const response = await fetchWithAuth(`${API_BASE_URL}/daily-commission/bookie/${bookieId}/pay`, {
                 method: 'POST',
                 body: JSON.stringify({
                     paidAmount: amount,
-                    date,
                 }),
             });
             if (response.status === 401) return;
